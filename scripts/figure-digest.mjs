@@ -169,11 +169,11 @@ import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infras
 import { MIXES } from '../src/apps/investments/workbook/domain/mixGroup.ts'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
 import { investmentsHubFigures } from '../src/apps/investments/home/presentation/investmentsHubFigures.ts'
-import { assetsHubFigures } from '../src/apps/assets/home/presentation/assetsHubFigures.ts'
+import { assetsNetWorthParts } from '../src/apps/assets/home/domain/assetsNetWorthParts.ts'
 import { houseIndexOfAnswer } from '../src/apps/assets/houseIndex/infrastructure/dzsHouseIndex.ts'
 import { FAKE_HOUSE_INDEX_ANSWER } from '../src/apps/assets/houseIndex/infrastructure/fake/fakeHouseIndex.ts'
 import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans.ts'
-import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation/assetsOnDay.ts'
+import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/domain/assetsOnDay.ts'
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { rowLinksOf } from '../src/apps/spending/facts.ts'
@@ -682,8 +682,12 @@ function assetsGroups(add, loansBook) {
     add(`assets.asset-${place + 1}.equity`, [asset.link, asset.equity])
   }
   add('assets.totals', () => assetsTotal(workbook, today, index, loans))
-  add('assets.hub', () => assetsHubFigures(workbook, today, index, loans))
-  return () => assetsHubFigures(workbook, today, index, loans)
+  const hub = () => {
+    const total = assetsTotal(workbook, today, index, loans)
+    return total === null || total === 'opening' ? total : { parts: assetsNetWorthParts(total), notes: [] }
+  }
+  add('assets.hub', hub)
+  return hub
 }
 
 /** The rates an input needs as the page holds them: the fake ECB's through the rates file for a fake set, else the rates file given, or none. */

@@ -48,7 +48,7 @@ export function partCategoryRefusal(category: Category | undefined, categories: 
  * The entry in the parts you gave, one of them the rest, each signed as the entry is so they add up to it, filed by your word.
  * Any part may go under a category a row can take, For the company too, but never under a group with children or Between my
  * accounts. A part opened from one of the entry's parts keeps its id, the first part of an entry not yet split keeps the id of
- * its one item, and every part keeps the entry's link.
+ * its one item. A part the entry holds keeps its own link, and a new part takes the entry's link when it has one.
  */
 export function entrySplit(
   book: Pick<SpendingBook, 'categories' | 'receipts' | 'items'>,
@@ -73,6 +73,7 @@ export function entrySplit(
   const heldById = new Map(held.map((item) => [item.id, item]))
   const parts = drafts.map((draft, place): TransactionItem => {
     const id = draft.id ?? (whole !== null && place === 0 ? whole.id : recordIdOf(ITEM_RECORDS, newKey()))
+    const kept = heldById.get(id)
     return {
       id,
       transaction: row.id,
@@ -81,9 +82,9 @@ export function entrySplit(
       note: draft.note.trim(),
       amount: placed.parts[place]!,
       category: draft.category,
-      link,
-      labels: heldById.get(id)?.labels ?? [],
-      event: heldById.get(id)?.event ?? BY_DAYS,
+      link: kept === undefined ? link : kept.link,
+      labels: kept?.labels ?? [],
+      event: kept?.event ?? BY_DAYS,
       splitByLink: false,
     }
   })

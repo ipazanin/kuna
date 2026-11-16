@@ -179,8 +179,6 @@ const OPERATIONS_ON_PRESENTATION = [
   'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/assetTexts.ts',
   'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/loanChoices.ts',
   'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/valuationTexts.ts',
-  'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/values/presentation/assetsOnDay.ts',
-  'src/apps/assets/assistant/operations/proposalLines.ts -> src/apps/assets/values/presentation/assetsOnDay.ts',
   'src/apps/company/assistant/operations/proposalLines.ts -> src/apps/company/settings/presentation/vatTreatmentLabel.ts',
   'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/packs/hr-doo/presentation/editorColumns.ts',
   'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/settings/presentation/factTabColumns.ts',
@@ -244,8 +242,6 @@ const BRAND_OWNERS = [
 
 /** What the figure digest still reads from presentation. A figure belongs in domain, so this list only shrinks. */
 const FIGURES_IN_PRESENTATION = [
-  'src/apps/assets/home/presentation/assetsHubFigures.ts',
-  'src/apps/assets/values/presentation/assetsOnDay.ts',
   'src/apps/company/overview/presentation/waitingForYou.ts',
   'src/apps/investments/home/presentation/investmentsHubFigures.ts',
   'src/apps/investments/performance/presentation/performanceLinks.ts',

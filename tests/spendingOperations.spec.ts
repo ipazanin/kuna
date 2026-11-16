@@ -28,6 +28,7 @@ import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
@@ -717,6 +718,21 @@ describe('an entry’s link to Loans', () => {
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'unlink-entry', { entry: desk.ref('transaction', linked) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, linked)).toMatchObject({ link: null, category })
+  })
+
+  it("refuses to take a link off an entry whose parts link to different records, and sends the person to the entry's dialog", async () => {
+    const desk = await spendingDesk(used)
+    const entry = EXAMPLE_RECORDS['transaction']!
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry: desk.ref('transaction', entry), loan: 'Housing loan', due: '2026-11-15' })])
+    expect((await desk.accept()).kind).toBe('done')
+    const row = bookOf(desk).transactions.find((held) => held.id === entry)!
+    const [interest, ...rest] = bookOf(desk).items.filter((part) => part.transaction === entry)
+    const extra = { app: 'loans', kind: 'extra-payment', key: 'made-up-extra', due: null }
+    await desk.store.write('Relinked', (unit) => writeRows(unit, desk.store.state.records!, [{ before: row, after: row, items: [{ ...interest!, link: extra }, ...rest] }]))
+
+    const refused = await desk.propose([stepOf(SPENDING_OPERATIONS, 'unlink-entry', { entry: desk.ref('transaction', entry) })])
+
+    expect([refused.isError, refused.text]).toEqual([true, expect.stringContaining('parts link to different records')])
   })
 })
 

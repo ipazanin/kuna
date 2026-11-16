@@ -18,6 +18,8 @@ import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, MOVEME
 import { LOANS_APP } from './workbook/domain/loansApp'
 import type { LoanBook } from './workbook/domain/readLoanBook'
 
+export { LOANS_APP }
+
 /** A bank loan as another app reads it: what it is called and what you owe on it on the day. */
 export interface PublishedBankLoan {
   /** The loan's bare UUID, as a record that names it stores it. */

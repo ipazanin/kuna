@@ -1,6 +1,6 @@
 import { BY_DAYS } from './event'
 import { ITEM_RECORDS, LINE_RECORDS } from './spendingKinds'
-import { isSplit, largestItem, linkOfItems, rowItemsOf, wholeItemOf, wholeRowItemId } from './rowItems'
+import { isSplit, largestItem, linksOfItems, rowItemsOf, wholeItemOf, wholeRowItemId } from './rowItems'
 import type { SpendingBook } from './readSpendingBook'
 import { storedRowOf } from './transaction'
 import type { RowCells, StoredRow, Transaction } from './transaction'
@@ -84,8 +84,8 @@ export interface RowBeforeItems {
 /**
  * The row with its items as a file from before items stores them, written over the row as it stood, or null for a new row. Items
  * the write left as they were keep the row's cells and lines. One item that is not a receipt's line puts its category, note and
- * link on the row. Several go in lines, with the row under their main category and their link, and the row's note stays on the
- * row while one of them still begins with it.
+ * link on the row. Several go in lines, with the row under their main category and the first record they link to, since such a
+ * file keeps one link a row, and the row's note stays on the row while one of them still begins with it.
  */
 export function storedBeforeItems(row: Transaction, items: readonly TransactionItem[], before: RowBeforeItems | null): RowBeforeItems {
   const read = before === null ? null : itemsOfStoredRow(before.row, before.lines)
@@ -98,7 +98,7 @@ export function storedBeforeItems(row: Transaction, items: readonly TransactionI
   const rowNote = before?.row.note ?? ''
   const candidates = [largestItem(items), ...items].filter((item): item is TransactionItem => item !== null)
   const carrier = rowNote === '' ? undefined : candidates.find((item) => item.note === rowNote || item.note.startsWith(rowNote + NOTE_JOIN))
-  const cells: RowCells = { category: mainCategoryOf(items), note: carrier === undefined ? '' : rowNote, link: linkOfItems(items) }
+  const cells: RowCells = { category: mainCategoryOf(items), note: carrier === undefined ? '' : rowNote, link: linksOfItems(items)[0]?.link ?? null }
   const textOf = (item: TransactionItem): string => (item !== carrier ? item.note : item.note.slice(Math.min(item.note.length, rowNote.length + NOTE_JOIN.length)))
   return { row: storedRowOf(row, cells), lines: items.map((item) => lineOfItem(item, textOf(item))) }
 }

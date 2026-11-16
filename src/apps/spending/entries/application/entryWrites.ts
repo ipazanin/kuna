@@ -10,7 +10,8 @@ import type { RowWrite } from './rowRecords'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { EventChoice } from '../../workbook/domain/event'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import { isSplit, largestItem, linkOfItems, linkedItems, wholeItemOf } from '../../workbook/domain/rowItems'
+import type { RowLink } from '../../workbook/domain/rowLink'
+import { isSplit, largestItem, linkOfItems, unlinkedItems, wholeItemOf } from '../../workbook/domain/rowItems'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -138,9 +139,9 @@ export function linkEntries(
   for (const { row, target, currency } of links) categories = [...categories, ...linkEntry(unit, records, row, target, { ...place, currency, categories }, newKey).added]
 }
 
-/** Takes the link off every item of the entry. Its parts stay as they are, so principal an instalment split off stays principal. */
-export function unlinkEntry(unit: UnitOfWork, records: EntryRecords, row: Transaction): void {
-  writeRows(unit, records, [{ before: row, after: row, items: linkedItems(heldItemsOf(records)(row), null) }])
+/** Takes the link off the entry's parts that carry it, and parts linked elsewhere keep theirs. Its parts stay as they are, so principal an instalment split off stays principal. */
+export function unlinkEntry(unit: UnitOfWork, records: EntryRecords, row: Transaction, link: RowLink): void {
+  writeRows(unit, records, [{ before: row, after: row, items: unlinkedItems(heldItemsOf(records)(row), link) }])
 }
 
 /** Whether deleting these rows lets the next overlapping statement bring one back, since nothing remembers a deleted row's key. */

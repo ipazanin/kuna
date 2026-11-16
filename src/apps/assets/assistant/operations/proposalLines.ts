@@ -1,6 +1,6 @@
 import { words as assetWords } from '../../asset/presentation/words'
 import { words as valueWords } from '../../values/presentation/words'
-import type { LoansOnScreen } from '../../values/presentation/assetsOnDay'
+import type { LoansOnScreen } from '../../loans/application/assetLoans'
 import type { Asset } from '../../workbook/domain/asset'
 import { ASSET_RECORDS, VALUATION_RECORDS } from '../../workbook/domain/assetKinds'
 import type { AssetBook } from '../../workbook/domain/readAssetBook'

@@ -78,8 +78,8 @@ export interface SpendingReading {
   bankSetup(): BankSetup | null
   /** The text of the QR code on a photo, or null for none. Throws for a photo this browser cannot decode. */
   qrTextOn(photo: Blob): Promise<string | null>
-  /** The records in Loans a row can link to, as the screens read them. */
-  linkTargets(): AppTargets<LinkTarget>
+  /** The records of the app a link names, as the screens read them. */
+  linkTargets(app: string): AppTargets<LinkTarget>
 }
 
 /** The payments a receipt may be, as Entries, Add a receipt finds them, on the QR code's date and total when the photo holds one. */
@@ -171,9 +171,9 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
 }
 
 /** What a part's link names, as the chat reads it, or null for a part with none. */
-function linkRead(item: TransactionItem, loans: AppTargets<LinkTarget>): string | null {
+function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<LinkTarget>): string | null {
   if (item.link === null) return null
-  const read = linkStateOf(item.link, loans)
+  const read = linkStateOf(item.link, targetsOf(item.link.app))
   if (read.state === 'there') {
     const { target } = read
     switch (target.kind) {
@@ -216,8 +216,9 @@ const BUDGET_FIELDS: FieldDocs<Budget> = {
 }
 
 /** What the bank loan a rule's rows pay reads as, or null for a rule that names none. */
-function paidLoanRead(rule: SpendingRule, loans: AppTargets<LinkTarget>): string | null {
+function paidLoanRead(rule: SpendingRule, targetsOf: (app: string) => AppTargets<LinkTarget>): string | null {
   if (rule.link === null) return null
+  const loans = targetsOf(rule.link.app)
   if (loans === null) return words.reads.linkNotSetUp
   if (typeof loans === 'string') return words.reads.linkUnknown
   const { link } = rule
@@ -225,7 +226,7 @@ function paidLoanRead(rule: SpendingRule, loans: AppTargets<LinkTarget>): string
   return loan === undefined ? words.reads.linkGone : words.reads.linkBankLoan(loan.loanName)
 }
 
-const ruleFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<SpendingRule> => ({
+const ruleFields = (targetsOf: (app: string) => AppTargets<LinkTarget>): FieldDocs<SpendingRule> => ({
   id: { exposure: 'ref', to: RULE_RECORDS.name, meaning: 'The rule.' },
   order: { exposure: 'plain', meaning: 'The first rule that holds decides a row.' },
   condition: {
@@ -242,7 +243,7 @@ const ruleFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<SpendingRule
   link: {
     exposure: 'free-text',
     meaning: 'The bank loan its rows pay, or empty. Each row it files is linked to the instalment it pays and split into the interest under the category and the principal under Loan principal.',
-    read: (rule) => paidLoanRead(rule, loans()),
+    read: (rule) => paidLoanRead(rule, targetsOf),
   },
 })
 
@@ -281,7 +282,7 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
-const itemFields = (loans: () => AppTargets<LinkTarget>, events: () => readonly SpendingEvent[]): FieldDocs<TransactionItem> => ({
+const itemFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, events: () => readonly SpendingEvent[]): FieldDocs<TransactionItem> => ({
   id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand and for the one part of a whole entry.' },
@@ -292,7 +293,7 @@ const itemFields = (loans: () => AppTargets<LinkTarget>, events: () => readonly 
   link: {
     exposure: 'free-text',
     meaning: 'The record in another app this money is, such as the loan instalment it pays, or empty. It changes no figure: the part counts by its category.',
-    read: (item) => linkRead(item, loans()),
+    read: (item) => linkRead(item, targetsOf),
   },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
   event: {

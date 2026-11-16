@@ -1,4 +1,4 @@
-import type { LoansOnScreen } from '../../values/presentation/assetsOnDay'
+import type { LoansOnScreen } from '../../loans/application/assetLoans'
 import type { Asset } from '../../workbook/domain/asset'
 import type { AssetBook } from '../../workbook/domain/readAssetBook'
 import { words } from './words'

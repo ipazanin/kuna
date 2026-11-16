@@ -1,6 +1,6 @@
 import type { RouteLocationRaw } from 'vue-router'
 
-import { addExtraPayment, addMovement, publishedLoanTargets } from '../../../loans/facts'
+import { addExtraPayment, addMovement, LOANS_APP, publishedLoanTargets } from '../../../loans/facts'
 import type { PublishedLoanTargets } from '../../../loans/facts'
 import type { AppTargets, ExtraPaymentEffect, ExtraPaymentTarget, InformalLoanTarget, InstalmentTarget, LinkTarget, MovementKind, MovementTarget } from '../domain/linkTarget'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -50,6 +50,9 @@ export function loanTargets(): AppTargets<ShownTarget> {
   const published = publishedLoanTargets()
   return published === null || typeof published === 'string' ? published : loanTargetsFrom(published)
 }
+
+/** Loans, whose records a row can link to, under the app's id its links name. */
+export const LOAN_TARGETS = { app: LOANS_APP, targets: loanTargets } as const
 
 /** What a row adds to an informal loan in Loans. */
 export interface NewMovement {

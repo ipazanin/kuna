@@ -86,7 +86,7 @@ export function rowFiledBy(row: Transaction, merchant: string): Transaction {
  * which no statement fills, or on an account the bank fills no row at all, as it waits for the bank's. Its lines go in place of
  * any parts the row was split into by hand. When they do not add up to the row, or to minus the total of a receipt that
  * waits, as with a tip or a misread line, one Difference line in the main category shows what is left, and no line you confirmed changes.
- * Every line takes the link the row's items had.
+ * Every line takes the row's link when its items named one record, and none when they named several or none.
  */
 export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: readonly ReceiptPart[], newKey: () => string = newRecordId): ReceiptSplit {
   const merchant = draft.merchant.trim()

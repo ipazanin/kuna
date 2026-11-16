@@ -5,7 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { linkEntry, unlinkEntry } from '../../entries/application/entryWrites'
-import { loanTargets } from '../application/loanTargets'
+import { allTargets } from '../application/linkTargets'
 import type { ShownTarget } from '../application/loanTargets'
 import { beyondPlan, linkFiling, wholeLoanKindOf } from '../domain/instalmentSplit'
 import { targetsFor } from '../domain/linkTarget'
@@ -15,12 +15,13 @@ import { choiceText, words } from './words'
 import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Category } from '../../workbook/domain/category'
-import { isSplit, linkOfItems } from '../../workbook/domain/rowItems'
+import { isSplit, linksOfItems } from '../../workbook/domain/rowItems'
 import { rowLinkText } from '../../workbook/domain/rowLink'
+import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { words as spendingWords } from '../../words'
-import { absAccountMoney } from '../../../../shared/money/accountMoney'
+import { absAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
@@ -28,7 +29,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { language } from '../../../../shared/text/language'
 
-/** A saved entry's link to a record in Loans: the record it names with Remove, or a picker of records to link it to with Add to Loans. */
+/** A saved entry's links to records in other apps: each record its parts name with Remove, or a picker of records to link it to with Add to Loans. */
 const props = defineProps<{
   entry: Transaction
   /** The entry's items as the file holds them. */
@@ -55,19 +56,21 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
 const linkLineOf = useLinkLines()
-const heldLink = computed(() => linkOfItems(props.lines))
 const split = computed(() => isSplit(props.lines))
-const entryLink = computed(() => {
-  const link = heldLink.value
-  return link === null ? null : linkLineOf.value(link, { amount: props.entry.amount, currency: props.currency })
-})
+/** Each record the entry's parts link to, read against the money of the parts that link to it. */
+const entryLinks = computed(() =>
+  linksOfItems(props.lines).map(({ link, items }) => ({
+    link,
+    key: rowLinkText(link),
+    line: linkLineOf.value(link, { amount: sumAccountMoney(items.map((item) => item.amount)), currency: props.currency }),
+  })),
+)
 
-const loans = computed(() => loanTargets())
-/** The records of Loans the entry can be linked to, none while it has a link or Loans is not open. */
-const openTargets = computed((): readonly ShownTarget[] => {
-  const held = loans.value
-  return !props.linkable || heldLink.value !== null || held === null || typeof held === 'string' ? [] : held
-})
+const apps = computed(() => allTargets())
+/** The records the entry can be linked to in each app that is open, none while it has a link. */
+const openTargets = computed((): readonly ShownTarget[] =>
+  !props.linkable || entryLinks.value.length > 0 ? [] : apps.value.flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets)),
+)
 const linkTargets = computed(() => targetsFor(props.entry, props.currency, openTargets.value))
 const informalLoans = computed(() => openTargets.value.filter((target): target is ShownTarget & InformalLoanTarget => target.kind === 'informal-loan'))
 
@@ -105,33 +108,35 @@ async function addLink(): Promise<void> {
   if (await writes.write(words.linked, (unit) => linkEntry(unit, records, props.entry, target, place), { key: 'link', failedTitle: spendingWords.form.notSaved })) emit('done')
 }
 
-/** Takes the entry's link off, with Undo. The entry keeps its category and its parts. */
-async function removeLink(): Promise<void> {
+/** Takes the link off the entry's parts that carry it, with Undo. The entry keeps its category and its parts. */
+async function removeLink(link: RowLink): Promise<void> {
   const records = store.state.records
   if (records === null) return
-  if (await writes.write(words.removed, (unit) => unlinkEntry(unit, records, props.entry), { key: 'remove-link', failedTitle: spendingWords.form.notSaved })) emit('done')
+  if (await writes.write(words.removed, (unit) => unlinkEntry(unit, records, props.entry, link), { key: `remove-link-${rowLinkText(link)}`, failedTitle: spendingWords.form.notSaved })) emit('done')
 }
 </script>
 
 <template>
-  <UFormField v-if="entryLink !== null" :label="words.label" class="sm:col-span-2" data-testid="spending-entry-link">
-    <div class="flex flex-col items-start gap-1">
-      <NoteLine as="span" size="body" :tone="LINK_TONE[entryLink.look]" :icon="entryLink.icon">{{ entryLink.text }}</NoteLine>
-      <div class="flex flex-wrap gap-2">
-        <UButton v-if="entryLink.to !== null" :to="entryLink.to" :label="words.open" color="neutral" variant="link" :disabled="edited" class="px-0" data-testid="spending-entry-link-open" />
-        <UButton
-          :label="words.remove"
-          icon="i-lucide-unlink"
-          color="neutral"
-          variant="ghost"
-          :loading="writes.saving('remove-link')"
-          :disabled="writes.busy.value || writes.refused.value"
-          data-testid="spending-entry-link-remove"
-          @click="removeLink"
-        />
+  <template v-if="entryLinks.length > 0">
+    <UFormField v-for="{ key, link, line } in entryLinks" :key="key" :label="words.label" class="sm:col-span-2" data-testid="spending-entry-link">
+      <div class="flex flex-col items-start gap-1">
+        <NoteLine as="span" size="body" :tone="LINK_TONE[line.look]" :icon="line.icon">{{ line.text }}</NoteLine>
+        <div class="flex flex-wrap gap-2">
+          <UButton v-if="line.to !== null" :to="line.to" :label="words.open" color="neutral" variant="link" :disabled="edited" class="px-0" data-testid="spending-entry-link-open" />
+          <UButton
+            :label="words.remove"
+            icon="i-lucide-unlink"
+            color="neutral"
+            variant="ghost"
+            :loading="writes.saving(`remove-link-${key}`)"
+            :disabled="writes.busy.value || writes.refused.value"
+            data-testid="spending-entry-link-remove"
+            @click="removeLink(link)"
+          />
+        </div>
       </div>
-    </div>
-  </UFormField>
+    </UFormField>
+  </template>
   <UFormField v-else-if="linkItems.length > 0 || informalLoans.length > 0" :label="words.pickLabel" class="sm:col-span-2" data-testid="spending-entry-link-pick">
     <div class="flex flex-col items-start gap-2">
       <USelectMenu v-if="linkItems.length > 0" v-model="pickedLink" :items="linkItems" value-key="value" :placeholder="words.pick" class="w-full" data-testid="spending-entry-link-target" />

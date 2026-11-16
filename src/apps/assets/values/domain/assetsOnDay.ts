@@ -1,35 +1,40 @@
-import type { HouseIndexState } from '../../houseIndex/presentation/useHouseIndex'
-import type { AssetLoan } from '../../loans/application/assetLoans'
+import type { HouseIndexState } from '../../houseIndex/domain/houseIndex'
 import type { Asset } from '../../workbook/domain/asset'
 import type { AssetBook, AssetWithValuations } from '../../workbook/domain/readAssetBook'
 import type { Valuation } from '../../workbook/domain/valuation'
-import { assetValueOn, isEstimate, needsHouseIndex } from '../domain/assetValue'
-import type { AssetValue } from '../domain/assetValue'
-import { equityOf } from '../domain/equity'
-import type { Equity } from '../domain/equity'
+import { assetValueOn, isEstimate, needsHouseIndex } from './assetValue'
+import type { AssetValue } from './assetValue'
+import { equityOf } from './equity'
+import type { Equity } from './equity'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
-/** The bank loans as Assets has them on screen: the list, a wait while Loans opens, a failure, or null while Loans is not set up. */
-export type LoansOnScreen = readonly AssetLoan[] | 'opening' | 'failed' | null
+/** What an asset's figures read of a bank loan: its bare UUID and what you owe on it on the day, null while Loans cannot work out its plan. */
+export interface OwedLoan {
+  readonly key: string
+  readonly owed: Money | null
+}
+
+/** The bank loans on the day: the list, a wait while Loans opens, a failure, or null while Loans is not set up. */
+export type LoansOnDay<Loan extends OwedLoan = OwedLoan> = readonly Loan[] | 'opening' | 'failed' | null
 
 /**
  * How the loan an asset names stands: none named or Loans not set up, another asset naming it too, Loans still opening
  * or failed, the loan gone from Loans, or the loan.
  */
-export type LoanLink = { readonly kind: 'none' | 'shared' | 'opening' | 'failed' | 'gone' } | { readonly kind: 'linked'; readonly loan: AssetLoan }
+export type LoanLink<Loan extends OwedLoan = OwedLoan> = { readonly kind: 'none' | 'shared' | 'opening' | 'failed' | 'gone' } | { readonly kind: 'linked'; readonly loan: Loan }
 
 /** An asset on the day: its value and how it was reached, its loan, and what is counted and yours. */
-export interface AssetOnDay {
+export interface AssetOnDay<Loan extends OwedLoan = OwedLoan> {
   readonly asset: Asset
   readonly valuations: readonly Valuation[]
   readonly value: AssetValue | null
-  readonly link: LoanLink
+  readonly link: LoanLink<Loan>
   readonly equity: Equity
 }
 
-function linkOf({ asset, loanShared }: AssetWithValuations, loans: LoansOnScreen): LoanLink {
+function linkOf<Loan extends OwedLoan>({ asset, loanShared }: AssetWithValuations, loans: LoansOnDay<Loan>): LoanLink<Loan> {
   if (asset.loan === null || loans === null) return { kind: 'none' }
   if (loanShared) return { kind: 'shared' }
   if (typeof loans === 'string') return { kind: loans }
@@ -38,7 +43,7 @@ function linkOf({ asset, loanShared }: AssetWithValuations, loans: LoansOnScreen
 }
 
 /** Every asset of the book on the day, in the file's order. A house price index still loading or failed carries nothing. */
-export function assetsOnDay(book: Pick<AssetBook, 'assets'>, day: CivilDate, index: HouseIndexState, loans: LoansOnScreen): AssetOnDay[] {
+export function assetsOnDay<Loan extends OwedLoan>(book: Pick<AssetBook, 'assets'>, day: CivilDate, index: HouseIndexState, loans: LoansOnDay<Loan>): AssetOnDay<Loan>[] {
   const inHand = typeof index === 'object' ? index : null
   return book.assets.map((entry) => {
     const { asset, valuations } = entry
@@ -49,16 +54,16 @@ export function assetsOnDay(book: Pick<AssetBook, 'assets'>, day: CivilDate, ind
 }
 
 /** What the assets add up to on the day: their value, whether it includes an estimate, what is yours after each loan that is known, how many have no value, and whether a home's region waited on an index that failed. */
-export interface AssetsTotal {
+export interface AssetsTotal<Loan extends OwedLoan = OwedLoan> {
   readonly value: Money
   readonly estimated: boolean
-  readonly yoursAfter: readonly { readonly loan: AssetLoan; readonly yours: Money }[]
+  readonly yoursAfter: readonly { readonly loan: Loan; readonly yours: Money }[]
   readonly unvalued: number
   readonly indexFailed: boolean
 }
 
 /** The assets' total on the day, a wait while the house price index loads for a home with a region, or null for a file with no assets. */
-export function assetsTotal(book: Pick<AssetBook, 'assets'>, day: CivilDate, index: HouseIndexState, loans: LoansOnScreen): AssetsTotal | 'opening' | null {
+export function assetsTotal<Loan extends OwedLoan>(book: Pick<AssetBook, 'assets'>, day: CivilDate, index: HouseIndexState, loans: LoansOnDay<Loan>): AssetsTotal<Loan> | 'opening' | null {
   if (book.assets.length === 0) return null
   const indexWanted = needsHouseIndex(book)
   if (indexWanted && index === 'loading') return 'opening'

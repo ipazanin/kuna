@@ -64,13 +64,13 @@ A change that means to move a figure states it. Land it in a commit of its own, 
 
 ## Moving a figure out of presentation
 
-`src/apps/assets/values/presentation/assetsOnDay.ts` computes each asset's value and equity, and the digest imports it, so it is a rule in the wrong layer.
+A file on `FIGURES_IN_PRESENTATION` computes a figure in presentation, and the digest imports it, so it is a rule in the wrong layer. `src/apps/assets/values/domain/assetsOnDay.ts` is a finished example.
 
-1. Move it to `src/apps/assets/values/domain/`, with what it computes unchanged.
-2. Domain code imports only domain code, so the boundary spec now names its two outside imports: `HouseIndexState` from `presentation` and `AssetLoan` from `application`. Give the function a small domain type for what it reads, and let `presentation` and `application` hand that in.
-3. Leave `LoansOnScreen`'s `'opening'` and `'failed'` as a domain state only if a figure depends on them. Words for them stay in `presentation`.
-4. Update the importers, including `scripts/figure-digest.mjs`, and remove the file from `FIGURES_IN_PRESENTATION` in the boundary spec.
-5. Compare the digests. No key changed, so every group stays identical.
+1. Move what it computes to the feature's `domain/`, unchanged. Words and routes stay in `presentation`.
+2. Domain code imports only domain code. Give the function a small domain type for what it reads, and let `presentation` and `application` hand that in. A type parameter, such as `AssetOnDay<Loan extends OwedLoan>`, carries a richer record through to the screen.
+3. Keep a load state such as `'opening'` or `'failed'` in the domain type only if a figure depends on it. Words for it stay in `presentation`.
+4. Update the importers, including `scripts/figure-digest.mjs`, and remove the file from `FIGURES_IN_PRESENTATION` and `OPERATIONS_ON_PRESENTATION` in the boundary spec.
+5. Compare the digests. A group the digest built with words, such as a hub's label and caption, moves once it reads the domain parts. Name it and show that its figures are the same.
 
 ## The checks
 

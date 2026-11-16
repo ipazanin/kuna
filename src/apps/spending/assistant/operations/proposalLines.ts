@@ -83,12 +83,13 @@ function shownValue(
   record: ProposedRecord,
   book: SpendingBook,
   namesOf: ReadonlyMap<unknown, string>,
-  loans: AppTargets<LinkTarget>,
+  targetsOf: (app: string) => AppTargets<LinkTarget>,
   byDaysOf: (part: TransactionItem) => string | null,
 ): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
-  if ((isKind(kind, TRANSACTION_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'link') return record.link === null ? null : linkText(linkStateOf(record.link, loans))
+  if ((isKind(kind, TRANSACTION_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'link')
+    return record.link === null ? null : linkText(linkStateOf(record.link, targetsOf(record.link.app)))
   if (isKind(kind, ITEM_RECORDS, record) && field === 'labels') return record.labels.length === 0 ? null : record.labels.map((label) => namesOf.get(label) ?? label).join(', ')
   if (isKind(kind, ITEM_RECORDS, record) && field === 'event')
     return record.event === BY_DAYS ? words.proposals.byDays(byDaysOf(record)) : record.event === OUT_OF_EVENTS ? words.proposals.noEvent : (namesOf.get(record.event) ?? record.event)
@@ -232,7 +233,12 @@ export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
 }
 
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its group of entries, and a receipt on its group of receipts. */
-export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, loans: AppTargets<LinkTarget>, { leftOut, receipts, moves }: CardWarnings): readonly ProposalGroup[] {
+export function proposalGroupsOf(
+  checked: CheckedWrite,
+  before: SpendingBook,
+  targetsOf: (app: string) => AppTargets<LinkTarget>,
+  { leftOut, receipts, moves }: CardWarnings,
+): readonly ProposalGroup[] {
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
   const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
   const book = { ...before, accounts: [...before.accounts, ...added] }
@@ -263,7 +269,7 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, lo
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
-    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, loans, byDaysOf),
+    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, targetsOf, byDaysOf),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf, categoryOf, payeeOf),
     defaultsOf: defaultsOnAdd,
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),

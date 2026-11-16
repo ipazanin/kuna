@@ -41,7 +41,7 @@ import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, cardsOfText, rowsFromRefusal } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
-import { isSplit, itemizedRow, largestItem, linkOfItems, wholeItemOf } from '../../workbook/domain/rowItems'
+import { holdsLink, isSplit, itemizedRow, largestItem, linkOfItems, wholeItemOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind, isTransferCategory, transferCategoryOf } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
@@ -890,8 +890,11 @@ function plannedSteps(
       }
       case 'unlink-entry': {
         const row = rowOf(field['entry'])
-        if (linkOfItems(heldItemsOf(records())(row)) === null) throw new StepRefused('That entry has no link.')
-        unlinkEntry(unit, records(), row)
+        const held = heldItemsOf(records())(row)
+        const link = linkOfItems(held)
+        if (link === null && holdsLink(held)) throw new StepRefused("That entry's parts link to different records. The person takes each part's link off on the entry's dialog.")
+        if (link === null) throw new StepRefused('That entry has no link.')
+        unlinkEntry(unit, records(), row, link)
         break
       }
       case 'move-to-items': {
@@ -940,22 +943,15 @@ function plannedSteps(
   return { leftOut: null, receipts: receiptWarnings, moves }
 }
 
-/** What a plan hands its card: the records in Loans it linked entries to, and what the card warns on. */
-interface SpendingPlan {
-  readonly loans: AppTargets<LinkTarget>
-  readonly warnings: CardWarnings
-}
-
 /** How the chat's steps become one write of the Spending file. The card warns on what its own plan leaves out or doubts. A receipt photo kept on Drive stays there after Undo. */
-function spendingWork(appName: string, ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPhotos, SpendingPlan> {
+function spendingWork(appName: string, ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPhotos, CardWarnings> {
   return {
     appName,
     plan: (unit, books, steps, kept) => {
-      const loans = ports.linkTargets()
-      return { loans, warnings: planned(unit, books, steps, ports, loans, kept) }
+      return planned(unit, books, steps, ports, ports.loanTargets(), kept)
     },
-    card: (checked, { workbook }, { loans, warnings }, steps) => ({
-      groups: proposalGroupsOf(checked, workbook, loans, warnings),
+    card: (checked, { workbook }, warnings, steps) => ({
+      groups: proposalGroupsOf(checked, workbook, ports.linkTargets, warnings),
       outside: receiptsOutside(steps),
       heldBack: statementHeldBack(warnings.leftOut),
     }),
@@ -987,8 +983,10 @@ export interface SpendingDevice extends LastAccountPorts {
 export interface SpendingPorts {
   readonly receipts: ReceiptPorts
   readonly device: SpendingDevice
-  /** The records in Loans an entry can link to, as the screens read them. */
-  linkTargets(): AppTargets<LinkTarget>
+  /** The records of the app a link names, which the card reads the link's state against, as the screens do. */
+  linkTargets(app: string): AppTargets<LinkTarget>
+  /** The records in Loans an entry or a rule's rows can link to, which a step names by the loan's name. */
+  loanTargets(): AppTargets<LinkTarget>
 }
 
 /**

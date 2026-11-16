@@ -3,7 +3,7 @@ import { homeCardFigures } from '../../../../shared/app/homeCardFigures'
 import { today } from '../../../../shared/calendar/civilDate'
 import { plural } from '../../../../shared/text/translation'
 import { useHouseIndex } from '../../houseIndex/presentation/useHouseIndex'
-import { assetsTotal } from '../../values/presentation/assetsOnDay'
+import { assetsTotal } from '../../values/domain/assetsOnDay'
 import { useAssetsBooks } from '../../workbook/application/assetsStore'
 import { words } from './words'
 

@@ -374,7 +374,12 @@ export function deskPorts(receipts: ReceiptPorts = receiptPorts(), bankSetup: Ba
     setItem: (key: string, text: string) => stored.set(key, text),
     removeItem: (key: string) => stored.delete(key),
   })
-  return { receipts, device: { bankSetup: () => bankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount }, linkTargets: () => DESK_LOAN_TARGETS }
+  return {
+    receipts,
+    device: { bankSetup: () => bankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount },
+    linkTargets: () => DESK_LOAN_TARGETS,
+    loanTargets: () => DESK_LOAN_TARGETS,
+  }
 }
 
 /** A photo attached to the chat, of a few made-up bytes with no QR code and no place in them. */

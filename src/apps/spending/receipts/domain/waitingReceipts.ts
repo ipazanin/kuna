@@ -74,7 +74,7 @@ export function waitingReceipts(book: WaitingBook): readonly WaitingReceipt[] {
 
 /**
  * The waiting receipt on the row, which it files as `receiptSplit` files one: its lines go in place of the row's items and take
- * their link, and a line of `differenceText` under the category most of the receipt's money is in makes up what the bank booked
+ * the row's link when it has one, and a line of `differenceText` under the category most of the receipt's money is in makes up what the bank booked
  * beyond the total.
  */
 export function receiptOnRow(

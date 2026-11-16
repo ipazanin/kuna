@@ -4,7 +4,7 @@ import type { InstalmentTarget, LinkTarget, PaidLoan } from './linkTarget'
 import { inWindow, isNear, nearestTo } from '../../pairing/domain/sameMoney'
 import type { DatedMoney } from '../../pairing/domain/sameMoney'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { filedAsTransfer, linkOfItems, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, holdsLink, linksOfItems, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import { rowLinkText } from '../../workbook/domain/rowLink'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { InstalmentPutOff } from '../../workbook/domain/spendingSettings'
@@ -56,12 +56,11 @@ export function learnedPayees(book: Pick<SpendingBook, 'transactions' | 'items' 
   return [...book.transactions]
     .sort((earlier, later) => earlier.date.localeCompare(later.date))
     .flatMap((row): LearnedPayee[] => {
-      const items = itemsOf(row)
-      const link = linkOfItems(items)
+      const paid = linksOfItems(itemsOf(row)).find(({ link }) => link.due !== null)
       const condition = payeeCondition(row)
-      if (link === null || link.due === null || condition === null) return []
-      const interest = items.find((item) => item.category !== null && !repayments.has(item.category))?.category ?? null
-      return [{ loan: loanLinkOf(link), row, condition, interest }]
+      if (paid === undefined || condition === null) return []
+      const interest = paid.items.find((item) => item.category !== null && !repayments.has(item.category))?.category ?? null
+      return [{ loan: loanLinkOf(paid.link), row, condition, interest }]
     })
 }
 
@@ -112,7 +111,7 @@ export function instalmentOffers<Target extends LinkTarget>(book: OffersBook, ta
   const withReceipt = new Set(book.receipts.map((receipt) => receipt.transaction))
   const isTransfer = filedAsTransfer(book.categories)
   const rows = book.transactions.filter(
-    (row) => row.amount < 0 && euroAccounts.has(row.account) && row.pair === null && !withReceipt.has(row.id) && linkOfItems(itemsOf(row)) === null && !isTransfer(itemsOf(row)),
+    (row) => row.amount < 0 && euroAccounts.has(row.account) && row.pair === null && !withReceipt.has(row.id) && !holdsLink(itemsOf(row)) && !isTransfer(itemsOf(row)),
   )
   const instalments = targets
     .filter((target): target is Target & InstalmentTarget => target.kind === 'instalment' && target.due <= day && !linked.has(rowLinkText(target.link)))
@@ -194,7 +193,7 @@ export function extraPaymentOffers<Target extends LinkTarget>(
   const withReceipt = new Set(book.receipts.map((receipt) => receipt.transaction))
   const instalments = targets.filter((target): target is Target & InstalmentTarget => target.kind === 'instalment')
   return book.transactions.flatMap((row): ExtraPaymentOffer<Target & InstalmentTarget>[] => {
-    if (row.categorisedBy !== 'rule' || row.amount >= 0 || row.pair !== null || !euroAccounts.has(row.account) || withReceipt.has(row.id) || linkOfItems(itemsOf(row)) !== null) return []
+    if (row.categorisedBy !== 'rule' || row.amount >= 0 || row.pair !== null || !euroAccounts.has(row.account) || withReceipt.has(row.id) || holdsLink(itemsOf(row))) return []
     const loan = paidLoanOf(row)
     if (loan === null) return []
     const nearest = nearestTo(

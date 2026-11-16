@@ -1,6 +1,7 @@
 import { ITEM_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { Transaction } from './transaction'
 import type { TransactionItem } from './transactionItem'
+import { rowLinkText } from './rowLink'
 import type { RowLink } from './rowLink'
 import { BY_DAYS } from './event'
 import type { EventChoice } from './event'
@@ -59,14 +60,45 @@ export function refiledItems(items: readonly TransactionItem[], category: Record
   return items.map((item) => ({ ...item, category }))
 }
 
-/** Each of the row's items linked to the record in another app, or with its link taken off for null. */
-export function linkedItems(items: readonly TransactionItem[], link: RowLink | null): readonly TransactionItem[] {
+/** Each of the row's items linked to the record in another app, as linking a whole row links it. */
+export function linkedItems(items: readonly TransactionItem[], link: RowLink): readonly TransactionItem[] {
   return items.map((item) => ({ ...item, link }))
 }
 
-/** The link the row's items carry, or null. A write links every item of a row, so they share it. */
+/** The row's items with the link taken off the parts that carry it. Parts linked to another record keep theirs. */
+export function unlinkedItems(items: readonly TransactionItem[], link: RowLink): readonly TransactionItem[] {
+  const taken = rowLinkText(link)
+  return items.map((item) => (item.link !== null && rowLinkText(item.link) === taken ? { ...item, link: null } : item))
+}
+
+/** A record in another app that some of a row's parts are, with those parts. */
+export interface PartsLink<Item> {
+  readonly link: RowLink
+  readonly items: readonly Item[]
+}
+
+/** Each record the row's parts link to, in the order a part first names it, with the parts that do. */
+export function linksOfItems<Item extends Pick<TransactionItem, 'link'>>(items: readonly Item[]): readonly PartsLink<Item>[] {
+  const byLink = new Map<string, { readonly link: RowLink; readonly items: Item[] }>()
+  for (const item of items) {
+    if (item.link === null) continue
+    const key = rowLinkText(item.link)
+    const held = byLink.get(key)
+    if (held === undefined) byLink.set(key, { link: item.link, items: [item] })
+    else held.items.push(item)
+  }
+  return [...byLink.values()]
+}
+
+/** The row's link when it has one: the one record its parts link to, or null when none links or its parts link to different records. */
 export function linkOfItems(items: readonly Pick<TransactionItem, 'link'>[]): RowLink | null {
-  return items.find((item) => item.link !== null)?.link ?? null
+  const [only, ...more] = linksOfItems(items)
+  return only === undefined || more.length > 0 ? null : only.link
+}
+
+/** Whether any of the row's parts links to a record in another app. */
+export function holdsLink(items: readonly Pick<TransactionItem, 'link'>[]): boolean {
+  return items.some((item) => item.link !== null)
 }
 
 /** Whether a receipt or a person split the row: it has more than one item, or a receipt's line. */

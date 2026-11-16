@@ -4,15 +4,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { linkEntries, linkEntry, unlinkEntry, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
+import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import type { LinkPlace } from '../src/apps/spending/links/domain/instalmentSplit'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
 import { linkLineOf, targetLineOf } from '../src/apps/spending/links/presentation/linkLine'
 import { beyondPlan, linkFiling, linkedEntry, splitByInstalment } from '../src/apps/spending/links/domain/instalmentSplit'
 import type { InstalmentSplit } from '../src/apps/spending/links/domain/instalmentSplit'
-import { linkStateOf, movementKindsFor, targetsFor } from '../src/apps/spending/links/domain/linkTarget'
+import { linkStateOf, movementKindsFor, targetsFor, targetsIn } from '../src/apps/spending/links/domain/linkTarget'
 import type { InstalmentTarget, LinkTarget, LoanDirection, MovementKind } from '../src/apps/spending/links/domain/linkTarget'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
-import { waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
+import { holdsLink, linkOfItems, linksOfItems, unlinkedItems, waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
@@ -35,7 +36,7 @@ import { DESK_LOAN_TARGETS } from './fixtures/spendingDesk'
 import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, category, row, spendingBook, wholeItems } from './fixtures/spending'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
-import { receiptSplit } from '../src/apps/spending/receipts/domain/receiptSplit'
+import { receiptSplit, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow } from '../src/apps/spending/statements/domain/statementRows'
@@ -75,6 +76,57 @@ describe("a Spending row's link", () => {
     expect(linkStateOf({ ...october, due: on('2026-10-16') }, DESK_LOAN_TARGETS).state).toBe('gone')
     expect(linkStateOf({ ...october, due: null }, DESK_LOAN_TARGETS).state).toBe('gone')
     expect(linkStateOf({ ...october, app: 'company' }, DESK_LOAN_TARGETS).state).toBe('gone')
+  })
+
+  it("reads a link against the targets of the app it names, each app's wait or failure its own, and as gone for an app that publishes none", () => {
+    const october = { app: 'loans', kind: 'bank-loan', key: 'made-up-housing-loan', due: on('2026-10-15') }
+    const apps = [
+      { app: 'investments', targets: 'opening' as const },
+      { app: 'loans', targets: DESK_LOAN_TARGETS },
+    ]
+    expect(linkStateOf(october, targetsIn(apps, october.app)).state).toBe('there')
+    expect(linkStateOf({ ...october, app: 'investments' }, targetsIn(apps, 'investments')).state).toBe('opening')
+    expect(linkStateOf({ ...october, app: 'company' }, targetsIn(apps, 'company')).state).toBe('gone')
+  })
+
+  it("gives each record a row's parts link to with its parts, and the row's own link only when its parts name one record", () => {
+    const [whole] = wholeItems([row(OTP, '2026-11-20', -650, null)])
+    const instalment = { app: 'loans', kind: 'bank-loan', key: LOAN, due: on('2026-11-20') }
+    const extra = { app: 'loans', kind: 'extra-payment', key: 'made-up-extra', due: null }
+    const [first, second, third] = ['first', 'second', 'third'].map((key) => ({ ...whole!, id: recordIdOf(ITEM_RECORDS, key) }))
+    const parts = [
+      { ...first!, link: instalment },
+      { ...second!, link: extra },
+      { ...third!, link: { ...instalment } },
+    ]
+
+    expect(linksOfItems(parts)).toEqual([
+      { link: instalment, items: [parts[0], parts[2]] },
+      { link: extra, items: [parts[1]] },
+    ])
+    expect(linkOfItems(parts)).toBeNull()
+    expect(linkOfItems([parts[0]!, parts[2]!])).toEqual(instalment)
+    expect([holdsLink(parts), holdsLink([whole!]), linkOfItems([whole!])]).toEqual([true, false, null])
+    expect(unlinkedItems(parts, instalment).map((part) => part.link)).toEqual([null, extra, null])
+  })
+
+  it("gives a receipt's lines the row's link when its parts name one record, and no link when they name two", () => {
+    const paid = row(OTP, '2026-11-20', -650, 'Money and fees/Loan interest')
+    const [whole] = wholeItems([paid])
+    const instalment = { app: 'loans', kind: 'bank-loan', key: LOAN, due: on('2026-11-20') }
+    const extra = { app: 'loans', kind: 'extra-payment', key: 'made-up-extra', due: null }
+    const partsLinkedTo = (second: typeof extra | typeof instalment) => [
+      { ...whole!, id: recordIdOf(ITEM_RECORDS, 'interest'), amount: accountMoneyFromAmount(-250), link: instalment },
+      { ...whole!, id: recordIdOf(ITEM_RECORDS, 'principal'), amount: accountMoneyFromAmount(-400), link: second },
+    ]
+    const lines = [
+      { printed: 'RATA', note: 'rata', amount: accountMoneyFromAmount(-600), category: LOAN_INTEREST.id },
+      { printed: 'NAKNADA', note: 'naknada', amount: accountMoneyFromAmount(-50), category: GROCERIES.id },
+    ]
+    const linksOfLines = (held: ReturnType<typeof partsLinkedTo>) => receiptSplit(RECEIPT, rowPlace(paid, held), lines).lines.map((line) => line.link)
+
+    expect(linksOfLines(partsLinkedTo(instalment))).toEqual([instalment, instalment])
+    expect(linksOfLines(partsLinkedTo(extra))).toEqual([null, null])
   })
 
   it('names each record by the link Loans publishes with it, an informal loan followed by its movements', () => {
@@ -575,9 +627,26 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     await store.write('Linked', (unit) => linkEntry(unit, store.state.records!, book().transactions[0]!, INSTALMENT, { ...english, categories: book().categories }))
     const split = book().items
 
-    await store.write('Unlinked', (unit) => unlinkEntry(unit, store.state.records!, book().transactions[0]!))
+    await store.write('Unlinked', (unit) => unlinkEntry(unit, store.state.records!, book().transactions[0]!, INSTALMENT.link))
 
     expect(book().items).toEqual(split.map((part) => ({ ...part, link: null })))
+  })
+
+  it("takes one link off only the parts that carry it, so the other part keeps its own record's link", async () => {
+    const paid = row(OTP, '2026-11-20', -650, 'Money and fees/Loan interest')
+    const store = await fileWith([paid])
+    const book = () => store.state.workbook!
+    await store.write('Linked', (unit) => linkEntry(unit, store.state.records!, book().transactions[0]!, INSTALMENT, { ...english, categories: book().categories }))
+    const [interest, principal] = book().items
+    const extra = { app: 'loans', kind: 'extra-payment', key: 'made-up-extra', due: null }
+    await store.write('Relinked', (unit) =>
+      writeRows(unit, store.state.records!, [{ before: book().transactions[0]!, after: book().transactions[0]!, items: [interest!, { ...principal!, link: extra }] }]),
+    )
+
+    await store.write('Unlinked', (unit) => unlinkEntry(unit, store.state.records!, book().transactions[0]!, INSTALMENT.link))
+
+    // A file from before items keeps one link on the row, so there the other part never held its own.
+    expect(book().items.map((part) => part.link)).toEqual([null, shape === 'items' ? extra : null])
   })
 
   it('says a part was split off by the link until you split the row again by hand, even when a part stays under Loan principal', async () => {

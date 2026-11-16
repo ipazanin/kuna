@@ -2,10 +2,10 @@ import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-import { loanTargets } from '../application/loanTargets'
+import { allTargets } from '../application/linkTargets'
 import type { ShownTarget } from '../application/loanTargets'
 import { beyondPlan, beyondRecord } from '../domain/instalmentSplit'
-import { linkStateOf } from '../domain/linkTarget'
+import { linkStateOf, targetsIn } from '../domain/linkTarget'
 import type { AppTargets, LinkState, LinkTarget } from '../domain/linkTarget'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -57,20 +57,20 @@ export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
   return [linkText({ state: 'there', target }), ...amount, ...differs].join(', ')
 }
 
-/** The line a link reads as against Loans' records, with what the row paid above or below an instalment's plan. */
-export function linkLineOf(link: RowLink, loans: AppTargets<ShownTarget>, row: LinkedRow): LinkLine {
-  const read = linkStateOf(link, loans)
+/** The line a link reads as against its app's records, with what the row paid above or below an instalment's plan. */
+export function linkLineOf(link: RowLink, targets: AppTargets<ShownTarget>, row: LinkedRow): LinkLine {
+  const read = linkStateOf(link, targets)
   return { text: read.state === 'there' ? targetLineOf(read.target, row) : linkText(read), ...LOOKS[read.state], to: read.state === 'there' ? read.target.to : null }
 }
 
 /** The tone of a link's line by its look: muted while Loans waits, a warning while its record is missing. */
 export const LINK_TONE: Readonly<Record<LinkLook, 'muted' | 'warning' | undefined>> = { there: undefined, waiting: 'muted', missing: 'warning' }
 
-/** The line of each link, against the Loans file on screen, read once for every row. */
+/** The line of each link, against the files on screen of the apps it names, read once for every row. */
 export function useLinkLines(): ComputedRef<(link: RowLink, row: LinkedRow) => LinkLine> {
-  const loans = computed(() => loanTargets())
+  const apps = computed(() => allTargets())
   return computed(() => {
-    const held = loans.value
-    return (link, row) => linkLineOf(link, held, row)
+    const held = apps.value
+    return (link, row) => linkLineOf(link, targetsIn(held, link.app), row)
   })
 }

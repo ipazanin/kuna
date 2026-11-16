@@ -17,6 +17,9 @@ export type RegionIndex = ReadonlyMap<Quarter, number>
 
 export type HouseIndex = Readonly<Record<HouseRegion, RegionIndex>>
 
+/** The house price index while it loads, once it is in hand, or once its request failed. */
+export type HouseIndexState = 'loading' | HouseIndex | 'failed'
+
 /**
  * A value carried to a quarter by the index, the quarter of a value the index has not reached yet, or the index's first
  * quarter when the value is older than that.

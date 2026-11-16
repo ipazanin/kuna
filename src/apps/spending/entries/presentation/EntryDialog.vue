@@ -45,7 +45,7 @@ import type { EventChoice } from '../../workbook/domain/event'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Label } from '../../workbook/domain/label'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { isSplit, itemizedRow, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
+import { holdsLink, isSplit, itemizedRow, rowItemsOf } from '../../workbook/domain/rowItems'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
@@ -155,7 +155,7 @@ const entryCurrency = computed(() => (props.entry === null ? EURO : (accountOf(p
 /** What the entry's parts are: a receipt's lines, the plan's interest and principal its link split it into, or parts you made. */
 const splitNote = computed(() => {
   if (receipt.value !== null) return receiptWords.splitNote
-  const byLink = linkOfItems(entryLines.value) !== null && entryLines.value.some((line) => line.splitByLink)
+  const byLink = holdsLink(entryLines.value) && entryLines.value.some((line) => line.splitByLink)
   return byLink ? linkWords.splitNote : words.split.note
 })
 

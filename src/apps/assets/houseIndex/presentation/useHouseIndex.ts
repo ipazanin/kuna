@@ -1,13 +1,10 @@
 import { shallowRef, watch } from 'vue'
 import type { Ref } from 'vue'
 
-import type { HouseIndex } from '../domain/houseIndex'
+import type { HouseIndex, HouseIndexState } from '../domain/houseIndex'
 import { dzsHouseIndex } from '../infrastructure/dzsHouseIndex'
 import { needsHouseIndex } from '../../values/domain/assetValue'
 import { useAssetsBooks } from '../../workbook/application/assetsStore'
-
-/** The house price index while it loads, once it is in hand, or once its request failed. */
-export type HouseIndexState = 'loading' | HouseIndex | 'failed'
 
 const store = useAssetsBooks()
 const index = shallowRef<HouseIndexState>('loading')

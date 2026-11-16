@@ -17,6 +17,7 @@ import {
 } from './overview/presentation/spendingLinks'
 import { rowLinksOf } from './facts'
 import { toReviewCount } from './links/application/instalmentReview'
+import { targetsOf } from './links/application/linkTargets'
 import { loanTargets } from './links/application/loanTargets'
 import { companyOib, oibToMatch } from './receipts/application/companyOib'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
@@ -137,7 +138,7 @@ export const spendingApp: AppContribution = {
       },
       companyOib: () => oibToMatch(companyOib()),
     }
-    const ports: SpendingPorts = { receipts, device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount }, linkTargets: loanTargets }
+    const ports: SpendingPorts = { receipts, device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount }, linkTargets: targetsOf, loanTargets }
     return spendingAssistant(
       {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
@@ -145,7 +146,7 @@ export const spendingApp: AppContribution = {
         rates: () => everydayRates(rates.value),
         bankSetup: heldBankSetup,
         qrTextOn,
-        linkTargets: loanTargets,
+        linkTargets: targetsOf,
       },
       { proposer: spendingProposer(store, ports, file), acceptance: spendingAcceptance(store, ports, file) },
     )

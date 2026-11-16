@@ -251,7 +251,7 @@ import { assetsHubFigures, yoursCaption } from '../src/apps/assets/home/presenta
 import { houseIndexOfAnswer } from '../src/apps/assets/houseIndex/infrastructure/dzsHouseIndex.ts'
 import { FAKE_HOUSE_INDEX_ANSWER } from '../src/apps/assets/houseIndex/infrastructure/fake/fakeHouseIndex.ts'
 import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans.ts'
-import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation/assetsOnDay.ts'
+import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/domain/assetsOnDay.ts'
 import { valueCaption } from '../src/apps/assets/values/presentation/valueCaption.ts'
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'

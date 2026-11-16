@@ -82,6 +82,21 @@ describe('an entry split by hand', () => {
     expect(split.parts[0]!.id).toBe(wholeRowItemId(spend))
   })
 
+  it("keeps on each part it holds that part's own link, and gives a new part the entry's link only when its parts name one record", () => {
+    const movement = { app: 'loans', kind: 'movement', key: 'made-up-movement', due: null }
+    const extra = { app: 'loans', kind: 'extra-payment', key: 'made-up-extra', due: null }
+    const [whole] = wholeItems([spend])
+    const held = [
+      { ...whole!, amount: accountMoneyFromAmount(-60), link: movement },
+      { ...whole!, id: recordIdOf(ITEM_RECORDS, 'made-up-held'), amount: accountMoneyFromAmount(-40), link: extra },
+    ]
+    const drafts = [part(-50, GROCERIES, '', held[0]!.id), part(-30, GROCERIES, '', held[1]!.id), part('rest', RESTAURANTS)]
+    expect(splitOf(spend, drafts, { ...BOOK, items: held }).parts.map((piece) => piece.link)).toEqual([movement, extra, null])
+
+    const oneLink = held.map((piece) => ({ ...piece, link: movement }))
+    expect(splitOf(spend, drafts, { ...BOOK, items: oneLink }).parts.map((piece) => piece.link)).toEqual([movement, movement, movement])
+  })
+
   it('splits money in as money in', () => {
     const refund = row(OTP, '2026-11-04', 50, 'Income/Salary')
     expect(splitOf(refund, [part(10, GROCERIES), part('rest', SALARY)]).parts.map((held) => held.amount)).toEqual([accountMoneyFromAmount(10), accountMoneyFromAmount(40)])

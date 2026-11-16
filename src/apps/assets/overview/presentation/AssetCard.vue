@@ -5,7 +5,8 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { assetLink } from './assetLinks'
 import { words } from './words'
-import type { AssetOnDay } from '../../values/presentation/assetsOnDay'
+import type { AssetLoan } from '../../loans/application/assetLoans'
+import type { AssetOnDay } from '../../values/domain/assetsOnDay'
 import { valueCaption } from '../../values/presentation/valueCaption'
 import { words as valueWords } from '../../values/presentation/words'
 import type { AssetKind } from '../../workbook/domain/asset'
@@ -17,7 +18,7 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /** An asset on the Overview: its name, what it is worth today and how that was reached, and what is yours after its loan, opening the asset's page. */
 const props = defineProps<{
-  entry: AssetOnDay
+  entry: AssetOnDay<AssetLoan>
   /** The house price index is still loading for this asset. */
   waiting: boolean
 }>()

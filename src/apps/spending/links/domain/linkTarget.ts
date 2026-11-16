@@ -74,11 +74,22 @@ export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget 
 /** An app's targets, a wait while its file opens, a failure, or null while the app is not set up on this device. */
 export type AppTargets<Target> = readonly Target[] | 'opening' | 'failed' | null
 
+/** One app's targets under the app's id, as a row's link names it. */
+export interface TargetsOfApp<Target> {
+  readonly app: string
+  readonly targets: AppTargets<Target>
+}
+
+/** The targets of the app among every app's. An app that publishes none has no targets, so a link to it reads as gone. */
+export function targetsIn<Target>(apps: readonly TargetsOfApp<Target>[], app: string): AppTargets<Target> {
+  return apps.find((entry) => entry.app === app)?.targets ?? []
+}
+
 /** What a row's link reads as: the record it names, or why that record cannot be shown. A row whose target is not there counts by its category as any row does. */
 export type LinkState<Target> =
   { readonly state: 'there'; readonly target: Target } | { readonly state: 'opening' } | { readonly state: 'failed' } | { readonly state: 'not-set-up' } | { readonly state: 'gone' }
 
-/** The record a link names among the targets Loans publishes, each naming itself, or why it is not there. A link no target names reads as gone. */
+/** The record a link names among the targets its app publishes, each naming itself, or why it is not there. A link no target names reads as gone. */
 export function linkStateOf<Target extends { readonly link: RowLink }>(link: RowLink, targets: AppTargets<Target>): LinkState<Target> {
   if (targets === null) return { state: 'not-set-up' }
   if (targets === 'opening' || targets === 'failed') return { state: targets }
