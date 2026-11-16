@@ -663,6 +663,7 @@ function loanRows(twoBack: MonthKey, oneBack: MonthKey, day: CivilDate, idOf: (p
     link: null,
     labels: [],
     splitByLink: false,
+    event: BY_DAYS,
   })
   return {
     rows: [
