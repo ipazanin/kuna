@@ -232,8 +232,8 @@ const groupName = computed(() => {
   }
 }
 
-/* A phone or a small tablet has no room for a month's three figures on one line, so the figures move under the name. */
-@media (max-width: 767px) {
+/* A card narrower than a month's name and three figures on one line moves the figures under the name. Both lists that hold the heading are containers. */
+@container (max-width: 44rem) {
   .group-toggle {
     grid-template-columns: auto minmax(0, 1fr);
     row-gap: 0.375rem;
@@ -246,8 +246,9 @@ const groupName = computed(() => {
 
   .figures {
     grid-column: 2;
+    flex-wrap: wrap;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.25rem 0.75rem;
   }
 
   .share {

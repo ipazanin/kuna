@@ -99,7 +99,7 @@ function ownerPartNote(row: ListedRow): string | null {
 </script>
 
 <template>
-  <AppCard as="div" class="overflow-clip">
+  <AppCard as="div" class="@container overflow-clip">
     <p class="flex items-baseline justify-between gap-3 border-b border-default px-4 py-3 text-sm" data-testid="transaction-total">
       <span class="text-muted">{{ plural(words.rowsWithTotal(rows.length), rows.length) }}</span>
       <MoneyText :cents="total" class="font-semibold text-highlighted" />
