@@ -31,7 +31,7 @@ import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
@@ -153,7 +153,7 @@ const adding = ref(false)
         </FigureTable>
         <ul v-else class="flex flex-col py-2">
           <li v-for="row in section.rows" :key="row.account.id" class="border-t border-default first:border-t-0">
-            <ProposalRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
+            <ListRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
               <template #amount>
                 <span class="text-highlighted"><AccountMoneyText :cents="row.balance" :currency="row.account.currency" tone="balance" data-testid="spending-account-balance" /></span>
                 <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
@@ -169,7 +169,7 @@ const adding = ref(false)
               <template v-if="row.euro !== null && row.euro.caption !== ''" #details>
                 <span class="text-end type-caption">{{ row.euro.caption }}</span>
               </template>
-            </ProposalRow>
+            </ListRow>
           </li>
         </ul>
       </AppCard>

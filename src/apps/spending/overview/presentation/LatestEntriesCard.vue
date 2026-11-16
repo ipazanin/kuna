@@ -21,7 +21,7 @@ import type { RateBook } from '../../../../shared/money/rateBook'
 import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import { words as entryWords } from '../../entries/presentation/words'
 
 /**
@@ -99,12 +99,12 @@ function openEntry(picked: Transaction): void {
     </FigureTable>
     <ul v-else class="near-figures flex flex-col py-2">
       <li v-for="line in lines" :key="line.row.transaction.id" class="border-t border-default first:border-t-0">
-        <ProposalRow as="button" :title="line.title" :caption="line.caption" data-testid="spending-latest-row" @click="openEntry(line.row.transaction)">
+        <ListRow as="button" :title="line.title" :caption="line.caption" data-testid="spending-latest-row" @click="openEntry(line.row.transaction)">
           <template #amount>
             <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" :tone="rowTone(line.row.items, book.categories)" />
             <span v-if="line.euros !== ''" class="figure type-caption">{{ line.euros }}</span>
           </template>
-        </ProposalRow>
+        </ListRow>
       </li>
     </ul>
     <div class="px-4 pb-4 sm:px-5">

@@ -17,7 +17,7 @@ import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
@@ -333,7 +333,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                 data-testid="unplaced-payments"
               >
                 <ul class="near-figures divide-y divide-default">
-                  <ProposalRow v-for="payment in view.unplaced" :key="payment.key" :title="payment.client" :caption="words.panel.unplacedCaption(payment.date)" data-testid="unplaced-payment">
+                  <ListRow v-for="payment in view.unplaced" :key="payment.key" :title="payment.client" :caption="words.panel.unplacedCaption(payment.date)" data-testid="unplaced-payment">
                     <template #amount>
                       <DrillLink :to="payment.to" :label="words.panel.openCredit(payment.date, payment.client)">
                         <MoneyText :cents="payment.amount" tone="flow" class="font-medium" />
@@ -350,7 +350,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                       data-testid="unplaced-place"
                       @click="openInvoice(payment.invoice, payment.prefill)"
                     />
-                  </ProposalRow>
+                  </ListRow>
                 </ul>
               </AppCard>
 
