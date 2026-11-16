@@ -12,7 +12,7 @@ import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/p
 import { loansSetUp } from '../src/apps/loans/overview/presentation/loansSetUp'
 import { spendingSetUp } from '../src/apps/spending/overview/presentation/spendingSetUp'
 import { account, book, cashMovement } from './fixtures/investments'
-import { exampleStudio } from './fixtures/exampleStudio'
+import { emptyCompany } from './fixtures/emptyCompany'
 import { ledger } from './fixtures/ledger'
 
 function fakeRule(id: string, confidence: Rule['confidence']): Rule {
@@ -114,8 +114,7 @@ describe("the company's first rules", () => {
     ])
   })
 
-  const workbook = (rules: Workbook['rules']): Workbook =>
-    exampleStudio({ transactions: waitingRows, rules, categories: [], clients: [], accounts: [], settings: { ...DEFAULT_SETTINGS, statementsSync: false } })
+  const workbook = (rules: Workbook['rules']): Workbook => emptyCompany({ transactions: waitingRows, rules, settings: { ...DEFAULT_SETTINGS, statementsSync: false } })
 
   it('asks to teach who appears most after a first import, counting only what a rule filed', () => {
     const [line] = gettingSetUp(workbook([]), true).filter((candidate) => candidate.key === 'first-rules')

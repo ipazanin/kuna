@@ -1,7 +1,7 @@
 import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { Movement, MovementKind } from '../../workbook/domain/movement'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
 const RAISES: ReadonlySet<MovementKind> = new Set(['borrowed', 'borrowed-in-kind'])
@@ -9,6 +9,17 @@ const RAISES: ReadonlySet<MovementKind> = new Set(['borrowed', 'borrowed-in-kind
 /** Whether a movement of the kind raises what is owed, as borrowing does. Every other kind lowers it. */
 export function raisesWhatIsOwed(kind: MovementKind): boolean {
   return RAISES.has(kind)
+}
+
+const MOVES_MONEY: ReadonlySet<MovementKind> = new Set(['borrowed', 'repaid'])
+
+/**
+ * The money a movement moved through your accounts, above zero when it came to you: borrowing on a loan you owe and a repayment
+ * on a loan owed to you. A movement in kind or a forgiven amount moves no money, so it gives null.
+ */
+export function yourMoneyFrom(loan: Pick<InformalLoan, 'direction'>, movement: Pick<Movement, 'kind' | 'amount'>): Money | null {
+  if (!MOVES_MONEY.has(movement.kind)) return null
+  return RAISES.has(movement.kind) === (loan.direction === 'you-owe') ? movement.amount : negateMoney(movement.amount)
 }
 
 /** Oldest first, a day's movements in the order the file gives them. */

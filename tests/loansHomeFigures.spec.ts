@@ -27,7 +27,7 @@ describe("Loans' card on the Kuna home", () => {
   it('shows the net and what you owe for a bank loan alone', () => {
     expect(loansHomeFigures({ bankLoans: [bankBook(bankLoan())], informalLoans: [] }, DAY)).toEqual({
       amounts: [
-        { label: 'Net', cents: euros(-1200), sign: 'always', tint: '--loan-you-owe-tint' },
+        { label: 'Net', cents: euros(-1200), tone: 'outcome' },
         { label: 'You owe in all', cents: euros(1200) },
       ],
       waiting: null,
@@ -36,7 +36,7 @@ describe("Loans' card on the Kuna home", () => {
 
   it('shows the net and what is owed to you for money lent alone', () => {
     expect(loansHomeFigures({ bankLoans: [], informalLoans: [informalBook(TO_MARKO)] }, DAY).amounts).toEqual([
-      { label: 'Net', cents: euros(800), sign: 'always', tint: '--loan-owed-to-you-tint' },
+      { label: 'Net', cents: euros(800), tone: 'outcome' },
       { label: 'Owed to you', cents: euros(800) },
     ])
   })
@@ -44,13 +44,13 @@ describe("Loans' card on the Kuna home", () => {
   it('shows both sides under the net while each is above zero', () => {
     // 800.00 owed to you less 1,200.00 you owe.
     expect(loansHomeFigures({ bankLoans: [bankBook(bankLoan())], informalLoans: [informalBook(TO_MARKO)] }, DAY).amounts).toEqual([
-      { label: 'Net', cents: euros(-400), sign: 'always', tint: '--loan-you-owe-tint' },
+      { label: 'Net', cents: euros(-400), tone: 'outcome' },
       { label: 'You owe in all', cents: euros(1200) },
       { label: 'Owed to you', cents: euros(800) },
     ])
   })
 
-  it('shows the net alone and untinted when nothing is owed either way', () => {
-    expect(loansHomeFigures({ bankLoans: [], informalLoans: [] }, DAY).amounts).toEqual([{ label: 'Net', cents: euros(0), sign: 'always' }])
+  it('shows the net alone when nothing is owed either way', () => {
+    expect(loansHomeFigures({ bankLoans: [], informalLoans: [] }, DAY).amounts).toEqual([{ label: 'Net', cents: euros(0), tone: 'outcome' }])
   })
 })

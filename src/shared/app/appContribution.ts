@@ -40,8 +40,6 @@ export interface MenuCount {
 export type HomeAmount = {
   readonly label: string
   readonly cents: Money
-  /** The custom property of a light tint the figure sits on in ink, such as `--loan-you-owe-tint` for a position that says which way it runs. */
-  readonly tint?: `--${string}`
 } & MoneyLook
 
 /** What the app's card on the Kuna home shows while the app's books are on screen. */

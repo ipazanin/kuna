@@ -11,7 +11,7 @@ import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { createFakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
 import type { FakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
 import { finishDriveMove, findKunaFolder, isKunaFolderOfApp, kunaFolderOfApp, moveDriveDocument, planDriveMove, unfinishedMoveOf } from '../src/shared/storage/infrastructure/kunaFolder'
-import { exampleStudio } from './fixtures/exampleStudio'
+import { emptyCompany } from './fixtures/emptyCompany'
 
 const NOTHING: DriveFileBeside = { files: [], folders: [], stays: [] }
 
@@ -252,7 +252,7 @@ describe('moving only what Kuna made', () => {
 })
 
 describe('what the Company file takes along', () => {
-  const books = (settings: Partial<Workbook['settings']>) => exampleStudio({ settings: { ...DEFAULT_SETTINGS, ...settings } })
+  const books = (settings: Partial<Workbook['settings']>) => emptyCompany({ settings: { ...DEFAULT_SETTINGS, ...settings } })
 
   it('takes statements Kuna files from mail and rewrites the setting to the folder beside the file', () => {
     const workbook = books({ statementsFolder: ['work', 'statements'], statementsMailFrom: ['bank@example.com'] })

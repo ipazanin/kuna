@@ -18,7 +18,6 @@ import { bankLoanLink, informalLoanLink } from './loanLinks'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
-import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
 
@@ -48,8 +47,9 @@ export interface CompletedLoan {
   readonly to: RouteLocationRaw
 }
 
-/** The larger direction less the smaller, and the way it goes, null when the two are even. */
+/** What others owe you less what you owe, and the way it goes, null when the two are even. */
 export interface NetOwed {
+  /** Below zero while you owe more. */
   readonly amount: Money
   readonly direction: LoanDirection | null
 }
@@ -88,7 +88,7 @@ export function loansOverview(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
       }),
     ],
     totals,
-    net: { amount: net < 0 ? negateMoney(net) : net, direction: netDirection(net) },
+    net: { amount: net, direction: netDirection(net) },
   }
 }
 

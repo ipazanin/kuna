@@ -49,13 +49,9 @@ const to = computed(() => entryPath(props.app))
       <p v-else-if="figures === 'failed'" class="type-body" data-testid="home-card-failed">{{ words.failed }}</p>
       <template v-else-if="figures !== null">
         <dl class="flex flex-wrap gap-x-8 gap-y-3">
-          <div v-for="({ label, tint, ...figure }, index) in figures.amounts" :key="label" class="flex flex-col gap-1">
+          <div v-for="({ label, ...figure }, index) in figures.amounts" :key="label" class="flex flex-col gap-1">
             <dt class="type-label">{{ label }}</dt>
-            <dd
-              :class="[index === 0 ? 'type-figure' : 'type-figure-secondary', { '-mx-2 w-fit rounded-control px-2': tint !== undefined }]"
-              :style="tint === undefined ? undefined : { backgroundColor: `var(${tint})` }"
-              :data-tint="tint"
-            >
+            <dd :class="index === 0 ? 'type-figure' : 'type-figure-secondary'">
               <MoneyText v-bind="figure" :format="app.moneyFormat()" />
             </dd>
           </div>

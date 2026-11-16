@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { BankLoanFigures } from '../domain/bankLoanFigures'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { negateMoney } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useLoanWords } from './useLoanWords'
 
 /** The tiles under the bank loan's hero: the next payment, the subsidy's end, the payoff and this year's interest. */
@@ -20,7 +22,7 @@ const loanWords = useLoanWords()
   <DashboardGrid layout="tiles" data-testid="bank-loan-tiles">
     <KpiTile
       :label="loanWords.tiles.nextPayment"
-      :value="figures.next === null ? loanWords.tiles.none : formatMoney(figures.next.yourShare)"
+      :value="figures.next === null ? loanWords.tiles.none : formatMoney(negateMoney(figures.next.yourShare), 'always')"
       :caption="
         figures.next === null
           ? loanWords.tiles.planPaid
@@ -29,7 +31,9 @@ const loanWords = useLoanWords()
             : loanWords.tiles.onOf(dayLabel(figures.next.date), formatMoney(figures.next.payment))
       "
       :to="null"
-    />
+    >
+      <template v-if="figures.next !== null" #value><MoneyText :cents="negateMoney(figures.next.yourShare)" tone="flow" /></template>
+    </KpiTile>
     <KpiTile
       v-if="figures.subsidy !== null"
       :label="figures.subsidy.ended ? loanWords.tiles.subsidyEnded : loanWords.tiles.subsidyEnds"
@@ -49,10 +53,12 @@ const loanWords = useLoanWords()
     />
     <KpiTile
       :label="loanWords.tiles.interestIn(figures.interestThisYear.year)"
-      :value="formatMoney(figures.interestThisYear.interest)"
+      :value="formatMoney(negateMoney(figures.interestThisYear.interest), 'always')"
       :caption="figures.interestThisYear.subsidy > 0 ? loanWords.tiles.interestCovered(loanWords.subsidyPays(payer), formatMoney(figures.interestThisYear.subsidy)) : ''"
       :definition="loanWords.tiles.interestDefinition"
       :to="null"
-    />
+    >
+      <template #value><MoneyText :cents="negateMoney(figures.interestThisYear.interest)" tone="flow" /></template>
+    </KpiTile>
   </DashboardGrid>
 </template>

@@ -5617,7 +5617,7 @@ async function goHome(page, press, words = SCREEN_WORDS.en) {
   await screenTitled(page, words.homeTitle)
 }
 
-/** The cards of the home, read in the page: which app, whether it waits to be set up, its text, its lead figure, its tile's colour and where it leads. */
+/** The cards of the home, read in the page: which app, whether it waits to be set up, its text, its lead figure and its tone, its tile's colour and where it leads. */
 function homeCards() {
   return [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => ({
     app: card.dataset.app,
@@ -5625,7 +5625,7 @@ function homeCards() {
     text: card.textContent?.replace(/\s+/g, ' ').trim() ?? '',
     lead: card.querySelector('dt')?.textContent?.trim() ?? null,
     figure: card.querySelector('dd')?.textContent?.trim() ?? null,
-    tint: card.querySelector('dd')?.dataset.tint ?? null,
+    tone: ['text-success', 'text-error'].find((tone) => card.querySelector('dd .figure')?.classList.contains(tone)) ?? null,
     colour: card.querySelector('[data-testid="app-mark"]') === null ? null : getComputedStyle(card.querySelector('[data-testid="app-mark"]')).color,
     href: card.getAttribute('href'),
   }))
@@ -5921,7 +5921,7 @@ function centsIn(text, language) {
 
 /**
  * The home with the books of Company, Loans, Investments, Assets and Spending open: Company's card leads with the cash on hand
- * Overview shows and opens it, the Loans card with what others owe you less what you owe, on the tint of the way it runs, which the Loans Overview's Net tile says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, the Assets card with what the assets are worth, which its Overview's tile says too, and the Spending card with Bank and cash, which its Overview's accounts total says too. Each
+ * Overview shows and opens it, the Loans card with what others owe you less what you owe, in full red or green by the way it runs, which the Loans Overview's Net tile says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, the Assets card with what the assets are worth, which its Overview's tile says too, and the Spending card with Bank and cash, which its Overview's accounts total says too. Each
  * card tiles its icon in a colour of its own. From 1024 px the sidebar lists every app as their cards do, and its
  * Company row opens Overview.
  */
@@ -5943,7 +5943,7 @@ export function homeFlowIn(language) {
     )
       throw new Error(`the Loans card reads "${loans.text}"`)
     const owesOnBalance = (loans.figure ?? '').startsWith('−')
-    if (loans.tint !== (owesOnBalance ? '--loan-you-owe-tint' : '--loan-owed-to-you-tint')) throw new Error(`the Loans card's net ${loans.figure} sits on ${loans.tint}`)
+    if (loans.tone !== (owesOnBalance ? 'text-error' : 'text-success')) throw new Error(`the Loans card's net ${loans.figure} shows in ${loans.tone}`)
     const gain = new RegExp(`${words.investmentsHome.totalGain}[+−]?(?:€|\\d)`)
     if (investments.state !== 'open' || !investments.text.includes(words.investmentsHome.value) || !gain.test(investments.text) || !/€/.test(investments.figure ?? ''))
       throw new Error(`the Investments card reads "${investments.text}"`)

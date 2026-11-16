@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { informalBalanceOn, informalBalances, informalTotals, lastMovement } from '../src/apps/loans/informalLoans/domain/informalBalance'
+import { informalBalanceOn, informalBalances, informalTotals, lastMovement, yourMoneyFrom } from '../src/apps/loans/informalLoans/domain/informalBalance'
 import { civil, euros } from './fixtures/ledger'
 import { informalLoan, movement } from './fixtures/loans'
 
@@ -58,5 +58,19 @@ describe("an informal loan's balance", () => {
     const movements = [movement(loan, '2026-04-01', 'repaid', 100, 'first'), movement(loan, '2026-04-01', 'borrowed', 40, 'second')]
 
     expect(lastMovement(movements)?.id).toBe(movements[1]!.id)
+  })
+})
+
+describe('what a movement did to your own money', () => {
+  const kinds = ['borrowed', 'borrowed-in-kind', 'repaid', 'repaid-in-kind', 'forgiven'] as const
+
+  it('brings money in when you borrow and sends it out when you repay, on a loan you owe', () => {
+    const loan = informalLoan({ direction: 'you-owe' })
+    expect(kinds.map((kind) => yourMoneyFrom(loan, movement(loan, '2026-04-01', kind, 100)))).toEqual([euros(100), null, euros(-100), null, null])
+  })
+
+  it('sends money out when they borrow and brings it in when they repay, on a loan owed to you', () => {
+    const loan = informalLoan({ direction: 'owed-to-you' })
+    expect(kinds.map((kind) => yourMoneyFrom(loan, movement(loan, '2026-04-01', kind, 100)))).toEqual([euros(-100), null, euros(100), null, null])
   })
 })

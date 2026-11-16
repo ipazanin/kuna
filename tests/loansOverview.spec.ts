@@ -74,12 +74,12 @@ describe('the loans of the Overview', () => {
     // Before their first instalment on 5 Nov the bank loans owe their whole principal, against the 1,500.00 Petra still owes.
     const drawnInOctober = { drawdown: civil('2026-10-05'), firstInstalment: civil('2026-11-05') }
     expect(overviewOf([bankLoan(drawnInOctober)], [petraBehind], '2026-11-02').net).toEqual({ amount: euros(300), direction: 'owed-to-you' })
-    expect(overviewOf([bankLoan({ ...drawnInOctober, principal: euros(2000) })], [petraBehind], '2026-11-02').net).toEqual({ amount: euros(500), direction: 'you-owe' })
+    expect(overviewOf([bankLoan({ ...drawnInOctober, principal: euros(2000) })], [petraBehind], '2026-11-02').net).toEqual({ amount: euros(-500), direction: 'you-owe' })
 
     // Luka owes you 150.00, and you owe Sara 300.00 until you repay her 150.00.
     const toLukaOpen = { loan: toLuka, movements: [movement(toLuka, '2026-02-01', 'borrowed', 150)] }
     const fromSara = informalLoan({ id: recordIdOf(INFORMAL_LOAN_RECORDS, 'from-sara'), name: 'From Sara', counterparty: 'Sara', openingBalance: euros(300), start: civil('2026-01-02') })
-    expect(overviewOf([], [toLukaOpen, { loan: fromSara, movements: [] }], '2026-03-01').net).toEqual({ amount: euros(150), direction: 'you-owe' })
+    expect(overviewOf([], [toLukaOpen, { loan: fromSara, movements: [] }], '2026-03-01').net).toEqual({ amount: euros(-150), direction: 'you-owe' })
     expect(overviewOf([], [toLukaOpen, { loan: fromSara, movements: [movement(fromSara, '2026-02-10', 'repaid', 150)] }], '2026-03-01').net).toEqual({ amount: euros(0), direction: null })
   })
 

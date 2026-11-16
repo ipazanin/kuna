@@ -23,6 +23,7 @@ import { today, yearOf } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
@@ -31,6 +32,7 @@ import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
@@ -122,38 +124,46 @@ const addingInformal = ref(false)
           />
           <KpiTile
             :label="words.tiles.net"
-            :value="formatMoney(overview.net.amount)"
+            :value="formatMoney(overview.net.amount, 'always')"
             :caption="overview.net.direction === null ? words.tiles.netEven : overview.net.direction === 'you-owe' ? words.tiles.netYouOwe : words.tiles.netOwedToYou"
             icon="i-lucide-scale"
             :icon-tone="netLook?.tone"
             :to="null"
             data-testid="loans-net"
-          />
+          >
+            <template #value><MoneyText :cents="overview.net.amount" tone="outcome" /></template>
+          </KpiTile>
         </DashboardGrid>
         <DashboardGrid v-if="openCount >= 2 && planned.length > 0" layout="tiles" data-testid="loans-tiles">
           <KpiTile
             v-if="next"
             :label="words.tiles.nextPayment[paymentKindOf(next)]"
-            :value="formatMoney(next.yourShare)"
+            :value="formatMoney(negateMoney(next.yourShare), 'always')"
             :caption="nextPaymentCaption(next)"
             :to="null"
             data-testid="loans-next-payment"
-          />
+          >
+            <template #value><MoneyText :cents="negateMoney(next.yourShare)" tone="flow" /></template>
+          </KpiTile>
           <KpiTile
             :label="words.tiles.interestIn(year)"
-            :value="formatMoney(interestThisYear.interest)"
+            :value="formatMoney(negateMoney(interestThisYear.interest), 'always')"
             :caption="interestCaption(interestThisYear.subsidy)"
             :definition="words.tiles.interestDefinition"
             :to="null"
-          />
+          >
+            <template #value><MoneyText :cents="negateMoney(interestThisYear.interest)" tone="flow" /></template>
+          </KpiTile>
           <KpiTile
             :label="words.tiles.interestLeft"
-            :value="formatMoney(interestLeft.interest)"
+            :value="formatMoney(negateMoney(interestLeft.interest), 'always')"
             :caption="interestCaption(interestLeft.subsidy)"
             :definition="words.tiles.interestLeftDefinition"
             :to="null"
             data-testid="loans-interest-left"
-          />
+          >
+            <template #value><MoneyText :cents="negateMoney(interestLeft.interest)" tone="flow" /></template>
+          </KpiTile>
           <KpiTile
             v-if="debtFree"
             :label="freeOfAllDebt ? words.tiles.freeOfDebt : words.tiles.paidOff"

@@ -55,7 +55,8 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - An amount takes its look from its kind, as the Amounts table in [SKILL.md](SKILL.md) gives it: `tone="outcome"` for a real gain or loss in full green or red, `tone="flow"` for money in and out in the soft depth, `tone="balance"` for a balance in ink that turns full red below zero, and no tone for an amount with no direction.
 - A tone sets the sign, so a toned amount takes no `sign`. An amount in ink that reads positive for a cost uses `sign="magnitude"`, and a change in ink uses `sign="always"`.
 - A cost kept positive turns negative through `negateMoney` before it takes `flow`, since the tone reads the sign.
-- A net position, such as what others owe you less what you owe, is not a loss, so it never takes `outcome`. It shows signed with `sign="always"` in ink, on the light tint of the way it runs (`--loan-you-owe-tint` or `--loan-owed-to-you-tint`), with the two figures it comes from beside it. A side at zero is left out, as on the Loans home card. At zero it has no tint.
+- A net, such as what others owe you less what you owe, takes `outcome`: full red while you owe more and full green while you are owed more, with the two figures it comes from beside it in ink. A side at zero is left out, as on the Loans home card.
+- A movement of an informal loan takes `flow` by which way your money went, not by the sign of what is owed: borrowing on a loan you owe and a repayment on a loan owed to you come in, the other two go out, and a forgiven amount moves nothing and stays in ink.
 
 ## Dialogs
 

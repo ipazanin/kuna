@@ -7,12 +7,13 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { balanceChart } from '../../balances/presentation/balanceChart'
 import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { planStanding } from '../domain/expectedPlan'
+import { yourMoneyFrom } from '../domain/informalBalance'
 import { informalLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { Movement } from '../../workbook/domain/movement'
 import InformalLoanDialog from './InformalLoanDialog.vue'
 import { informalLoanChartMonths, informalLoanFigures } from '../domain/informalLoanFigures'
-import { MOVEMENT_KIND_NAMES, informalLoanMoves, movementLines, standingWords, whoOwes } from './informalLoanView'
+import { informalLoanMoves, movementLines, standingWords, whoOwes } from './informalLoanView'
 import MovementDialog from './MovementDialog.vue'
 import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -80,7 +81,11 @@ const planFacts = computed((): Fact[] => {
     next === null ? { label: words.plan.next, value: words.plan.nothingNext } : { label: words.plan.next, value: dayLabel(next.date), caption: formatMoney(next.amount) },
   ]
 })
-const lines = computed(() => (book.value === null ? [] : movementLines(book.value)))
+const lines = computed(() => {
+  const shownBook = book.value
+  return shownBook === null ? [] : movementLines(shownBook).map((line) => ({ ...line, yours: yourMoneyFrom(shownBook.loan, line.movement) }))
+})
+const lastLine = computed(() => lines.value[0] ?? null)
 const showAll = ref(false)
 const shown = computed(() => (showAll.value ? lines.value : lines.value.slice(0, FIRST_SHOWN)))
 
@@ -144,10 +149,15 @@ function openMovement(movement: Movement | null): void {
       <DashboardGrid layout="tiles">
         <KpiTile
           :label="words.tiles.lastMovement"
-          :value="figures.last === null ? words.tiles.noneYet : formatMoney(figures.last.amount)"
-          :caption="figures.last === null ? words.tiles.startedOn(dayLabel(book.loan.start)) : words.tiles.kindOn(MOVEMENT_KIND_NAMES[figures.last.kind], dayLabel(figures.last.date))"
+          :value="lastLine === null ? words.tiles.noneYet : formatMoney(lastLine.yours ?? lastLine.change, 'always')"
+          :caption="lastLine === null ? words.tiles.startedOn(dayLabel(book.loan.start)) : words.tiles.kindOn(lastLine.kind, dayLabel(lastLine.movement.date))"
           :to="null"
-        />
+        >
+          <template v-if="lastLine !== null" #value>
+            <MoneyText v-if="lastLine.yours === null" :cents="lastLine.change" sign="always" />
+            <MoneyText v-else :cents="lastLine.yours" tone="flow" />
+          </template>
+        </KpiTile>
         <KpiTile :label="words.tiles.since" :value="dayLabel(book.loan.start)" :caption="plural(words.tiles.movements(lines.length), lines.length)" :to="null" />
       </DashboardGrid>
       <DashboardGrid layout="pair">
@@ -180,7 +190,8 @@ function openMovement(movement: Movement | null): void {
               <div class="min-w-0 flex-1">
                 <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
                   <span class="text-highlighted">{{ line.kind }}</span>
-                  <MoneyText :cents="line.change" sign="always" />
+                  <MoneyText v-if="line.yours === null" :cents="line.change" sign="always" />
+                  <MoneyText v-else :cents="line.yours" tone="flow" />
                 </p>
                 <p class="text-xs text-muted">{{ [dayLabel(line.movement.date), line.movement.note].filter((part) => part !== '').join(', ') }}</p>
               </div>

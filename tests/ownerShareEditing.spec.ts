@@ -18,6 +18,12 @@ import type { CellValue } from '../src/apps/company/workbook/infrastructure/work
 import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { withIds } from './fixtures/rowIds'
+import { exampleStudio, STUDIO_ADVANCES } from './fixtures/exampleStudio'
+import { ledger } from './fixtures/ledger'
+import { category } from './fixtures/ownerShareExample'
+import { LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 const used = new Set<string>()
 
@@ -171,25 +177,21 @@ describe.each([
 })
 
 describe('what a save of the categories may fill', () => {
-  const rows = [
-    { counterparty: 'Desk', category: 'equipment', ownerShare: null },
-    { counterparty: 'Chair', category: 'equipment', ownerShare: share(0) },
-    { counterparty: 'Split', category: 'equipment', ownerShare: null },
-    { counterparty: 'Seats', category: 'ai-services', ownerShare: null },
-  ].map((row, index) => ({ ...row, date: '2026-10-01', account: 'main', id: `ledger-row:${index}` }))
-  const workbook = {
-    categories: [
-      { slug: 'equipment', ownerShare: null },
-      { slug: 'ai-services', ownerShare: share(50) },
-    ],
+  const rows = ledger(['Desk', 'Chair', 'Split', 'Seats'].map((counterparty) => ({ date: '2026-10-01', amount: -10, counterparty, category: counterparty === 'Seats' ? 'ai-services' : 'equipment' })))
+    .reverse()
+    .map((row, index) => ({ ...row, ownerShare: row.counterparty === 'Chair' ? share(0) : null, id: recordIdOf(LEDGER_RECORDS, String(index)) }))
+  const split = rows[2]!
+  const [advance] = STUDIO_ADVANCES
+  const advances = [
+    { ...advance!, category: 'equipment', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, 'a') },
+    { ...advance!, category: 'equipment', ownerShare: share(10), id: recordIdOf(OWNER_ADVANCE_RECORDS, 'b') },
+  ]
+  const workbook = exampleStudio({
+    categories: [category('equipment', 'operating'), category('ai-services', 'operating', [], share(50))],
     transactions: rows,
-    splits: [{ row: rows[2]!, parts: [{ category: 'equipment', ownerShare: null, id: 'split-part:a' }] }],
-    rowsKeptWhole: new Map(),
-    ownerAdvances: [
-      { category: 'equipment', ownerShare: null, id: 'owner-advance:a' },
-      { category: 'equipment', ownerShare: share(10), id: 'owner-advance:b' },
-    ],
-  } as unknown as Parameters<typeof shareFillsOf>[0]
+    splits: [{ row: split, parts: [{ amount: split.amount, category: 'equipment', family: 'operating', bucket: 'operating', note: '', ownerShare: null, id: recordIdOf(SPLIT_PART_RECORDS, 'a') }] }],
+    ownerAdvances: advances,
+  })
 
   it('fills only blank shares, and leaves the ledger cell of a split row to its parts', () => {
     expect(shareFillsOf(workbook, [{ slug: 'equipment', ownerShare: share(20) }])).toEqual([
@@ -199,19 +201,19 @@ describe('what a save of the categories may fill', () => {
         targets: [
           { holder: 'ledger', id: 'ledger-row:0' },
           { holder: 'split-part', id: 'split-part:a' },
-          { holder: 'owner-advance', id: 'owner-advance:a' },
+          { holder: 'owner-advance', id: advances[0]!.id },
         ],
       },
     ])
   })
 
   it('fills the ledger cell of a split row the pack keeps whole, and not its parts, which do not count', () => {
-    const keptWhole = { ...workbook, rowsKeptWhole: new Map([[rows[2]!.id, 'an asset claims it']]) } as unknown as Parameters<typeof shareFillsOf>[0]
+    const keptWhole = { ...workbook, rowsKeptWhole: new Map([[split.id, 'an asset claims it']]) }
 
     expect(shareFillsOf(keptWhole, [{ slug: 'equipment', ownerShare: share(20) }])[0]?.targets).toEqual([
       { holder: 'ledger', id: 'ledger-row:0' },
       { holder: 'ledger', id: 'ledger-row:2' },
-      { holder: 'owner-advance', id: 'owner-advance:a' },
+      { holder: 'owner-advance', id: advances[0]!.id },
     ])
   })
 
