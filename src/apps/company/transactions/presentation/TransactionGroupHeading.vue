@@ -6,6 +6,7 @@ import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { negateMoney } from '../../../../shared/money/money'
 import { formatPercent } from '../../../../shared/money/moneyFormat'
 import { pointsOfShare } from '../../../../shared/money/percent'
+import CutText from '../../../../shared/ui/CutText.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { inSentence } from '../../settings/domain/profitAndLossLabels'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
@@ -66,200 +67,66 @@ const groupName = computed(() => {
 </script>
 
 <template>
-  <button type="button" class="group-toggle" :aria-expanded="expanded" data-testid="group-toggle" @click="emit('toggle')">
-    <UIcon name="i-lucide-chevron-down" class="chevron" aria-hidden="true" />
+  <!-- A card narrower than a month's name and three figures on one line moves the figures under the name. Both lists that hold the heading are containers. -->
+  <!-- Below 640 px the group's name wraps, since a phone cannot long press a toggle to read a cut name. -->
+  <button
+    type="button"
+    class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 py-2.5 ps-3 pe-4 text-start text-[0.8125rem] text-highlighted transition-colors hover:bg-accented focus-visible:-outline-offset-2 @max-[44rem]:grid-cols-[auto_minmax(0,1fr)] @max-[44rem]:gap-y-1.5 @max-[44rem]:py-2"
+    :aria-expanded="expanded"
+    data-testid="group-toggle"
+    @click="emit('toggle')"
+  >
+    <UIcon name="i-lucide-chevron-down" class="size-4 text-muted transition-transform motion-reduce:transition-none" :class="{ '-rotate-90': !expanded }" aria-hidden="true" />
 
-    <span class="identity">
+    <span class="flex min-w-0 items-center gap-3 @max-[44rem]:gap-2">
       <template v-if="group.kind === 'category'">
-        <CategoryChip :category="group.category" :bucket="group.bucket" class="shrink min-w-0" />
-        <span class="meta">{{ bucketLabel }}</span>
+        <CategoryChip :category="group.category" :bucket="group.bucket" wraps-on-phone class="min-w-0 shrink" />
+        <span class="type-caption whitespace-nowrap">{{ bucketLabel }}</span>
       </template>
       <template v-else-if="group.kind === 'month'">
-        <span class="name">{{ groupName }}</span>
-        <span v-if="group.coverage !== 'complete'" class="meta inline-flex items-center gap-1.5">
-          <span class="incomplete-swatch" aria-hidden="true" />
+        <CutText class="min-w-0 font-medium max-sm:break-words max-sm:whitespace-normal">{{ groupName }}</CutText>
+        <span v-if="group.coverage !== 'complete'" class="inline-flex items-center gap-1.5 type-caption whitespace-nowrap">
+          <span class="swatch swatch-hatched" :style="{ '--swatch': 'var(--chart-deemphasis)' }" aria-hidden="true" />
           {{ group.coverage === 'month-so-far' ? words.group.monthSoFar : words.group.partMonth }}
         </span>
       </template>
       <template v-else>
-        <span class="name">{{ groupName }}</span>
-        <span v-if="group.iban" class="identifier meta truncate">{{ group.iban }}</span>
+        <CutText class="min-w-0 font-medium max-sm:break-words max-sm:whitespace-normal">{{ groupName }}</CutText>
+        <CutText v-if="group.iban" class="font-mono tracking-[-0.01em] type-caption max-sm:min-w-12 max-sm:flex-1">{{ group.iban }}</CutText>
       </template>
-      <span class="meta figure shrink-0">{{ rowCount }}</span>
+      <span class="figure shrink-0 type-caption whitespace-nowrap">{{ rowCount }}</span>
     </span>
 
-    <span class="figures">
+    <span class="flex items-center justify-end gap-5 @max-[44rem]:col-start-2 @max-[44rem]:flex-wrap @max-[44rem]:justify-between @max-[44rem]:gap-x-3 @max-[44rem]:gap-y-1">
       <template v-if="group.kind === 'month'">
-        <span class="figure-pair">
-          <span class="meta">{{ bucketLabels.income }}</span>
+        <span class="inline-flex items-baseline gap-1.5">
+          <span class="type-caption whitespace-nowrap">{{ bucketLabels.income }}</span>
           <MoneyText :cents="group.income" tone="flow" />
         </span>
-        <span class="figure-pair">
-          <span class="meta">{{ words.group.costs }}</span>
+        <span class="inline-flex items-baseline gap-1.5">
+          <span class="type-caption whitespace-nowrap">{{ words.group.costs }}</span>
           <MoneyText :cents="negateMoney(group.cost)" tone="flow" />
         </span>
-        <span class="figure-pair">
-          <span class="meta">{{ words.group.net }}</span>
+        <span class="inline-flex items-baseline gap-1.5">
+          <span class="type-caption whitespace-nowrap">{{ words.group.net }}</span>
           <MoneyText :cents="group.net" tone="outcome" class="font-medium" />
         </span>
       </template>
       <template v-else>
-        <span v-if="share" class="share" :title="words.group.shareOf(formatPercent(share.fraction), shareWhole)">
-          <span class="share-track" aria-hidden="true">
-            <span class="share-fill" :style="{ width: `${Math.min(100, Math.max(0, pointsOfShare(share.fraction)))}%`, background: shareColour }" />
+        <span
+          v-if="share"
+          class="inline-flex w-34 items-center gap-2 @max-[44rem]:w-auto @max-[44rem]:max-w-40 @max-[44rem]:flex-1"
+          :title="words.group.shareOf(formatPercent(share.fraction), shareWhole)"
+        >
+          <span class="h-1 flex-1 overflow-hidden rounded-xs bg-accented" aria-hidden="true">
+            <span class="block h-full rounded-xs" :style="{ width: `${Math.min(100, Math.max(0, pointsOfShare(share.fraction)))}%`, background: shareColour }" />
           </span>
-          <span class="figure share-figure">{{ formatPercent(share.fraction) }}</span>
+          <span class="figure w-12 text-end type-caption">{{ formatPercent(share.fraction) }}</span>
           <span class="sr-only">{{ words.group.ofWhole(shareWhole) }}</span>
         </span>
-        <span v-else class="share" aria-hidden="true" />
-        <MoneyText :cents="group.total" tone="flow" class="total font-medium" />
+        <span v-else class="inline-flex w-34 @max-[44rem]:w-auto @max-[44rem]:max-w-40 @max-[44rem]:flex-1" aria-hidden="true" />
+        <MoneyText :cents="group.total" tone="flow" class="min-w-26 text-end font-medium @max-[44rem]:min-w-0" />
       </template>
     </span>
   </button>
 </template>
-
-<style scoped>
-.group-toggle {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 0.625rem;
-  width: 100%;
-  padding: 0.625rem 1rem 0.625rem 0.75rem;
-  text-align: start;
-  font-size: 0.8125rem;
-  color: var(--ink-strong);
-  transition: background-color 120ms ease;
-}
-
-.group-toggle:hover {
-  background: var(--surface-accented);
-}
-
-.group-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.chevron {
-  width: 1rem;
-  height: 1rem;
-  color: var(--ink-muted);
-  transition: transform 150ms ease;
-}
-
-.group-toggle[aria-expanded='false'] .chevron {
-  transform: rotate(-90deg);
-}
-
-.identity {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.meta {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--ink-muted);
-  white-space: nowrap;
-}
-
-.incomplete-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  background: repeating-linear-gradient(45deg, var(--chart-hatch) 0 1.5px, transparent 1.5px 4px), var(--chart-deemphasis);
-}
-
-.figures {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1.25rem;
-}
-
-.figure-pair {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.375rem;
-}
-
-.share {
-  display: inline-flex;
-  width: 8.5rem;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.share-track {
-  flex: 1;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--surface-accented);
-}
-
-.share-fill {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-}
-
-.share-figure {
-  width: 3rem;
-  text-align: end;
-  font-size: 0.75rem;
-  color: var(--ink-muted);
-}
-
-.total {
-  min-width: 6.5rem;
-  text-align: end;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chevron {
-    transition: none;
-  }
-}
-
-/* A card narrower than a month's name and three figures on one line moves the figures under the name. Both lists that hold the heading are containers. */
-@container (max-width: 44rem) {
-  .group-toggle {
-    grid-template-columns: auto minmax(0, 1fr);
-    row-gap: 0.375rem;
-    padding: 0.5rem 1rem 0.5rem 0.75rem;
-  }
-
-  .identity {
-    gap: 0.5rem;
-  }
-
-  .figures {
-    grid-column: 2;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 0.25rem 0.75rem;
-  }
-
-  .share {
-    width: auto;
-    flex: 1;
-    max-width: 10rem;
-  }
-
-  .total {
-    min-width: 0;
-  }
-}
-</style>

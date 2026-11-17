@@ -5,6 +5,7 @@ import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { plural } from '../../shared/text/translation'
 import AppMark from '../../shared/ui/AppMark.vue'
+import CutText from '../../shared/ui/CutText.vue'
 import { words } from './words'
 
 defineOptions({ inheritAttrs: false })
@@ -44,7 +45,8 @@ withDefaults(
       <span v-else class="grid size-6 shrink-0 place-items-center">
         <UIcon :name="icon" class="size-4" aria-hidden="true" />
       </span>
-      <span :class="rail ? 'sr-only' : 'min-w-0 truncate'" data-testid="nav-label">{{ label }}</span>
+      <span v-if="rail" class="sr-only" data-testid="nav-label">{{ label }}</span>
+      <CutText v-else class="min-w-0" data-testid="nav-label">{{ label }}</CutText>
       <template v-if="count">
         <span class="nav-count figure" aria-hidden="true" data-testid="nav-count">{{ count }}</span>
         <span class="sr-only">{{ plural(words.navigation.waiting(count), count) }}</span>

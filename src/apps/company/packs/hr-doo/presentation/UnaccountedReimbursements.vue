@@ -11,6 +11,7 @@ import type { UnaccountedReimbursement } from '../domain/ownerAdvances'
 import type { AdvancePrefill } from './AdvanceDialog.vue'
 import { words } from './words'
 import { negateMoney } from '../../../../../shared/money/money'
+import CutText from '../../../../../shared/ui/CutText.vue'
 
 /** Payments to the owner that no cost on the owner-advances tab accounts for, newest first, each with a way to add its cost. */
 const props = defineProps<{
@@ -33,11 +34,11 @@ function addCost(line: UnaccountedReimbursement): void {
   <ul class="flex flex-col" data-testid="unaccounted-reimbursements">
     <li v-for="line in [...props.payments].reverse()" :key="listedRowKey(line.payment)" class="payment-row" data-testid="unaccounted-reimbursement">
       <div class="min-w-0">
-        <p class="truncate text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || words.unaccounted.reimbursement }}</p>
-        <p class="truncate text-xs text-muted">
+        <CutText as="p" class="text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || words.unaccounted.reimbursement }}</CutText>
+        <CutText as="p" class="text-xs text-muted">
           {{ words.unaccounted.paid(dayLabel(line.payment.date))
           }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> {{ words.unaccounted.partOf }} <MoneyText :cents="negateMoney(line.payment.amount)" /></template>
-        </p>
+        </CutText>
       </div>
       <DrillLink :to="drillLocation(line.drill)" :label="words.unaccounted.openRow(dayLabel(line.payment.date))" class="text-end">
         <MoneyText :cents="line.amount" class="text-sm font-medium text-highlighted" />

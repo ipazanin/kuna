@@ -8,6 +8,7 @@ import FiltersSheet from '../../../../shared/ui/FiltersSheet.vue'
 import { PAGE_TAB_ACTIONS } from '../../../../shared/ui/PageTabs.vue'
 
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { useSettings } from '../../settings/application/useSettings'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { isDefinedBucket } from '../../workbook/domain/bucket'
@@ -88,7 +89,7 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
         <FilterChipRow v-if="chips.length" :chips="chips" @remove="removeChip" @clear="clearChips" />
       </div>
     </FiltersSheet>
-    <p v-if="showPeriod" class="figure min-w-0 truncate text-sm text-muted" data-testid="period-range">{{ periodInWords(period, window) }}</p>
+    <CutText v-if="showPeriod" as="p" class="figure min-w-0 text-sm text-muted" data-testid="period-range">{{ periodInWords(period, window) }}</CutText>
   </div>
   <div v-else ref="bar" class="filter-bar" data-testid="filter-bar">
     <PeriodBar v-if="showPeriod" v-model:period="period" :window="window" v-bind="presets === undefined ? {} : { presets }" />

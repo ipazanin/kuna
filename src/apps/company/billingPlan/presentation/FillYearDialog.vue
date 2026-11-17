@@ -14,6 +14,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingItemDraft, RestOfYearFill } from '../domain/fillRestOfYear'
 import { plural } from '../../../../shared/text/translation'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { words } from './words'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -69,7 +70,7 @@ async function write(): Promise<void> {
           <li v-for="row in rows" :key="keyOf(row)" class="fill-row" data-testid="fill-row">
             <span class="swatch" :style="{ background: colours.get(row.item) ?? 'var(--chart-deemphasis)' }" aria-hidden="true" />
             <span class="min-w-0">
-              <span class="block truncate text-sm text-highlighted">{{ row.item }}</span>
+              <CutText class="block text-sm text-highlighted">{{ row.item }}</CutText>
               <span class="figure block text-xs text-muted">{{ dayLabel(row.date) }}</span>
             </span>
             <MoneyText :cents="row.amount" class="text-sm text-toned" />

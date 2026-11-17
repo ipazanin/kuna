@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import CutText from './CutText.vue'
+
 /** A pill that names something picked, and removes it when pressed anywhere on it. It may lead with an icon. */
 defineProps<{
   label: string
@@ -17,7 +19,6 @@ const emit = defineEmits<{
 
 <template>
   <UButton
-    :label="label"
     :icon="icon"
     :loading="loading"
     trailing-icon="i-lucide-x"
@@ -27,5 +28,7 @@ const emit = defineEmits<{
     class="max-w-64 shrink-0 rounded-full"
     :aria-label="removeLabel"
     @click="emit('remove')"
-  />
+  >
+    <CutText class="min-w-0">{{ label }}</CutText>
+  </UButton>
 </template>

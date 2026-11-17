@@ -4,6 +4,7 @@ import UPopover from '@nuxt/ui/components/Popover.vue'
 import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { companyFooter, words } from './words'
+import CutText from '../ui/CutText.vue'
 
 withDefaults(
   defineProps<{
@@ -41,7 +42,8 @@ const termsPage = `${import.meta.env.BASE_URL}terms.html`
           data-testid="company-footer-open"
         >
           <span class="company-logo shrink-0" aria-hidden="true" data-testid="company-logo"></span>
-          <span :class="look === 'rail' ? 'sr-only' : 'line-clamp-2 min-w-0'">{{ companyFooter.name }}</span>
+          <span v-if="look === 'rail'" class="sr-only">{{ companyFooter.name }}</span>
+          <CutText v-else :lines="2" class="min-w-0">{{ companyFooter.name }}</CutText>
         </button>
       </UTooltip>
       <template #content>

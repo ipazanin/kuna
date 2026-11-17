@@ -29,6 +29,7 @@ import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
 import type { Money } from '../../../../../shared/money/money'
+import CutText from '../../../../../shared/ui/CutText.vue'
 
 /** Each loan to the owner, newest first, with the repayments the matching gave it. */
 defineProps<{
@@ -54,7 +55,7 @@ defineProps<{
           <template v-else>{{ words.loanList.nothingLent }}</template>
         </p>
       </div>
-      <p v-if="loan.part !== null" class="truncate text-xs text-muted">{{ loan.part }}</p>
+      <CutText v-if="loan.part !== null" as="p" class="text-xs text-muted">{{ loan.part }}</CutText>
       <ol v-if="loan.repayments.length > 0" class="loan-trail" :aria-label="words.loanList.matched(loan.lentOn)">
         <li v-for="repayment in loan.repayments" :key="repayment.key">
           <DrillLink :to="repayment.to" :label="words.loanList.repaymentRow(repayment.date)" class="loan-share">

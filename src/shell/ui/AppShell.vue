@@ -21,6 +21,7 @@ import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, PAGE_INSET, pageInsetOf, SIDEBAR_W
 import SidebarLayoutMenu from './SidebarLayoutMenu.vue'
 import ThemeAndLanguageMenu from './ThemeAndLanguageMenu.vue'
 import { words } from './words'
+import CutText from '../../shared/ui/CutText.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -303,7 +304,7 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
         </template>
       </USlideover>
       <AppBrand v-if="phone" :title="screenTitle" :icon="appOnScreen?.icon" :colour="appOnScreen?.colour" data-testid="top-bar-title" />
-      <span v-else class="truncate type-wordmark">{{ title }}</span>
+      <CutText v-else class="type-wordmark">{{ title }}</CutText>
       <!-- The screen's name gives way, so the sync or export controls keep their labels. -->
       <div class="ms-auto flex shrink-0 items-center gap-1">
         <UButton

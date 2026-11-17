@@ -65,7 +65,6 @@
     "src/apps/company/transactions/presentation/CategoryChip.vue",
     "src/apps/company/transactions/presentation/SessionChanges.vue",
     "src/apps/company/transactions/presentation/TransactionCards.vue",
-    "src/apps/company/transactions/presentation/TransactionGroupHeading.vue",
     "src/shared/storage/presentation/BooksFileCard.vue",
     "src/shared/ui/AppCard.vue",
     "src/shared/ui/ChartLegend.vue",

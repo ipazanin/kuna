@@ -46,6 +46,7 @@ import type { MessageOrigin } from './chatSession'
 import { anonymisingNow, providerInUse } from './aiProvider'
 import { useCaretInView } from './useCaretInView'
 import { words } from './words'
+import CutText from '../../ui/CutText.vue'
 
 /**
  * The chat beside the page or in its place, labelled with the app on screen. It knows this version of Kuna, and it asks
@@ -268,7 +269,7 @@ function dropped(event: DragEvent): void {
     </div>
     <header class="flex min-h-14 items-center gap-2 border-b border-default px-3 py-1.5">
       <AppMark v-if="app && !phone" :icon="app.homeCard.icon" :colour="app.colour" />
-      <p class="min-w-0 flex-1 truncate type-label" data-testid="chat-label">{{ app ? words.chat.inApp(app.name) : words.chat.inKuna }}</p>
+      <CutText as="p" class="min-w-0 flex-1 type-label" data-testid="chat-label">{{ app ? words.chat.inApp(app.name) : words.chat.inKuna }}</CutText>
       <UButton
         v-if="chatLines.length > 0"
         icon="i-lucide-square-pen"

@@ -16,6 +16,7 @@ import { listed, plural } from '../../text/translation'
 import SyncStepList from './SyncStepList.vue'
 import { words as appWords } from '../../app/words'
 import { words } from './words'
+import CutText from '../../ui/CutText.vue'
 
 /**
  * The sync control: what the sync is doing, Sign in to Google or Allow access while the page lacks
@@ -200,15 +201,12 @@ function syncAgain(): void {
     <p v-if="compact" class="sr-only" role="status">
       {{ saving ? appWords.saving : control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}
     </p>
-    <p
-      v-else
-      class="w-full min-w-0 text-xs"
-      :class="{ 'font-medium text-error': control.kind === 'problems', 'text-muted': control.kind !== 'problems', truncate: control.kind === 'ready' || control.kind === 'running' || saving }"
-      role="status"
-      data-testid="sync-line"
-    >
-      <time v-if="control.kind === 'ready' && syncedAt && !saving" :datetime="control.syncedAt ?? undefined" :title="fullStamp(syncedAt)" class="figure">{{ statusLine }}</time>
-      <span v-else>{{ statusLine }}</span>
+    <p v-else class="w-full min-w-0 text-xs" :class="control.kind === 'problems' ? 'font-medium text-error' : 'text-muted'" role="status" data-testid="sync-line">
+      <CutText v-if="control.kind === 'ready' || control.kind === 'running' || saving" class="block">
+        <time v-if="control.kind === 'ready' && syncedAt && !saving" :datetime="control.syncedAt ?? undefined" class="figure">{{ statusLine }}</time>
+        <template v-else>{{ statusLine }}</template>
+      </CutText>
+      <template v-else>{{ statusLine }}</template>
     </p>
     <UTooltip :text="label" :disabled="!rail" :content="{ side: 'right' }">
       <UButton

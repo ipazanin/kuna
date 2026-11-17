@@ -24,6 +24,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
+import CutText from '../../../../../../shared/ui/CutText.vue'
 
 /** One figure per year, which opens on the charge of each asset behind it. */
 const props = defineProps<{
@@ -55,7 +56,7 @@ const WHEN = { past: '', current: words.years.thisYear, ahead: words.years.toCom
       <ul v-if="open.has(line.year)" :id="`depreciation-${line.year}`" class="charge-list">
         <li v-for="charge in line.charges" :key="charge.key" class="charge-row">
           <div class="min-w-0">
-            <p class="truncate text-sm text-toned">{{ charge.asset }}</p>
+            <CutText as="p" class="text-sm text-toned">{{ charge.asset }}</CutText>
             <p class="text-xs text-muted">
               {{ charge.basis }}<template v-if="charge.deductible !== null">{{ words.years.deductible }}<MoneyText :cents="charge.deductible" /></template>
             </p>

@@ -22,6 +22,9 @@
  * and a row of a table under a column heading passes. At 1024, 1440 and 1920 px no row of a dashboard grid leaves more than 16 px empty.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
  * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
+ * Nor may any text be cut short outside `CutText`, which shows the full text, other than what `CUT_TEXT_ALLOWED` there lists with its reason.
+ * The gallery's cut text shows its full text only while cut, on hover and on keyboard focus, and the sidebar shows a long company name cut, with room above the first page and the full name on hover.
+ * Transactions grouped by month, by category and by counterparty wraps each group's name below 640 px.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
  * On every screen and at every step of a flow in Croatian it fails on English left on the page,
  * other than the data `support/englishLeft.mjs` lets through by name. Every flow has a Croatian run,
@@ -581,6 +584,7 @@ import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
 import { SAMPLE_DAY, writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { chatResizeFlow, menuLitFlow, quickJumpFlowIn, shellSqueezeFlow, sidebarRoomWarningFlowIn, sidebarStateFlowIn, skipLinkFlow } from './support/shellFlows.mjs'
+import { cutSidebarFlowIn, cutTextFlow, transactionGroupsFlowIn } from './support/cutTextFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -9704,6 +9708,35 @@ const FLOWS = [
     queries: { drive: '&loans=sample&investments=sample&assets=sample&spending=sample' },
   },
   { name: 'skip-link', hash: '#/company', title: 'Overview', run: skipLinkFlow(), viewports: ['phone', 'desktop'], modes: ['drive'], queries: { drive: '' } },
+  { name: 'cut-text', hash: '#/gallery', title: 'Gallery', run: cutTextFlow(), viewports: DESIGN_REVIEW_VIEWPORTS, modes: ['drive'], queries: { drive: '' } },
+  { name: 'cut-sidebar', hash: '#/company/settings', title: 'Settings', run: cutSidebarFlowIn('en'), viewports: SIDEBAR_VIEWPORTS, modes: ['browser'], queries: { browser: '&fake=browser' } },
+  {
+    name: 'cut-sidebar-croatian',
+    hash: '#/company/settings',
+    title: 'Postavke',
+    run: cutSidebarFlowIn('hr'),
+    viewports: SIDEBAR_VIEWPORTS,
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&lang=hr' },
+  },
+  {
+    name: 'transaction-groups',
+    hash: '#/company/transactions?p=all',
+    title: 'Transactions',
+    run: transactionGroupsFlowIn('en'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '' },
+  },
+  {
+    name: 'transaction-groups-croatian',
+    hash: '#/company/transactions?p=all',
+    title: 'Transakcije',
+    run: transactionGroupsFlowIn('hr'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&lang=hr' },
+  },
   { name: 'quick-jump', hash: '#/company', title: 'Overview', run: quickJumpFlowIn('en'), viewports: ['phone', 'desktop'], modes: ['drive'], queries: { drive: '' } },
   { name: 'quick-jump-croatian', hash: '#/company', title: 'Pregled', run: quickJumpFlowIn('hr'), viewports: ['desktop'], modes: ['drive'], queries: { drive: '&lang=hr' } },
   {

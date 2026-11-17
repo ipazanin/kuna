@@ -44,6 +44,7 @@ import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import NoteLine from '../../../../../shared/ui/NoteLine.vue'
 import { words } from './words'
 import type { Money } from '../../../../../shared/money/money'
+import CutText from '../../../../../shared/ui/CutText.vue'
 
 /** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
 defineProps<{
@@ -64,8 +65,8 @@ const emit = defineEmits<{
     <li v-for="advance in advances" :key="advance.id" class="advance-row">
       <div class="advance-head">
         <div class="min-w-0">
-          <p class="truncate text-sm text-highlighted">{{ advance.description || advance.category }}</p>
-          <p class="truncate text-xs text-muted">{{ advance.paidOn }}, {{ advance.category }}</p>
+          <CutText as="p" class="text-sm text-highlighted">{{ advance.description || advance.category }}</CutText>
+          <CutText as="p" class="text-xs text-muted">{{ advance.paidOn }}, {{ advance.category }}</CutText>
         </div>
         <DrillLink :to="advance.to" :label="words.advanceList.openRow(advance.paidOn)" class="text-end">
           <MoneyText :cents="advance.amount" class="text-sm font-medium text-highlighted" />

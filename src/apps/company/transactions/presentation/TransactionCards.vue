@@ -27,6 +27,7 @@ import type { TransactionGroup } from '../domain/transactionGroups'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
+import CutText from '../../../../shared/ui/CutText.vue'
 
 /** The phone's form of the transaction table: one card per row, under the same group headings. */
 const props = defineProps<{
@@ -114,7 +115,7 @@ function ownerPartNote(row: ListedRow): string | null {
           <li v-if="entry.kind === 'shared'" class="card split-heading" data-testid="shared-heading">
             <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
               <span class="flex items-baseline justify-between gap-3">
-                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</span>
+                <CutText class="min-w-0 font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</CutText>
                 <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
               </span>
               <span class="flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -149,7 +150,7 @@ function ownerPartNote(row: ListedRow): string | null {
           <li v-else-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="flex items-baseline justify-between gap-3">
-                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</span>
+                <CutText class="min-w-0 font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</CutText>
                 <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
               </span>
               <span class="flex items-center gap-2 text-xs text-muted">
@@ -166,16 +167,17 @@ function ownerPartNote(row: ListedRow): string | null {
               <span class="flex items-baseline justify-between gap-3">
                 <span v-if="partLabel(entry.row)" class="flex min-w-0 items-center gap-1.5 text-toned">
                   <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
-                  <span class="truncate">{{ partLabel(entry.row) }}</span>
+                  <CutText>{{ partLabel(entry.row) }}</CutText>
                 </span>
-                <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</span>
+                <span v-else-if="openRows.has(entry.row.key)" class="min-w-0 font-medium break-words text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</span>
+                <CutText v-else class="min-w-0 font-medium text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</CutText>
                 <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
               </span>
               <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
                 <span class="flex min-w-0 flex-wrap items-center gap-1.5">
                   <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
                   <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
-                  <span v-else class="truncate text-toned">{{ entry.row.category === '' ? words.noCategory : names.category(entry.row.category) }}</span>
+                  <CutText v-else class="text-toned">{{ entry.row.category === '' ? words.noCategory : names.category(entry.row.category) }}</CutText>
                   <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
                 </span>
                 <span class="figure shrink-0">

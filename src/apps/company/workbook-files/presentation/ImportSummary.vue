@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
 import { plural } from '../../../../shared/text/translation'
+import CutText from '../../../../shared/ui/CutText.vue'
 import ProblemList from './ProblemList.vue'
 import { words } from './words'
 import { words as settingsWords } from '../../settings/presentation/words'
@@ -55,7 +56,7 @@ const facts = computed(() => {
         <dl class="grid gap-px sm:grid-cols-2 overflow-hidden rounded-control border border-default bg-border">
           <div v-for="fact in facts" :key="fact.label" class="min-w-0 bg-raised px-3 py-2.5">
             <dt class="text-xs text-muted">{{ fact.label }}</dt>
-            <dd class="figure mt-0.5 truncate text-sm font-medium text-highlighted" :title="fact.value">{{ fact.value }}</dd>
+            <CutText as="dd" class="figure mt-0.5 text-sm font-medium text-highlighted">{{ fact.value }}</CutText>
           </div>
         </dl>
 
@@ -63,7 +64,7 @@ const facts = computed(() => {
           <h3 class="text-sm font-medium text-highlighted">{{ plural(words.summary.records(preview.recordCount), preview.recordCount) }}</h3>
           <dl class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-6 gap-y-1 text-sm">
             <div v-for="kind in preview.counts" :key="kind.name" class="flex min-w-0 items-baseline justify-between gap-3">
-              <dt class="identifier truncate text-toned">{{ kind.name }}</dt>
+              <CutText as="dt" class="identifier text-toned">{{ kind.name }}</CutText>
               <dd class="figure text-highlighted">{{ kind.count }}</dd>
             </div>
           </dl>

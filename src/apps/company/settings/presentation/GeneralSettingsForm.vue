@@ -92,7 +92,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
       <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
         <FormGrid>
           <UFormField :label="words.general.companyName" :help="words.general.companyNameHelp">
-            <UInput :model-value="draft.companyName" :placeholder="words.general.notSet" class="w-full" @update:model-value="update('companyName', String($event))" />
+            <UInput :model-value="draft.companyName" :placeholder="words.general.notSet" class="w-full" data-testid="company-name" @update:model-value="update('companyName', String($event))" />
           </UFormField>
           <UFormField :label="words.general.currency" :error="errors.currency ?? false" :help="words.general.currencyHelp">
             <USelectMenu

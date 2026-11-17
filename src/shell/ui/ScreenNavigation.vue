@@ -8,6 +8,7 @@ import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { chatOpen, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
 import { words as chatWords } from '../../shared/ai/presentation/words'
+import CutText from '../../shared/ui/CutText.vue'
 import type { Navigation } from './navigation'
 import NavigationLink from './NavigationLink.vue'
 import { words } from './words'
@@ -107,7 +108,7 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
           <UCollapsible v-else-if="!rail" :open="app.open" :ui="{ content: 'overflow-hidden' }">
             <template #content>
               <div :id="`${id}-${app.id}`">
-                <p v-if="app.subtitle" :id="`${id}-${app.id}-subtitle`" class="truncate ps-11.5 type-caption" data-testid="nav-subtitle">{{ app.subtitle }}</p>
+                <CutText v-if="app.subtitle" :id="`${id}-${app.id}-subtitle`" as="p" class="ps-11.5 pb-1 type-caption" data-testid="nav-subtitle">{{ app.subtitle }}</CutText>
                 <ul :aria-label="app.name" :aria-describedby="app.subtitle ? `${id}-${app.id}-subtitle` : undefined" class="flex flex-col pt-0.5 pb-1 sm:gap-0.5" data-testid="nav-entries">
                   <li v-for="entry in app.entries" :key="entry.to">
                     <NavigationLink v-bind="entry" />
@@ -129,7 +130,8 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
           <span class="grid size-6 shrink-0 place-items-center">
             <UIcon name="i-lucide-sparkles" class="size-4" aria-hidden="true" />
           </span>
-          <span :class="rail ? 'sr-only' : 'min-w-0 truncate'" data-testid="nav-label">{{ chatWords.chat.open }}</span>
+          <span v-if="rail" class="sr-only" data-testid="nav-label">{{ chatWords.chat.open }}</span>
+          <CutText v-else class="min-w-0" data-testid="nav-label">{{ chatWords.chat.open }}</CutText>
         </button>
       </UTooltip>
     </div>

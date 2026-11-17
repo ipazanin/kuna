@@ -8,6 +8,7 @@ import { dateFormat } from '../../calendar/dateFormat'
 import type { CopyMeta } from '../application/workbookPorts'
 import { exportReminderDue } from '../domain/exportReminder'
 import { words } from './words'
+import CutText from '../../ui/CutText.vue'
 
 /** Where an app's file kept in this browser lives and when it was last written to a file, with the export button. */
 const props = withDefaults(
@@ -48,8 +49,8 @@ const reminder = computed(() => {
     data-testid="local-status"
   >
     <div v-if="!compact" class="min-w-0">
-      <p class="truncate text-xs text-toned">{{ name ?? words.localFile.kept }}</p>
-      <p class="figure truncate text-xs text-muted">{{ exportedText }}</p>
+      <CutText as="p" class="text-xs text-toned">{{ name ?? words.localFile.kept }}</CutText>
+      <CutText as="p" class="figure text-xs text-muted">{{ exportedText }}</CutText>
     </div>
     <UTooltip :text="words.localFile.export" :disabled="!rail" :content="{ side: 'right' }">
       <UButton

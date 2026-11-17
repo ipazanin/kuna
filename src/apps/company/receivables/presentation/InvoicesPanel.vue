@@ -34,6 +34,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { plural } from '../../../../shared/text/translation'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { itemIdOfRow, listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { invoiceOrder, newestBookingOf } from '../../workbook/domain/workbook'
@@ -393,7 +394,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                 <ul class="flex flex-col px-4 pt-1 pb-2 sm:px-5">
                   <li v-for="credit in view.unattributed" :key="credit.key" class="credit-row">
                     <span class="figure text-xs text-muted">{{ credit.date }}</span>
-                    <span class="min-w-0 truncate text-sm text-toned">{{ credit.counterparty }}</span>
+                    <CutText class="min-w-0 text-sm text-toned">{{ credit.counterparty }}</CutText>
                     <DrillLink :to="credit.to" :label="words.panel.openCredit(credit.date, credit.counterparty)" class="justify-self-end">
                       <MoneyText :cents="credit.amount" tone="flow" class="text-sm font-medium" />
                     </DrillLink>

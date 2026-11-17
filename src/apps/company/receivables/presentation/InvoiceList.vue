@@ -37,6 +37,7 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
 import type { Money } from '../../../../shared/money/money'
+import CutText from '../../../../shared/ui/CutText.vue'
 
 /** Each invoice, newest first, with the payments the matching gave it. */
 defineProps<{
@@ -63,9 +64,9 @@ const STATUS = {
         <div class="invoice-id min-w-0">
           <p class="flex min-w-0 items-baseline gap-2">
             <span class="figure text-sm font-medium whitespace-nowrap text-highlighted">{{ invoice.number }}</span>
-            <span v-if="showClient" class="truncate text-xs text-muted">{{ invoice.client }}</span>
+            <CutText v-if="showClient" class="text-xs text-muted">{{ invoice.client }}</CutText>
           </p>
-          <p v-if="invoice.item" class="truncate text-xs text-muted">{{ invoice.item }}</p>
+          <CutText v-if="invoice.item" as="p" class="text-xs text-muted">{{ invoice.item }}</CutText>
         </div>
         <p class="invoice-timing figure text-xs text-toned">
           {{ invoice.issued }}<span :class="invoice.late ? 'text-warning' : 'text-muted'">, {{ invoice.timing }}</span>

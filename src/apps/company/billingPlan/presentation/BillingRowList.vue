@@ -5,6 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { BILLING_STATUS } from './billingView'
 import type { BillingRowLine } from './billingView'
 import { words } from './words'
@@ -29,11 +30,11 @@ const phone = usePhoneLayout()
         <div class="flex min-w-0 items-start gap-2">
           <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-highlighted">{{ row.item }}</p>
+            <CutText as="p" class="text-sm font-medium text-highlighted">{{ row.item }}</CutText>
             <p class="figure text-xs text-muted">
               {{ dayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template>
             </p>
-            <p v-if="row.description" class="truncate text-xs text-muted">{{ row.description }}</p>
+            <CutText v-if="row.description" as="p" class="text-xs text-muted">{{ row.description }}</CutText>
           </div>
         </div>
         <MoneyText :cents="row.amount" class="shrink-0 text-sm font-medium text-highlighted" />

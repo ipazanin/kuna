@@ -21,6 +21,7 @@ import { recordsChangeInWords } from '../../../../shared/storage/presentation/re
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words as storageWords } from '../../../../shared/storage/presentation/words'
 import { plural } from '../../../../shared/text/translation'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { words } from './words'
 
 /** Every write this page made to the workbook, newest first, with Undo on each one that can still be put back. */
@@ -137,7 +138,7 @@ function flaggedByInWords(flaggedBy: string): string {
           <ul v-if="verdictsOf(write.receipt) !== null" class="detail-list">
             <li v-for="verdict in verdictsOf(write.receipt)!.slice(0, SHOWN_ROWS)" :key="verdict.after.id" class="flex flex-col gap-1">
               <span class="flex min-w-0 items-baseline justify-between gap-3 text-xs">
-                <span class="min-w-0 truncate text-toned">{{ verdict.after.counterparty || words.noCounterparty }}</span>
+                <CutText class="min-w-0 text-toned">{{ verdict.after.counterparty || words.noCounterparty }}</CutText>
                 <span class="figure shrink-0 text-muted">{{ dayLabel(verdict.after.date) }}, <MoneyText :cents="verdict.after.amount" tone="flow" /></span>
               </span>
               <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">

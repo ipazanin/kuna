@@ -48,6 +48,7 @@ import { usePhoneLayout } from '../../../../../shared/layout/viewport'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import type { Money } from '../../../../../shared/money/money'
+import CutText from '../../../../../shared/ui/CutText.vue'
 
 /**
  * Expected against paid, oldest due date first: a table on a wide screen, one card per payment on a
@@ -104,8 +105,8 @@ const phone = usePhoneLayout()
       </thead>
       <tbody>
         <tr v-for="line in lines" :key="line.key" :data-status="line.status" :class="{ 'is-to-come': line.status === 'to-come' }">
-          <th scope="row" class="truncate text-start font-normal text-toned">
-            {{ line.label }}
+          <th scope="row" class="text-start font-normal text-toned">
+            <CutText class="block">{{ line.label }}</CutText>
             <span class="block text-xs text-muted @2xl:hidden">{{ words.citObligations.due(line.dueOn) }}</span>
             <UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" class="mt-1 @2xl:hidden" />
           </th>

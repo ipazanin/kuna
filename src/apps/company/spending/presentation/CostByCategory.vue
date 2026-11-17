@@ -38,6 +38,7 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 import type { Money } from '../../../../shared/money/money'
+import CutText from '../../../../shared/ui/CutText.vue'
 
 /**
  * Cost by category as a list of bars under their buckets, each against a mark for the period
@@ -91,7 +92,7 @@ function changeText(change: CostChange | null): string {
         <ul>
           <li v-for="line in section.lines" :key="line.key" class="cost-row" data-testid="cost-line">
             <DrillLink :to="line.to" class="cost-name min-w-0 text-toned">
-              <span class="block truncate">{{ line.name }}</span>
+              <CutText class="block">{{ line.name }}</CutText>
             </DrillLink>
             <span class="cost-bar" aria-hidden="true">
               <span v-if="compared && line.prior !== null" class="cost-prior" :style="{ width: widthOf(line.prior) }" />

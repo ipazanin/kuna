@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppMark from './AppMark.vue'
+import CutText from './CutText.vue'
 
 /** A name beside its mark: the Kuna mark, or an app's icon on its tile when `icon` and `colour` come with it. */
 withDefaults(
@@ -15,7 +16,7 @@ withDefaults(
 
 const GAP = { standard: 'gap-2.5', quiet: 'gap-2', rail: '' }
 const MARK = { standard: 'size-6', quiet: 'size-5', rail: 'size-6' }
-const NAME = { standard: 'type-wordmark', quiet: 'type-label', rail: 'sr-only' }
+const NAME = { standard: 'type-wordmark', quiet: 'type-label' }
 </script>
 
 <template>
@@ -25,6 +26,7 @@ const NAME = { standard: 'type-wordmark', quiet: 'type-label', rail: 'sr-only' }
       <rect width="32" height="32" rx="7" fill="var(--accent)" />
       <path d="M8 22h16M10 18v-6M16 18V9M22 18v-4" stroke="var(--accent-ink)" stroke-width="2.5" stroke-linecap="round" />
     </svg>
-    <span class="min-w-0 truncate" :class="NAME[look]">{{ title }}</span>
+    <span v-if="look === 'rail'" class="sr-only">{{ title }}</span>
+    <CutText v-else class="min-w-0" :class="NAME[look]">{{ title }}</CutText>
   </span>
 </template>

@@ -60,6 +60,7 @@ import { REVIEW_TAB } from './transactionsLinks'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 import { words as uiWords } from '../../../../shared/ui/words'
+import CutText from '../../../../shared/ui/CutText.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 const ledger = useFilteredLedger()
@@ -333,7 +334,7 @@ const columns: TableColumn<TableEntry>[] = [
         const { whole } = entry
         return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [counterpartyName(whole), headingBadge(entry)]),
-          whole.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, whole.description),
+          whole.description === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => whole.description),
         ])
       }
       const listed = entry.row
@@ -345,13 +346,13 @@ const columns: TableColumn<TableEntry>[] = [
             h(UIcon, { name: 'i-lucide-corner-down-right', class: 'size-3.5 shrink-0 text-muted', 'aria-hidden': 'true' }),
             words.part(place.number, place.count),
           ]),
-          note === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, note),
+          note === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => note),
           categoryBelowName(listed),
         ])
       }
       return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
         counterpartyName(listed),
-        listed.description === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, listed.description),
+        listed.description === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => listed.description),
         categoryBelowName(listed),
       ])
     },

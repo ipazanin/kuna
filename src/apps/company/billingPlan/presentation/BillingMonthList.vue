@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { BILLING_STATUS } from './billingView'
 import type { BillingMonthLine } from './billingView'
 import { words } from './words'
@@ -68,8 +69,8 @@ function toggle(month: MonthKey): void {
           <li v-for="row in month.rows" :key="row.id" class="plan-line" data-testid="billing-month-row">
             <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
             <span class="min-w-0">
-              <span class="block truncate text-sm text-toned"
-                >{{ row.item }}<span v-if="row.description" class="text-muted">, {{ row.description }}</span></span
+              <CutText class="block text-sm text-toned"
+                >{{ row.item }}<span v-if="row.description" class="text-muted">, {{ row.description }}</span></CutText
               >
               <span class="figure block text-xs text-muted"
                 >{{ shortDayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></span
@@ -97,7 +98,7 @@ function toggle(month: MonthKey): void {
             <li v-for="line in month.withoutPlanLines" :key="line.key" class="plan-line">
               <span class="swatch hollow" aria-hidden="true" />
               <span class="min-w-0">
-                <span class="block truncate text-sm text-toned">{{ words.months.invoice(line.number) }}</span>
+                <CutText class="block text-sm text-toned">{{ words.months.invoice(line.number) }}</CutText>
                 <span class="figure block text-xs text-muted">{{ words.months.issued(shortDayLabel(line.issued), line.clientName) }}</span>
               </span>
               <MoneyText :cents="line.amount" class="text-sm text-highlighted" />

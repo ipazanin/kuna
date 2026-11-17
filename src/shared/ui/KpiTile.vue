@@ -21,6 +21,7 @@ import SparkLine from './SparkLine.vue'
 import { TONE_TEXT } from './toneText'
 import type { Tone } from './toneText'
 import { words } from './words'
+import CutText from './CutText.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -64,13 +65,13 @@ const deltaPresentation = computed(() => {
       <RouterLink v-if="to !== null" :to="to" class="kpi-link min-w-0 text-sm text-muted transition-colors group-hover:text-toned">
         <span class="flex min-w-0 items-start gap-1.5">
           <UIcon v-if="icon" :name="icon" class="mt-0.5 size-4 shrink-0" :class="iconClass" aria-hidden="true" />
-          <span class="block min-w-0 truncate">{{ label }}</span>
+          <CutText class="block min-w-0">{{ label }}</CutText>
         </span>
         <span class="sr-only">: {{ value }}</span>
       </RouterLink>
       <p v-else class="kpi-label flex min-w-0 items-start gap-1.5 text-sm text-muted">
         <UIcon v-if="icon" :name="icon" class="mt-0.5 size-4 shrink-0" :class="iconClass" aria-hidden="true" />
-        <span class="min-w-0 truncate">{{ label }}</span>
+        <CutText class="min-w-0">{{ label }}</CutText>
       </p>
       <div v-if="definition" class="relative z-control -my-1 -me-1.5">
         <InfoPopover :subject="label" :definition="definition" />

@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import CutText from '../../../../shared/ui/CutText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -95,7 +96,7 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
       <ul v-if="list.changes.length" class="overflow-hidden rounded-control border border-default">
         <li v-for="change in shown(list.changes)" :key="change.transaction.id" class="backtest-row">
           <span class="flex min-w-0 items-baseline justify-between gap-3">
-            <span class="min-w-0 truncate text-sm text-highlighted">{{ change.transaction.counterparty || transactionWords.noCounterparty }}</span>
+            <CutText class="min-w-0 text-sm text-highlighted">{{ change.transaction.counterparty || transactionWords.noCounterparty }}</CutText>
             <MoneyText :cents="change.transaction.amount" tone="flow" class="shrink-0 text-sm" />
           </span>
           <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">

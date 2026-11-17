@@ -38,6 +38,7 @@ import SparkLine from '../../shared/ui/SparkLine.vue'
 import { installedApps } from '../routing/appRegistry'
 import ChartSpecimens from './ChartSpecimens.vue'
 import ChatElementSpecimens from './ChatElementSpecimens.vue'
+import CutTextSpecimens from './CutTextSpecimens.vue'
 import DialogSpecimens from './DialogSpecimens.vue'
 import FormattingGallery from './FormattingGallery.vue'
 import FoundationsGallery from './FoundationsGallery.vue'
@@ -84,6 +85,7 @@ const CONTENTS = [
   ['scenario-comparison', 'ScenarioComparison'],
   ['grouped-table', 'Grouped table'],
   ['controls', 'Small controls'],
+  ['cut-text', 'CutText'],
   ['sync-status', 'Sync status'],
   ['write-progress', 'WriteProgress'],
 ] as const
@@ -562,6 +564,8 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
     <QuestionListSpecimens />
 
     <RowSpecimens />
+
+    <CutTextSpecimens />
 
     <GallerySection id="file-drop" title="FileDrop" description="A dashed place to drop a file on, or to tap to choose one. The caller reads the file and says what it found.">
       <AppCard as="div" class="flex flex-col gap-3 p-4 sm:p-5">

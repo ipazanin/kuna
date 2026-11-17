@@ -55,6 +55,7 @@ import type { GrantComparisonLine, GrantLine } from './GrantPanel.vue'
 import { listed, plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
 import { sumMoney, ZERO } from '../../../../../../shared/money/money'
+import CutText from '../../../../../../shared/ui/CutText.vue'
 
 /**
  * What the company owns, what it is worth today and what it costs in the year, with any grant that
@@ -386,7 +387,7 @@ function employmentState(until: CivilDate | null): string | null {
                 <li v-for="purchase in view.unmatchedPurchases" :key="purchase.key">
                   <DrillLink :to="purchase.to" :label="words.panel.purchaseRow(purchase.counterparty, purchase.date)" class="purchase-link">
                     <span class="figure shrink-0 text-xs text-muted">{{ purchase.date }}</span>
-                    <span class="min-w-0 flex-1 truncate">{{ purchase.counterparty }}</span>
+                    <CutText class="min-w-0 flex-1">{{ purchase.counterparty }}</CutText>
                     <MoneyText :cents="purchase.amount" class="text-toned" />
                   </DrillLink>
                 </li>
@@ -404,7 +405,7 @@ function employmentState(until: CivilDate | null): string | null {
                 <li v-for="payment in view.mismatchedPayments" :key="payment.key">
                   <DrillLink :to="payment.to" :label="words.panel.paymentRow(payment.date)" class="purchase-link">
                     <span class="figure shrink-0 text-xs text-muted">{{ payment.date }}</span>
-                    <span class="min-w-0 flex-1 truncate">{{ payment.claimedBy }}</span>
+                    <CutText class="min-w-0 flex-1">{{ payment.claimedBy }}</CutText>
                     <MoneyText :cents="payment.amount" class="text-toned" />
                   </DrillLink>
                 </li>

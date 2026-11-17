@@ -70,7 +70,7 @@ function addFromMenu(id: string): void {
           data-testid="spending-quick-add-button"
           @click="add(held, name)"
         >
-          <span class="w-full truncate">{{ name }}</span>
+          <span class="w-full break-words">{{ name }}</span>
           <AccountMoneyText :cents="amount" :currency="currency" tone="flow" class="text-sm" />
         </UButton>
         <MenuButton

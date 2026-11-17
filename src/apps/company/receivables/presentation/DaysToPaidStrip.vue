@@ -18,6 +18,7 @@ import { computed } from 'vue'
 
 import { pointsOfShare, shareOfScale } from '../../../../shared/money/percent'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { words } from './words'
 
 /** One row per client: every paid invoice as a dot on a shared scale of days, the median marked. */
@@ -52,7 +53,7 @@ function daysText(days: number | null): string {
     </div>
     <ul>
       <li v-for="row in rows" :key="row.key" class="days-row">
-        <span class="days-name truncate text-sm text-toned">{{ row.name }}</span>
+        <CutText class="days-name text-sm text-toned">{{ row.name }}</CutText>
         <span class="days-strip-area">
           <span class="strip" role="img" :aria-label="words.strip.eachTook(row.name, row.days.map((days) => daysText(days)).join(', '))">
             <span v-for="tick in ticks" :key="tick" class="tick" :style="{ left: at(tick) }" />

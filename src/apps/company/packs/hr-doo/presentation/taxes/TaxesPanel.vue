@@ -43,6 +43,7 @@ import { plural } from '../../../../../../shared/text/translation'
 import { words as packWords } from '../words'
 import { words } from './words'
 import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
+import CutText from '../../../../../../shared/ui/CutText.vue'
 
 /** What the state took in a year, by type, and whether every payroll month and corporate tax payment landed. */
 const props = defineProps<{
@@ -246,7 +247,9 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
               <p>{{ words.corporate.unmatched }}</p>
               <ul class="flex flex-col">
                 <li v-for="payment in corporateTax.unmatched" :key="payment.key" class="flex items-baseline justify-between gap-3">
-                  <DrillLink :to="payment.to" :label="words.corporate.openRow(payment.label)" class="min-w-0 truncate">{{ payment.label }}</DrillLink>
+                  <DrillLink :to="payment.to" :label="words.corporate.openRow(payment.label)" class="min-w-0"
+                    ><CutText class="block">{{ payment.label }}</CutText></DrillLink
+                  >
                   <MoneyText :cents="payment.cents" tone="flow" />
                 </li>
               </ul>

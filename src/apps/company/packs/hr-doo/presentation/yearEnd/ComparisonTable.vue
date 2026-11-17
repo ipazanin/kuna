@@ -42,6 +42,7 @@ import StatusBadge from './StatusBadge.vue'
 import { words as packWords } from '../words'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
+import CutText from '../../../../../../shared/ui/CutText.vue'
 
 /**
  * The accountant's lines of one statement beside ours: a table where the page has 70rem, and one card per line
@@ -80,7 +81,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="text-sm font-medium text-highlighted">{{ row.label }}</p>
-          <p class="truncate text-xs text-muted">{{ row.printed }}</p>
+          <CutText as="p" class="text-xs text-muted">{{ row.printed }}</CutText>
         </div>
         <StatusBadge :status="row.status" />
       </div>
@@ -172,7 +173,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
                 <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
                 <span class="min-w-0">
                   <span class="block text-highlighted">{{ row.label }}</span>
-                  <span class="block truncate text-xs text-muted">{{ row.printed }}</span>
+                  <CutText class="block text-xs text-muted">{{ row.printed }}</CutText>
                 </span>
               </button>
             </th>

@@ -11,6 +11,7 @@ import MoneyText from '../../shared/ui/MoneyText.vue'
 import { entryPath } from '../routing/appRegistry'
 import OpeningPlaceholder from '../ui/OpeningPlaceholder.vue'
 import { words } from './words'
+import CutText from '../../shared/ui/CutText.vue'
 
 /** One app on the home, the whole card a link: into its first screen with its figures, or into its first run, which it offers as Set up. */
 const props = defineProps<{
@@ -40,7 +41,7 @@ const to = computed(() => entryPath(props.app))
         <AppMark :icon="app.homeCard.icon" :colour="app.colour" size="large" />
         <div class="min-w-0 flex-1">
           <h2 class="type-card-title">{{ app.name }}</h2>
-          <p v-if="subtitle" class="truncate type-caption">{{ subtitle }}</p>
+          <CutText v-if="subtitle" as="p" class="type-caption">{{ subtitle }}</CutText>
         </div>
         <UIcon name="i-lucide-arrow-right" class="size-4 shrink-0 text-muted" aria-hidden="true" />
       </div>

@@ -66,6 +66,7 @@
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
+ * A long press on a cut text outside any control shows its full text, a tap elsewhere closes it, and a tap on a cut text inside a link opens the link.
  * After each step it asserts that no text overlaps other text, by `support/textOverlap.mjs`, that every visible control, a row of an open list included, is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
@@ -322,6 +323,7 @@ import { textOverlapsOn } from './support/textOverlap.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
 import { delay, typeDay } from './support/pressing.mjs'
+import { cutTextTouchStep } from './support/cutTextFlows.mjs'
 import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
 import { today } from '../src/shared/calendar/civilDate.ts'
 import { addMonths, monthOf } from '../src/shared/calendar/monthKey.ts'
@@ -820,6 +822,16 @@ async function checkWidth(width) {
     await expect(page.$$('[data-testid="transaction-card"]'), (cards) => cards.length > 0, 'a Company row opened Transactions with no row')
     await shoot('company-latest-row')
   })
+
+  // A long press shows a cut text's full text, a tap elsewhere closes it, and a cut text inside a link leaves the press to the link.
+  await step(
+    'cut-text',
+    async () => {
+      await open(page, '#/gallery', 'Gallery')
+      await cutTextTouchStep(page, shoot)
+    },
+    '#cut-text',
+  )
 
   // A row of a list that opens a page: an account, and a completed loan once its card is open.
   await step('link-rows', async () => {

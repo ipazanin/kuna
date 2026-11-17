@@ -87,6 +87,24 @@ const windowClasses = {
 }
 const pageFiles = ['src/apps/**/*.{ts,vue}', 'src/shared/ui/**/*.{ts,vue}', 'src/shared/**/presentation/**/*.{ts,vue}']
 
+// Cut text shows its full text on hover, focus and a long press, which only CutText does, so the classes that cut stay inside it.
+const cutTextMessage = '"$0": text that may be cut goes through CutText in src/shared/ui, which shows the full text on hover, on focus and on a long press.'
+const cutLineClasses = { pattern: utility(String.raw`truncate|line-clamp-.+`), message: cutTextMessage }
+const cutEllipsisClasses = { pattern: utility(String.raw`text-ellipsis`), message: cutTextMessage }
+const cutTextHome = ['src/shared/ui/CutText.vue']
+// A field shows all of its value once it takes focus, so its ellipsis needs nothing more.
+const cutInputs = [
+  'src/apps/company/settings/presentation/CategoriesEditor.vue',
+  'src/apps/company/settings/presentation/GeneralSettingsForm.vue',
+  'src/apps/loans/scenarios/presentation/OfferTermsFields.vue',
+]
+// A select's open list shows every choice in full, so its trigger may cut the one picked.
+const cutSelectTriggers = [
+  'src/apps/company/transactions/presentation/CategoryPicker.vue',
+  'src/apps/company/workbook/presentation/PaymentsSelect.vue',
+  'src/apps/spending/statements/presentation/RuleDialog.vue',
+]
+
 // Tailwind only knows the classes of its entry point, so a class a stylesheet declares is known where that stylesheet
 // applies: app.css and a :deep() or :slotted() selector everywhere, the rest of a scoped style block in its own
 // component. The browser checks find charts by chart-body, which no stylesheet declares.
@@ -498,11 +516,22 @@ export function kunaConfig(exempt) {
         'better-tailwindcss/no-unknown-classes': unknownClasses(classesEverywhere),
         'better-tailwindcss/no-conflicting-classes': 'error',
         'better-tailwindcss/no-duplicate-classes': 'error',
-        'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowGridClasses] }],
+        'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowGridClasses, cutLineClasses, cutEllipsisClasses] }],
         'no-restricted-syntax': ['error', ...scriptColourStrings],
       },
     },
-    { name: 'kuna/window-classes', files: pageFiles, rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowClasses] }] } },
+    {
+      name: 'kuna/window-classes',
+      files: pageFiles,
+      rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowClasses, cutLineClasses, cutEllipsisClasses] }] },
+    },
+    { name: 'kuna/cut-text-home', files: cutTextHome, rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowClasses] }] } },
+    { name: 'kuna/cut-inputs', files: cutInputs, rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowClasses, cutLineClasses] }] } },
+    {
+      name: 'kuna/cut-select-triggers',
+      files: cutSelectTriggers,
+      rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowClasses, cutEllipsisClasses] }] },
+    },
     ...scopedClassConfigs,
     { name: 'kuna/plugin', plugins: { kuna: kunaPlugin } },
     { name: 'kuna/domain-classes', ...domainCode, rules: { 'kuna/domain-classes': 'error' } },

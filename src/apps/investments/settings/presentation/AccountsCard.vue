@@ -10,6 +10,7 @@ import AccountDialog from './AccountDialog.vue'
 import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import CutText from '../../../../shared/ui/CutText.vue'
 
 /** The accounts of the Investments file, each with how its rows come in and its change, and a way to add one. */
 const { state } = useInvestmentsBooks()
@@ -37,8 +38,8 @@ function openAccount(account: InvestmentAccount | null): void {
     <ul v-if="accounts.length > 0" class="px-2 pb-1 sm:px-3">
       <li v-for="account in accounts" :key="account.id" class="flex items-center justify-between gap-3 border-t border-default py-1 ps-2 first:border-t-0" data-testid="investments-account">
         <span class="min-w-0">
-          <span class="block truncate type-body text-highlighted">{{ account.name }}</span>
-          <span class="block truncate type-caption" data-testid="investments-account-intake">{{ [intakeLine(account), account.note].filter((part) => part !== '').join(' · ') }}</span>
+          <CutText class="block type-body text-highlighted">{{ account.name }}</CutText>
+          <CutText class="block type-caption" data-testid="investments-account-intake">{{ [intakeLine(account), account.note].filter((part) => part !== '').join(' · ') }}</CutText>
         </span>
         <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" :aria-label="words.accounts.change(account.name)" data-testid="account-edit" @click="openAccount(account)" />
       </li>

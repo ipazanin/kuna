@@ -1,6 +1,6 @@
 /**
- * Finds text drawn over other text, labels cut down to a stub and placeholders cut short, on whatever the page shows now, an
- * open menu or dialog included. It measures the text itself with `Range.getClientRects`, since an
+ * Finds text drawn over other text, labels cut down to a stub, placeholders cut short and text cut with no way to read the
+ * rest, on whatever the page shows now, an open menu or dialog included. It measures the text itself with `Range.getClientRects`, since an
  * element's box says nothing about the text that spills out of it. Text meant to stack is a named
  * entry of `TEXT_OVERLAP_ALLOWED`, and nothing else gets through.
  */
@@ -8,9 +8,16 @@
 /** What may overlap or be cut, each with why. An entry covers a text that sits inside its selector. */
 export const TEXT_OVERLAP_ALLOWED = []
 
+/**
+ * Text that may be cut short outside `CutText`, each with why its full text is already in reach. An entry covers a text that sits
+ * inside its selector. Everything else that is cut goes through `CutText`, which marks itself `data-cut-text`.
+ */
+export const CUT_TEXT_ALLOWED = [{ selector: '[role="combobox"], [aria-haspopup="listbox"]', reason: "A select's open list shows every choice in full, so its trigger may cut the one picked." }]
+
 /** Runs in the page. Each overlap of more than `slack` px each way, each cut label and each cut placeholder, as a sentence. */
-function textOverlapsOnScreen(allowedSelectors, slack) {
+function textOverlapsOnScreen(allowedSelectors, cutAllowedSelectors, slack) {
   const allowed = (element) => allowedSelectors.some((selector) => element.closest(selector) !== null)
+  const cutAllowed = (element) => element.closest('[data-cut-text]') !== null || cutAllowedSelectors.some((selector) => element.closest(selector) !== null)
   const clips = (overflow) => overflow === 'hidden' || overflow === 'clip'
   const quoted = (text) => {
     const line = text.replace(/\s+/g, ' ').trim()
@@ -49,7 +56,7 @@ function textOverlapsOnScreen(allowedSelectors, slack) {
       const style = getComputedStyle(element)
       if (style.position === 'fixed' || style.position === 'sticky') return { croppers, layer: element }
       if (!(escapes && style.position === 'static') && style.overflowX !== 'visible') {
-        croppers.push({ box: element.getBoundingClientRect(), style, sideways: clips(style.overflowX), own: element === parent })
+        croppers.push({ element, box: element.getBoundingClientRect(), style, sideways: clips(style.overflowX), own: element === parent })
       }
       if (!(escapes && style.position === 'static')) escapes = style.position === 'absolute'
       element = element.parentElement
@@ -61,6 +68,13 @@ function textOverlapsOnScreen(allowedSelectors, slack) {
   function sayItIsCut(cropper) {
     if (cropper.style.webkitLineClamp !== 'none') return true
     return cropper.style.textOverflow === 'ellipsis' && cropper.box.width >= 3 * parseFloat(cropper.style.fontSize)
+  }
+
+  /** Whether this box cuts its text short right now and says so, with an ellipsis that hides some of a line or a clamp that hides a line. */
+  function cutsNow(cropper) {
+    const { element, style } = cropper
+    if (style.webkitLineClamp !== 'none') return element.scrollHeight > element.clientHeight + 1
+    return style.textOverflow === 'ellipsis' && element.scrollWidth > element.clientWidth + 1
   }
 
   const boxes = []
@@ -93,6 +107,10 @@ function textOverlapsOnScreen(allowedSelectors, slack) {
     if (!isAllowed && shown > 1 && shown < whole / 2 && cutBy !== undefined && !sayItIsCut(cutBy)) {
       problems.add(`the label ${quoted(node.textContent)} shows ${Math.round(shown)} of its ${Math.round(whole)} px, with no ellipsis`)
     }
+    const cutter = croppers.find((cropper) => cutsNow(cropper))
+    if (!isAllowed && cutter !== undefined && !cutAllowed(cutter.element)) {
+      problems.add(`the text ${quoted(node.textContent)} is cut short with no way to read the rest, so it goes through CutText`)
+    }
   }
 
   // A placeholder is drawn by the browser, so no text node shows it. It is measured at the field's font against the room inside the
@@ -124,8 +142,9 @@ function textOverlapsOnScreen(allowedSelectors, slack) {
   return [...problems]
 }
 
-/** Each overlap, each cut label and each cut placeholder on the page now, as a sentence. */
+/** Each overlap, each cut label, each cut placeholder and each text cut with no way to read the rest on the page now, as a sentence. */
 export function textOverlapsOn(page) {
   const selectors = TEXT_OVERLAP_ALLOWED.map((entry) => entry.selector)
-  return page.evaluate(textOverlapsOnScreen, selectors, 2)
+  const cutSelectors = CUT_TEXT_ALLOWED.map((entry) => entry.selector)
+  return page.evaluate(textOverlapsOnScreen, selectors, cutSelectors, 2)
 }

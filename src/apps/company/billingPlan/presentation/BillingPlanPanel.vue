@@ -34,6 +34,7 @@ import type { BillingRowLine } from './billingView'
 import { itemColours } from './billingCharts'
 import FillYearDialog from './FillYearDialog.vue'
 import { plural } from '../../../../shared/text/translation'
+import CutText from '../../../../shared/ui/CutText.vue'
 import { words } from './words'
 
 /** What is to be invoiced in a year and what the invoices billed of it, the newest plan rows first. */
@@ -222,7 +223,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
                 <ul v-else class="flex flex-col pb-2">
                   <li v-for="entry in view.items" :key="entry.item" class="item-line">
                     <span class="swatch" :style="{ background: entry.colour }" aria-hidden="true" />
-                    <span class="min-w-0 truncate text-sm text-toned">{{ entry.item }}</span>
+                    <CutText class="min-w-0 text-sm text-toned">{{ entry.item }}</CutText>
                     <span class="figure text-xs text-muted">{{ formatPercent(entry.share) }}</span>
                     <MoneyText :cents="entry.amount" class="text-sm text-highlighted" />
                     <span class="share-bar" aria-hidden="true"><span :style="{ width: `${pointsOfShare(entry.share)}%`, background: entry.colour }" /></span>
@@ -234,9 +235,9 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
                   </p>
                   <ul class="mt-1 flex flex-col gap-0.5">
                     <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
-                      <span class="min-w-0 truncate"
+                      <CutText class="min-w-0"
                         >{{ entry.label }} {{ words.panel.as }} <span class="text-toned">{{ entry.item }}</span
-                        >, {{ entry.note }}</span
+                        >, {{ entry.note }}</CutText
                       >
                       <MoneyText :cents="entry.amount!" class="text-toned" />
                     </li>

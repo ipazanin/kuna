@@ -36,6 +36,7 @@ import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
+import CutText from '../../../../../../shared/ui/CutText.vue'
 
 /** The assets tab with what the books make of each asset: a table where the page has 70rem, and one card per asset below it, where ten columns do not fit. */
 defineProps<{
@@ -55,7 +56,7 @@ const tableFits = roomAtLeast(70)
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <DrillLink :to="line.payment" :label="words.register.openPayment(line.name)" class="text-sm font-medium text-highlighted">
-              <span class="truncate">{{ line.name }}</span>
+              <CutText>{{ line.name }}</CutText>
             </DrillLink>
             <p class="text-xs text-muted">
               {{ line.group }}<template v-if="line.fundedBy">{{ words.register.paidBy(line.fundedBy) }}</template>
