@@ -16,6 +16,7 @@ import type { Account, RowsFrom } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { ExtraOrigin } from '../../../../shared/app/accountSource'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -74,11 +75,15 @@ function typeIban(drafted: DraftedAccount, typed: string): void {
   typedIbans.value = { ...typedIbans.value, [keyOf(drafted)]: typed }
 }
 
-/** The draft's IBAN and how its rows come in, or null while it is linked to a bank with no IBAN typed. */
-function sourceOf(drafted: DraftedAccount): Pick<Account, 'iban' | 'rowsFrom'> | null {
+/**
+ * The draft's IBAN and how its rows come in, or null while it is linked to a bank with no IBAN typed. A linked draft also takes
+ * the statement file it is made from, and one kept by hand takes rows from anywhere.
+ */
+function sourceOf(drafted: DraftedAccount): Pick<Account, 'iban' | 'rowsFrom' | 'alsoFrom'> | null {
   const rowsFrom = rowsFromOf(drafted)
   const iban = rowsFrom === 'bank-link' ? typedIban(drafted) : drafted.account.iban
-  return rowsFromRefusal({ kind: drafted.account.kind, iban, rowsFrom }, null, settings.value) === null ? { iban, rowsFrom } : null
+  const alsoFrom: readonly ExtraOrigin[] = rowsFrom === 'bank-link' ? ['provider-file'] : []
+  return rowsFromRefusal({ kind: drafted.account.kind, iban, rowsFrom }, null, settings.value) === null ? { iban, rowsFrom, alsoFrom } : null
 }
 
 /** The typed day, or null while it is not one the draft can start on, which runs to today. */
