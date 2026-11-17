@@ -176,6 +176,7 @@
  * window closed says so beside the button. Gmail asking to slow down fails the step with one plain
  * sentence, which the Mail card says too, and mail all filed by another app moves the source's
  * search to a week before the newest file in its folder.
+ * With no account taking the bank's statements, the Mail card says so and links to the Accounts tab.
  * The first run keeps an empty workbook on the fake Drive and one in this browser, goes back to the
  * step that made them, which shows them made and starts over, and offers to open the books the fake
  * Drive already holds when new books, a move from this browser or the Loans file would make a
@@ -406,6 +407,7 @@ import {
   importTableFlowIn,
   loansOpenFlowIn,
   mailSaveAsksFlowIn,
+  mailNoAccountFlowIn,
   ownerNetUnregisteredFlowIn,
   raceFlowIn,
   deleteKeysFlowIn,
@@ -7549,6 +7551,8 @@ const FLOWS = [
   { name: 'mail-access', hash: '#/company', title: 'Overview', run: mailAccessFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
   { name: 'mail-save-asks', hash: '#/company', title: 'Overview', run: mailSaveAsksFlow, modes: ['drive'] },
   { name: 'mail-save-asks-croatian', hash: '#/company', title: 'Pregled', run: mailSaveAsksFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
+  { name: 'mail-no-account', hash: '#/company', title: 'Overview', run: mailNoAccountFlowIn('en'), modes: ['drive'] },
+  { name: 'mail-no-account-croatian', hash: '#/company', title: 'Pregled', run: mailNoAccountFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
   { name: 'mail-plan-specimen', hash: '#/gallery', title: 'Gallery', run: mailPlanSpecimenFlow, modes: ['drive'] },
   { name: 'colour-picker-specimen', hash: '#/gallery', title: 'Gallery', run: colourPickerSpecimenFlow, modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
   { name: 'mail-rate-limited', hash: '#/company', title: 'Overview', run: mailRateLimitedFlow, modes: ['drive'], queries: { drive: '&fake=mail-rate-limited' } },

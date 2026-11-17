@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettingSetUp'
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
+import type { Account } from '../src/apps/company/workbook/domain/workbook'
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { newBooksDocument, newCompanyBooks } from '../src/apps/company/workbook/presentation/workbookFiles'
 import { STATEMENTS_BY_HAND } from '../src/apps/company/onboarding/domain/statementsChoice'
@@ -33,19 +34,18 @@ function withRows(document: WorkbookDocument, values: Readonly<Record<string, st
 }
 
 describe('new books', () => {
-  it('hold an explicit row for every choice, statements by hand switching filing on sync off, and no account, row or folder', () => {
+  it('hold an explicit row for every choice, and no account, row or folder, so statements come in by hand', () => {
     const document = newBooks()
     const rows = rowsOf(document)
 
     expect(rows).toMatchObject({
       owner_pay_module: 'false',
-      statements_sync: 'false',
       statements_folder: '',
       currency: 'EUR',
     })
     expect(Object.keys(rows).filter((key) => COMPANY_FACT_SETTINGS.retired.includes(key))).toEqual([])
     const { workbook } = read(document)
-    expect(workbook.settings).toMatchObject({ ownerPayModule: false, statementsSync: false, statementsFolder: [] })
+    expect(workbook.settings).toMatchObject({ ownerPayModule: false, statementsFolder: [] })
     expect(workbook.accounts).toEqual([])
     expect(workbook.transactions).toEqual([])
     expect(workbook.problems).toEqual([])
@@ -76,10 +76,12 @@ describe('new books of a Croatian d.o.o.', () => {
 })
 
 describe('getting set up', () => {
-  const keysOf = (document: WorkbookDocument) => gettingSetUp(read(document).workbook).map((line) => line.key)
+  /** An account the bank's statements fill from 1 November. */
+  const BY_MAIL: Account = { slug: 'main', iban: 'HR1210010051863000160', currency: '', intake: { rowsFrom: 'mail', startsOn: civil('2026-11-01'), alsoFrom: [] } }
+  const keysOf = (document: WorkbookDocument) => gettingSetUp({ ...read(document).workbook, accounts: [BY_MAIL] }).map((line) => line.key)
 
-  it('lists what new books lack, asks a Croatian d.o.o. for nothing more, and each line goes once it is done', () => {
-    const syncing = withRows(newBooks(), { statements_sync: true })
+  it("lists what new books lack once an account takes the bank's statements, asks a Croatian d.o.o. for nothing more, and each line goes once it is done", () => {
+    const syncing = newBooks()
     expect(keysOf(syncing)).toEqual(['first-statement', 'statements-folder', 'categories'])
 
     const croatian = withRows(syncing, { owner_pay_module: true })
@@ -117,6 +119,6 @@ describe('getting set up', () => {
     expect(delivery(withRow, false)).toBe(false)
     expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsFolder: ['work', 'dss', 'statements'] } }, true)).toBe(false)
     expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsMailFrom: ['a@example.com'] } }, true)).toBe(false)
-    expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsSync: true } }, true)).toBe(false)
+    expect(delivery({ ...withRow, accounts: [BY_MAIL] }, true)).toBe(false)
   })
 })

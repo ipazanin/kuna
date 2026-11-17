@@ -5,7 +5,6 @@ import { assetsSetUp } from '../src/apps/assets/overview/presentation/assetsSetU
 import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettingSetUp'
 import { hr as croatianWords } from '../src/apps/company/onboarding/presentation/words'
 import { payeesWaiting } from '../src/apps/company/rules/domain/ruleCoverage'
-import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { investmentsSetUp } from '../src/apps/investments/overview/presentation/investmentsSetUp'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
@@ -114,7 +113,7 @@ describe("the company's first rules", () => {
     ])
   })
 
-  const workbook = (rules: Workbook['rules']): Workbook => emptyCompany({ transactions: waitingRows, rules, settings: { ...DEFAULT_SETTINGS, statementsSync: false } })
+  const workbook = (rules: Workbook['rules']): Workbook => emptyCompany({ transactions: waitingRows, rules })
 
   it('asks to teach who appears most after a first import, counting only what a rule filed', () => {
     const [line] = gettingSetUp(workbook([]), true).filter((candidate) => candidate.key === 'first-rules')

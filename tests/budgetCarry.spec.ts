@@ -236,6 +236,25 @@ describe('a yearly cost paid before or after its due month', () => {
     expect(monthOf([insurance], paid, '2026-11')).toEqual(figures(0, 360, 360, 0, 360))
   })
 
+  it('counts a cheaper year paid in September as the year paid, though it fits in what is set aside, and keeps what is left for the next year', () => {
+    const paid = { '2026-09': 300 }
+
+    // More than half of €360.00, so September sets aside the €60.00 the year still lacks and €60.00 is left over.
+    expect(monthOf([insurance], paid, '2026-09')).toEqual(figures(60, 300, 360, 300, 60))
+    expect(yearlyOf(paid, '2026-09')).toEqual({ amount: euros(360), due: '2026-10', paidEarly: true })
+    expect(monthOf([insurance], paid, '2026-10')).toEqual(figures(0, 60, 60, 0, 60))
+    // The €60.00 left counts toward next year, so November to October lack €300.00, €25.00 a month.
+    expect(monthOf([insurance], paid, '2026-11')).toEqual(figures(25, 60, 85, 0, 85))
+  })
+
+  it('keeps a purchase in August of up to half the yearly amount as spending, which September and October make up', () => {
+    const bought = { '2026-08': 180 }
+
+    expect(yearlyOf(bought, '2026-08')?.paidEarly).toBe(false)
+    // August leaves €120.00, so September and October each set aside €120.00 of the €240.00 the year lacks.
+    expect(monthOf([insurance], bought, '2026-10')).toEqual(figures(120, 240, 360, 0, 360))
+  })
+
   it('keeps a purchase in September that fits in what is set aside as spending, which October makes up', () => {
     const bought = { '2026-09': 20 }
 

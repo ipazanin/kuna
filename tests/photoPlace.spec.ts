@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mapLinkOf, placeInJpeg } from '../src/apps/spending/receipts/domain/photoPlace'
+import { mapLinkOf, metresBetween, placeInJpeg } from '../src/apps/spending/receipts/domain/photoPlace'
 import { jpegWithMadeUpPlace, sampleReceiptPng } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto'
 
 /** The two bytes that start a JPEG, the image data's marker and nothing else, which is all the reader needs. */
@@ -60,5 +60,18 @@ describe('the link to a place', () => {
   it('is none without coordinates, or with text a hand edit left', () => {
     expect(mapLinkOf({ latitude: '', longitude: '' })).toBeNull()
     expect(mapLinkOf({ latitude: 'evil.example', longitude: '16' })).toBeNull()
+  })
+})
+
+describe('how far apart two places are', () => {
+  it('gives metres to within one for two points in Zagreb 100 m apart, north and east', () => {
+    // A degree of latitude is 111 195 m on a sphere of 6 371 km, so 100 m north is 0.000899 degrees. East, a degree shrinks by cos(45.813°) to 77 502 m, so 100 m is 0.001290 degrees.
+    expect(metresBetween({ latitude: '45.813000', longitude: '15.977000' }, { latitude: '45.813899', longitude: '15.977000' })).toBeCloseTo(100, 0)
+    expect(metresBetween({ latitude: '45.813000', longitude: '15.977000' }, { latitude: '45.813000', longitude: '15.978290' })).toBeCloseTo(100, 0)
+  })
+
+  it('is none for a blank place or one a hand edit left', () => {
+    expect(metresBetween({ latitude: '', longitude: '' }, { latitude: '45.813000', longitude: '15.977000' })).toBeNull()
+    expect(metresBetween({ latitude: '45.813000', longitude: 'near the square' }, { latitude: '45.813000', longitude: '15.977000' })).toBeNull()
   })
 })

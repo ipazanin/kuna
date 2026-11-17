@@ -1,6 +1,7 @@
 import { matchesAmong, splittableRows } from './receiptMatch'
 import type { ReceiptMatches } from './receiptMatch'
 import { rowFiledBy } from './receiptSplit'
+import { bankNamesIn } from './sameMerchant'
 import type { ReceiptPlace } from './receiptSplit'
 import { differenceItem } from '../../entries/domain/entrySplit'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
@@ -52,6 +53,7 @@ export function waitingReceipts(book: WaitingBook): readonly WaitingReceipt[] {
   const waiting = book.receipts.filter(waitsForBank)
   if (waiting.length === 0) return []
   const rows = splittableRows(book)
+  const bankNamesOf = bankNamesIn(book)
   return waiting
     .sort((one, other) => one.issuedOn.localeCompare(other.issuedOn))
     .flatMap((receipt) => {
@@ -66,6 +68,7 @@ export function waitingReceipts(book: WaitingBook): readonly WaitingReceipt[] {
           matches: matchesAmong(
             receipt,
             rows.filter((row) => row.account === account.id),
+            bankNamesOf(receipt),
           ),
         },
       ]
@@ -98,8 +101,9 @@ export function receiptOnRow(
 /**
  * The waiting receipts that go on rows the bank brings now, by a file or the sync, matched as a receipt matches its payment:
  * oldest receipt first, among the rows on its account it may split, those already on the file as well. A receipt goes only
- * when one arriving row is clear. When more than one row could be it, or none clearly is, it keeps waiting and To review asks
- * the person. Each row takes one receipt.
+ * when one arriving row is clear, which the bank's names for its merchant can make it. Those come from the receipts already on
+ * the file, so a receipt placed here teaches the next one nothing. When more than one row could be it, or none clearly is, it
+ * keeps waiting and To review asks the person. Each row takes one receipt.
  */
 export function receiptsArriving(book: WaitingBook, arriving: readonly ItemizedRow[], differenceText: string, newKey: () => string = newRecordId): readonly PlacedReceipt[] {
   const waiting = waitingReceipts(book)
@@ -107,10 +111,12 @@ export function receiptsArriving(book: WaitingBook, arriving: readonly ItemizedR
   const fresh = new Map(arriving.map((itemized) => [itemized.row, itemized.items]))
   const rows = splittableRows({ ...book, transactions: [...book.transactions, ...fresh.keys()], items: [...book.items, ...arriving.flatMap((itemized) => itemized.items)] })
   const taken = new Set<Transaction>()
+  const bankNamesOf = bankNamesIn(book)
   return waiting.flatMap(({ receipt, account, lines }) => {
     const matches = matchesAmong(
       receipt,
       rows.filter((row) => row.account === account.id && !taken.has(row)),
+      bankNamesOf(receipt),
     )
     const row = matches.kind === 'ready' ? matches.candidates[0]?.row : undefined
     const held = row === undefined ? undefined : fresh.get(row)

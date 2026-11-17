@@ -27,6 +27,7 @@ export interface ReceiptToMatch {
   readonly date: string
   readonly total: number
   readonly merchant: string
+  readonly merchantOib: string | null
   /** The id of the photo attached to the chat, or null. */
   readonly photo: string | null
 }
@@ -132,7 +133,7 @@ export async function matchReceipts(input: MatchRecordsInput, reads: ChatReads, 
   const found = await Promise.all(
     input.receipts.map(async (receipt, at) => {
       const { date, total, photo } = read[at] as Exclude<(typeof read)[number], string>
-      return payments.match({ date, total, merchant: reads.pseudonyms.restored(receipt.merchant), photo })
+      return payments.match({ date, total, merchant: reads.pseudonyms.restored(receipt.merchant), merchantOib: reads.pseudonyms.restored(receipt.merchantOib ?? ''), photo })
     }),
   )
   const receipts = found.map((matched, at) => receiptShown(input.app, payments.kind, matched, keptHome, reads, at + 1))

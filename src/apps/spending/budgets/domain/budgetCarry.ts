@@ -99,7 +99,8 @@ interface MonthGiven {
 
 /**
  * What the category's limit gives the month: a monthly limit's amount, or what a yearly cost sets aside after what carried in.
- * A yearly cost spent beyond what it holds in one of the two months before its due month was paid early. That month sets
+ * A yearly cost spent on by more than half its yearly amount in one of the two months before its due month was paid early,
+ * whether or not that goes over what it holds, so a cheaper year paid early counts as that year's payment. That month sets
  * aside all the year still lacks, as the due month would, and the months up to the due month set nothing more aside, so the
  * next year's share starts the month after it. A payment earlier than that, or in the due month or later, spends from the
  * carry as any month does. `settled` is the due month an early payment before this month has paid.
@@ -112,7 +113,7 @@ function givenIn(budgets: readonly Budget[], category: RecordId, month: MonthKey
   const monthsToDue = monthCountBetween(month, due)
   const share = setAsideIn(cost.amount, carriedIn, monthsToDue)
   const monthsBefore = monthsToDue - 1
-  if (monthsBefore >= 1 && monthsBefore <= EARLY_PAYMENT_MONTHS && spent > addMoney(carriedIn, share)) {
+  if (monthsBefore >= 1 && monthsBefore <= EARLY_PAYMENT_MONTHS && addMoney(spent, spent) > cost.amount) {
     return { limit: setAsideIn(cost.amount, carriedIn, 1), yearly: { amount: cost.amount, due, paidEarly: true }, settled: due }
   }
   return { limit: share, yearly: { amount: cost.amount, due, paidEarly: false }, settled: null }

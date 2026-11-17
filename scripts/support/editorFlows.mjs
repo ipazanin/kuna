@@ -3063,6 +3063,44 @@ export function mailSaveAsksFlowIn(language) {
 
 export const mailSaveAsksFlow = mailSaveAsksFlowIn('en')
 
+/**
+ * With no account taking the bank's statements, the mail card's Accounts it fills says so and links to the Accounts tab, and the
+ * mail step asks for no Gmail access and links there too.
+ */
+export function mailNoAccountFlowIn(language) {
+  const settingsWords = language === 'en' ? companySettingsEnglish : companySettingsCroatian
+  const mailWords = language === 'en' ? mailEnglish : mailCroatian
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.evaluate(() => {
+      window.location.hash = '#/company/settings?tab=accounts'
+    })
+    await page.waitForSelector('[data-testid="accounts-editor"]', { visible: true, timeout: 10_000 })
+    const byBank = await page.waitForFunction(
+      (wanted) => [...document.querySelectorAll('[data-testid="account-rows-from"]')].find((select) => select.textContent?.includes(wanted)) ?? null,
+      { timeout: 5_000 },
+      settingsWords.accounts.rowsFrom.mail,
+    )
+    await choose(page, press, byBank.asElement(), settingsWords.accounts.rowsFrom.byHand)
+    await pressLabelled(page, press, 'body', settingsWords.accounts.save)
+    await toast(page, settingsWords.accounts.saved)
+    await dismissToasts(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/company/settings#mail'
+    })
+    await page.waitForSelector(`${MAIL_CARD} [data-testid="mail-accounts"]`, { visible: true, timeout: 10_000 })
+    await elementSays(
+      page,
+      `${MAIL_CARD} [data-testid="mail-accounts"]`,
+      [mailWords.card.noAccount, mailWords.step.seeAccounts],
+      "the mail card does not say that no account takes the bank's statements",
+    )
+    await scrollToTop(page, MAIL_CARD)
+    await inspect?.("the mail card with no account taking the bank's statements")
+    await shoot('mail-card-no-account')
+  }
+}
+
 /** Waits until the switch under the test id is on or off, and returns it. */
 async function switchIs(page, testId, checked) {
   const selector = `:is([data-testid="${testId}"][role="switch"], [data-testid="${testId}"] [role="switch"])`
@@ -3100,7 +3138,7 @@ export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
   await shootAt(page, shoot, `${MAIL_PLAN} [data-testid="mail-stopped"]`, 'mail-rate-limited-card')
 }
 
-/** With every mail already in its folder, filed by another app, the source searches from a week before the newest file there and not from the mail-since day. */
+/** With every mail already in its folder, filed by another app, the source searches from a week before the newest file there and not from the start day. */
 export async function mailWindowFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
@@ -3825,12 +3863,12 @@ export function onboardingDeliveryFlowIn(language) {
     if (!(await setUpLines(page)).includes('statement-delivery')) throw new Error('Getting set up does not offer delivery after the first statement')
     await pressSelector(page, press, '[data-testid="set-up-delivery"]')
     const fields = await page.waitForSelector('[data-testid="statement-delivery-mail"]', { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error('the delivery dialog shows no bank and mail since')
+      throw new Error('the delivery dialog shows no bank and start day')
     })
     await delay(400)
     if (!(await fields.evaluate((element) => element.textContent ?? '')).includes('netbanking.support@erstebank.hr')) throw new Error('the Erste preset does not name the address it mails from')
     const since = await page.$eval('[data-testid="statement-delivery-since"] input', (input) => input.value)
-    if (since !== `${new Date().getFullYear()}-01-01`) throw new Error(`mail since starts at ${since}, not the first day of this year`)
+    if (since !== `${new Date().getFullYear()}-01-01`) throw new Error(`the statements start on ${since}, not the first day of this year`)
     await inspect?.('the delivery dialog with mail from Erste')
     await shoot('onboarding-delivery')
     await choose(page, press, await page.waitForSelector('[data-testid="statement-delivery-bank"]'), delivery.anotherBank)

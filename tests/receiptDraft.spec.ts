@@ -300,6 +300,13 @@ describe('a line remembered from a confirmed receipt', () => {
 
     expect(read.lines[0]!.category).toBe(category('Food/Eating out').id)
   })
+
+  it('takes no line category from another receipt when neither names its merchant', () => {
+    const nameless = { ...book, receipts: [receipt(NEW, '', '', '2026-10-01')] }
+    const { read } = receiptDraft({ ...ANSWER, merchant: { name: '', oib: null }, lines: [line('DET.TEK.', 23.49, { category: refOf('Food/Eating out') })] }, { ...CONTEXT, book: nameless })
+
+    expect(read.lines[0]!.category).toBe(category('Food/Eating out').id)
+  })
 })
 
 describe('an R1 receipt', () => {

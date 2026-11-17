@@ -868,7 +868,9 @@ async function spendingGroups(addGroup, loansBook) {
     })
   }
   if (options['fake-spending'] === 'receipts') {
-    add('spending.receipts.matches', () => Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', issuedOn: today, total }, workbook, null)))
+    add('spending.receipts.matches', () =>
+      Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', merchantOib: '', issuedOn: today, total, latitude: '', longitude: '' }, workbook, null)),
+    )
   }
   // Net worth reads each part's side and cents only, and the digest sees no words, so Spending's parts carry no label and no note.
   return () => {

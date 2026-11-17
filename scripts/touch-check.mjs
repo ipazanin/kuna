@@ -3757,20 +3757,20 @@ function shownShare(text) {
 }
 
 /**
- * Returns by year tints Yours and Difference with the Months tab's fills at its yearly steps, and leaves Benchmark, its
+ * Returns by year tints Yours and Difference with the Months tab's fills at its yearly steps, and leaves Gain, Benchmark, its
  * caption, Largest fall and Volatility plain. A figure shown rounded may sit on a step, so either side of it passes.
  */
 async function yearTintsMatch(page) {
   const rows = await page.$$eval('[data-testid="performance-years"] tbody tr', (rows) =>
     rows
       .map((row) => [...row.querySelectorAll('td')])
-      .filter((cells) => cells.length === 5)
+      .filter((cells) => cells.length === 6)
       .map((cells) => {
         const fills = (element) => [element, ...element.querySelectorAll('*')].flatMap((inner) => [...inner.classList].filter((name) => /^bg-(gain|loss)-\d$/.test(name)))
         return {
           yours: { text: cells[0].textContent?.trim() ?? '', fills: fills(cells[0]) },
-          difference: { text: cells[2].textContent?.trim() ?? '', fills: fills(cells[2]) },
-          plain: [cells[1], cells[3], cells[4]].flatMap(fills),
+          difference: { text: cells[3].textContent?.trim() ?? '', fills: fills(cells[3]) },
+          plain: [cells[1], cells[2], cells[4], cells[5]].flatMap(fills),
         }
       }),
   )
@@ -3778,7 +3778,7 @@ async function yearTintsMatch(page) {
   const tinted = rows.flatMap((row) => [row.yours, row.difference]).filter((cell) => cell.fills.length > 0)
   if (tinted.length === 0) throw new Error('Returns by year tints no cell')
   for (const row of rows) {
-    if (row.plain.length > 0) throw new Error(`Benchmark, Largest fall or Volatility carries a tint: ${row.plain.join(', ')}`)
+    if (row.plain.length > 0) throw new Error(`Gain, Benchmark, Largest fall or Volatility carries a tint: ${row.plain.join(', ')}`)
     for (const cell of [row.yours, row.difference]) {
       const share = shownShare(cell.text)
       const allowed = share === null ? [null] : [returnFill(share - 0.00005, 'year'), returnFill(share, 'year'), returnFill(share + 0.00005, 'year')]

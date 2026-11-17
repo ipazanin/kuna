@@ -73,7 +73,7 @@ describe('the fake mailbox', () => {
     await expect(planFake('mail-rate-limited')).rejects.toBeInstanceOf(MailRateLimited)
   })
 
-  it('searches from a week before the newest file in the folder once the mail is already there, not from the mail-since day', async () => {
+  it('searches from a week before the newest file in the folder once the mail is already there, not from the start day', async () => {
     const plan = await planFake('mail-nothing-new')
 
     expect(plan.sources.map((source) => source.kind === 'planned' && source.window.after)).toEqual(['newest'])

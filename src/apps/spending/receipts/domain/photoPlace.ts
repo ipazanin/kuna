@@ -84,11 +84,31 @@ export function placeInJpeg(bytes: Uint8Array): PhotoPlace | null {
   }
 }
 
-/** A map at the place, which leaves the page only on a tap. Null for coordinates a hand edit made into something else. */
-export function mapLinkOf({ latitude, longitude }: PhotoPlace): string | null {
+/** The place as degrees, or null for a blank one or coordinates a hand edit made into something else. */
+function coordinatesOf({ latitude, longitude }: PhotoPlace): { readonly lat: number; readonly lon: number } | null {
   const [lat, lon] = [Number(latitude), Number(longitude)]
   if (latitude === '' || longitude === '' || !Number.isFinite(lat) || !Number.isFinite(lon)) return null
+  return { lat, lon }
+}
+
+/** A map at the place, which leaves the page only on a tap. Null for coordinates a hand edit made into something else. */
+export function mapLinkOf(place: PhotoPlace): string | null {
+  const coordinates = coordinatesOf(place)
+  if (coordinates === null) return null
+  const { lat, lon } = coordinates
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`
+}
+
+const EARTH_METRES = 6_371_000
+
+/** How far apart two places are in metres, near enough for places a walk apart, or null when either has no readable coordinates. */
+export function metresBetween(one: PhotoPlace, other: PhotoPlace): number | null {
+  const [from, to] = [coordinatesOf(one), coordinatesOf(other)]
+  if (from === null || to === null) return null
+  const radians = (degrees: number): number => (degrees * Math.PI) / 180
+  const east = radians(to.lon - from.lon) * Math.cos(radians((from.lat + to.lat) / 2))
+  const north = radians(to.lat - from.lat)
+  return Math.hypot(east, north) * EARTH_METRES
 }
 
 /** Where the photo as taken was, read from the file itself, since a downscaled copy leaves the position behind. */

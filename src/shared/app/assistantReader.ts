@@ -161,6 +161,8 @@ export interface ReceiptRead {
   readonly date: CivilDate
   readonly total: Money
   readonly merchant: string
+  /** The merchant's OIB as printed, blank when it was not read. */
+  readonly merchantOib: string
   readonly photo: Blob | null
 }
 

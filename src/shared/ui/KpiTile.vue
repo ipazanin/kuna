@@ -92,7 +92,7 @@ const deltaPresentation = computed(() => {
           </span>
           <span>{{ delta.comparison }}</span>
         </p>
-        <slot />
+        <p v-if="$slots.default" class="mt-1.5 text-xs text-muted"><slot /></p>
       </div>
       <SparkLine v-if="trend" :points="trend" class="kpi-trend mb-0.5" />
     </div>

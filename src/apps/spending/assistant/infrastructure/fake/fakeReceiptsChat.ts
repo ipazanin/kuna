@@ -124,7 +124,7 @@ export function receiptReply(turn: FakeChatTurn): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
   if (answers.length === 1) {
-    const receipts = [{ date: fakeSpendingDayHere(), total: 23.49, merchant: 'Corner market', photo }]
+    const receipts = [{ date: fakeSpendingDayHere(), total: 23.49, merchant: 'Corner market', merchantOib: MADE_UP_MERCHANT_OIB, photo }]
     return lookup(1, 'match_records', { app: 'spending', kind: 'receipt', account: null, rows: [], receipts }, tokens)
   }
   const matched = receiptMatchedIn(answers[1]!.text)

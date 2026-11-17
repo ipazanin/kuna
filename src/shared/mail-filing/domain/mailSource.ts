@@ -1,4 +1,3 @@
-import { civilDate } from '../../calendar/civilDate'
 import type { CivilDate } from '../../calendar/civilDate'
 
 /** One file attached to a mail, by Gmail's id and the name the sender gave it. */
@@ -51,7 +50,7 @@ export function filedMailProperties(source: string, mail: Pick<MailMessage, 'id'
 
 const WINDOW_OVERLAP_MS = 7 * 86_400_000
 
-/** Where a source's search starts, in epoch milliseconds, and why: 7 days before the newest file in its folder, or the start of the mail-since day when that is later. */
+/** Where a source's search starts, in epoch milliseconds, and why: 7 days before the newest file in its folder, or the start of the start day when that is later. */
 export interface MailWindow {
   readonly from: number
   readonly after: 'newest' | 'since'
@@ -67,12 +66,7 @@ export function windowReaches(earlier: number, filed: number): boolean {
   return filed - WINDOW_OVERLAP_MS < earlier
 }
 
-/** The day the earliest mail starts at while `mail_since` is blank: the first day of last year, so a sync early in January still finds mail from December. */
-export function mailSinceDefault(today: CivilDate): CivilDate {
-  return civilDate(Number(today.slice(0, 4)) - 1, 1, 1)
-}
-
-/** The years from the mail-since day's to today's, both in, whose folders a source lists before it searches. */
+/** The years from the start day's to today's, both in, whose folders a source lists before it searches. */
 export function yearsSince(since: CivilDate, today: CivilDate): number[] {
   const first = Number(since.slice(0, 4))
   return Array.from({ length: Math.max(1, Number(today.slice(0, 4)) - first + 1) }, (_, index) => first + index)

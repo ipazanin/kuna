@@ -9,8 +9,12 @@ import { words } from './words'
 import { formatPercentChange } from '../../../../shared/money/moneyFormat'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
-/** The period's time-weighted return, its money-weighted rate a year, the benchmark's own return and how far apart the two time-weighted figures are. */
+/**
+ * The period's time-weighted return with what it gained in money, its money-weighted rate a year, the benchmark's own
+ * return with what the same money would have gained in it, and how far apart the two are, in return and in value.
+ */
 const props = defineProps<{
   performance: PeriodPerformance
   benchmark: BenchmarkState
@@ -78,7 +82,9 @@ const differenceTile = computed(() => {
 
 <template>
   <DashboardGrid layout="tiles" data-testid="performance-tiles">
-    <KpiTile :label="text.timeWeighted" :value="timeWeighted.value" :caption="timeWeighted.caption" :definition="text.timeWeightedDefinition" :to="null" data-testid="performance-time-weighted" />
+    <KpiTile :label="text.timeWeighted" :value="timeWeighted.value" :caption="timeWeighted.caption" :definition="text.timeWeightedDefinition" :to="null" data-testid="performance-time-weighted">
+      <MoneyText :cents="performance.portfolio.gain" tone="outcome" /> {{ text.inPeriod }}
+    </KpiTile>
     <KpiTile :label="text.moneyWeighted" :value="moneyWeighted.value" :caption="moneyWeighted.caption" :definition="text.moneyWeightedDefinition" :to="null" data-testid="performance-money-weighted" />
     <KpiTile
       :label="text.benchmark"
@@ -87,7 +93,11 @@ const differenceTile = computed(() => {
       :definition="text.benchmarkDefinition"
       :to="benchmark.kind === 'none' ? INVESTMENTS_SETTINGS_ROUTE : null"
       data-testid="performance-benchmark"
-    />
-    <KpiTile :label="text.difference" :value="differenceTile.value" :caption="differenceTile.caption" :definition="text.differenceDefinition" :to="null" data-testid="performance-difference" />
+    >
+      <template v-if="compared !== null"><MoneyText :cents="compared.replay.gain" sign="always" /> {{ text.sameMoney }}</template>
+    </KpiTile>
+    <KpiTile :label="text.difference" :value="differenceTile.value" :caption="differenceTile.caption" :definition="text.differenceDefinition" :to="null" data-testid="performance-difference">
+      <template v-if="compared !== null"><MoneyText :cents="compared.valueDifference" sign="always" /> {{ text.inValue }}</template>
+    </KpiTile>
   </DashboardGrid>
 </template>

@@ -10,11 +10,12 @@ import { formatPercent, formatPercentChange } from '../../../../shared/money/mon
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /**
- * Each calendar year's time-weighted return beside the benchmark's, with its largest fall and its volatility, your return
- * and the difference tinted as the Months tab tints a year. A narrow card keeps four columns and moves the difference and
- * the volatility under the figures they belong with.
+ * Each calendar year's time-weighted return and its gain in money beside the benchmark's return, with its largest fall and
+ * its volatility, your return and the difference tinted as the Months tab tints a year. A narrow card keeps four columns
+ * and moves the gain under the year, and the difference and the volatility under the figures they belong with.
  */
 const props = defineProps<{
   years: readonly YearPerformance[]
@@ -41,6 +42,7 @@ const rows = computed(() =>
       figures: {
         yours: yours === null ? DASH : formatPercentChange(yours),
         yoursFill: yours === null ? null : returnFill(yours, 'year'),
+        gain: performance.portfolio.gain,
         benchmark: comparison === null ? DASH : formatPercentChange(comparison.priceReturn.total),
         difference: difference === null ? DASH : formatPercentChange(difference),
         differenceFill: difference === null ? null : returnFill(difference, 'year'),
@@ -66,6 +68,7 @@ const notes = computed(() => [
         <tr>
           <th scope="col" class="text-start">{{ text.year }}</th>
           <th scope="col" class="text-end">{{ text.yours }}</th>
+          <th scope="col" class="hidden text-end @2xl:table-cell">{{ text.gain }}</th>
           <th scope="col" class="text-end">{{ text.benchmark }}</th>
           <th scope="col" class="hidden text-end @md:table-cell">{{ text.difference }}</th>
           <th scope="col" class="text-end">{{ text.largestFall }}</th>
@@ -77,9 +80,11 @@ const notes = computed(() => [
           <th scope="row" class="cell-wraps text-start font-normal">
             <span class="text-toned">{{ row.year }}</span>
             <span v-if="row.soFar" class="block type-caption">{{ text.soFar }}</span>
+            <span v-if="row.figures !== null" class="block type-caption @2xl:hidden"><MoneyText :cents="row.figures.gain" tone="outcome" /></span>
           </th>
           <template v-if="row.figures !== null">
             <td class="figure text-end text-default" :class="row.figures.yoursFill">{{ row.figures.yours }}</td>
+            <td class="figure hidden text-end @2xl:table-cell" data-testid="performance-year-gain"><MoneyText :cents="row.figures.gain" tone="outcome" /></td>
             <td class="cell-wraps text-end">
               <span class="figure">{{ row.figures.benchmark }}</span>
               <span v-if="row.figures.difference !== DASH" class="block type-caption @md:hidden">{{ text.differenceOf(row.figures.difference) }}</span>
@@ -91,7 +96,7 @@ const notes = computed(() => [
             </td>
             <td class="figure hidden text-end @md:table-cell">{{ row.figures.volatility }}</td>
           </template>
-          <td v-else colspan="5" class="text-end text-muted">{{ text.noFigures }}</td>
+          <td v-else colspan="6" class="text-end text-muted">{{ text.noFigures }}</td>
         </tr>
       </tbody>
     </FigureTable>

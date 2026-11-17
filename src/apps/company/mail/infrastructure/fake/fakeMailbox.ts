@@ -20,7 +20,6 @@ const SUBJECT = 'Izvadak'
 export const FAKE_MAIL_SETTINGS: readonly { readonly key: string; readonly value: string }[] = [
   { key: 'statements_mail_from', value: BANK },
   { key: 'statements_mail_subject', value: SUBJECT },
-  { key: 'mail_since', value: '2026-01-01' },
 ]
 
 /** The main account's newest statement on the fake ledger, which the folders already hold as a PDF. */

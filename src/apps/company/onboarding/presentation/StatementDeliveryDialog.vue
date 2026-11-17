@@ -20,7 +20,8 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { ACCOUNT_WRITES } from '../../settings/application/namedRecordWrites'
 import { installedPack } from '../../packs/packContribution'
 import { accountsTheStatementsFill, firstMailDay, folderDeliveryRows, mailDeliveryRows, MAIL_STATEMENTS_FOLDER, OTHER_BANK, statementMailProblems } from '../domain/statementsChoice'
-import type { StatementMail } from '../domain/statementsChoice'
+import type { StatementMail, StatementMailProblem } from '../domain/statementsChoice'
+import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
 import { words } from './words'
 
 /**
@@ -47,6 +48,12 @@ const failure = ref<string | null>(null)
 const preset = computed(() => BANK_PRESETS.find((candidate) => candidate.id === mail.value.bank) ?? null)
 const problems = computed(() => (delivery.value === 'mail' ? statementMailProblems(mail.value) : {}))
 const ready = computed(() => problems.value.from === undefined && problems.value.subject === undefined)
+
+/** A field's problem in words, or false for none, as a form field's error takes it. */
+function problemText(problem: StatementMailProblem | undefined, missing: string): string | false {
+  if (problem === undefined) return false
+  return problem === 'missing' ? missing : mailWords.searchFault(problem)
+}
 const since = computed(() => mail.value.since ?? firstMailDay(today()))
 
 function chooseMail(changes: Partial<StatementMail>): void {
@@ -56,7 +63,7 @@ function chooseMail(changes: Partial<StatementMail>): void {
 async function rowsOfChoice(): Promise<readonly { readonly key: string; readonly value: string }[] | null> {
   if (delivery.value === 'mail') {
     await withGoogleAccess(['drive.file'], () => store.folderBesideFile(MAIL_STATEMENTS_FOLDER))
-    return mailDeliveryRows(mail.value, today())
+    return mailDeliveryRows(mail.value)
   }
   const chosen = await withGoogleAccess(['drive.readonly'], () => store.pickDriveFolder(text.pickerTitle))
   if (chosen === null) return null
@@ -101,7 +108,7 @@ async function save(): Promise<void> {
           <DayField :model-value="since" class="w-full" data-testid="statement-delivery-since" @update:model-value="chooseMail({ since: parseCivilDate($event) })" />
         </UFormField>
         <template v-if="mail.bank === OTHER_BANK">
-          <UFormField :label="text.from" :error="problems.from ?? false" class="sm:col-span-2">
+          <UFormField :label="text.from" :error="problemText(problems.from, text.typeSender)" class="sm:col-span-2">
             <UInput
               :model-value="mail.from"
               inputmode="email"
@@ -113,7 +120,7 @@ async function save(): Promise<void> {
               @update:model-value="chooseMail({ from: String($event) })"
             />
           </UFormField>
-          <UFormField :label="text.subject" :help="text.subjectHelp" :error="problems.subject ?? false" class="sm:col-span-2">
+          <UFormField :label="text.subject" :help="text.subjectHelp" :error="problemText(problems.subject, text.typeSubject)" class="sm:col-span-2">
             <UInput
               :model-value="mail.subject"
               :placeholder="text.subjectPlaceholder"

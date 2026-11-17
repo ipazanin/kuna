@@ -44,7 +44,7 @@ const ACCOUNT = ACCOUNT_RECORDS.name
 /**
  * The keys no card sets. Kuna's version marker and the review label are the owner's. The payees flagged as people are the chat's
  * own guard. The invoice and travel orders folders need Google's picker. The statements folder and the bank's mail address need Google's consent,
- * so the chat links their screen. The subject of the bank's mail and the day mail is read from need none, so a card sets them.
+ * so the chat links their screen. The subject of the bank's mail needs none, so a card sets it.
  */
 const NEVER_PROPOSED: ReadonlySet<string> = new Set([
   'template_version',
@@ -54,7 +54,6 @@ const NEVER_PROPOSED: ReadonlySet<string> = new Set([
   'invoice_folder_id',
   TRIP_FOLDER_KEY,
   'statements_folder',
-  'statements_sync',
   'statements_mail_from',
 ])
 

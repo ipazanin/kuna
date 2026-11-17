@@ -1,4 +1,5 @@
 import type { SetUpLine } from '../../../../shared/app/appContribution'
+import { earliestStartDay } from '../../../../shared/app/accountSource'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import { REQUIRED_ISSUER } from '../../invoicing/domain/invoiceDocument'
@@ -43,10 +44,10 @@ function firstRulesLine(workbook: Workbook): SetUpLine | null {
 
 /**
  * What the books still lack after onboarding, each gone once done: a first statement, its biggest
- * payees taught as rules, the statements folder while filing on sync is on without one, a look over
+ * payees taught as rules, the statements folder while an account takes the bank's statements without one, a look over
  * the categories new books start with until someone says they look right, the company's invoice
  * details once there is a client to invoice, and how later statements arrive, once a first one is in
- * books on Drive that take them by hand.
+ * books on Drive whose accounts all take them by hand.
  */
 export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, offersDelivery = false): SetUpLine[] {
   const firstRules = firstRulesLine(workbook)
@@ -54,7 +55,9 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
   if (workbook.transactions.length === 0) {
     lines.push({ key: 'first-statement', text: words.setUp.firstStatement, whileEmpty: true, link: { label: words.setUp.importLink, to: { path: '/company/transactions', query: { tab: 'import' } } } })
   }
-  if (workbook.settings.statementsSync && workbook.settings.statementsFolder.length === 0) {
+  const { statementsFolder, statementsMailFrom } = workbook.settings
+  const bankFills = earliestStartDay(workbook.accounts.map((account) => account.intake)) !== null
+  if (bankFills && statementsFolder.length === 0) {
     lines.push({ key: 'statements-folder', text: words.setUp.statementsFolder, link: { label: words.setUp.settingsLink, to: '/company/settings' } })
   }
   if (!categoriesLookRight && categoriesAsNewBooksStart(workbook.categories)) {
@@ -67,8 +70,7 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
   if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {
     lines.push({ key: 'invoice-terms', text: words.setUp.invoiceTerms, link: { label: words.setUp.clientsLink, to: { path: '/company/invoicing', query: { tab: 'clients' } } } })
   }
-  const { statementsSync, statementsFolder, statementsMailFrom } = workbook.settings
-  if (offersDelivery && workbook.transactions.length > 0 && !statementsSync && statementsFolder.length === 0 && statementsMailFrom.length === 0) {
+  if (offersDelivery && workbook.transactions.length > 0 && !bankFills && statementsFolder.length === 0 && statementsMailFrom.length === 0) {
     lines.push({ key: DELIVERY_LINE, text: words.setUp.delivery })
   }
   return lines

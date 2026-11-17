@@ -192,45 +192,35 @@ describe('statements_folder', () => {
     expect(settingsTabEntries(DEFAULT_SETTINGS, null)).toContainEqual({ key: 'statements_folder', value: '' })
   })
 
-  it('files statements on sync by default, and a FALSE switch leaves them to Import', () => {
-    expect(DEFAULT_SETTINGS.statementsSync).toBe(true)
-    expect(parseSettings(rows(['statements_sync', false])).settings.statementsSync).toBe(false)
-    expect(settingsTabEntries(DEFAULT_SETTINGS, null)).toContainEqual({ key: 'statements_sync', value: 'TRUE' })
-  })
-
   it('may be left blank when typed in the app', () => {
     expect(settingsErrors({ ...DEFAULT_SETTINGS, statementsFolder: [] })).toEqual({})
   })
 })
 
 describe('the mail keys', () => {
-  it('read no bank mail and the start of last year by default, all listed blank in the template', () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '', mailSince: null })
-    expect(settingsTabEntries(DEFAULT_SETTINGS, null).filter((entry) => ['statements_mail_from', 'statements_mail_subject', 'mail_since'].includes(entry.key))).toEqual([
+  it('read no bank mail by default, both listed blank in the template', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '' })
+    expect(settingsTabEntries(DEFAULT_SETTINGS, null).filter((entry) => ['statements_mail_from', 'statements_mail_subject'].includes(entry.key))).toEqual([
       { key: 'statements_mail_from', value: '' },
       { key: 'statements_mail_subject', value: '' },
-      { key: 'mail_since', value: '' },
     ])
   })
 
-  it('read the senders as lower-case addresses, the subject trimmed and the day from a date cell or text, and write them back the same way', () => {
-    const { settings, problems } = parseSettings(
-      rows(['statements_mail_from', 'Statements@Bank.example.com, notices@bank.example.com'], ['statements_mail_subject', ' Izvadak '], ['mail_since', 45658]),
-    )
+  it('read the senders as lower-case addresses and the subject trimmed, and write them back the same way', () => {
+    const { settings, problems } = parseSettings(rows(['statements_mail_from', 'Statements@Bank.example.com, notices@bank.example.com'], ['statements_mail_subject', ' Izvadak ']))
 
     expect(problems).toEqual([])
-    expect(settings).toMatchObject({ statementsMailFrom: ['statements@bank.example.com', 'notices@bank.example.com'], statementsMailSubject: 'Izvadak', mailSince: '2025-01-01' })
+    expect(settings).toMatchObject({ statementsMailFrom: ['statements@bank.example.com', 'notices@bank.example.com'], statementsMailSubject: 'Izvadak' })
     expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, Cell]))).settings).toEqual(settings)
   })
 
-  it('fall back for an address that is not one, a subject with a double quote and a day that is not one, and say which key', () => {
-    const { settings, problems } = parseSettings(rows(['statements_mail_from', 'bank'], ['statements_mail_subject', '"Izvadak"'], ['mail_since', '1.1.2025.']))
+  it('fall back for an address that is not one and a subject with a double quote, and say which key', () => {
+    const { settings, problems } = parseSettings(rows(['statements_mail_from', 'bank'], ['statements_mail_subject', '"Izvadak"']))
 
-    expect(settings).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '', mailSince: null })
+    expect(settings).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '' })
     expect(problems).toEqual([
       settingProblem('statements_mail_from', '"bank" is not a mail address, so the default is used'),
       settingProblem('statements_mail_subject', 'a subject cannot hold a double quote, which would end the phrase Gmail searches for, so the default is used'),
-      settingProblem('mail_since', '"1.1.2025." is not a date such as 2026-01-01, so the default is used'),
     ])
   })
 

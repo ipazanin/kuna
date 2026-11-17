@@ -9,9 +9,11 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
+import { payeeKey } from '../../payees/domain/payeeKey'
+import { bankNamesIn } from './sameMerchant'
 
-/** What the matching reads of a receipt. */
-export type ReceiptFacts = Pick<Receipt, 'merchant' | 'issuedOn' | 'total'>
+/** What the matching reads of a receipt. A blank OIB or place says nothing. */
+export type ReceiptFacts = Pick<Receipt, 'merchant' | 'merchantOib' | 'issuedOn' | 'total' | 'latitude' | 'longitude'>
 
 /** A row a receipt may split. */
 export interface ReceiptCandidate {
@@ -96,22 +98,25 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
 
 /**
  * The splittable rows this receipt may be. A receipt that says how it was paid matches only rows on accounts paid that way,
- * and one that does not say matches on any. `matchesAmong` gives the order and the rule.
+ * and one that does not say matches on any. The bank's names for the merchant come from the receipts on file, and `matchesAmong` gives the order and the rule.
  */
 export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'items'>, paid: ReceiptPayment | null): ReceiptMatches {
   const paidThere = new Set(book.accounts.filter((account) => paid === null || paidOn(paid, account)).map((account) => account.id))
   return matchesAmong(
     receipt,
     splittableRows(book).filter((row) => paidThere.has(row.account)),
+    bankNamesIn(book)(receipt),
   )
 }
 
 /**
- * Which of these rows the receipt may be. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words among the row's words and then
- * the nearest day. One is clear when more of the merchant's words name it than the next, or when it is alone and no merchant is known to
- * disagree with it. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
+ * Which of these rows the receipt may be. Rows at minus the total within the matching window come first: a row whose payee is one of
+ * the bank's names for the merchant, then by the merchant's words among the row's words, then the nearest day. One is clear when it
+ * beats the next on the bank's name and then on words, or when it is alone and the bank's name or the merchant's words name it,
+ * or there is neither to disagree with it. Only with none at minus the total do the near ones show, such as a card payment with a
+ * tip, and those are always a pick.
  */
-export function matchesAmong(receipt: ReceiptFacts, open: readonly Transaction[]): ReceiptMatches {
+export function matchesAmong(receipt: Pick<ReceiptFacts, 'merchant' | 'issuedOn' | 'total'>, open: readonly Transaction[], bankNames: ReadonlySet<string>): ReceiptMatches {
   const total = accountMoneyOfEuros(receipt.total)
   const asTyped = { date: receipt.issuedOn, amount: negateAccountMoney(total) }
   const words = distinctWords(receipt.merchant)
@@ -119,14 +124,19 @@ export function matchesAmong(receipt: ReceiptFacts, open: readonly Transaction[]
     const named = distinctWords(`${row.payee} ${row.description}`)
     return [...words].filter((word) => named.has(word)).length
   }
+  const known = (row: Transaction): number => (bankNames.has(payeeKey(row.payee)) ? 1 : 0)
   const away = (row: Transaction): number => Math.abs(daysBetween(receipt.issuedOn, row.date))
-  const ranked = (rows: readonly Transaction[]): Transaction[] => [...rows].sort((one, other) => wordsIn(other) - wordsIn(one) || away(one) - away(other) || one.date.localeCompare(other.date))
+  const ranked = (rows: readonly Transaction[]): Transaction[] =>
+    [...rows].sort((one, other) => known(other) - known(one) || wordsIn(other) - wordsIn(one) || away(one) - away(other) || one.date.localeCompare(other.date))
   const candidateOf = (row: Transaction): ReceiptCandidate => ({ row, difference: addAccountMoney(row.amount, total) })
 
   const equal = ranked(open.filter((row) => row.amount === asTyped.amount && inWindow(asTyped, row)))
   const [first, second] = equal
   if (first !== undefined) {
-    const clear = second === undefined ? words.size === 0 || wordsIn(first) > 0 : wordsIn(first) > wordsIn(second)
+    const clear =
+      second === undefined
+        ? known(first) > 0 || wordsIn(first) > 0 || (words.size === 0 && bankNames.size === 0)
+        : known(first) > known(second) || (known(first) === known(second) && wordsIn(first) > wordsIn(second))
     return { kind: clear ? 'ready' : 'pick', candidates: equal.map(candidateOf) }
   }
   const near = ranked(open.filter((row) => isNear(asTyped, row)))

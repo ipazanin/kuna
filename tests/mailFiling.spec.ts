@@ -6,13 +6,13 @@ import { describe, expect, it } from 'vitest'
 import { MailRateLimited, fileMail, hasProblem, planLine } from '../src/shared/mail-filing/application/mailFiling'
 import type { MailFolders, MailSource, Mailbox, PlanEntry, SourcePlan } from '../src/shared/mail-filing/application/mailFiling'
 import { statementMailSource } from '../src/apps/company/mail/application/statementMailSource'
-import { mailSinceDefault, yearFolderName, yearsSince } from '../src/shared/mail-filing/domain/mailSource'
+import { yearFolderName, yearsSince } from '../src/shared/mail-filing/domain/mailSource'
 import type { AttachmentNaming } from '../src/shared/mail-filing/domain/mailSource'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Settings } from '../src/apps/company/settings/domain/settings'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
-import { startOfDayIn } from '../src/shared/calendar/civilDate'
+import { civilDate, startOfDayIn } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { exampleStudio } from './fixtures/exampleStudio'
@@ -188,7 +188,7 @@ describe('the bank statements in mail', () => {
 })
 
 describe('the mail step', () => {
-  it('searches from the mail-since day while its year folders are empty, and from a week before the mail of the newest file the app filed', async () => {
+  it('searches from the start day while its year folders are empty, and from a week before the mail of the newest file the app filed', async () => {
     const fresh = testMailbox([])
     const later = testMailbox([])
     const filed: TestFiled = { folders: ['2031-statements'], name: '2031-03-20-statement-050.pdf', created: '2031-03-21T09:00:00Z', filedFrom: '2031-03-20T08:00:00Z' }
@@ -221,7 +221,7 @@ describe('the mail step', () => {
     expect(planLine(result)).toBe('Nothing new, already there 3.')
   })
 
-  it('never searches from before the mail-since day, however old the newest file', async () => {
+  it('never searches from before the start day, however old the newest file', async () => {
     const mailbox = testMailbox([])
 
     const result = await plan([], [{ folders: ['2031-statements'], name: '2031-01-02-statement-001.pdf', created: '2031-01-02T06:00:00Z' }], { mailbox })
@@ -229,7 +229,7 @@ describe('the mail step', () => {
     expect(result.sources[0]).toMatchObject({ window: { from: SINCE, after: 'since' } })
   })
 
-  it('lists the year folders from the mail-since year before it searches, and a folder of an older year a mail names after', async () => {
+  it('lists the year folders from the start day’s year before it searches, and a folder of an older year a mail names after', async () => {
     const folders = testFolders([{ folders: ['2030-statements'], name: '2030-12-31-statement-099.pdf', created: '2031-01-01T06:00:00Z' }])
     const mailbox = testMailbox([
       { id: 'late', subject: 'Izvadak 099', at: '2031-01-01T05:00:00Z', attachments: [['IZV_2030_12_31 03_05_19_314_503.pdf', 'pdf 099']] },
@@ -446,10 +446,10 @@ describe('filing the bank statements', () => {
   })
 })
 
-describe('a blank mail-since day at the turn of the year', () => {
+describe('a start day of last year at the turn of the year', () => {
   it('still finds a December mail on 3 January, since it lists last year’s folder and starts from the newest file there', async () => {
     const today = '2032-01-03' as CivilDate
-    const since = mailSinceDefault(today)
+    const since = civilDate(2031, 11, 1)
     const mailbox = testMailbox([{ id: 'dec30', subject: 'Izvadak 250', at: '2031-12-30T05:00:00Z', attachments: [['IZV_2031_12_30 03_05_19_314_503.pdf', 'pdf 250']] }])
     const folders = testFolders([{ folders: ['2031-statements'], name: '2031-12-29-statement-249.pdf', created: '2031-12-29T06:00:00Z', filedFrom: '2031-12-29T05:00:00Z' }])
 
@@ -462,7 +462,6 @@ describe('a blank mail-since day at the turn of the year', () => {
       report: () => {},
     })
 
-    expect(since).toBe('2031-01-01')
     expect(folders.asked[0]).toEqual([['2031-statements'], ['2032-statements']])
     expect(mailbox.reads).toEqual(['dec30'])
     expect(targets(found.sources[0])).toEqual(['filed work/bank/statements/2031-statements/2031-12-30-statement-250.pdf'])

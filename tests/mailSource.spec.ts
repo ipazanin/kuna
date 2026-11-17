@@ -5,7 +5,6 @@ import {
   mailAddressesOf,
   mailAddressesFault,
   mailQuery,
-  mailSinceDefault,
   mailPhraseFault,
   mailWindow,
   missingTerms,
@@ -31,7 +30,7 @@ describe('a mail source', () => {
     expect(mailQuery({ senders: ['reports@broker.example.com'], subject: 'Račun za' }, window)).toBe('from:(reports@broker.example.com) subject:"Račun za" has:attachment after:1735686000')
   })
 
-  it('starts from the mail-since day while its folder holds nothing, and a week before the newest file once that is later', () => {
+  it('starts from the start day while its folder holds nothing, and a week before the newest file once that is later', () => {
     const newest = Date.parse('2026-10-20T08:30:00Z')
 
     expect(mailWindow(null, SINCE)).toEqual({ from: SINCE, after: 'since' })
@@ -39,12 +38,7 @@ describe('a mail source', () => {
     expect(mailWindow(SINCE + 86_400_000, SINCE)).toEqual({ from: SINCE, after: 'since' })
   })
 
-  it('starts a blank mail-since day on 1 January of last year', () => {
-    expect(mailSinceDefault(civilDate(2026, 10, 27))).toBe('2025-01-01')
-    expect(mailSinceDefault(civilDate(2027, 1, 3))).toBe('2026-01-01')
-  })
-
-  it('lists the years from the mail-since day’s to today’s', () => {
+  it('lists the years from the start day’s to today’s', () => {
     expect(yearsSince(civilDate(2026, 1, 1), civilDate(2026, 10, 27))).toEqual([2026])
     expect(yearsSince(civilDate(2024, 6, 1), civilDate(2026, 1, 2))).toEqual([2024, 2025, 2026])
     expect(yearsSince(civilDate(2027, 1, 1), civilDate(2026, 12, 31))).toEqual([2027])

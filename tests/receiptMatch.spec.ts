@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest'
 
 import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches, splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
+import type { ReceiptFacts } from '../src/apps/spending/receipts/domain/receiptMatch'
 import { rowsTakingReceipt } from '../src/apps/spending/statements/domain/reviewQueue'
 import { RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeReceiptsChat'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
 import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, row, spendingBook, wholeItems } from './fixtures/spending'
 
 const ISSUED = civil('2026-11-03')
 
-function matchesOf(rows: readonly Transaction[], merchant = '', total = 23.49, receipts: readonly Receipt[] = []) {
-  return receiptMatches({ merchant, issuedOn: ISSUED, total: euros(total) }, { accounts: ACCOUNTS, categories: CATEGORIES, transactions: rows, receipts, items: wholeItems(rows) }, null)
+function matchesOf(rows: readonly Transaction[], merchant = '', total = 23.49, receipts: readonly Receipt[] = [], facts: Partial<ReceiptFacts> = {}) {
+  return receiptMatches(
+    { merchant, merchantOib: '', issuedOn: ISSUED, total: euros(total), latitude: '', longitude: '', ...facts },
+    { accounts: ACCOUNTS, categories: CATEGORIES, transactions: rows, receipts, items: wholeItems(rows) },
+    null,
+  )
 }
 
 function rowsOf(matches: ReturnType<typeof matchesOf>) {
@@ -134,6 +140,101 @@ describe('which rows a receipt may split', () => {
     expect(matchesOf([parking], 'Pekara').kind).toBe('pick')
     expect(matchesOf([parking], 'Parking Zagreb').kind).toBe('ready')
     expect(matchesOf([parking]).kind).toBe('ready')
+  })
+})
+
+let heldPlace = 0
+
+/** A receipt already on its row, of a merchant and an OIB, taken at a place when one is given. */
+function heldOn(on: Transaction, merchant: string, merchantOib = '', place: Pick<Receipt, 'latitude' | 'longitude'> = { latitude: '', longitude: '' }): Receipt {
+  heldPlace += 1
+  return {
+    id: recordIdOf(RECEIPT_RECORDS, `5e000000-0000-4000-8000-0000000071${String(heldPlace).padStart(2, '0')}`),
+    transaction: on.id,
+    account: null,
+    merchant,
+    merchantOib,
+    buyerOib: '',
+    issuedOn: civil('2026-10-02'),
+    issuedTime: '',
+    total: euros(2.4),
+    jir: '',
+    zki: '',
+    readBy: '',
+    photo: '',
+    ...place,
+  }
+}
+
+const PERO_OIB = MADE_UP_MERCHANT_OIB
+const MOJITO_SQUARE = { latitude: '45.813000', longitude: '15.977000' }
+// About 30 m north of the square: 0.00027 degrees of latitude is 30 m.
+const BESIDE_MOJITO = { latitude: '45.813270', longitude: '15.977000' }
+
+describe("the bank's name for a merchant", () => {
+  const earlier = row(OTP, '2026-10-02', -2.4, 'Food/Eating out', { source: 'statement', payee: 'CAFFE BAR MOJITO', importKey: 'otp-1' })
+  const mojito = row(OTP, '2026-11-04', -2.4, null, { source: 'statement', payee: 'CAFFE BAR MOJITO', importKey: 'otp-2' })
+  const other = row(OTP, '2026-11-03', -2.4, null, { source: 'statement', payee: 'KIOSK TISAK', importKey: 'otp-3' })
+
+  it("makes the row the bank names that way ready out of two equal payments, by the merchant's OIB", () => {
+    const matches = matchesOf([earlier, other, mojito], 'Obrt Pero', 2.4, [heldOn(earlier, 'Obrt Pero d.o.o.', PERO_OIB)], { merchantOib: PERO_OIB })
+
+    expect(matches.kind).toBe('ready')
+    expect(rowsOf(matches)).toEqual([mojito, other])
+  })
+
+  it('does the same by name when neither receipt has an OIB', () => {
+    expect(matchesOf([earlier, other, mojito], 'Obrt  pero', 2.4, [heldOn(earlier, 'OBRT PERO')])).toMatchObject({ kind: 'ready', candidates: [{ row: mojito }, { row: other }] })
+  })
+
+  it('learns nothing from a row no bank brought', () => {
+    const typed = row(OTP, '2026-10-02', -2.4, 'Food/Eating out', { payee: 'CAFFE BAR MOJITO' })
+
+    expect(matchesOf([typed, other, mojito], 'Obrt Pero', 2.4, [heldOn(typed, 'Obrt Pero')]).kind).toBe('pick')
+  })
+
+  it("learns nothing new from a bank's row under the merchant's own name, and never from a description every card payment shares", () => {
+    const own = row(OTP, '2026-10-02', -2.4, 'Food/Eating out', { source: 'statement', payee: 'Obrt Pero', description: 'KARTICNO PLACANJE', importKey: 'otp-4' })
+    const lone = row(OTP, '2026-11-04', -2.4, null, { source: 'statement', payee: 'KIOSK TISAK', description: 'KARTICNO PLACANJE', importKey: 'otp-5' })
+    const shared = row(OTP, '2026-10-02', -2.4, 'Food/Eating out', { source: 'statement', payee: '', description: 'KARTICNO PLACANJE', importKey: 'otp-6' })
+
+    expect(matchesOf([own, lone], 'Obrt Pero', 2.4, [heldOn(own, 'Obrt Pero')]).kind).toBe('pick')
+    expect(matchesOf([shared, lone], '', 2.4, [heldOn(shared, '')]).kind).toBe('ready')
+    expect(matchesOf([shared, lone], 'Obrt Pero', 2.4, [heldOn(shared, 'Obrt Pero')]).kind).toBe('pick')
+  })
+
+  it('reads whole payees, never their words, so one card text does not name another shop', () => {
+    const bakery = row(OTP, '2026-10-02', -2.4, 'Food/Groceries', { source: 'statement', payee: 'POS KUPNJA PEKARA ZAGREB', importKey: 'otp-7' })
+    const konzum = row(OTP, '2026-11-04', -2.4, null, { source: 'statement', payee: 'POS KUPNJA KONZUM ZAGREB', importKey: 'otp-8' })
+
+    expect(matchesOf([bakery, konzum], 'Mlinar', 2.4, [heldOn(bakery, 'Mlinar')]).kind).toBe('pick')
+  })
+
+  it('makes a receipt with no name ready on the row of the one payee the receipts taken near it went on', () => {
+    const held = [heldOn(earlier, 'Obrt Pero', '', MOJITO_SQUARE)]
+
+    expect(matchesOf([earlier, other, mojito], '', 2.4, held, BESIDE_MOJITO)).toMatchObject({ kind: 'ready', candidates: [{ row: mojito }, { row: other }] })
+    expect(matchesOf([earlier, other, mojito], '', 2.4, held).kind).toBe('pick')
+  })
+
+  it('takes no name from receipts near it that went on rows of two payees', () => {
+    const kiosk = row(OTP, '2026-10-05', -2.4, 'Food/Eating out', { source: 'statement', payee: 'KIOSK TISAK', importKey: 'otp-9' })
+    const held = [heldOn(earlier, 'Obrt Pero', '', MOJITO_SQUARE), heldOn(kiosk, 'Tisak', '', BESIDE_MOJITO)]
+
+    expect(matchesOf([earlier, kiosk, other, mojito], '', 2.4, held, BESIDE_MOJITO).kind).toBe('pick')
+  })
+
+  it('asks about a lone payment to another payee when the receipts taken near it say the bank names the shop otherwise', () => {
+    const held = [heldOn(earlier, 'Obrt Pero', '', MOJITO_SQUARE)]
+
+    expect(matchesOf([earlier, other], '', 2.4, held, BESIDE_MOJITO).kind).toBe('pick')
+    expect(matchesOf([earlier, other], '', 2.4, held).kind).toBe('ready')
+  })
+
+  it('takes nothing from a receipt taken further than 100 m away', () => {
+    const held = [heldOn(earlier, 'Obrt Pero', '', { latitude: '45.815000', longitude: '15.977000' })]
+
+    expect(matchesOf([earlier, other, mojito], '', 2.4, held, MOJITO_SQUARE).kind).toBe('pick')
   })
 })
 

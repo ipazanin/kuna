@@ -118,14 +118,6 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           </UFormField>
         </FormGrid>
 
-        <USwitch
-          :model-value="draft.statementsSync"
-          :label="words.general.statementsSync"
-          :description="words.general.statementsSyncHelp"
-          data-testid="statements-sync"
-          @update:model-value="update('statementsSync', $event)"
-        />
-
         <USwitch :model-value="draft.ownerPayModule" :label="words.general.ownerPay" :description="words.general.ownerPayHelp" @update:model-value="update('ownerPayModule', $event)" />
       </div>
     </AppCard>

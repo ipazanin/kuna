@@ -104,7 +104,7 @@ export interface MailFilingPorts<Books> {
   readonly books: Books
   /** The start of the day the earliest mail may come, in epoch milliseconds. */
   readonly sinceStart: number
-  /** The years from the mail-since day's to this one's, whose folders a source lists before it searches. */
+  /** The years from the start day's to this one's, whose folders a source lists before it searches. */
   readonly years: readonly number[]
   /** The step's line while it runs: each source still running with what it does, such as "Bank statements: filing 2 of 3 · Broker reports: searching". */
   report(line: string): void
@@ -251,7 +251,7 @@ export async function eachAtMost<Item, Result>(items: readonly Item[], count: nu
 type Comparable = Pick<FiledFile, 'folders' | 'name'>
 
 /**
- * One source's plan. Its year folders from the mail-since year on are listed before the search, so
+ * One source's plan. Its year folders from the start day's year on are listed before the search, so
  * the window starts a week before the newest file there, whoever filed it, and mail found already
  * there moves it as mail the app filed does. A folder of an older year that a mail names is listed
  * after the search. Its mails are read and named at the same time, and its files made one by one.

@@ -1,5 +1,3 @@
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { amountOf, moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { MoneyFormat } from '../../../../shared/money/moneyFormat'
@@ -64,14 +62,10 @@ export interface Settings {
   readonly importProfiles: readonly ImportProfile[]
   /** The Drive folder the bank's camt statements are filed in, as folder names from My Drive down, or from the folder of the books file after a first `.`. None until one is chosen. */
   readonly statementsFolder: readonly string[]
-  /** Whether a sync files the new statements of that folder, once one is named. */
-  readonly statementsSync: boolean
   /** The addresses the bank mails statements from, in lower case. None leaves the bank's mail unread. */
   readonly statementsMailFrom: readonly string[]
   /** The phrase before the statement number in the subject of the bank's statement mail. Blank leaves the bank's mail unread. */
   readonly statementsMailSubject: string
-  /** The day the earliest mail a source reads may come, for a source the app filed nothing for yet. Null means the first day of last year. */
-  readonly mailSince: CivilDate | null
   /** The counterparties the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
   readonly personPayees: readonly string[]
   /** The Google Drive folder travel orders are filed under, by year, as the app's folder picker sets it. Blank until one is picked. */
@@ -200,10 +194,8 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   importProfiles: [],
   statementsFolder: [],
-  statementsSync: true,
   statementsMailFrom: [],
   statementsMailSubject: '',
-  mailSince: null,
   personPayees: [],
   tripFolderId: '',
 }
@@ -427,7 +419,7 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 ]
 
 /** Keys core no longer reads that older books may still hold. They read silently, and a save leaves their rows alone. */
-export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id'])
+export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id', 'statements_sync', 'mail_since'])
 
 /** The key that says the books store which invoice each client payment pays. Only Kuna sets it. */
 export const CLIENT_PAYMENTS_PLACED_KEY = 'client_payments_placed'
@@ -564,17 +556,6 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     },
   },
   {
-    key: 'statements_sync',
-    label: words.settingLabels.statementsSync,
-    note: 'TRUE files the new statements of the statements folder on every sync, once statements_folder names one. FALSE leaves them to Import.',
-    type: 'flag',
-    valueOf: (settings) => flagText(settings.statementsSync),
-    apply: (settings, value) => {
-      const enabled = booleanOf(value)
-      return enabled === null ? words.settings.notAFlag(value) : { ...settings, statementsSync: enabled }
-    },
-  },
-  {
     key: 'statements_mail_from',
     label: words.settingLabels.statementsMailFrom,
     note: 'The addresses the bank mails its statements from, comma separated. Each sync then looks in Gmail for them. Blank leaves the bank’s mail unread.',
@@ -594,17 +575,6 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     apply: (settings, value) => {
       const subject = value.trim()
       return searchProblem(mailPhraseFault('subject', subject)) ?? { ...settings, statementsMailSubject: subject }
-    },
-  },
-  {
-    key: 'mail_since',
-    label: words.settingLabels.mailSince,
-    note: 'The day the earliest mail a sync looks at may come, as a date or as text such as 2026-01-01. Blank means the first day of last year, so a sync early in January still finds mail from December. Once a kind of mail has files in its folder, a sync starts a week before the newest one, never before this day.',
-    type: 'date',
-    valueOf: (settings) => settings.mailSince ?? '',
-    apply: (settings, value) => {
-      const since = parseCivilDate(value.trim())
-      return since === null ? words.settings.notADay(value) : { ...settings, mailSince: since }
     },
   },
   {

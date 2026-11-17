@@ -1,6 +1,7 @@
 import type { FiscalQr } from './fiscalQr'
 import { isValidOib } from '../../../../shared/text/oib'
 import { oibIn } from './oib'
+import { sameMerchant } from './sameMerchant'
 import { words } from './words'
 import { companyCategoryOf } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
@@ -90,14 +91,10 @@ export function receiptCategories(categories: readonly Category[]): readonly Cat
   return categories.filter((category) => category.kind === 'spending' && !category.hidden && !parents.has(category.id) && !(category.parent !== null && byId.get(category.parent)?.hidden))
 }
 
-function sameMerchant(heldOib: string, heldName: string, oib: string, name: string): boolean {
-  return heldOib !== '' && oib !== '' ? heldOib === oib : fold(heldName) === fold(name)
-}
-
 /** Confirmed lines that remember a category, newest receipt first. */
 function rememberedLines(book: Pick<SpendingBook, 'receipts' | 'items'>, merchantOib: string, merchant: string): readonly Pick<TransactionItem, 'printed' | 'category'>[] {
   return [...book.receipts]
-    .filter((receipt) => sameMerchant(receipt.merchantOib, receipt.merchant, merchantOib, merchant))
+    .filter((receipt) => sameMerchant(receipt, { merchant, merchantOib }))
     .sort((one, other) => other.issuedOn.localeCompare(one.issuedOn))
     .flatMap((receipt) => book.items.filter((line) => line.receipt === receipt.id && line.printed !== ''))
 }

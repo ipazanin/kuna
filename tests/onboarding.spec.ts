@@ -11,8 +11,6 @@ const ERSTE: StatementMail = { bank: 'erste', from: '', subject: '', since: null
 
 const place = (changes: Partial<OnboardingPlace>): OnboardingPlace => ({ path: 'new', home: 'drive', asksHome: true, step: 'welcome', made: null, ...changes })
 
-const TODAY = '2026-10-27' as CivilDate
-
 describe('the onboarding steps', () => {
   it('ask Google before any file is opened, on each path in the proposal’s order, and never for books kept in this browser', () => {
     expect(stepsOf('new', 'drive')).toEqual(['welcome', 'home', 'access', 'folder', 'company', 'statement'])
@@ -107,38 +105,32 @@ describe('the onboarding steps', () => {
 })
 
 describe('how later statements arrive', () => {
-  it('files mail into a statements folder beside the books file, with the preset bank’s sender and subject words and mail since the first day of this year', () => {
-    expect(mailDeliveryRows(ERSTE, TODAY)).toEqual([
-      { key: 'statements_sync', value: 'true' },
+  it('files mail into a statements folder beside the books file, with the preset bank’s sender and subject words', () => {
+    expect(mailDeliveryRows(ERSTE)).toEqual([
       { key: 'statements_folder', value: './statements' },
       { key: 'statements_mail_from', value: 'netbanking.support@erstebank.hr' },
       { key: 'statements_mail_subject', value: 'ERSTE Izvadak' },
-      { key: 'mail_since', value: '2026-01-01' },
     ])
   })
 
   it('reads a folder by its path from My Drive', () => {
-    expect(folderDeliveryRows(['work', 'statements'])).toEqual([
-      { key: 'statements_sync', value: 'true' },
-      { key: 'statements_folder', value: 'work/statements' },
-    ])
+    expect(folderDeliveryRows(['work', 'statements'])).toEqual([{ key: 'statements_folder', value: 'work/statements' }])
   })
 
-  it('takes another bank’s sender and subject words as typed, with the day picked, and says what is missing or does not hold', () => {
+  it('takes another bank’s sender and subject words as typed, and says what is missing or does not hold', () => {
     const typed: StatementMail = { bank: OTHER_BANK, from: ' Statements@Bank.example.com, ', subject: ' Statement ', since: '2025-06-01' as CivilDate }
-    expect(mailDeliveryRows(typed, TODAY)).toEqual(
+    expect(mailDeliveryRows(typed)).toEqual(
       expect.arrayContaining([
         { key: 'statements_mail_from', value: 'statements@bank.example.com' },
         { key: 'statements_mail_subject', value: 'Statement' },
-        { key: 'mail_since', value: '2025-06-01' },
       ]),
     )
     expect(statementMailProblems(typed)).toEqual({})
     expect(statementMailProblems(ERSTE)).toEqual({})
-    expect(statementMailProblems({ ...typed, from: '', subject: '' })).toEqual({ from: 'Type the address the bank mails statements from', subject: 'Type the words before the statement number' })
+    expect(statementMailProblems({ ...typed, from: '', subject: '' })).toEqual({ from: 'missing', subject: 'missing' })
     expect(statementMailProblems({ ...typed, from: 'the bank', subject: 'Izvadak "' })).toEqual({
-      from: '"the bank" is not a mail address',
-      subject: 'a subject cannot hold a double quote, which would end the phrase Gmail searches for',
+      from: { kind: 'not-addresses', addresses: ['the bank'] },
+      subject: { kind: 'quote', phrase: 'subject' },
     })
   })
 })

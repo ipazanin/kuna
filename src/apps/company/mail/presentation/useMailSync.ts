@@ -13,13 +13,17 @@ import type { Workbook } from '../../workbook/domain/workbook'
 import { fileMail, hasProblem, planLine } from '../../../../shared/mail-filing/application/mailFiling'
 import type { MailAccess, MailPlan, MailSource } from '../../../../shared/mail-filing/application/mailFiling'
 import { statementMailSource } from '../application/statementMailSource'
-import { mailSinceDefault, yearsSince } from '../../../../shared/mail-filing/domain/mailSource'
+import { yearsSince } from '../../../../shared/mail-filing/domain/mailSource'
+import { earliestStartDay } from '../../../../shared/app/accountSource'
 import { gmailMailbox } from '../../../../shared/mail-filing/infrastructure/gmailMailbox'
 import { googleMailFolders } from '../../../../shared/mail-filing/infrastructure/googleMailFolders'
 import { words } from './words'
 
 /** Where the step's line links, the mail card on Settings, General, which lists what the last run found. */
 export const MAIL_LIST_LINK = { label: words.step.seeList, to: '/company/settings#mail' } as const
+
+/** Where the step's line links while no account takes the bank's statements, the Accounts tab of Settings. */
+export const ACCOUNTS_LINK = { label: words.step.seeAccounts, to: '/company/settings?tab=accounts' } as const
 
 interface MailSyncState {
   /** What the last mail step of this page found and filed, or null before one ran and after one stopped. */
@@ -30,7 +34,7 @@ interface MailSyncState {
 
 const state = shallowReactive<{ plan: MailPlan | null; stopped: string | null }>({ plan: null, stopped: null })
 
-/** This device's time zone, which the day of a bank's mail and the mail-since day are read in. */
+/** This device's time zone, which the day of a bank's mail and the accounts' start day are read in. */
 const DEVICE_TIME_ZONE = deviceTimeZone()
 
 const STATEMENTS = statementMailSource(loadImportFile, DEVICE_TIME_ZONE)
@@ -43,14 +47,22 @@ function isOn(workbook: Workbook): boolean {
   return SOURCES.some((source) => source.terms(workbook).kind !== 'off')
 }
 
+/** The day the search starts, the earliest start day of the accounts the bank's statements fill, or null while they fill none. */
+function searchStart(workbook: Workbook) {
+  return earliestStartDay(workbook.accounts.map((account) => account.intake))
+}
+
 /**
  * For the sources that run, Gmail read and the scope each one's folder is read with: Drive read
  * from My Drive, the books file's scope from the folder of the books file. None while no source
- * has all it needs, since then the step calls neither Gmail nor Drive.
+ * has all it needs or no account takes the bank's statements, since then the step calls neither Gmail nor Drive.
  */
 function mailScopes(workbook: Workbook | null): GoogleScope[] {
   if (workbook === null) {
     return ['gmail.readonly']
+  }
+  if (searchStart(workbook) === null) {
+    return []
   }
   const folders = SOURCES.flatMap((source) => {
     const terms = source.terms(workbook)
@@ -108,8 +120,12 @@ export function useMailSync(): MailSync {
         if (workbook === null || choice?.source !== 'drive') {
           return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
         }
+        const since = searchStart(workbook)
+        if (since === null) {
+          state.plan = null
+          return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }
+        }
         const now = today()
-        const since = workbook.settings.mailSince ?? mailSinceDefault(now)
         try {
           state.plan = await fileMail({
             open: () => openMail(workbook, choice.id),

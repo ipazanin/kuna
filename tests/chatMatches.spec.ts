@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
-import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeReceiptsChat'
 import { sampleFiscalQrText } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto'
 import { RECEIPT_KIND, matchReceipts, matchRecords } from '../src/shared/ai/application/chatMatches'
 import type { MatchRecordsInput, ReceiptToMatch } from '../src/shared/ai/application/chatMatches'
@@ -11,7 +12,7 @@ import type { ChatReads } from '../src/shared/ai/application/chatReads'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
-import { plainAmount } from '../src/shared/money/money'
+import { moneyFromAmount, plainAmount } from '../src/shared/money/money'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING } from './fixtures/chatBook'
@@ -201,7 +202,7 @@ describe('matching a fiscal receipt with the payments it may be', () => {
     return { app: 'spending', kind: RECEIPT_KIND, account: null, rows: [], receipts, ...changes }
   }
 
-  const receipt = (date: string, total: number, merchant = '', photo: string | null = null): ReceiptToMatch => ({ date, total, merchant, photo })
+  const receipt = (date: string, total: number, merchant = '', photo: string | null = null, merchantOib: string | null = null): ReceiptToMatch => ({ date, total, merchant, merchantOib, photo })
 
   interface PaymentShown {
     readonly ref: string
@@ -280,6 +281,39 @@ describe('matching a fiscal receipt with the payments it may be', () => {
     expect(refusals.map((answer) => answer.text).join(' ')).not.toMatch(/Ignore|2026-13|12\.345|a9/)
     expect(refusals[6]!.text).toContain('Receipt 1 does not read')
     expect(matchRecords(input([CORNER_MARKET], { receipts: [receipt('2026-10-22', 12)] }), reads).text).toContain('kind receipt')
+  })
+
+  it("orders the payments by how the bank named the merchant's earlier receipt, reading its OIB back from the token the model was sent", async () => {
+    const earlier = { ...shop(7, '2026-09-01', -23.49, 'CAFFE BAR MOJITO'), importKey: 'bank-7' }
+    const mojito = { ...shop(8, '2026-10-21', -23.49, 'CAFFE BAR MOJITO'), importKey: 'bank-8' }
+    const kiosk = { ...shop(9, '2026-10-20', -23.49, 'KIOSK TISAK'), importKey: 'bank-9' }
+    const onFile = {
+      id: recordIdOf(RECEIPT_RECORDS, 'receipt-7'),
+      transaction: earlier.id,
+      account: null,
+      merchant: 'Pero j.d.o.o.',
+      merchantOib: MADE_UP_MERCHANT_OIB,
+      buyerOib: '',
+      issuedOn: earlier.date,
+      issuedTime: '',
+      total: moneyFromAmount(23.49),
+      jir: '',
+      zki: '',
+      readBy: '',
+      photo: '',
+      latitude: '',
+      longitude: '',
+    }
+    const book: SpendingBook = { ...CHAT_BOOK, transactions: [...CHAT_BOOK.transactions, earlier, kiosk, mojito], receipts: [...CHAT_BOOK.receipts, onFile] }
+    const reads = readsOf({}, book)
+    const token = reads.pseudonyms.pseudonymised(`OIB ${MADE_UP_MERCHANT_OIB}`, 'books').replace('OIB ', '')
+
+    const { receipts } = await found([receipt('2026-10-20', 23.49, 'Obrt Ivo', null, token), receipt('2026-10-20', 23.49, 'Obrt Ivo')], reads)
+
+    expect(token).not.toContain(MADE_UP_MERCHANT_OIB)
+    expect(receipts[0]!.match).toBe('ready')
+    expect(reads.refs.recordOf(receipts[0]!.payments[0]!.ref)?.id).toBe(mojito.id)
+    expect(receipts[1]!.match).toBe('pick')
   })
 
   it('reads nothing before the gate says yes', async () => {

@@ -557,23 +557,29 @@ describe('splits and owner shares', () => {
 describe('settings, categories and accounts', () => {
   it('never sets a key only a person sets', async () => {
     const desk = await companyDesk(used)
-    for (const key of ['person_payees', 'review_label', 'invoice_folder_id', 'statements_folder', 'statements_sync', 'statements_mail_from', 'template_version']) {
+    for (const key of ['person_payees', 'review_label', 'invoice_folder_id', 'statements_folder', 'statements_mail_from', 'template_version']) {
       const answer = await desk.propose([{ op: 'set-setting', input: { key, value: 'x' } }])
       expect(answer.isError, key).toBe(true)
     }
     expect(desk.cards).toEqual([])
   })
 
-  it("sets the subject of the bank's mail and the day mail is read from, which need no Google consent", async () => {
+  it("sets the subject of the bank's mail, which needs no Google consent", async () => {
     const desk = await companyDesk(used)
 
-    const answer = await desk.propose([
-      { op: 'set-setting', input: { key: 'statements_mail_subject', value: 'Izvadak' } },
-      { op: 'set-setting', input: { key: 'mail_since', value: '2026-01-01' } },
-    ])
+    const answer = await desk.propose([{ op: 'set-setting', input: { key: 'statements_mail_subject', value: 'Izvadak' } }])
 
     expect(answer.isError, answer.text).toBe(false)
-    expect(desk.cards[0]!.groups.flatMap((group) => group.lines).map((line) => line.label)).toEqual(['Subject words', 'Mail since'])
+    expect(desk.cards[0]!.groups.flatMap((group) => group.lines).map((line) => line.label)).toEqual(['Subject words'])
+  })
+
+  it('refuses the retired statement sync switch and mail-since day, since each account says how its rows come in and from which day', async () => {
+    const desk = await companyDesk(used)
+    for (const key of ['statements_sync', 'mail_since']) {
+      const answer = await desk.propose([{ op: 'set-setting', input: { key, value: 'x' } }])
+      expect(answer.isError, key).toBe(true)
+    }
+    expect(desk.cards).toEqual([])
   })
 
   it('warns on a value that says where money goes, and on currency with a line of its own', async () => {

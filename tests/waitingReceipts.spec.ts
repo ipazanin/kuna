@@ -7,7 +7,7 @@ import { rowItemsOf, waitsOnReview } from '../src/apps/spending/workbook/domain/
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
-import { receiptOnRow, receiptsArriving, waitingReceipts } from '../src/apps/spending/receipts/domain/waitingReceipts'
+import { asksForPayment, receiptOnRow, receiptsArriving, waitingReceipts } from '../src/apps/spending/receipts/domain/waitingReceipts'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
@@ -29,7 +29,7 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized, wholeReceiptLines } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized, spendingBook, wholeItems, wholeReceiptLines } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -248,6 +248,37 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     const arriving = [itemized(row(OTP, '2026-11-04', -23.49, null, { source: 'statement', importKey: 'bank-1', payee: 'CORNER MARKET' }))]
     const placed = receiptsArriving({ ...book, receipts: [two.receipt, one.receipt], items: [...one.lines, ...two.lines] }, arriving, 'Difference')
     expect(placed.map((receipt) => receipt.receipt.before.id)).toEqual([one.receipt.id])
+  })
+
+  describe("from a merchant whose earlier receipt went on a bank's row", () => {
+    const PERO = { ...DRAFT, merchant: 'Obrt Pero', total: moneyFromAmount(2.4) }
+    const earlier = row(OTP, '2026-10-02', -2.4, 'Food/Eating out', { source: 'statement', importKey: 'bank-0', payee: 'CAFFE BAR MOJITO' })
+    const onFile = receiptSplit({ ...PERO, issuedOn: civil('2026-10-02') }, rowPlace(earlier, []), wholeReceiptLines(PERO.total, GROCERIES.id))
+    const pero = receiptSplit(PERO, { account: OTP }, wholeReceiptLines(PERO.total, GROCERIES.id))
+    const mojito = row(OTP, '2026-11-04', -2.4, null, { source: 'statement', importKey: 'bank-1', payee: 'CAFFE BAR MOJITO' })
+    const kiosk = row(OTP, '2026-11-03', -2.4, null, { source: 'statement', importKey: 'bank-2', payee: 'KIOSK TISAK' })
+    const parts = { receipts: [onFile.receipt, pero.receipt], items: [...onFile.lines, ...pero.lines] }
+
+    it('goes on the arriving row the bank names the way it named the earlier one, out of two equal payments', () => {
+      const placed = receiptsArriving({ accounts: ACCOUNTS, categories: CATEGORIES, transactions: [earlier], ...parts }, [itemized(kiosk), itemized(mojito)], 'Difference')
+
+      expect(placed.map((receipt) => [receipt.receipt.before.id, receipt.row.id])).toEqual([[pero.receipt.id, mojito.id]])
+    })
+
+    it('keeps waiting when two arriving rows are both named that way', () => {
+      const second = { ...mojito, id: kiosk.id, importKey: 'bank-2', date: civil('2026-11-03') }
+
+      expect(receiptsArriving({ accounts: ACCOUNTS, categories: CATEGORIES, transactions: [earlier], ...parts }, [itemized(second), itemized(mojito)], 'Difference')).toEqual([])
+    })
+
+    it('still asks on To review once the row is clear, with that one row ready', () => {
+      const book = spendingBook([earlier, kiosk, mojito], { ...parts, items: [...wholeItems([kiosk, mojito]), ...parts.items] })
+      const [asking] = waitingReceipts(book)
+
+      expect(asking?.matches).toMatchObject({ kind: 'ready', candidates: [{ row: { id: mojito.id } }, { row: { id: kiosk.id } }] })
+      expect(asksForPayment(asking!)).toBe(true)
+      expect(reviewCount(book)).toBe(waitingCount(book) + 1)
+    })
   })
 })
 

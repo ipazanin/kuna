@@ -18,7 +18,7 @@ import { dayMonthsLater, lastDayOf, monthCountBetween, monthOf, monthsFrom } fro
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, dividedDecimal, inEuros } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { ZERO, addMoney, negateMoney, subtractMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { DatedFlow } from '../../../../shared/money/rateSolver'
 import { shareFromRatio } from '../../../../shared/money/percent'
@@ -29,9 +29,11 @@ const VOLATILITY_MONTHS = 12
 /** The euros each growth line starts from. */
 export const GROWTH_START = 100
 
-/** What the money did over a period: its value at the last close and the money-weighted return a year. */
+/** What the money did over a period: its value at the last close, what it gained in money and the money-weighted return a year. */
 export interface MoneyReturns {
   readonly value: Money
+  /** The value at the last close less the value at the first, less the money put in and plus the money taken out after the first day. */
+  readonly gain: Money
   readonly moneyWeighted: YearlyReturn
 }
 
@@ -282,6 +284,7 @@ function moneyReturnsOf(days: readonly ValuedDay[]): MoneyReturns {
   return {
     moneyWeighted: first === undefined || last === undefined || !lastsAYear(first.date, last.date) ? { kind: 'under-a-year' } : rate === null ? { kind: 'none' } : { kind: 'rate', rate },
     value: last?.value ?? ZERO,
+    gain: first === undefined || last === undefined ? ZERO : subtractMoney(subtractMoney(last.value, first.value), sumMoney(days.slice(1).map((day) => day.flow))),
   }
 }
 

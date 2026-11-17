@@ -7,11 +7,16 @@ import { gainSteps, periodGains } from '../src/apps/investments/performance/doma
 import { periodDrivers } from '../src/apps/investments/performance/presentation/driversChart'
 import type { PeriodGains } from '../src/apps/investments/performance/domain/periodGains'
 import type { PerformancePeriod } from '../src/apps/investments/performance/domain/performancePeriod'
-import { dayValuer, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance'
+import { dayValuer, performanceByYear, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance'
+import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks'
+import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices'
+import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
+import type { FakeInvestmentsVariant } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
+import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { EURO } from '../src/shared/money/currencyCode'
-import { sumMoney } from '../src/shared/money/money'
+import { negateMoney, subtractMoney, sumMoney } from '../src/shared/money/money'
 import {
   BROKER,
   STOCK_B,
@@ -352,5 +357,33 @@ describe('the gain of a period', () => {
       [STOCK_B.name, euros(82.83)],
       ['Currency on cash', euros(10.92)],
     ])
+  })
+})
+
+describe("the money gain on Performance's tiles and years", () => {
+  const SAVED = '2026-11-17T09:00:00.000Z'
+  const TODAY = civil('2026-11-17')
+  const VARIANTS: readonly FakeInvestmentsVariant[] = ['sample', 'cash-below-zero', 'young', 'mail', 'mail-typed', 'sale-2023']
+
+  it.each(VARIANTS)('is the same cents the bridge from Start to End gives, for All and each year, on the fake %s portfolio', (variant) => {
+    const { workbook } = INVESTMENTS_DOCUMENT.read({
+      meta: { id: 'gain', source: 'browser', title: 'gain', syncedAt: SAVED, lastExportedAt: null, unexportedSince: null },
+      revision: '1',
+      document: fakeInvestmentsDocument(SAVED, variant, TODAY),
+    })
+    const prices = fakePricesFile('sample', TODAY)
+    const sources: PortfolioSources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates: pricesFileRateBook(prices), today: TODAY }
+    const valuedOn = dayValuer(sources)
+    const periods: PerformancePeriod[] = [{ kind: 'all' }, ...performanceByYear(sources, null, valuedOn).map(({ year }): PerformancePeriod => ({ kind: 'year', year }))]
+
+    const compared = periods.flatMap((period) => {
+      const performance = portfolioPerformance(sources, null, period, valuedOn)
+      if (performance.kind !== 'figures') return []
+      const bridge = periodGains(sources, performance, valuedOn)
+      return [{ period, gain: performance.portfolio.gain, bridge: subtractMoney(subtractMoney(subtractMoney(bridge.end, bridge.start), bridge.putIn), negateMoney(bridge.takenOut)) }]
+    })
+
+    expect(compared.length).toBeGreaterThan(0)
+    expect(compared.map(({ period, bridge }) => ({ period, gain: bridge }))).toEqual(compared.map(({ period, gain }) => ({ period, gain })))
   })
 })

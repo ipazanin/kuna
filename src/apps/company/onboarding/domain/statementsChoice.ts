@@ -4,12 +4,10 @@ import { BOOKS_FOLDER } from '../../../../shared/text/folderPath'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
 import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
 import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
-import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
 import type { Settings } from '../../settings/domain/settings'
 import { proposedStartDay } from '../../../../shared/app/accountSource'
 import { handDaysOf } from '../../workbook/domain/accountIntakes'
 import type { Account, CompanyIntake, Transaction } from '../../workbook/domain/workbook'
-import { words } from './words'
 
 /** The folder the app makes beside the books file for the statements it files from mail, which `drive.file` can then read. */
 export const MAIL_STATEMENTS_FOLDER = 'statements'
@@ -19,7 +17,7 @@ export const OTHER_BANK = 'other'
 
 /**
  * The bank's mail statements come from: a preset by its id, or another bank with its sender and
- * subject words as typed, and the earliest day a sync reads, null for the first day of this year.
+ * subject words as typed, and the day the bank's statements start filling the accounts, null for the first day of this year.
  */
 export interface StatementMail {
   readonly bank: string
@@ -29,15 +27,13 @@ export interface StatementMail {
 }
 
 /** New books take their statements by hand, and delivery is offered after the first one. */
-export const STATEMENTS_BY_HAND: Pick<Settings, 'statementsSync' | 'statementsFolder' | 'statementsMailFrom' | 'statementsMailSubject' | 'mailSince'> = {
-  statementsSync: false,
+export const STATEMENTS_BY_HAND: Pick<Settings, 'statementsFolder' | 'statementsMailFrom' | 'statementsMailSubject'> = {
   statementsFolder: [],
   statementsMailFrom: [],
   statementsMailSubject: '',
-  mailSince: null,
 }
 
-/** The earliest mail new books propose to read: the first day of this year, so last year's statements stay out of them. */
+/** The day new books propose the bank's statements start filling their accounts: the first day of this year, so last year's statements stay out of them. */
 export function firstMailDay(today: CivilDate): CivilDate {
   return civilDate(Number(today.slice(0, 4)), 1, 1)
 }
@@ -48,25 +44,25 @@ function mailTermsOf(mail: StatementMail): { readonly senders: readonly string[]
   return preset ?? { senders: mailAddressesOf(mail.from), subject: mail.subject.trim() }
 }
 
+/** Why a typed sender or subject words cannot be searched for: nothing typed, or a fault of what was typed. */
+export type StatementMailProblem = 'missing' | MailSearchFault
+
 /** Why another bank's typed sender or subject words cannot be searched for, by field. A preset has none. */
-export function statementMailProblems(mail: StatementMail): { readonly from?: string; readonly subject?: string } {
+export function statementMailProblems(mail: StatementMail): { readonly from?: StatementMailProblem; readonly subject?: StatementMailProblem } {
   if (mail.bank !== OTHER_BANK) return {}
   const { senders, subject } = mailTermsOf(mail)
-  const worded = (fault: MailSearchFault | null): string | null => (fault === null ? null : mailWords.searchFault(fault))
-  const from = senders.length === 0 ? words.typeSender : worded(mailAddressesFault(senders))
-  const subjectWords = subject === '' ? words.typeSubject : worded(mailPhraseFault('subject', subject))
-  return { ...(from === null ? {} : { from }), ...(subjectWords === null ? {} : { subject: subjectWords }) }
+  const from = senders.length === 0 ? 'missing' : mailAddressesFault(senders)
+  const subjectProblem = subject === '' ? 'missing' : mailPhraseFault('subject', subject)
+  return { ...(from === null ? {} : { from }), ...(subjectProblem === null ? {} : { subject: subjectProblem }) }
 }
 
 /** The settings rows that file the bank's mail on each sync into the folder the app makes beside the books file. */
-export function mailDeliveryRows(mail: StatementMail, today: CivilDate): readonly { readonly key: string; readonly value: string }[] {
+export function mailDeliveryRows(mail: StatementMail): readonly { readonly key: string; readonly value: string }[] {
   const { senders, subject } = mailTermsOf(mail)
   return [
-    { key: 'statements_sync', value: 'true' },
     { key: 'statements_folder', value: [BOOKS_FOLDER, MAIL_STATEMENTS_FOLDER].join('/') },
     { key: 'statements_mail_from', value: senders.join(', ') },
     { key: 'statements_mail_subject', value: subject },
-    { key: 'mail_since', value: mail.since ?? firstMailDay(today) },
   ]
 }
 
@@ -90,8 +86,5 @@ export function accountsTheStatementsFill(
 
 /** The settings rows that read each sync's statements from a folder at this path from My Drive. */
 export function folderDeliveryRows(path: readonly string[]): readonly { readonly key: string; readonly value: string }[] {
-  return [
-    { key: 'statements_sync', value: 'true' },
-    { key: 'statements_folder', value: path.join('/') },
-  ]
+  return [{ key: 'statements_folder', value: path.join('/') }]
 }

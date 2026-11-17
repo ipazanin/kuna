@@ -45,8 +45,6 @@ export const en = {
     statementsFolder: settingsEn.settingLabels.statementsFolder,
     statementsFolderHelp:
       'Where Sync looks in Google Drive for the bank’s camt statements, as a path from My Drive with a folder for each year inside. Blank names none, and statements come in through Import.',
-    statementsSync: settingsEn.settingLabels.statementsSync,
-    statementsSyncHelp: 'Each sync files the statements of the folder that the ledger lacks. Off, or no folder, leaves statements to Import.',
     ownerPay: settingsEn.settingLabels.ownerPay,
     ownerPayHelp: 'Shows owner pay and owner earns. Off hides them, and rows in the owner-pay bucket then count as operating cost, so every total stays the same.',
     bucketLabels: 'Bucket labels',
@@ -278,8 +276,6 @@ export const hr: Translation<typeof en> = {
     statementsFolder: settingsHr.settingLabels.statementsFolder,
     statementsFolderHelp:
       'Gdje sinkronizacija na Google Driveu traži bankovne camt izvode, kao put od mape Moj disk, s mapom za svaku godinu unutra. Prazno ne imenuje nijednu, pa izvodi stižu kroz Uvoz.',
-    statementsSync: settingsHr.settingLabels.statementsSync,
-    statementsSyncHelp: 'Svaka sinkronizacija upisuje izvode iz mape kojih još nema u evidenciji. Isključeno ili bez mape, izvodi ostaju za Uvoz.',
     ownerPay: settingsHr.settingLabels.ownerPay,
     ownerPayHelp: 'Prikazuje isplate vlasniku i zaradu vlasnika. Isključen ih skriva, a stavke skupine „Isplate vlasniku” tada se broje kao poslovni rashodi, pa svi zbrojevi ostaju isti.',
     bucketLabels: 'Nazivi skupina',

@@ -18,6 +18,8 @@ import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setu
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
 import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { fiscalQrOn } from '../receipts/domain/fiscalQr'
+import { oibIn } from '../receipts/domain/oib'
+import { placeInPhoto } from '../receipts/domain/photoPlace'
 import { isPayLink, linkStateOf, paidLoansIn, sameRecord } from '../links/domain/linkTarget'
 import type { AppTargets, LinkTarget, TargetSource } from '../links/domain/linkTarget'
 import { receiptMatches } from '../receipts/domain/receiptMatch'
@@ -90,12 +92,13 @@ export interface SpendingReading {
 function receiptPayments(reading: SpendingReading): ReceiptPayments {
   return {
     kind: TRANSACTION_RECORDS.name,
-    match: async ({ date, total, merchant, photo }) => {
-      const qr = photo === null ? null : await fiscalQrOn(photo, reading.qrTextOn)
+    match: async ({ date, total, merchant, merchantOib, photo }) => {
+      const [qr, place] = photo === null ? [null, null] : await Promise.all([fiscalQrOn(photo, reading.qrTextOn), placeInPhoto(photo)])
       const issuedOn = qr?.issuedOn ?? date
       const totalOn = qr?.total ?? total
       const book = reading.book()
-      const matches = book === null ? { kind: 'none' as const } : receiptMatches({ merchant, issuedOn, total: totalOn }, book, null)
+      const facts = { merchant, merchantOib: oibIn(merchantOib), issuedOn, total: totalOn, latitude: place?.latitude ?? '', longitude: place?.longitude ?? '' }
+      const matches = book === null ? { kind: 'none' as const } : receiptMatches(facts, book, null)
       const candidates = matches.kind === 'none' ? [] : matches.candidates.map(({ row, difference }) => ({ id: row.id, date: row.date, amount: row.amount, difference, currency: EURO }))
       return { date: issuedOn, total: totalOn, fromCode: qr !== null, match: matches.kind, candidates }
     },

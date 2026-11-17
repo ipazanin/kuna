@@ -20,6 +20,12 @@ import type { CellValue } from '../src/apps/company/workbook/infrastructure/work
 import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
+import { statementNeeds } from '../src/apps/company/imports/presentation/useStatementSync'
+import { mailNeeds } from '../src/apps/company/mail/presentation/useMailSync'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
+import type { Account } from '../src/apps/company/workbook/domain/workbook'
+import { emptyCompany } from './fixtures/emptyCompany'
+import { civil } from './fixtures/ledger'
 
 const used = new Set<string>()
 
@@ -335,5 +341,22 @@ describe('the statements step when Google turns the token away', () => {
 
     await expect(syncOf(store, failing(refused))).rejects.toBe(refused)
     expect(await syncOf(store, failing(new Error('Offline')))).toEqual({ ...NOTHING_FILED, problem: 'The statements folder could not be read: Offline' })
+  })
+})
+
+describe('the statements and mail steps of a sync', () => {
+  const BY_MAIL: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', intake: { rowsFrom: 'mail', startsOn: civil('2026-11-01'), alsoFrom: [] } }
+  const BY_HAND_TOO: Account = { ...BY_MAIL, slug: 'savings', iban: SAVINGS_IBAN, intake: { rowsFrom: 'by-hand', startsOn: null } }
+  const named = emptyCompany({
+    accounts: [BY_HAND_TOO],
+    settings: { ...DEFAULT_SETTINGS, statementsFolder: ['work', 'statements'], statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Izvadak' },
+  })
+
+  it("ask Google for nothing while every account is kept by hand, and for the folder and Gmail once one takes the bank's statements", () => {
+    expect([statementNeeds(named), mailNeeds(named)]).toEqual([[], []])
+
+    const filling = { ...named, accounts: [BY_HAND_TOO, BY_MAIL] }
+    expect(statementNeeds(filling)).toHaveLength(1)
+    expect(mailNeeds(filling).map((need) => need.scope)).toContain('gmail.readonly')
   })
 })

@@ -105,7 +105,9 @@ const issuedOn = computed(() => qr.value?.issuedOn ?? parseCivilDate(typedDate.v
 
 const matches = computed(() => {
   const current = book.value
-  return current === null || total.value === null || issuedOn.value === null ? null : receiptMatches({ merchant: merchant.value, issuedOn: issuedOn.value, total: total.value }, current, null)
+  if (current === null || total.value === null || issuedOn.value === null) return null
+  const place = photoPlace.value ?? { latitude: '', longitude: '' }
+  return receiptMatches({ merchant: merchant.value, merchantOib: '', issuedOn: issuedOn.value, total: total.value, ...place }, current, null)
 })
 
 const candidates = computed((): readonly ReceiptCandidate[] => (matches.value === null || matches.value.kind === 'none' ? [] : matches.value.candidates))

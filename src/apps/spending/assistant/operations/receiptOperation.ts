@@ -355,7 +355,13 @@ export function writeReceiptStep(
       latitude: photo.place?.latitude ?? '',
       longitude: photo.place?.longitude ?? '',
     },
-    placeOf(field, book, { merchant: read.merchant, issuedOn: read.issuedOn, total: read.total }, paid, idOf),
+    placeOf(
+      field,
+      book,
+      { merchant: read.merchant, merchantOib: read.merchantOib, issuedOn: read.issuedOn, total: read.total, latitude: photo.place?.latitude ?? '', longitude: photo.place?.longitude ?? '' },
+      paid,
+      idOf,
+    ),
     read.lines.map((line) => ({ printed: line.printed, note: line.text, amount: line.amount, category: line.category! })),
   )
   writeReceiptSplit(unit, book.stored, split)

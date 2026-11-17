@@ -1,6 +1,7 @@
 import { computed, shallowReactive, shallowReadonly } from 'vue'
 import type { ComputedRef } from 'vue'
 
+import { earliestStartDay } from '../../../../shared/app/accountSource'
 import { currentToken } from '../../../../shared/google/googleAuth'
 import { folderReadScope } from '../../../../shared/google/googleScopes'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
@@ -44,8 +45,9 @@ async function openStatementFolder(workbook: Workbook, booksFileId: string): Pro
 
 const STATEMENTS_LABEL = words.step.label
 
+/** On while a folder is named and some account takes the bank's statements from it. */
 function isOn(workbook: Workbook): boolean {
-  return workbook.settings.statementsSync && workbook.settings.statementsFolder.length > 0
+  return workbook.settings.statementsFolder.length > 0 && earliestStartDay(workbook.accounts.map((account) => account.intake)) !== null
 }
 
 /** What the statements step needs of Google for these books, none while their settings turn it off. */

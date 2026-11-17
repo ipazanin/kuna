@@ -124,7 +124,6 @@
     "src/apps/company/invoicing/domain/invoiceLines.ts",
     "src/apps/company/invoicing/domain/invoiceMail.ts",
     "src/apps/company/invoicing/domain/invoiceNumber.ts",
-    "src/apps/company/onboarding/domain/statementsChoice.ts",
     "src/apps/company/overview/domain/headline.ts",
     "src/apps/company/owner-share/domain/ownerParts.ts",
     "src/apps/company/owner-share/domain/ownerShare.ts",
