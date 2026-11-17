@@ -15,6 +15,7 @@ import { words as entryWords } from '../../entries/presentation/words'
 import { addLabel } from '../../labels/application/labelWrites'
 import { labelCalled, labelNameProblem, newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../labels/presentation/LabelsSelect.vue'
+import PayeeField from '../../payees/presentation/PayeeField.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { takesNewRowsByHand } from '../../workbook/domain/account'
@@ -193,7 +194,7 @@ async function remove(): Promise<void> {
         <UInput v-model="name" class="w-full" data-testid="spending-shortcut-name" />
       </UFormField>
       <UFormField :label="entryWords.dialog.payee">
-        <UInput v-model="payee" autocomplete="off" class="w-full" data-testid="spending-shortcut-payee" />
+        <PayeeField v-model="payee" data-testid="spending-shortcut-payee" />
       </UFormField>
       <UFormField :label="entryWords.dialog.account" :error="(tried && pickedAccount === null && entryWords.dialog.pickAccount) || false">
         <USelect v-model="account" :items="accountItems" class="w-full" data-testid="spending-shortcut-account" />

@@ -12742,6 +12742,16 @@ export function spendingShortcutDialogFlowIn(language) {
     if ((await parts()) !== 3) throw new Error('Add a part added no part')
     await pressSelector(page, press, '[data-testid="spending-shortcut-part"]:last-child [data-testid="spending-shortcut-remove-part"]')
     if ((await parts()) !== 2) throw new Error('Remove did not take the part off')
+    const payee = await pressSelector(page, press, '[data-testid="spending-shortcut-payee"]')
+    const held = await payee.evaluate((element) => element.value)
+    await payee.evaluate((element) => element.select())
+    await page.keyboard.type(held.slice(0, 3))
+    await page.waitForSelector('[role="listbox"] [role="option"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the quick add payee field offers no known payees')
+    })
+    await delay(300)
+    await shoot('spending-shortcut-payees')
+    await page.keyboard.press('Escape')
   }
 }
 
