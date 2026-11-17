@@ -48,12 +48,11 @@ const noPriceWord = useNoPriceWord()
     <template #caption>
       <span class="inline-flex flex-wrap items-center gap-x-1.5">
         <span>{{ line.holding.instrument.symbol }}</span>
-        · <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" /><span v-else>{{ noPriceWord(line.holding.instrument) }}</span>
-        <template v-if="line.holding.unrealised !== null">
-          · <MoneyText :cents="line.holding.unrealised" tone="outcome" /><span v-if="line.gainShare !== null" class="figure" :class="moneyToneClass(percentAsShown(line.gainShare), 'outcome')">{{
-            formatPercent(line.gainShare, 'always')
-          }}</span>
-        </template>
+        <span v-if="line.holding.valuation !== null">· <MoneyText :cents="line.holding.valuation.value" /></span><span v-else>· {{ noPriceWord(line.holding.instrument) }}</span>
+        <span v-if="line.holding.unrealised !== null">· <MoneyText :cents="line.holding.unrealised" tone="outcome" /></span>
+        <span v-if="line.holding.unrealised !== null && line.gainShare !== null"
+          >· <span class="figure" :class="moneyToneClass(percentAsShown(line.gainShare), 'outcome')">{{ formatPercent(line.gainShare, 'always') }}</span></span
+        >
         <PriceMarkNote :holding="line.holding" :quoted-day="quotedDay" bare />
       </span>
     </template>
