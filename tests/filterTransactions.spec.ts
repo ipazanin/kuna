@@ -2,8 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
 import type { FilterState } from '../src/apps/company/filters/domain/filterState'
-import { filterTransactions, scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
+import { filterTransactions, scopeTransactions, wholeRowLabels } from '../src/apps/company/transactions/domain/filterTransactions'
+import type { ItemLabels } from '../src/apps/company/transactions/domain/filterTransactions'
+import { ITEM_RECORDS, LABEL_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { wholeItemId } from '../src/apps/company/workbook/domain/splits'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { euros, ledger, windowOf } from './fixtures/ledger'
+
+/** No item carries a label in these books. */
+const NO_LABELS: ItemLabels = new Map()
 
 const window = windowOf('2026-06-03', '2026-10-05')
 
@@ -16,7 +23,7 @@ const rows = ledger([
 ])
 
 function amountsFor(filters: Partial<FilterState>): number[] {
-  return filterTransactions(rows, { ...DEFAULT_FILTERS, period: { preset: 'all' }, ...filters }, window).map((row) => row.amount)
+  return filterTransactions(rows, { ...DEFAULT_FILTERS, period: { preset: 'all' }, ...filters }, NO_LABELS, window).map((row) => row.amount)
 }
 
 describe('filterTransactions', () => {
@@ -52,6 +59,20 @@ describe('filterTransactions', () => {
   })
 
   it('scopes without the period, for screens that apply their own', () => {
-    expect(scopeTransactions(rows, { ...DEFAULT_FILTERS, period: { preset: 'l3' }, accounts: ['main'] })).toHaveLength(4)
+    expect(scopeTransactions(rows, { ...DEFAULT_FILTERS, period: { preset: 'l3' }, accounts: ['main'] }, NO_LABELS)).toHaveLength(4)
+  })
+
+  it('keeps a row a part of which carries a label picked, and a split row as the bank booked it by any label of its parts', () => {
+    const berlin = recordIdOf(LABEL_RECORDS, 'berlin')
+    const office = recordIdOf(LABEL_RECORDS, 'office')
+    const [first, second] = rows
+    const labelled: ItemLabels = new Map([[wholeItemId(second!), [berlin]]])
+    expect(scopeTransactions(rows, { ...DEFAULT_FILTERS, labels: [berlin, office] }, labelled)).toEqual([second])
+    expect(scopeTransactions(rows, { ...DEFAULT_FILTERS, labels: [office] }, labelled)).toEqual([])
+
+    const part = recordIdOf(ITEM_RECORDS, 'part-1')
+    const split = { row: first!, parts: [{ id: part, amount: first!.amount, category: 'revenue', family: 'income', bucket: 'income' as const, note: '', ownerShare: null }] }
+    const wholes = wholeRowLabels(new Map([[part, [office]]]), [split])
+    expect(scopeTransactions(rows, { ...DEFAULT_FILTERS, labels: [office] }, wholes)).toEqual([first])
   })
 })

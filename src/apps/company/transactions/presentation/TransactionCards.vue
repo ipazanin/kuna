@@ -20,7 +20,7 @@ import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity
 import type { ShareTarget } from '../../owner-share/domain/ownerShare'
 import { categoryChangeOf } from '../domain/categoryChange'
 import { ownerPartOrigin } from '../../owner-share/domain/ownerParts'
-import { listedOwnerPart, partPlace, withPartHeadings } from '../domain/listedRows'
+import { listedOwnerPart, partPlace, pickedRecordOf, withPartHeadings } from '../domain/listedRows'
 import type { ListedBankRow, ListedRow } from '../domain/listedRows'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { TransactionGroup } from '../domain/transactionGroups'
@@ -28,6 +28,8 @@ import TransactionGroupHeading from './TransactionGroupHeading.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 import CutText from '../../../../shared/ui/CutText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import PickBox from '../../../../shared/ui/PickBox.vue'
 
 /** The phone's form of the transaction table: one card per row, under the same group headings. */
 const props = defineProps<{
@@ -42,6 +44,10 @@ const props = defineProps<{
   showAccount: boolean
   /** The record a row's owner share sits on, or null where none is set here. */
   shareTargetOf: (row: ListedRow) => ShareTarget | null
+  /** The names of the labels a row's part carries, or blank. */
+  labelsOf: (row: ListedRow) => string
+  /** The bank rows picked, by their id, or null while rows are not being picked. */
+  picked: ReadonlySet<string> | null
 }>()
 
 const emit = defineEmits<{
@@ -49,6 +55,7 @@ const emit = defineEmits<{
   split: [row: Transaction]
   changeCategory: [row: ListedBankRow]
   ownerShare: [row: ListedRow]
+  pick: [id: string]
 }>()
 
 const { drillLocation } = useFilters()
@@ -72,6 +79,16 @@ const openRows = ref(new Set<string>())
 
 function toggleRow(key: string): void {
   if (!openRows.value.delete(key)) openRows.value.add(key)
+}
+
+function isPicked(row: ListedRow): boolean {
+  return props.picked?.has(pickedRecordOf(row)) ?? false
+}
+
+/** A tap picks the card's row while rows are being picked, a part's the row it belongs to, and otherwise opens or closes its details. */
+function tapRow(row: ListedRow): void {
+  if (props.picked !== null) emit('pick', pickedRecordOf(row))
+  else toggleRow(row.key)
 }
 
 /** The badge beside a row's category. A part of a shared advance leaves its badge to the heading above it. */
@@ -163,29 +180,38 @@ function ownerPartNote(row: ListedRow): string | null {
             <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" :aria-label="words.editSplit(entry.whole.counterparty)" data-testid="edit-split" @click="emit('split', entry.whole)" />
           </li>
           <li v-else class="card" :class="{ part: partLabel(entry.row) !== null }" data-testid="transaction-card">
-            <button type="button" class="card-summary" :aria-expanded="openRows.has(entry.row.key)" @click="toggleRow(entry.row.key)">
-              <span class="flex items-baseline justify-between gap-3">
-                <span v-if="partLabel(entry.row)" class="flex min-w-0 items-center gap-1.5 text-toned">
-                  <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
-                  <CutText>{{ partLabel(entry.row) }}</CutText>
+            <button
+              type="button"
+              class="card-summary"
+              v-bind="picked === null ? { 'aria-expanded': openRows.has(entry.row.key) } : { role: 'checkbox', 'aria-checked': isPicked(entry.row), 'data-testid': 'pick-row' }"
+              @click="tapRow(entry.row)"
+            >
+              <PickBox v-if="picked !== null" :picked="isPicked(entry.row)" />
+              <span class="flex min-w-0 flex-1 flex-col gap-1">
+                <span class="flex items-baseline justify-between gap-3">
+                  <span v-if="partLabel(entry.row)" class="flex min-w-0 items-center gap-1.5 text-toned">
+                    <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+                    <CutText>{{ partLabel(entry.row) }}</CutText>
+                  </span>
+                  <span v-else-if="openRows.has(entry.row.key)" class="min-w-0 font-medium break-words text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</span>
+                  <CutText v-else class="min-w-0 font-medium text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</CutText>
+                  <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
                 </span>
-                <span v-else-if="openRows.has(entry.row.key)" class="min-w-0 font-medium break-words text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</span>
-                <CutText v-else class="min-w-0 font-medium text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</CutText>
-                <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
-              </span>
-              <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
-                <span class="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
-                  <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
-                  <CutText v-else class="text-toned">{{ entry.row.category === '' ? words.noCategory : names.category(entry.row.category) }}</CutText>
-                  <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
+                <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
+                  <span class="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
+                    <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
+                    <CutText v-else class="text-toned">{{ entry.row.category === '' ? words.noCategory : names.category(entry.row.category) }}</CutText>
+                    <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
+                  </span>
+                  <span class="figure shrink-0">
+                    {{ shortDate(entry.row) }}<template v-if="showAccount">, {{ accountOf(entry.row) }}</template>
+                  </span>
                 </span>
-                <span class="figure shrink-0">
-                  {{ shortDate(entry.row) }}<template v-if="showAccount">, {{ accountOf(entry.row) }}</template>
-                </span>
+                <NoteLine v-if="labelsOf(entry.row) !== ''" as="span" tone="muted" icon="i-lucide-tag" data-testid="company-row-labels">{{ labelsOf(entry.row) }}</NoteLine>
               </span>
             </button>
-            <div v-if="openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">
+            <div v-if="picked === null && openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">
               <p v-if="entry.row.description" class="text-sm text-toned">{{ entry.row.description }}</p>
               <p class="text-xs text-muted">{{ dayLabel(entry.row.date) }}, {{ accountOf(entry.row) }}</p>
               <div class="flex flex-wrap gap-x-4">
@@ -253,9 +279,8 @@ function ownerPartNote(row: ListedRow): string | null {
   display: flex;
   width: 100%;
   min-height: 4rem;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.5rem 1rem;
   text-align: start;
 }

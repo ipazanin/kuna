@@ -6,6 +6,7 @@ import { addDays, today } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
 import type { AssistantOperation } from '../../../../../shared/app/assistantOperations'
 import { importOperations } from '../../operations/importOperations'
+import { LABEL_OPERATIONS } from '../../operations/labelOperations'
 import { LEDGER_OPERATIONS } from '../../operations/ledgerOperations'
 import { settingsOperations } from '../../operations/settingsOperations'
 
@@ -50,6 +51,10 @@ const ANSWERS = {
     explained: (label: string, amount: string, steps: string) => `${label} is ${amount}. Kuna builds it from ${steps}. The link opens the tax rule it rests on.`,
     keptByAnonymise:
       'That figure is about employees and their pay, so it stays on this device while Anonymise is on. Turn Anonymise off for this AI company in Kuna settings if you want it explained.',
+    workshop: 'Workshop',
+    labelTitle: 'Label the three latest rows',
+    labelProposed: 'The card puts the label Workshop on every part of those rows, and adds it first while the books have none of that name. Their categories stay.',
+    nothingToLabel: 'The books hold no ledger row to label.',
   },
   hr: {
     sortTitle: 'Razvrstaj ono u što sam siguran',
@@ -92,6 +97,10 @@ const ANSWERS = {
     explained: (label: string, amount: string, steps: string) => `${label} iznosi ${amount}. Kuna ga računa iz ${steps}. Poveznica otvara porezno pravilo na kojem počiva.`,
     keptByAnonymise:
       'Taj se iznos odnosi na zaposlenike i njihove plaće, pa ostaje na ovom uređaju dok je anonimizacija uključena. Isključite anonimizaciju za ovu AI tvrtku u postavkama Kune ako želite da ga objasnim.',
+    workshop: 'Radionica',
+    labelTitle: 'Označi tri najnovije stavke',
+    labelProposed: 'Kartica stavlja oznaku Radionica na sve dijelove tih stavki, a najprije je dodaje ako je u knjigama nema. Kategorije im ostaju.',
+    nothingToLabel: 'U knjigama nema stavke evidencije za označiti.',
   },
 }
 
@@ -100,6 +109,7 @@ type Says = (typeof ANSWERS)['en']
 interface FoundRecord {
   readonly ref: string
   readonly label?: string
+  readonly name?: string
   readonly counterparty?: string
   readonly category?: string
   readonly number?: string
@@ -126,7 +136,7 @@ const SORT_JOB = /suggest categories|^sort|predloži kategorije|^razvrstaj/i
 
 /** Company's own operations as the chat lists them, read when a step is built, since the settings and categories follow the installed pack. Held statements play no part in an input. */
 function companyOperations(): readonly AssistantOperation[] {
-  return [...LEDGER_OPERATIONS.operations, ...importOperations(() => []).operations, ...settingsOperations().operations]
+  return [...LEDGER_OPERATIONS.operations, ...LABEL_OPERATIONS.operations, ...importOperations(() => []).operations, ...settingsOperations().operations]
 }
 
 /** The counterparties the fake model is sure of: a shop for devices files under Equipment. Any other row waiting gets a new category. */
@@ -311,6 +321,24 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
 
 const findAccounts = findRecordsArgs('company', 'account', { limit: 5 })
 
+/** Reads the labels and the three latest ledger rows, and proposes a Workshop label on every part of them, added on the same card while the books have none of that name. */
+function labelReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'label', { limit: 50 }), tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('company', 'ledger-row', { limit: 3 }), tokens)
+  if (answers.length === 2) {
+    const held = recordsOf(answers[0]!.text).find((label) => label.name === says.workshop)?.ref
+    const rows = recordsOf(answers[1]!.text).map((row) => ({ row: row.ref, part: null }))
+    if (rows.length === 0) return answered(request, says.nothingToLabel, tokens)
+    const steps = [
+      ...(held === undefined ? [proposedStep(companyOperations(), 'add-label', { name: says.workshop }, '$workshop')] : []),
+      proposedStep(companyOperations(), 'label-rows', { label: held ?? '$workshop', rows }),
+    ]
+    return lookup(2, 'propose_changes', { app: 'company', title: says.labelTitle, steps, next: false }, tokens)
+  }
+  return answered(request, says.labelProposed, tokens)
+}
+
 /**
  * Copies a statement of the main account in the fake books, with no balances: the snack kiosk row of 8 October as the bank has it,
  * which Kuna skips, the phone bill of 7 October dated two days later, which waits as a look-alike, and a new row after them.
@@ -359,7 +387,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting, files the sure ones and goes on at each Go on with a new category and a rule for the rest, one about an invoice links the Invoices tab, one about dollars proposes the
  * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one that tries the second rule first moves it to the top, one about training proposes a category with its tax
- * class, one about a donation proposes a category of the donation class, one that starts with merge deletes AI services into software subscriptions, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account, which Kuna refuses since the bank's statements fill it, and one that asks to explain reads the tagged build-up.
+ * class, one about a donation proposes a category of the donation class, one that starts with merge deletes AI services into software subscriptions, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account, which Kuna refuses since the bank's statements fill it, one that asks to explain reads the tagged build-up, and one that starts with label puts a Workshop label on the three latest rows.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (!inCompany(turn.request)) return null
@@ -378,6 +406,7 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
   if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
   if (/explain|objasni/i.test(typed)) return buildUpReply(turn, says)
+  if (/^label|^označi/i.test(typed)) return labelReply(turn, says)
   return null
 }
 

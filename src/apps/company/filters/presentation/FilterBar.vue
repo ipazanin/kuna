@@ -15,7 +15,7 @@ import { isDefinedBucket } from '../../workbook/domain/bucket'
 import { counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { useFilters } from '../application/filterStore'
-import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from '../domain/filterChips'
+import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from './filterChips'
 import type { FilterState, Period } from '../domain/filterState'
 import { periodInWords } from '../domain/periodInWords'
 import type { PeriodPreset } from '../domain/periodPresets'
@@ -49,6 +49,7 @@ const chips = computed(() =>
     counterparty: (key) => labels.value.get(key) ?? key,
     bucket: (bucket) => (isDefinedBucket(bucket) ? settings.value.bucketLabels[bucket] : bucket),
     category: names.value.category,
+    label: (id) => props.workbook.labels.find((label) => label.id === id)?.name ?? words.chips.deletedLabel,
   }),
 )
 

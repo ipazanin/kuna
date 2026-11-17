@@ -14,6 +14,8 @@ export const INVESTMENT_ACCOUNT = { record: new Set(['intake']), cells: new Set(
 /** A Company item leaves out its labels, which company.labels hashes. Its invoice is a figure, since what an invoice is owed reads it. */
 export const COMPANY_ITEM = { record: new Set(['labels']), cells: new Set(['label_ids']) }
 export const COMPANY_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on', 'also_from']) }
+/** A cost the owner paid leaves out its labels, which company.labels hashes. */
+export const COMPANY_ADVANCE = { record: new Set(['labels']), cells: new Set(['label_ids']) }
 export const COMPANY_LEDGER_ROW = {
   record: new Set(['statement', 'counterpartyIban', 'description', 'flaggedBy', 'reference', 'signals']),
   cells: new Set(['statement', 'counterparty_iban', 'description', 'flagged_by', 'reference', 'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency']),
@@ -32,12 +34,23 @@ export function investmentsKindOf(record) {
   return Object.hasOwn(record, 'intake') ? INVESTMENT_ACCOUNT : null
 }
 
-/** A Company ledger row carries the bank's signals, an item the invoice it pays, and an account how its rows come in. */
+/** A Company ledger row carries the bank's signals, an item the invoice it pays, an account how its rows come in, and a cost the owner paid its owner share beside a description and no account. */
 export function companyKindOf(record) {
   if (Object.hasOwn(record, 'signals')) return COMPANY_LEDGER_ROW
   if (Object.hasOwn(record, 'invoice') && Object.hasOwn(record, 'row')) return COMPANY_ITEM
   if (Object.hasOwn(record, 'intake') && Object.hasOwn(record, 'iban')) return COMPANY_ACCOUNT
+  if (isAdvance(record)) return COMPANY_ADVANCE
   return null
+}
+
+/** A cost the owner paid, as read or as the owner-advances tab holds it. */
+function isAdvance(record) {
+  return ['date', 'amount', 'description', 'category', 'ownerShare'].every((field) => Object.hasOwn(record, field)) && !Object.hasOwn(record, 'account') && !Object.hasOwn(record, 'row')
+}
+
+/** A Company group with the labels of each cost the owner paid left out, wherever it sits, since company.labels hashes them. */
+export function withoutAdvanceLabels(value) {
+  return figuresOf(value, (record) => (isAdvance(record) ? COMPANY_ADVANCE : null))
 }
 
 /** A value with every record in it, however deep, without its kind's fields above, and a stored record without those cells. */

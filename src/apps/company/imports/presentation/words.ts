@@ -222,7 +222,7 @@ export const hr: Translation<typeof en> = {
     range: (where, opening, closing) => `${where}, od ${opening} do ${closing}`,
     isNew: (opening, day) => `je novi račun. Dodati ga${opening === null ? '' : ` s početnim stanjem ${opening}`}${day === null ? '' : ` na dan ${day}`}?`,
     accountName: 'Naziv računa',
-    accountNameHelp: 'Mala slova, znamenke i pojedinačne crtice. Zasloni ga prikazuju dok računu ne date oznaku.',
+    accountNameHelp: 'Mala slova, znamenke i pojedinačne crtice. Zasloni ga prikazuju dok računu ne date naziv.',
     noRowsYet: (account) => `Evidencija još nema stavki računa „${account}”, pa ništa ranije ne može pokazati da se ovaj izvod nastavlja na prethodni.`,
     startAt: (account, opening, day) => `Početno stanje računa „${account}”: ${opening} na dan ${day}`,
     balanceBefore: (account, day) => `Saldo računa „${account}” prije ${day}`,

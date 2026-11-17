@@ -44,3 +44,10 @@ describe("the Company menu's Transactions item", () => {
     expect(others.map((screen) => companyApp.menuCount!(screen))).toEqual(others.map(() => null))
   })
 })
+
+describe("the Company menu's Labels item", () => {
+  it('comes right after Transactions', () => {
+    const paths = companyApp.menu().map((screen) => screen.path)
+    expect(paths[paths.indexOf('/company/transactions') + 1]).toBe('/company/labels')
+  })
+})

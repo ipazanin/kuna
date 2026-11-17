@@ -91,7 +91,7 @@ describe('the template', () => {
       'id',
     ])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['year-end']!, { header: 1 })[0]).toEqual(['year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note', 'id'])
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'owner_share', 'items', 'id'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'owner_share', 'items', 'label_ids', 'id'])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.items!, { header: 1 })[0]).toEqual([
       'date',
       'account',

@@ -18,7 +18,7 @@ import { periodInWords } from '../../../filters/domain/periodInWords'
 import { averagedPeriod, periodMonths } from '../../../filters/domain/periodPresets'
 import DrillChartCard from '../../../filters/presentation/DrillChartCard.vue'
 import DrillChartPlot from '../../../filters/presentation/DrillChartPlot.vue'
-import { filterChips } from '../../../filters/domain/filterChips'
+import { filterChips } from '../../../filters/presentation/filterChips'
 import { useSettings } from '../../../settings/application/useSettings'
 import { amountLocaleOf } from '../../../settings/domain/settings'
 import type { FilteredLedger } from '../../../transactions/application/useFilteredLedger'
@@ -91,7 +91,7 @@ const averaged = computed(() => {
 /** The tile beside Monthly net pay that counts the period's profit as the months earn it, with its build-up. */
 const net = computed(() => {
   const { window, filters } = props.ledger
-  const periodOnly = filters.accounts.length > 0 || filterChips(filters, { counterparty: String, bucket: String, category: String }).length > 0
+  const periodOnly = filters.accounts.length > 0 || filterChips(filters, { counterparty: String, bucket: String, category: String, label: String }).length > 0
   const tile = (value: string, caption = '') => ({
     label: OWNER_NET_TITLE,
     value,

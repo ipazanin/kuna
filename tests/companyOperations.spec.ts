@@ -9,6 +9,8 @@ import { catalogueOf } from '../src/shared/ai/application/catalogue'
 import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { INVOICING_OPERATIONS } from '../src/apps/company/assistant/operations/invoicingOperations'
+import { LABEL_OPERATIONS } from '../src/apps/company/assistant/operations/labelOperations'
+import { labelRows } from '../src/apps/company/labels/application/labelWrites'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { KEPT_BY_KUNA, fieldsInLabel } from '../src/apps/company/assistant/operations/proposalLines'
 import { installedPack } from '../src/apps/company/packs/packContribution'
@@ -21,7 +23,8 @@ import { words as ruleWords } from '../src/apps/company/rules/domain/words'
 import { words as ruleFormWords } from '../src/apps/company/rules/presentation/words'
 import { proposalGroupsOf } from '../src/apps/company/assistant/operations/proposalLines'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { storedItemsOfRow } from '../src/apps/company/workbook/domain/rowItems'
 import { storedItemIdOf } from '../src/apps/company/transactions/application/itemWrites'
 import { wholeItemId } from '../src/apps/company/workbook/domain/splits'
 import { words as sharedWords } from '../src/shared/app/words'
@@ -92,13 +95,32 @@ const OPERATIONS = companyOperations(deskPorts({ heldStatements: () => HELD, pac
   (operation) => !INVOICING_OPERATIONS.operations.some((invoicing) => invoicing.name === operation.name),
 )
 
+/** The desk's books moved to items with a label, Berlin, on every part of the split row, so the label operations' examples have what they name. */
+async function labelledDesk(): Promise<CompanyDesk> {
+  const desk = await companyDesk(
+    used,
+    { heldStatements: () => HELD },
+    {
+      labels: [
+        ['name', 'id'],
+        ['Berlin', 'berlin'],
+      ],
+    },
+  )
+  await desk.store.write('Moved', (unit) => moveToItems(unit, { records: desk.store.state.records!, workbook: desk.store.state.workbook! }))
+  const [berlin] = desk.store.state.workbook!.labels
+  await desk.store.write('Labelled', (unit) => labelRows(unit, desk.store.state.records!, [desk.row('REF-7')], berlin!.id, true))
+  return desk
+}
+
 describe('every Company operation', () => {
   it.each(OPERATIONS.map((operation) => [operation.name, operation] as const))(
     'has an example that passes the checks of the books, and a card that names every field it sets: %s',
     async (_name, operation) => {
-      const desk = await companyDesk(used, { heldStatements: () => HELD })
+      const desk = LABEL_OPERATIONS.operations.includes(operation) ? await labelledDesk() : await companyDesk(used, { heldStatements: () => HELD })
+      const label = desk.store.state.workbook!.labels[0]?.id
 
-      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, exampleRecords(desk)) }])
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, { ...exampleRecords(desk), ...(label === undefined ? {} : { label }) }) }])
 
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)
@@ -217,7 +239,7 @@ describe('rules', () => {
     await desk.store.write('Moved', (unit) => moveToItems(unit, { records: desk.store.state.records!, workbook: desk.store.state.workbook! }))
     await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'Desk' }) }])
     const items = desk.cards[0]!.groups.find((group) => group.noun === ITEM_RECORDS.noun)!
-    expect(items.lines.map((line) => [line.label, line.warning])).toEqual([['Office', sharedWords.confirmedRowMoves]])
+    expect(items.lines.map((line) => [line.label, line.warning])).toEqual([['Desk Co · 7 Oct 2026 · Office', sharedWords.confirmedRowMoves]])
   })
 
   it('warns on a confirmed row another rule now decides, and leaves it filed', async () => {
@@ -846,5 +868,46 @@ describe('a flag on a card', () => {
 
     const [group] = proposalGroupsOf(checked, workbook, [], null, new Set())
     expect(group!.lines[0]!.fields.find((field) => field.name === 'flagged')).toMatchObject({ before: sharedWords.no, after: sharedWords.yes })
+  })
+})
+
+describe('labels', () => {
+  it('adds a label and puts it on one part of a split row on the same card, naming the part by its row', async () => {
+    const desk = await labelledDesk()
+    const split = desk.row('REF-7')
+    const office = storedItemsOfRow(desk.store.state.records!.items, split).find((item) => item.category === 'office')
+    const answer = await desk.propose([
+      { op: 'add-label', input: { name: 'Workshop' }, as: '$workshop' },
+      { op: 'label-rows', input: { label: '$workshop', rows: [{ row: desk.ref(LEDGER_RECORDS.name, split.id), part: desk.ref(ITEM_RECORDS.name, office!.id) }] } },
+    ])
+    expect(answer.isError).toBe(false)
+    const items = desk.cards[0]!.groups.find((group) => group.noun === ITEM_RECORDS.noun)!
+    expect(items.lines.map((line) => line.label)).toEqual([`${split.counterparty} · 8 Oct 2026 · Office`])
+    await desk.accept()
+    const workshop = desk.store.state.workbook!.labels.find((label) => label.name === 'Workshop')!
+    expect(
+      storedItemsOfRow(desk.store.state.records!.items, split)
+        .filter((item) => item.labels.includes(workshop.id))
+        .map((item) => item.category),
+    ).toEqual(['office'])
+  })
+
+  it('refuses to label rows of books from before items', async () => {
+    const desk = await companyDesk(
+      used,
+      {},
+      {
+        labels: [
+          ['name', 'id'],
+          ['Berlin', 'berlin'],
+        ],
+      },
+    )
+    const [berlin] = desk.store.state.workbook!.labels
+    const answer = await desk.propose([
+      { op: 'label-rows', input: { label: desk.ref(LABEL_RECORDS.name, berlin!.id), rows: [{ row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-6').id), part: null }] } },
+    ])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('move-to-items')
   })
 })

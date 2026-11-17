@@ -303,8 +303,13 @@ export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: Fak
     item: withFakeLabels(withInvoicePayments(before, records.item ?? [])),
     label: FAKE_LABELS,
     account: withAccountSources(records.account ?? [], records['ledger-row'] ?? []),
-    'hr-doo.owner-advance': withStaffAdvances(records['hr-doo.owner-advance'] ?? [], staff),
+    'hr-doo.owner-advance': withAdvanceLabels(withStaffAdvances(records['hr-doo.owner-advance'] ?? [], staff)),
   }
+}
+
+/** The advances with the conference on the train tickets to the client, a cost the owner paid privately. */
+function withAdvanceLabels(advances: readonly RecordFields[]): readonly RecordFields[] {
+  return advances.map((advance, at) => (at === 0 ? { ...advance, label_ids: fixedIdOf(LABEL_PLACE, 0) } : advance))
 }
 
 /**

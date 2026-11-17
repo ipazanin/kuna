@@ -42,6 +42,7 @@ const OWNER_ADVANCE_COLUMNS: readonly TemplateColumn[] = [
     name: 'items',
     note: 'The ids of the items on the items tab that paid it back, separated by |, which the app writes. Blank while it is open, and in books from before the items tab, which match each cost to the payments to the owner by themselves. Optional.',
   },
+  { name: 'label_ids', note: 'The ids of the labels on the labels tab it carries, separated by |, which the app writes. Optional.' },
   ID_TEMPLATE_COLUMN,
 ]
 

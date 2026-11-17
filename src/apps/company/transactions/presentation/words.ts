@@ -127,6 +127,17 @@ export const en = {
   part: (number: number, count: number) => `Part ${number} of ${count}`,
   /** Names a row in a button's label: its counterparty, or this row. */
   rowName: (counterparty: string) => counterparty || 'this row',
+  labelling: {
+    select: 'Select rows',
+    selectHelp: 'Select rows to label',
+    label: 'Label',
+    pick: (row: string) => `Pick ${row}`,
+    title: (rows: string) => `Label ${rows}`,
+    description: 'A label sits beside the category and changes no figure. It goes on every part of each row.',
+    put: (label: string, rows: string) => `${label} put on ${rows}`,
+    takenOff: (label: string, rows: string) => `${label} taken off ${rows}`,
+    notSaved: 'Not saved',
+  },
   partName: (number: number, counterparty: string) => `part ${number} of ${counterparty || 'the payment'}`,
   splitPayment: (counterparty: string) => `Split the payment of ${counterparty || 'this row'}`,
   editSplit: (counterparty: string) => `Edit the split of ${counterparty || 'the payment'}`,
@@ -153,6 +164,8 @@ export const en = {
   },
   splitDialog: {
     addTitle: 'Split the payment',
+    labels: 'Labels',
+    labelsOf: (place: number) => `Labels of part ${place}`,
     changeTitle: 'Edit the split',
     description: (counterparty: string, day: string, account: string) =>
       `${counterparty || 'No counterparty'}, ${day}, ${account}. The ledger keeps the row as the bank booked it, and the parts count in its place.`,
@@ -185,6 +198,11 @@ export const en = {
   },
   changeDialog: {
     title: 'Change the category',
+    titleWithLabels: 'Change the category and labels',
+    category: 'Category',
+    labels: 'Labels',
+    labelsSaved: 'Labels saved',
+    save: 'Save',
     description: (counterparty: string, day: string) => `${counterparty || 'No counterparty'}, ${day}`,
     /** Before the `flagged_by` value of a row a person confirmed. */
     confirmedBy: 'Confirmed by',
@@ -335,6 +353,17 @@ export const hr: Translation<typeof en> = {
   sharedWithOwner: (share) => `Dijeli se s vlasnikom, ${share}\u00a0%`,
   part: (number, count) => `Dio ${number} od ${count}`,
   rowName: (counterparty) => counterparty || 'ova stavka',
+  labelling: {
+    select: 'Odaberi stavke',
+    selectHelp: 'Odaberi stavke za oznaku',
+    label: 'Označi',
+    pick: (row) => `Odaberi: ${row}`,
+    title: (rows) => `Označi: ${rows}`,
+    description: 'Oznaka stoji uz kategoriju i ne mijenja nijedan iznos. Stavlja se na svaki dio svake stavke.',
+    put: (label, rows) => `Oznaka ${label} stavljena: ${rows}`,
+    takenOff: (label, rows) => `Oznaka ${label} skinuta: ${rows}`,
+    notSaved: 'Nije spremljeno',
+  },
   partName: (number, counterparty) => (counterparty === '' ? `dio ${number} plaćanja` : `${counterparty}, dio ${number}`),
   splitPayment: (counterparty) => (counterparty === '' ? 'Podijeli plaćanje ove stavke' : `Podijeli plaćanje: ${counterparty}`),
   editSplit: (counterparty) => (counterparty === '' ? 'Uredi podjelu plaćanja' : `Uredi podjelu: ${counterparty}`),
@@ -361,6 +390,8 @@ export const hr: Translation<typeof en> = {
   },
   splitDialog: {
     addTitle: 'Podijeli plaćanje',
+    labels: 'Oznake',
+    labelsOf: (place) => `Oznake ${place}. dijela`,
     changeTitle: 'Uredi podjelu',
     description: (counterparty, day, account) => `${counterparty || 'Bez partnera'}, ${day}, ${account}. Evidencija čuva stavku onako kako ju je knjižila banka, a umjesto nje se broje dijelovi.`,
     payment: (moneyIn) => `Plaćanje, ${moneyIn ? 'uplata' : 'isplata'}`,
@@ -394,6 +425,11 @@ export const hr: Translation<typeof en> = {
   },
   changeDialog: {
     title: 'Promijeni kategoriju',
+    titleWithLabels: 'Promijeni kategoriju i oznake',
+    category: 'Kategorija',
+    labels: 'Oznake',
+    labelsSaved: 'Oznake spremljene',
+    save: 'Spremi',
     description: (counterparty, day) => `${counterparty || 'Bez partnera'}, ${day}`,
     confirmedBy: 'Potvrđeno:',
     filedByRule: 'Razvrstalo pravilo',

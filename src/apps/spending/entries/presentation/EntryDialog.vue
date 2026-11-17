@@ -19,7 +19,6 @@ import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writ
 import { addLabel } from '../../labels/application/labelWrites'
 import { newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
-import { words as labelWords } from '../../labels/presentation/words'
 import type { ShownTarget } from '../../links/application/loanTargets'
 import { sideOf } from '../../categories/domain/rowSide'
 import { eventMembership } from '../../events/domain/eventMembership'
@@ -276,7 +275,7 @@ const labelRefused = ref<{ readonly part: RecordId | null; readonly text: string
 function withTyped(picked: readonly RecordId[], name: string, part: RecordId | null = null): readonly RecordId[] {
   const held = labelCalled(name, labelChoices.value)
   const problem = held === null ? labelNameProblem(name, labelChoices.value, null) : null
-  labelRefused.value = problem === null ? null : { part, text: labelWords.dialog[problem] }
+  labelRefused.value = problem === null ? null : { part, text: uiWords.labelName[problem] }
   if (held !== null) return picked.includes(held.id) ? picked : [...picked, held.id]
   if (problem !== null) return picked
   const label = newLabel(name)

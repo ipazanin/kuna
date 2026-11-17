@@ -4,6 +4,7 @@ import type { DateRange } from '../../../../shared/calendar/dateRange'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
 import { addMonths } from '../../../../shared/calendar/monthKey'
 import type { Money } from '../../../../shared/money/money'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Bucket } from '../../workbook/domain/bucket'
 import type { Transaction } from '../../workbook/domain/workbook'
 
@@ -38,6 +39,8 @@ export interface FilterState {
   readonly families: readonly string[]
   readonly categories: readonly string[]
   readonly counterparties: readonly string[]
+  /** Keeps the rows a part of which carries one of these labels. */
+  readonly labels: readonly RecordId[]
   readonly text: string
   readonly amount: AmountRange
   /** Keeps only the rows that wait for a human, as the review queue lists them. */
@@ -58,6 +61,7 @@ export const DEFAULT_FILTERS: FilterState = {
   families: [],
   categories: [],
   counterparties: [],
+  labels: [],
   text: '',
   amount: { min: null, max: null },
   needsReview: false,

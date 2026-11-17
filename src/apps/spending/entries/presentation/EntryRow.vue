@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { entryAsked } from './entryAsked'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
@@ -16,6 +15,7 @@ import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import PickBox from '../../../../shared/ui/PickBox.vue'
 
 /** One entry: a button that opens it, or ticks it while rows are being selected, and beside it the camera for its receipt, or a mark that a receipt is attached. The row tints as one unit while either button is hovered, unless it holds the highlight of the chat being about it. */
 const props = defineProps<{
@@ -52,7 +52,7 @@ const { marked } = useChatElement(asked, 'row')
       v-bind="picked === null ? {} : { role: 'checkbox', 'aria-checked': picked }"
       @click="emit('open', row.transaction)"
     >
-      <UIcon v-if="picked !== null" :name="picked ? 'i-lucide-square-check' : 'i-lucide-square'" class="size-5 shrink-0" :class="picked ? 'text-primary' : 'text-muted'" aria-hidden="true" />
+      <PickBox v-if="picked !== null" :picked="picked" />
       <span class="size-2.5 shrink-0 rounded-full" :style="{ background: colour }" aria-hidden="true" />
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">
         <span class="break-words text-sm text-highlighted">{{ title }}</span>

@@ -87,6 +87,7 @@ import { UNKNOWN_IBAN } from '../../src/apps/spending/bankSync/infrastructure/fa
 import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
 import { en as spendingLabelsEnglish, hr as spendingLabelsCroatian } from '../../src/apps/spending/labels/presentation/words.ts'
+import { en as companyLabelsEnglish, hr as companyLabelsCroatian } from '../../src/apps/company/labels/presentation/words.ts'
 import { en as spendingEventsEnglish, hr as spendingEventsCroatian } from '../../src/apps/spending/events/presentation/words.ts'
 import { en as spendingCategoriesEnglish, hr as spendingCategoriesCroatian } from '../../src/apps/spending/categories/presentation/words.ts'
 import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src/apps/spending/home/presentation/words.ts'
@@ -186,6 +187,7 @@ const SCREEN_WORDS = {
     sortBy: uiEnglish.sortBy,
     splitEditor: uiEnglish.split,
     filterChips: uiEnglish.chips,
+    labelName: uiEnglish.labelName,
     imports: importEnglish,
     mail: mailEnglish,
     mailPlan: mailPlanEnglish.plan,
@@ -236,6 +238,7 @@ const SCREEN_WORDS = {
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
     spendingBudgets: spendingBudgetsEnglish,
     spendingLabels: spendingLabelsEnglish,
+    companyLabels: companyLabelsEnglish,
     spendingEvents: spendingEventsEnglish,
     spendingCategories: spendingCategoriesEnglish,
     spendingHome: spendingHomeEnglish,
@@ -277,6 +280,7 @@ const SCREEN_WORDS = {
     sortBy: uiCroatian.sortBy,
     splitEditor: uiCroatian.split,
     filterChips: uiCroatian.chips,
+    labelName: uiCroatian.labelName,
     imports: importCroatian,
     mail: mailCroatian,
     mailPlan: mailPlanCroatian.plan,
@@ -327,6 +331,7 @@ const SCREEN_WORDS = {
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
     spendingBudgets: spendingBudgetsCroatian,
     spendingLabels: spendingLabelsCroatian,
+    companyLabels: companyLabelsCroatian,
     spendingEvents: spendingEventsCroatian,
     spendingCategories: spendingCategoriesCroatian,
     spendingHome: spendingHomeCroatian,
@@ -12493,28 +12498,28 @@ export function spendingLabelsFlowIn(language) {
     }
     await page.waitForSelector('[data-testid="spending-labels"]', { visible: true, timeout: 10_000 })
     await pressSelector(page, press, '[data-testid="spending-label-add"]')
-    await page.waitForSelector('[data-testid="spending-label-dialog"]', { visible: true, timeout: 10_000 })
-    await pressSelector(page, press, '[data-testid="spending-label-save"]')
-    await says(labels.dialog.blank, 'the label dialog takes a blank name')
-    await fill(page, 'spending-label-name', trip.toUpperCase())
-    await pressSelector(page, press, '[data-testid="spending-label-save"]')
-    await says(labels.dialog.taken, 'the label dialog takes the name of another label')
-    await fill(page, 'spending-label-name', added)
+    await page.waitForSelector('[data-testid="label-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="label-save"]')
+    await says(words.labelName.blank, 'the label dialog takes a blank name')
+    await fill(page, 'label-name', trip.toUpperCase())
+    await pressSelector(page, press, '[data-testid="label-save"]')
+    await says(words.labelName.taken, 'the label dialog takes the name of another label')
+    await fill(page, 'label-name', added)
     await delay(300)
     await inspect?.('the label dialog')
     await shoot('spending-label-dialog')
-    await pressSelector(page, press, '[data-testid="spending-label-save"]')
+    await pressSelector(page, press, '[data-testid="label-save"]')
     await toast(page, labels.added)
     await dismissToasts(page)
     await pressSelector(page, press, `[data-testid="spending-label-change"][aria-label="${labels.change(added)}"]`)
-    await page.waitForSelector('[data-testid="spending-label-dialog"]', { visible: true, timeout: 10_000 })
-    await fill(page, 'spending-label-name', renamed)
-    await pressSelector(page, press, '[data-testid="spending-label-save"]')
+    await page.waitForSelector('[data-testid="label-dialog"]', { visible: true, timeout: 10_000 })
+    await fill(page, 'label-name', renamed)
+    await pressSelector(page, press, '[data-testid="label-save"]')
     await toast(page, labels.saved)
     await dismissToasts(page)
     await pressSelector(page, press, `[data-testid="spending-label-change"][aria-label="${labels.change(renamed)}"]`)
-    await page.waitForSelector('[data-testid="spending-label-dialog"]', { visible: true, timeout: 10_000 })
-    await pressSelector(page, press, '[data-testid="spending-label-delete"]')
+    await page.waitForSelector('[data-testid="label-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="label-delete"]')
     await toast(page, labels.deleted)
     await undoIn(page, press, words)
     await says(renamed, 'Undo did not bring the deleted label back')
@@ -12701,15 +12706,15 @@ export function spendingSelectLabelFlowIn(language) {
     })
     await delay(300)
     await pressSelector(page, press, '[data-testid="spending-selection-label"]')
-    await page.waitForSelector('[data-testid="spending-label-picker"]', { visible: true, timeout: 10_000 })
+    await page.waitForSelector('[data-testid="label-picker"]', { visible: true, timeout: 10_000 })
     await delay(300)
     await inspect?.('the label picker')
     await shoot('spending-label-picker')
-    const choices = await page.$$('[data-testid="spending-label-choice"]')
+    const choices = await page.$$('[data-testid="label-choice"]')
     const named = await Promise.all(choices.map((choice) => choice.evaluate((element) => element.textContent ?? '')))
     const choice = choices[named.findIndex((text) => text.includes(garden))]
     if (choice === undefined) throw new Error(`the label picker offers no ${garden}`)
-    await press(await choice.$('[data-testid="spending-label-apply"]'))
+    await press(await choice.$('[data-testid="label-apply"]'))
     await toastMatching(page, new RegExp(garden))
     if ((await page.$('[data-testid="selection-bar"]')) !== null) throw new Error('the selection stays after labelling')
     const labelled = await carrying()
@@ -13398,6 +13403,142 @@ export function companyReviewSelectFlowIn(language) {
     await inspect?.("Company's To review after confirming every confirmable row")
     await shoot('company-review-select-confirmed')
     await undoIn(page, press, words)
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On the fake Company books' Labels: a label added, renamed and deleted with Undo, then Berlin conference opening its rows on
+ * Transactions, filtered by the label.
+ */
+export function companyLabelsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const labels = words.companyLabels
+  const added = language === 'en' ? 'Trade fair' : 'Sajam'
+  const renamed = language === 'en' ? 'Trade fair 2027' : 'Sajam 2027'
+  const berlin = 'Berlin conference'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const says = async (wanted, problem) => {
+      await page
+        .waitForFunction((text) => document.body.textContent?.includes(text), { timeout: 5_000 }, wanted)
+        .catch(() => {
+          throw new Error(problem)
+        })
+    }
+    await page.waitForSelector('[data-testid="company-labels"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="company-label-add"]')
+    await page.waitForSelector('[data-testid="label-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="label-save"]')
+    await says(words.labelName.blank, 'the label dialog takes a blank name')
+    await fill(page, 'label-name', berlin.toUpperCase())
+    await pressSelector(page, press, '[data-testid="label-save"]')
+    await says(words.labelName.taken, 'the label dialog takes the name of another label')
+    await fill(page, 'label-name', added)
+    await delay(300)
+    await inspect?.('the label dialog')
+    await shoot('company-label-dialog')
+    await pressSelector(page, press, '[data-testid="label-save"]')
+    await toast(page, labels.added)
+    await dismissToasts(page)
+    await pressSelector(page, press, `[data-testid="company-label-change"][aria-label="${labels.change(added)}"]`)
+    await page.waitForSelector('[data-testid="label-dialog"]', { visible: true, timeout: 10_000 })
+    await fill(page, 'label-name', renamed)
+    await pressSelector(page, press, '[data-testid="label-save"]')
+    await toast(page, labels.saved)
+    await dismissToasts(page)
+    await pressSelector(page, press, `[data-testid="company-label-change"][aria-label="${labels.change(berlin)}"]`)
+    await page.waitForSelector('[data-testid="label-dialog"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('the label dialog of a label rows carry')
+    await shoot('company-label-dialog-carried')
+    await pressSelector(page, press, '[data-testid="label-delete"]')
+    await toast(page, labels.deleted)
+    await undoIn(page, press, words)
+    await says(berlin, 'Undo did not bring the deleted label back')
+    await dismissToasts(page)
+    await inspect?.('Labels after Undo')
+    await shoot('company-labels-after-undo')
+
+    const links = await page.$$('[data-testid="company-label-open"]')
+    const named = await Promise.all(links.map((link) => link.evaluate((element) => element.textContent ?? '')))
+    const berlinRow = links[named.findIndex((text) => text.includes(berlin))]
+    if (berlinRow === undefined) throw new Error(`Labels lists no ${berlin}`)
+    await press(berlinRow)
+    await page
+      .waitForFunction(() => window.location.hash.includes('lb='), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error("the label's row did not open its rows on Transactions")
+      })
+    await page.waitForSelector('[data-testid="company-row-labels"]', { visible: true, timeout: 10_000 })
+    const shown = await page.$$eval('[data-testid="company-row-labels"]', (lines) => lines.map((line) => line.textContent ?? ''))
+    if (shown.some((line) => !line.includes(berlin))) throw new Error(`Transactions filtered by ${berlin} shows rows without it: ${shown.join(' | ')}`)
+    await inspect?.('Transactions filtered by a label')
+    await shoot('company-transactions-by-label')
+  }
+}
+
+/**
+ * On the fake Company books' Transactions: three rows picked, the first on a desktop by a click on its row rather than its tick,
+ * then labelled in one write, which one Undo takes back. In English they take Office 2027 of the books, and in Croatian a new label
+ * typed into the picker, since the books name their labels in English.
+ */
+export function companySelectLabelFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const office = language === 'en' ? 'Office 2027' : 'Uređenje ureda'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const carrying = () => page.$$eval('[data-testid="company-row-labels"]', (lines, wanted) => lines.filter((line) => line.textContent?.includes(wanted)).length, office)
+    const pickedCount = () => page.$eval('[data-testid="selection-bar-count"]', (count) => Number.parseInt(count.textContent ?? '', 10) || 0)
+    await pressSelector(page, press, '[data-testid="company-select-rows"]')
+    await page.waitForSelector('[data-testid="selection-bar"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('Transactions with nothing picked')
+    await shoot('company-select-none')
+    const firstCell = await page.$('tbody tr:has([data-testid="pick-row"]) td:nth-child(2)')
+    if (firstCell !== null) {
+      await press(firstCell)
+      await delay(100)
+      if ((await pickedCount()) !== 1) throw new Error('a click on a table row did not pick it')
+    }
+    for (const tick of await page.$$('[data-testid="pick-row"]')) {
+      if ((await pickedCount()) >= 3) break
+      const before = await pickedCount()
+      await press(tick)
+      await delay(100)
+      // A part's tick picks the row it belongs to, so a tick of a row already picked takes it off, and a second press puts it back.
+      if ((await pickedCount()) < before) {
+        await press(tick)
+        await delay(100)
+      }
+    }
+    if ((await pickedCount()) !== 3) throw new Error(`${await pickedCount()} rows picked, not three`)
+    await delay(300)
+    await inspect?.('Transactions with three rows picked')
+    await shoot('company-select-three')
+    await pressSelector(page, press, '[data-testid="company-selection-label"]')
+    await page.waitForSelector('[data-testid="label-picker"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('the label picker')
+    await shoot('company-label-picker')
+    if (language === 'en') {
+      const choices = await page.$$('[data-testid="label-choice"]')
+      const named = await Promise.all(choices.map((choice) => choice.evaluate((element) => element.textContent ?? '')))
+      const choice = choices[named.findIndex((text) => text.includes(office))]
+      if (choice === undefined) throw new Error(`the label picker offers no ${office}`)
+      await press(await choice.$('[data-testid="label-apply"]'))
+    } else {
+      await fill(page, 'label-new-name', office)
+      await pressSelector(page, press, '[data-testid="label-new-add"]')
+    }
+    await toastMatching(page, new RegExp(office))
+    if ((await page.$('[data-testid="selection-bar"]')) !== null) throw new Error('the selection stays after labelling')
+    const labelled = await carrying()
+    if (labelled < 3) throw new Error(`${labelled} rows carry ${office} after labelling three`)
+    await inspect?.('Transactions after labelling')
+    await shoot('company-select-labelled')
+    await undoIn(page, press, words)
+    if ((await carrying()) !== 0) throw new Error(`Undo left ${office} on rows`)
     await dismissToasts(page)
   }
 }

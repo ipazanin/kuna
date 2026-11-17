@@ -56,8 +56,9 @@ export function applyDrill(current: FilterState, drill: Partial<FilterState>): F
   const families = intersectSelections(current.families, drill.families)
   const categories = intersectSelections(current.categories, drill.categories)
   const counterparties = intersectSelections(current.counterparties, drill.counterparties)
+  const labels = intersectSelections(current.labels, drill.labels)
   const amount = drill.amount === undefined ? current.amount : intersectAmounts(current.amount, drill.amount)
-  if (accounts === null || buckets === null || families === null || categories === null || counterparties === null || amount === null) {
+  if (accounts === null || buckets === null || families === null || categories === null || counterparties === null || labels === null || amount === null) {
     return null
   }
   return {
@@ -67,6 +68,7 @@ export function applyDrill(current: FilterState, drill: Partial<FilterState>): F
     families,
     categories,
     counterparties,
+    labels,
     text: drill.text ?? current.text,
     amount,
     needsReview: current.needsReview || (drill.needsReview ?? false),

@@ -330,6 +330,7 @@ export const en = {
   /** The dialog that adds or changes a cost the owner paid privately. */
   advanceDialog: {
     addTitle: 'Add an advance',
+    labels: 'Labels',
     changeTitle: 'Change the advance',
     addDescription: 'A cost the owner paid privately for the company. It counts as a cost on its date, and reimbursements to the owner repay it.',
     changeDescription: 'A cost the owner paid privately for the company, on the owner-advances tab. Only the cells you change are written.',
@@ -815,6 +816,7 @@ export const hr: Translation<typeof en> = {
   },
   advanceDialog: {
     addTitle: 'Dodaj predujam',
+    labels: 'Oznake',
     changeTitle: 'Uredi predujam',
     addDescription: 'Trošak koji je vlasnik privatno platio za tvrtku. Broji se kao trošak na svoj datum, a povrati troškova vlasniku ga vraćaju.',
     changeDescription: 'Trošak koji je vlasnik privatno platio za tvrtku, na listu „owner-advances”. Upisuju se samo ćelije koje promijenite.',

@@ -170,6 +170,11 @@ export const en = {
     fileTheSplit: (account: string, date: CivilDate, amount: Money) =>
       `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} is split in parts, each in its own category. Change its split to file it otherwise.`,
   },
+  labelRecords: {
+    blankName: 'A label needs a name.',
+    nameTaken: (name: string) => `Another label is called ${name} once case and accents are set aside, so use that one.`,
+    stillCarried: (name: string) => `The label ${name} stays while a part of a row carries it. Delete it on Labels, which takes it off them too.`,
+  },
   accounts: {
     noName: 'no account name',
     otherCurrency: (slug: string, currency: string, workbook: string) => `${slug} is in ${currency} but the workbook counts in ${workbook}, so its amounts read as ${workbook}`,
@@ -275,6 +280,11 @@ export const hr: Translation<typeof en> = {
     noLabelsBeforeItems: 'Datoteke iz vremena prije dijelova ne vode oznake. Najprije ažurirajte datoteku u Postavkama, Datoteka.',
     fileTheSplit: (account, date, amount) =>
       `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} podijeljena je na dijelove, svaki u svojoj kategoriji. Da biste je razvrstali drukčije, promijenite podjelu.`,
+  },
+  labelRecords: {
+    blankName: 'Oznaka treba naziv.',
+    nameTaken: (name) => `Već postoji oznaka ${name}, bez obzira na velika slova i kvačice, pa upotrijebite nju.`,
+    stillCarried: (name) => `Oznaka ${name} ostaje dok je nosi neki dio stavke. Izbrišite je u Oznakama, što je skida i s njih.`,
   },
   accounts: {
     noName: 'polje account je prazno',

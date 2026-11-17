@@ -32,6 +32,8 @@ export interface SplitPartDraft {
   readonly note: string
   /** The stored part the editor opened, whose id it keeps and whose share it keeps while it keeps its category, or null for a part added in the editor. */
   readonly opened: Pick<StoredItem, 'id' | 'category' | 'ownerShare'> | null
+  /** The labels the part carries as the editor shows them, which the write stores as given. Left out, a part keeps those of the item whose id it keeps, and a new or grown one takes those of the parts it replaces. */
+  readonly labels?: readonly RecordId[]
 }
 
 /**
@@ -53,7 +55,7 @@ export function writeSplit(
   return partReplacements(stored.parts.length > 0 ? stored.parts : wholeOf(records, row), writeRowItems(unit, records, row, stored, splitItems(records, row, stored, drafts, categories)))
 }
 
-/** The items the parts become, as `writeSplit` describes, each keeping the labels of the item whose id it keeps. */
+/** The items the parts become, as `writeSplit` describes, each with the labels its draft gives, or else those of the item whose id it keeps. */
 function splitItems(records: WorkbookRecords, row: Pick<Transaction, 'id' | 'rowId'>, stored: StoredSplit, drafts: readonly SplitPartDraft[], categories: readonly ShareDefault[]): ItemDraft[] {
   const nothingStored = stored.parts.length === 0 && stored.unreadable === 0
   const labelsOf = heldLabels(records, row)
@@ -61,7 +63,8 @@ function splitItems(records: WorkbookRecords, row: Pick<Transaction, 'id' | 'row
     const filed = movedTo(draft.opened ?? { category: '', ownerShare: null }, draft.category, categories)
     const kept = stored.parts.find((candidate) => candidate.id === draft.opened?.id)
     const id = kept?.id ?? (index === 0 && nothingStored && row.rowId !== null ? wholeItemId(row) : null)
-    return { id, amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare, labels: labelsOf(id) }
+    const given = draft.labels === undefined ? {} : { labelsGiven: true }
+    return { id, amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare, labels: draft.labels ?? labelsOf(id), ...given }
   })
 }
 

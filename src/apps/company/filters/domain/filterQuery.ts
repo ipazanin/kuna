@@ -2,6 +2,9 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { amountOf, moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { isBucket } from '../../workbook/domain/bucket'
+import { LABEL_RECORDS } from '../../workbook/domain/coreKinds'
+import { recordIdOf } from '../../../../shared/storage/domain/recordId'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { DEFAULT_FILTERS } from './filterState'
 import type { FilterState, Period, Quarter } from './filterState'
@@ -22,6 +25,7 @@ const KEYS = {
   families: 'fam',
   categories: 'cat',
   counterparties: 'cp',
+  labels: 'lb',
   text: 'q',
   amountMin: 'min',
   amountMax: 'max',
@@ -50,6 +54,7 @@ export function encodeFilters(filters: FilterState, { explicitPeriod = false } =
     [KEYS.families, filters.families],
     [KEYS.categories, filters.categories],
     [KEYS.counterparties, filters.counterparties],
+    [KEYS.labels, filters.labels],
   ] as const
   for (const [key, values] of lists) {
     if (values.length === 1) {
@@ -82,6 +87,7 @@ export function decodeFilters(query: FilterQuery): FilterState {
     families: listOf(query[KEYS.families]),
     categories: listOf(query[KEYS.categories]),
     counterparties: listOf(query[KEYS.counterparties]),
+    labels: labelIdsOf(listOf(query[KEYS.labels])),
     text: firstValue(query[KEYS.text]) ?? '',
     amount: {
       min: moneyOfText(firstValue(query[KEYS.amountMin])),
@@ -152,6 +158,12 @@ function listOf(value: QueryValue): string[] {
   const entries = typeof value === 'string' ? [value] : (value ?? [])
   const present = entries.filter((entry): entry is string => typeof entry === 'string' && entry !== '')
   return [...new Set(present)]
+}
+
+/** The labels' ids a query or a chip names, leaving out a value that is no label's id. */
+export function labelIdsOf(texts: readonly string[]): RecordId[] {
+  const prefix = `${LABEL_RECORDS.name}:`
+  return texts.flatMap((text) => (text.startsWith(prefix) && text.length > prefix.length ? [recordIdOf(LABEL_RECORDS, text.slice(prefix.length))] : []))
 }
 
 function moneyOfText(text: string | null): Money | null {

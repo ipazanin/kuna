@@ -23,6 +23,8 @@ export interface AdvanceLine {
   readonly paidOn: string
   readonly description: string
   readonly category: string
+  /** The names of the labels it carries, or blank. */
+  readonly labels: string
   readonly amount: Money
   /** The advance on Transactions. */
   readonly to: RouteLocationRaw | null
@@ -67,6 +69,7 @@ const emit = defineEmits<{
         <div class="min-w-0">
           <CutText as="p" class="text-sm text-highlighted">{{ advance.description || advance.category }}</CutText>
           <CutText as="p" class="text-xs text-muted">{{ advance.paidOn }}, {{ advance.category }}</CutText>
+          <NoteLine v-if="advance.labels !== ''" tone="muted" icon="i-lucide-tag" data-testid="advance-labels-line">{{ advance.labels }}</NoteLine>
         </div>
         <DrillLink :to="advance.to" :label="words.advanceList.openRow(advance.paidOn)" class="text-end">
           <MoneyText :cents="advance.amount" class="text-sm font-medium text-highlighted" />

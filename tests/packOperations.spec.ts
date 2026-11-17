@@ -64,8 +64,11 @@ afterEach(async () => forgetCaches(used))
 function exampleRecords(desk: PackDesk): Readonly<Record<string, string>> {
   const books = desk.store.state as CompanyBooks
   const first = <R>(kind: RecordKind<R>, pick: (record: R) => boolean, idOf: (record: R) => string) => idOf(recordsOf(recordsOfKindIn(books.records, kind)).find(pick)!)
+  const labelCalled = (name: string) => books.workbook.labels.find((label) => label.name === name)!.id
   return {
     category: 'ai-services',
+    label: labelCalled('Office 2027'),
+    'label-on-advance': labelCalled('Berlin conference'),
     advance: first(
       OWNER_ADVANCE_RECORDS,
       () => true,

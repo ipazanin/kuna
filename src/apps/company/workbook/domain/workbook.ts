@@ -176,6 +176,8 @@ export interface OwnerAdvance {
   readonly id: RecordId
   /** Set on a part of a shared advance, which the cash screens count in the advance's place. */
   readonly ownerPart?: OwnerPartOf<OwnerAdvance>
+  /** The labels it carries, by their ids. Left out while it carries none, as the tab's blank cell holds it. */
+  readonly labels?: readonly RecordId[]
 }
 
 /** Costs the owner paid, oldest first, and on one day by amount, description and category. */

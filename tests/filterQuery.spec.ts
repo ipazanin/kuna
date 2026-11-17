@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
 import type { FilterState } from '../src/apps/company/filters/domain/filterState'
 import { decodeFilters, encodeFilters, hasFilterKeys, withoutFilterKeys } from '../src/apps/company/filters/domain/filterQuery'
+import { LABEL_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
 
 const EVERY_FIELD: FilterState = {
@@ -12,6 +14,7 @@ const EVERY_FIELD: FilterState = {
   families: ['owner'],
   categories: ['travel', 'ai-services'],
   counterparties: ['iban:XX00FAKE0001', 'name:STUDIO-MG, VL. EXAMPLE'],
+  labels: [recordIdOf(LABEL_RECORDS, 'berlin'), recordIdOf(LABEL_RECORDS, 'office')],
   text: 'čaj & kava',
   amount: { min: euros(-1999.99), max: euros(-0.01) },
   needsReview: true,
@@ -62,5 +65,10 @@ describe('filter query', () => {
     expect(hasFilterKeys({ theme: 'dark' })).toBe(false)
     expect(hasFilterKeys({ theme: 'dark', p: 'l3' })).toBe(true)
     expect(withoutFilterKeys({ theme: 'dark', p: 'l3', cp: ['a', 'b'] })).toEqual({ theme: 'dark' })
+  })
+
+  it('keeps only label ids in the labels key, so a hand-typed value picks no label', () => {
+    expect(decodeFilters({ lb: ['label:berlin', 'berlin', 'label:', 'category:travel'] }).labels).toEqual([recordIdOf(LABEL_RECORDS, 'berlin')])
+    expect(encodeFilters({ ...DEFAULT_FILTERS, labels: [recordIdOf(LABEL_RECORDS, 'berlin')] })).toEqual({ lb: 'label:berlin' })
   })
 })

@@ -9,6 +9,7 @@ import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import NoteLine from '../../shared/ui/NoteLine.vue'
 import ListRow from '../../shared/ui/ListRow.vue'
+import PickBox from '../../shared/ui/PickBox.vue'
 import SelectionBar from '../../shared/ui/SelectionBar.vue'
 import GallerySection from './GallerySection.vue'
 
@@ -159,6 +160,18 @@ function pick(key: string): void {
         <UButton label="Label" color="neutral" variant="outline" />
       </SelectionBar>
       <p class="px-4 py-3 type-body sm:px-5">A list that offers no Pick all, as Entries.</p>
+    </AppCard>
+  </GallerySection>
+
+  <GallerySection
+    id="pick-box"
+    title="PickBox"
+    description="The box before a row while rows are being picked, which ListRow draws itself. A row of its own, such as a phone card or a Spending entry, puts it first. Ticked in the accent when picked, dashed when the row cannot be picked."
+  >
+    <AppCard as="div" class="flex flex-wrap items-center gap-6 p-5">
+      <span class="flex items-center gap-2 type-body"><PickBox :picked="false" />Not picked</span>
+      <span class="flex items-center gap-2 type-body"><PickBox picked />Picked</span>
+      <span class="flex items-center gap-2 type-body"><PickBox :picked="false" unpickable />Cannot be picked</span>
     </AppCard>
   </GallerySection>
 

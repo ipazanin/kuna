@@ -13,7 +13,7 @@ import { words as ruleFormWords } from '../../rules/presentation/words'
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { conditionInWords } from '../../rules/domain/ruleSummary'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, DISMISSAL_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, DISMISSAL_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayName, displayNamesOf } from '../../workbook/domain/displayName'
 import type { DisplayNames } from '../../workbook/domain/displayName'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
@@ -101,10 +101,18 @@ function bucketName(bucket: string, workbook: Workbook): string {
   return isDefinedBucket(bucket) ? workbook.settings.bucketLabels[bucket] : bucket
 }
 
-/** What the record is called on screen: a row by its counterparty or else its category, a part by its category, a setting by its form's name, a rule by its id, and others by their name. */
-function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, names: DisplayNames, packSettingNames: Readonly<Record<string, string>>): string {
+/**
+ * What the record is called on screen: a row by its counterparty or else its category, a part of books from before items by its
+ * category, an item by its row's counterparty and day and its category, a setting by its form's name, a rule by its id, and others by their name.
+ */
+function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, workbook: Workbook, names: DisplayNames, packSettingNames: Readonly<Record<string, string>>): string {
   if (isKind(kind, LEDGER_RECORDS, record)) return record.counterparty !== '' ? record.counterparty : names.category(record.category)
-  if (isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) return names.category(record.category)
+  if (isKind(kind, SPLIT_PART_RECORDS, record)) return names.category(record.category)
+  if (isKind(kind, ITEM_RECORDS, record)) {
+    const row = workbook.transactions.find((transaction) => transaction.rowId === record.row)
+    return [row?.counterparty ?? '', row === undefined ? '' : dayLabel(row.date), names.category(record.category)].filter((part) => part !== '').join(' · ')
+  }
+  if (isKind(kind, LABEL_RECORDS, record)) return record.name
   if (isKind(kind, CATEGORY_RECORDS, record)) return displayName(record.slug, record.label)
   if (isKind(kind, ACCOUNT_RECORDS, record)) return displayName(record.slug, record.label)
   if (isKind(kind, SETTING_RECORDS, record)) return settingName(record.key, packSettingNames)
@@ -199,7 +207,7 @@ export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, note
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, workbook, names),
-    label: (kind, record, fallback) => labelOf(kind, record, fallback, names, packs?.settingNames ?? {}),
+    label: (kind, record, fallback) => labelOf(kind, record, fallback, workbook, names, packs?.settingNames ?? {}),
     reading: categoryReading,
     inLabel: fieldsInLabel,
     warns,

@@ -21,6 +21,7 @@ import type { RepaymentChoice } from '../domain/advanceRepayments'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
+import type { LabelCarrier } from '../../packContribution'
 
 /** A cost the owner paid privately, as the advance form gives it. */
 export interface OwnerAdvanceDraft {
@@ -29,19 +30,24 @@ export interface OwnerAdvanceDraft {
   readonly amount: Money
   readonly description: string
   readonly category: string
+  /** The labels it carries. Left out, a new advance carries none and one it changes keeps its own. */
+  readonly labels?: readonly RecordId[]
 }
 
 /**
  * The advance the form gives, its description trimmed and its category in lower case: a new one with
  * an id of its own, or the advance it changes under the id that one keeps. A new advance, or one put
- * in another category, takes its category's default share, and one that keeps its category keeps its share.
+ * in another category, takes its category's default share, and one that keeps its category keeps its share. It carries the
+ * labels the draft gives.
  */
 export function ownerAdvanceOfDraft(draft: OwnerAdvanceDraft, categories: readonly ShareDefault[], before: OwnerAdvanceEntry | null = null): OwnerAdvanceEntry {
   const category = draft.category.trim().toLowerCase()
   const described = { date: draft.date, amount: draft.amount, description: draft.description.trim() }
-  return before === null
-    ? filedIn({ ...described, category: '', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, newRecordId()) }, category, categories)
-    : movedTo({ ...before, ...described }, category, categories)
+  const filed =
+    before === null
+      ? filedIn({ ...described, category: '', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, newRecordId()) }, category, categories)
+      : movedTo({ ...before, ...described }, category, categories)
+  return draft.labels === undefined ? filed : ADVANCE_LABELS.withLabels(filed, draft.labels)
 }
 
 /** Has each advance the new rows pay back name the items that pay it, after those it names already. */
@@ -99,4 +105,15 @@ function placeRepayments(unit: UnitOfWork, records: WorkbookRecords, advance: Ow
     const placed = itemOf.get(choice.item)
     return choice.named ? [choice.item] : placed === undefined ? [] : [placed]
   })
+}
+
+/** A cost the owner paid carries labels on the owner-advances tab, left out of the record while it carries none. */
+export const ADVANCE_LABELS: LabelCarrier<OwnerAdvanceEntry> = {
+  writes: OWNER_ADVANCE_WRITES,
+  idOf: (advance) => advance.id,
+  labelsOf: (advance) => advance.labels ?? [],
+  withLabels: (advance, labels) => {
+    const { labels: _held, ...cost } = advance
+    return labels.length === 0 ? cost : { ...cost, labels }
+  },
 }

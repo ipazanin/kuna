@@ -16,7 +16,7 @@ import KpiTile from '../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../../shared/ui/ShowAllButton.vue'
 import { useFilters } from '../../../filters/application/filterStore'
-import { filterChips } from '../../../filters/domain/filterChips'
+import { filterChips } from '../../../filters/presentation/filterChips'
 import { periodRange } from '../../../filters/domain/filterState'
 import { periodInWords } from '../../../filters/domain/periodInWords'
 import { periodMonths } from '../../../filters/domain/periodPresets'
@@ -120,7 +120,7 @@ const owed = computed(() => {
       },
     ],
     hasLoanRoles: categoriesWithRole(categories, PACK_ROLES.ownerLoanOut).length > 0 && categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid).length > 0,
-    otherFilters: filters.accounts.length > 0 || filterChips(filters, { counterparty: String, bucket: String, category: String }).length > 0,
+    otherFilters: filters.accounts.length > 0 || filterChips(filters, { counterparty: String, bucket: String, category: String, label: String }).length > 0,
     unaccounted: unaccounted.length,
     openCount: inPeriod.openLoans,
     oldestOpen: inPeriod.oldestOpenLoan === null ? null : dayLabel(inPeriod.oldestOpenLoan),
@@ -139,6 +139,7 @@ const owed = computed(() => {
       paidOn: dayLabel(line.advance.date),
       description: line.advance.description,
       category: names.value.category(line.advance.category),
+      labels: (line.advance.labels ?? []).flatMap((id) => workbook.labels.find((label) => label.id === id)?.name ?? []).join(', '),
       amount: line.advance.amount,
       to: drillLocation(line.drill),
       remaining: line.remaining,

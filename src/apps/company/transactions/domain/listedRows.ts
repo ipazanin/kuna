@@ -53,6 +53,11 @@ export function listedOwnerPart(row: ListedRow): OwnerPart | undefined {
   return row.kind === 'bank' ? row.ownerPart : row.advance.ownerPart
 }
 
+/** The record a listed row is picked by: a bank row's ledger row, which a part shares, and a cost the owner paid its own record. */
+export function pickedRecordOf(row: ListedRow): string {
+  return row.kind === 'bank' ? row.id : row.advance.id
+}
+
 /** The row as booked: for a part of a shared row the row it comes from. */
 export function bookedRowOf(row: ListedRow): ListedRow {
   if (row.kind === 'bank') {

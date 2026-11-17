@@ -211,7 +211,7 @@ import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRate
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
-import { companyFiguresOf, investmentsFiguresOf, spendingFiguresOf } from './support/figureFields.mjs'
+import { companyFiguresOf, investmentsFiguresOf, spendingFiguresOf, withoutAdvanceLabels } from './support/figureFields.mjs'
 
 const { values: options } = parseArgs({
   options: {
@@ -281,14 +281,17 @@ const groups = []
 const group = (name, figures) => groups.push([name, figures])
 
 if (companyAsked) {
-  const { records, workbook: raw } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
+  const { records, workbook: read } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
+  // company.labels hashes the labels the costs the owner paid carry, so every other group reads the advances without them.
+  const raw = { ...read, ownerAdvances: withoutAdvanceLabels(read.ownerAdvances), packParts: withoutAdvanceLabels(read.packParts) }
+  const labelled = withOwnerParts(presentedWorkbook(read), vatOnPrivateShare)
   setMoneyFormat({ currency: raw.settings.currency, locale: amountLocaleOf(raw.settings) })
   const booked = presentedWorkbook(raw)
   const cash = withOwnerParts(booked, vatOnPrivateShare)
   const books = hrDooWorkbook(booked)
   const window = ledgerWindowOf(cash.transactions)
   const asOf = newestBookingOf(cash.transactions)
-  const scoped = scopeTransactions(cash.transactions, DEFAULT_FILTERS)
+  const scoped = scopeTransactions(cash.transactions, DEFAULT_FILTERS, raw.itemLabels)
   const rows = [...scoped, ...scopeOwnerAdvances(cash.ownerAdvances, DEFAULT_FILTERS).map(bookingOfAdvance)]
   const context = categorisationContextOf(cash)
   const forecastOf = (year) => forecastYear(books, year, asOf)
@@ -310,7 +313,12 @@ if (companyAsked) {
   )
   group('settings.problems', booked.problems)
   group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
-  group('company.labels', () => [raw.labels, raw.itemLabels, companyLabelTotals(cash.transactions, raw.itemLabels, raw.labels)])
+  group('company.labels', () => [
+    raw.labels,
+    raw.itemLabels,
+    read.ownerAdvances.flatMap((advance) => (advance.labels === undefined ? [] : [[advance.id, advance.labels]])),
+    companyLabelTotals(labelled.transactions, labelled.ownerAdvances, raw.itemLabels, raw.labels),
+  ])
   group('settings.uses', () => [categoryUses((kind) => recordsOfKindIn(records, kind)), accountUses((kind) => recordsOfKindIn(records, kind))])
 
   const averages = windowAverages(rows, window)
@@ -327,7 +335,7 @@ if (companyAsked) {
   group('overview.pack-waiting', () => packWaiting(books, asOf))
 
   group('review.queue', () =>
-    scopeTransactions(raw.transactions, DEFAULT_FILTERS)
+    scopeTransactions(raw.transactions, DEFAULT_FILTERS, raw.itemLabels)
       .filter(needsReview)
       .map((row) => categorise(row, cash.rules, context)),
   )
@@ -351,7 +359,7 @@ if (companyAsked) {
   for (const period of [{ preset: 'l3' }, { preset: 'l12' }, { preset: 'all' }, ...ledgerYears.map((year) => ({ preset: 'year', year }))]) {
     const at = period.preset === 'year' ? `year-${period.year}` : period.preset
     const filters = { ...DEFAULT_FILTERS, period }
-    const listed = listedRows(filterTransactions(cash.transactions, filters, window), transactionsInPeriod(scopeOwnerAdvances(cash.ownerAdvances, filters), period, window))
+    const listed = listedRows(filterTransactions(cash.transactions, filters, raw.itemLabels, window), transactionsInPeriod(scopeOwnerAdvances(cash.ownerAdvances, filters), period, window))
     group(`transactions.${at}.listed`, listed)
     group(`transactions.${at}.groups`, () =>
       ['month', 'category', 'counterparty'].map((grouping) => groupTransactions(listed, grouping, { window, counterpartyLabels: counterpartyLabels(cash.transactions) })),

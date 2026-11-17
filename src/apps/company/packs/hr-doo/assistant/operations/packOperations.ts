@@ -1,5 +1,7 @@
 import type { PackOperations } from '../../../../assistant/companyAssistant'
-import { ITEM_RECORDS, LEDGER_RECORDS } from '../../../../workbook/domain/coreKinds'
+import { ITEM_RECORDS, LABEL_RECORDS, LEDGER_RECORDS } from '../../../../workbook/domain/coreKinds'
+import { labelPackRecords } from '../../../../labels/application/labelWrites'
+import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import { recordsOfKindIn } from '../../../../workbook/domain/readWorkbook'
 import type { CompanyBooks } from '../../../../workbook/domain/readWorkbook'
 import { slugProblem } from '../../../../workbook/domain/slug'
@@ -217,16 +219,22 @@ const PAID_BACK_BY =
 
 const PAID_BACK_ITEMS = { type: 'array', items: inputOf({ item: TEXT }) } as const satisfies StrictSchema
 
+/** The labels a cost carries, which change no figure of its category, or an empty list for none. Books from before items keep none. */
+const ADVANCE_LABEL_LIST = { type: 'array', items: inputOf({ label: TEXT }) } as const satisfies StrictSchema
+
+/** The costs the owner paid a label goes on or comes off. */
+const LABELLED_ADVANCES = { type: 'array', items: inputOf({ advance: TEXT }) } as const satisfies StrictSchema
+
 /** Every change the chat can propose in the Croatian d.o.o. pack. Each calls the write functions the pack's screens use. */
 export const PACK_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-owner-advance',
     about: `A cost the owner paid privately for the company, which the company owes back, in an operating or taxes category, above zero. ${PAID_BACK_BY}`,
-    input: inputOf({ date: DAY, amount: NUMBER, description: TEXT, category: TEXT, paidBackBy: PAID_BACK_ITEMS }),
-    refs: { category: 'category', 'paidBackBy.item': ITEM_RECORDS.name },
+    input: inputOf({ date: DAY, amount: NUMBER, description: TEXT, category: TEXT, paidBackBy: PAID_BACK_ITEMS, labels: ADVANCE_LABEL_LIST }),
+    refs: { category: 'category', 'paidBackBy.item': ITEM_RECORDS.name, 'labels.label': LABEL_RECORDS.name },
     creates: null,
     alone: false,
-    example: { date: '2026-10-10', amount: 117.3, description: 'Desk lamp', category: 'category', paidBackBy: [] },
+    example: { date: '2026-10-10', amount: 117.3, description: 'Desk lamp', category: 'category', paidBackBy: [], labels: [] },
   },
   {
     name: 'change-owner-advance',
@@ -248,6 +256,25 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
     creates: null,
     alone: false,
     example: { advance: 'advance', date: null, amount: null, description: 'Train tickets to the client', category: null, ownerShare: null, paidBack: 'keep', paidBackBy: [] },
+  },
+  {
+    name: 'label-advances',
+    about:
+      'Puts a label on costs the owner paid privately, beside their categories, which it changes no figure of, as picking them on Transactions does. A label-rows step on the same card labels ledger rows in the same write. Books from before items keep no labels.',
+    input: inputOf({ label: TEXT, advances: LABELLED_ADVANCES }),
+    refs: { label: LABEL_RECORDS.name, 'advances.advance': OWNER_ADVANCE_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { label: 'label', advances: [{ advance: 'advance' }] },
+  },
+  {
+    name: 'unlabel-advances',
+    about: 'Takes a label off costs the owner paid privately. The label stays for the rows and costs that keep it.',
+    input: inputOf({ label: TEXT, advances: LABELLED_ADVANCES }),
+    refs: { label: LABEL_RECORDS.name, 'advances.advance': OWNER_ADVANCE_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { label: 'label-on-advance', advances: [{ advance: 'advance' }] },
   },
   {
     name: 'delete-owner-advance',
@@ -578,6 +605,17 @@ function replaceLine(unit: UnitOfWork, held: readonly PlanLine[], key: string, l
   )
 }
 
+/** The labels a step names, each one the books hold, and none on books from before items, which refuse one. */
+function labelsOf(books: CompanyBooks, given: readonly { readonly label: string }[], idOf: (value: unknown) => string): readonly RecordId[] {
+  const ids = given.map(({ label }) => {
+    const held = books.workbook.labels.find((candidate) => candidate.id === idOf(label))
+    if (held === undefined) throw new StepRefused('That label is no longer in the books.')
+    return held.id
+  })
+  if (ids.length > 0 && !storesItems(books.records)) throw new StepRefused('These books keep their rows the way older versions of Kuna did, so they keep no labels. Propose move-to-items first.')
+  return ids
+}
+
 function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: ProposalStep, idOf: (value: unknown) => string, anonymising: boolean, rates: RateBook): void {
   if (anonymising && PAYS_A_PERSON.has(operation)) throw new StepRefused(ANONYMISING)
   // The chat checked the input against this operation's schema, so each field has the type the schema gives it.
@@ -585,8 +623,9 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
   const advances = () => recordsOfKindIn(books.records, OWNER_ADVANCE_RECORDS)
   switch (operation) {
     case 'add-owner-advance': {
+      const labels = labelsOf(books, field['labels'], idOf)
       const advance = ownerAdvanceOfDraft(
-        { date: dayOf(field['date']), amount: aboveZero(field['amount'], 'amount'), description: field['description'], category: idOf(field['category']) },
+        { date: dayOf(field['date']), amount: aboveZero(field['amount'], 'amount'), description: field['description'], category: idOf(field['category']), labels },
         books.workbook.categories,
       )
       writeOwnerAdvance(unit, books.records, null, advance, chosenRepayments(books, null, advance, field['paidBackBy'], idOf))
@@ -603,6 +642,15 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
       const drafted = ownerAdvanceOfDraft(draft, books.workbook.categories, before)
       const after = field['ownerShare'] === null ? drafted : { ...drafted, ownerShare: advanceShare(books, drafted.category, field['ownerShare']) }
       writeOwnerAdvance(unit, books.records, before, after, chosenRepayments(books, before, after, field['paidBack'] === 'keep' ? null : field['paidBackBy'], idOf))
+      return
+    }
+    case 'label-advances':
+    case 'unlabel-advances': {
+      const label = books.workbook.labels.find((held) => held.id === idOf(field['label']))?.id
+      if (label === undefined) throw new StepRefused('That label is no longer in the books.')
+      if (!storesItems(books.records)) throw new StepRefused('These books keep their rows the way older versions of Kuna did, so they keep no labels. Propose move-to-items first.')
+      const ids = (field['advances'] as readonly { readonly advance: string }[]).map(({ advance }) => heldOf(advances(), 'advance', (held) => held.id === idOf(advance)).id)
+      labelPackRecords(unit, books.records, new Set(ids), label, operation === 'label-advances')
       return
     }
     case 'delete-owner-advance':

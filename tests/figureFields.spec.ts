@@ -9,6 +9,7 @@ import { civil } from './fixtures/ledger'
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import {
+  COMPANY_ADVANCE,
   COMPANY_ITEM,
   COMPANY_LEDGER_ROW,
   INVESTMENT_ACCOUNT,
@@ -21,7 +22,10 @@ import {
   investmentsKindOf,
   spendingFiguresOf,
   spendingKindOf,
+  withoutAdvanceLabels,
 } from '../scripts/support/figureFields.mjs'
+import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
+import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook'
 
 const DAY = civil('2026-11-10')
 const SAVED_AT = '2026-01-01T00:00:00.000Z'
@@ -61,6 +65,11 @@ const KINDS = {
     figures: ['amount', 'category', 'id', 'invoice', 'note', 'ownerShare', 'row'],
     cells: ['amount', 'category', 'id', 'invoice_id', 'note', 'owner_share', 'row_id'],
   },
+  'a cost the owner paid': {
+    kind: COMPANY_ADVANCE,
+    figures: ['amount', 'category', 'date', 'description', 'id', 'ownerShare', 'repaidBy'],
+    cells: ['amount', 'category', 'date', 'description', 'id', 'items', 'owner_share'],
+  },
 } as const
 
 const spending = SPENDING_DOCUMENT.read({
@@ -87,6 +96,7 @@ const STORED: Record<keyof typeof KINDS, readonly Stored[]> = {
   'an Investments account': investments.records.accounts.records,
   'a Company ledger row': company.records.ledger.records,
   'a Company item': company.records.items.records,
+  'a cost the owner paid': recordsOfKindIn(company.records, OWNER_ADVANCE_RECORDS).records,
 }
 
 type KindOf = (record: object) => { readonly record: ReadonlySet<string>; readonly cells: ReadonlySet<string> } | null
@@ -139,6 +149,8 @@ describe("the figure digest's fields", () => {
     expect(leftOutIn(companyFiguresOf(company.records).ledger, companyKindOf)).toEqual([])
     expect(leftOutIn(company.records.items, companyKindOf)).toContain('label_ids')
     expect(leftOutIn(companyFiguresOf(company.records).items, companyKindOf)).toEqual([])
+    expect(leftOutIn(company.workbook.ownerAdvances, companyKindOf)).toContain('labels')
+    expect(leftOutIn(withoutAdvanceLabels(company.workbook.ownerAdvances), companyKindOf)).toEqual([])
   })
 
   it('keeps every figure of a record and its stored cells', () => {

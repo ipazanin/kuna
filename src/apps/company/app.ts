@@ -25,6 +25,7 @@ import { words as onboardingWords } from './onboarding/presentation/words'
 import { words as overviewWords } from './overview/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { words as transactionWords } from './transactions/presentation/words'
+import { words as labelWords } from './labels/presentation/words'
 import { companySyncGroup } from './sync/presentation/useSync'
 import { words } from './words'
 import { gettingSetUp } from './onboarding/presentation/gettingSetUp'
@@ -41,6 +42,7 @@ import { publishedMoneyWithOwner } from './transactions/application/publishedMon
 const CORE_SCREENS: readonly AppScreen[] = [
   { path: '/company', title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
   { path: '/company/transactions', title: transactionWords.title, icon: 'i-lucide-list', component: () => import('./transactions/presentation/TransactionsScreen.vue') },
+  { path: '/company/labels', title: labelWords.title, icon: 'i-lucide-tag', component: () => import('./labels/presentation/LabelsScreen.vue') },
   { path: '/company/invoicing', title: invoicingWords.title, icon: 'i-lucide-receipt-text', component: () => import('./invoicing/presentation/InvoicingScreen.vue') },
   { path: '/company/analysis', title: analysisWords.title, icon: 'i-lucide-chart-bar', component: () => import('./analysis/presentation/AnalysisScreen.vue') },
 ]

@@ -12,6 +12,11 @@ import SplitEditor from '../../shared/ui/SplitEditor.vue'
 import { splitField } from '../../shared/ui/splitFields'
 import type { SplitField } from '../../shared/ui/splitFields'
 import GallerySection from './GallerySection.vue'
+import type { Label } from '../../shared/categorising/domain/labels'
+import { recordIdOf } from '../../shared/storage/domain/recordId'
+import type { RecordId } from '../../shared/storage/domain/recordId'
+import { recordKind } from '../../shared/storage/domain/recordKind'
+import LabelsSelect from '../../shared/ui/LabelsSelect.vue'
 
 /** A made-up payment of €45.30 split into made-up categories. */
 const WHOLE: Money = moneyFromCents(4_530)
@@ -38,6 +43,18 @@ const SPECIMENS = [
   { title: 'The amounts leave the rest nothing', parts: ref<SplitField[]>([splitField('50.00', 'groceries', '', false), splitField('', 'restaurants', '', true)]), tried: false, refusal: null },
 ] as const
 
+/** Made-up labels for the specimen whose parts carry them. */
+const GALLERY_LABELS = recordKind<Label>('gallery-split-label', {
+  en: { one: 'label', many: 'labels', article: 'a' },
+  hr: { one: 'oznaka', of: 'oznake', few: 'oznake', other: 'oznaka', gender: 'feminine' },
+})
+const LABELS: readonly Label[] = [
+  { id: recordIdOf(GALLERY_LABELS, 'trip'), name: 'Summer trip' },
+  { id: recordIdOf(GALLERY_LABELS, 'flat'), name: 'New flat' },
+]
+const labelled = ref<SplitField[]>([splitField('30.00', 'restaurants', 'Dinner', false), splitField('', 'household', '', true)])
+const partLabels = ref<Record<number, readonly RecordId[]>>({ [labelled.value[0]!.id]: [LABELS[0]!.id] })
+
 function categoryError(field: SplitField): string | null {
   return field.category === '' ? 'Choose a category' : null
 }
@@ -47,7 +64,7 @@ function categoryError(field: SplitField): string | null {
   <GallerySection
     id="split-editor"
     title="SplitEditor"
-    description="The whole above its parts, each with an amount, a category and a note, and one part that takes the rest. The equals button makes a part the rest, and the part that was the rest keeps its figure. A rest of nothing shows in red with why. Remove stays off while two parts are left."
+    description="The whole above its parts, each with an amount, a category and a note, and one part that takes the rest. The equals button makes a part the rest, and the part that was the rest keeps its figure. A rest of nothing shows in red with why. Remove stays off while two parts are left. The part slot adds fields of a part under its note, such as its labels."
   >
     <DashboardGrid layout="pair">
       <AppCard v-for="specimen in SPECIMENS" :key="specimen.title" :title="specimen.title">
@@ -69,6 +86,30 @@ function categoryError(field: SplitField): string | null {
             </template>
             <template #rest="{ cents }">
               <MoneyText :cents="cents" />
+            </template>
+          </SplitEditor>
+        </div>
+      </AppCard>
+      <AppCard title="Each part with its labels, in the part slot">
+        <div class="px-4 pt-3 pb-4 sm:px-5">
+          <SplitEditor v-model="labelled" whole-label="The payment, money out" :whole="WHOLE" :typed="typedAmount" :tried="false" :category-error="categoryError">
+            <template #whole>
+              <MoneyText :cents="negateMoney(WHOLE)" tone="flow" />
+            </template>
+            <template #category="{ field }">
+              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" class="w-full" />
+            </template>
+            <template #rest="{ cents }">
+              <MoneyText :cents="cents" />
+            </template>
+            <template #part="{ field, place }">
+              <LabelsSelect
+                :model-value="partLabels[field.id] ?? []"
+                :labels="LABELS"
+                :name="`Labels of part ${place}`"
+                class="w-full"
+                @update:model-value="partLabels = { ...partLabels, [field.id]: $event }"
+              />
             </template>
           </SplitEditor>
         </div>

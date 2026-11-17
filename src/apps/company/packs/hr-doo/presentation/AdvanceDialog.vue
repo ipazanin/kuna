@@ -47,6 +47,9 @@ import AppDialog from '../../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../shared/ui/FormGrid.vue'
 import { words } from './words'
+import LabelsSelect from '../../../../../shared/ui/LabelsSelect.vue'
+import { useTypedLabels } from '../../../labels/presentation/useTypedLabels'
+import { storesItems } from '../../../workbook/domain/rowItems'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -78,6 +81,10 @@ const description = ref('')
 const category = ref('')
 const paidBackBy = ref<string[]>([])
 const tried = ref(false)
+const labels = ref<readonly RecordId[]>([])
+const typed = useTypedLabels()
+/** Whether the books keep labels, which books from before items do not. */
+const labelled = computed(() => store.state.records !== null && storesItems(store.state.records))
 
 watch(open, (opened) => {
   if (opened) {
@@ -87,6 +94,8 @@ watch(open, (opened) => {
     description.value = start?.description ?? ''
     category.value = props.editing?.category ?? ''
     paidBackBy.value = props.editing === null ? (props.prefill === null ? [] : [props.prefill.paidBackBy]) : [...(props.editing.repaidBy ?? [])]
+    labels.value = props.editing?.labels ?? []
+    typed.forget()
     tried.value = false
   }
 })
@@ -152,18 +161,25 @@ async function save(): Promise<void> {
   if (!valid.value || day === null || parsedAmount.value === null) {
     return
   }
-  const draft = { date: day, amount: parsedAmount.value, description: description.value, category: category.value }
+  const draft = { date: day, amount: parsedAmount.value, description: description.value, category: category.value, ...(labelled.value ? { labels: labels.value } : {}) }
   const before = props.editing
   const advance = ownerAdvanceOfDraft(draft, props.categories, before)
   const outside = outsideView(advance.date)
   const rows = outside === '' ? null : drillLocation(advanceDrill(advance))
   const records = store.state.records
   if (records === null) return
-  const written = await writes.write(before === null ? words.advanceDialog.added : words.advanceDialog.changed, (unit) => writeOwnerAdvance(unit, records, before, advance, chosen.value), {
-    description: `${words.advanceDialog.asCategory(formatMoney(advance.amount), names.value.category(advance.category))}${outside}`,
-    failedTitle: before === null ? words.advanceDialog.notAdded : words.advanceDialog.notChanged,
-    ...(rows === null ? {} : { follow: { label: words.advanceDialog.openIt, icon: 'i-lucide-list', run: () => void router.push(rows) } }),
-  })
+  const written = await writes.write(
+    before === null ? words.advanceDialog.added : words.advanceDialog.changed,
+    (unit) => {
+      typed.addCarried(unit, new Set(advance.labels ?? []))
+      writeOwnerAdvance(unit, records, before, advance, chosen.value)
+    },
+    {
+      description: `${words.advanceDialog.asCategory(formatMoney(advance.amount), names.value.category(advance.category))}${outside}`,
+      failedTitle: before === null ? words.advanceDialog.notAdded : words.advanceDialog.notChanged,
+      ...(rows === null ? {} : { follow: { label: words.advanceDialog.openIt, icon: 'i-lucide-list', run: () => void router.push(rows) } }),
+    },
+  )
   if (written) open.value = false
 }
 
@@ -212,6 +228,16 @@ async function remove(): Promise<void> {
       </UFormField>
       <UFormField :label="words.advanceDialog.forWhat" class="sm:col-span-2">
         <UInput v-model="description" :placeholder="words.advanceDialog.forWhatPlaceholder" class="w-full" />
+      </UFormField>
+      <UFormField v-if="labelled" :label="words.advanceDialog.labels" :error="typed.refused.value ?? false" class="sm:col-span-2">
+        <LabelsSelect
+          v-model="labels"
+          :labels="typed.choices.value"
+          :name="words.advanceDialog.labels"
+          class="w-full"
+          data-testid="advance-labels"
+          @create="labels = typed.withTyped(labels, $event)"
+        />
       </UFormField>
       <UFormField v-if="paymentItems.length > 0" :label="words.advanceDialog.paidBackBy" :help="words.advanceDialog.paidBackHelp" :error="(tried && errors.paidBackBy) || false" class="sm:col-span-2">
         <PaymentsSelect v-model="paidBackBy" data-testid="advance-paid-back-by" :payments="paymentItems" :none="words.advanceDialog.notPaidBack" :search="words.advanceDialog.searchPayments" />

@@ -27,6 +27,12 @@ import type { SplitPartDraft } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
+import UFormField from '@nuxt/ui/components/FormField.vue'
+import { labelsOf } from '../../../../shared/categorising/domain/labels'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
+import { useTypedLabels } from '../../labels/presentation/useTypedLabels'
+import { storedItemsOfRow, storesItems } from '../../workbook/domain/rowItems'
 
 /** Settings, General, where the problem list names each record Kuna cannot read. */
 const PROBLEMS_LINK = { path: '/company/settings', query: { tab: 'general' } }
@@ -56,6 +62,25 @@ const stored = computed(() => {
 const parts = ref<SplitField<SplitPart>[]>([])
 const tried = ref(false)
 
+/** Whether the books keep labels, which books from before items do not. */
+const labelled = computed(() => store.state.records !== null && storesItems(store.state.records))
+const typed = useTypedLabels()
+/** The labels of each part by its field, a part's own as the books hold it. */
+const partLabels = ref<Readonly<Record<number, readonly RecordId[]>>>({})
+/** Every label the row's items carry, which a part added in the editor starts with. */
+const rowLabels = computed(() => {
+  const records = store.state.records
+  return records === null || records === undefined ? [] : labelsOf(storedItemsOfRow(records.items, props.row))
+})
+
+function labelsOfField(field: SplitField<SplitPart>): readonly RecordId[] {
+  return partLabels.value[field.id] ?? rowLabels.value
+}
+
+function labelField(field: SplitField<SplitPart>, labels: readonly RecordId[]): void {
+  partLabels.value = { ...partLabels.value, [field.id]: labels }
+}
+
 watch(
   open,
   (opened) => {
@@ -69,6 +94,9 @@ watch(
             const rest = place === held.length - 1
             return splitField(rest ? '' : amountForTyping(part.amount < 0 ? negateMoney(part.amount) : part.amount), part.category, part.note, rest, part)
           })
+    const itemLabels = store.state.workbook?.itemLabels
+    partLabels.value = Object.fromEntries(parts.value.flatMap((field) => (field.held === null ? [] : [[field.id, itemLabels?.get(field.held.id) ?? []]])))
+    typed.forget()
   },
   { immediate: true },
 )
@@ -94,7 +122,13 @@ const drafts = computed((): SplitPartDraft[] | null => {
   const placed = outcome.value
   if (placed === null || 'refused' in placed) return null
   const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
-  return parts.value.map((part, index) => ({ amount: signed(placed.parts[index]!), category: part.category, note: part.note, opened: part.held }))
+  return parts.value.map((part, index) => ({
+    amount: signed(placed.parts[index]!),
+    category: part.category,
+    note: part.note,
+    opened: part.held,
+    ...(labelled.value ? { labels: labelsOfField(part) } : {}),
+  }))
 })
 
 /** Why the books refuse the split as given, or its removal with none, or null, so the dialog says so before Save. */
@@ -128,7 +162,12 @@ async function save(): Promise<void> {
   if (given === null || refusal.value !== null || records === null || records === undefined || workbook === null || workbook === undefined) return
   const title = split.value === null ? plural(words.splitInParts(given.length), given.length) : words.splitDialog.saved
   const freed = invoicesSplitOff({ records, workbook }, props.row, stored.value, given)
-  const saved = await writes.write(freed.length === 0 ? title : words.splitDialog.takenOff(title, freed), (unit) => writeSplit(unit, records, props.row, stored.value, given, props.categories), {
+  const carried = new Set(given.flatMap((draft) => draft.labels ?? []))
+  const work = (unit: Parameters<typeof writeSplit>[0]) => {
+    typed.addCarried(unit, carried)
+    writeSplit(unit, records, props.row, stored.value, given, props.categories)
+  }
+  const saved = await writes.write(freed.length === 0 ? title : words.splitDialog.takenOff(title, freed), work, {
     description: [words.splitDialog.paymentOf(props.row.counterparty, props.row.amount), ...(stored.value.refused ? [words.splitDialog.noUndo] : [])].join(' '),
     failedTitle: words.splitDialog.notSaved,
   })
@@ -202,6 +241,19 @@ async function remove(): Promise<void> {
         </template>
         <template #rest="{ cents }">
           <MoneyText :cents="cents" />
+        </template>
+        <template v-if="labelled" #part="{ field, place }">
+          <UFormField :label="words.splitDialog.labels" :error="typed.refused.value ?? false">
+            <LabelsSelect
+              :model-value="labelsOfField(field)"
+              :labels="typed.choices.value"
+              :name="words.splitDialog.labelsOf(place)"
+              class="w-full"
+              data-testid="split-part-labels"
+              @update:model-value="labelField(field, $event)"
+              @create="labelField(field, typed.withTyped(labelsOfField(field), $event))"
+            />
+          </UFormField>
         </template>
       </SplitEditor>
       <p v-if="!unreadable" class="type-caption">{{ words.splitDialog.sign }}</p>

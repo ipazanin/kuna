@@ -32,6 +32,8 @@ defineSlots<{
   whole(): unknown
   category(scope: { field: SplitField<Held>; place: number }): unknown
   rest(scope: { cents: Cents }): unknown
+  /** More fields of a part under its note, such as the labels it carries. */
+  part?(scope: { field: SplitField<Held>; place: number }): unknown
 }>()
 
 const restLabel = `${useId()}-rest`
@@ -125,6 +127,9 @@ function takeRest(id: number): void {
         <UFormField :label="words.split.note" class="col-span-2 sm:col-span-3">
           <UInput v-model="field.note" :placeholder="words.split.notePlaceholder" class="w-full" data-testid="split-part-note" />
         </UFormField>
+        <div v-if="$slots.part" class="col-span-2 sm:col-span-3">
+          <slot name="part" :field="field" :place="index + 1" />
+        </div>
       </li>
     </ol>
     <UButton :label="words.split.addPart" icon="i-lucide-plus" color="neutral" variant="outline" class="self-start" data-testid="split-add-part" @click="addPart" />

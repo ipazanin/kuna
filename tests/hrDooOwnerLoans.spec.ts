@@ -6,11 +6,15 @@ import type { Category } from '../src/apps/company/workbook/domain/workbook'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
 import type { FilterState } from '../src/apps/company/filters/domain/filterState'
 import { scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
+import type { ItemLabels } from '../src/apps/company/transactions/domain/filterTransactions'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
 import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
+
+/** No item carries a label in these books. */
+const NO_LABELS: ItemLabels = new Map()
 
 function book(rows: readonly RowSpec[], categories: readonly Category[] = PACK_CATEGORIES) {
   return ownerLoans(withPackBuckets(ledger(rows), categories), categories)
@@ -274,7 +278,7 @@ describe('owner loans', () => {
       WITH_PRIVATE_COSTS,
     )
     const loans = ownerLoans(transactions, WITH_PRIVATE_COSTS)
-    const listed = (filters: Partial<FilterState>) => scopeTransactions(transactions, { ...DEFAULT_FILTERS, ...filters }).map((row) => `${row.category} ${row.amount}`)
+    const listed = (filters: Partial<FilterState>) => scopeTransactions(transactions, { ...DEFAULT_FILTERS, ...filters }, NO_LABELS).map((row) => `${row.category} ${row.amount}`)
 
     expect(listed(loans.lent.drill.filters)).toEqual([`private-cost-for-owner ${euros(-15)}`, `owner-loan-out ${euros(-1000)}`])
     expect(listed(loans.repaid.drill.filters)).toEqual([`reimbursement-from-owner ${euros(15)}`, `owner-loan-repaid ${euros(400)}`])

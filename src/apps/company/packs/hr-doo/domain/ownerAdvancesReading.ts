@@ -5,7 +5,7 @@ import { plainAmount } from '../../../../../shared/money/money'
 import { amountText, filledFields } from '../../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
-import { ITEM_RECORDS } from '../../../workbook/domain/coreKinds'
+import { ITEM_RECORDS, LABEL_RECORDS } from '../../../workbook/domain/coreKinds'
 import { SHARED_ID_REASON, idSharing, problemOf, recordWithId, refusedProblems } from '../../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../../shared/storage/domain/recordsRead'
 import { idsOf, idsText, ownId, refuse, slugOf, textOf } from '../../../../../shared/storage/domain/storedFields'
@@ -52,7 +52,17 @@ export function ownerAdvanceOf(fields: StoredFields, id: RecordId | null): Owner
     refuse(words.reading.noCategory)
   }
   const repaidBy = idsOf(fields.items, ITEM_RECORDS)
-  return { date, amount, description: textOf(fields.description), category, ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id), ...(repaidBy.length === 0 ? {} : { repaidBy }) }
+  const labels = idsOf(fields.label_ids, LABEL_RECORDS)
+  return {
+    date,
+    amount,
+    description: textOf(fields.description),
+    category,
+    ownerShare: storedOwnerShare(fields.owner_share),
+    id: ownId(id),
+    ...(repaidBy.length === 0 ? {} : { repaidBy }),
+    ...(labels.length === 0 ? {} : { labels }),
+  }
 }
 
 export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(OWNER_ADVANCE_RECORDS, words.labels.ownerAdvance, ownerAdvanceOf, (advance) =>
@@ -63,18 +73,21 @@ export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(O
     category: advance.category,
     owner_share: ownerShareText(advance.ownerShare),
     items: idsText(advance.repaidBy ?? [], ITEM_RECORDS),
+    label_ids: idsText(advance.labels ?? [], LABEL_RECORDS),
   }),
 )
 
 /**
  * A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets leaves it out. An owner share it
  * cannot read is reported and counts as none. In books that keep items each advance names the items that paid it back, none while
- * it is open, and books from before items name none, since they match each advance to the payments on every read.
+ * it is open, and books from before items name none, since they match each advance to the payments on every read. A label the
+ * labels tab lacks is reported, and the advance carries the others.
  */
 export function readOwnerAdvances(
   read: RecordsRead<OwnerAdvanceEntry>,
   categories: readonly { readonly slug: string; readonly family: string; readonly bucket: OwnerAdvance['bucket'] }[],
   itemsStored: boolean,
+  labels: ReadonlySet<RecordId>,
 ): OwnerAdvancesReading {
   const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
   const sharesId = idSharing(read)
@@ -94,8 +107,10 @@ export function readOwnerAdvances(
     } else if (sharesId(stored)) {
       problems.push(problemOf(stored, SHARED_ID_REASON))
     } else {
-      const { repaidBy: _repaidBy, ...advance } = stored.record
-      advances.push({ ...advance, family: category.family, bucket: category.bucket })
+      const { repaidBy: _repaidBy, labels: carried = [], ...advance } = stored.record
+      carried.filter((label) => !labels.has(label)).forEach((label) => problems.push(problemOf(stored, words.reading.noLabel(keyOfRecordId(LABEL_RECORDS, label)))))
+      const known = carried.filter((label) => labels.has(label))
+      advances.push({ ...advance, family: category.family, bucket: category.bucket, ...(known.length === 0 ? {} : { labels: known }) })
     }
   }
   const repaidBy = new Map(advances.map((advance) => [advance.id, recordWithId(read, advance.id)?.record.repaidBy ?? []]))

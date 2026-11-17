@@ -9,6 +9,7 @@ import { transactionsCsv } from '../src/apps/company/transactions/application/tr
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { categoryChangeOf } from '../src/apps/company/transactions/domain/categoryChange'
 import { scopeOwnerAdvances, scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
+import type { ItemLabels } from '../src/apps/company/transactions/domain/filterTransactions'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
 import { listedRows, partPlace, withPartHeadings } from '../src/apps/company/transactions/domain/listedRows'
 import type { ListedEntry } from '../src/apps/company/transactions/domain/listedRows'
@@ -23,6 +24,9 @@ import { civil, euros } from './fixtures/ledger'
 import { BENEFIT, CATEGORIES, EXAMPLE, WINDOW, YEAR, category, rows, share, workbookOf } from './fixtures/ownerShareExample'
 import { splitOf } from './fixtures/splits'
 import { vatOnPrivateShare } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit'
+
+/** No item carries a label in these books. */
+const NO_LABELS: ItemLabels = new Map()
 
 const booked = EXAMPLE as readonly Booking[]
 const shared = withOwnerParts(workbookOf(EXAMPLE), NO_VAT_ON_PRIVATE_SHARE).transactions as readonly Booking[]
@@ -364,7 +368,7 @@ describe('a category filter on shared rows', () => {
 
   it('finds the owner’s part of a row filed in the category, the whole of a 100% share among them', () => {
     // 100% of 1,500.00 leaves no business part, and 40% of 500.00 is 200.00 to the owner and 300.00 left in equipment.
-    expect(parts(scopeTransactions(cash.transactions, equipment))).toEqual([
+    expect(parts(scopeTransactions(cash.transactions, equipment, NO_LABELS))).toEqual([
       ['benefits', euros(-1500), '100% to owner, from equipment'],
       ['equipment', euros(-300), null],
       ['benefits', euros(-200), '40% to owner, from equipment'],
@@ -373,7 +377,7 @@ describe('a category filter on shared rows', () => {
   })
 
   it('still counts the owner’s parts in owner pay, so the category’s total is its business parts alone', () => {
-    const totals = Object.fromEntries(categoryTotals(scopeTransactions(cash.transactions, equipment), YEAR, WINDOW).map((total) => [total.category, total.amount.amount]))
+    const totals = Object.fromEntries(categoryTotals(scopeTransactions(cash.transactions, equipment, NO_LABELS), YEAR, WINDOW).map((total) => [total.category, total.amount.amount]))
 
     expect(totals).toEqual({ equipment: euros(300), benefits: euros(1700) })
     expect(Object.fromEntries(categoryTotals(cash.transactions, YEAR, WINDOW).map((total) => [total.category, total.amount.amount]))).toEqual({
@@ -384,8 +388,8 @@ describe('a category filter on shared rows', () => {
   })
 
   it('leaves out the owner’s part of a row filed in another category', () => {
-    expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['ai-services'] }).map((row) => row.amount)).toEqual([euros(-45), euros(-45)])
-    expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['benefits'] })).toHaveLength(3)
+    expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['ai-services'] }, NO_LABELS).map((row) => row.amount)).toEqual([euros(-45), euros(-45)])
+    expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['benefits'] }, NO_LABELS)).toHaveLength(3)
   })
 })
 

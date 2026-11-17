@@ -10,15 +10,20 @@ import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyP
 import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/apps/company/filters/domain/filterState'
 import type { FilterState } from '../src/apps/company/filters/domain/filterState'
 import { advancesLeftOutByBankFilters, filterTransactions, scopeOwnerAdvances, scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
+import type { ItemLabels } from '../src/apps/company/transactions/domain/filterTransactions'
 import { exampleStudio } from './fixtures/exampleStudio'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
+import { LABEL_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 import { itemIdOfRow } from '../src/apps/company/workbook/domain/splits'
 import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
+
+/** No item carries a label in these books. */
+const NO_LABELS: ItemLabels = new Map()
 
 let nextRow = 1
 
@@ -128,7 +133,7 @@ describe('owner advances', () => {
 
     const window = windowOf('2026-02-01', '2026-02-28')
 
-    expect(book.unaccounted.map((line) => filterTransactions(ledgerRows, { ...DEFAULT_FILTERS, ...line.drill.filters }, window).map((row) => row.date))).toEqual([[civil('2026-02-16')]])
+    expect(book.unaccounted.map((line) => filterTransactions(ledgerRows, { ...DEFAULT_FILTERS, ...line.drill.filters }, NO_LABELS, window).map((row) => row.date))).toEqual([[civil('2026-02-16')]])
   })
 
   it('reads a payment to the owner on a day the owner paid in as returning that payment first, so only the rest repays costs or counts as reimbursed', () => {
@@ -246,7 +251,7 @@ describe('owner advances', () => {
       const part = ownerLoans(ledgerRows, categories).loans[0]!
       const listed = (filters: Partial<FilterState>) => {
         const applied = { ...DEFAULT_FILTERS, ...filters }
-        return [...scopeTransactions(ledgerRows, applied).map((row) => `${row.category} ${row.amount}`), ...scopeOwnerAdvances(advances, applied).map((line) => `advance ${line.date}`)]
+        return [...scopeTransactions(ledgerRows, applied, NO_LABELS).map((row) => `${row.category} ${row.amount}`), ...scopeOwnerAdvances(advances, applied).map((line) => `advance ${line.date}`)]
       }
 
       expect(listed(book.advanced.drill.filters)).toEqual(['advance 2025-02-01'])
@@ -267,7 +272,7 @@ describe('owner advances', () => {
     const owed = netOwed(loans, book, PACK_CATEGORIES)
     const listed = (filters: Partial<FilterState>) => {
       const applied = { ...DEFAULT_FILTERS, ...filters }
-      return [...scopeTransactions(ledgerRows, applied).map((row) => `${row.category} ${row.amount}`), ...scopeOwnerAdvances(advances, applied).map((line) => `advance ${line.date}`)]
+      return [...scopeTransactions(ledgerRows, applied, NO_LABELS).map((row) => `${row.category} ${row.amount}`), ...scopeOwnerAdvances(advances, applied).map((line) => `advance ${line.date}`)]
     }
 
     expect(listed(book.advanced.drill.filters)).toEqual(['advance 2026-01-20', 'advance 2026-03-01'])
@@ -312,9 +317,12 @@ describe('advances in profit and loss', () => {
     expect(scopeOwnerAdvances(advances, { ...DEFAULT_FILTERS, accounts: ['main'] })).toEqual([])
     expect(scopeOwnerAdvances(advances, { ...DEFAULT_FILTERS, counterparties: ['name:SOMEBODY'] })).toEqual([])
     expect(scopeOwnerAdvances(advances, { ...DEFAULT_FILTERS, needsReview: true })).toEqual([])
+    const berlin = recordIdOf(LABEL_RECORDS, 'berlin')
+    const labelled = advances.map((line, at) => (at === 0 ? { ...line, labels: [berlin] } : line))
+    expect(scopeOwnerAdvances(labelled, { ...DEFAULT_FILTERS, labels: [berlin] })).toEqual([labelled[0]])
     expect(scopeOwnerAdvances(advances, { ...DEFAULT_FILTERS, text: 'owner' })).toHaveLength(2)
     expect(scopeOwnerAdvances(advances, { ...DEFAULT_FILTERS, categories: ['accounting', EVERY_OWNER_ADVANCE] })).toHaveLength(2)
-    expect(scopeTransactions(ledgerRows, { ...DEFAULT_FILTERS, categories: [EVERY_OWNER_ADVANCE] })).toEqual([])
+    expect(scopeTransactions(ledgerRows, { ...DEFAULT_FILTERS, categories: [EVERY_OWNER_ADVANCE] }, NO_LABELS)).toEqual([])
   })
 
   it('counts the advances in the period that only an account, counterparty or review filter leaves out', () => {
@@ -323,6 +331,7 @@ describe('advances in profit and loss', () => {
 
     expect(advancesLeftOutByBankFilters(advances, all, window)).toBe(0)
     expect(advancesLeftOutByBankFilters(advances, { ...all, accounts: ['main'] }, window)).toBe(2)
+    expect(advancesLeftOutByBankFilters(advances, { ...all, labels: [recordIdOf(LABEL_RECORDS, 'berlin')] }, window)).toBe(0)
     expect(advancesLeftOutByBankFilters(advances, { ...all, accounts: ['main'], buckets: ['taxes'] }, window)).toBe(1)
     expect(advancesLeftOutByBankFilters(advances, { ...all, needsReview: true, period: { preset: 'custom', range: { from: civil('2026-02-01'), to: civil('2026-02-28') } } }, window)).toBe(1)
   })

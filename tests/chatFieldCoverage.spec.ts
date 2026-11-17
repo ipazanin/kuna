@@ -131,6 +131,9 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     operations: ['add-invoice', 'change-invoice'].map((name) => ({ name, renames: { 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' } })),
   },
   { path: 'src/apps/company/owner-share/application/ownerShareWrites.ts#writeOwnerShare', from: ['share'], operations: ['set-owner-share'] },
+  { path: 'src/apps/company/labels/application/labelWrites.ts#addLabel', type: 'src/shared/categorising/domain/labels.ts#Label', operations: ['add-label'] },
+  { path: 'src/apps/company/labels/application/labelWrites.ts#renameLabel', from: ['name'], operations: ['rename-label'] },
+  { path: 'src/apps/company/labels/application/labelWrites.ts#relabelItem', from: ['labels'], operations: [{ name: 'label-rows', renames: { labels: 'label' } }] },
   {
     path: 'src/apps/company/rules/application/ruleWrites.ts#writeRuleSave',
     type: 'src/apps/company/rules/domain/ruleDraft.ts#RuleDraft',
@@ -173,11 +176,26 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/settings/application/namedRecordWrites.ts#deleteCategoryInto', from: ['into'], operations: ['delete-category'] },
   { path: 'src/apps/company/transactions/application/fileRows.ts#fileRows', from: ['verdicts'], operations: [{ name: 'file-row', renames: { 'verdict.category': 'category' } }] },
   { path: 'src/apps/company/settings/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
-  { path: 'src/apps/company/transactions/application/splitWrites.ts#writeSplit', from: ['drafts'], operations: [{ name: 'split-row', prefix: 'parts.', renames: { 'opened.id': 'parts.part' } }] },
+  {
+    path: 'src/apps/company/transactions/application/splitWrites.ts#writeSplit',
+    from: ['drafts'],
+    operations: [{ name: 'split-row', prefix: 'parts.', renames: { 'opened.id': 'parts.part', labels: 'label-rows:label' } }],
+  },
   {
     path: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#writeOwnerAdvance',
     type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
-    operations: ['add-owner-advance', 'change-owner-advance'],
+    operations: [
+      { name: 'add-owner-advance', renames: { labels: 'labels.label' } },
+      { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } },
+    ],
+  },
+  {
+    path: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#ownerAdvanceOfDraft',
+    type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
+    operations: [
+      { name: 'add-owner-advance', renames: { labels: 'labels.label' } },
+      { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } },
+    ],
   },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#ASSET_WRITES', operations: ['add-asset', 'change-asset'].map((name) => ({ name, renames: ASSET_RENAMES })) },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#GRANT_WRITES', operations: ['add-grant', 'change-grant'].map((name) => ({ name, renames: GRANT_RENAMES })) },

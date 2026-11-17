@@ -6,6 +6,7 @@ import type { DrillTarget } from '../src/apps/company/filters/domain/drillTarget
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
 import { NO_VAT_ON_PRIVATE_SHARE, withOwnerParts } from '../src/apps/company/owner-share/domain/ownerParts'
 import { filterTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
+import type { ItemLabels } from '../src/apps/company/transactions/domain/filterTransactions'
 import type { Booking, Transaction } from '../src/apps/company/workbook/domain/workbook'
 import type { TracedRate } from '../src/apps/company/packs/hr-doo/domain/cit/citLiability'
 import { ownerCost } from '../src/apps/company/packs/hr-doo/domain/ownerCost'
@@ -15,6 +16,9 @@ import { benefitsRing, categorySeries } from '../src/apps/company/packs/hr-doo/p
 import type { TracedFigure } from '../src/apps/company/packs/hr-doo/ruleset/tracedFigure'
 import { civil, euros, windowOf } from './fixtures/ledger'
 import { BENEFIT, CATEGORIES, EXAMPLE, WINDOW, YEAR, rows, workbookOf } from './fixtures/ownerShareExample'
+
+/** No item carries a label in these books. */
+const NO_LABELS: ItemLabels = new Map()
 
 const rateOf = (percent: number): TracedRate => ({ label: 'PD line 43', basisPoints: percentFromWhole(percent), rules: [] })
 const cashOf = (transactions: typeof EXAMPLE) => withOwnerParts(workbookOf(transactions), NO_VAT_ON_PRIVATE_SHARE).transactions as readonly Booking[]
@@ -51,7 +55,7 @@ describe('ownerBenefits on the worked example', () => {
   })
 
   it('opens each source on the benefit category, whose rows hold its owner parts and none of its business parts', () => {
-    const listedBy = (drill: DrillTarget) => filterTransactions(shared as readonly Transaction[], { ...DEFAULT_FILTERS, ...drill.filters }, WINDOW)
+    const listedBy = (drill: DrillTarget) => filterTransactions(shared as readonly Transaction[], { ...DEFAULT_FILTERS, ...drill.filters }, NO_LABELS, WINDOW)
 
     for (const source of benefits.bySource) {
       const parts = listedBy(source.amount.drill).filter((row) => row.ownerPart?.sourceCategory === source.category)

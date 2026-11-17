@@ -515,12 +515,13 @@ function categoriesReport({ workbook, ledger, pay }: ReportBooks, period: string
   })
 }
 
-/** What each label counts over the parts that carry it up to the day, on the lines that hold no pay, as the cash screens count them. */
+/** What each label counts over the parts and the costs the owner paid that carry it up to the day, on the lines that hold no pay, as the cash screens count them. */
 function labelsReport({ workbook, ledger }: ReportBooks, period: string | null): readonly ReportFigure[] {
   const day = dayOfPeriod(period, ledger.window.newestDay)
   const currency = currencyOf(workbook)
   const rows = ledger.workbook.transactions.filter((row) => row.date <= day)
-  return labelTotals(rows, workbook.itemLabels, workbook.labels).flatMap(({ label, profitAndLoss, parts }): readonly ReportFigure[] => [
+  const advances = ledger.workbook.ownerAdvances.filter((advance) => advance.date <= day)
+  return labelTotals(rows, advances, workbook.itemLabels, workbook.labels).flatMap(({ label, profitAndLoss, parts }): readonly ReportFigure[] => [
     ...payFreeLines(workbook).map((line): ReportFigure => ({ label: `${label.name}: ${lineLabel(workbook.settings, line)}`, of: 'app', cents: profitAndLoss[line], currency })),
     { label: `${label.name}: parts of ledger rows`, count: parts },
   ])

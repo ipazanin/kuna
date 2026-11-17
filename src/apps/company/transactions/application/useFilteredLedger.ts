@@ -37,7 +37,7 @@ export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
     return {
       ...counted,
       filters: current,
-      selected: filterTransactions(workbook.transactions, current, window),
+      selected: filterTransactions(workbook.transactions, current, workbook.itemLabels, window),
       selectedAdvances: transactionsInPeriod(counted.scopedAdvances, current.period, window),
       accountRows: accounts.length === 0 ? workbook.transactions : workbook.transactions.filter((transaction) => accounts.includes(transaction.account)),
     }

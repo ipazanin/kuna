@@ -244,7 +244,7 @@ export function netOwed(loans: OwnerLoanBook, advances: OwnerAdvanceBook, catego
  * Payments to the owner under the filters that no cost the owner paid accounts for, which wait until a person
  * adds the cost. Payments match every cost on file, so a filter changes which are shown, never which match.
  */
-export function unaccountedInView(booked: Pick<HrDooWorkbook, 'transactions' | 'ownerAdvances' | 'categories' | 'repaidBy'>, filters: FilterState): readonly UnaccountedReimbursement[] {
-  const inView = new Set(scopeTransactions(booked.transactions, filters))
+export function unaccountedInView(booked: Pick<HrDooWorkbook, 'transactions' | 'ownerAdvances' | 'categories' | 'repaidBy' | 'itemLabels'>, filters: FilterState): readonly UnaccountedReimbursement[] {
+  const inView = new Set(scopeTransactions(booked.transactions, filters, booked.itemLabels))
   return ownerAdvances(booked.ownerAdvances, booked.transactions, booked.categories, booked.repaidBy).unaccounted.filter((line) => inView.has(line.payment))
 }

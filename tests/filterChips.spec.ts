@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from '../src/apps/company/filters/domain/filterChips'
+import { addedChoices, filterChips, withAddedChoices, withoutChip, withoutChips } from '../src/apps/company/filters/presentation/filterChips'
 import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/apps/company/filters/domain/filterState'
 import type { FilterState } from '../src/apps/company/filters/domain/filterState'
+import { LABEL_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { euros } from './fixtures/ledger'
+
+const BERLIN = recordIdOf(LABEL_RECORDS, 'berlin')
 
 const narrowed: FilterState = {
   ...DEFAULT_FILTERS,
@@ -12,32 +16,35 @@ const narrowed: FilterState = {
   buckets: ['operating'],
   categories: ['travel', 'ai-services'],
   counterparties: ['iban:XX00FAKE0010'],
+  labels: [BERLIN],
   text: 'kava',
   amount: { min: null, max: euros(-0.01) },
   needsReview: true,
 }
 
-const labels = {
+const names = {
   counterparty: (key: string): string => (key === 'iban:XX00FAKE0010' ? 'NORTHWIND ANALYTICS LTD' : key),
   bucket: (bucket: string): string => (bucket === 'operating' ? 'Operating cost' : bucket),
   category: (slug: string): string => (slug === 'ai-services' ? 'AI services' : slug),
+  label: (id: string): string => (id === BERLIN ? 'Berlin 2027' : id),
 }
 
 describe('filterChips', () => {
   it('names the choice of every owner advance by what it selects, and removes it like a category', () => {
     const drilled = { ...DEFAULT_FILTERS, categories: ['owner-loan-out', EVERY_OWNER_ADVANCE] }
-    const chips = filterChips(drilled, labels)
+    const chips = filterChips(drilled, names)
 
     expect(chips.map((chip) => chip.label)).toEqual(['Category: owner-loan-out', 'Every owner advance'])
     expect(withoutChip(drilled, chips[1]!.id).categories).toEqual(['owner-loan-out'])
   })
 
   it('names every narrowing beyond the period and the accounts', () => {
-    expect(filterChips(narrowed, labels).map((chip) => chip.label)).toEqual([
+    expect(filterChips(narrowed, names).map((chip) => chip.label)).toEqual([
       'Bucket: Operating cost',
       'Category: travel',
       'Category: AI services',
       'Counterparty: NORTHWIND ANALYTICS LTD',
+      'Label: Berlin 2027',
       'Text: “kava”',
       'Amount: at most −€0.01',
       'Needs review',
@@ -45,7 +52,7 @@ describe('filterChips', () => {
   })
 
   it('shows nothing for the default filters', () => {
-    expect(filterChips(DEFAULT_FILTERS, labels)).toEqual([])
+    expect(filterChips(DEFAULT_FILTERS, names)).toEqual([])
   })
 })
 
@@ -53,6 +60,7 @@ describe('withoutChip', () => {
   it('takes off one value of a list and leaves the rest', () => {
     expect(withoutChip(narrowed, 'categories:travel').categories).toEqual(['ai-services'])
     expect(withoutChip(narrowed, 'counterparties:iban:XX00FAKE0010').counterparties).toEqual([])
+    expect(withoutChip(narrowed, `labels:${BERLIN}`).labels).toEqual([])
   })
 
   it('clears the text, the amount range and the review flag', () => {
@@ -73,13 +81,14 @@ describe('withoutChips', () => {
 })
 
 describe('Add filter choices', () => {
-  it('names each bucket, category and counterparty choice by its chip id', () => {
-    expect(addedChoices(narrowed)).toEqual(['buckets:operating', 'categories:travel', 'categories:ai-services', 'counterparties:iban:XX00FAKE0010'])
+  it('names each bucket, category, counterparty and label choice by its chip id', () => {
+    expect(addedChoices(narrowed)).toEqual(['buckets:operating', 'categories:travel', 'categories:ai-services', 'counterparties:iban:XX00FAKE0010', 'labels:label:berlin'])
   })
 
   it('sets exactly the chosen ones and keeps every other narrowing', () => {
     const chosen = withAddedChoices(narrowed, ['categories:travel', 'counterparties:iban:XX00FAKE0020', 'buckets:taxes'])
 
-    expect(chosen).toEqual({ ...narrowed, buckets: ['taxes'], categories: ['travel'], counterparties: ['iban:XX00FAKE0020'] })
+    expect(chosen).toEqual({ ...narrowed, buckets: ['taxes'], categories: ['travel'], counterparties: ['iban:XX00FAKE0020'], labels: [] })
+    expect(withAddedChoices(narrowed, ['labels:label:office']).labels).toEqual([recordIdOf(LABEL_RECORDS, 'office')])
   })
 })

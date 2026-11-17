@@ -4,6 +4,8 @@ import { computed } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import PickBox from './PickBox.vue'
+
 type RowProps = {
   title: string
   caption?: string
@@ -64,13 +66,7 @@ const gutter = computed(() => (props.flush ? '' : 'px-4 sm:px-5'))
       "
       @click="picking && !unpickable && emit('pick')"
     >
-      <UIcon
-        v-if="picking"
-        :name="unpickable ? 'i-lucide-square-dashed' : picked ? 'i-lucide-square-check' : 'i-lucide-square'"
-        class="size-5 shrink-0"
-        :class="picked ? 'text-primary' : 'text-muted'"
-        aria-hidden="true"
-      />
+      <PickBox v-if="picking" :picked="picked === true" :unpickable="unpickable" />
       <span class="list-row-lines" :class="{ 'min-w-0 flex-1': to !== undefined || picking }">
         <span class="list-row-title break-words text-sm" :class="quiet ? 'text-muted' : 'text-highlighted'">{{ title }}</span>
         <span v-if="$slots.amount" class="list-row-amount text-sm">

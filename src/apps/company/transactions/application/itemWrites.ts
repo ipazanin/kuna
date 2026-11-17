@@ -41,6 +41,8 @@ export interface ItemDraft {
   readonly ownerShare: OwnerShare | null
   /** The labels it carries. A write that sets none passes those of the item it keeps, as `heldLabels` gives them. */
   readonly labels: readonly RecordId[]
+  /** Whether a person set the labels, as the split dialog shows them, so the write keeps them as given and carries none of the parts the item replaces. */
+  readonly labelsGiven?: boolean
 }
 
 /** The labels the row's items carry now, by the item's id, and none for an item the books do not hold, such as every item of books from before items. */
@@ -204,18 +206,21 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
   const { held, placed } = onTab
   const refusal = movedMoneyRefusal(records, row, onTab)
   refuseOn(refusal === null ? [] : [refusal])
-  const written = carriedLabels(held, placed).map((item): ItemRecord => {
-    const { id } = item
-    const record = held.find((candidate) => candidate.id === id)
-    if (record === undefined) {
-      const added = newItemRecord(rowId, id, item)
-      unit.of(ITEM_WRITES).add(added)
-      return added
-    }
-    const wanted: ItemRecord = { ...record, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: item.invoice, labels: item.labels }
-    if (itemChanged(record, wanted)) repository.change(record, wanted)
-    return wanted
-  })
+  const carried = carriedLabels<RecordId, ItemRecord | PlacedItem>(held, placed)
+  const written = placed
+    .map((given, at) => (given.labelsGiven === true ? given : carried[at]!))
+    .map((item): ItemRecord => {
+      const { id } = item
+      const record = held.find((candidate) => candidate.id === id)
+      if (record === undefined) {
+        const added = newItemRecord(rowId, id, item)
+        unit.of(ITEM_WRITES).add(added)
+        return added
+      }
+      const wanted: ItemRecord = { ...record, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: item.invoice, labels: item.labels }
+      if (itemChanged(record, wanted)) repository.change(record, wanted)
+      return wanted
+    })
   for (const record of held.filter((candidate) => !written.some((kept) => kept.id === candidate.id))) {
     repository.remove(record)
   }

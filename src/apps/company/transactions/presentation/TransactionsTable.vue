@@ -2,6 +2,7 @@
 import { computed, h } from 'vue'
 import type { SortingState } from '@tanstack/vue-table'
 import UBadge from '@nuxt/ui/components/Badge.vue'
+import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import UTable from '@nuxt/ui/components/Table.vue'
@@ -14,6 +15,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import CutText from '../../../../shared/ui/CutText.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { words as uiWords } from '../../../../shared/ui/words'
 import { plural } from '../../../../shared/text/translation'
 import { useFilters } from '../../filters/application/filterStore'
@@ -27,7 +29,7 @@ import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity
 import type { Transaction } from '../../workbook/domain/workbook'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { categoryChangeOf } from '../domain/categoryChange'
-import { listedOwnerPart, partPlace, withPartHeadings } from '../domain/listedRows'
+import { listedOwnerPart, partPlace, pickedRecordOf, withPartHeadings } from '../domain/listedRows'
 import type { ListedAdvanceRow, ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
 import type { TransactionGroup } from '../domain/transactionGroups'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
@@ -44,6 +46,10 @@ const props = defineProps<{
   isCollapsed: (key: string) => boolean
   /** The record a row's owner share sits on, or null where none is set here. */
   shareTargetOf: (row: ListedRow) => ShareTarget | null
+  /** The names of the labels a row's part carries, or blank. */
+  labelsOf: (row: ListedRow) => string
+  /** The bank rows picked, by their id, or null while rows are not being picked. */
+  picked: ReadonlySet<string> | null
 }>()
 
 const emit = defineEmits<{
@@ -51,6 +57,7 @@ const emit = defineEmits<{
   split: [row: Transaction]
   changeCategory: [row: ListedBankRow]
   ownerShare: [row: ListedRow]
+  pick: [id: string]
 }>()
 
 const sorting = defineModel<SortingState>('sorting', { required: true })
@@ -129,6 +136,12 @@ function categoryOf(listed: ListedRow) {
   ])
 }
 
+/** The labels a row's part carries, as a muted tag line under its name. */
+function labelLine(listed: ListedRow) {
+  const named = props.labelsOf(listed)
+  return named === '' ? null : h(NoteLine, { tone: 'muted', icon: 'i-lucide-tag', 'data-testid': 'company-row-labels' }, () => named)
+}
+
 /** A bank row's counterparty opens its rows. An advance has no counterparty in the ledger, so a counterparty filter would leave it out. */
 function counterpartyName(row: Transaction | ListedAdvanceRow) {
   return 'kind' in row && row.kind === 'owner-advance'
@@ -156,13 +169,33 @@ function splitButton(payment: Transaction) {
       })
 }
 
-const columns: TableColumn<TableEntry>[] = [
+/** While rows are being picked, a tick before each row, a part's ticking the row it belongs to. A heading fills its row, which leaves this cell out. */
+const PICK_COLUMN: TableColumn<TableEntry> = {
+  id: 'pick',
+  header: () => h('span', { class: 'sr-only' }, words.labelling.select),
+  meta: { class: { th: 'w-0 pe-0', ...besideHeading('w-0 pe-0').class } },
+  cell: ({ row }) => {
+    const entry = row.original
+    if (entry.kind !== 'row') return ''
+    const listed = entry.row
+    const place = partPlace(listed)
+    const id = pickedRecordOf(listed)
+    return h(UCheckbox, {
+      modelValue: props.picked?.has(id) ?? false,
+      'aria-label': words.labelling.pick(place === null ? words.rowName(listed.counterparty) : words.partName(place.number, listed.counterparty)),
+      'data-testid': 'pick-row',
+      'onUpdate:modelValue': () => emit('pick', id),
+    })
+  },
+}
+
+const COLUMNS: TableColumn<TableEntry>[] = [
   {
     id: 'date',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.date : entry.kind === 'group' ? '' : entry.whole.date),
     header: sortableHeader(words.columns.date),
     meta: {
-      colspan: { td: (cell: EntryCell) => (isHeading(cell) ? String(COLUMN_COUNT) : '1') },
+      colspan: { td: (cell: EntryCell) => (isHeading(cell) ? String(columns.value.length) : '1') },
       class: { td: (cell: EntryCell) => (isHeading(cell) ? 'p-0' : '') },
     },
     cell: ({ row }) => {
@@ -207,12 +240,14 @@ const columns: TableColumn<TableEntry>[] = [
             words.part(place.number, place.count),
           ]),
           note === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => note),
+          labelLine(listed),
           categoryBelowName(listed),
         ])
       }
       return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
         counterpartyName(listed),
         listed.description === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => listed.description),
+        labelLine(listed),
         categoryBelowName(listed),
       ])
     },
@@ -335,7 +370,17 @@ const columns: TableColumn<TableEntry>[] = [
   },
 ]
 
-const COLUMN_COUNT = columns.length
+const columns = computed(() => (props.picked === null ? COLUMNS : [PICK_COLUMN, ...COLUMNS]))
+
+function rowClass(row: EntryCell['row']): string {
+  if (row.original.kind === 'group') return 'bg-elevated'
+  return props.picked !== null && row.original.kind === 'row' ? 'cursor-pointer hover:bg-elevated/40' : ''
+}
+
+/** While rows are being picked, a click anywhere on a row picks it, as its tick does. */
+function pickRow(_event: Event, row: EntryCell['row']): void {
+  if (row.original.kind === 'row') emit('pick', pickedRecordOf(row.original.row))
+}
 </script>
 
 <template>
@@ -345,7 +390,8 @@ const COLUMN_COUNT = columns.length
       :data="tableEntries"
       :columns="columns"
       :sorting-options="{ manualSorting: true }"
-      :meta="{ class: { tr: (row: EntryCell['row']) => (row.original.kind === 'group' ? 'bg-elevated' : '') } }"
+      :meta="{ class: { tr: rowClass } }"
+      v-bind="picked === null ? {} : { onSelect: pickRow }"
       :get-row-id="(entry: TableEntry) => (entry.kind === 'group' ? `group:${entry.group.key}` : entry.kind === 'row' ? entry.row.key : entry.key)"
       sticky
       class="max-h-[70dvh]"

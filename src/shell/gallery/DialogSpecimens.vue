@@ -15,6 +15,8 @@ import CurrencySelect from '../../shared/ui/CurrencySelect.vue'
 import DayField from '../../shared/ui/DayField.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FormGrid from '../../shared/ui/FormGrid.vue'
+import LabelNameDialog from '../../shared/ui/LabelNameDialog.vue'
+import LabelPickerDialog from '../../shared/ui/LabelPickerDialog.vue'
 import LabelsSelect from '../../shared/ui/LabelsSelect.vue'
 import type { Label } from '../../shared/categorising/domain/labels'
 import { recordIdOf } from '../../shared/storage/domain/recordId'
@@ -45,6 +47,31 @@ function withGalleryLabel(picked: readonly RecordId[], name: string): readonly R
   const label = { id: recordIdOf(GALLERY_LABELS, String(galleryLabels.value.length)), name: name.trim() }
   galleryLabels.value = [...galleryLabels.value, label]
   return [...picked, label.id]
+}
+const pickerOpen = ref(false)
+const carriedByAll = ref<ReadonlySet<RecordId>>(new Set([recordIdOf(GALLERY_LABELS, 'berlin')]))
+const pickerChoices = computed(() => galleryLabels.value.map((label) => ({ label, onAll: carriedByAll.value.has(label.id) })))
+const nameDialogOpen = ref(false)
+const namedLabel = ref<Label | null>(null)
+
+/** Puts the label on the gallery's picked rows or takes it off, as a screen's write would. */
+function galleryApply(label: Label, on: boolean): void {
+  const carried = new Set(carriedByAll.value)
+  if (on) carried.add(label.id)
+  else carried.delete(label.id)
+  carriedByAll.value = carried
+  pickerOpen.value = false
+}
+
+function galleryAddAndApply(name: string): void {
+  const label = { id: recordIdOf(GALLERY_LABELS, String(galleryLabels.value.length)), name: name.trim() }
+  galleryLabels.value = [...galleryLabels.value, label]
+  galleryApply(label, true)
+}
+
+function openNameDialog(label: Label | null): void {
+  namedLabel.value = label
+  nameDialogOpen.value = true
 }
 const refusedOpen = ref(false)
 // Only a dialog marked `changes` shows it, so the other specimens stay as they are.
@@ -231,6 +258,49 @@ const ROWS = [
         </UFormField>
       </FormGrid>
     </AppCard>
+  </GallerySection>
+
+  <GallerySection
+    id="label-picker-dialog"
+    title="LabelPickerDialog"
+    description="Each label with Put on, or Take off for one every picked row carries, and a new label to add and put on. The screen does the write, in one write with Undo, and closes it."
+  >
+    <div class="flex flex-wrap gap-2">
+      <UButton label="Label 3 rows" icon="i-lucide-tag" color="neutral" variant="outline" data-testid="gallery-label-picker" @click="pickerOpen = true" />
+    </div>
+    <LabelPickerDialog
+      v-model:open="pickerOpen"
+      title="Label 3 rows"
+      description="A label sits beside the category and changes no figure."
+      :choices="pickerChoices"
+      :saving="() => false"
+      :busy="false"
+      :changes-refused="false"
+      @apply="galleryApply"
+      @add="galleryAddAndApply"
+    />
+  </GallerySection>
+
+  <GallerySection
+    id="label-name-dialog"
+    title="LabelNameDialog"
+    description="A new label's name, or a label's new name, refused when blank or when another label has it. Delete shows for a label the books hold, with what it takes the label off as help."
+  >
+    <div class="flex flex-wrap gap-2">
+      <UButton label="Add a label" icon="i-lucide-plus" color="neutral" variant="outline" data-testid="gallery-label-add" @click="openNameDialog(null)" />
+      <UButton label="Change Renovation" icon="i-lucide-pencil" color="neutral" variant="outline" @click="openNameDialog(galleryLabels[0] ?? null)" />
+    </div>
+    <LabelNameDialog
+      v-model:open="nameDialogOpen"
+      :label="namedLabel"
+      :labels="galleryLabels"
+      :delete-help="namedLabel === null ? null : 'Deleting it takes it off 4 parts. Their categories stay.'"
+      :saving="() => false"
+      :busy="false"
+      :changes-refused="false"
+      @save="nameDialogOpen = false"
+      @remove="nameDialogOpen = false"
+    />
   </GallerySection>
 
   <GallerySection id="dialog" title="AppDialog" description="Full screen on a phone. Delete and the like at the start of the footer, Cancel and the primary action at its end.">

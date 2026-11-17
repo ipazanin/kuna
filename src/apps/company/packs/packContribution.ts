@@ -21,6 +21,8 @@ import { newestBookingOf } from '../workbook/domain/workbook'
 import type { Category, Transaction, Workbook } from '../workbook/domain/workbook'
 import type { UnitOfWork } from '../../../shared/storage/application/repository'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
+import type { RecordId } from '../../../shared/storage/domain/recordId'
+import type { WriteRules } from '../../../shared/storage/domain/writeRules'
 import type { Money } from '../../../shared/money/money'
 import type { RateBook } from '../../../shared/money/rateBook'
 import type { RatesDemand } from '../../../shared/rates/domain/ratesDemand'
@@ -127,6 +129,14 @@ export interface MovedItems {
   itemOf(row: Transaction): ItemRecord | undefined
 }
 
+/** A kind of the pack's records that carries Company's labels, such as a cost the owner paid privately, with how to read and set them. */
+export interface LabelCarrier<R> {
+  readonly writes: WriteRules<R>
+  idOf(record: R): RecordId
+  labelsOf(record: R): readonly RecordId[]
+  withLabels(record: R, labels: readonly RecordId[]): R
+}
+
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
   /** The pack's part of the workbook, read whatever the owner-pay switch says. */
@@ -182,6 +192,8 @@ export interface PackContribution {
   linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repayments: readonly RowPayments[]): void
   /** The first day whose figures are not yet filed, before which an account's start day may not reach, or null when the pack files nothing. */
   firstOpenDay(today: CivilDate): CivilDate | null
+  /** The pack's record kinds that carry labels, which the label writes keep, take a deleted label off and label when picked. None without a pack. */
+  readonly labelCarriers: readonly LabelCarrier<unknown>[]
 }
 
 const NO_PACK: PackContribution = {
@@ -210,6 +222,7 @@ const NO_PACK: PackContribution = {
   repaymentsOf: () => [],
   linkRepayments: () => {},
   firstOpenDay: () => null,
+  labelCarriers: [],
 }
 
 let installed: PackContribution = NO_PACK

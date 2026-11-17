@@ -6,7 +6,7 @@ import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { linkAssetsToRows } from './application/assetLinkWrites'
 import { linkPackToItems } from './application/itemLinkWrites'
-import { linkRepayments } from './application/ownerAdvanceWrites'
+import { ADVANCE_LABELS, linkRepayments } from './application/ownerAdvanceWrites'
 import { proposedRepayments } from './domain/advanceRepayments'
 import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
 import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
@@ -78,5 +78,6 @@ export const hrDooPack: PackContribution = {
   repaymentsOf: (workbook, added) => proposedRepayments(hrDooWorkbook(presentedWorkbook(workbook)), added),
   linkRepayments,
   firstOpenDay: firstVatOpenDay,
+  labelCarriers: [ADVANCE_LABELS],
   employees: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map(({ record }) => ({ name: record.name || record.slug, employee: true, ibans: record.ibans })),
 }

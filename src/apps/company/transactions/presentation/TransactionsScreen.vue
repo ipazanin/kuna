@@ -14,7 +14,7 @@ import type { PageTab } from '../../../../shared/ui/PageTabs.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { DEFAULT_BUCKET_LABELS } from '../../settings/domain/settings'
-import { withoutChips } from '../../filters/domain/filterChips'
+import { withoutChips } from '../../filters/presentation/filterChips'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import ImportPanel from '../../imports/presentation/ImportPanel.vue'
 import type { ShareTarget } from '../../owner-share/domain/ownerShare'
@@ -30,10 +30,10 @@ import { useCollapsedGroups } from '../application/collapsedGroups'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
 import { categoryChangeOf, filedInOneCategory } from '../domain/categoryChange'
-import { rowFiledAs, rowItemsOf } from '../../workbook/domain/splits'
+import { itemIdOfRow, rowFiledAs, rowItemsOf } from '../../workbook/domain/splits'
 import { ownerShareChangeOf } from '../domain/ownerShareChange'
-import { advancesLeftOutByBankFilters, scopeTransactions } from '../domain/filterTransactions'
-import { bookedRowOf, inBookingOrder, listedRows } from '../domain/listedRows'
+import { advancesLeftOutByBankFilters, scopeTransactions, wholeRowLabels } from '../domain/filterTransactions'
+import { bookedRowOf, inBookingOrder, listedRows, pickedRecordOf } from '../domain/listedRows'
 import type { ListedBankRow, ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
 import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
@@ -46,6 +46,9 @@ import TransactionsTable from './TransactionsTable.vue'
 import { REVIEW_TAB } from './transactionsLinks'
 import { words } from './words'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
+import { storesItems } from '../../workbook/domain/rowItems'
+import LabelPicker from './LabelPicker.vue'
 
 const ledger = useFilteredLedger()
 const { filters, setFilters } = useFilters()
@@ -56,7 +59,7 @@ const queue = computed(() => {
   const current = ledger.value
   if (current === null || state.workbook === null) return []
   const context = categorisationContextOf(current.workbook)
-  return scopeTransactions(state.workbook.transactions, current.filters)
+  return scopeTransactions(state.workbook.transactions, current.filters, wholeRowLabels(current.workbook.itemLabels, current.workbook.splits))
     .filter(needsReview)
     .map((transaction) => ({ transaction, verdict: categorise(transaction, current.workbook.rules, context) }))
 })
@@ -129,6 +132,39 @@ const groups = computed<TransactionGroup[] | null>(() => {
 })
 
 const bucketLabels = computed(() => ledger.value?.workbook.settings.bucketLabels ?? DEFAULT_BUCKET_LABELS)
+
+/** The bank rows picked to be labelled, by their id, or null while a tap opens a row. Books from before items keep no labels, so they offer their move instead. */
+const picked = ref<ReadonlySet<string> | null>(null)
+const pickerOpen = ref(false)
+const canLabel = computed(() => state.records !== null && storesItems(state.records))
+/** Select rows shows while the books keep labels, nothing is being picked and the list holds rows. */
+const offersPicking = computed(() => canLabel.value && picked.value === null && rows.value.length > 0)
+const pickableIds = computed(() => new Set(rows.value.map(pickedRecordOf)))
+const pickedRows = computed(() => (picked.value === null || state.workbook === null ? [] : state.workbook.transactions.filter((row) => picked.value!.has(row.id))))
+/** The costs the owner paid among the picks, by their ids. */
+const pickedAdvances = computed(
+  () => new Set(picked.value === null || state.workbook === null ? [] : state.workbook.ownerAdvances.flatMap((advance) => (picked.value!.has(advance.id) ? [advance.id] : []))),
+)
+
+function pick(id: string): void {
+  const current = new Set(picked.value ?? [])
+  if (!current.delete(id)) current.add(id)
+  picked.value = current
+}
+
+/** A new filter or grouping drops the picks, so no row out of sight stays picked. */
+watch([filters, groupBy], () => {
+  if (picked.value !== null) picked.value = new Set()
+})
+
+const labelNames = computed(() => new Map((state.workbook?.labels ?? []).map((label) => [label.id, label.name])))
+
+/** The names of the labels a listed row's part or a cost the owner paid carries, or blank. */
+function labelsOf(row: ListedRow): string {
+  if (state.workbook === null) return ''
+  const carried = row.kind === 'bank' ? (state.workbook.itemLabels.get(itemIdOfRow(row)) ?? []) : (row.advance.labels ?? [])
+  return carried.flatMap((id) => labelNames.value.get(id) ?? []).join(', ')
+}
 
 /** The payment the split editor is open on. */
 const splitting = ref<Transaction | null>(null)
@@ -222,10 +258,34 @@ function exportCsv(): void {
                     @click="collapsed.expandAll()"
                   />
                 </template>
-                <UButton icon="i-lucide-download" :label="words.exportCsv" color="neutral" variant="outline" size="sm" class="sm:ms-auto" :disabled="rows.length === 0" @click="exportCsv" />
+                <UButton
+                  v-if="offersPicking"
+                  icon="i-lucide-list-checks"
+                  :label="words.labelling.select"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  class="sm:ms-auto"
+                  data-testid="company-select-rows"
+                  @click="picked = new Set()"
+                />
+                <UButton
+                  icon="i-lucide-download"
+                  :label="words.exportCsv"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  :class="{ 'sm:ms-auto': !offersPicking }"
+                  :disabled="rows.length === 0"
+                  @click="exportCsv"
+                />
               </div>
 
               <NoteLine v-if="advancesLeftOut" data-testid="advances-left-out">{{ advancesLeftOut }}</NoteLine>
+
+              <SelectionBar v-if="picked !== null" :count="picked.size" :all-picked="picked.size === pickableIds.size" @cancel="picked = null" @pick-all="picked = new Set(pickableIds)">
+                <UButton :label="words.labelling.label" icon="i-lucide-tag" :disabled="picked.size === 0" data-testid="company-selection-label" @click="pickerOpen = true" />
+              </SelectionBar>
 
               <EmptyState
                 v-if="rows.length === 0"
@@ -243,10 +303,13 @@ function exportCsv(): void {
                 :is-collapsed="collapsed.isCollapsed"
                 :show-account="severalAccounts"
                 :share-target-of="shareTargetOf"
+                :labels-of="labelsOf"
+                :picked="picked"
                 @toggle="collapsed.toggle"
                 @split="openSplit"
                 @change-category="changeCategory"
                 @owner-share="setOwnerShare"
+                @pick="pick"
               />
               <TransactionsTable
                 v-else
@@ -257,11 +320,15 @@ function exportCsv(): void {
                 :bucket-labels="bucketLabels"
                 :is-collapsed="collapsed.isCollapsed"
                 :share-target-of="shareTargetOf"
+                :labels-of="labelsOf"
+                :picked="picked"
                 @toggle="collapsed.toggle"
                 @split="openSplit"
                 @change-category="changeCategory"
                 @owner-share="setOwnerShare"
+                @pick="pick"
               />
+              <LabelPicker v-model:open="pickerOpen" :rows="pickedRows" :advances="pickedAdvances" @done="picked = null" />
               <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting" :categories="ledger.workbook.categories" />
               <ChangeCategoryDialog v-if="changing" v-model:open="changeOpen" :row="changing" />
               <OwnerShareDialog

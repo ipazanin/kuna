@@ -1,5 +1,6 @@
 import { definedCategories, definedCategorySlugs } from '../../../workbook/domain/categoriesReading'
-import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../../../workbook/domain/coreKinds'
+import { CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../../../workbook/domain/coreKinds'
+import { readLabels } from '../../../workbook/domain/labelReading'
 import { ledgerOfRecords } from '../../../workbook/domain/readWorkbook'
 import { storedFieldsOf } from '../../../../../shared/storage/domain/recordsRead'
 import { counted, countedBy, slugChangeRefusals, usesOf } from '../../../workbook/domain/slug'
@@ -70,7 +71,8 @@ function ledgerOf(records: FreshRecords): ReturnType<typeof ledgerOfRecords> {
 
 /** The advances as the records hold them, read against the categories and the shape the books keep. */
 function advancesOf(read: RecordsRead<OwnerAdvanceEntry>, records: FreshRecords): ReturnType<typeof readOwnerAdvances> {
-  return readOwnerAdvances(read, definedCategories(records.of(CATEGORY_RECORDS)), storesItems({ ledger: records.of(LEDGER_RECORDS), items: records.of(ITEM_RECORDS) }))
+  const labels = new Set(readLabels(records.of(LABEL_RECORDS)).facts.map((label) => label.id))
+  return readOwnerAdvances(read, definedCategories(records.of(CATEGORY_RECORDS)), storesItems({ ledger: records.of(LEDGER_RECORDS), items: records.of(ITEM_RECORDS) }), labels)
 }
 
 /** An advance a write adds or changes names as what paid it back only payments to the owner that no older advance names, and no more than the owner paid. */
@@ -89,7 +91,7 @@ function advanceItemRefusals(change: KindChange<OwnerAdvanceEntry>, after: Fresh
  */
 export const OWNER_ADVANCE_WRITES: WriteRules<OwnerAdvanceEntry> = {
   kind: OWNER_ADVANCE_RECORDS,
-  reads: [CATEGORY_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS, ITEM_RECORDS],
+  reads: [CATEGORY_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS, ITEM_RECORDS, LABEL_RECORDS],
   undoable: true,
   read: advancesOf,
   refusals: (change, _fresh, after) => advanceItemRefusals(change, after),

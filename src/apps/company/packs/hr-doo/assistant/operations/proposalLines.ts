@@ -174,6 +174,8 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     shown: (kind, field, record) => {
       if (isKind(kind, ASSET_RECORDS, record) && (field === 'rowId' || field === 'payment')) return paymentText(workbook, assetItemOf(record), format)
       if (isKind(kind, OWNER_ADVANCE_RECORDS, record) && field === 'repaidBy') return repaidByText(workbook, record.repaidBy ?? [], format)
+      if (isKind(kind, OWNER_ADVANCE_RECORDS, record) && field === 'labels')
+        return (record.labels ?? []).length === 0 ? null : (record.labels ?? []).map((id) => workbook.labels.find((label) => label.id === id)?.name ?? id).join(', ')
       const trip = tripShownValue(kind, field, record, format, workbook)
       return trip === undefined ? shownValue(kind, field, record, format, category) : trip
     },

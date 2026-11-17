@@ -34,7 +34,7 @@ export function countedLedger(workbook: Workbook, filters: FilterState, vatOnPri
   if (window === null) {
     return null
   }
-  const scoped = scopeTransactions(cash.transactions, filters)
+  const scoped = scopeTransactions(cash.transactions, filters, workbook.itemLabels)
   const scopedAdvances = scopeOwnerAdvances(cash.ownerAdvances, filters)
   return { workbook: cash, booked, window, scoped, scopedAdvances, profitAndLossRows: [...scoped, ...scopedAdvances.map(bookingOfAdvance)] }
 }

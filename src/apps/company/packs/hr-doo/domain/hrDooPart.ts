@@ -133,7 +133,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
     const categorySlugs = new Set(core.categories.map((category) => category.slug))
     const grants = readGrants(recordsOfKind(records, GRANT_RECORDS))
     const scenarios = readScenarios(recordsOfKind(records, SCENARIO_RECORDS))
-    const ownerAdvances = readOwnerAdvances(recordsOfKind(records, OWNER_ADVANCE_RECORDS), core.categories, itemsStored)
+    const ownerAdvances = readOwnerAdvances(recordsOfKind(records, OWNER_ADVANCE_RECORDS), core.categories, itemsStored, new Set(core.labels.map((label) => label.id)))
     const assets = readAssets(recordsOfKind(records, ASSET_RECORDS), new Set(grants.facts.map((grant) => grant.slug)))
     const yearEndLines = readYearEnd(recordsOfKind(records, YEAR_END_RECORDS), categorySlugs)
     const employees = readEmployees(recordsOfKind(records, EMPLOYEE_RECORDS))

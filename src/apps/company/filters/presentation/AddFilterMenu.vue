@@ -10,12 +10,12 @@ import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import type { Workbook } from '../../workbook/domain/workbook'
-import { EVERY_OWNER_ADVANCE_LABEL } from '../domain/filterChips'
+import { EVERY_OWNER_ADVANCE_LABEL } from './filterChips'
 import { EVERY_OWNER_ADVANCE } from '../domain/filterState'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import { words } from './words'
 
-/** A searchable menu that adds or removes a bucket, category or counterparty filter. Its values are chip ids. */
+/** A searchable menu that adds or removes a bucket, category, counterparty or label filter. Its values are chip ids. Books with no label offer no label. */
 const props = defineProps<{
   workbook: Workbook
 }>()
@@ -51,6 +51,14 @@ const groups = computed<SelectMenuItem[][]>(() => {
       ...(props.workbook.ownerAdvances.length === 0 ? [] : [{ label: EVERY_OWNER_ADVANCE_LABEL, value: `categories:${EVERY_OWNER_ADVANCE}` }]),
     ],
     [{ type: 'label' as const, label: words.groups.counterparties }, ...counterparties.map(([key, label]): Choice => ({ label, value: `counterparties:${key}` }))],
+    ...(props.workbook.labels.length === 0
+      ? []
+      : [
+          [
+            { type: 'label' as const, label: words.groups.labels },
+            ...[...props.workbook.labels].sort((left, right) => naturalOrder(left.name, right.name)).map((label): Choice => ({ label: label.name, value: `labels:${label.id}` })),
+          ],
+        ]),
   ]
 })
 </script>
@@ -65,7 +73,7 @@ const groups = computed<SelectMenuItem[][]>(() => {
     color="neutral"
     variant="outline"
     size="sm"
-    :search-input="{ placeholder: words.searchChoices }"
+    :search-input="{ placeholder: workbook.labels.length === 0 ? words.searchChoices : words.searchChoicesWithLabels }"
     :content="{ align: 'start', collisionPadding: 12 }"
     :ui="{ content: 'min-w-72' }"
     :aria-label="words.addFilter"
