@@ -81,7 +81,7 @@ async function proceed(): Promise<void> {
           <UInput v-model="name" :placeholder="words.company.namePlaceholder" class="w-full" data-testid="onboarding-company-name" />
         </UFormField>
         <UFormField :label="settingsWords.general.currency" :error="currencyError ?? false">
-          <USelectMenu v-model="currency" :items="[...CURRENCY_ITEMS]" value-key="value" :search-input="{ placeholder: settingsWords.general.searchCurrencies }" virtualize class="w-full" />
+          <USelectMenu v-model="currency" :items="[...CURRENCY_ITEMS]" value-key="value" :search-input="{ placeholder: settingsWords.general.searchCurrencies }" class="w-full" />
         </UFormField>
         <UFormField :label="words.company.numberStyle">
           <USelect v-model="numberLocale" :items="numberStyles" class="w-full" data-testid="onboarding-number-style" />

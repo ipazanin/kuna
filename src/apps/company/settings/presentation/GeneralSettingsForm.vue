@@ -100,7 +100,6 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
               :items="[...CURRENCY_ITEMS]"
               value-key="value"
               :search-input="{ placeholder: words.general.searchCurrencies }"
-              virtualize
               class="w-full"
               @update:model-value="update('currency', String($event))"
             />
