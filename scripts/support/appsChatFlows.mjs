@@ -1,12 +1,14 @@
 import { en as investmentsEnglish, hr as investmentsCroatian } from '../../src/apps/investments/words.ts'
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/assistant/operations/words.ts'
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/assistant/words.ts'
+import { en as statementsEnglish, hr as statementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
 import { acceptLooksReady, allowIfAsked, forgetAssist, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
 import { ASSIST_WORDS, elementSays } from './editorFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
 const COMPANY_WORDS = { en: companyEnglish, hr: companyCroatian }
 const LOANS_WORDS = { en: loansEnglish, hr: loansCroatian }
+const RULE_WORDS = { en: statementsEnglish.rules, hr: statementsCroatian.rules }
 const INVESTMENTS_NAME = { en: investmentsEnglish.name, hr: investmentsCroatian.name }
 
 /** What the person types for each card, which the fake Loans, Investments and Assets chats answer. */
@@ -23,6 +25,7 @@ const PROMPTS = {
   lookAlike: { en: 'Row 1 is another record, a second deposit, so import it too', hr: 'Redak 1 je drugi zapis, druga uplata, pa uvezi i njega' },
   valuation: { en: 'Valuation of my newest asset at 210,000 today', hr: 'Procjena moje najnovije imovine na 210.000 danas' },
   revolut: { en: 'Bring the Revolut export into Spending', hr: 'Unesi Revolutov izvoz u Potrošnju' },
+  rule: { en: 'Make a rule for City pharmacy', hr: 'Napravi pravilo za City pharmacy' },
 }
 
 /** What the Investments copy cards say, as each language writes it: the cash adding up to the printed balances, a row Kuna has already, and the waiting row that looks like a record Kuna has. */
@@ -193,6 +196,26 @@ const CARDS = {
       )
       const said = await page.$eval('[data-testid="chat-proposal"][data-state="open"]', (card) => card.textContent ?? '')
       if (said.includes('Night kiosk')) throw new Error('the import card holds the pending row of the Revolut export')
+    },
+  },
+  rule: {
+    name: 'spending-chat-rule-only-new',
+    shows: async (page, card, language) => {
+      const { apply } = RULE_WORDS[language]
+      await elementSays(page, '[data-testid="chat-proposal-note"]', [apply.title], 'the rule card does not say how many rows already in the book would change')
+      await elementSays(page, '[data-testid="chat-proposal-narrower"]', [apply.onlyNew], 'the rule card offers no Only new rows beside Accept')
+    },
+    after: async (page, press, language, shoot, inspect) => {
+      await pressSelector(page, press, '[data-testid="chat-proposal-narrower"]')
+      await page.waitForSelector('[data-testid="chat-proposal-undo"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent?.trim())
+        throw new Error(`Only new rows did not land: ${refused ?? 'no Undo and no refusal'}`)
+      })
+      await delay(300)
+      await inspect?.('the rule card written for new rows only, with Undo')
+      await shoot('spending-chat-rule-only-new-done')
+      await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
+      await elementSays(page, '[data-testid="chat-proposal-over"]', [ASSIST_WORDS[language].proposal.undone], 'Undo did not say it was undone')
     },
   },
   valuation: {

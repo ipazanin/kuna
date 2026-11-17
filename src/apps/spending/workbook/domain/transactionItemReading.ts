@@ -55,8 +55,15 @@ function eventChoiceText(choice: EventChoice): string | null {
   return event === null ? OUT_OF_EVENTS : keyOfRecordId(EVENT_RECORDS, event)
 }
 
+/** Of an item's rule labels, those it still carries, since a label taken off by hand is no longer the rule's. */
+function heldRuleLabels(item: Pick<TransactionItem, 'labels' | 'ruleLabels'>): readonly RecordId[] {
+  return item.ruleLabels.filter((label) => item.labels.includes(label))
+}
+
+/** An item as the file keeps it. A file from before rules added labels keeps none of them as a rule's. */
 export function transactionItemOf(fields: StoredFields, id: RecordId | null): TransactionItem {
   const { transaction, receipt, printed, amount, category } = partOf(fields, id, () => optionalReference(fields, 'category', CATEGORY_RECORDS))
+  const labels = idsOf(fields.labels, LABEL_RECORDS)
   return {
     id: ownId(id),
     transaction,
@@ -66,7 +73,8 @@ export function transactionItemOf(fields: StoredFields, id: RecordId | null): Tr
     amount,
     category,
     link: linkOf(fields),
-    labels: idsOf(fields.labels, LABEL_RECORDS),
+    labels,
+    ruleLabels: heldRuleLabels({ labels, ruleLabels: idsOf(fields.rule_labels, LABEL_RECORDS) }),
     event: eventChoiceOf(fields),
     splitByLink: flagOf(fields, 'split_by_link'),
   }
@@ -80,6 +88,7 @@ export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS
     category: item.category === null ? null : keyOfRecordId(CATEGORY_RECORDS, item.category),
     link: item.link === null ? null : rowLinkText(item.link),
     labels: idsText(item.labels, LABEL_RECORDS),
+    rule_labels: idsText(heldRuleLabels(item), LABEL_RECORDS),
     event: eventChoiceText(item.event),
     split_by_link: item.splitByLink ? true : null,
   }),

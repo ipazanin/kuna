@@ -1,5 +1,6 @@
 import { inTryingOrder } from './rule'
 import type { Rule, RuleCondition } from './rule'
+import { foldedTextHolds } from './textTest'
 import { transactionFacts } from './transactionFacts'
 import type { CategorisableRow, CategorisationContext, TransactionFacts } from './transactionFacts'
 
@@ -46,11 +47,11 @@ function conditionHolds(condition: RuleCondition, facts: TransactionFacts): bool
     case 'counterparty_is_client':
       return facts.clientAccount
     case 'counterparty_contains':
-      return facts.counterparty !== '' && facts.counterparty.includes(condition.fragment)
+      return foldedTextHolds('contains', facts.counterparty, condition.fragment)
     case 'description_contains':
-      return facts.description.includes(condition.fragment)
+      return foldedTextHolds('contains', facts.description, condition.fragment)
     case 'description_starts_with':
-      return facts.description.startsWith(condition.fragment)
+      return foldedTextHolds('starts_with', facts.description, condition.fragment)
     case 'tx_domain':
       return facts.txDomain === condition.code
     case 'tx_family':

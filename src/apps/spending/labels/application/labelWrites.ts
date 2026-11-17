@@ -1,6 +1,7 @@
 import { heldItemsOf, waitingItemsOf, writeRows } from '../../entries/application/rowRecords'
 import { withLabel, withoutLabel } from '../domain/labels'
 import { SHORTCUT_PART_WRITES } from '../../shortcuts/application/shortcutWrites'
+import { RULE_WRITES } from '../../statements/application/ruleRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { Label } from '../../workbook/domain/label'
@@ -18,11 +19,11 @@ export const LABEL_WRITES: WriteRules<Label> = {
   reads: SPENDING_KINDS,
   undoable: true,
   read: (read, records) => bookWith(LABEL_RECORDS, read, records).readings.labels,
-  refusals: (_change, fresh, after) => dependentRefusals(['labels', 'items', 'shortcutParts'], fresh, after),
+  refusals: (_change, fresh, after) => dependentRefusals(['labels', 'items', 'shortcutParts', 'rules'], fresh, after),
 }
 
 /** The rows and items a label write reads of the file. */
-type LabelRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'shortcutParts'>
+type LabelRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'shortcutParts' | 'rules'>
 
 /** Adds the label, which `newLabel` made, so the same write can put it on rows. */
 export function addLabel(unit: UnitOfWork, label: Label): void {
@@ -34,7 +35,10 @@ export function renameLabel(unit: UnitOfWork, label: Label, name: string): void 
   unit.of(LABEL_WRITES).change(label, { ...label, name: name.trim() })
 }
 
-/** Deletes the label and takes it off every item, waiting receipt's line and part of a quick add in the same write, so one Undo puts it all back. */
+/**
+ * Deletes the label and takes it off every item, waiting receipt's line, part of a quick add and rule in the same write, so one Undo
+ * puts it all back. A rule that only added the label goes with it.
+ */
 export function deleteLabel(unit: UnitOfWork, records: LabelRecords, label: Label): void {
   const itemsOf = heldItemsOf(records)
   const waitingOf = waitingItemsOf(records)
@@ -52,6 +56,13 @@ export function deleteLabel(unit: UnitOfWork, records: LabelRecords, label: Labe
   recordsOf(records.shortcutParts)
     .filter((part) => part.labels.includes(label.id))
     .forEach((part) => unit.of(SHORTCUT_PART_WRITES).change(part, { ...part, labels: part.labels.filter((held) => held !== label.id) }))
+  recordsOf(records.rules)
+    .filter((rule) => rule.labels.includes(label.id))
+    .forEach((rule) => {
+      const labels = rule.labels.filter((held) => held !== label.id)
+      if (labels.length === 0 && rule.category === null) unit.of(RULE_WRITES).remove(rule)
+      else unit.of(RULE_WRITES).change(rule, { ...rule, labels })
+    })
   unit.of(LABEL_WRITES).remove(label)
 }
 

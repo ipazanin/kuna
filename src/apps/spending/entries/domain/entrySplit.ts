@@ -84,6 +84,7 @@ export function entrySplit(
       category: draft.category,
       link: kept === undefined ? link : kept.link,
       labels: kept?.labels ?? [],
+      ruleLabels: kept?.ruleLabels ?? [],
       event: kept?.event ?? BY_DAYS,
       splitByLink: false,
     }
@@ -118,6 +119,7 @@ export function differenceItem(
         category: like.category,
         link: like.link,
         labels: [],
+        ruleLabels: [],
         event: BY_DAYS,
         splitByLink: false,
       }

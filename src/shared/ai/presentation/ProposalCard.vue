@@ -19,7 +19,7 @@ import { words } from './words'
 
 /**
  * What the chat proposes, in Kuna's words from the app's dry run, with the model's title apart. The only way a proposal
- * reaches a write: a person's tap here, one write with one Undo. It is the only file that reaches an app's acceptance.
+ * reaches a write: a person's tap here, on Accept or on the card's narrower way when it has one, one write with one Undo. It is the only file that reaches an app's acceptance.
  */
 const props = defineProps<{
   proposal: DeepReadonly<ChatProposal>
@@ -27,7 +27,9 @@ const props = defineProps<{
 
 const SHOWN = 3
 const apps = inject(CHAT_APPS, [])
-const working = ref(false)
+/** The button whose write runs, so it alone spins while every button waits. */
+const pressed = ref<'accept' | 'narrower' | 'undo' | null>(null)
+const working = computed(() => pressed.value !== null)
 const allShown = ref<ReadonlySet<string>>(new Set())
 
 const held = computed(() => props.proposal as ChatProposal)
@@ -81,34 +83,35 @@ function noteIcon(tone: ProposalGroup['notes'][number]['tone']): string {
   return tone === 'info' ? 'i-lucide-message-circle-question' : TONE_ICONS[tone === 'neutral' ? 'info' : tone]
 }
 
-/** A real tap only, so nothing a page script fires can accept. */
-async function accept(event: Event): Promise<void> {
+/** A real tap only, so nothing a page script fires can accept. The narrower way writes the card's second, smaller write. */
+async function accept(event: Event, narrower = false): Promise<void> {
   const checked: CheckedProposal | null = held.value.checked
   if (!event.isTrusted || checked === null || working.value) return
-  working.value = true
+  const accepted = narrower && checked.narrower !== undefined ? checked.narrower.proposal : checked
+  pressed.value = narrower ? 'narrower' : 'accept'
   try {
     const assistant = await apps.find((app) => app.id === props.proposal.app)?.assistant()
-    const result = await assistant?.acceptance?.accept(checked)
+    const result = await assistant?.acceptance?.accept(accepted)
     if (result === undefined) return
     if (result.kind === 'done') {
-      settleProposal(held.value, 'done', null, result.undo, result.warning ?? null)
+      settleProposal(held.value, 'done', null, result.undo, result.warning ?? null, accepted === checked ? null : (checked.narrower ?? null))
     } else {
       settleProposal(held.value, 'refused', result.reason)
     }
   } catch {
     settleProposal(held.value, 'refused', words.proposal.failed)
   } finally {
-    working.value = false
+    pressed.value = null
   }
 }
 
 async function undo(event: Event): Promise<void> {
   if (!event.isTrusted || held.value.undo === null || working.value) return
-  working.value = true
+  pressed.value = 'undo'
   try {
     await undoProposal(held.value)
   } finally {
-    working.value = false
+    pressed.value = null
   }
 }
 </script>
@@ -188,7 +191,18 @@ async function undo(event: Event): Promise<void> {
       <NoteLine v-if="proposal.state === 'open' && proposal.goesOn" icon="i-lucide-arrow-right" data-testid="chat-proposal-goes-on">{{ words.proposal.goesOn }}</NoteLine>
       <div v-if="proposal.state === 'open'" class="flex flex-wrap justify-end gap-2">
         <UButton :label="words.proposal.notNow" color="neutral" variant="ghost" size="sm" :disabled="working" data-testid="chat-proposal-decline" @click="settleProposal(held, 'declined')" />
-        <UButton :label="words.proposal.accept" size="sm" :loading="working" :disabled="working" data-testid="chat-proposal-accept" @click="accept" />
+        <UButton
+          v-if="held.checked?.narrower !== undefined"
+          :label="held.checked.narrower.label"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :loading="pressed === 'narrower'"
+          :disabled="working"
+          data-testid="chat-proposal-narrower"
+          @click="accept($event, true)"
+        />
+        <UButton :label="words.proposal.accept" size="sm" :loading="pressed === 'accept'" :disabled="working" data-testid="chat-proposal-accept" @click="accept($event)" />
       </div>
       <div v-else-if="proposal.state === 'done'" class="flex flex-wrap items-center justify-between gap-2">
         <NoteLine size="body" tone="success" role="status" data-testid="chat-proposal-done">{{ words.proposal.done }}</NoteLine>
@@ -198,7 +212,7 @@ async function undo(event: Event): Promise<void> {
           color="neutral"
           variant="outline"
           size="sm"
-          :loading="working"
+          :loading="pressed === 'undo'"
           :disabled="working"
           data-testid="chat-proposal-undo"
           @click="undo"

@@ -32,13 +32,15 @@ export interface WholeFiling {
   readonly note: string
   readonly link: RowLink | null
   readonly labels: readonly RecordId[]
+  /** Those of `labels` a rule put on. Left out, none is a rule's. */
+  readonly ruleLabels?: readonly RecordId[]
   /** Left out, the money joins an event by its row's day. */
   readonly event?: EventChoice
 }
 
 /** The one item of a row not split, with all of its money, which no link split off. */
-export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels, event = BY_DAYS }: WholeFiling): TransactionItem {
-  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels, event, splitByLink: false }
+export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels, ruleLabels = [], event = BY_DAYS }: WholeFiling): TransactionItem {
+  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels, ruleLabels, event, splitByLink: false }
 }
 
 /** The items of any row, the ones the items given name it in, in their order. */

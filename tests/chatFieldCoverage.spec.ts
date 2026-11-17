@@ -41,6 +41,7 @@ interface FieldSource {
 }
 
 const CONDITION_RENAMES = Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [`conditions.${field.column}`, field.name]))
+const SPENDING_RULE_RENAMES = { labels: 'label', 'withdrawal.cashAccount': 'cash_account', 'link.app': 'pays', 'link.kind': 'pays', 'link.key': 'pays', 'link.due': 'pays' }
 const INVOICING_RENAMES = Object.fromEntries(['address', 'country', 'taxId', 'invoiceMail', 'mailLanguage', 'reverseCharge'].map((field) => [`invoicing.${field}`, field]))
 const ASSET_RENAMES = { name: 'asset', inUse: 'in_use', costNet: 'cost_net', doubledRate: 'doubled', fundedBy: 'funded_by', ledgerReference: 'ledger_reference', rowId: 'payment' }
 const GRANT_RENAMES = {
@@ -378,17 +379,14 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal', note: 'lines.text', ...LINK_ENTRY_RENAMES } }],
   },
   {
-    path: 'src/apps/spending/statements/application/statementWrites.ts#writeRulesInto',
-    from: ['conditions', 'category', 'withdrawal'],
-    operations: [
-      { name: 'add-rule', renames: { cashAccount: 'cash_account' } },
-      { name: 'change-rule', renames: { cashAccount: 'cash_account' } },
-    ],
+    path: 'src/apps/spending/statements/application/statementWrites.ts#writeRules',
+    type: 'src/apps/spending/workbook/domain/spendingRule.ts#RuleDraft',
+    operations: ['add-rule', 'change-rule'].map((name) => ({ name, renames: SPENDING_RULE_RENAMES })),
   },
   {
-    path: 'src/apps/spending/statements/application/statementWrites.ts#changeRule',
-    from: ['condition', 'category', 'withdrawal'],
-    operations: [{ name: 'change-rule', renames: { cashAccount: 'cash_account' } }],
+    path: 'src/apps/spending/statements/application/statementWrites.ts#writeRules',
+    type: 'src/apps/spending/statements/application/statementWrites.ts#RuleMove',
+    operations: ['move-rule'],
   },
   { path: 'src/shell/ui/switchLanguage.ts#switchLanguage', from: ['choice'], operations: [{ name: 'set-language', renames: { choice: 'language' } }] },
   { path: 'kuna: src/shared/theme/theme.ts#chooseTheme', from: ['choice'], operations: [{ name: 'set-theme', renames: { choice: 'theme' } }] },

@@ -4,6 +4,7 @@ import { extraPaymentOffers, loanRuleOffers } from '../src/apps/spending/links/d
 import type { InstalmentLinks } from '../src/apps/spending/links/domain/instalmentSplit'
 import { paidLoansIn } from '../src/apps/spending/links/domain/linkTarget'
 import type { InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
+import { rowsRulesWouldChange } from '../src/apps/spending/statements/application/statementWrites'
 import { rulesRerun } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
@@ -47,7 +48,9 @@ const LOANS_UNREAD: InstalmentLinks = { targets: null, language: 'en', notes: NO
 const carRule = (link: RowLink | null = CAR_LOAN): SpendingRule => ({
   id: recordIdOf(RULE_RECORDS, 'rule-car'),
   order: 1,
-  condition: { column: 'counterparty_iban', iban: IBAN },
+  conditions: [{ test: 'iban_is', values: [IBAN], not: false }],
+  labels: [],
+  stop: false,
   category: category('Money and fees/Loan interest').id,
   withdrawal: null,
   link,
@@ -111,16 +114,32 @@ describe('a rule whose rows pay a loan', () => {
   it('links a waiting row once the rule is made, adds Loan principal to a file without it in the same write, and leaves its rows as they are while Loans cannot be read', () => {
     const waiting = row(OTP, '2026-11-15', -612.2, null, { source: 'statement', counterpartyIban: IBAN })
     const categories = CATEGORIES.filter((held) => held.kind !== 'repayment')
-    const { changes, categories: added } = rulesRerun(spendingBook([waiting], { categories }), [carRule()], LINKS, () => 'a1000000-0000-4000-8000-000000000001')
+    const { changes, categories: added } = rulesRerun(spendingBook([waiting], { categories }), [carRule()], { links: LINKS, newKey: () => 'a1000000-0000-4000-8000-000000000001' })
 
     expect(added.map((held) => [held.name, held.kind])).toEqual([['Loan principal', 'repayment']])
     expect(changes.flatMap(({ items }) => items ?? []).map((part) => [part.amount, part.category])).toEqual([
       [accountMoneyFromAmount(-110), interest.id],
       [accountMoneyFromAmount(-502.2), added[0]!.id],
     ])
-    expect(rulesRerun(spendingBook([waiting]), [carRule()], LOANS_UNREAD).changes).toEqual([])
+    expect(rulesRerun(spendingBook([waiting]), [carRule()], { links: LOANS_UNREAD }).changes).toEqual([])
     const filed = row(OTP, '2026-11-18', -5612.2, 'Money and fees/Loan interest', { source: 'statement', counterpartyIban: IBAN, categorisedBy: 'rule' })
-    expect(rulesRerun(spendingBook([filed]), [carRule()], LOANS_UNREAD).changes).toEqual([])
+    expect(rulesRerun(spendingBook([filed]), [carRule()], { links: LOANS_UNREAD }).changes).toEqual([])
+  })
+
+  it('counts the rows a loan rule would link, and links a row it skipped while Loans could not be read once the rule is applied again', () => {
+    const waiting = row(OTP, '2026-11-15', -612.2, null, { source: 'statement', counterpartyIban: IBAN })
+    const rule = carRule()
+    const added = { adding: [{ conditions: rule.conditions, category: rule.category, labels: [], stop: false, withdrawal: null, link: CAR_LOAN }] }
+    expect(rowsRulesWouldChange(spendingBook([waiting]), added, LINKS)).toBe(1)
+    expect(rowsRulesWouldChange(spendingBook([waiting]), added, LOANS_UNREAD)).toBe(0)
+
+    // The rule was saved with Apply while Loans could not be read, so the row still waits.
+    const book = spendingBook([waiting], { rules: [rule] })
+    const again = { changing: [{ rule, draft: rule }] }
+    expect(rowsRulesWouldChange(book, again, LOANS_UNREAD)).toBe(0)
+    expect(rowsRulesWouldChange(book, again, LINKS)).toBe(1)
+    const { changes } = rulesRerun(book, [rule], { links: LINKS, applying: new Set([rule.id]) })
+    expect(changes.flatMap(({ items }) => items ?? []).map((part) => part.link?.due ?? null)).toEqual([civil('2026-11-15'), civil('2026-11-15')])
   })
 
   it('stores the loan as a link with no due date, and refuses one with a due date', () => {
@@ -136,13 +155,15 @@ describe('the rule the Rules card offers', () => {
 
   it('offers rows to the IBAN of the first row linked to a loan, with its interest under the category that row used, until a rule tests that IBAN', () => {
     expect(paidLoansIn(TARGETS)).toEqual([{ link: CAR_LOAN, loanName: 'Car loan' }])
-    expect(loanRuleOffers(spendingBook([linked]), TARGETS)).toEqual([{ loan: { link: CAR_LOAN, loanName: 'Car loan' }, condition: { column: 'counterparty_iban', iban: IBAN }, category: interest.id }])
+    expect(loanRuleOffers(spendingBook([linked]), TARGETS)).toEqual([
+      { loan: { link: CAR_LOAN, loanName: 'Car loan' }, condition: { test: 'iban_is', values: [IBAN], not: false }, category: interest.id },
+    ])
     expect(loanRuleOffers(spendingBook([linked], { rules: [carRule(null)] }), TARGETS)).toEqual([])
     expect(loanRuleOffers(spendingBook([linked]), [])).toEqual([])
   })
 
   it('offers no rule for a loan a rule already names, though that rule tests another payee', () => {
-    const otherPayee: SpendingRule = { ...carRule(), condition: { column: 'counterparty_contains', fragment: 'OTP banka' } }
+    const otherPayee: SpendingRule = { ...carRule(), conditions: [{ test: 'payee_contains', values: ['OTP banka'], not: false }], labels: [], stop: false }
     expect(loanRuleOffers(spendingBook([linked], { rules: [otherPayee] }), TARGETS)).toEqual([])
   })
 })

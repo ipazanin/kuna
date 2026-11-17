@@ -23,6 +23,15 @@ function entryLabel(fields: StoredFields): string {
   return labelWords([day === null ? textOf(fields.date) : dayLabel(day), amount === null ? textOf(fields.amount) : formatPlainAmount(amount), textOf(fields.payee)])
 }
 
+/** The fields that hold the words a rule looks for, the payee's first, so a rule is named by what a person typed and never by a stored amount or key. */
+const RULE_TEXT_FIELDS = ['payee_is', 'payee_contains', 'payee_starts_with', 'counterparty_contains', 'iban_is', 'counterparty_iban', 'description_contains', 'description_starts_with']
+
+/** A rule as a write's message names it: the first words or IBAN it looks for. */
+function ruleLabel(fields: StoredFields): string {
+  const named = RULE_TEXT_FIELDS.map((name) => textOf(fields[name]).split('\n')[0] ?? '').find((text) => text !== '')
+  return labelWords([named ?? ''])
+}
+
 export const en = {
   /** The words that name an entry, as its stored fields read. */
   entryLabel,
@@ -63,12 +72,22 @@ export const en = {
   heldRowNoKey: 'a bank row on hold carries the import key the sync gave it',
   heldRowBooked: (key: string) => `an entry of the account has its import key ${key}, so it is not on hold`,
   heldRowShared: (key: string) => `another bank row on hold of the account has the import key ${key} too`,
-  ruleNeedsOneCondition: 'a rule states counterparty_contains or counterparty_iban, and only one of them',
+  ruleProblem: {
+    'no-condition': 'a rule tests at least one thing, such as payee_contains',
+    'repeated-test': 'a rule makes each test once, and once more turned around with not_',
+    'no-value': 'a test lists a value on each line, an amount of zero or more, or an account or currency',
+    'not-a-pattern': 'a regular expression the rule tests is not one',
+    'not-days': 'days reads as two days of a month, the first not after the second, such as 1-15',
+    'no-outcome': 'a rule files a category, adds labels, or both',
+    'needs-category': 'a rule that spots cash taken out or pays a loan files into a category',
+  },
   ruleOtherCondition: (column: string) => `Spending's rules read no ${column}`,
+  notDays: (name: string, text: string) => `${name} "${text}" is not two days of a month such as 1-15`,
+  notARuleCurrency: (name: string, text: string) => `${name} names "${text}", which is not a currency code such as EUR or USD`,
   cashAccountWithoutWithdrawal: 'cash_account names where a withdrawal goes, so it needs withdrawal set',
   withdrawalNotTransfer: 'spots a cash withdrawal, so it files into Between my accounts',
   withdrawalNotCash: 'names as the cash account one that is not a cash account in the file',
-  ruleLabel: (fields: StoredFields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
+  ruleLabel,
   /** The words that name a receipt, as its stored fields read. */
   receiptLabel: (fields: StoredFields) => labelWords([textOf(fields.issued_at), numberText(fields.total), textOf(fields.merchant)]),
   /** The words that name a part of an entry, as its stored fields read. */
@@ -154,12 +173,22 @@ export const hr: Translation<typeof en> = {
   heldRowNoKey: 'redak iz banke na čekanju nosi ključ uvoza koji mu je dala sinkronizacija',
   heldRowBooked: (key) => `unos računa ima njegov ključ uvoza ${key}, pa nije na čekanju`,
   heldRowShared: (key) => `i drugi redak iz banke na čekanju na tom računu ima ključ uvoza ${key}`,
-  ruleNeedsOneCondition: 'pravilo navodi counterparty_contains ili counterparty_iban, i samo jedno od njih',
+  ruleProblem: {
+    'no-condition': 'pravilo provjerava barem jedno, primjerice payee_contains',
+    'repeated-test': 'pravilo svaku provjeru radi jednom, i još jednom obrnuto',
+    'no-value': 'provjera navodi vrijednost u svakom retku, iznos od nule naviše, ili račun ili valutu',
+    'not-a-pattern': 'regularni izraz koji pravilo provjerava nije ispravan',
+    'not-days': 'days se čita kao dva dana u mjesecu, prvi ne poslije drugog, primjerice 1-15',
+    'no-outcome': 'pravilo razvrstava u kategoriju, dodaje oznake ili oboje',
+    'needs-category': 'pravilo koje prepoznaje podizanje gotovine ili plaća kredit razvrstava u kategoriju',
+  },
   ruleOtherCondition: (column) => `pravila potrošnje ne čitaju ${column}`,
+  notDays: (name, text) => `${name} „${text}” nisu dva dana u mjesecu kao 1-15`,
+  notARuleCurrency: (name, text) => `${name} navodi „${text}”, što nije oznaka valute kao EUR ili USD`,
   cashAccountWithoutWithdrawal: 'cash_account navodi kamo ide podizanje gotovine, pa traži postavljen withdrawal',
   withdrawalNotTransfer: 'prepoznaje podizanje gotovine, pa razvrstava u Između mojih računa',
   withdrawalNotCash: 'kao račun gotovine navodi račun koji u datoteci nije gotovina',
-  ruleLabel: (fields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
+  ruleLabel,
   receiptLabel: (fields) => labelWords([textOf(fields.issued_at), numberText(fields.total), textOf(fields.merchant)]),
   partLabel: (fields) => labelWords([textOf(fields.note), textOf(fields.text), textOf(fields.printed), numberText(fields.amount)]),
   notIssuedAt: (text) => `issued_at „${text}” nije datum, ni datum i vrijeme, kao 2026-11-03 18:42`,

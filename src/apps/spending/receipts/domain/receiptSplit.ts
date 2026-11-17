@@ -124,6 +124,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
     category: lineCategory,
     link,
     labels: [],
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   }))

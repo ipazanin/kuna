@@ -82,7 +82,7 @@ function refuseName(name: string, labels: readonly Label[], own: RecordId | null
 export function writeLabelStep(
   unit: UnitOfWork,
   book: SpendingBook,
-  records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'shortcutParts'>,
+  records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'shortcutParts' | 'rules'>,
   operation: string,
   field: Readonly<Record<string, never>>,
   idOf: (value: unknown) => string,

@@ -1,4 +1,5 @@
-import { decidingRule, spendingCategorisationContext } from './spendingCategorisation'
+import { rulesOutcome, spendingCategorisationContext } from './spendingCategorisation'
+import type { RuledRow } from './spendingCategorisation'
 import type { RowChange } from './spendingCategorisation'
 import { isBankSyncKey, isTranscribedKey, rowSource } from './statementRows'
 import type { StatementRow, StatementRows } from './statementRows'
@@ -309,14 +310,15 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const typedOf = new Map(matches.map(({ typed, bank }) => [bank, typed]))
   const filledRows: RowChange[] = matches.map(({ typed, bank }) => ({ before: typed, after: filledByBank(typed, { ...bank, statement: statement.label }) }))
 
-  const ruleOf = decidingRule(book.rules, book)
+  const outcomeOf = rulesOutcome(book.rules, book)
+  const ruleOf = (row: RuledRow): SpendingRule | null => outcomeOf(row).filing
   const newRowOf = new Map<StatementRow, ItemizedRow>(
     coming
       .filter((row) => !typedOf.has(row))
       .map((row) => {
         const unfiled = row.category === null && !nearTyped.has(row)
         const byBank = unfiled && row.cashWithdrawal ? transfer : null
-        const rule = unfiled && byBank === null ? ruleOf(row) : null
+        const { filing: rule, labelling } = unfiled && byBank === null ? outcomeOf(row) : { filing: null, labelling: null }
         const byRule = rule === null || (rule.link !== null && (links?.targets ?? null) === null) ? null : rule.category
         const { category, ...facts } = row
         const added: Transaction = {
@@ -327,7 +329,10 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
           statement: statement.label,
           categorisedBy: byRule === null ? null : 'rule',
         }
-        return [row, { row: added, items: [wholeItemOf(added, { category: category ?? byBank ?? byRule, note: '', link: null, labels: [] })] }]
+        return [
+          row,
+          { row: added, items: [wholeItemOf(added, { category: category ?? byBank ?? byRule, note: '', link: null, labels: labelling?.labels ?? [], ruleLabels: labelling?.labels ?? [] })] },
+        ]
       }),
   )
   const newItemsOf = new Map([...newRowOf.values()].map(({ row, items }) => [row.id, items]))

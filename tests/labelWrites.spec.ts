@@ -8,8 +8,9 @@ import { labelCalled, labelNameProblem, newLabel } from '../src/apps/spending/la
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { ITEM_CODEC } from '../src/apps/spending/workbook/domain/transactionItemReading'
 import type { Label } from '../src/apps/spending/workbook/domain/label'
+import type { SpendingRule } from '../src/apps/spending/workbook/domain/spendingRule'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
@@ -39,7 +40,13 @@ const hotel = row(OTP!, '2026-10-13', -300, 'Travel/Accommodation')
 const PRAGUE: Label = { id: recordIdOf(LABEL_RECORDS, 'prague'), name: 'Prague' }
 
 /** A file of the rows and labels, with the items, and with the desk's waiting receipt when a line of it is given. */
-async function storeWith(rows: readonly StoredRow[], labels: readonly Label[] = [], items = wholeItems(rows), waiting: readonly TransactionItem[] = []): Promise<WorkbookStore<SpendingBooks>> {
+async function storeWith(
+  rows: readonly StoredRow[],
+  labels: readonly Label[] = [],
+  items = wholeItems(rows),
+  waiting: readonly TransactionItem[] = [],
+  rules: readonly SpendingRule[] = [],
+): Promise<WorkbookStore<SpendingBooks>> {
   const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', {
     ...stored(ACCOUNT_RECORDS, [...ACCOUNTS_BY_HAND, DESK_ACCOUNTS.REVOLUT]),
     ...stored(RECEIPT_RECORDS, waiting.length === 0 ? [] : [WAITING_RECEIPT]),
@@ -50,6 +57,7 @@ async function storeWith(rows: readonly StoredRow[], labels: readonly Label[] = 
       rows.map((held) => storedRowOf(held, BLANK_CELLS)),
     ),
     ...stored(ITEM_RECORDS, [...items, ...waiting]),
+    ...stored(RULE_RECORDS, rules),
   })
   const { store } = await browserHarness(used, document, SPENDING)
   return store
@@ -121,6 +129,32 @@ describe('writing labels', () => {
     await store.undo(store.state.writes.find((write) => write.receipt === written)!)
     expect(store.state.workbook!.labels).toEqual([PRAGUE])
     expect(labelsOfItems(store)).toEqual([[PRAGUE.id], []])
+  })
+
+  it('deletes a label and takes it off every rule, a rule that only labelled going with it, and one Undo puts them back', async () => {
+    const rule = (key: string, category: RecordId | null): SpendingRule => ({
+      id: recordIdOf(RULE_RECORDS, key),
+      order: 1,
+      conditions: [{ test: 'payee_contains', values: ['Hotel'], not: false }],
+      category,
+      labels: [PRAGUE.id],
+      stop: false,
+      withdrawal: null,
+      link: null,
+    })
+    const store = await storeWith(
+      [dinner],
+      [PRAGUE],
+      wholeItems([dinner]),
+      [],
+      [rule('a1000000-0000-4000-8000-000000000001', category('Travel/Accommodation').id), rule('a1000000-0000-4000-8000-000000000002', null)],
+    )
+
+    const written = await store.write('Deleted', (unit) => deleteLabel(unit, store.state.records!, PRAGUE))
+    expect(store.state.workbook!.rules.map((held) => held.labels)).toEqual([[]])
+
+    await store.undo(store.state.writes.find((write) => write.receipt === written)!)
+    expect(store.state.workbook!.rules.map((held) => held.labels)).toEqual([[PRAGUE.id], [PRAGUE.id]])
   })
 
   it("deletes a label and takes it off a waiting receipt's line, and one Undo puts both back", async () => {

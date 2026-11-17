@@ -147,7 +147,9 @@ describe('a synced row against the file', () => {
     const rule: SpendingRule = {
       id: recordIdOf(RULE_RECORDS, 'a0000000-0000-4000-8000-000000000001'),
       order: 1,
-      condition: { column: 'counterparty_contains', fragment: 'Corner bakery' },
+      conditions: [{ test: 'payee_contains', values: ['Corner bakery'], not: false }],
+      labels: [],
+      stop: false,
       category: category('Income').id,
       withdrawal: null,
       link: null,

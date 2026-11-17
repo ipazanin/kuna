@@ -142,6 +142,8 @@ export interface CheckedProposal {
   /** What the card holds back from the write, such as rows that look like records Kuna has, as a sentence for the model with the count and what to ask, or null. It holds counts and row numbers, never what the rows say. */
   readonly heldBack: string | null
   readonly held: object
+  /** A second way to accept that writes less, such as rules kept for rows that come later: its button's words and the card it writes. Left out on a card with one way. */
+  readonly narrower?: { readonly label: string; readonly proposal: CheckedProposal }
 }
 
 /**

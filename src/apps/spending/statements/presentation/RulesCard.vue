@@ -1,71 +1,67 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
+import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { deleteRule, writeRulesInto } from '../application/statementWrites'
-import { ruleGroups } from '../domain/ruleGroups'
-import type { RuleOverlap } from '../domain/ruleGroups'
+import { rowsRulesWouldChange, writeRules } from '../application/statementWrites'
+import type { RuleEdits } from '../application/statementWrites'
+import { ruleOverlaps } from '../domain/ruleOverlaps'
+import RuleApplyDialog from './RuleApplyDialog.vue'
 import RuleDialog from './RuleDialog.vue'
-import { ruleTestOf } from './ruleTest'
-import { words } from './words'
+import { changesHeldRule } from './ruleAsk'
+import type { RuleAsk } from './ruleAsk'
+import { conditionTestOf, conditionValuesOf, ruleTestOf, words } from './words'
 import { loanTargets } from '../../links/application/loanTargets'
 import { loanRuleOffers } from '../../links/domain/instalmentOffers'
 import type { LoanRuleOffer } from '../../links/domain/instalmentOffers'
 import { paidLoansIn, sameRecord } from '../../links/domain/linkTarget'
 import { loanLinks } from '../../links/presentation/loanLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
-import type { Category } from '../../workbook/domain/category'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import { words as spendingWords } from '../../words'
+import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /**
- * Spending's rules under the category each files into, each with Change and Delete and where a withdrawal's cash goes or the
- * loan its rows pay, and a group's Add for several payees or IBANs at once. Above them, a rule per loan that no rule names
- * and whose linked rows' payee no rule tests yet, made with one tap.
+ * Spending's rules in the order they are tried, each with its conditions, what it files and labels, Stop here, where a
+ * withdrawal's cash goes or the loan its rows pay, and buttons to try it earlier or later, change it and delete it. Above them,
+ * the rows two rules fit counted on the book, and a rule per loan that no rule names and whose linked rows' payee no rule tests
+ * yet, made with one tap. Making, moving or deleting a rule asks whether the rows already in the book follow, when any would change.
  */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 const loans = computed(() => loanTargets())
-
-/** A payee as a rule's line names it: the IBAN, or the words in quotes. */
-function testOf(condition: SpendingRuleCondition): string {
-  return condition.column === 'counterparty_iban' ? condition.iban : words.rules.quoted(condition.fragment)
-}
+const book = computed(() => store.state.workbook)
+const accountName = (id: string): string => book.value?.accounts.find((account) => account.id === id)?.name ?? ''
 
 const offers = computed(() => {
-  const book = store.state.workbook
+  const current = book.value
   const targets = loans.value
-  if (book === null || targets === null || typeof targets === 'string') return []
-  const names = new Map(book.categories.map((category) => [category.id, category.name]))
-  return loanRuleOffers(book, targets).map((offer) => ({
-    offer,
-    key: `${offer.loan.link.key} ${testOf(offer.condition)}`,
-    title: words.rules.offerTitle(testOf(offer.condition), offer.loan.loanName),
-    caption: words.rules.offerCaption(names.get(offer.category) ?? ''),
-  }))
+  if (current === null || targets === null || typeof targets === 'string') return []
+  const names = new Map(current.categories.map((category) => [category.id, category.name]))
+  return loanRuleOffers(current, targets).map((offer) => {
+    const test = conditionValuesOf(offer.condition, accountName)
+    return { offer, key: `${offer.loan.link.key} ${test}`, title: words.rules.offerTitle(test, offer.loan.loanName), caption: words.rules.offerCaption(names.get(offer.category) ?? '') }
+  })
 })
 
-async function makeRule(key: string, { condition, category, loan }: LoanRuleOffer): Promise<void> {
-  const book = store.state.workbook
-  if (book !== null)
-    await writes.write(words.rules.made, (unit) => writeRulesInto(unit, book, [condition], category, null, loan.link, loanLinks()), { key: `offer-${key}`, failedTitle: spendingWords.form.notSaved })
+/** The rule a loan offers, asked about first when rows already in the book would change. */
+async function makeRule(key: string, title: string, { condition, category, loan }: LoanRuleOffer): Promise<void> {
+  const edits: RuleEdits = { adding: [{ conditions: [condition], category, labels: [], stop: false, withdrawal: null, link: loan.link }] }
+  const written = book.value !== null && changesHeldRule(book.value.rules, edits) ? words.rules.dialog.changed : words.rules.made
+  await writeOrAsk({ edits, choice: 'apply', title: words.rules.apply.title, description: title, written }, `offer-${key}`)
 }
 
-const groups = computed(() => {
-  const book = store.state.workbook
-  if (book === null) return []
-  const names = new Map(book.categories.map((category) => [category.id, category.name]))
-  const ruleTest = (rule: SpendingRule) => testOf(rule.condition)
-  const categoryOf = (rule: SpendingRule) => names.get(rule.category) ?? ''
-  const accounts = new Map(book.accounts.map((account) => [account.id, account.name]))
+const rules = computed(() => {
+  const current = book.value
+  if (current === null) return []
+  const categories = new Map(current.categories.map((category) => [category.id, category.name]))
+  const labels = new Map(current.labels.map((label) => [label.id, label.name]))
   const targets = loans.value
   const paidLoans = targets === null || typeof targets === 'string' ? null : paidLoansIn(targets)
   const goesToOf = ({ withdrawal, link }: SpendingRule): string | null => {
@@ -75,62 +71,71 @@ const groups = computed(() => {
       return loan === undefined ? words.rules.paysGone : words.rules.paysLoan(loan.loanName)
     }
     if (withdrawal === null) return null
-    const named = withdrawal.cashAccount === null ? undefined : accounts.get(withdrawal.cashAccount)
-    return named === undefined ? words.rules.withdrawalByCurrency : words.rules.withdrawalTo(named)
+    const named = withdrawal.cashAccount === null ? undefined : accountName(withdrawal.cashAccount)
+    return named === undefined || named === '' ? words.rules.withdrawalByCurrency : words.rules.withdrawalTo(named)
   }
-  return ruleGroups(book).map((group) => ({
-    ...group,
-    rules: group.rules.map((rule) => ({ rule, test: ruleTestOf(rule.condition), goesTo: goesToOf(rule) })),
-    warnings: sharingOneLater(group.overlaps).map(({ firsts, then, firstOnlyMoneyIn }) =>
-      words.rules.overlap({ test: listInWords(firsts.map(ruleTest)), category: categoryOf(firsts[0]!) }, { test: ruleTest(then), category: categoryOf(then) }, firstOnlyMoneyIn),
-    ),
+  return inTryingOrder(current.rules).map((rule) => ({
+    rule,
+    tests: rule.conditions.map((condition) => conditionTestOf(condition, accountName)),
+    name: ruleTestOf(rule, accountName),
+    files: rule.category === null ? words.rules.labelsOnly : words.rules.filesUnder(categories.get(rule.category) ?? ''),
+    labels: rule.labels.map((label) => labels.get(label) ?? ''),
+    goesTo: goesToOf(rule),
   }))
 })
 
-/** The overlaps with one later rule and earlier rules of one category, as one warning, so three Ina stations against Ina read as one sentence. */
-function sharingOneLater(overlaps: readonly RuleOverlap[]): readonly { readonly firsts: readonly SpendingRule[]; readonly then: SpendingRule; readonly firstOnlyMoneyIn: boolean }[] {
-  const merged = new Map<string, { firsts: SpendingRule[]; then: SpendingRule; firstOnlyMoneyIn: boolean }>()
-  for (const { first, then, firstOnlyMoneyIn } of overlaps) {
-    const key = `${then.id} ${first.category}`
-    const held = merged.get(key)
-    if (held === undefined) merged.set(key, { firsts: [first], then, firstOnlyMoneyIn })
-    else held.firsts.push(first)
-  }
-  return [...merged.values()]
-}
+const warnings = computed(() => {
+  const current = book.value
+  if (current === null) return []
+  return ruleOverlaps(current).map(({ first, then, rows }) => ({
+    key: `${first.id} ${then.id}`,
+    text: plural(words.rules.overlap(ruleTestOf(first, accountName), ruleTestOf(then, accountName), rows), rows),
+  }))
+})
 
 const dialogOpen = ref(false)
 const editing = ref<SpendingRule | null>(null)
-const addingTo = ref<Category | null>(null)
 
-function openDialog(rule: SpendingRule | null, category: Category | null): void {
+function openDialog(rule: SpendingRule | null): void {
   editing.value = rule
-  addingTo.value = category
   dialogOpen.value = true
 }
 
-async function remove(rule: SpendingRule): Promise<void> {
-  const book = store.state.workbook
-  if (book !== null) await writes.write(words.rules.deleted, (unit) => deleteRule(unit, book, rule, loanLinks()), { key: `delete-${rule.id}`, failedTitle: spendingWords.form.notDeleted })
+const asked = ref<RuleAsk | null>(null)
+const askOpen = ref(false)
+
+/** Writes a change at once when no row already in the book would change, and otherwise asks whether they follow it. */
+async function writeOrAsk(ask: RuleAsk, key: string): Promise<void> {
+  const current = book.value
+  if (current === null) return
+  if (rowsRulesWouldChange(current, ask.edits, loanLinks()) === 0) {
+    await writes.write(ask.written, (unit) => writeRules(unit, current, ask.edits, loanLinks()), { key, failedTitle: spendingWords.form.notSaved })
+    return
+  }
+  asked.value = ask
+  askOpen.value = true
+}
+
+async function move(rule: SpendingRule, name: string, direction: 'up' | 'down'): Promise<void> {
+  const description = direction === 'up' ? words.rules.moveUp(name) : words.rules.moveDown(name)
+  await writeOrAsk({ edits: { moving: { rule: rule.id, direction } }, choice: 'refile', title: words.rules.apply.title, description, written: words.rules.moved }, `${direction}-${rule.id}`)
+}
+
+async function remove(rule: SpendingRule, name: string): Promise<void> {
+  await writeOrAsk({ edits: { deleting: [rule] }, choice: 'refile', title: words.rules.apply.title, description: words.rules.delete(name), written: words.rules.deleted }, `delete-${rule.id}`)
 }
 </script>
 
 <template>
   <div>
-    <EmptyState
-      v-if="groups.length === 0 && offers.length === 0"
-      icon="i-lucide-list-ordered"
-      :title="words.rules.empty"
-      :description="words.rules.emptyDescription"
-      data-testid="spending-rules-empty"
-    >
+    <EmptyState v-if="rules.length === 0 && offers.length === 0" icon="i-lucide-list-ordered" :title="words.rules.empty" :description="words.rules.emptyDescription" data-testid="spending-rules-empty">
       <template #actions>
-        <UButton :label="words.rules.add" icon="i-lucide-plus" data-testid="spending-rules-add" @click="openDialog(null, null)" />
+        <UButton :label="words.rules.add" icon="i-lucide-plus" data-testid="spending-rules-add" @click="openDialog(null)" />
       </template>
     </EmptyState>
     <AppCard v-else :title="words.rules.title" :subtitle="words.rules.subtitle" data-testid="spending-rules">
       <template #actions>
-        <UButton :label="words.rules.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="spending-rules-add" @click="openDialog(null, null)" />
+        <UButton :label="words.rules.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="spending-rules-add" @click="openDialog(null)" />
       </template>
       <ul v-if="offers.length > 0" class="divide-y divide-default" data-testid="spending-rule-offers">
         <ListRow v-for="{ offer, key, title, caption } in offers" :key="key" :title="title" :caption="caption" data-testid="spending-rule-offer">
@@ -141,76 +146,86 @@ async function remove(rule: SpendingRule): Promise<void> {
             :loading="writes.saving(`offer-${key}`)"
             :disabled="writes.refused.value"
             data-testid="spending-rule-offer-make"
-            @click="makeRule(key, offer)"
+            @click="makeRule(key, title, offer)"
           />
         </ListRow>
       </ul>
-      <div v-if="groups.length > 0" class="flex flex-col pt-3 pb-2">
-        <section v-for="group in groups" :key="group.category.id" data-testid="spending-rule-group">
-          <div class="group-row flex items-center gap-2 px-4 sm:px-5">
-            <span class="flex min-w-0 flex-1 flex-col py-2">
-              <span class="break-words" data-testid="spending-rule-group-name">{{ group.category.name }}</span>
-              <span class="break-words type-caption">{{
-                [group.parent?.name ?? '', plural(words.rules.count(group.rules.length), group.rules.length)].filter((part) => part !== '').join(' · ')
-              }}</span>
+      <UAlert
+        v-if="warnings.length > 0"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="words.rules.overlapTitle"
+        class="mx-4 mt-3 w-auto sm:mx-5"
+        data-testid="spending-rule-overlap"
+      >
+        <template #description>
+          <p v-for="warning in warnings" :key="warning.key" class="break-words">{{ warning.text }}</p>
+        </template>
+      </UAlert>
+      <ol v-if="rules.length > 0" class="@container flex flex-col pt-1 pb-2" data-testid="spending-rule-list">
+        <li
+          v-for="({ rule, tests, name, files, labels, goesTo }, place) in rules"
+          :key="rule.id"
+          class="flex items-start gap-2 border-b border-default ps-4 pe-2 last:border-b-0 sm:ps-5 sm:pe-3"
+          data-testid="spending-rule"
+        >
+          <span class="flex min-w-0 flex-1 flex-col gap-1 py-2">
+            <span v-for="test in tests" :key="test" class="text-sm break-words text-highlighted" data-testid="spending-rule-test">{{ test }}</span>
+            <span class="flex flex-wrap items-center gap-1">
+              <span class="break-words type-caption" data-testid="spending-rule-files">{{ files }}</span>
+              <UBadge v-for="label in labels" :key="label" :label="label" color="neutral" variant="subtle" size="sm" class="max-w-full" data-testid="spending-rule-label" />
+              <UBadge v-if="rule.stop" :label="words.rules.stopHere" icon="i-lucide-octagon-x" color="neutral" variant="outline" size="sm" data-testid="spending-rule-stop" />
             </span>
+            <span v-if="goesTo !== null" class="break-words type-caption" data-testid="spending-rule-goes-to">{{ goesTo }}</span>
+          </span>
+          <div class="grid shrink-0 grid-cols-2 @md:grid-cols-4">
             <UButton
-              :label="words.rules.addHere"
-              icon="i-lucide-plus"
+              icon="i-lucide-arrow-up"
               color="neutral"
               variant="ghost"
-              size="sm"
-              class="shrink-0"
-              :aria-label="words.rules.addTo(group.category.name)"
-              data-testid="spending-rule-group-add"
-              @click="openDialog(null, group.category)"
+              class="size-11 justify-center"
+              :aria-label="words.rules.moveUp(name)"
+              :disabled="place === 0"
+              :loading="writes.saving(`up-${rule.id}`)"
+              data-testid="spending-rule-up"
+              @click="move(rule, name, 'up')"
+            />
+            <UButton
+              icon="i-lucide-arrow-down"
+              color="neutral"
+              variant="ghost"
+              class="size-11 justify-center"
+              :aria-label="words.rules.moveDown(name)"
+              :disabled="place === rules.length - 1"
+              :loading="writes.saving(`down-${rule.id}`)"
+              data-testid="spending-rule-down"
+              @click="move(rule, name, 'down')"
+            />
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              class="size-11 justify-center"
+              :aria-label="words.rules.edit(name)"
+              data-testid="spending-rule-edit"
+              @click="openDialog(rule)"
+            />
+            <UButton
+              icon="i-lucide-trash-2"
+              color="neutral"
+              variant="ghost"
+              class="size-11 justify-center"
+              :aria-label="words.rules.delete(name)"
+              :loading="writes.saving(`delete-${rule.id}`)"
+              data-testid="spending-rule-delete"
+              @click="remove(rule, name)"
             />
           </div>
-          <UAlert
-            v-if="group.warnings.length > 0"
-            color="warning"
-            variant="subtle"
-            icon="i-lucide-triangle-alert"
-            :title="words.rules.overlapTitle"
-            class="mx-4 mt-2 mb-1 w-auto sm:mx-5"
-            data-testid="spending-rule-overlap"
-          >
-            <template #description>
-              <p v-for="warning in group.warnings" :key="warning">{{ warning }}</p>
-            </template>
-          </UAlert>
-          <ul class="flex flex-col">
-            <li v-for="{ rule, test, goesTo } in group.rules" :key="rule.id" class="flex items-center gap-2 border-b border-default ps-4 pe-4 sm:ps-5 sm:pe-5" data-testid="spending-rule">
-              <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
-                <span class="text-sm break-words text-highlighted">{{ test }}</span>
-                <span v-if="goesTo !== null" class="break-words type-caption" data-testid="spending-rule-goes-to">{{ goesTo }}</span>
-              </span>
-              <div class="flex shrink-0 items-center">
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  class="size-11 justify-center"
-                  :aria-label="words.rules.edit(test)"
-                  data-testid="spending-rule-edit"
-                  @click="openDialog(rule, null)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="neutral"
-                  variant="ghost"
-                  class="size-11 justify-center"
-                  :aria-label="words.rules.delete(test)"
-                  :loading="writes.saving(`delete-${rule.id}`)"
-                  data-testid="spending-rule-delete"
-                  @click="remove(rule)"
-                />
-              </div>
-            </li>
-          </ul>
-        </section>
-      </div>
+        </li>
+      </ol>
     </AppCard>
-    <RuleDialog v-model:open="dialogOpen" :rule="editing" :category="addingTo" />
+    <RuleDialog v-model:open="dialogOpen" :rule="editing" />
+    <RuleApplyDialog v-model:open="askOpen" :asked="asked" />
   </div>
 </template>

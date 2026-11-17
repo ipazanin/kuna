@@ -49,6 +49,7 @@ import {
   LINE_RECORDS,
 } from '../workbook/domain/spendingKinds'
 import type { LinkableBank } from '../workbook/domain/spendingSettings'
+import { conditionText } from './ruleConditionText'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
 import type { Shortcut, ShortcutPart } from '../workbook/domain/shortcut'
 import type { Transaction } from '../workbook/domain/transaction'
@@ -226,15 +227,20 @@ function paidLoanRead(rule: SpendingRule, targetsOf: (app: string) => AppTargets
   return loan === undefined ? words.reads.linkGone : words.reads.linkBankLoan(loan.loanName)
 }
 
-const ruleFields = (targetsOf: (app: string) => AppTargets<LinkTarget>): FieldDocs<SpendingRule> => ({
+const ruleFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, accounts: () => readonly Account[]): FieldDocs<SpendingRule> => ({
   id: { exposure: 'ref', to: RULE_RECORDS.name, meaning: 'The rule.' },
-  order: { exposure: 'plain', meaning: 'The first rule that holds decides a row.' },
-  condition: {
-    exposure: 'party',
-    meaning: "What it tests: words in a payee's name, or the other side's IBAN.",
-    read: (rule) => (rule.condition.column === 'counterparty_contains' ? rule.condition.fragment : rule.condition.iban),
+  order: { exposure: 'plain', meaning: 'Rules are tried lowest first. The first that holds and files decides the category, and the first that holds and labels decides the labels.' },
+  conditions: {
+    exposure: 'free-text',
+    meaning: 'What it tests, every condition holding, as add-rule types them.',
+    read: (rule) => {
+      const names = new Map<string, string>(accounts().map((account) => [account.id, account.name]))
+      return rule.conditions.map((condition) => conditionText(condition, (id) => names.get(id) ?? id))
+    },
   },
-  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category it files into.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category it files into, or empty for a rule that only labels.' },
+  labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels it adds to the rows it holds for, never taking one off.' },
+  stop: { exposure: 'plain', meaning: 'Whether no later rule is tried for a row it holds for.' },
   withdrawal: {
     exposure: 'plain',
     meaning: 'Whether it spots cash taken out, whose other leg Kuna puts on a cash account.',
@@ -296,6 +302,7 @@ const itemFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, events: 
     read: (item) => linkRead(item, targetsOf),
   },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
+  ruleLabels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'Those of its labels a rule put on, which a rule change may take off.' },
   event: {
     exposure: 'plain',
     meaning: 'by-days when this money joins the event its day falls in, out when it was taken out of every event by hand, or the event it was put in by hand, as its name and days.',
@@ -615,7 +622,14 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({ kind: LABEL_RECORDS, about: words.reads.label, fields: LABEL_FIELDS, dated: null, rows: () => rows((book) => book.labels), currencyOf: () => EURO }),
       readableKind({ kind: EVENT_RECORDS, about: words.reads.event, fields: EVENT_FIELDS, dated: null, rows: () => rows((book) => book.events), currencyOf: () => EURO }),
       readableKind({ kind: BUDGET_RECORDS, about: words.reads.budget, fields: BUDGET_FIELDS, dated: 'from', rows: () => rows((book) => book.budgets), currencyOf: () => EURO }),
-      readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: ruleFields(reading.linkTargets), dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
+      readableKind({
+        kind: RULE_RECORDS,
+        about: words.reads.rule,
+        fields: ruleFields(reading.linkTargets, () => reading.book()?.accounts ?? []),
+        dated: null,
+        rows: () => rows((book) => book.rules),
+        currencyOf: () => EURO,
+      }),
       readableKind({
         kind: SHORTCUT_RECORDS,
         about: words.reads.shortcut,

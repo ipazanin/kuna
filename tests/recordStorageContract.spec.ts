@@ -1073,16 +1073,16 @@ const SPENDING_FIXTURES: Readonly<Record<string, KindFixture>> = {
   rule: {
     seed: { category: [{ name: 'Food', kind: 'spending', order: '1', id: RULE_CATEGORY! }] },
     records: [
-      { order: '1', counterparty_contains: 'Corner market', category: RULE_CATEGORY!, id: SPENDING_RULE_A! },
-      { order: '2', counterparty_iban: 'HR1100000000000000099', category: RULE_CATEGORY!, link: 'loans/bank-loan/3f6c1e2a-0000-4000-8000-000000000001', id: SPENDING_RULE_B! },
+      { order: '1', payee_contains: 'Corner market', category: RULE_CATEGORY!, id: SPENDING_RULE_A! },
+      { order: '2', iban_is: 'HR1100000000000000099', category: RULE_CATEGORY!, link: 'loans/bank-loan/3f6c1e2a-0000-4000-8000-000000000001', id: SPENDING_RULE_B! },
     ],
-    outside: { order: '3', counterparty_contains: 'Harbour bistro', category: RULE_CATEGORY!, id: SPENDING_RULE_C! },
-    change: { field: 'counterparty_contains', value: 'Corner shop' },
+    outside: { order: '3', payee_contains: 'Harbour bistro', category: RULE_CATEGORY!, id: SPENDING_RULE_C! },
+    change: { field: 'payee_contains', value: 'Corner shop' },
     cleared: null,
     refused: {
       fields: { order: '4', category: RULE_CATEGORY!, id: SPENDING_RULE_R! },
-      reason: 'a rule states counterparty_contains or counterparty_iban',
-      fixed: { order: '4', counterparty_contains: 'City pharmacy', category: RULE_CATEGORY!, id: SPENDING_RULE_R! },
+      reason: 'a rule tests at least one thing, such as payee_contains',
+      fixed: { order: '4', payee_contains: 'City pharmacy', category: RULE_CATEGORY!, id: SPENDING_RULE_R! },
     },
   },
 }

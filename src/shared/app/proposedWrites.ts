@@ -54,8 +54,9 @@ export interface ProposalWork<Books extends BooksRead, Kept, Plan> {
   /**
    * Plans the steps into one write through the screens' own write functions, throwing `StepRefused` for a step that cannot go,
    * and gives what the card reads of the plan. `kept` is what `beforeWrite` gave, and undefined in the check, which runs before it.
+   * `narrower` plans the card's second way to accept.
    */
-  plan(unit: UnitOfWork, books: OpenBooks<Books>, steps: readonly ProposalStep[], kept: Kept | undefined): Plan
+  plan(unit: UnitOfWork, books: OpenBooks<Books>, steps: readonly ProposalStep[], kept: Kept | undefined, narrower: boolean): Plan
   /** What the card shows of the checked write, from the books and the plan the check made. */
   card(checked: CheckedWrite, books: OpenBooks<Books>, plan: Plan, steps: readonly ProposalStep[]): PlannedCard
   /**
@@ -64,6 +65,8 @@ export interface ProposalWork<Books extends BooksRead, Kept, Plan> {
    * It throws, in the person's words, when access is missing.
    */
   beforeWrite?(steps: readonly ProposalStep[]): Promise<Kept>
+  /** The words of the button of a second way to accept that writes less, from the plan the check made, or null when the card has one way. */
+  narrower?(plan: Plan): string | null
   /** What the model should do with steps that make more changes than a card holds, when proposing fewer is no way out, or null for that. */
   overLimit?(steps: readonly ProposalStep[]): string | null
 }
@@ -74,6 +77,7 @@ interface HeldWrite<Books extends BooksRead> {
   readonly changes: readonly RuledChange[]
   readonly books: OpenBooks<Books>
   readonly steps: readonly ProposalStep[]
+  readonly narrower: boolean
 }
 
 type Refused = { readonly kind: 'refused'; readonly reason: string }
@@ -114,7 +118,7 @@ export function proposedWrites<Books extends BooksRead, Kept, Plan>(
   accept(proposal: CheckedProposal): Promise<AcceptResult>
 } {
   /** The changes Accept writes: the checked ones, or for steps that keep a file outside the books the same records planned again with what `beforeWrite` kept. */
-  async function writtenChanges({ title, changes, books, steps }: HeldWrite<Books>, outside: readonly string[]): Promise<readonly RuledChange[] | Refused> {
+  async function writtenChanges({ title, changes, books, steps, narrower }: HeldWrite<Books>, outside: readonly string[]): Promise<readonly RuledChange[] | Refused> {
     if (work.beforeWrite === undefined || outside.length === 0) return changes
     const current = await store.check(title, workOf(changes))
     if (current.status === 'refused') return { kind: 'refused', reason: current.reason }
@@ -126,7 +130,7 @@ export function proposedWrites<Books extends BooksRead, Kept, Plan>(
     }
     let planned: readonly RuledChange[]
     try {
-      planned = changesOf((unit) => work.plan(unit, books, steps, kept))
+      planned = changesOf((unit) => work.plan(unit, books, steps, kept, narrower))
     } catch (failure) {
       if (failure instanceof StepRefused) return { kind: 'refused', reason: failure.message }
       throw failure
@@ -143,7 +147,7 @@ export function proposedWrites<Books extends BooksRead, Kept, Plan>(
       let check: WriteCheck
       try {
         check = await store.check(title, (unit) => {
-          plans.push(work.plan(unit, books, steps, undefined))
+          plans.push(work.plan(unit, books, steps, undefined, false))
         })
       } catch (failure) {
         if (failure instanceof StepRefused) return { refused: [failure.message] }
@@ -155,9 +159,26 @@ export function proposedWrites<Books extends BooksRead, Kept, Plan>(
       if (checked.changes.length > MOST_CHANGES) {
         return { refused: [`That is ${checked.changes.length} changes. A card holds ${MOST_CHANGES}.`, work.overLimit?.(steps) ?? 'Propose fewer, and then the rest.'] }
       }
-      const held: HeldWrite<Books> = { title, changes: checked.changes, books, steps }
+      const held: HeldWrite<Books> = { title, changes: checked.changes, books, steps, narrower: false }
       const { groups, outside, heldBack } = work.card(checked, books, plans[0]!, steps)
-      return { title, count: groups.reduce((sum, group) => sum + group.lines.length, 0), groups, outside, undoable: isUndoable(checked.changes), heldBack, held }
+      const proposal: CheckedProposal = { title, count: groups.reduce((sum, group) => sum + group.lines.length, 0), groups, outside, undoable: isUndoable(checked.changes), heldBack, held }
+      const label = work.narrower?.(plans[0]!) ?? null
+      if (label === null) return proposal
+      const narrowPlans: Plan[] = []
+      const narrowed = await store.check(title, (unit) => {
+        narrowPlans.push(work.plan(unit, books, steps, undefined, true))
+      })
+      if (narrowed.status !== 'ready') return proposal
+      const narrowCard = work.card(narrowed.checked, books, narrowPlans[0]!, steps)
+      const narrowHeld: HeldWrite<Books> = { ...held, changes: narrowed.checked.changes, narrower: true }
+      const written: CheckedProposal = {
+        ...proposal,
+        count: narrowCard.groups.reduce((sum, group) => sum + group.lines.length, 0),
+        groups: narrowCard.groups,
+        undoable: isUndoable(narrowed.checked.changes),
+        held: narrowHeld,
+      }
+      return { ...proposal, narrower: { label, proposal: written } }
     },
 
     async accept(proposal) {

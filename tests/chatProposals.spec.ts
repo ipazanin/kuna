@@ -65,8 +65,8 @@ describe('a proposal', () => {
     const before = bookOf(d).rules.length
     const writesBefore = d.store.state.writes.length
     await d.propose([
-      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Corner market', category: d.ref('category', groceries.id) }),
-      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Harbour bistro', category: d.ref('category', named(d, 'Eating out').id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Corner market'], not: false }], category: d.ref('category', groceries.id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Harbour bistro'], not: false }], category: d.ref('category', named(d, 'Eating out').id) }),
     ])
     expect(bookOf(d).rules).toHaveLength(before)
     expect(d.store.state.writes).toHaveLength(writesBefore)
@@ -89,7 +89,7 @@ describe('a proposal', () => {
     const [card] = d.cards
     expect(card!.groups.map((group) => [group.verb, group.noun.en.one])).toContainEqual(['add', 'rule'])
     const rule = card!.groups.find((group) => group.noun.en.one === 'rule')!.lines[0]!
-    expect(rule.label).toBe('Corner market')
+    expect(rule.label).toBe('Payee contains “Corner market”')
     expect(rule.fields).toContainEqual({ name: 'Category', before: null, after: 'Delivery', warns: false })
   })
 
@@ -112,7 +112,9 @@ describe('a proposal', () => {
 
   it('fixes and deletes a rule, with the rows following', async () => {
     const d = await desk()
-    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Corner market', category: d.ref('category', named(d, 'Delivery').id) })])
+    await d.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Corner market'], not: false }], category: d.ref('category', named(d, 'Delivery').id) }),
+    ])
     await accept(d)
     const rule = bookOf(d).rules.at(-1)!
     await d.propose([stepOf(SPENDING_OPERATIONS, 'change-rule', { rule: d.ref('rule', rule.id), category: d.ref('category', named(d, 'Groceries').id) })])
@@ -127,7 +129,9 @@ describe('a proposal', () => {
     const d = await desk()
     const add = stepOf(SPENDING_OPERATIONS, 'add-category', { name: 'Aquarium', kind: 'spending' })
     expect((await d.propose([add, add])).text).toContain('one to a card')
-    expect((await d.propose([{ ...add, as: '$pets' }, stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Vet', category: '$pets' })])).isError).toBe(false)
+    expect(
+      (await d.propose([{ ...add, as: '$pets' }, stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Vet'], not: false }], category: '$pets' })])).isError,
+    ).toBe(false)
     expect((await accept(d)).kind).toBe('done')
     expect(bookOf(d).rules.at(-1)!.category).toBe(named(d, 'Aquarium').id)
   })
@@ -135,16 +139,19 @@ describe('a proposal', () => {
   it("adds a rule by the other side's IBAN, as the rule form can", async () => {
     const d = await desk()
     const rent = named(d, 'Rent').id
-    expect((await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { iban: 'hr12 1001 0051 8630 0016 0', category: d.ref('category', rent) })])).isError).toBe(false)
+    expect(
+      (await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'iban_is', values: ['hr12 1001 0051 8630 0016 0'], not: false }], category: d.ref('category', rent) })]))
+        .isError,
+    ).toBe(false)
     expect((await accept(d)).kind).toBe('done')
-    expect(bookOf(d).rules.at(-1)).toMatchObject({ condition: { column: 'counterparty_iban', iban: 'HR1210010051863000160' }, category: rent })
+    expect(bookOf(d).rules.at(-1)).toMatchObject({ conditions: [{ test: 'iban_is', values: ['HR1210010051863000160'], not: false }], labels: [], stop: false, category: rent })
   })
 
   it('refuses a $ name no earlier step made, or a ref of another kind or never handed out', async () => {
     const d = await desk()
     const account = d.ref('account', bookOf(d).accounts[0]!.id)
     for (const category of ['$later', account, 'category-999', '../secrets']) {
-      const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Vet', category })])
+      const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Vet'], not: false }], category })])
       expect(answer.isError).toBe(true)
       expect(answer.text).not.toContain(category)
     }
@@ -157,32 +164,29 @@ describe('a proposal', () => {
     const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const iban = d.reads.pseudonyms.identifierToken('HR1210010051863000160')
     await d.propose([
-      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: alias, category: d.ref('category', named(d, 'Rent').id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: [alias], not: false }], category: d.ref('category', named(d, 'Rent').id) }),
       stepOf(SPENDING_OPERATIONS, 'change-account', { account: d.ref('account', bookOf(d).accounts[0]!.id), iban }),
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
     expect(lines.some((line) => line.fields.some((field) => field.warns))).toBe(true)
     await accept(d)
-    expect(bookOf(d).rules.at(-1)!.condition).toEqual({ column: 'counterparty_contains', fragment: 'Ana Horvat' })
+    expect(bookOf(d).rules.at(-1)!.conditions).toEqual([{ test: 'payee_contains', values: ['Ana Horvat'], not: false }])
     expect(bookOf(d).accounts[0]!.iban).toBe('HR1210010051863000160')
   })
 
-  it('makes a rule from an alias cover every way its person was written', async () => {
+  it("makes a rule's condition from an alias list every way its person was written", async () => {
     const d = await desk()
     d.reads.pseudonyms.know(['Ana Horvat'])
     d.reads.pseudonyms.pseudonymised('HORVAT ANA', 'books')
     const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const rulesBefore = bookOf(d).rules.length
-    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: alias, category: d.ref('category', named(d, 'Rent').id) })])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: [alias], not: false }], category: d.ref('category', named(d, 'Rent').id) })])
     await accept(d)
     expect(
       bookOf(d)
         .rules.slice(rulesBefore)
-        .map((rule) => rule.condition),
-    ).toEqual([
-      { column: 'counterparty_contains', fragment: 'Ana Horvat' },
-      { column: 'counterparty_contains', fragment: 'HORVAT ANA' },
-    ])
+        .map((rule) => rule.conditions),
+    ).toEqual([[{ test: 'payee_contains', values: ['Ana Horvat', 'HORVAT ANA'], not: false }]])
   })
 
   it('writes an ordinary word that only looks like an alias as the model wrote it', async () => {
@@ -190,23 +194,22 @@ describe('a proposal', () => {
     d.reads.pseudonyms.know(['Ana Horvat'])
     d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     await d.propose([
-      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Osobnu 1', category: d.ref('category', named(d, 'Rent').id) }),
-      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Adresama 1', category: d.ref('category', named(d, 'Rent').id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Osobnu 1'], not: false }], category: d.ref('category', named(d, 'Rent').id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Adresama 1'], not: false }], category: d.ref('category', named(d, 'Rent').id) }),
     ])
     await accept(d)
     expect(
       bookOf(d)
         .rules.slice(-2)
-        .map((rule) => rule.condition),
-    ).toEqual([
-      { column: 'counterparty_contains', fragment: 'Osobnu 1' },
-      { column: 'counterparty_contains', fragment: 'Adresama 1' },
-    ])
+        .map((rule) => rule.conditions),
+    ).toEqual([[{ test: 'payee_contains', values: ['Osobnu 1'], not: false }], [{ test: 'payee_contains', values: ['Adresama 1'], not: false }]])
   })
 
   it('tells the model nothing the card holds, and no name when Kuna refuses it', async () => {
     const d = await desk()
-    const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Ana Horvat', category: d.ref('category', named(d, 'Rent').id) })])
+    const answer = await d.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Ana Horvat'], not: false }], category: d.ref('category', named(d, 'Rent').id) }),
+    ])
     expect(answer.text).not.toContain('Ana Horvat')
     const refused = await d.propose([stepOf(SPENDING_OPERATIONS, 'delete-category', { category: d.ref('category', named(d, 'Between my accounts').id), into: d.ref('category', named(d, 'Rent').id) })])
     expect(refused.isError).toBe(true)

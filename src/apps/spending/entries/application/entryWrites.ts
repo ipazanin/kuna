@@ -1,6 +1,6 @@
 import type { EntrySplit } from '../domain/entrySplit'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
-import { eventOfLargest, labelsOf } from '../../workbook/domain/carriedChoices'
+import { eventOfLargest, labelsOf, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import { linkedEntry } from '../../links/domain/instalmentSplit'
 import type { LinkPlace, LinkedEntry } from '../../links/domain/instalmentSplit'
 import type { LinkTarget } from '../../links/domain/linkTarget'
@@ -174,9 +174,16 @@ export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { row, 
   writeRows(unit, records, [{ before: before.row, after: row, items: parts }])
 }
 
-/** The one item a split row stands for again: all of its money under the category most of it was in, with the note and event choice of its largest part, its link and every label of its parts. */
+/** The one item a split row stands for again: all of its money under the category most of it was in, with the note and event choice of its largest part, its link and every label of its parts, a rule's still its. */
 export function unsplitItem(row: Pick<Transaction, 'id' | 'amount'>, held: readonly TransactionItem[]): TransactionItem {
-  return wholeItemOf(row, { category: mainCategoryOf(held), note: largestItem(held)?.note ?? '', link: linkOfItems(held), labels: labelsOf(held), event: eventOfLargest(held) })
+  return wholeItemOf(row, {
+    category: mainCategoryOf(held),
+    note: largestItem(held)?.note ?? '',
+    link: linkOfItems(held),
+    labels: labelsOf(held),
+    ruleLabels: ruleLabelsOf(held),
+    event: eventOfLargest(held),
+  })
 }
 
 /**

@@ -3,7 +3,7 @@ import type { AppTargets, InstalmentTarget, LinkTarget } from './linkTarget'
 import { inWindow, isNear, nearestTo } from '../../pairing/domain/sameMoney'
 import type { DatedMoney } from '../../pairing/domain/sameMoney'
 import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
-import { eventOfLargest, labelsOf } from '../../workbook/domain/carriedChoices'
+import { eventOfLargest, labelsOf, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import { categoryWithRole } from '../../workbook/domain/category'
 import type { Category, FixedKind } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -139,6 +139,7 @@ export function splitByInstalment(
 ): ItemizedRow {
   const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
   const labels = labelsOf(entry.items)
+  const ruleLabels = ruleLabelsOf(entry.items)
   const event = eventOfLargest(entry.items)
   const parts: readonly (readonly [AccountMoney, RecordId, string])[] = [
     [split.interest, split.category, notes.interest],
@@ -157,6 +158,7 @@ export function splitByInstalment(
       category,
       link,
       labels,
+      ruleLabels,
       event,
       splitByLink: true,
     }))
@@ -190,7 +192,15 @@ export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkP
   const principalAdded = principal.added ? [principal.category] : []
   if (!filing.split) {
     const first = entry.items[0] ?? wholeItemOf(entry.row, { category: null, note: '', link: null, labels: [] })
-    const whole: TransactionItem = { ...first, amount: entry.row.amount, category: principal.category.id, link: target.link, labels: labelsOf(entry.items), splitByLink: false }
+    const whole: TransactionItem = {
+      ...first,
+      amount: entry.row.amount,
+      category: principal.category.id,
+      link: target.link,
+      labels: labelsOf(entry.items),
+      ruleLabels: ruleLabelsOf(entry.items),
+      splitByLink: false,
+    }
     return { entry: { row: { ...entry.row, categorisedBy: 'person' }, items: [whole] }, interest: null, added: principalAdded }
   }
   const interest = filing.category === null ? loanInterestCategoryIn(place.categories, place.language, newKey) : { category: { id: filing.category }, added: [] }

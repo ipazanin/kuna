@@ -71,7 +71,9 @@ export type MessageOrigin = 'person' | 'task' | 'goOn'
 
 /** A card in the chat. `checked` is gone after a reload, and with it Accept and Undo. */
 export interface ChatProposal extends SavedProposal {
-  readonly checked: CheckedProposal | null
+  /** What the card shows, which its narrower way replaces once the person accepts that way. */
+  checked: CheckedProposal | null
+  count: number
   state: ProposalState
   /** Why Kuna refused it, in a sentence that can name a record, so it stays out of what this browser keeps. */
   reason: string | null
@@ -339,15 +341,26 @@ function heldProposal(id: string): ChatProposal | undefined {
 }
 
 /** How a card ended, kept in this browser and told to the model with the next message. */
-export function settleProposal(proposal: ChatProposal, state: ProposalState, reason: string | null = null, undo: ChatProposal['undo'] = null, warning: DoneWarning | null = null): void {
+export function settleProposal(
+  proposal: ChatProposal,
+  state: ProposalState,
+  reason: string | null = null,
+  undo: ChatProposal['undo'] = null,
+  warning: DoneWarning | null = null,
+  narrowed: { readonly label: string; readonly proposal: CheckedProposal } | null = null,
+): void {
   const held = heldProposal(proposal.id)
   if (held === undefined) return
+  if (narrowed !== null) {
+    held.checked = markRaw(narrowed.proposal)
+    held.count = narrowed.proposal.count
+  }
   held.state = state
   held.reason = reason
   held.warning = warning
   held.undo = undo
   const outcome = {
-    done: `The person accepted the card "${proposal.title}", and it is written.`,
+    done: narrowed === null ? `The person accepted the card "${proposal.title}", and it is written.` : `The person accepted the card "${proposal.title}" as ${narrowed.label}, and it is written.`,
     undone: `The person undid the card "${proposal.title}".`,
     declined: `The person did not accept the card "${proposal.title}".`,
     refused: `Kuna did not write the card "${proposal.title}" when the person accepted it, as a record changed since or the save failed. The card shows the person why.`,

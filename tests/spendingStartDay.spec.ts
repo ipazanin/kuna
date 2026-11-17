@@ -76,6 +76,7 @@ function part(place: number, of: Transaction, amount: number, path: string, rece
     category: category(path).id,
     link: null,
     labels: [],
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   }

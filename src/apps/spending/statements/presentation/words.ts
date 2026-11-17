@@ -1,6 +1,10 @@
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
+import { formatPlainAmount } from '../../../../shared/money/moneyFormat'
+import { groupedIban } from '../../../../shared/text/iban'
 import { language } from '../../../../shared/text/language'
+import { listInWords } from '../../../../shared/text/listInWords'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -107,38 +111,81 @@ export const en = {
   },
   rules: {
     title: 'Rules',
-    subtitle: 'Each category with the payees and IBANs that file a statement row into it. A row you filed yourself stays as it is.',
+    subtitle: 'Tried from the top. The first rule that fits a row and files decides its category, and the first that fits and labels decides its labels. A row you filed yourself keeps its category.',
     empty: 'No rules yet',
-    emptyDescription: 'Add the payees or IBANs a category files, or pick a category on To review and choose Always for this payee.',
-    add: 'Add rules',
-    addHere: 'Add',
-    addTo: (category: string) => `Add payees or IBANs to ${category}`,
-    count: (count: number): EnglishForms => ({ one: '1 rule', other: `${count} rules` }),
+    emptyDescription: 'Add a rule for the payees, IBANs or amounts a category files, or pick a category on To review and choose Always for this payee.',
+    add: 'Add a rule',
     edit: (rule: string) => `Change the rule: ${rule}`,
-    overlapTitle: 'Two categories can file one payee',
-    overlap: (first: { test: string; category: string }, then: { test: string; category: string }, firstOnlyMoneyIn: boolean) =>
-      firstOnlyMoneyIn
-        ? `${first.test} in ${first.category} and ${then.test} in ${then.category} can fit the same payee. ${first.category} files money in, since its rule is tried first, and ${then.category} files money out.`
-        : `${first.test} in ${first.category} and ${then.test} in ${then.category} can fit the same payee. ${first.category} decides, since its rule is tried first.`,
+    moveUp: (rule: string) => `Try earlier: ${rule}`,
+    moveDown: (rule: string) => `Try later: ${rule}`,
+    moved: 'Rule moved',
+    filesUnder: (category: string) => `Files under ${category}`,
+    labelsOnly: 'Labels only',
+    stopHere: 'Stop here',
+    overlapTitle: 'Rows two rules fit',
+    overlap: (first: string, then: string, count: number): EnglishForms => ({
+      one: `1 row fits both ${first} and ${then}. ${first} decides, since it is tried first.`,
+      other: `${count} rows fit both ${first} and ${then}. ${first} decides, since it is tried first.`,
+    }),
     quoted: (fragment: string) => `“${fragment}”`,
+    tests: {
+      payee_is: 'Payee is',
+      payee_contains: 'Payee contains',
+      payee_starts_with: 'Payee starts with',
+      payee_matches: 'Payee matches the regular expression',
+      iban_is: "Other side's IBAN is",
+      iban_none: 'Has no IBAN',
+      description_contains: 'Description contains',
+      description_starts_with: 'Description starts with',
+      description_matches: 'Description matches the regular expression',
+      money_in: 'Money in',
+      money_out: 'Money out',
+      amount_at_least: 'Amount at least',
+      amount_at_most: 'Amount at most',
+      accounts: 'Account is',
+      days: 'Day of the month',
+      currencies: 'Currency is',
+    },
+    not: (test: string) => `Not: ${test}`,
+    dayRange: (from: number, to: number) => `${from}–${to}`,
     dialog: {
-      addTitle: 'Add rules',
+      addTitle: 'Add a rule',
       editTitle: 'Change the rule',
-      description: 'A new rule is tried after the ones you have, and the first rule that fits a row decides it.',
-      category: 'Category',
+      description: 'Every condition must fit a row. A condition with several values fits when any of them does.',
+      conditions: 'Conditions',
+      addCondition: 'Add a condition',
+      removeCondition: (place: number) => `Remove condition ${place}`,
+      test: 'Test',
+      values: 'Values',
+      valuesHelp: 'One to a line. Any of them may fit. Case and accents do not count.',
+      patternHelp: 'One to a line, such as ^ina\\b. Case and accents do not count.',
+      ibanHelp: 'One to a line.',
+      amount: 'Amount',
+      amountHelp: "Without its sign, in the currency of the row's account.",
+      accounts: 'Accounts',
+      currencies: 'Currencies',
+      from: 'From day',
+      to: 'To day',
+      not: 'Turn it around',
+      notHelp: 'The rule then needs a row this condition does not fit.',
+      category: 'File under',
       pickCategory: 'Pick a category',
-      lines: 'Payees or IBANs',
-      linesHelp: 'One to a line. An IBAN tests the other side of the payment. Other words test the payee’s name.',
-      line: 'Payee or IBAN',
-      lineHelp: 'An IBAN tests the other side of the payment. Other words test the payee’s name.',
-      aLine: 'Type a payee or an IBAN',
-      readAs: 'Kuna reads these as',
-      nothingNew: 'This category already has every line typed.',
-      already: 'Already here',
-      moves: (category: string) => `Moves here from ${category}`,
-      save: (count: number): EnglishForms => ({ one: 'Save 1 rule', other: `Save ${count} rules` }),
-      saveChange: 'Save',
-      saved: (count: number): EnglishForms => ({ one: 'Rule saved', other: `${count} rules saved` }),
+      noCategory: 'No category, labels only',
+      labels: 'Labels',
+      labelsHelp: 'Added to each row the rule fits, rows you filed yourself among them. Those keep the category you gave them. A label the rule added comes off once the rule no longer gives it.',
+      stop: 'Stop here',
+      stopHelp: 'No rule after this one is tried for a row it fits.',
+      problems: {
+        'no-condition': 'Add a condition',
+        'repeated-test': 'Each test goes in once, and once more turned around. Put its values in one condition',
+        'no-value': 'Give each condition a value',
+        'not-a-pattern': 'One of the values is not a regular expression',
+        'not-days': 'Pick days from 1 to 31, the first not after the second',
+        'no-outcome': 'Pick a category or a label',
+        'needs-category': 'Cash taken out and a paid loan need a category',
+      },
+      save: 'Save',
+      saved: 'Rule saved',
       changed: 'Rule changed',
       goesTo: 'Where the money goes',
       goesToHelp: 'Cash taken out at a cash machine, such as Bankomat at OTP, goes to a cash account, and Kuna adds it there.',
@@ -149,6 +196,19 @@ export const en = {
       noLoan: 'No loan',
       interestUnder: 'Interest under',
     },
+    apply: {
+      title: 'Apply to rows already in the book?',
+      changes: (count: number): EnglishForms => ({ one: '1 row already in the book would change.', other: `${count} rows already in the book would change.` }),
+      kept: "Rows you filed yourself keep their category either way. Apply adds the rule's labels to them.",
+      keptCategory: 'Rows you filed yourself keep their category either way.',
+      nothing: 'No row already in the book would change. The rule files the rows that come later.',
+      joins: 'A rule with these conditions is already there, so this changes it.',
+      apply: 'Apply',
+      onlyNew: 'Only new rows',
+      refile: 'Re-file the rows',
+      leave: 'Leave the rows as filed',
+      back: 'Back',
+    },
     paysLoan: (loan: string) => `Pays ${loan}, each row linked to its instalment`,
     paysGone: 'Pays a loan Loans no longer has',
     paysUnread: 'Pays a loan in Loans, which cannot be read now',
@@ -157,9 +217,6 @@ export const en = {
     makeRule: 'Make rule',
     withdrawalTo: (account: string) => `Cash taken out, into ${account}`,
     withdrawalByCurrency: 'Cash taken out, into the cash account in the same currency',
-    contains: (text: string) => `Payee contains ${text}`,
-    iban: (iban: string) => `Other side's IBAN is ${iban}`,
-    files: (count: number): EnglishForms => ({ one: 'Files 1 row', other: `Files ${count} rows` }),
     confirm: 'Save the rule',
     made: 'Rule saved',
     delete: (rule: string) => `Delete the rule: ${rule}`,
@@ -275,38 +332,84 @@ export const hr: Translation<typeof en> = {
   },
   rules: {
     title: 'Pravila',
-    subtitle: 'Svaka kategorija s primateljima i IBAN-ovima po kojima se u nju razvrstavaju stavke izvoda. Stavka koju ste sami razvrstali ostaje kakva jest.',
+    subtitle:
+      'Provjeravaju se odozgo. Kategoriju stavke određuje prvo pravilo koje joj odgovara i razvrstava, a oznake prvo koje joj odgovara i dodaje oznake. Stavka koju ste sami razvrstali zadržava kategoriju.',
     empty: 'Još nema pravila',
-    emptyDescription: 'Dodajte primatelje ili IBAN-ove za neku kategoriju, ili odaberite kategoriju na kartici Za pregled, a zatim Uvijek za ovog primatelja.',
-    add: 'Dodaj pravila',
-    addHere: 'Dodaj',
-    addTo: (category) => `Dodaj primatelje ili IBAN-ove u kategoriju ${category}`,
-    count: (count): CroatianForms => ({ one: `${count} pravilo`, few: `${count} pravila`, other: `${count} pravila` }),
+    emptyDescription: 'Dodajte pravilo za primatelje, IBAN-ove ili iznose koje kategorija razvrstava, ili odaberite kategoriju na kartici Za pregled, a zatim Uvijek za ovog primatelja.',
+    add: 'Dodaj pravilo',
     edit: (rule) => `Promijeni pravilo: ${rule}`,
-    overlapTitle: 'Dvije kategorije mogu razvrstati istog primatelja',
-    overlap: (first, then, firstOnlyMoneyIn) =>
-      firstOnlyMoneyIn
-        ? `${first.test} u kategoriji ${first.category} i ${then.test} u kategoriji ${then.category} mogu odgovarati istom primatelju. Uplate razvrstava ${first.category} jer se njezino pravilo provjerava prvo, a isplate ${then.category}.`
-        : `${first.test} u kategoriji ${first.category} i ${then.test} u kategoriji ${then.category} mogu odgovarati istom primatelju. Odlučuje ${first.category} jer se njezino pravilo provjerava prvo.`,
+    moveUp: (rule) => `Provjeravaj ranije: ${rule}`,
+    moveDown: (rule) => `Provjeravaj kasnije: ${rule}`,
+    moved: 'Pravilo je premješteno',
+    filesUnder: (category) => `Razvrstava u kategoriju ${category}`,
+    labelsOnly: 'Samo oznake',
+    stopHere: 'Stani ovdje',
+    overlapTitle: 'Stavke kojima odgovaraju dva pravila',
+    overlap: (first, then, count): CroatianForms => ({
+      one: `${count} stavka odgovara i pravilu ${first} i pravilu ${then}. Odlučuje ${first} jer se provjerava prvo.`,
+      few: `${count} stavke odgovaraju i pravilu ${first} i pravilu ${then}. Odlučuje ${first} jer se provjerava prvo.`,
+      other: `${count} stavki odgovara i pravilu ${first} i pravilu ${then}. Odlučuje ${first} jer se provjerava prvo.`,
+    }),
     quoted: (fragment) => `„${fragment}”`,
+    tests: {
+      payee_is: 'Primatelj je',
+      payee_contains: 'Primatelj sadrži',
+      payee_starts_with: 'Primatelj počinje s',
+      payee_matches: 'Primatelj odgovara regularnom izrazu',
+      iban_is: 'IBAN druge strane je',
+      iban_none: 'Nema IBAN',
+      description_contains: 'Opis sadrži',
+      description_starts_with: 'Opis počinje s',
+      description_matches: 'Opis odgovara regularnom izrazu',
+      money_in: 'Uplata',
+      money_out: 'Isplata',
+      amount_at_least: 'Iznos najmanje',
+      amount_at_most: 'Iznos najviše',
+      accounts: 'Račun je',
+      days: 'Dan u mjesecu',
+      currencies: 'Valuta je',
+    },
+    not: (test) => `Nije: ${test}`,
+    dayRange: (from, to) => `${from}–${to}`,
     dialog: {
-      addTitle: 'Dodaj pravila',
+      addTitle: 'Dodaj pravilo',
       editTitle: 'Promijeni pravilo',
-      description: 'Novo pravilo provjerava se nakon postojećih, a stavku razvrstava prvo pravilo koje joj odgovara.',
-      category: 'Kategorija',
+      description: 'Stavci mora odgovarati svaki uvjet. Uvjet s više vrijednosti odgovara kad odgovara bilo koja od njih.',
+      conditions: 'Uvjeti',
+      addCondition: 'Dodaj uvjet',
+      removeCondition: (place) => `Ukloni uvjet ${place}`,
+      test: 'Provjera',
+      values: 'Vrijednosti',
+      valuesHelp: 'Jedna u retku. Može odgovarati bilo koja. Velika slova i kvačice ne broje se.',
+      patternHelp: 'Jedan u retku, primjerice ^ina\\b. Velika slova i kvačice ne broje se.',
+      ibanHelp: 'Jedan u retku.',
+      amount: 'Iznos',
+      amountHelp: 'Bez predznaka, u valuti računa stavke.',
+      accounts: 'Računi',
+      currencies: 'Valute',
+      from: 'Od dana',
+      to: 'Do dana',
+      not: 'Obrni',
+      notHelp: 'Pravilo tada traži stavku kojoj ovaj uvjet ne odgovara.',
+      category: 'Razvrstaj u',
       pickCategory: 'Odaberi kategoriju',
-      lines: 'Primatelji ili IBAN-ovi',
-      linesHelp: 'Jedan u retku. IBAN se uspoređuje s drugom stranom plaćanja. Ostale riječi traže se u imenu primatelja.',
-      line: 'Primatelj ili IBAN',
-      lineHelp: 'IBAN se uspoređuje s drugom stranom plaćanja. Ostale riječi traže se u imenu primatelja.',
-      aLine: 'Upiši primatelja ili IBAN',
-      readAs: 'Kuna ovo čita kao',
-      nothingNew: 'Ova kategorija već ima sve upisane retke.',
-      already: 'Već je ovdje',
-      moves: (category) => `Premješta se ovamo iz kategorije ${category}`,
-      save: (count): CroatianForms => ({ one: `Spremi ${count} pravilo`, few: `Spremi ${count} pravila`, other: `Spremi ${count} pravila` }),
-      saveChange: 'Spremi',
-      saved: (count): CroatianForms => ({ one: `Spremljeno je ${count} pravilo`, few: `Spremljena su ${count} pravila`, other: `Spremljeno je ${count} pravila` }),
+      noCategory: 'Bez kategorije, samo oznake',
+      labels: 'Oznake',
+      labelsHelp:
+        'Dodaju se svakoj stavci kojoj pravilo odgovara, i onima koje ste sami razvrstali. One zadržavaju kategoriju koju ste im dali. Oznaka koju je pravilo dodalo skida se kad je pravilo više ne daje.',
+      stop: 'Stani ovdje',
+      stopHelp: 'Nijedno pravilo nakon ovoga ne provjerava se za stavku kojoj odgovara.',
+      problems: {
+        'no-condition': 'Dodaj uvjet',
+        'repeated-test': 'Svaka provjera ide jednom, i još jednom obrnuta. Stavi njezine vrijednosti u jedan uvjet',
+        'no-value': 'Upiši vrijednost u svaki uvjet',
+        'not-a-pattern': 'Jedna od vrijednosti nije regularni izraz',
+        'not-days': 'Odaberi dane od 1 do 31, prvi ne poslije drugog',
+        'no-outcome': 'Odaberi kategoriju ili oznaku',
+        'needs-category': 'Podignuta gotovina i plaćeni kredit traže kategoriju',
+      },
+      save: 'Spremi',
+      saved: 'Pravilo je spremljeno',
       changed: 'Pravilo je promijenjeno',
       goesTo: 'Kamo ide novac',
       goesToHelp: 'Gotovina podignuta na bankomatu, kao Bankomat u OTP-u, ide na račun gotovine, a Kuna je dodaje tamo.',
@@ -317,6 +420,23 @@ export const hr: Translation<typeof en> = {
       noLoan: 'Nijedan kredit',
       interestUnder: 'Kamata u kategoriji',
     },
+    apply: {
+      title: 'Primijeniti na stavke koje su već u knjizi?',
+      changes: (count): CroatianForms => ({
+        one: `Promijenila bi se ${count} stavka koja je već u knjizi.`,
+        few: `Promijenile bi se ${count} stavke koje su već u knjizi.`,
+        other: `Promijenilo bi se ${count} stavki koje su već u knjizi.`,
+      }),
+      kept: 'Stavke koje ste sami razvrstali u svakom slučaju zadržavaju kategoriju. Primijeni im dodaje oznake pravila.',
+      keptCategory: 'Stavke koje ste sami razvrstali u svakom slučaju zadržavaju kategoriju.',
+      nothing: 'Nijedna stavka koja je već u knjizi ne bi se promijenila. Pravilo razvrstava stavke koje stignu kasnije.',
+      joins: 'Pravilo s ovim uvjetima već postoji, pa ga ovo mijenja.',
+      apply: 'Primijeni',
+      onlyNew: 'Samo nove stavke',
+      refile: 'Ponovno razvrstaj stavke',
+      leave: 'Ostavi stavke kako jesu',
+      back: 'Natrag',
+    },
     paysLoan: (loan) => `Plaća kredit ${loan}, svaka stavka povezana sa svojom ratom`,
     paysGone: 'Plaća kredit kojeg Krediti više nemaju',
     paysUnread: 'Plaća kredit iz Kredita koji se sada ne može pročitati',
@@ -325,9 +445,6 @@ export const hr: Translation<typeof en> = {
     makeRule: 'Napravi pravilo',
     withdrawalTo: (account) => `Podignuta gotovina, na račun ${account}`,
     withdrawalByCurrency: 'Podignuta gotovina, na račun gotovine u istoj valuti',
-    contains: (text) => `Primatelj sadrži ${text}`,
-    iban: (iban) => `IBAN druge strane je ${iban}`,
-    files: (count): CroatianForms => ({ one: `Razvrstava ${count} stavku`, few: `Razvrstava ${count} stavke`, other: `Razvrstava ${count} stavki` }),
     confirm: 'Spremi pravilo',
     made: 'Pravilo je spremljeno',
     delete: (rule) => `Obriši pravilo: ${rule}`,
@@ -336,3 +453,30 @@ export const hr: Translation<typeof en> = {
 }
 
 export const words = language === 'hr' ? hr : en
+
+/** What a condition's values read as: words in quotes, an IBAN in groups, an amount with no sign or currency, since the row's account gives both. */
+function valuesOf(condition: SpendingRuleCondition, accountName: (id: string) => string): readonly string[] {
+  if ('values' in condition) return condition.test === 'iban_is' ? condition.values.map(groupedIban) : condition.values.map(words.rules.quoted)
+  if ('amount' in condition) return [formatPlainAmount(condition.amount)]
+  if ('accounts' in condition) return condition.accounts.map(accountName)
+  if ('currencies' in condition) return condition.currencies
+  if ('days' in condition) return [words.rules.dayRange(condition.days.from, condition.days.to)]
+  return []
+}
+
+/** What a condition looks for, without its test, such as “caffe” or “coffee”. */
+export function conditionValuesOf(condition: SpendingRuleCondition, accountName: (id: string) => string): string {
+  return listInWords(valuesOf(condition, accountName), 'or')
+}
+
+/** What a condition tests, as a person reads it, such as Payee contains “caffe” or “coffee”. */
+export function conditionTestOf(condition: SpendingRuleCondition, accountName: (id: string) => string): string {
+  const values = conditionValuesOf(condition, accountName)
+  const test = values === '' ? words.rules.tests[condition.test] : `${words.rules.tests[condition.test]} ${values}`
+  return condition.not ? words.rules.not(test) : test
+}
+
+/** What a rule tests, one condition after the other, for a button's name, a warning or a card. */
+export function ruleTestOf(rule: Pick<SpendingRule, 'conditions'>, accountName: (id: string) => string): string {
+  return rule.conditions.map((condition) => conditionTestOf(condition, accountName)).join(' · ')
+}

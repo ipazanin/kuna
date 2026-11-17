@@ -1,3 +1,4 @@
+import { conditionTestOf, ruleTestOf, words as statementWords } from '../../statements/presentation/words'
 import { deletesRecords } from '../../accounts/domain/startDayMove'
 import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
 import type { SpendingEvent } from '../../workbook/domain/event'
@@ -52,6 +53,7 @@ export const KEPT_BY_KUNA: ReadonlySet<string> = new Set([
   'transaction',
   'receipt',
   'splitByLink',
+  'ruleLabels',
 ])
 
 /** The fields that say where money or mail goes, which the owner lets a model fill with a warning on the field. */
@@ -106,9 +108,8 @@ function shownValue(
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'rowsFrom') return accountWords.rowsFrom[record.rowsFrom]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'cards') return record.cards.length === 0 ? null : cardsText(record.cards)
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
-  if (isKind(kind, RULE_RECORDS, record) && field === 'condition') {
-    return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
-  }
+  if (isKind(kind, RULE_RECORDS, record) && field === 'conditions') return record.conditions.map((condition) => conditionTestOf(condition, (id) => namesOf.get(id) ?? '')).join(' · ')
+  if (isKind(kind, RULE_RECORDS, record) && field === 'labels') return record.labels.length === 0 ? null : record.labels.map((label) => namesOf.get(label) ?? '').join(', ')
   if (isKind(kind, TRANSACTION_RECORDS, record) && field === 'amount') {
     const currency = currencyOf(record, book)
     return currency === null ? null : formatAccountMoney(record.amount, currency)
@@ -141,7 +142,7 @@ function labelOf(
   payeeOf: (row: RecordId | null) => string,
 ): string {
   if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category ?? categoryOf(record.id)) ?? fallback)
-  if (isKind(kind, RULE_RECORDS, record)) return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
+  if (isKind(kind, RULE_RECORDS, record)) return ruleTestOf(record, (id) => namesOf.get(id) ?? '')
   if (isKind(kind, BUDGET_RECORDS, record)) return namesOf.get(record.category) ?? fallback
   if (isKind(kind, RECEIPT_RECORDS, record)) return record.merchant !== '' ? record.merchant : fallback
   if (isKind(kind, ITEM_RECORDS, record)) {
@@ -212,10 +213,12 @@ export interface CardWarnings {
   /** Each on the group it belongs to, the receipts or the entry a receipt makes or fills. */
   readonly receipts: readonly CardNote[]
   readonly moves: readonly StartDayMove[]
+  /** How many rows already in the book the card's rule changes change, none when they are kept for new rows only. */
+  readonly refiled: number
 }
 
 /** A card that warns on nothing beyond its changes. */
-export const NO_WARNINGS: CardWarnings = { leftOut: null, receipts: [], moves: [] }
+export const NO_WARNINGS: CardWarnings = { leftOut: null, receipts: [], moves: [], refiled: 0 }
 
 /** What moving an account's start day does, as the account dialog says it: what goes and the opening worked out, or that the bank reaches back only about 90 days. */
 function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | null {
@@ -226,9 +229,16 @@ function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | nu
   return { label, text: [`${title}: ${listInWords(goes)}.`, ...(loneLegs === null ? [] : [loneLegs]), opening].join(' '), tone: 'warning' }
 }
 
+/** How many rows already in the book the card's rules would change, which Only new rows leaves as they are. */
+function refiledNote(rows: number): ProposalNote {
+  const { apply } = statementWords.rules
+  return { label: apply.title, text: `${plural(apply.changes(rows), rows)} ${apply.keptCategory}`, tone: 'neutral' }
+}
+
 /** What a new category, account or part of an entry holds unless a person sets it, which a card leaves off its add. */
 export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
-  if (kind.name === ITEM_RECORDS.name) return { labels: [], event: BY_DAYS, splitByLink: false }
+  if (kind.name === ITEM_RECORDS.name) return { labels: [], ruleLabels: [], event: BY_DAYS, splitByLink: false }
+  if (kind.name === RULE_RECORDS.name) return { labels: [], stop: false }
   return kind.name === CATEGORY_RECORDS.name ? NEW_CATEGORY_DEFAULTS : kind.name === ACCOUNT_RECORDS.name ? NEW_ACCOUNT_DEFAULTS : {}
 }
 
@@ -237,7 +247,7 @@ export function proposalGroupsOf(
   checked: CheckedWrite,
   before: SpendingBook,
   targetsOf: (app: string) => AppTargets<LinkTarget>,
-  { leftOut, receipts, moves }: CardWarnings,
+  { leftOut, receipts, moves, refiled }: CardWarnings,
 ): readonly ProposalGroup[] {
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
   const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
@@ -272,7 +282,8 @@ export function proposalGroupsOf(
     shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, targetsOf, byDaysOf),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf, categoryOf, payeeOf),
     defaultsOf: defaultsOnAdd,
-    warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
+    warns: (kind, field, after) =>
+      WARNS.has(field) || (field === 'conditions' && after !== null && isKind(kind, RULE_RECORDS, after) && after.conditions.some((condition) => condition.test === 'iban_is')),
   }
   const statementNotes = leftOut === null ? [] : [lookAlikeNote(leftOut, book), leftOutNote(leftOut), inKunaNote(leftOut)].flatMap((note) => (note === null ? [] : [note]))
   const notes: CardNote[] = [
@@ -282,6 +293,7 @@ export function proposalGroupsOf(
       const note = startDayNote(move, book)
       return note === null ? [] : [{ noun: ACCOUNT_RECORDS.noun, note }]
     }),
+    ...(refiled === 0 ? [] : [{ noun: RULE_RECORDS.noun, note: refiledNote(refiled) }]),
   ]
   return withNotes(
     proposalGroups(checked, () => describer),

@@ -87,7 +87,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   },
   {
     reason:
-      'Fields Kuna works out from what the person chose: which form or operation was used, the facts of the row or the span, what a split part was opened as, and whether a link split a part off.',
+      'Fields Kuna works out from what the person chose: which form or operation was used, the facts of the row or the span, what a split part was opened as, whether a link split a part off, and which labels a rule put on.',
     fields: [
       'company: PlanLine.kind',
       'company: ScenarioRow.key',
@@ -96,7 +96,6 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'company: RowVerdict.verdict.flaggedBy',
       'company: SplitPartDraft.opened.category',
       'company: SplitPartDraft.opened.ownerShare',
-      'spending: SpendingRuleCondition.column',
       'investments: Transfer.moved.kind',
       'investments: FundMixLine.slice.mix',
       'investments: Target.slice.mix',
@@ -108,6 +107,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Account.closed',
       'spending: TransactionItem.category',
       'spending: TransactionItem.splitByLink',
+      'spending: TransactionItem.ruleLabels',
       'spending: fixOpening.opening',
     ],
   },
@@ -253,7 +253,6 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/receipts/application/receiptWrites.ts#removeWaitingReceipt',
       'src/apps/spending/labels/application/labelWrites.ts#deleteLabel',
       'src/apps/spending/events/application/eventWrites.ts#deleteEvent',
-      'src/apps/spending/statements/application/statementWrites.ts#deleteRule',
       'src/apps/spending/shortcuts/application/shortcutWrites.ts#deleteShortcut',
     ],
   },

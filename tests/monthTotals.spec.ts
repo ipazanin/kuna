@@ -30,6 +30,7 @@ function linesOf(transaction: Transaction, parts: readonly (readonly [number, st
     category: category(path).id,
     link: null,
     labels: [],
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   }))

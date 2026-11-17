@@ -35,8 +35,9 @@ import type { ItemDraft } from '../../entries/domain/entrySplit'
 import { refiledReceiptLines } from '../../receipts/domain/receiptLines'
 import { en as entriesEnglish } from '../../entries/presentation/words'
 import { words as linkWords } from '../../links/presentation/words'
-import { fileRows, importWithRules, writeRules } from '../../statements/application/statementWrites'
-import type { RuleEdits } from '../../statements/application/statementWrites'
+import { words as statementWords } from '../../statements/presentation/words'
+import { fileRows, importWithRules, rowsRulesWouldChange, writeRules } from '../../statements/application/statementWrites'
+import type { RuleEdits, RuleMove } from '../../statements/application/statementWrites'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, cardsOfText, rowsFromRefusal } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
@@ -46,10 +47,13 @@ import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind, isTransferCategory, transferCategoryOf } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
-import { payeeCondition } from '../../workbook/domain/spendingRule'
-import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
+import { payeeCondition, ruleProblem } from '../../workbook/domain/spendingRule'
+import type { RuleDraft, RuleWithdrawal, SpendingRule } from '../../workbook/domain/spendingRule'
+import type { Label } from '../../workbook/domain/label'
+import { CONDITIONS_ABOUT, RULE_CONDITIONS, RULE_PROBLEMS, conditionsOfStep } from './ruleConditionSteps'
+import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import type { RowLink } from '../../workbook/domain/rowLink'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { BY_DAYS } from '../../workbook/domain/event'
 import { fileNotOpen } from '../../../../shared/app/assistantOperations'
@@ -134,28 +138,55 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'add-rule',
-    about:
-      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, by words in a payee's name, or by the other side's IBAN. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency. pays names a bank loan as Loans lists it: each row is then linked to the instalment it pays and split into its interest under the category and its principal under Loan principal, and a row far from the instalment stays whole under the category.",
-    input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL, pays: TEXT_OR_NULL }),
-    refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
-    spellings: ['fragment'],
+    about: `A rule that files rows into a category, adds a label, or both, tried after the rules there are. A row's payee or IBAN by its ref makes the one condition, else ${CONDITIONS_ABOUT} An alias of a person in values covers every way they were written. stop yes ends the trying for a row it holds for. On Accept the person picks whether rows already in the book follow. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency. pays names a bank loan as Loans lists it: each row is then linked to the instalment it pays and split into its interest under the category and its principal under Loan principal.`,
+    input: inputOf({
+      row: TEXT_OR_NULL,
+      conditions: RULE_CONDITIONS,
+      category: TEXT_OR_NULL,
+      label: TEXT_OR_NULL,
+      stop: FLAG_OR_NULL,
+      withdrawal: FLAG_OR_NULL,
+      cash_account: TEXT_OR_NULL,
+      pays: TEXT_OR_NULL,
+    }),
+    refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name, label: LABEL_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
+    spellings: ['conditions.values'],
     creates: null,
     alone: false,
-    example: { row: 'transaction', fragment: null, iban: null, category: 'category', withdrawal: null, cash_account: null, pays: null },
+    example: { row: 'transaction', conditions: [], category: 'category', label: null, stop: null, withdrawal: null, cash_account: null, pays: null },
   },
   {
     name: 'change-rule',
     about:
-      'Fixes a rule: other words, another IBAN, another category, whether it spots cash taken out, the cash account the cash goes to, or the bank loan its rows pay by its name in Loans, none for no loan. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. Rows follow at once.',
-    input: inputOf({ rule: TEXT, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT_OR_NULL, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL, pays: TEXT_OR_NULL }),
-    refs: { rule: RULE_RECORDS.name, category: CATEGORY_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
+      'Fixes a rule: conditions in place of its own, or none to keep them, another category, a label in place of its labels, stop, whether it spots cash taken out, the cash account the cash goes to, or the bank loan its rows pay by its name in Loans, none for no loan. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. On Accept the person picks whether rows already in the book follow.',
+    input: inputOf({
+      rule: TEXT,
+      conditions: RULE_CONDITIONS,
+      category: TEXT_OR_NULL,
+      label: TEXT_OR_NULL,
+      stop: FLAG_OR_NULL,
+      withdrawal: FLAG_OR_NULL,
+      cash_account: TEXT_OR_NULL,
+      pays: TEXT_OR_NULL,
+    }),
+    refs: { rule: RULE_RECORDS.name, category: CATEGORY_RECORDS.name, label: LABEL_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
+    spellings: ['conditions.values'],
     creates: null,
     alone: false,
-    example: { rule: 'rule', fragment: 'Market', iban: null, category: null, withdrawal: null, cash_account: null, pays: null },
+    example: { rule: 'rule', conditions: [{ test: 'payee_starts_with', values: ['Market'], not: false }], category: null, label: null, stop: null, withdrawal: null, cash_account: null, pays: null },
+  },
+  {
+    name: 'move-rule',
+    about: 'Moves a rule one place up, tried earlier, or down, tried later. On Accept the person picks whether rows already in the book follow.',
+    input: inputOf({ rule: TEXT, direction: { type: 'string', enum: ['up', 'down'] } }),
+    refs: { rule: RULE_RECORDS.name },
+    creates: null,
+    alone: true,
+    example: { rule: 'rule', direction: 'down' },
   },
   {
     name: 'delete-rule',
-    about: 'Deletes a rule. The rows it filed follow the rules that are left.',
+    about: 'Deletes a rule. On Accept the person picks whether the rows it filed follow the rules that are left.',
     input: inputOf({ rule: TEXT }),
     refs: { rule: RULE_RECORDS.name },
     creates: null,
@@ -427,10 +458,11 @@ function withdrawalOf(flag: string | null, cashAccount: Account | null, kept: Ru
   return cashAccount === null ? kept : { cashAccount: cashAccount.id }
 }
 
-function conditionOf(fragment: string | null, iban: string | null, kept: SpendingRuleCondition): SpendingRuleCondition {
-  if (iban !== null && iban.trim() !== '') return { column: 'counterparty_iban', iban: iban.replace(/\s+/g, '').toUpperCase() }
-  if (fragment !== null && fragment.trim() !== '') return { column: 'counterparty_contains', fragment: fragment.trim() }
-  return kept
+/** The rule a step drafts, refused in a sentence when it cannot be kept. */
+function draftOf(draft: RuleDraft): RuleDraft {
+  const problem = ruleProblem(draft)
+  if (problem !== null) throw new StepRefused(RULE_PROBLEMS[problem])
+  return draft
 }
 
 /** The cards a step types, or the ones kept on null. */
@@ -516,14 +548,22 @@ const FILING_IMPORTED_ROWS: ReadonlySet<string> = new Set(['add-rule', 'change-r
  * record two steps change is changed once. `loans` are the records in Loans an entry links to, and `kept` holds the Drive id
  * of each receipt photo Accept kept. Gives what the card warns on: what the import leaves out of its statement, and each receipt's checks that failed.
  */
-function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[], ports: SpendingPorts, loans: AppTargets<LinkTarget>, kept: KeptPhotos | undefined): CardWarnings {
+function planned(
+  unit: UnitOfWork,
+  books: OpenBooks<SpendingBooks>,
+  steps: readonly ProposalStep[],
+  ports: SpendingPorts,
+  loans: AppTargets<LinkTarget>,
+  kept: KeptPhotos | undefined,
+  onlyNew: boolean,
+): CardWarnings {
   refuseBesideImport(steps, IMPORTING, FILING_IMPORTED_ROWS)
   if (steps.some(isBankSetupStep)) {
     planBankSetup(unit, books.workbook, steps, ports.device.bankSetup())
     return NO_WARNINGS
   }
   const staged = cardRecords(books.records, SPENDING_CARD_RECORDS)
-  const warnings = plannedSteps(staged.unit, books.workbook, staged.records, steps, ports, loans, kept)
+  const warnings = plannedSteps(staged.unit, books.workbook, staged.records, steps, ports, loans, kept, onlyNew)
   staged.writeInto(unit)
   return warnings
 }
@@ -536,13 +576,18 @@ function plannedSteps(
   ports: SpendingPorts,
   loans: AppTargets<LinkTarget>,
   kept: KeptPhotos | undefined,
+  onlyNew: boolean,
 ): CardWarnings {
   if (steps.some((step) => step.operation === ADD_RECEIPT.name) && steps.some((step) => step.operation === 'add-category'))
     throw new StepRefused('A new category goes on a card before the receipt, and the receipt card files into it once that card is accepted.')
   let book = workbook
   const links = instalmentLinksOf(loans, { language, notes: linkWords.notes })
   const made = new Map<string, string>()
-  const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
+  const edits: { adding: RuleDraft[]; changing: NonNullable<RuleEdits['changing']>[number][]; deleting: SpendingRule[]; moving?: RuleMove } = {
+    adding: [],
+    changing: [],
+    deleting: [],
+  }
   let imported: CardStatement | null = null
   const receiptWarnings: CardNote[] = []
   const moves: StartDayMove[] = []
@@ -553,6 +598,7 @@ function plannedSteps(
   const categoryOf = (value: unknown): Category => found(book.categories, idOf(value), 'category')
   const accountOf = (value: unknown): Account => found(book.accounts, idOf(value), 'account')
   const rowOf = (value: unknown): Transaction => found(book.transactions, idOf(value), 'row')
+  const labelOf = (value: unknown): Label => found(book.labels, idOf(value), 'label')
 
   for (const [at, { operation, input, as }] of steps.entries()) {
     // The chat checked the input against this operation's schema, so each field has the type the schema gives it.
@@ -621,33 +667,38 @@ function plannedSteps(
         break
       case 'add-rule': {
         const row = field['row'] === null ? null : rowOf(field['row'])
-        const fragments: readonly (string | null)[] = Array.isArray(field['fragment']) ? field['fragment'] : [field['fragment']]
-        const iban = field['iban'] as string | null
-        const conditions =
-          row !== null
-            ? [payeeCondition(row)]
-            : iban !== null && iban.trim() !== ''
-              ? [conditionOf(null, iban, { column: 'counterparty_contains', fragment: '' })]
-              : fragments.map((fragment) => conditionOf(fragment, null, { column: 'counterparty_contains', fragment: '' }))
-        const category = categoryOf(field['category']).id
-        const withdrawal = withdrawalOf(field['withdrawal'], field['cash_account'] === null ? null : accountOf(field['cash_account']), null)
-        const link = paidLoanOf(loans, field['pays'], null)
-        for (const condition of conditions) {
-          if (condition === null || (condition.column === 'counterparty_contains' && condition.fragment === ''))
-            throw new StepRefused('A rule needs a row with a payee or an IBAN, words to look for, or an IBAN.')
-          edits.filing.push({ condition, category, withdrawal, link })
+        const conditions = row !== null ? [payeeCondition(row)].flatMap((condition) => condition ?? []) : conditionsOfStep(field['conditions'], book.accounts)
+        if (conditions.length === 0) throw new StepRefused('A rule needs a row with a payee or an IBAN, or conditions.')
+        const draft: RuleDraft = {
+          conditions,
+          category: field['category'] === null ? null : categoryOf(field['category']).id,
+          labels: field['label'] === null ? [] : [labelOf(field['label']).id],
+          stop: flagOf(field['stop'], false),
+          withdrawal: withdrawalOf(field['withdrawal'], field['cash_account'] === null ? null : accountOf(field['cash_account']), null),
+          link: paidLoanOf(loans, field['pays'], null),
         }
+        edits.adding.push(draftOf(draft))
         break
       }
       case 'change-rule': {
         const rule = found(book.rules, idOf(field['rule']), 'rule')
-        edits.fixing.push({
-          rule,
-          condition: conditionOf(field['fragment'], field['iban'], rule.condition),
+        const typed: readonly unknown[] = field['conditions']
+        const draft: RuleDraft = {
+          conditions: typed.length === 0 ? rule.conditions : conditionsOfStep(field['conditions'], book.accounts),
           category: field['category'] === null ? rule.category : categoryOf(field['category']).id,
+          labels: field['label'] === null ? rule.labels : [labelOf(field['label']).id],
+          stop: flagOf(field['stop'], rule.stop),
           withdrawal: withdrawalOf(field['withdrawal'], field['cash_account'] === null ? null : accountOf(field['cash_account']), rule.withdrawal),
           link: paidLoanOf(loans, field['pays'], rule.link),
-        })
+        }
+        edits.changing.push({ rule, draft: draftOf(draft) })
+        break
+      }
+      case 'move-rule': {
+        const rule = found(book.rules, idOf(field['rule']), 'rule')
+        const tried = inTryingOrder(book.rules)
+        if (tried.at(field['direction'] === 'up' ? 0 : -1) === rule) throw new StepRefused(`That rule is already ${field['direction'] === 'up' ? 'first' : 'last'}.`)
+        edits.moving = { rule: rule.id, direction: field['direction'] === 'up' ? 'up' : 'down' }
         break
       }
       case 'delete-rule':
@@ -932,24 +983,28 @@ function plannedSteps(
         throw new StepRefused('There is no such operation.')
     }
   }
+  const editsRules = edits.adding.length + edits.changing.length + edits.deleting.length > 0 || edits.moving !== undefined
+  // Only new rows changes no row already in the book, so its card says nothing of them.
+  const refiled = editsRules && !onlyNew ? rowsRulesWouldChange(book, edits, links) : 0
   if (imported !== null) {
-    const run = importWithRules(unit, book, edits, imported.statement, today(), links)
+    const run = importWithRules(unit, book, edits, imported.statement, today(), links, !onlyNew)
     const leftOut = statementLeftOut(imported, run)
     const lookAlikes = leftOut.lookAlikes.map(({ number }) => number)
     if (lookAlikes.length > 0 && run.added.length + run.changed.length === 0) throw new StepRefused(lookAlikesForTheModel(lookAlikes, true))
-    return { leftOut, receipts: receiptWarnings, moves }
+    return { leftOut, receipts: receiptWarnings, moves, refiled }
   }
-  if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits, links)
-  return { leftOut: null, receipts: receiptWarnings, moves }
+  if (editsRules) writeRules(unit, book, edits, links, !onlyNew)
+  return { leftOut: null, receipts: receiptWarnings, moves, refiled }
 }
 
 /** How the chat's steps become one write of the Spending file. The card warns on what its own plan leaves out or doubts. A receipt photo kept on Drive stays there after Undo. */
 function spendingWork(appName: string, ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPhotos, CardWarnings> {
   return {
     appName,
-    plan: (unit, books, steps, kept) => {
-      return planned(unit, books, steps, ports, ports.loanTargets(), kept)
+    plan: (unit, books, steps, kept, onlyNew) => {
+      return planned(unit, books, steps, ports, ports.loanTargets(), kept, onlyNew)
     },
+    narrower: (warnings) => (warnings.refiled === 0 ? null : statementWords.rules.apply.onlyNew),
     card: (checked, { workbook }, warnings, steps) => ({
       groups: proposalGroupsOf(checked, workbook, ports.linkTargets, warnings),
       outside: receiptsOutside(steps),

@@ -22,6 +22,8 @@ export interface TransactionItem {
   readonly link: RowLink | null
   /** The labels this money carries, in the order they were put on it. A label sits beside the category and changes no figure of it. */
   readonly labels: readonly RecordId[]
+  /** Those of `labels` a rule put on, which a rule change may take off again. A label put on by hand is never among them. */
+  readonly ruleLabels: readonly RecordId[]
   /** Whether the money joins an event by its row's day, was put in one by hand, or was taken out of every event. An event changes no figure of the category. */
   readonly event: EventChoice
   /** Whether linking the entry to a loan's instalment split this part off, as against a part you made or a receipt's line. */

@@ -68,8 +68,10 @@ export function learnedPayees(book: Pick<SpendingBook, 'transactions' | 'items' 
 function learnedIbans(book: OffersBook): ReadonlyMap<string, ReadonlySet<string>> {
   const ibans = new Map<string, Set<string>>()
   for (const { loan, condition } of learnedPayees(book)) {
-    if (condition.column !== 'counterparty_iban') continue
-    ibans.set(loanOf(loan), (ibans.get(loanOf(loan)) ?? new Set()).add(normaliseIban(condition.iban)))
+    if (condition.test !== 'iban_is') continue
+    const known = ibans.get(loanOf(loan)) ?? new Set()
+    condition.values.forEach((iban) => known.add(normaliseIban(iban)))
+    ibans.set(loanOf(loan), known)
   }
   return ibans
 }
@@ -93,7 +95,7 @@ export function loanRuleOffers(book: Pick<SpendingBook, 'transactions' | 'items'
     const [first] = ofLoan
     if (first === undefined || first.interest === null) return []
     if (book.rules.some((rule) => rule.link !== null && sameRecord(rule.link, loan.link))) return []
-    if (ofLoan.some((payee) => book.rules.some((rule) => sameCondition(rule.condition, payee.condition)))) return []
+    if (ofLoan.some((payee) => book.rules.some((rule) => rule.conditions.some((condition) => sameCondition(condition, payee.condition))))) return []
     return [{ loan, condition: first.condition, category: first.interest }]
   })
 }

@@ -8015,7 +8015,7 @@ export function spendingRuleFlowIn(language) {
         review.always,
       )
       await press(always.asElement())
-      const wanted = countedIn(words, rules.files(1), 1)
+      const wanted = countedIn(words, rules.apply.changes(1), 1)
       await page
         .waitForFunction((text) => document.querySelector('[data-testid="spending-rule-files"]')?.textContent?.trim() === text, { timeout: 10_000 }, wanted)
         .catch(() => {
@@ -8024,7 +8024,7 @@ export function spendingRuleFlowIn(language) {
       await delay(300)
     }
     await fileThenAsk()
-    await inspect?.('the rule dialog with how many rows it files')
+    await inspect?.('the rule dialog with how many rows already in the book it changes, Apply and Only new rows')
     await shoot('spending-rule-asks')
     await pressSelector(page, press, '[data-testid="spending-rule-cancel"]')
     await page.waitForFunction(() => document.querySelector('[data-testid="spending-rule-files"]') === null, { timeout: 5_000 })
@@ -8043,16 +8043,24 @@ export function spendingRuleFlowIn(language) {
       window.location.hash = '#/spending/settings?tab=rules'
     })
     await page.waitForSelector('[data-testid="spending-rule"]', { visible: true, timeout: 10_000 })
-    await countOf(page, '[data-testid="spending-rule"]', 4, 'Settings, Rules should list the four rules')
+    await countOf(page, '[data-testid="spending-rule"]', 5, 'Settings, Rules should list the five rules')
     await delay(300)
     await inspect?.('Settings, Rules with the new rule')
     await shoot('spending-rule-made')
     const buttons = await page.$$('[data-testid="spending-rule-delete"]')
     await press(buttons.at(-1))
+    // The rule filed a row, so Delete asks whether it follows the rules that are left.
+    await page.waitForSelector('[data-testid="spending-rule-apply-dialog"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('Delete on a rule that filed rows does not ask whether they follow the rules that are left')
+    })
+    await delay(300)
+    await inspect?.('Delete asking whether the rows the rule filed follow the rules that are left')
+    await shoot('spending-rule-delete-asks')
+    await pressSelector(page, press, '[data-testid="spending-rule-confirm"]')
     await toast(page, rules.deleted)
-    await countOf(page, '[data-testid="spending-rule"]', 3, 'Delete should take the rule off')
+    await countOf(page, '[data-testid="spending-rule"]', 4, 'Delete should take the rule off')
     await undoIn(page, press, words)
-    await countOf(page, '[data-testid="spending-rule"]', 4, 'Undo should bring the rule back')
+    await countOf(page, '[data-testid="spending-rule"]', 5, 'Undo should bring the rule back')
     await dismissToasts(page)
   }
 }
@@ -8066,101 +8074,213 @@ async function setTextArea(textarea, value) {
   }, value)
 }
 
-/** The rule group on Settings, Rules whose heading names this category. */
-async function ruleGroupOf(page, name) {
+/** The rule on Spending's Settings, Rules whose text holds these words. */
+async function spendingRuleOf(page, words) {
   return page
-    .waitForFunction(
-      (wanted) =>
-        [...document.querySelectorAll('[data-testid="spending-rule-group"]')].find((group) => group.querySelector('[data-testid="spending-rule-group-name"]')?.textContent?.trim() === wanted) ?? null,
-      { timeout: 10_000 },
-      name,
-    )
+    .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="spending-rule"]')].find((row) => row.textContent?.includes(wanted)) ?? null, { timeout: 10_000 }, words)
     .then((handle) => handle.asElement())
     .catch(() => {
-      throw new Error(`no rule group named "${name}"`)
+      throw new Error(`no rule that reads "${words}"`)
     })
 }
 
+/** The condition at `place` in the rule dialog, its test picked and its values typed. */
+async function fillCondition(page, press, place, test, values) {
+  const conditions = await page.$$('[data-testid="spending-rule-condition"]')
+  const condition = conditions[place]
+  if (condition === undefined) throw new Error(`no condition ${place + 1} in the rule dialog`)
+  await choose(page, press, await condition.$('[data-testid="spending-rule-condition-test"]'), test)
+  if (values !== null) await setTextArea(await condition.$('textarea'), values)
+  return condition
+}
+
 /**
- * On Settings, Rules with the statements set: Add rules files three Ina stations into Fuel at once with one Undo, Groceries' own Add
- * then takes Ina, which both groups warn about since Fuel's rules are tried first, and a Fuel rule is changed on its own.
+ * On Settings, Rules with the statements set, whose rules show in the order they are tried: Add a rule files three Ina stations
+ * into Fuel as one condition with three values, saved at once since no row already in the book changes, with one Undo. A rule for
+ * Corner into Eating out then saves behind the Groceries rule, which the card warns about on the rows both fit, and moving it up
+ * puts it first.
  */
 export function spendingRulesAddFlowIn(language) {
   const words = SCREEN_WORDS[language]
   const { rules } = words.spendingStatements
   const fuel = words.spendingStarter.Fuel
-  const groceries = words.spendingStarter.Groceries
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const GROUP = '[data-testid="spending-rule-group"]'
+    const RULE = '[data-testid="spending-rule"]'
     const OVERLAP = '[data-testid="spending-rule-overlap"]'
-    await countOf(page, GROUP, 3, 'the set should start with three rule groups')
+    await countOf(page, RULE, 4, 'the set should start with four rules')
     await pressSelector(page, press, '[data-testid="spending-rules-add"]')
     await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
+    await fillCondition(page, press, 0, rules.tests.payee_starts_with, 'Ina Zadar\nIna Pleternica\nIna Kozjak Sjever')
     await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), fuel)
-    const pickedFuel = `${fuel} · ${words.spendingStarter.Transport}`
-    await page
-      .waitForFunction((text) => document.querySelector('[data-testid="spending-rule-dialog-category"]')?.textContent?.trim() === text, { timeout: 5_000 }, pickedFuel)
-      .catch(() => {
-        throw new Error(`the category picker should read "${pickedFuel}"`)
-      })
-    await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina Zadar\nIna Pleternica\nIna Kozjak Sjever')
-    await countOf(page, '[data-testid="spending-rule-dialog-read-line"]', 3, 'the dialog should read three payees')
     await delay(300)
-    await inspect?.('the rule dialog with three payees for Fuel')
+    await inspect?.('the rule dialog with three payees for Fuel in one condition')
     await shoot('spending-rules-add-dialog')
     await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
-    await toast(page, countedIn(words, rules.dialog.saved(3), 3))
-    await countOf(page, GROUP, 4, 'Fuel should join as a group')
-    const fuelGroup = await ruleGroupOf(page, fuel)
-    if ((await fuelGroup.$$('[data-testid="spending-rule"]')).length !== 3) throw new Error('Fuel should hold the three payees')
+    await toast(page, rules.dialog.saved)
+    await countOf(page, RULE, 5, 'the Fuel rule should join the list')
+    await spendingRuleOf(page, 'Ina Kozjak Sjever')
     await undoIn(page, press, words)
-    await countOf(page, GROUP, 3, 'one Undo should take all three rules back')
+    await countOf(page, RULE, 4, 'one Undo should take the rule back')
     await dismissToasts(page)
+
     await pressSelector(page, press, '[data-testid="spending-rules-add"]')
     await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
-    await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), fuel)
-    await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina Zadar\nIna Pleternica\nIna Kozjak Sjever')
+    await fillCondition(page, press, 0, rules.tests.payee_contains, 'Corner')
+    await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), words.spendingStarter['Eating out'])
     await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
-    await toast(page, countedIn(words, rules.dialog.saved(3), 3))
-    await countOf(page, GROUP, 4, 'Fuel should join as a group')
+    await toast(page, rules.dialog.saved)
+    await countOf(page, RULE, 5, 'the Corner rule should join the list')
+    await page.waitForSelector(OVERLAP, { visible: true, timeout: 10_000 })
     await dismissToasts(page)
     await delay(300)
-    await inspect?.('Settings, Rules grouped by category')
-    await shoot('spending-rules-grouped')
-
-    await press(await (await ruleGroupOf(page, groceries)).$('[data-testid="spending-rule-group-add"]'))
-    await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
-    await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina')
-    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
-    await toast(page, countedIn(words, rules.dialog.saved(1), 1))
-    await countOf(page, OVERLAP, 2, 'Fuel and Groceries should both warn that they can file one payee')
-    await dismissToasts(page)
+    await inspect?.('Settings, Rules in the order they are tried, warning on the rows two rules fit')
+    await shoot('spending-rules-ordered')
     await shootAt(page, shoot, OVERLAP, 'spending-rules-overlap')
 
-    const kozjak = (await (await ruleGroupOf(page, fuel)).$$('[data-testid="spending-rule-edit"]')).at(-1)
-    await press(kozjak)
-    await page.waitForSelector('[data-testid="spending-rule-dialog-line"]', { visible: true, timeout: 5_000 })
-    await setField(await page.$('[data-testid="spending-rule-dialog-line"] input, input[data-testid="spending-rule-dialog-line"]'), 'Ina Kozjak')
-    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
-    await toast(page, rules.dialog.changed)
-    await page.waitForFunction(
-      (text) => [...document.querySelectorAll('[data-testid="spending-rule"]')].some((row) => row.textContent?.trim() === text),
-      { timeout: 5_000 },
-      rules.contains('Ina Kozjak'),
-    )
+    const last = (await page.$$('[data-testid="spending-rule-up"]')).at(-1)
+    await press(last)
+    await toast(page, rules.moved)
+    const tests = await page.$$eval('[data-testid="spending-rule"]', (rows) => rows.map((row) => row.querySelector('[data-testid="spending-rule-test"]')?.textContent?.trim() ?? ''))
+    if (!tests.at(-2)?.includes('Corner') || tests.at(-2) === tests[0]) throw new Error(`moving up should put the Corner rule one place earlier, the rules read ${tests.join(' | ')}`)
     await undoIn(page, press, words)
-    await page.waitForFunction(
-      (text) => [...document.querySelectorAll('[data-testid="spending-rule"]')].some((row) => row.textContent?.trim() === text),
-      { timeout: 5_000 },
-      rules.contains('Ina Kozjak Sjever'),
-    )
+    await dismissToasts(page)
+  }
+}
+
+/** Shoots and answers Apply when a change to the rules asks whether the rows already in the book follow, which it does only when some would change. */
+async function applyIfAsked(page, press, shoot, name) {
+  const asked = await page.waitForSelector('[data-testid="spending-rule-apply-dialog"]', { visible: true, timeout: 1_500 }).catch(() => null)
+  if (asked === null) return
+  await delay(300)
+  await shoot(name)
+  await pressSelector(page, press, '[data-testid="spending-rule-confirm"]')
+}
+
+/** The place of the rule whose first test names Corner alone, not Corner market, in the order the rules are tried. */
+async function cornerPlace(page) {
+  return page.$$eval('[data-testid="spending-rule"]', (rows) => rows.findIndex((row) => /corner(?! market)/i.test(row.querySelector('[data-testid="spending-rule-test"]')?.textContent ?? '')))
+}
+
+/**
+ * On Settings, Rules with the statements set: a rule for Corner into Eating out saves behind the Groceries rule for Corner market.
+ * Moving it up writes at once past rules that decide no row, and asks Apply or Only new rows, with how many rows would change, once
+ * it would pass the Groceries rule. Only new rows writes the new order alone, with one Undo.
+ */
+export function spendingRulesMoveFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { rules } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const RULE = '[data-testid="spending-rule"]'
+    const ASKS = '[data-testid="spending-rule-apply-dialog"]'
+    await countOf(page, RULE, 4, 'the set should start with four rules')
+    await pressSelector(page, press, '[data-testid="spending-rules-add"]')
+    await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
+    await fillCondition(page, press, 0, rules.tests.payee_contains, 'Corner')
+    await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), words.spendingStarter['Eating out'])
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
+    await toast(page, rules.dialog.saved)
+    await countOf(page, RULE, 5, 'the Corner rule should join the list')
+    await dismissToasts(page)
+    for (let place = await cornerPlace(page); place > 0; place = await cornerPlace(page)) {
+      await press((await page.$$('[data-testid="spending-rule-up"]'))[place])
+      const outcome = await page
+        .waitForFunction(
+          (asks, selector, wanted) =>
+            document.querySelector(asks) !== null
+              ? 'asked'
+              : [...document.querySelectorAll(`${selector} [data-slot="title"]`)].some((element) => element.textContent?.trim() === wanted)
+                ? 'moved'
+                : null,
+          { timeout: 10_000 },
+          ASKS,
+          TOAST,
+          rules.moved,
+        )
+        .then((handle) => handle.jsonValue())
+        .catch(() => {
+          throw new Error('moving the Corner rule up neither asked nor said it moved')
+        })
+      if (outcome === 'asked') break
+      await delay(600)
+      await dismissToasts(page)
+      if ((await cornerPlace(page)) !== place - 1) throw new Error('Moving up should put the Corner rule one place earlier')
+    }
+    await page.waitForSelector(ASKS, { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('moving the Corner rule past the Groceries rule does not ask whether the rows already in the book follow')
+    })
+    const said = await page.$eval('[data-testid="spending-rule-files"]', (element) => element.textContent?.trim() ?? '')
+    if (said === rules.apply.nothing) throw new Error('the move question says no row would change')
+    await delay(300)
+    await inspect?.('moving a rule asking Apply or Only new rows, with how many rows would change')
+    await shoot('spending-rules-move-asks')
+    await pressSelector(page, press, '[data-testid="spending-rule-only-new"]')
+    await toast(page, rules.moved)
+    if ((await cornerPlace(page)) !== 0) throw new Error('Only new rows should still move the Corner rule first')
+    await undoIn(page, press, words)
     await dismissToasts(page)
   }
 }
 
 /**
- * On Settings, Rules with the statements set: the Bankomat rule under Between my accounts says its cash goes to the cash account
+ * On Settings, Rules with the statements set: a rule of several conditions, City pharmacy at the start of the payee, money out and an
+ * account that is not Revolut, files into Pharmacy with a label and Stop here. Saving asks whether the waiting rows follow it with
+ * how many would change, Only new rows writes the rule alone, and the rule reads its conditions one to a line with its label and
+ * Stop here. One Undo takes it back.
+ */
+export function spendingRulesConditionsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { rules } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const RULE = '[data-testid="spending-rule"]'
+    await countOf(page, RULE, 4, 'the set should start with four rules')
+    await pressSelector(page, press, '[data-testid="spending-rules-add"]')
+    await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
+    await fillCondition(page, press, 0, rules.tests.payee_starts_with, 'City pharmacy')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-add-condition"]')
+    await countOf(page, '[data-testid="spending-rule-condition"]', 2, 'Add a condition should add a second one')
+    await fillCondition(page, press, 1, rules.tests.money_out, null)
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-add-condition"]')
+    const account = await fillCondition(page, press, 2, rules.tests.accounts, null)
+    await press(await account.$('[data-testid="spending-rule-condition-accounts"]'))
+    const revolut = await page
+      .waitForFunction(() => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim() === 'Revolut EUR') ?? null, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('the accounts of a condition do not offer Revolut EUR')
+      })
+    await press(revolut.asElement())
+    // A list that picks several stays open, so a second tap on its field closes it.
+    await press(await account.$('[data-testid="spending-rule-condition-accounts"]'))
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await press(await account.$('[data-testid="spending-rule-condition-not"]'))
+    await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), words.spendingStarter.Pharmacy)
+    await press(await page.$('[data-testid="spending-rule-dialog-stop"]'))
+    await delay(300)
+    await inspect?.('the rule dialog with three conditions, one turned around, and Stop here')
+    await shoot('spending-rules-conditions-dialog')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
+    await page.waitForSelector('[data-testid="spending-rule-apply-dialog"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('the question whether rows already in the book follow the rule')
+    await shoot('spending-rules-apply')
+    await pressSelector(page, press, '[data-testid="spending-rule-only-new"]')
+    await toast(page, rules.dialog.saved)
+    await countOf(page, RULE, 5, 'Only new rows should still write the rule')
+    const made = await spendingRuleOf(page, 'City pharmacy')
+    if ((await made.$$('[data-testid="spending-rule-test"]')).length !== 3) throw new Error('the rule should read its three conditions one to a line')
+    if ((await made.$('[data-testid="spending-rule-stop"]')) === null) throw new Error('the rule should say Stop here')
+    await inspect?.('Settings, Rules with the rule of three conditions, its label and Stop here')
+    await shootAt(page, shoot, made, 'spending-rules-conditions')
+    await undoIn(page, press, words)
+    await countOf(page, RULE, 4, 'one Undo should take the rule back')
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On Settings, Rules with the statements set: the Bankomat rule into Between my accounts says its cash goes to the cash account
  * of its currency, and its dialog offers where the money goes. Picking Cash names that account, and one Undo puts it back.
  */
 export function spendingRuleWithdrawalFlowIn(language) {
@@ -8168,7 +8288,7 @@ export function spendingRuleWithdrawalFlowIn(language) {
   const { rules } = words.spendingStatements
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const group = await ruleGroupOf(page, words.spendingStarter['Between my accounts'])
+    const group = await spendingRuleOf(page, 'Bankomat')
     await elementSays(page, '[data-testid="spending-rule-goes-to"]', [rules.withdrawalByCurrency], 'the Bankomat rule does not say where its cash goes')
     await shootAt(page, shoot, group, 'spending-rules-withdrawal')
     await press(await group.$('[data-testid="spending-rule-edit"]'))
@@ -12577,6 +12697,7 @@ export function spendingLoanRuleFlowIn(language) {
     await inspect?.('the Rules card with the offer of a loan rule')
     await shootAt(page, shoot, '[data-testid="spending-rules"]', 'spending-rules-loan-offer', { block: 'start' })
     await pressSelector(page, press, '[data-testid="spending-rule-offer-make"]')
+    await applyIfAsked(page, press, shoot, 'spending-rules-loan-asks')
     await toast(page, rules.made)
     await page.waitForSelector('[data-testid="spending-rule-offers"]', { hidden: true, timeout: 10_000 })
     await elementSays(page, '[data-testid="spending-rule-goes-to"]', [rules.paysLoan('Home loan')], 'the rule made from the offer does not name the loan')
@@ -12590,6 +12711,7 @@ export function spendingLoanRuleFlowIn(language) {
     await pressSelector(page, press, '[data-testid="spending-rule-dialog-cancel"]')
     await page.waitForSelector('[data-testid="spending-rule-dialog"]', { hidden: true, timeout: 5_000 })
     await pressSelector(page, press, '[data-testid="spending-rule-delete"]')
+    await applyIfAsked(page, press, shoot, 'spending-rules-loan-delete-asks')
     await toast(page, rules.deleted)
     await page.waitForSelector('[data-testid="spending-rule-offer"]', { visible: true, timeout: 10_000 })
     await dismissToasts(page)

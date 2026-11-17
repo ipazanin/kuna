@@ -149,7 +149,10 @@ describe('a statement read off a page', () => {
   it('files its new rows by a rule on the same card', async () => {
     const desk = await spendingDesk(used)
     const restaurants = desk.store.state.workbook!.categories.find((category) => category.name === 'Restaurants')!
-    await desk.propose([transcribed(desk, 'statement-ties.pdf'), stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Harbour', category: desk.ref('category', restaurants.id) })])
+    await desk.propose([
+      transcribed(desk, 'statement-ties.pdf'),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Harbour'], not: false }], category: desk.ref('category', restaurants.id) }),
+    ])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).find((row) => row.payee === 'Harbour bistro')).toMatchObject({ category: restaurants.id, categorisedBy: 'rule' })
   })
@@ -183,7 +186,7 @@ describe('a statement read off a page', () => {
     expect(waiting).toMatchObject({ category: null, pair: null })
 
     const rent = desk.store.state.workbook!.categories.find((category) => category.name === 'Rent')!
-    const rule = stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Top-up', category: desk.ref('category', rent.id) })
+    const rule = stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Top-up'], not: false }], category: desk.ref('category', rent.id) })
     /** The card's changes to the row and to its items. */
     const changesOn = (row: Transaction) => {
       const { changes } = desk.cards.at(-1)!.held as { readonly changes: readonly RuledChange[] }

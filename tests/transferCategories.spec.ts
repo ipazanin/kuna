@@ -129,7 +129,9 @@ describe('a second transfer category', () => {
       const bankomat: SpendingRule = {
         id: recordIdOf(RULE_RECORDS, 'rule-bankomat'),
         order: 1,
-        condition: { column: 'counterparty_contains', fragment: 'Bankomat' },
+        conditions: [{ test: 'payee_contains', values: ['Bankomat'], not: false }],
+        labels: [],
+        stop: false,
         category: SECOND.id,
         withdrawal: { cashAccount: null },
         link: null,

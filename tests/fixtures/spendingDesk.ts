@@ -178,6 +178,7 @@ function handPart(key: string, amount: number, category: Category, labels: reado
     category: category.id,
     link: null,
     labels: labels.map((label) => label.id),
+    ruleLabels: [],
     event,
     splitByLink: false,
   }
@@ -196,6 +197,7 @@ const RECEIPT_LINE: TransactionItem = {
   category: GROCERIES.id,
   link: null,
   labels: [],
+  ruleLabels: [],
   event: BY_DAYS,
   splitByLink: false,
 }
@@ -243,6 +245,7 @@ export const WAITING_LINE: TransactionItem = {
   category: GROCERIES.id,
   link: null,
   labels: [],
+  ruleLabels: [],
   event: BY_DAYS,
   splitByLink: false,
 }
@@ -250,11 +253,16 @@ export const WAITING_LINE: TransactionItem = {
 const RULE: SpendingRule = {
   id: recordIdOf(RULE_RECORDS, 'rule-corner'),
   order: 1,
-  condition: { column: 'counterparty_contains', fragment: 'Corner' },
+  conditions: [{ test: 'payee_contains', values: ['Corner'], not: false }],
+  labels: [],
+  stop: false,
   category: GROCERIES.id,
   withdrawal: null,
   link: null,
 }
+
+/** A rule tried after the corner shop's, so a rule can move both ways. */
+const LATER_RULE: SpendingRule = { ...RULE, id: recordIdOf(RULE_RECORDS, 'rule-night-market'), order: 2, conditions: [{ test: 'payee_contains', values: ['Night market'], not: false }] }
 
 const SHORTCUT: Shortcut = { id: recordIdOf(SHORTCUT_RECORDS, 'shortcut-coffee'), order: 1, name: 'Coffee', account: SAVINGS.id, payee: 'Corner café' }
 
@@ -395,7 +403,8 @@ export interface SpendingDesk {
   readonly cards: CheckedProposal[]
   ref(kind: string, id: string): string
   propose(steps: readonly { readonly op: string; readonly input: unknown; readonly as?: string }[], attachments?: readonly ChatAttachment[]): ReturnType<typeof proposeChanges>
-  accept(at?: number): ReturnType<ReturnType<typeof spendingAcceptance>['accept']>
+  /** Accepts a card as its Accept does, or as its narrower way does. */
+  accept(at?: number, narrower?: boolean): ReturnType<ReturnType<typeof spendingAcceptance>['accept']>
 }
 
 /** The shape the desk's file is stored in: with an item record for every row, or as a file from before items keeps its rows. */
@@ -420,7 +429,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(ACCOUNT_RECORDS, [CURRENT, SAVINGS, DOLLARS, WALLET, REVOLUT]),
     ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
     ...storedEntries(shape),
-    ...stored(RULE_RECORDS, [RULE]),
+    ...stored(RULE_RECORDS, [RULE, LATER_RULE]),
     ...stored(SHORTCUT_RECORDS, [SHORTCUT, SHORTCUT_BREAD]),
     ...stored(SHORTCUT_PART_RECORDS, [SHORTCUT_PART, SHORTCUT_BREAD_PART]),
     ...stored(LABEL_RECORDS, [RENOVATION]),
@@ -447,6 +456,9 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
         attachments,
         (_app, card) => cards.push(card),
       ),
-    accept: (at = cards.length - 1) => acceptance.accept(cards[at]!),
+    accept: (at = cards.length - 1, narrower = false) => {
+      const card = cards[at]!
+      return acceptance.accept(narrower && card.narrower !== undefined ? card.narrower.proposal : card)
+    },
   }
 }

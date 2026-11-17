@@ -25,6 +25,7 @@ function line(key: string, amount: number, onReceipt = true): TransactionItem {
     category: groceries.id,
     link: null,
     labels: [],
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   }

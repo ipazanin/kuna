@@ -302,15 +302,22 @@ function readBudgets(read: RecordsRead<Budget>, categories: readonly Category[])
   })
 }
 
-/** Why a rule does not count: it names no category that counts, or it spots a withdrawal off Between my accounts or into an account that is not cash. */
-function readRules(read: RecordsRead<SpendingRule>, categories: readonly Category[], accounts: readonly Account[]): Reading<SpendingRule> {
+/**
+ * Why a rule does not count: it names a category, a label or an account that does not count, or it spots a withdrawal off Between
+ * my accounts or into an account that is not cash.
+ */
+function readRules(read: RecordsRead<SpendingRule>, categories: readonly Category[], accounts: readonly Account[], labels: readonly Label[]): Reading<SpendingRule> {
   const categoryOf = new Map(categories.map((category) => [category.id, category]))
   const cash = new Set(accounts.filter((account) => account.kind === 'cash').map((account) => account.id))
+  const accountIds = new Set(accounts.map((account) => account.id))
+  const labelIds = new Set(labels.map((label) => label.id))
   const reading = readEach(read, ({ record: rule }) => {
-    const category = categoryOf.get(rule.category)
+    const category = rule.category === null ? null : categoryOf.get(rule.category)
     if (category === undefined) return [words.noCategory]
+    if (rule.labels.some((label) => !labelIds.has(label))) return [words.shortcutNoLabel]
+    if (rule.conditions.some((condition) => 'accounts' in condition && condition.accounts.some((account) => !accountIds.has(account)))) return [words.noAccount]
     if (rule.withdrawal === null) return []
-    if (!isTransferCategory(category)) return [words.withdrawalNotTransfer]
+    if (category === null || !isTransferCategory(category)) return [words.withdrawalNotTransfer]
     return rule.withdrawal.cashAccount === null || cash.has(rule.withdrawal.cashAccount) ? [] : [words.withdrawalNotCash]
   })
   return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
@@ -490,10 +497,10 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const accountsById = new Map(accounts.facts.map((account) => [account.id, account]))
   const rows = readTransactions(records.transactions, accountsById, categoryIds, beforeItems)
   const budgets = readBudgets(records.budgets, categories.facts)
-  const rules = readRules(records.rules, categories.facts, accounts.facts)
   const receipts = readReceipts(records.receipts, new Set(rows.facts.map((row) => row.id)), accountsById)
   const lines = beforeItems ? readParts(records.lines, rows.facts, receipts.facts, categoryIds, true) : readEach(records.lines, () => [words.lineAfterMove])
   const labels = readLabels(records.labels)
+  const rules = readRules(records.rules, categories.facts, accounts.facts, labels.facts)
   const events = readEvents(records.events)
   const ownShortcuts = readShortcuts(records.shortcuts, accountsById)
   const shortcutParts = readShortcutParts(records.shortcutParts, ownShortcuts.facts, categories.facts, labels.facts)

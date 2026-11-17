@@ -260,6 +260,7 @@ describe('a line remembered from a confirmed receipt', () => {
     category: category(path).id,
     link: null,
     labels: [],
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   })

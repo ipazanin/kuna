@@ -32,6 +32,9 @@ import type { Money } from '../../src/shared/money/money'
 import { EURO, currencyCodeOf } from '../../src/shared/money/currencyCode'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 import type { RecordId } from '../../src/shared/storage/domain/recordId'
+import type { RuleEdits } from '../../src/apps/spending/statements/application/statementWrites'
+import type { RuleWithdrawal, SpendingRuleCondition } from '../../src/apps/spending/workbook/domain/spendingRule'
+import type { RowLink } from '../../src/apps/spending/workbook/domain/rowLink'
 import { civil, euros, month } from './ledger'
 
 export const USD = currencyCodeOf('USD')!
@@ -315,4 +318,14 @@ export function wholeReceiptLines(total: Money, under: RecordId): readonly Recei
   const typed = typedReceiptLines(CATEGORIES, total, [{ amount: 'rest', category: under, note: '' }])
   if ('refused' in typed) throw new Error(`A whole receipt cannot go under that category: ${typed.refused}.`)
   return typed.parts
+}
+
+/** A rule for each condition into one category, as Add a rule writes each, labelling nothing and stopping nothing. */
+export function rulesInto(conditions: readonly SpendingRuleCondition[], into: RecordId, withdrawal: RuleWithdrawal | null = null, link: RowLink | null = null): RuleEdits {
+  return { adding: conditions.map((condition) => ({ conditions: [condition], category: into, labels: [], stop: false, withdrawal, link })) }
+}
+
+/** The condition Payee contains, for each of the words. */
+export function payeeContains(...values: readonly string[]): SpendingRuleCondition {
+  return { test: 'payee_contains', values, not: false }
 }

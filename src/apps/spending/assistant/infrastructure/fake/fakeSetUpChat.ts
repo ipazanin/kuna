@@ -17,6 +17,7 @@ const ANSWERS = {
     pharmacyProposed: 'The card adds Pharmacy for the pharmacy rows waiting. Once you accept, the next card files them there with a rule.',
     pharmacyRuleTitle: 'File the pharmacy with a rule',
     pharmacyRuled: 'The card adds a rule for the pharmacy and files its waiting rows under Pharmacy.',
+    cityPharmacyRuled: 'The card adds a rule for City pharmacy into Pharmacy. Pick whether the rows already in the book follow it.',
     closeTitle: 'Close the old account',
     closeProposed: 'The card below closes the account and gives it the new IBAN. Check the IBAN before you accept.',
     purseTitle: 'A second cash account',
@@ -32,6 +33,7 @@ const ANSWERS = {
     pharmacyProposed: 'Kartica dodaje Ljekarnu za retke ljekarne koji čekaju. Kad prihvatite, sljedeća kartica razvrstava ih u nju s pravilom.',
     pharmacyRuleTitle: 'Razvrstaj ljekarnu s pravilom',
     pharmacyRuled: 'Kartica dodaje pravilo za ljekarnu i razvrstava njezine retke koji čekaju u Ljekarnu.',
+    cityPharmacyRuled: 'Kartica dodaje pravilo za City pharmacy u Ljekarnu. Odaberite slijede li ga stavke koje su već u knjizi.',
     closeTitle: 'Zatvori stari račun',
     closeProposed: 'Kartica ispod zatvara račun i daje mu novi IBAN. Provjerite IBAN prije nego što prihvatite.',
     purseTitle: 'Drugi račun gotovine',
@@ -98,6 +100,22 @@ export function sortGoOnReply({ request, tokens }: FakeChatTurn): ModelReply {
     return lookup(2, 'propose_changes', { app: 'spending', title: says.pharmacyRuleTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.pharmacyRuled, tokens)
+}
+
+/** What asks for a rule for City pharmacy, whose rows wait in the statements set. */
+export const CITY_PHARMACY_RULE = /^make a rule for city pharmacy|^napravi pravilo za city pharmacy/i
+
+/** Finds Pharmacy and proposes a rule for payees that start with City pharmacy into it, which would file the rows already waiting. */
+export function cityPharmacyRuleReply({ request, tokens }: FakeChatTurn): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('spending', 'category', { query: says.pharmacy, limit: 5 }), tokens)
+  if (answers.length === 1) {
+    const category = recordsIn(answers[0]!.text).find((found) => found.name === says.pharmacy)?.ref
+    if (category === undefined) return answered(request, says.nothingToSort, tokens)
+    const step = proposedStep(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_starts_with', values: ['City pharmacy'], not: false }], category })
+    return lookup(1, 'propose_changes', { app: 'spending', title: says.pharmacyRuleTitle, steps: [step], next: false }, tokens)
+  }
+  return answered(request, says.cityPharmacyRuled, tokens)
 }
 
 /** A made-up IBAN that passes the check, as a person might give it for the account's new number. */

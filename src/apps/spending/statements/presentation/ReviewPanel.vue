@@ -3,7 +3,7 @@ import { computed, ref, useTemplateRef, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
-import { fileRows, joinWithTyped, pairRows, rowsRuleWouldFile, writeRulesInto } from '../application/statementWrites'
+import { fileRows, joinWithTyped, pairRows } from '../application/statementWrites'
 import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
@@ -12,7 +12,6 @@ import TransfersCard from './TransfersCard.vue'
 import WaitingReceiptsCard from '../../receipts/presentation/WaitingReceiptsCard.vue'
 import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
 import ReviewRow from './ReviewRow.vue'
-import { loanLinks } from '../../links/presentation/loanLinks'
 import type { ReviewAction } from './ReviewRow.vue'
 import { linkEntry } from '../../entries/application/entryWrites'
 import { instalmentReview } from '../../links/application/instalmentReview'
@@ -24,8 +23,10 @@ import { useHeldRows } from '../../bankSync/presentation/useHeldRows'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { REVIEW_ASKED } from './reviewAsks'
-import { ruleTestOf } from './ruleTest'
-import { words } from './words'
+import RuleApplyDialog from './RuleApplyDialog.vue'
+import { changesHeldRule } from './ruleAsk'
+import type { RuleAsk } from './ruleAsk'
+import { ruleTestOf, words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { payeeKey, samePayee } from '../../payees/domain/payeeKey'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -34,7 +35,6 @@ import type { Category } from '../../workbook/domain/category'
 import { payeeCondition, sameCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { words as spendingWords } from '../../words'
 import { today } from '../../../../shared/calendar/civilDate'
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
@@ -43,7 +43,6 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -140,27 +139,20 @@ const accountOf = (row: Transaction) => accounts.value.find((account) => account
 const currencyOf = (row: Transaction) => accountOf(row)?.currency ?? EURO
 
 /** The rule Always for this payee would make, while its dialog asks. */
-const askedRule = ref<{ readonly condition: SpendingRuleCondition; readonly category: Category } | null>(null)
+const askedRule = ref<RuleAsk | null>(null)
 const ruleDialogOpen = ref(false)
 
 function askRule(condition: SpendingRuleCondition, category: Category): void {
-  askedRule.value = { condition, category }
+  const accountName = (id: string): string => accounts.value.find((account) => account.id === id)?.name ?? ''
+  const edits = { adding: [{ conditions: [condition], category: category.id, labels: [], stop: false, withdrawal: null, link: null }] }
+  askedRule.value = {
+    edits,
+    choice: 'apply',
+    title: words.review.always,
+    description: `${ruleTestOf({ conditions: [condition] }, accountName)} → ${category.name}`,
+    written: book.value !== null && changesHeldRule(book.value.rules, edits) ? words.rules.dialog.changed : words.rules.made,
+  }
   ruleDialogOpen.value = true
-}
-
-const rowsFiled = computed(() => (book.value === null || askedRule.value === null ? 0 : rowsRuleWouldFile(book.value, askedRule.value.condition, askedRule.value.category.id)))
-
-async function makeRule(): Promise<void> {
-  const current = book.value
-  const asked = askedRule.value
-  if (current === null || asked === null) return
-  if (
-    await writes.write(words.rules.made, (unit) => writeRulesInto(unit, current, [asked.condition], asked.category.id, null, null, loanLinks()), {
-      key: 'make-rule',
-      failedTitle: words.review.notWritten,
-    })
-  )
-    ruleDialogOpen.value = false
 }
 
 /** Names a To review row's write by what it does and the row, so only that row's button spins while it saves. */
@@ -319,12 +311,6 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
     <ExtraPaymentsCard v-if="instalments.extraPayments.length > 0" :offers="instalments.extraPayments" />
     <TransfersCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :pairs="queue.pairs" :lone-legs="queue.loneLegs" />
     <WaitingReceiptsCard v-if="receipts.length > 0 && !receiptsAsk" ref="receiptsBelow" :waiting="receipts" />
-    <AppDialog v-model:open="ruleDialogOpen" changes :title="words.review.always" :description="askedRule === null ? undefined : `${ruleTestOf(askedRule.condition)} → ${askedRule.category.name}`">
-      <p class="text-sm text-highlighted" data-testid="spending-rule-files">{{ plural(words.rules.files(rowsFiled), rowsFiled) }}</p>
-      <template #end>
-        <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" data-testid="spending-rule-cancel" @click="ruleDialogOpen = false" />
-        <UButton :label="words.rules.confirm" icon="i-lucide-list-plus" :loading="writes.saving('make-rule')" :disabled="writes.refused.value" data-testid="spending-rule-confirm" @click="makeRule" />
-      </template>
-    </AppDialog>
+    <RuleApplyDialog v-model:open="ruleDialogOpen" :asked="askedRule" />
   </div>
 </template>

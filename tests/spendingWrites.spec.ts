@@ -11,7 +11,7 @@ import { newEntry, deleteComesBack, removeEntry, retypedEntry, transferOver, wri
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { answerHeldRow } from '../src/apps/spending/bankSync/application/heldRowWrites'
-import { fileRows, joinWithTyped, notAPair, pairRows, writeDryRun, writeRulesInto } from '../src/apps/spending/statements/application/statementWrites'
+import { fileRows, joinWithTyped, notAPair, pairRows, writeDryRun, writeRules } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
@@ -27,7 +27,7 @@ import { recordsChangeInWords } from '../src/shared/storage/presentation/records
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, DAY, addEntries, category, filedRows, refileEntry, row } from './fixtures/spending'
+import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, DAY, addEntries, category, filedRows, refileEntry, row, rulesInto } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 /** The fixture's accounts kept by hand, since these checks type rows, which an account the bank fills refuses. */
@@ -390,7 +390,7 @@ describe('a statement in the Spending file', () => {
     const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -7)], notes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
 
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'shop' }], category('Food/Groceries').id, null, null, null))
+    await store.write('Rule', (unit) => writeRules(unit, store.state.workbook!, rulesInto([{ test: 'payee_contains', values: ['shop'], not: false }], category('Food/Groceries').id), null))
 
     expect(store.state.workbook!.rules).toMatchObject([{ order: 1, category: category('Food/Groceries').id }])
     expect(filedRows(store.state.workbook!)).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
@@ -398,7 +398,7 @@ describe('a statement in the Spending file', () => {
 
   it('moves a rule with its category when that is deleted into another, and one Undo puts it back', async () => {
     const store = await spendingStore()
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null, null, null))
+    await store.write('Rule', (unit) => writeRules(unit, store.state.workbook!, rulesInto([{ test: 'payee_contains', values: ['Shop'], not: false }], category('Food/Groceries').id), null))
 
     const receipt = await store.write('Deleted', (unit) => deleteInto(unit, store.state.records!, category('Food/Groceries'), category('Food/Eating out')))
 
@@ -409,7 +409,7 @@ describe('a statement in the Spending file', () => {
 
   it('refuses to delete a category a rule names, which delete-into moves first', async () => {
     const store = await spendingStore()
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null, null, null))
+    await store.write('Rule', (unit) => writeRules(unit, store.state.workbook!, rulesInto([{ test: 'payee_contains', values: ['Shop'], not: false }], category('Food/Groceries').id), null))
 
     await expect(store.write('Deleted', (unit) => unit.of(CATEGORY_WRITES).remove(category('Food/Groceries')))).rejects.toThrow()
   })

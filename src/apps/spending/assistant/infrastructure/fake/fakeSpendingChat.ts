@@ -6,7 +6,7 @@ import { language } from '../../../../../shared/text/language'
 import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
 import { copyReply, matchReply, revolutCopyReply, statementReply } from './fakeImportsChat'
 import { cardReceiptReply, cashReceiptReply, pickedReceiptReply, r1ReceiptReply, receiptReply } from './fakeReceiptsChat'
-import { SORT_JOB, closeAccountReply, purseReply, sortGoOnReply, sortJobReply, sortReply } from './fakeSetUpChat'
+import { CITY_PHARMACY_RULE, SORT_JOB, cityPharmacyRuleReply, closeAccountReply, purseReply, sortGoOnReply, sortJobReply, sortReply } from './fakeSetUpChat'
 import { backOnDaysReply } from './fakeEventsChat'
 import { labelCostReply, labelReply } from './fakeLabelsChat'
 import { splitReply } from './fakeSplitsChat'
@@ -79,7 +79,7 @@ function rulesReply({ request, tokens, lookups }: FakeChatTurn): ModelReply {
 
 /**
  * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
- * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, on the entry tagged when one is, one that asks to read the R1 receipt proposes it as cash for the company, one that asks to read the cash receipt, says yes to cash or says how much cash there was, proposes it as cash, one that says no, by card proposes it on the first euro account the bank fills, where it waits for the bank's row, one that asks to put the receipt on Harbour bistro proposes it on that payment, one that asks to add a cash purse proposes a second cash account, one that starts with split proposes splitting the latest spend or the Harbour bistro one, one that starts with label proposes a Renovation label on last month's three largest payments, one that asks what the Boston trip cost reads what each label counts, one that asks to put the streaming subscription back on its days proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
+ * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, on the entry tagged when one is, one that asks to read the R1 receipt proposes it as cash for the company, one that asks to read the cash receipt, says yes to cash or says how much cash there was, proposes it as cash, one that says no, by card proposes it on the first euro account the bank fills, where it waits for the bank's row, one that asks to put the receipt on Harbour bistro proposes it on that payment, one that asks to add a cash purse proposes a second cash account, one that starts with split proposes splitting the latest spend or the Harbour bistro one, one that starts with label proposes a Renovation label on last month's three largest payments, one that asks what the Boston trip cost reads what each label counts, one that asks to put the streaming subscription back on its days proposes it, a question about spending reads figures and rows, and one that asks for a rule for City pharmacy proposes it into Pharmacy, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const { request, typed } = turn
@@ -102,6 +102,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/back on its days|na njezine dane/i.test(typed)) return backOnDaysReply(turn)
   if (/^label|^označi/i.test(typed)) return labelReply(turn)
   if (/what did the boston trip cost|koliko je koštao put u boston/i.test(typed)) return labelCostReply(turn)
+  if (CITY_PHARMACY_RULE.test(typed)) return cityPharmacyRuleReply(turn)
   if (/spent|spend|potroš/i.test(typed)) return spendingReply(turn)
   if (/rule|pravil/i.test(typed)) return rulesReply(turn)
   return null

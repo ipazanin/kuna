@@ -21,11 +21,11 @@ import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSp
 import { isSplit, refiledItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
-import { sameCondition } from '../../workbook/domain/spendingRule'
-import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
-import type { RowLink } from '../../workbook/domain/rowLink'
+import { ruleWithConditions, withDraftAdded } from '../../workbook/domain/spendingRule'
+import type { RuleDraft, SpendingRule } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -119,77 +119,107 @@ function writeRerun(unit: UnitOfWork, book: SpendingBook, { changes, categories 
   writeRows(unit, book.stored, changes)
 }
 
-/** What a rule files a row as: its category, whether it spots cash taken out, and the loan its rows pay. */
-export interface RuleFiling {
-  readonly category: RecordId
-  readonly withdrawal: RuleWithdrawal | null
-  readonly link: RowLink | null
-}
-
-/** The rule this condition makes: new and tried last, or the one it already has on the new filing. */
-function ruleFor(rules: readonly SpendingRule[], condition: SpendingRuleCondition, { category, withdrawal, link }: RuleFiling): { readonly held: SpendingRule | null; readonly rule: SpendingRule } {
-  const held = rules.find((rule) => sameCondition(rule.condition, condition)) ?? null
-  const rule =
-    held !== null
-      ? { ...held, category, withdrawal, link }
-      : { id: recordIdOf(RULE_RECORDS, newRecordId()), order: Math.max(0, ...rules.map((other) => other.order)) + 1, condition, category, withdrawal, link }
-  return { held, rule }
-}
-
-function rulesWith(rules: readonly SpendingRule[], held: SpendingRule | null, rule: SpendingRule): readonly SpendingRule[] {
-  return held === null ? [...rules, rule] : rules.map((other) => (other === held ? rule : other))
-}
-
-/** How many rows the rule would file, for you to read before it is written. */
-export function rowsRuleWouldFile(book: SpendingBook, condition: SpendingRuleCondition, category: RecordId): number {
-  const { held, rule } = ruleFor(book.rules, condition, { category, withdrawal: null, link: null })
-  return rulesRerun(book, rulesWith(book.rules, held, rule)).changes.length
-}
-
 /** Several changes to the rules, with the rules re-run once over all of them. */
 export interface RuleEdits {
-  /** Each made new, or on the rule that already has its condition. */
-  readonly filing?: readonly (RuleFiling & { readonly condition: SpendingRuleCondition })[]
-  readonly fixing?: readonly (RuleFiling & { readonly rule: SpendingRule; readonly condition: SpendingRuleCondition })[]
+  /** Each made new and tried last, or put on the rule that already has its conditions. */
+  readonly adding?: readonly RuleDraft[]
+  readonly changing?: readonly { readonly rule: SpendingRule; readonly draft: RuleDraft }[]
   readonly deleting?: readonly SpendingRule[]
+  readonly moving?: RuleMove
 }
 
-/** Writes the rule records the edits change, and gives the rules as they then stand. */
-function editRules(unit: UnitOfWork, rules: readonly SpendingRule[], { filing = [], fixing = [], deleting = [] }: RuleEdits): readonly SpendingRule[] {
-  const records = unit.of(RULE_WRITES)
+/** A rule tried one place earlier or later, trading places with its neighbour. */
+export interface RuleMove {
+  readonly rule: RecordId
+  readonly direction: 'up' | 'down'
+}
+
+/** The rule records the edits change, before and after, the rules as they then stand, and the rules the edits add or change. */
+interface EditedRules {
+  readonly rules: readonly SpendingRule[]
+  readonly written: readonly { readonly before: SpendingRule | null; readonly after: SpendingRule | null }[]
+  readonly applying: ReadonlySet<RecordId>
+}
+
+function editedRules(rules: readonly SpendingRule[], { adding = [], changing = [], deleting = [], moving }: RuleEdits, newKey: () => string = newRecordId): EditedRules {
+  const written: { before: SpendingRule | null; after: SpendingRule | null }[] = deleting.map((rule) => ({ before: rule, after: null }))
+  const applying = new Set<RecordId>()
   let after: readonly SpendingRule[] = rules.filter((rule) => !deleting.includes(rule))
-  deleting.forEach((rule) => records.remove(rule))
-  for (const { rule, condition, category, withdrawal, link } of fixing) {
-    const fixed = { ...rule, condition, category, withdrawal, link }
-    records.change(rule, fixed)
-    after = after.map((other) => (other === rule ? fixed : other))
+  const replaced = (before: SpendingRule, fixed: SpendingRule): void => {
+    written.push({ before, after: fixed })
+    after = after.map((other) => (other === before ? fixed : other))
   }
-  for (const { condition, ...filed } of filing) {
-    const { held, rule } = ruleFor(after, condition, filed)
-    if (held === null) records.add(rule)
-    else records.change(held, rule)
-    after = rulesWith(after, held, rule)
+  for (const { rule, draft } of changing) {
+    replaced(rule, { ...rule, ...draft })
+    applying.add(rule.id)
   }
-  return after
+  for (const draft of adding) {
+    const held = ruleWithConditions(after, draft.conditions)
+    if (held !== undefined) {
+      replaced(held, withDraftAdded(held, draft))
+      applying.add(held.id)
+      continue
+    }
+    const added: SpendingRule = { id: recordIdOf(RULE_RECORDS, newKey()), order: Math.max(0, ...after.map((other) => other.order)) + 1, ...draft }
+    written.push({ before: null, after: added })
+    after = [...after, added]
+    applying.add(added.id)
+  }
+  if (moving !== undefined) {
+    const tried = inTryingOrder(after)
+    const place = tried.findIndex((rule) => rule.id === moving.rule)
+    const other = moving.direction === 'up' ? place - 1 : place + 1
+    if (place >= 0 && other >= 0 && other < tried.length) {
+      const reordered = tried.map((held, at) => (at === place ? tried[other]! : at === other ? tried[place]! : held))
+      reordered.forEach((held, at) => {
+        if (held.order !== at + 1) replaced(held, { ...held, order: at + 1 })
+      })
+    }
+  }
+  return { rules: after, written, applying }
+}
+
+function writeEditedRules(unit: UnitOfWork, { written }: EditedRules): void {
+  const records = unit.of(RULE_WRITES)
+  for (const { before, after } of written) {
+    if (before === null && after !== null) records.add(after)
+    else if (before !== null && after === null) records.remove(before)
+    else if (before !== null && after !== null) records.change(before, after)
+  }
+}
+
+/** What the edits do to the rows already in the book when they are applied. */
+function editsRerun(book: SpendingBook, edited: EditedRules, links: InstalmentLinks | null): RulesRerun {
+  return rulesRerun(book, edited.rules, { links, applying: edited.applying })
+}
+
+/** How many rows already in the book the edits would change when applied, for the person to read before they choose, with the instalments `links` names that a loan rule's rows pay. */
+export function rowsRulesWouldChange(book: SpendingBook, edits: RuleEdits, links: InstalmentLinks | null): number {
+  return editsRerun(book, editedRules(book.rules, edits), links).changes.length
 }
 
 /**
- * The rules changed and the rows re-filed by them in one write, so one Undo puts it all back. A row a rule no longer files
- * follows the rules that are left, and a row a rule whose rows pay a loan files is linked to one of the instalments `links` names.
+ * The rules changed in one write, so one Undo puts it all back. With `refile`, the rows already in the book follow the edits in the
+ * same write as `rulesRerun` says, each rule added or changed reaching every row it decides, and a row a rule whose rows pay a loan
+ * files is linked to one of the instalments `links` names. Without it, the rules file only rows that come later.
  */
-export function writeRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, links: InstalmentLinks | null): void {
-  writeRerun(unit, book, rulesRerun(book, editRules(unit, book.rules, edits), links))
+export function writeRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, links: InstalmentLinks | null, refile = true): void {
+  const edited = editedRules(book.rules, edits)
+  writeEditedRules(unit, edited)
+  if (refile) writeRerun(unit, book, editsRerun(book, edited, links))
 }
 
 /**
  * A statement imported with the rules that come with it, in one write with one Undo. The rules file the statement's new
- * rows in its dry run and re-file the rows on the file as `writeRules` does, and a row both change is written once. A new row
+ * rows in its dry run and, with `refile`, re-file the rows on the file as `writeRules` does, and a row both change is written once. A new row
  * that pays one of the instalments `links` names is linked as the Import screen links it. Gives the dry run.
  */
-export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, statement: StatementRows, day: CivilDate, links: InstalmentLinks): StatementDryRun {
-  const editing = (edits.filing?.length ?? 0) + (edits.fixing?.length ?? 0) + (edits.deleting?.length ?? 0) > 0
-  const rules = editing ? editRules(unit, book.rules, edits) : book.rules
-  const rerun = editing ? rulesRerun(book, rules, links) : { changes: [], categories: [] }
+export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, statement: StatementRows, day: CivilDate, links: InstalmentLinks, refile = true): StatementDryRun {
+  const editing = (edits.adding?.length ?? 0) + (edits.changing?.length ?? 0) + (edits.deleting?.length ?? 0) > 0
+  const edited = editedRules(book.rules, edits)
+  if (editing) writeEditedRules(unit, edited)
+  const rules = editing ? edited.rules : book.rules
+  const rerun = editing && refile ? editsRerun(book, edited, links) : { changes: [], categories: [] }
   const refiled = rerun.changes
   const refiledTo = new Map(refiled.map(({ before, after }) => [before, after]))
   const refiledFrom = new Map(refiled.map((change) => [change.after, change]))
@@ -210,40 +240,4 @@ export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: Rul
   const categories = [...rerun.categories, ...(run.categories ?? [])]
   writeDryRun(unit, book.stored, { ...run, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun], ...(categories.length === 0 ? {} : { categories }) })
   return run
-}
-
-/**
- * A rule for each condition into one category, tried after the rules there are in the order given, with the rules re-run in
- * the same write. A rule into Between my accounts may spot cash taken out, into the cash account it names or none, and a rule
- * may name the loan its rows pay, which links each row it files to the instalment it pays.
- */
-export function writeRulesInto(
-  unit: UnitOfWork,
-  book: SpendingBook,
-  conditions: readonly SpendingRuleCondition[],
-  category: RecordId,
-  withdrawal: RuleWithdrawal | null,
-  link: RowLink | null,
-  links: InstalmentLinks | null,
-): void {
-  writeRules(unit, book, { filing: conditions.map((condition) => ({ condition, category, withdrawal, link })) }, links)
-}
-
-/** The rule testing another condition, filing into another category or cash account or paying another loan, keeping its place, with the rules re-run in the same write. */
-export function changeRule(
-  unit: UnitOfWork,
-  book: SpendingBook,
-  rule: SpendingRule,
-  condition: SpendingRuleCondition,
-  category: RecordId,
-  withdrawal: RuleWithdrawal | null,
-  link: RowLink | null,
-  links: InstalmentLinks | null,
-): void {
-  writeRules(unit, book, { fixing: [{ rule, condition, category, withdrawal, link }] }, links)
-}
-
-/** The rule gone, and the rows it filed follow the rules that are left, in the same write. */
-export function deleteRule(unit: UnitOfWork, book: SpendingBook, rule: SpendingRule, links: InstalmentLinks | null): void {
-  writeRules(unit, book, { deleting: [rule] }, links)
 }

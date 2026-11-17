@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
-import { notAPair, notCash, writeCashLegs, writeDryRun, writeRulesInto } from '../src/apps/spending/statements/application/statementWrites'
+import { notAPair, notCash, writeCashLegs, writeDryRun, writeRules } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { decidingRule } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
@@ -20,7 +20,7 @@ import type { WorkbookStore } from '../src/shared/storage/application/createWork
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { civil } from './fixtures/ledger'
-import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_USD, USD, account, category, filedDryRun, filedRows, row, spendingBook } from './fixtures/spending'
+import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_USD, USD, account, category, filedDryRun, filedRows, row, rulesInto, spendingBook } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const DAY = civil('2026-10-30')
@@ -39,7 +39,16 @@ const WALLET = account(5, {
 const DOLLARS = account(6, { name: 'Dollars', kind: 'cash', bank: null, currency: USD, opening: accountMoneyFromAmount(0), openedOn: CASH.openedOn, rowsFrom: 'by-hand', iban: '', closed: false })
 
 function bankomat(withdrawal: RuleWithdrawal | null = { cashAccount: null }, into = BETWEEN): SpendingRule {
-  return { id: recordIdOf(RULE_RECORDS, 'rule-bankomat'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Bankomat' }, category: into, withdrawal, link: null }
+  return {
+    id: recordIdOf(RULE_RECORDS, 'rule-bankomat'),
+    order: 1,
+    conditions: [{ test: 'payee_contains', values: ['Bankomat'], not: false }],
+    labels: [],
+    stop: false,
+    category: into,
+    withdrawal,
+    link: null,
+  }
 }
 
 function statementRow(on: Account, amount: number, payee: string, fields: Partial<StatementRow> = {}): StatementRow {
@@ -276,7 +285,9 @@ describe('cash legs written', () => {
 
   it('saves a rule that spots cash taken out, and refuses an account change that would leave it naming no cash account', async () => {
     const store = await storeWith([])
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Bankomat' }], BETWEEN, { cashAccount: CASH.id }, null, null))
+    await store.write('Rule', (unit) =>
+      writeRules(unit, store.state.workbook!, rulesInto([{ test: 'payee_contains', values: ['Bankomat'], not: false }], BETWEEN, { cashAccount: CASH.id }, null), null),
+    )
     expect(store.state.workbook!.rules).toMatchObject([{ category: BETWEEN, withdrawal: { cashAccount: CASH.id } }])
 
     await expect(store.write('Kind', (unit) => unit.of(ACCOUNT_WRITES).change(CASH, { ...CASH, kind: 'bank' }))).rejects.toThrow('names as the cash account one that is not a cash account')

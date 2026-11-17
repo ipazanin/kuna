@@ -429,6 +429,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
     category: idOf(category),
     link: null,
     labels,
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   })
@@ -713,6 +714,7 @@ function loanRows(twoBack: MonthKey, oneBack: MonthKey, day: CivilDate, idOf: (p
     category: idOf(category),
     link: null,
     labels: [],
+    ruleLabels: [],
     splitByLink: false,
     event: BY_DAYS,
   })
@@ -761,6 +763,7 @@ export function fakeBeforeItemsDocument(savedAt: string, day: CivilDate = today(
     category: leg!.category,
     link: null,
     labels: [],
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   })
@@ -807,6 +810,7 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
     category: idOf('Food/Groceries'),
     link: null,
     labels: [],
+    ruleLabels: [],
     event: BY_DAYS,
     splitByLink: false,
   })
@@ -847,24 +851,40 @@ function fakeShortcutParts(rows: readonly FakeRow[], idOf: (path: string) => Rec
   ]
 }
 
+/** What a fake rule does when it names nothing more. */
+const RULE_DEFAULTS = { labels: [], stop: false, withdrawal: null, link: null } as const
+
 function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {
   return [
-    { id: fixedId(RULE_RECORDS, 1801), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner market' }, category: idOf('Food/Groceries'), withdrawal: null, link: null },
+    { ...RULE_DEFAULTS, id: fixedId(RULE_RECORDS, 1801), order: 1, conditions: [{ test: 'payee_contains', values: ['Corner market'], not: false }], category: idOf('Food/Groceries') },
     {
+      ...RULE_DEFAULTS,
       id: fixedId(RULE_RECORDS, 1802),
       order: 2,
-      condition: { column: 'counterparty_contains', fragment: 'Bankomat' },
+      conditions: [{ test: 'payee_contains', values: ['Bankomat'], not: false }],
       category: idOf('Between my accounts'),
       withdrawal: { cashAccount: null },
-      link: null,
     },
     {
+      ...RULE_DEFAULTS,
       id: fixedId(RULE_RECORDS, 1803),
       order: 3,
-      condition: { column: 'counterparty_iban', iban: FAKE_HOME_LOAN_IBAN },
+      conditions: [{ test: 'iban_is', values: [FAKE_HOME_LOAN_IBAN], not: false }],
       category: idOf('Money and fees/Loan interest'),
-      withdrawal: null,
       link: { app: 'loans', kind: 'bank-loan', key: FAKE_HOME_LOAN, due: null },
+    },
+    {
+      ...RULE_DEFAULTS,
+      id: fixedId(RULE_RECORDS, 1804),
+      order: 4,
+      conditions: [
+        { test: 'payee_contains', values: ['Garden', 'Nursery'], not: false },
+        { test: 'money_out', not: false },
+        { test: 'amount_at_least', amount: accountMoneyFromAmount(20), not: false },
+      ],
+      category: null,
+      labels: [GARDEN],
+      stop: true,
     },
   ]
 }

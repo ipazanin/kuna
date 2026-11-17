@@ -394,7 +394,7 @@ describe('problems in the Spending file, listed by kind', () => {
     expect(problems.map(([, , reason]) => reason)).toEqual([expect.stringContaining('categorised_by'), expect.stringContaining('import key same'), expect.stringContaining('import key same')])
   })
 
-  it('reads a rule of either condition, in its order, and writes it back', () => {
+  it('reads a rule of a file from before conditions, in its order, as payee contains or IBAN is, and writes it in the new shape', () => {
     const rules = [
       { id: uuid(51), order: '2', counterparty_contains: 'Corner market', category: GROCERIES },
       { id: uuid(52), order: '1', counterparty_iban: 'HR22 0000 0000 0000 0002 2', category: RESTAURANTS },
@@ -402,14 +402,14 @@ describe('problems in the Spending file, listed by kind', () => {
     const book = bookOf({ category: CATEGORIES, rule: rules })
 
     expect(book.problems).toEqual([])
-    expect(book.rules.map((rule) => rule.condition)).toEqual([
-      { column: 'counterparty_iban', iban: 'HR2200000000000000022' },
-      { column: 'counterparty_contains', fragment: 'Corner market' },
+    expect(book.rules.map((rule) => rule.conditions)).toEqual([
+      [{ test: 'iban_is', values: ['HR2200000000000000022'], not: false }],
+      [{ test: 'payee_contains', values: ['Corner market'], not: false }],
     ])
-    expect(roundTrip(RULE_RECORDS, rules[0]!)).toEqual(rules[0])
+    expect(roundTrip(RULE_RECORDS, rules[0]!)).toEqual({ id: uuid(51), order: '2', payee_contains: 'Corner market', category: GROCERIES })
   })
 
-  it('refuses a rule with no condition, with both, with one Spending does not read, or naming no category that counts', () => {
+  it('refuses a rule with no condition, with one Spending does not read, or naming no category that counts, and reads both older fields as two conditions', () => {
     const problems = problemsOf({
       category: CATEGORIES,
       rule: [
@@ -421,8 +421,7 @@ describe('problems in the Spending file, listed by kind', () => {
     })
 
     expect(problems.map(([kind, , reason]) => [kind, reason])).toEqual([
-      ['rule', expect.stringContaining('only one of them')],
-      ['rule', expect.stringContaining('only one of them')],
+      ['rule', expect.stringContaining('tests at least one thing')],
       ['rule', expect.stringContaining('is_card')],
       ['rule', 'names no category in the file'],
     ])

@@ -34,10 +34,29 @@ function restoredIn(value: unknown, pseudonyms: Pseudonyms): unknown {
   return value
 }
 
+/** List items with each alias in the named list fields turned into every way the person was written, and the rest restored. */
+function spelledItems(items: readonly unknown[], names: readonly string[], pseudonyms: Pseudonyms): unknown[] {
+  return items.map((item) => {
+    const restored = restoredIn(item, pseudonyms)
+    if (item === null || typeof item !== 'object' || restored === null || typeof restored !== 'object') return restored
+    const spelled = { ...(restored as Record<string, unknown>) }
+    for (const name of names) {
+      const held: unknown = (item as Record<string, unknown>)[name]
+      if (!Array.isArray(held)) continue
+      spelled[name] = held.flatMap((value: unknown): unknown[] => {
+        if (typeof value !== 'string') return [value]
+        const spellings = pseudonyms.spellingsOf(value)
+        return spellings.length > 1 ? [...spellings] : [pseudonyms.restored(value)]
+      })
+    }
+    return spelled
+  })
+}
+
 /**
  * A step with refs turned into ids, attachment ids into the files, and aliases into what they stand for, so a model writes
  * `Person 3` and the record holds the name. A field the operation lists under `spellings` gets every way the person was
- * written, so a rule covers each. Or why not, in a sentence.
+ * written, so a rule covers each, and so does a list field of a list's items named as `list.field`. Or why not, in a sentence.
  */
 function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['steps'][number], names: Set<string>, reads: ChatReads, attachments: readonly ChatAttachment[]): ProposalStep | string {
   const operation = proposer.operations.find((candidate) => candidate.name === step.op)
@@ -72,7 +91,8 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
       resolved[field] = items
     } else if (kind === undefined || value === null) {
       const spellings = typeof value === 'string' && operation.spellings?.includes(field) === true ? reads.pseudonyms.spellingsOf(value) : []
-      resolved[field] = spellings.length > 1 ? spellings : restoredIn(value, reads.pseudonyms)
+      const itemSpellings = (operation.spellings ?? []).flatMap((name) => (name.startsWith(`${field}.`) ? [name.slice(field.length + 1)] : []))
+      resolved[field] = spellings.length > 1 ? spellings : Array.isArray(value) && itemSpellings.length > 0 ? spelledItems(value, itemSpellings, reads.pseudonyms) : restoredIn(value, reads.pseudonyms)
     } else if (kind === ATTACHMENT_REF) {
       const attachment = attachments.find((held) => held.id === value)
       if (attachment === undefined) return `${operation.name}: ${field} is not the id of a file attached to this chat.`

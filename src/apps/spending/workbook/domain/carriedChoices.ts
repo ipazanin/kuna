@@ -10,6 +10,11 @@ export function labelsOf(items: readonly Pick<TransactionItem, 'labels'>[]): rea
   return [...new Set(items.flatMap((item) => item.labels))]
 }
 
+/** Those labels of the items a rule put on, a label any item carries by hand counting as one put on by hand, so a rule never takes it off. */
+export function ruleLabelsOf(items: readonly Pick<TransactionItem, 'labels' | 'ruleLabels'>[]): readonly RecordId[] {
+  return labelsOf(items).filter((label) => items.every((item) => !item.labels.includes(label) || item.ruleLabels.includes(label)))
+}
+
 /** The event choice of the item with the most money, so money that parts become again keeps what was chosen for most of it. */
 export function eventOfLargest(items: readonly Pick<TransactionItem, 'amount' | 'event'>[]): EventChoice {
   return largestItem(items)?.event ?? BY_DAYS
