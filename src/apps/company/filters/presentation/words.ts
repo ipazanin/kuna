@@ -18,7 +18,7 @@ export const en = {
   addFilter: 'Add filter',
   groups: { buckets: 'Buckets', categories: 'Categories', counterparties: 'Counterparties', labels: 'Labels' },
   searchChoices: 'Search bucket, category, counterparty',
-  searchChoicesWithLabels: 'Search bucket, category, counterparty, label',
+  searchChoicesWithLabels: 'Search category, counterparty, label',
   viewRows: 'View rows',
   chips: {
     bucket: 'Bucket',
@@ -51,7 +51,7 @@ export const hr: Translation<typeof en> = {
   addFilter: 'Dodaj filtar',
   groups: { buckets: 'Skupine', categories: 'Kategorije', counterparties: 'Partneri', labels: 'Oznake' },
   searchChoices: 'Pretraži skupine, kategorije, partnere',
-  searchChoicesWithLabels: 'Pretraži skupine, kategorije, partnere, oznake',
+  searchChoicesWithLabels: 'Pretraži kategorije, partnere, oznake',
   viewRows: 'Prikaži stavke',
   chips: {
     bucket: 'Skupina',

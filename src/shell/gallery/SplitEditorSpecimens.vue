@@ -66,7 +66,7 @@ function categoryError(field: SplitField): string | null {
     title="SplitEditor"
     description="The whole above its parts, each with an amount, a category and a note, and one part that takes the rest. The equals button makes a part the rest, and the part that was the rest keeps its figure. A rest of nothing shows in red with why. Remove stays off while two parts are left. The part slot adds fields of a part under its note, such as its labels."
   >
-    <DashboardGrid layout="pair">
+    <DashboardGrid>
       <AppCard v-for="specimen in SPECIMENS" :key="specimen.title" :title="specimen.title">
         <div class="px-4 pt-3 pb-4 sm:px-5">
           <SplitEditor
