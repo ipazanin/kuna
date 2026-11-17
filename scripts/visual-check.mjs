@@ -265,6 +265,7 @@ import { euroLine } from '../src/apps/spending/accounts/presentation/euroLine.ts
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures.ts'
 import { leftToSpend } from '../src/apps/spending/budgets/domain/budgetCarry.ts'
 import { en as budgetsEnglish, hr as budgetsCroatian } from '../src/apps/spending/budgets/presentation/words.ts'
+import { en as spendingOverviewEnglish, hr as spendingOverviewCroatian } from '../src/apps/spending/overview/presentation/words.ts'
 import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
@@ -354,6 +355,8 @@ import {
   spendingReceiptWaitsFlowIn,
   spendingReviewNearFlowIn,
   spendingLimitFlowIn,
+  spendingYearlyCostFlowIn,
+  spendingFeeTransferFlowIn,
   spendingLabelsFlowIn,
   spendingEventsFlowIn,
   spendingEntryFiltersFlowIn,
@@ -761,6 +764,7 @@ async function fakeSpendingShows(sample) {
   const totals = figures.totalsOf(month)
   const limits = figures.limitsIn(month)
   const food = limits.find((limit) => sample.book.categories.find((category) => category.id === limit.category)?.name === 'Food')
+  const yearly = limits.find((limit) => limit.yearly !== undefined)
   const [held] = spendingHubFigures(sample.book, sample.rates, day).parts
   const [heldWhileFailed] = spendingHubFigures(failed.book, failed.rates, day).parts
   const dollars = accountsOnDay(sample.book, day, sample.rates.everyday).find((entry) => entry.account.currency !== EURO)
@@ -773,6 +777,18 @@ async function fakeSpendingShows(sample) {
     spent: both(totals.spent),
     left: both(leftToSpend(limits)),
     food: { available: both(food.available), left: both(food.left), carriedIn: both(food.carriedIn, 'always') },
+    yearly: {
+      english: [
+        budgetsEnglish.table.setAsideAmount(formatMoney(yearly.limit)),
+        budgetsEnglish.table.setAsideInAll,
+        spendingOverviewEnglish.limits.setAsideOf(formatMoney(yearly.available), formatMoney(yearly.yearly.amount)),
+      ],
+      croatian: [
+        budgetsCroatian.table.setAsideAmount(formatMoney(yearly.limit, 'negative', CROATIAN_MONEY)),
+        budgetsCroatian.table.setAsideInAll,
+        spendingOverviewCroatian.limits.setAsideOf(formatMoney(yearly.available, 'negative', CROATIAN_MONEY), formatMoney(yearly.yearly.amount, 'negative', CROATIAN_MONEY)),
+      ],
+    },
     held: { ...both(held.cents), caption: held.caption },
     heldWhileFailed: { ...both(heldWhileFailed.cents), caption: heldWhileFailed.caption },
     dollars: {
@@ -3379,6 +3395,7 @@ const SOURCE_SCREENS = [
       SPENDING.left.english,
       'Spending by group',
       'Limits this month',
+      SPENDING.yearly.english[2],
       'Bank and cash',
       SPENDING.held.english,
       'Latest entries',
@@ -3671,6 +3688,16 @@ const SOURCE_SCREENS = [
     title: 'Ograničenja',
     charts: 0,
     shows: ['Hrana', SPENDING.food.available.croatian, SPENDING.food.left.croatian, SPENDING.food.carriedIn.croatian],
+    cards: false,
+  },
+  { name: 'spending-budgets-yearly', query: 'spending=sample', hash: '#/spending/budgets', title: 'Limits', charts: 0, shows: SPENDING.yearly.english.slice(0, 2), cards: false },
+  {
+    name: 'spending-budgets-yearly-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending/budgets',
+    title: 'Ograničenja',
+    charts: 0,
+    shows: SPENDING.yearly.croatian.slice(0, 2),
     cards: false,
   },
   { name: 'spending-budgets-over', query: 'spending=over', hash: '#/spending/budgets', title: 'Limits', charts: 0, shows: SPENDING.over.english, cards: false },
@@ -8751,6 +8778,42 @@ const FLOWS = [
     hash: '#/spending/settings',
     title: 'Postavke',
     run: spendingCategoryColourFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-yearly-cost',
+    hash: '#/spending/budgets',
+    title: 'Limits',
+    run: spendingYearlyCostFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-yearly-cost-croatian',
+    hash: '#/spending/budgets',
+    title: 'Ograničenja',
+    run: spendingYearlyCostFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-fee-transfer',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingFeeTransferFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-fee-transfer-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingFeeTransferFlowIn('hr'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=sample&lang=hr' },

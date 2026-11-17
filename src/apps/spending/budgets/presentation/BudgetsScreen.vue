@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { leftToSpend, limitsUnrated } from '../domain/budgetCarry'
+import { holdsMonthlyLimit, leftToSpend, limitsUnrated, setAsideForYearly } from '../domain/budgetCarry'
+import type { BudgetMonth } from '../domain/budgetCarry'
 import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { categoryTree } from '../../categories/domain/categoryTree'
 import { categoryColours } from '../../categories/presentation/categoryColours'
@@ -72,6 +73,17 @@ const rows = computed(() =>
   }),
 )
 
+const hasYearly = computed(() => rows.value.some((row) => row.limit.yearly !== undefined))
+const hasMonthly = computed(() => holdsMonthlyLimit(limits.value))
+
+/** What a yearly cost's row says under its name: what falls due and when, and in its due month whether the money set aside paid it. */
+function dueLines(limit: BudgetMonth): readonly string[] {
+  if (limit.yearly === undefined) return []
+  const amount = formatMoney(limit.yearly.amount)
+  if (limit.yearly.due !== shown.value) return [words.table.dueIn(amount, monthLabel(limit.yearly.due)), words.table.setAsideAmount(formatMoney(limit.limit))]
+  return [words.table.dueNow(amount), ...(limit.spent > 0 && limit.left >= 0 ? [words.table.paidFromSetAside] : [])]
+}
+
 const unrated = computed(() => (waiting.value ? null : unratedNote(limitsUnrated(limits.value))))
 
 const editing = ref<Category | null>(null)
@@ -103,7 +115,7 @@ function openDialog(category: Category | null): void {
           <thead>
             <tr>
               <th scope="col" class="text-start">{{ words.table.category }}</th>
-              <th scope="col" class="hidden text-end @2xl:table-cell">{{ words.table.monthlyLimit }}</th>
+              <th scope="col" class="hidden text-end @2xl:table-cell">{{ hasYearly ? words.table.limitOrSetAside : words.table.monthlyLimit }}</th>
               <th scope="col" class="hidden text-end @2xl:table-cell">{{ words.table.carriedIn }}</th>
               <th scope="col" class="text-end">{{ words.table.available }}</th>
               <th scope="col" class="hidden text-end @sm:table-cell">{{ words.table.spent }}</th>
@@ -113,7 +125,7 @@ function openDialog(category: Category | null): void {
           <tbody>
             <tr v-for="row in rows" :key="row.category.id" :data-carried-in="row.limit.carriedIn" :data-available="row.limit.available" data-testid="spending-budget-row">
               <th scope="row" class="cell-wraps text-start font-normal">
-                <span class="inline-flex items-center gap-1.5">
+                <span class="inline-flex max-w-full items-center gap-1.5">
                   <span class="swatch swatch-bar shrink-0" :style="{ '--swatch': `var(${colourOf(row.category)})` }" aria-hidden="true" />
                   <UButton
                     :label="row.category.name"
@@ -121,11 +133,13 @@ function openDialog(category: Category | null): void {
                     color="neutral"
                     variant="link"
                     class="px-0 text-start text-highlighted"
+                    :ui="{ label: 'whitespace-normal text-start' }"
                     data-testid="spending-limit-change"
                     @click="openDialog(row.category)"
                   />
                 </span>
                 <span v-if="row.group !== null" class="block type-caption">{{ row.group.name }}</span>
+                <span v-for="line in dueLines(row.limit)" :key="line" class="block type-caption" data-testid="spending-budget-due">{{ line }}</span>
                 <span v-if="row.limit.carriedIn !== 0" class="block type-caption @2xl:hidden" data-testid="spending-budget-carry">{{
                   words.table.carriedInAmount(formatMoney(row.limit.carriedIn, 'always'))
                 }}</span>
@@ -141,13 +155,21 @@ function openDialog(category: Category | null): void {
             </tr>
           </tbody>
           <tfoot v-if="rows.length > 1">
-            <tr>
-              <th scope="row" class="text-start">{{ words.table.inAll }}</th>
+            <tr v-if="hasMonthly">
+              <th scope="row" class="cell-wraps text-start">{{ words.table.leftInAll }}</th>
               <td class="hidden @2xl:table-cell" />
               <td class="hidden @2xl:table-cell" />
               <td />
               <td class="hidden @sm:table-cell" />
               <td class="text-end" data-testid="spending-budgets-left"><MoneyText :cents="leftToSpend(limits)" tone="balance" /></td>
+            </tr>
+            <tr v-if="hasYearly">
+              <th scope="row" class="cell-wraps text-start font-normal">{{ words.table.setAsideInAll }}</th>
+              <td class="hidden @2xl:table-cell" />
+              <td class="hidden @2xl:table-cell" />
+              <td />
+              <td class="hidden @sm:table-cell" />
+              <td class="text-end" data-testid="spending-budgets-set-aside"><MoneyText :cents="setAsideForYearly(limits)" /></td>
             </tr>
           </tfoot>
         </FigureTable>

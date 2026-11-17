@@ -8,6 +8,8 @@ import type { Category } from '../../workbook/domain/category'
 import { SPENDING_BUDGETS_ROUTE } from './spendingLinks'
 import { words } from './words'
 import { negateMoney } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
+import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -42,20 +44,44 @@ function meterParts(limit: BudgetMonth, colour: string): MeterPart[] {
   ]
 }
 
+/** A yearly cost before its payment: what is set aside in the category's colour against the amount due, the rest still to set aside as a track. */
+function setAsideParts(limit: BudgetMonth, due: Money, colour: string): MeterPart[] {
+  return [
+    { value: Math.max(limit.available, 0), colour },
+    { value: Math.max(due - Math.max(limit.available, 0), 0), colour: 'var(--chart-ghost)' },
+  ]
+}
+
 const rows = computed(() =>
   props.limits.flatMap((limit) => {
     const category = props.categories.get(limit.category)
     if (category === undefined) return []
     const spent = formatMoney(limit.spent)
     const available = formatMoney(limit.available)
+    const colour = `var(${props.colourOf(category)})`
+    if (limit.yearly !== undefined && limit.spent <= 0) {
+      const due = formatMoney(limit.yearly.amount)
+      return [
+        {
+          limit,
+          category,
+          caption: words.limits.setAsideOf(available, due),
+          label: words.limits.meterSetAside(category.name, available, due),
+          parts: setAsideParts(limit, limit.yearly.amount, colour),
+          after: words.limits.dueIn(monthLabel(limit.yearly.due)),
+        },
+      ]
+    }
     const debt = limit.available < 0 ? formatMoney(negateMoney(limit.available)) : null
+    const caption = limit.yearly !== undefined ? words.limits.paidFromSetAside(spent, available) : debt === null ? words.limits.spentOf(spent, available) : words.limits.spentAfterDebt(spent, debt)
     return [
       {
         limit,
         category,
-        caption: debt === null ? words.limits.spentOf(spent, available) : words.limits.spentAfterDebt(spent, debt),
+        caption,
         label: debt === null ? words.limits.meter(category.name, spent, available) : words.limits.meterAfterDebt(category.name, spent, debt),
-        parts: meterParts(limit, `var(${props.colourOf(category)})`),
+        parts: meterParts(limit, colour),
+        after: words.limits.left(formatMoney(limit.left)),
       },
     ]
   }),
@@ -72,7 +98,7 @@ const rows = computed(() =>
         </div>
         <ProgressMeter :parts="row.parts" :label="row.label" :height="8" />
         <NoteLine v-if="row.limit.left < 0" tone="error" data-testid="spending-limit-over">{{ budgetWords.overBy(formatMoney(negateMoney(row.limit.left))) }}</NoteLine>
-        <p v-else class="type-caption">{{ words.limits.left(formatMoney(row.limit.left)) }}</p>
+        <p v-else class="type-caption">{{ row.after }}</p>
       </li>
     </ul>
     <p v-if="note !== null" class="px-4 type-caption sm:px-5" data-testid="spending-limits-unrated">{{ note }}</p>

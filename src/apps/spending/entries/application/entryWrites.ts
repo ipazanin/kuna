@@ -1,4 +1,5 @@
 import type { EntrySplit } from '../domain/entrySplit'
+import type { TypedTransfer } from '../domain/transfer'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
 import { eventOfLargest, labelsOf, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import { linkedEntry } from '../../links/domain/instalmentSplit'
@@ -99,19 +100,23 @@ export function writeEntry(unit: UnitOfWork, records: EntryRecords, before: Item
   writeRows(unit, records, [changed(before, retypedEntry(before, entry)), ...(otherLeg === null ? [] : [{ before: otherLeg, after: null }])])
 }
 
-/** Both legs of a transfer in one write: added, a plain row turned into the leg its money already is, or written over the transfer it was, each leg keeping its labels. */
-export function writeTransfer(unit: UnitOfWork, records: EntryRecords, before: ItemizedRow | null, legs: readonly [ItemizedRow, ItemizedRow] | null, typed: readonly [ItemizedRow, ItemizedRow]): void {
-  const [outLeg, inLeg] = typed
+/**
+ * Both legs of a transfer in one write: added, a plain row turned into the leg its money already is, or written over the
+ * transfer it was, each leg keeping its labels. A fee row the transfer brings is added in the same write, so one Undo takes it back too.
+ */
+export function writeTransfer(unit: UnitOfWork, records: EntryRecords, before: ItemizedRow | null, legs: readonly [ItemizedRow, ItemizedRow] | null, typed: TypedTransfer): void {
+  const [outLeg, inLeg] = typed.legs
+  const fee = typed.fee === null ? [] : [added(typed.fee)]
   if (before === null) {
-    writeRows(unit, records, [added(outLeg), added(inLeg)])
+    writeRows(unit, records, [added(outLeg), added(inLeg), ...fee])
   } else if (legs === null) {
-    const { kept, added: joined } = transferOver(before, typed)
-    writeRows(unit, records, [changed(before, kept), added(joined)])
+    const { kept, added: joined } = transferOver(before, typed.legs)
+    writeRows(unit, records, [changed(before, kept), added(joined), ...fee])
   } else {
     const [oldOut, oldIn] = legs
     const out = legOver(oldOut, outLeg)
     const into = legOver(oldIn, inLeg)
-    writeRows(unit, records, [changed(oldOut, { ...out, row: { ...out.row, pair: oldIn.row.id } }), changed(oldIn, { ...into, row: { ...into.row, pair: oldOut.row.id } })])
+    writeRows(unit, records, [changed(oldOut, { ...out, row: { ...out.row, pair: oldIn.row.id } }), changed(oldIn, { ...into, row: { ...into.row, pair: oldOut.row.id } }), ...fee])
   }
 }
 

@@ -11,6 +11,8 @@ import EntrySplitDialog from './EntrySplitDialog.vue'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
 import { words } from './words'
 import { newTransfer } from '../domain/transfer'
+import TransferToFields from './TransferToFields.vue'
+import { positiveAmount, useTransferTyping } from './useTransferTyping'
 import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import { addLabel } from '../../labels/application/labelWrites'
 import { labelCalled, labelNameProblem, newLabel } from '../../labels/domain/labels'
@@ -52,7 +54,7 @@ import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
-import { absAccountMoney, negateAccountMoney, typedAccountAmount } from '../../../../shared/money/accountMoney'
+import { absAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
@@ -88,6 +90,7 @@ const transferCategory = computed(() => transferCategoryOf(categories.value))
 const kind = ref<EntryKind>('out')
 const amount = ref('')
 const toAmount = ref('')
+const lessArrived = ref(false)
 const category = ref('')
 const account = ref('')
 const toAccount = ref('')
@@ -115,6 +118,7 @@ const formNow = computed(() =>
     kind.value,
     amount.value,
     toAmount.value,
+    lessArrived.value,
     category.value,
     account.value,
     toAccount.value,
@@ -192,7 +196,6 @@ function accountOf(id: string): Account | null {
 
 const from = computed(() => accountOf(account.value))
 const to = computed(() => accountOf(toAccount.value))
-const twoCurrencies = computed(() => kind.value === 'transfer' && from.value !== null && to.value !== null && from.value.currency !== to.value.currency)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -204,6 +207,7 @@ watch(open, (opened) => {
   toAccount.value = pair?.[1].account ?? choosable.value.find((candidate) => candidate.id !== account.value)?.id ?? ''
   amount.value = entry === null ? '' : amountForTyping(absAccountMoney((pair?.[0] ?? entry).amount))
   toAmount.value = pair === null ? '' : amountForTyping(absAccountMoney(pair[1].amount))
+  lessArrived.value = false
   category.value = wholeItem.value?.category ?? ''
   date.value = entry?.date ?? today()
   payee.value = entry?.payee ?? ''
@@ -248,6 +252,7 @@ function bookedByBank(row: Transaction | null): boolean {
 }
 const fromBooked = computed(() => bookedByBank(rowOnFrom.value))
 const toBooked = computed(() => bookedByBank(rowOnTo.value))
+const { twoCurrencies, feeOn, draft, fee, arrivedError } = useTransferTyping({ kind, from, to, rowOnFrom, rowOnTo, sent: amount, arrived: toAmount, lessArrived })
 
 /** Where the entry came from, said once under its kind: what the bank fixed on it, and that a statement brings it back once deleted. */
 const sourceNote = computed(() =>
@@ -300,11 +305,6 @@ function eventItems(filedUnder: string | null): { label: string; value: EventCho
   ]
 }
 
-function positive(text: string): AccountMoney | null {
-  const typed = typedAccountAmount(text)
-  return typed === null || typed <= 0 ? null : typed
-}
-
 const day = computed(() => parseCivilDate(date.value))
 
 function openedAfter(on: CivilDate, onAccount: Account | null): string | null {
@@ -312,8 +312,8 @@ function openedAfter(on: CivilDate, onAccount: Account | null): string | null {
 }
 
 const errors = computed(() => ({
-  amount: positive(amount.value) === null ? words.dialog.anAmount : null,
-  toAmount: twoCurrencies.value && positive(toAmount.value) === null ? words.dialog.anAmount : null,
+  amount: positiveAmount(amount.value) === null ? words.dialog.anAmount : null,
+  toAmount: arrivedError.value,
   category: kind.value !== 'transfer' && !split.value && !pickable.value.has(category.value) ? words.dialog.pickCategory : null,
   account: from.value === null ? words.dialog.pickAccount : null,
   toAccount: kind.value === 'transfer' && (to.value === null || to.value.id === from.value?.id) ? words.dialog.otherAccount : null,
@@ -323,12 +323,12 @@ const errors = computed(() => ({
 
 async function save(): Promise<void> {
   tried.value = true
-  const typed = positive(amount.value)
+  const typed = positiveAmount(amount.value)
   const fromAccount = from.value
   const on = day.value
   if (Object.values(errors.value).some((error) => error !== null) || typed === null || fromAccount === null || on === null) return
   const signed = kind.value === 'out' ? negateAccountMoney(typed) : typed
-  const work = kind.value === 'transfer' ? transferWrite(fromAccount, typed, on) : entryWrite(fromAccount, signed, on)
+  const work = kind.value === 'transfer' ? transferWrite() : entryWrite(fromAccount, signed, on)
   if (work === null) return
   const adding = props.entry === null
   const filed = adding && kind.value !== 'transfer' ? categories.value.find((candidate) => candidate.id === category.value) : undefined
@@ -359,19 +359,19 @@ function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): 
 }
 
 /** Both legs in one write: added, changed in place, or a plain entry turned into the money-out leg with the other leg beside it. */
-function transferWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
-  const toAccountPicked = to.value
+function transferWrite(): ((unit: UnitOfWork) => void) | null {
   const fixed = transferCategory.value
-  if (toAccountPicked === null || fixed === null) return null
-  const arrived = twoCurrencies.value ? (positive(toAmount.value) ?? typed) : typed
-  const typedLegs = newTransfer({ account: fromAccount.id, amount: typed }, { account: toAccountPicked.id, amount: arrived }, { date: on, note: note.value, category: fixed.id })
+  const typed = draft.value
+  const on = day.value
+  if (typed === null || fixed === null || on === null) return null
+  const transfer = newTransfer(typed, { date: on, note: note.value, category: fixed.id }, categories.value, words.dialog.fee)
   const records = store.state.records
   const book = store.state.workbook
-  if (records === null || book === null) return null
+  if ('refused' in transfer || records === null || book === null) return null
   const before = props.entry === null ? null : itemizedRow(book, props.entry)
   const pair = legs.value
   const itemizedPair = pair === null ? null : ([itemizedRow(book, pair[0]), itemizedRow(book, pair[1])] as const)
-  return (unit) => writeTransfer(unit, records, before, itemizedPair, typedLegs)
+  return (unit) => writeTransfer(unit, records, before, itemizedPair, transfer)
 }
 
 /** The payee as the file holds it, which the person flag names, or blank for an entry with none. */
@@ -439,14 +439,21 @@ async function remove(): Promise<void> {
       >
         <USelect v-model="account" :items="accountItems" :disabled="fromFixed || split" class="w-full" data-testid="spending-entry-account" />
       </UFormField>
-      <template v-if="kind === 'transfer'">
-        <UFormField :label="words.dialog.toAccount" :error="(tried && errors.toAccount) || false">
-          <USelect v-model="toAccount" :items="accountItems" :disabled="toFixed" class="w-full" data-testid="spending-entry-to-account" />
-        </UFormField>
-        <UFormField v-if="twoCurrencies" :label="words.dialog.amountIn(to?.currency ?? '')" :help="words.dialog.arrivedHelp" :error="(tried && errors.toAmount) || false">
-          <MoneyInput v-model="toAmount" :placeholder="spendingWords.form.amountPlaceholder" :disabled="toBooked" class="w-full" data-testid="spending-entry-to-amount" />
-        </UFormField>
-      </template>
+      <TransferToFields
+        v-if="kind === 'transfer'"
+        v-model:to-account="toAccount"
+        v-model:to-amount="toAmount"
+        v-model:less-arrived="lessArrived"
+        :items="accountItems"
+        :to="to"
+        :two-currencies="twoCurrencies"
+        :fee-on="feeOn"
+        :fee="fee"
+        :to-fixed="toFixed"
+        :to-booked="toBooked"
+        :errors="errors"
+        :tried="tried"
+      />
       <template v-else>
         <UFormField :label="words.dialog.payee">
           <PayeeField v-model="payee" @update:model-value="memory.fill($event, kind)" />
@@ -466,7 +473,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
         <DayField v-model="date" :disabled="fromBooked || toBooked" class="w-full" data-testid="spending-entry-date" />
       </UFormField>
-      <UFormField v-if="!split" :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
+      <UFormField v-if="!split" :label="spendingWords.form.note" :class="twoCurrencies || (feeOn !== null && !lessArrived) ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
       <UFormField v-if="labelling && !split" :label="words.dialog.labels" :error="labelRefused?.part === null ? labelRefused.text : false" class="sm:col-span-2">

@@ -8582,6 +8582,88 @@ export function spendingLimitFlowIn(language) {
 export const spendingLimitFlow = spendingLimitFlowIn('en')
 
 /**
+ * On the sample Spending file's Limits: a yearly cost of 240 on Health, due eleven months on, sets aside
+ * a twelfth of it in this month, as the dialog says, and the row says under its name when it is due. Undo takes it off.
+ */
+export function spendingYearlyCostFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const limits = words.spendingBudgets
+  const health = words.spendingStarter.Health
+  const setAside = formatMoney(2000, 'negative', MONEY_FORMATS[language])
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="spending-limit-add"]')
+    await page.waitForSelector('[data-testid="spending-limit-dialog"]', { visible: true, timeout: 10_000 })
+    await choose(page, press, await page.$('[data-testid="spending-limit-category"]'), health)
+    await pressButton(page, press, '[data-testid="spending-limit-every"] button', limits.dialog.onceAYear)
+    await typeAmount(page, press, 'spending-limit-amount', '240')
+    await chooseAt(page, press, '[data-testid="spending-limit-due"]', 'last')
+    await page
+      .waitForFunction((wanted) => document.querySelector('[data-testid="spending-limit-dialog"]')?.textContent?.includes(wanted), { timeout: 5_000 }, setAside)
+      .catch(() => {
+        throw new Error(`the yearly cost dialog does not say it sets aside ${setAside} this month`)
+      })
+    await inspect?.('the yearly cost dialog')
+    await shoot('spending-yearly-dialog')
+    await pressSelector(page, press, '[data-testid="spending-limit-save"]')
+    await toast(page, limits.dialog.set)
+    await spendingLimitShown(page, health, true)
+    await page
+      .waitForFunction(
+        (wanted) => [...document.querySelectorAll('[data-testid="spending-budget-due"]')].some((line) => line.textContent?.trim() === wanted),
+        { timeout: 10_000 },
+        limits.table.setAsideAmount(setAside),
+      )
+      .catch(() => {
+        throw new Error(`${health} does not say it sets aside ${setAside} this month`)
+      })
+    await inspect?.('Limits with the yearly cost')
+    await shoot('spending-yearly-set')
+    await undoIn(page, press, words)
+    await spendingLimitShown(page, health, false)
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On the sample Spending file's Entries: 100 euros moved from OTP current to Revolut EUR with 99.30 arrived, which writes
+ * two legs of 100 and a fee of 0.70 on Revolut EUR in one write, and one Undo takes all three off.
+ */
+export function spendingFeeTransferFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dialog } = words.spendingEntries
+  const screens = words.spendingScreens
+  const title = words.spendingStarter['Between my accounts']
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await goTo(page, '#/spending/transactions', screens.entries)
+    await newSpendingEntry(page, press, words, 'transfer')
+    await typeAmount(page, press, 'spending-entry-amount', '100')
+    await chooseStartingWith(page, press, '[data-testid="spending-entry-account"]', 'OTP current')
+    await chooseStartingWith(page, press, '[data-testid="spending-entry-to-account"]', 'Revolut EUR')
+    await pressSelector(page, press, ':is([data-testid="spending-entry-less-arrived"][role="switch"], [data-testid="spending-entry-less-arrived"] [role="switch"])')
+    await typeAmount(page, press, 'spending-entry-to-amount', '99.30')
+    await page
+      .waitForFunction((wanted) => document.querySelector('[data-testid="spending-entry-dialog"]')?.textContent?.includes(wanted), { timeout: 5_000 }, 'Revolut EUR')
+      .catch(() => {
+        throw new Error('the entry dialog does not name Revolut EUR as where the fee goes')
+      })
+    await inspect?.('the entry dialog with less arrived')
+    await shoot('spending-fee-transfer-dialog')
+    await saveSpendingEntry(page, press, dialog.added)
+    await spendingRowShown(page, title, -10000, true)
+    await spendingRowShown(page, title, 10000, true)
+    await spendingRowShown(page, 'Revolut', -70, true)
+    await inspect?.('Transactions with the fee row')
+    await shoot('spending-fee-transfer-rows')
+    await undoIn(page, press, words)
+    await spendingRowShown(page, 'Revolut', -70, false)
+    await spendingRowShown(page, title, -10000, false)
+    await dismissToasts(page)
+  }
+}
+
+/**
  * On the sample Spending file's Limits by touch: Food's limit raised to 450 from this month keeps what carried in, which
  * the row says under its name on a phone, and its available becomes 450 and that carry.
  */

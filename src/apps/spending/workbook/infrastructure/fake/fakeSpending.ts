@@ -646,6 +646,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       },
     )
   }
+  if (set === 'sample') transactions.push(...yearlyCostAndFeeRows(oneBack, day, idOf))
   const loanEntries = set === 'foreign' ? { rows: [], lines: [] } : loanRows(twoBack, oneBack, day, idOf)
   transactions.push(...loanEntries.rows)
   // Each account opens with what makes its balance on the day the worked example's.
@@ -662,6 +663,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
             { id: fixedId(BUDGET_RECORDS, 1602), category: idOf('Transport'), from: twoBack, amount: moneyFromAmount(50) },
           ]
         : [{ id: fixedId(BUDGET_RECORDS, 1601), category: idOf('Food'), from: twoBack, amount: moneyFromAmount(400) }]
+  if (set === 'sample') budgets.push({ id: fixedId(BUDGET_RECORDS, 1603), category: idOf('Money and fees/Other insurance'), from: twoBack, amount: moneyFromAmount(360), due: oneBack })
   const receipts = set === 'receipts' ? withWaiting(splitRowReceipt(day, idOf), bankSync === null ? null : waitingReceipts(day, idOf)) : { receipts: [], lines: [] }
   return {
     records: {
@@ -679,6 +681,40 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
     rows: transactions,
     lines: [...receipts.lines, ...loanEntries.lines],
   }
+}
+
+/**
+ * What the sample adds for a yearly cost and a transfer that arrived with less: the home insurance of €360.00 paid last month,
+ * the month it falls due, from what the two months set aside, and a top-up of €100.00 from OTP that reached Revolut as €99.50,
+ * with the €0.50 as a row of its own on Revolut under Bank fees.
+ */
+function yearlyCostAndFeeRows(oneBack: MonthKey, day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
+  const [out, into] = [fixedId(TRANSACTION_RECORDS, 1531), fixedId(TRANSACTION_RECORDS, 1532)]
+  const typed = (place: number, account: RecordId, date: CivilDate, amount: number, fields: Partial<FakeRow>): FakeRow => ({
+    ...NO_BANK_FACTS,
+    id: fixedId(TRANSACTION_RECORDS, place),
+    account,
+    date,
+    amount: accountMoneyFromAmount(amount),
+    payee: '',
+    category: null,
+    note: '',
+    source: 'typed',
+    pair: null,
+    link: null,
+    labels: [],
+    event: BY_DAYS,
+    categorisedBy: 'person',
+    ...fields,
+  })
+  const between = idOf('Between my accounts')
+  const topUp = dayIn(oneBack, 9, day)
+  return [
+    typed(1530, OTP, dayIn(oneBack, 8, day), -360, { payee: 'City insurer', category: idOf('Money and fees/Other insurance') }),
+    typed(1531, OTP, topUp, -100, { category: between, pair: into }),
+    typed(1532, REVOLUT_EUR, topUp, 100, { category: between, pair: out }),
+    typed(1533, REVOLUT_EUR, topUp, -0.5, { payee: 'Revolut', description: 'Fee on a transfer', category: idOf('Money and fees/Bank fees') }),
+  ]
 }
 
 /**

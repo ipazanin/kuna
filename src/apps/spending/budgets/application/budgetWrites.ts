@@ -19,12 +19,16 @@ export const BUDGET_WRITES: WriteRules<Budget> = {
   refusals: () => [],
 }
 
-/** Sets the category's limit from the month on, changing the budget that starts in that month or adding one. An amount of zero ends the limit. */
-export function setLimit(unit: UnitOfWork, records: SpendingRecords, category: RecordId, from: MonthKey, amount: Money): void {
+/**
+ * Sets the category's limit from the month on, changing the budget that starts in that month or adding one. An amount of zero
+ * ends the limit. A due month makes it a yearly cost of that amount, and none a monthly limit.
+ */
+export function setLimit(unit: UnitOfWork, records: SpendingRecords, category: RecordId, from: MonthKey, amount: Money, due: MonthKey | null): void {
   const held = recordsOf(records.budgets).find((budget) => budget.category === category && budget.from === from)
+  const typed = { category, from, amount, ...(due === null ? {} : { due }) }
   if (held === undefined) {
-    unit.of(BUDGET_WRITES).add({ id: recordIdOf(BUDGET_RECORDS, newRecordId()), category, from, amount })
+    unit.of(BUDGET_WRITES).add({ id: recordIdOf(BUDGET_RECORDS, newRecordId()), ...typed })
   } else {
-    unit.of(BUDGET_WRITES).change(held, { ...held, amount })
+    unit.of(BUDGET_WRITES).change(held, { id: held.id, ...typed })
   }
 }

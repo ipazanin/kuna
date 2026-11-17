@@ -1,3 +1,4 @@
+import { dueProblem } from './budget'
 import type { Budget } from './budget'
 import { requiredReference } from './recordReference'
 import { BUDGET_RECORDS, CATEGORY_RECORDS } from './spendingKinds'
@@ -18,9 +19,14 @@ export function budgetOf(fields: StoredFields, id: RecordId | null): Budget {
   const from = parseMonthKey(fromText) ?? refuse(words.notAMonth('from', fromText))
   const amount = requiredMoney(fields, 'amount')
   if (amount < 0) refuse(words.amountBelowZero)
-  return { id: ownId(id), category: requiredReference(fields, 'category', CATEGORY_RECORDS), from, amount }
+  const dueText = textOf(fields.due)
+  const due = dueText === '' ? undefined : (parseMonthKey(dueText) ?? refuse(words.notAMonth('due', dueText)))
+  const yearly = due === undefined ? {} : { due }
+  const problem = dueProblem({ from, amount, ...yearly })
+  if (problem !== null) refuse(words.dueProblems[problem])
+  return { id: ownId(id), category: requiredReference(fields, 'category', CATEGORY_RECORDS), from, amount, ...yearly }
 }
 
 export const BUDGET_CODEC: RecordCodec<Budget> = withIdField(BUDGET_RECORDS, words.budgetLabel, budgetOf, (budget) =>
-  filledFields({ category: keyOfRecordId(CATEGORY_RECORDS, budget.category), from: budget.from, amount: amountText(budget.amount) }),
+  filledFields({ category: keyOfRecordId(CATEGORY_RECORDS, budget.category), from: budget.from, amount: amountText(budget.amount), due: budget.due }),
 )

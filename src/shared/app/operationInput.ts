@@ -12,6 +12,11 @@ export const NUMBER_OR_NULL: StrictSchema = { type: ['number', 'null'] }
 export const PART_AMOUNT: StrictSchema = { type: ['number', 'null'], description: 'Above zero, or null for the one part that takes the rest.' }
 export const FLAG_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: ['yes', 'no', null], description: '"yes", "no", or null to leave it.' }
 
+/** The flag a step's yes or no sets, or the one kept on null. */
+export function flagOf(text: string | null, kept: boolean): boolean {
+  return text === null ? kept : text === 'yes'
+}
+
 /** An operation's input: an object with every field required, where null leaves a field as it is. */
 export function inputOf(properties: Readonly<Record<string, StrictSchema>>): StrictSchema {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false }

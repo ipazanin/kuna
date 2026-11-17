@@ -58,12 +58,17 @@ function byId<R extends { readonly id: string }>(records: readonly R[]): R[] {
   return [...records].sort((left, right) => left.id.localeCompare(right.id))
 }
 
+const FEE_WORDS = { bankNames: { otp: 'OTP', revolut: 'Revolut' }, description: 'Fee on a transfer' }
+
 function topUp(amount = 200, into = REVOLUT_EUR, received = amount) {
-  return newTransfer(
-    { account: OTP.id, amount: accountMoneyFromAmount(amount) },
-    { account: into.id, amount: accountMoneyFromAmount(received) },
+  const typed = newTransfer(
+    { from: { account: OTP, row: null }, to: { account: into, row: null }, sent: accountMoneyFromAmount(amount), arrived: accountMoneyFromAmount(received) },
     { date: civil('2026-10-03'), note: '', category: BETWEEN.id },
+    CATEGORIES,
+    FEE_WORDS,
   )
+  if ('refused' in typed) throw new Error(typed.refused)
+  return typed.legs
 }
 
 function coffee(date: string, amount: number) {
@@ -586,8 +591,8 @@ describe('Spending category writes', () => {
     await store.write('Added', (unit) => {
       addEntries(unit, store.state.records!, [shopping('2026-10-12', -45.3)])
       addEntries(unit, store.state.records!, [shopping('2026-10-19', -60)])
-      setLimit(unit, store.state.records!, restaurants.id, month('2026-01'), moneyFromAmount(100))
-      setLimit(unit, store.state.records!, groceries.id, month('2026-09'), moneyFromAmount(300))
+      setLimit(unit, store.state.records!, restaurants.id, month('2026-01'), moneyFromAmount(100), null)
+      setLimit(unit, store.state.records!, groceries.id, month('2026-09'), moneyFromAmount(300), null)
     })
     const before = store.state.workbook!
 
@@ -626,9 +631,9 @@ describe('Spending limit writes', () => {
     const store = await spendingStore()
     const food = category('Food').id
 
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(400)))
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(450)))
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-12'), moneyFromAmount(0)))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(400), null))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(450), null))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-12'), moneyFromAmount(0), null))
 
     expect(store.state.workbook!.budgets.map((limit) => [limit.from, limit.amount])).toEqual([
       ['2026-09', moneyFromAmount(450)],
@@ -639,24 +644,47 @@ describe('Spending limit writes', () => {
   it('refuses a limit on a child while its group has one in the same months, and takes it once the group’s has ended', async () => {
     const store = await spendingStore()
     const [food, groceries] = [category('Food').id, category('Food/Groceries').id]
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(400)))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(400), null))
 
-    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, groceries, month('2026-10'), moneyFromAmount(250)))).rejects.toThrow(
+    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, groceries, month('2026-10'), moneyFromAmount(250), null))).rejects.toThrow(
       'is on a group and on one of its children in the same months',
     )
 
     await store.write('Set', (unit) => {
-      setLimit(unit, store.state.records!, food, month('2026-11'), moneyFromAmount(0))
-      setLimit(unit, store.state.records!, groceries, month('2026-11'), moneyFromAmount(250))
+      setLimit(unit, store.state.records!, food, month('2026-11'), moneyFromAmount(0), null)
+      setLimit(unit, store.state.records!, groceries, month('2026-11'), moneyFromAmount(250), null)
     })
     expect(store.state.workbook!.budgets).toHaveLength(3)
     expect(store.state.workbook!.problems).toEqual([])
   })
 
+  it('keeps a yearly cost with its due month, and a monthly limit set over it in the same month stores no due month', async () => {
+    const store = await spendingStore()
+    const insurance = category('Transport/Car registration and insurance').id
+
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, insurance, month('2026-12'), moneyFromAmount(600), month('2027-06')))
+    expect(store.state.workbook!.budgets).toMatchObject([{ from: '2026-12', amount: moneyFromAmount(600), due: '2027-06' }])
+
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, insurance, month('2026-12'), moneyFromAmount(50), null))
+    expect(store.state.workbook!.budgets).toHaveLength(1)
+    expect(store.state.workbook!.budgets[0]).not.toHaveProperty('due')
+  })
+
+  it.each([
+    ['before its first month', '2026-11', 600, 'due is before from'],
+    ['a year after its first month', '2027-12', 600, 'due is a year or more after from'],
+    ['on a budget of zero', '2027-06', 0, 'due is on a budget of zero'],
+  ])('refuses a yearly cost due %s', async (_, due, amount, reason) => {
+    const store = await spendingStore()
+    const insurance = category('Transport/Car registration and insurance').id
+
+    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, insurance, month('2026-12'), moneyFromAmount(amount), month(due)))).rejects.toThrow(reason)
+  })
+
   it('refuses a limit on an income category', async () => {
     const store = await spendingStore()
 
-    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, category('Income/Salary').id, month('2026-09'), moneyFromAmount(100)))).rejects.toThrow(
+    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, category('Income/Salary').id, month('2026-09'), moneyFromAmount(100), null))).rejects.toThrow(
       'is on a category that is not spending',
     )
   })

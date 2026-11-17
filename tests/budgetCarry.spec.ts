@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { budgetMonths, leftToSpend, limitRuns, limitsUnrated } from '../src/apps/spending/budgets/domain/budgetCarry'
+import { budgetMonths, leftToSpend, limitRuns, limitsUnrated, setAsideForYearly } from '../src/apps/spending/budgets/domain/budgetCarry'
 import type { CategoryMonth } from '../src/apps/spending/budgets/domain/budgetCarry'
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import type { Budget } from '../src/apps/spending/workbook/domain/budget'
+import { addMonths } from '../src/shared/calendar/monthKey'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { ZERO } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
@@ -130,5 +131,67 @@ describe('the rows a limit counts as nothing', () => {
 
   it('counts every row once the rates reach them', () => {
     expect(limitsUnrated(spendingFigures(book, RATES).limitsIn(month('2026-11')))).toBe(0)
+  })
+})
+
+describe('a yearly cost', () => {
+  const insurance = (amount = 600): Budget => ({ ...budget(1, 'Food', '2026-12', amount), due: month('2027-06') })
+
+  /** What the cost sets aside in each month from December to the month asked, as the carry gives it. */
+  function setAside(budgets: readonly Budget[], table: Readonly<Record<string, number>>, until: string): Money[] {
+    const months: Money[] = []
+    for (let at = month('2026-12'); at <= month(until); at = addMonths(at, 1)) months.push(budgetMonths(budgets, spent(table), at).find((entry) => entry.category === FOOD)!.limit)
+    return months
+  }
+
+  it('catches up from a start seven months before it is due, so June holds exactly €600.00', () => {
+    // €600.00 over December to June is €85.71 a month, each month spreading what is still missing over the months left.
+    expect(setAside([insurance()], {}, '2027-06')).toEqual([85.71, 85.72, 85.71, 85.72, 85.71, 85.72, 85.71].map(euros))
+    expect(monthOf([insurance()], {}, '2027-06')?.available).toBe(euros(600))
+  })
+
+  it('leaves €0.00 after a €600.00 payment in June and sets aside a twelfth from July, the next due month a year on', () => {
+    const paid = { '2027-06': 600 }
+
+    expect(monthOf([insurance()], paid, '2027-06')?.left).toBe(ZERO)
+    expect(monthOf([insurance()], paid, '2027-07')).toEqual(figures(50, 0, 50, 0, 50))
+    expect(budgetMonths([insurance()], spent(paid), month('2027-07'))[0]?.yearly).toEqual({ amount: euros(600), due: '2028-06' })
+  })
+
+  it('carries a €650.00 payment €50.00 short into July, which the next twelve months make up', () => {
+    const july = monthOf([insurance()], { '2027-06': 650 }, '2027-07')
+
+    // €650.00 missing over July to June is €54.17 a month.
+    expect(july).toEqual(figures(54.17, -50, 4.17, 0, 4.17))
+  })
+
+  it('spreads only what is missing when the cost rises in March', () => {
+    const raised = [insurance(), { ...budget(2, 'Food', '2027-03', 660), due: month('2027-06') }]
+
+    // December to February set aside €257.14, so March to June spread the €402.86 still missing of €660.00.
+    expect(setAside(raised, {}, '2027-06').slice(3)).toEqual([100.72, 100.71, 100.72, 100.71].map(euros))
+    expect(monthOf(raised, {}, '2027-06')?.available).toBe(euros(660))
+  })
+
+  it('leaves its money out of what is left to spend, and gives it as set aside', () => {
+    const budgets = [insurance(), budget(2, 'Food/Groceries', '2026-12', 300)]
+    const months = budgetMonths(budgets, () => ({ spent: ZERO, unrated: 0 }), month('2026-12'))
+
+    expect(leftToSpend(months)).toBe(euros(300))
+    expect(setAsideForYearly(months)).toBe(euros(85.71))
+  })
+
+  it('starts a new run when a monthly limit becomes a yearly cost, so nothing carries between them', () => {
+    const switched = [budget(1, 'Food', '2026-09', 400), { ...budget(2, 'Food', '2026-12', 600), due: month('2027-06') }]
+
+    expect(limitRuns(switched, FOOD)).toEqual([
+      { from: '2026-09', until: '2026-12' },
+      { from: '2026-12', until: null },
+    ])
+    expect(monthOf(switched, { '2026-09': 100 }, '2026-12')?.carriedIn).toBe(ZERO)
+  })
+
+  it('keeps a monthly limit without a yearly key, as it read before yearly costs', () => {
+    expect(budgetMonths([budget(1, 'Food', '2026-09', 400)], spent({}), month('2026-09'))[0]).not.toHaveProperty('yearly')
   })
 })

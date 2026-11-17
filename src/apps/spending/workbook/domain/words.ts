@@ -9,6 +9,7 @@ import { textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
+import type { DueProblem } from './budget'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. A field keeps its name as the file stores it, such as opened_on.
 // An entry is unos, and a limit ograničenje.
@@ -63,6 +64,11 @@ export const en = {
   pairNotBack: 'names as its other leg a row that does not name it back',
   notAMonth: (name: string, text: string) => `${name} "${text}" is not a month such as 2026-11`,
   amountBelowZero: 'amount is below zero',
+  dueProblems: {
+    'before-from': 'due is before from, so the first month it falls due is not its own',
+    'too-far': 'due is a year or more after from, so it falls due before then too',
+    'on-zero': 'due is on a budget of zero, which ends the limit',
+  } satisfies Record<DueProblem, string>,
   notSpending: 'is on a category that is not spending, which no limit counts',
   budgetSharesMonth: (month: MonthKey) => `another limit of the category starts in ${month} too`,
   budgetOnGroupAndChild: 'is on a group and on one of its children in the same months, so no euro counts against two limits',
@@ -164,6 +170,11 @@ export const hr: Translation<typeof en> = {
   pairNotBack: 'kao drugu stranu navodi stavku koja ne navodi nju',
   notAMonth: (name, text) => `${name} „${text}” nije mjesec kao 2026-11`,
   amountBelowZero: 'amount je manji od nule',
+  dueProblems: {
+    'before-from': 'due je prije from, pa prvi mjesec dospijeća nije njegov',
+    'too-far': 'due je godinu dana ili više nakon from, pa dospijeva i prije toga',
+    'on-zero': 'due je na ograničenju od nule, koje završava ograničenje',
+  },
   notSpending: 'je na kategoriji koja nije potrošnja, pa je ograničenje ne broji',
   budgetSharesMonth: (month) => `i drugo ograničenje te kategorije počinje u mjesecu ${monthLabel(month)}`,
   budgetOnGroupAndChild: 'je na skupini i na jednoj od njezinih podređenih kategorija u istim mjesecima, pa se nijedan euro ne broji u dva ograničenja',

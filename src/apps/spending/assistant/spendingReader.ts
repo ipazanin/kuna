@@ -214,7 +214,8 @@ const BUDGET_FIELDS: FieldDocs<Budget> = {
   id: { exposure: 'ref', to: BUDGET_RECORDS.name, meaning: 'The limit.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The spending category it limits.' },
   from: { exposure: 'plain', meaning: 'The month it starts, until a later one of the category.' },
-  amount: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'A month in euros. Zero ends the limit.' },
+  amount: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'Euros a month, or due each year with due. Zero ends the limit.' },
+  due: { exposure: 'plain', meaning: 'A yearly cost: the first month it falls due, then every 12 months. Absent on a monthly limit.' },
 }
 
 /** What the bank loan a rule's rows pay reads as, or null for a rule that names none. */
@@ -370,7 +371,13 @@ function limitsReport(book: SpendingBook, rates: RateBook, period: string | null
     .limitsIn(monthOfPeriod(period))
     .flatMap((limit) => {
       const name = names.get(limit.category) ?? ''
-      return [euros(`${name}: limit`, limit.limit), euros(`${name}: carried in`, limit.carriedIn), euros(`${name}: spent`, limit.spent), euros(`${name}: left`, limit.left)]
+      const figures = [
+        euros(`${name}: ${limit.yearly === undefined ? 'limit' : 'set aside'}`, limit.limit),
+        euros(`${name}: carried in`, limit.carriedIn),
+        euros(`${name}: spent`, limit.spent),
+        euros(`${name}: left`, limit.left),
+      ]
+      return limit.yearly === undefined ? figures : [...figures, euros(`${name}: due in ${limit.yearly.due}`, limit.yearly.amount)]
     })
 }
 

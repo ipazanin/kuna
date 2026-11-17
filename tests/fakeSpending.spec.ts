@@ -19,7 +19,7 @@ import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { monthOf } from '../src/shared/calendar/monthKey'
 import { NO_RATES } from '../src/shared/money/rateBook'
-import { civil, euros } from './fixtures/ledger'
+import { civil, euros, month } from './fixtures/ledger'
 import { today } from '../src/shared/calendar/civilDate'
 import { SAMPLE_DAY } from '../scripts/support/importSampleFiles.mjs'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -73,7 +73,24 @@ describe("the fake build's Spending sets", () => {
     const day = civil('2026-11-04')
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'sample', day))
 
-    expect(spendingFigures(book, NO_RATES).limitsIn(monthOf(day))).toMatchObject([{ limit: euros(400), carriedIn: euros(-30), available: euros(370) }])
+    expect(spendingFigures(book, NO_RATES).limitsIn(monthOf(day))).toContainEqual(expect.objectContaining({ limit: euros(400), carriedIn: euros(-30), available: euros(370) }))
+  })
+
+  it('pay the home insurance in the sample from what two months set aside, in the month it falls due, and set aside a twelfth since', () => {
+    const day = civil('2026-11-04')
+    const figures = spendingFigures(bookOf(fakeSpendingDocument(SAVED_AT, 'sample', day)), NO_RATES)
+    const yearly = (asked: string) => figures.limitsIn(month(asked)).find((limit) => limit.yearly !== undefined)
+
+    expect(yearly('2026-10')).toMatchObject({ limit: euros(180), available: euros(360), spent: euros(360), left: euros(0), yearly: { amount: euros(360), due: '2026-10' } })
+    expect(yearly('2026-11')).toMatchObject({ limit: euros(30), available: euros(30), yearly: { due: '2027-10' } })
+  })
+
+  it('hold a top-up of 100.00 in the sample that reached Revolut EUR as 99.50, with the 0.50 as a Bank fees row of its own', () => {
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'sample', civil('2026-11-04')))
+    const fee = book.transactions.find((row) => row.description === 'Fee on a transfer')!
+
+    expect(fee).toMatchObject({ amount: accountMoneyFromAmount(-0.5), payee: 'Revolut', pair: null })
+    expect(book.transactions.filter((row) => row.date === fee.date && row.pair !== null).map((row) => row.amount)).toEqual([accountMoneyFromAmount(-100), accountMoneyFromAmount(100)])
   })
 
   it('overspend both limits of the over set in the month before the day', () => {

@@ -5,25 +5,32 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { setLimit } from '../application/budgetWrites'
-import { limitIn } from '../domain/budgetCarry'
+import { budgetIn, nextDue } from '../domain/budgetCarry'
+import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { categoryTree } from '../../categories/domain/categoryTree'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Category } from '../../workbook/domain/category'
+import { BUDGET_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words as spendingWords } from '../../words'
 import { words } from './words'
 import { addMonths, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { ZERO, plainAmount } from '../../../../shared/money/money'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { useRates } from '../../../../shared/rates/application/pageRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
-/** Sets a monthly limit on a spending group or category from a month on, or ends the one it has. */
+/** Sets a monthly limit or a yearly cost on a spending group or category from a month on, or ends the one it has. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -37,6 +44,7 @@ const props = defineProps<{
 
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
+const rates = useRates()
 
 /** How far before and after this month a limit can start. */
 const MONTHS_AROUND = 12
@@ -45,7 +53,10 @@ const MONTHS_AROUND = 12
 const picked = ref('')
 const amount = ref('')
 const from = ref<MonthKey>(props.month)
+const every = ref<'month' | 'year'>('month')
+const due = ref<MonthKey>(props.month)
 const tried = ref(false)
+const yearly = computed(() => every.value === 'year')
 
 const budgets = computed(() => store.state.workbook?.budgets ?? [])
 const pickedId = computed<RecordId | null>(() => store.state.workbook?.categories.find((category) => category.id === picked.value)?.id ?? null)
@@ -68,8 +79,17 @@ const categoryItems = computed(() =>
 
 const monthItems = computed(() => monthsFrom(addMonths(props.current, -MONTHS_AROUND), addMonths(props.current, MONTHS_AROUND)).map((month) => ({ label: monthLabel(month), value: month })))
 
-/** The limit the picked category has in the picked month, zero without one. */
-const heldLimit = computed<Money>(() => (pickedId.value === null ? ZERO : limitIn(budgets.value, pickedId.value, from.value)))
+const EVERY_OPTIONS = [
+  { value: 'month' as const, label: words.dialog.everyMonth },
+  { value: 'year' as const, label: words.dialog.onceAYear },
+]
+
+/** The months a yearly cost starting in the picked month can first fall due in: that month and the eleven after it. */
+const dueItems = computed(() => monthsFrom(from.value, addMonths(from.value, 11)).map((month) => ({ label: monthLabel(month), value: month })))
+
+/** The budget the picked category has in the picked month, and its amount, zero without one. */
+const held = computed(() => (pickedId.value === null ? undefined : budgetIn(budgets.value, pickedId.value, from.value)))
+const heldLimit = computed<Money>(() => held.value?.amount ?? ZERO)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -77,6 +97,15 @@ watch(open, (opened) => {
   from.value = props.month
   tried.value = false
 })
+
+// How often follows the picked category's budget when the dialog opens or the category changes, and a later change of month keeps what the person chose.
+watch(
+  [open, pickedId],
+  ([opened]) => {
+    if (opened) every.value = held.value?.due !== undefined && held.value.amount > 0 ? 'year' : 'month'
+  },
+  { immediate: true },
+)
 
 // The amount shown is always the picked category's limit in the picked month, so Save never writes one category's figure onto another.
 watch(
@@ -87,9 +116,34 @@ watch(
   { immediate: true },
 )
 
+// A yearly cost keeps its due month as the picked month moves, falling due in the same month of the year.
+watch(
+  [open, held, from],
+  ([opened, budget, month]) => {
+    if (opened) due.value = nextDue(budget?.due !== undefined && budget.amount > 0 ? budget.due : due.value, month)
+  },
+  { immediate: true },
+)
+
 const typed = computed(() => {
   const cents = typedAmount(amount.value)
   return cents !== null && cents > 0 ? cents : null
+})
+
+const DRAFT = recordIdOf(BUDGET_RECORDS, newRecordId())
+
+/** What the yearly cost as typed sets aside in its first month, with what an earlier run of it carries in. */
+const setAside = computed(() => {
+  const book = store.state.workbook
+  const category = pickedId.value
+  if (!yearly.value || book === null || category === null || typed.value === null) return null
+  const kept = book.budgets.filter((budget) => !(budget.category === category && budget.from === from.value))
+  const draft = { id: held.value?.id ?? DRAFT, category, from: from.value, amount: typed.value, due: due.value }
+  return (
+    spendingFigures({ ...book, budgets: [...kept, draft] }, everydayRates(rates.value))
+      .limitsIn(from.value)
+      .find((month) => month.category === category)?.limit ?? null
+  )
 })
 
 const errors = computed(() => ({
@@ -97,36 +151,42 @@ const errors = computed(() => ({
   amount: typed.value === null ? words.dialog.anAmount : null,
 }))
 
-async function write(title: string, limit: Money, key: string): Promise<void> {
+async function write(title: string, limit: Money, key: string, dueIn: MonthKey | null): Promise<void> {
   const records = store.state.records
   const category = pickedId.value
   const month = from.value
   if (records === null || category === null) return
-  if (await writes.write(title, (unit) => setLimit(unit, records, category, month, limit), { key, failedTitle: spendingWords.form.notSaved })) open.value = false
+  if (await writes.write(title, (unit) => setLimit(unit, records, category, month, limit, dueIn), { key, failedTitle: spendingWords.form.notSaved })) open.value = false
 }
 
 async function save(): Promise<void> {
   tried.value = true
   if (errors.value.category !== null || typed.value === null) return
-  await write(words.dialog.set, typed.value, 'save')
+  await write(words.dialog.set, typed.value, 'save', yearly.value ? due.value : null)
 }
 
 async function end(): Promise<void> {
-  await write(words.dialog.ended, ZERO, 'end')
+  await write(words.dialog.ended, ZERO, 'end', null)
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" changes :title="heldLimit > 0 ? words.dialog.changeTitle : words.dialog.title" :description="words.dialog.description">
+  <AppDialog v-model:open="open" changes :title="heldLimit > 0 ? words.dialog.changeTitle : words.dialog.title" :description="yearly ? words.dialog.yearlyDescription : words.dialog.description">
     <FormGrid id="spending-limit" as="form" data-testid="spending-limit-dialog" @submit.prevent="save">
       <UFormField :label="words.dialog.category" :error="(tried && errors.category) || false" class="sm:col-span-2">
         <USelect v-model="picked" :items="categoryItems" :placeholder="words.dialog.aCategory" class="w-full" data-testid="spending-limit-category" />
       </UFormField>
-      <UFormField :label="words.dialog.amount" :error="(tried && errors.amount) || false">
+      <UFormField :label="words.dialog.every" class="sm:col-span-2">
+        <ChoiceButtons v-model="every" :options="EVERY_OPTIONS" :label="words.dialog.every" data-testid="spending-limit-every" />
+      </UFormField>
+      <UFormField :label="yearly ? words.dialog.yearlyAmount : words.dialog.amount" :error="(tried && errors.amount) || false">
         <MoneyInput v-model="amount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-limit-amount" />
       </UFormField>
       <UFormField :label="words.dialog.from" :help="words.dialog.fromHelp">
         <USelect v-model="from" :items="monthItems" class="w-full" data-testid="spending-limit-from" />
+      </UFormField>
+      <UFormField v-if="yearly" :label="words.dialog.due" :help="setAside === null ? '' : words.dialog.dueHelp(formatMoney(setAside), monthLabel(from))" class="sm:col-span-2">
+        <USelect v-model="due" :items="dueItems" class="w-full" data-testid="spending-limit-due" />
       </UFormField>
     </FormGrid>
     <template #start>

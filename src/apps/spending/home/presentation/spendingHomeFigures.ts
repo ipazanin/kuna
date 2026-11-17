@@ -1,6 +1,6 @@
 import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { bankLinkLines } from '../../bankSync/presentation/bankLinkLines'
-import { leftToSpend } from '../../budgets/domain/budgetCarry'
+import { holdsMonthlyLimit, leftToSpend } from '../../budgets/domain/budgetCarry'
 import { countedAccounts, unconvertedCount } from '../../rates/domain/euroRows'
 import { unratedNote } from '../../rates/presentation/unratedNote'
 import { reviewCount } from '../../statements/domain/reviewQueue'
@@ -34,7 +34,7 @@ export function spendingHomeFigures(book: SpendingBook, rates: RatesState, day: 
     amounts: [
       ...accounts.parts.map((part) => ({ label: part.label, cents: part.side === 'has' ? part.cents : negateMoney(part.cents), tone: 'balance' as const })),
       { label: words.spentThisMonth, cents: negateMoney(totals.spent), tone: 'flow' as const },
-      ...(limits.length === 0 ? [] : [{ label: words.leftThisMonth, cents: leftToSpend(limits), tone: 'balance' as const }]),
+      ...(!holdsMonthlyLimit(limits) ? [] : [{ label: words.leftThisMonth, cents: leftToSpend(limits), tone: 'balance' as const }]),
     ],
     waiting:
       [

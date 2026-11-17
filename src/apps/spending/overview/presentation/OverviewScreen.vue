@@ -14,7 +14,7 @@ import { groupMonthsChart } from '../../analytics/presentation/groupMonthsChart'
 import { monthFlowChart } from '../../analytics/presentation/monthFlowChart'
 import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { words as figureWords } from '../../analytics/presentation/words'
-import { leftToSpend, limitsUnrated } from '../../budgets/domain/budgetCarry'
+import { holdsMonthlyLimit, leftToSpend, limitsUnrated } from '../../budgets/domain/budgetCarry'
 import { categoryTree, fixedCategories } from '../../categories/domain/categoryTree'
 import { categoryColours } from '../../categories/presentation/categoryColours'
 import { words as homeWords } from '../../home/presentation/words'
@@ -197,7 +197,7 @@ function openGroupMonth(selection: ChartPointSelection): void {
               <span v-else class="figure" :class="moneyToneClass(percentAsShown(savingsRate), 'outcome')">{{ formatPercent(savingsRate, 'always') }}</span>
             </template>
           </KpiTile>
-          <KpiTile v-if="limits.length > 0" :label="homeWords.leftThisMonth" :value="formatMoney(leftToSpend(limits))" :to="SPENDING_BUDGETS_ROUTE" data-testid="spending-left">
+          <KpiTile v-if="holdsMonthlyLimit(limits)" :label="homeWords.leftThisMonth" :value="formatMoney(leftToSpend(limits))" :to="SPENDING_BUDGETS_ROUTE" data-testid="spending-left">
             <template #value>
               <span v-if="waiting" class="block type-body font-normal">{{ rateWords.loading }}</span>
               <MoneyText v-else :cents="leftToSpend(limits)" tone="balance" />

@@ -49,6 +49,10 @@ export const en = {
     meterAfterDebt: (category: string, spent: string, debt: string) => `${category}: ${spent} spent, after ${debt} carried in over the limit`,
     spentAfterDebt: (spent: string, debt: string) => `${spent} spent, after ${debt} carried in over the limit`,
     left: (amount: string) => `${amount} left`,
+    setAsideOf: (setAside: string, due: string) => `${setAside} of ${due} set aside`,
+    meterSetAside: (category: string, setAside: string, due: string) => `${category}: ${setAside} of ${due} set aside`,
+    dueIn: (month: string) => `Due in ${month}`,
+    paidFromSetAside: (spent: string, available: string) => `${spent} paid from ${available} set aside`,
     allLimits: 'All limits',
   },
   months: {
@@ -129,6 +133,10 @@ export const hr: Translation<typeof en> = {
     meterAfterDebt: (category, spent, debt) => `${category}: potrošeno ${spent}, uz ${debt} prenesenog prekoračenja`,
     spentAfterDebt: (spent, debt) => `Potrošeno ${spent}, uz ${debt} prenesenog prekoračenja`,
     left: (amount) => `Preostalo ${amount}`,
+    setAsideOf: (setAside, due) => `Odvojeno ${setAside} od ${due}`,
+    meterSetAside: (category, setAside, due) => `${category}: odvojeno ${setAside} od ${due}`,
+    dueIn: (month) => `Dospijeva u mjesecu ${month}`,
+    paidFromSetAside: (spent, available) => `Plaćeno ${spent} iz odvojenih ${available}`,
     allLimits: 'Sva ograničenja',
   },
   months: {

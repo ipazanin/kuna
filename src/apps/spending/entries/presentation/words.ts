@@ -3,6 +3,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../../../shared/ui/words'
+import { en as accountWords, hr as accountCroatian } from '../../accounts/domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // An entry is unos and an account račun, both masculine.
@@ -66,6 +67,12 @@ export const en = {
     kinds: { out: 'Money out', in: 'Money in', transfer: 'Between my accounts' },
     amountIn: (currency: string) => `Amount in ${currency}`,
     arrivedHelp: 'What reached the other account',
+    lessArrived: 'Less arrived',
+    feeTaken: 'The bank took a fee',
+    arrivedIn: (currency: string) => `Arrived in ${currency}`,
+    feeHelp: (fee: string, account: string) => `${fee} goes on ${account} as a bank fee, an entry of its own once saved.`,
+    arrivedAboveSent: 'Not more than was sent',
+    fee: { description: 'Fee on a transfer', bankNames: accountWords.banks },
     bookedByBank: 'The bank booked this entry, so its kind, amount, date and account stay.',
     bankAccountsHidden: 'Accounts the bank fills are not listed',
     anAmount: 'An amount above zero with at most two decimals',
@@ -186,6 +193,12 @@ export const hr: Translation<typeof en> = {
     kinds: { out: 'Isplata', in: 'Uplata', transfer: 'Između mojih računa' },
     amountIn: (currency) => `Iznos u valuti ${currency}`,
     arrivedHelp: 'Iznos koji je stigao na drugi račun',
+    lessArrived: 'Stiglo je manje',
+    feeTaken: 'Banka je naplatila naknadu',
+    arrivedIn: (currency) => `Stiglo u valuti ${currency}`,
+    feeHelp: (fee, account) => `${fee} ide na ${account} kao bankovna naknada i nakon spremanja je zaseban unos.`,
+    arrivedAboveSent: 'Ne više od poslanog iznosa',
+    fee: { description: 'Naknada za prijenos', bankNames: accountCroatian.banks },
     bookedByBank: 'Proknjižila ga je banka, pa vrsta, iznos, datum i račun ostaju.',
     bankAccountsHidden: 'Računi koje puni banka nisu na popisu',
     anAmount: 'Iznos veći od nule s najviše dvije decimale',

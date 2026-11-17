@@ -137,6 +137,47 @@ describe('transfers', () => {
     expect(bookOf(desk).transactions.at(-1)!.amount).toBe(5820)
   })
 
+  it('writes what did not arrive in one currency as a fee row on the arrival account in the same write, and refuses more arriving than was sent', async () => {
+    const desk = await spendingDesk(used)
+    const before = bookOf(desk).transactions.length
+    const transfer = (toAmount: number) =>
+      stepOf(SPENDING_OPERATIONS, 'add-transfer', {
+        from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
+        to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id),
+        date: '2026-11-02',
+        amount: 50,
+        toAmount,
+        note: '',
+      })
+    expect((await desk.propose([transfer(50.5)])).text).toContain('not more than amount')
+    await desk.propose([transfer(49.5)])
+    const result = await desk.accept()
+    expect(result.kind).toBe('done')
+    const [out, into, fee] = bookOf(desk).transactions.slice(before)
+    expect([out!.amount, into!.amount, fee!.amount]).toEqual([-5000, 5000, -50])
+    expect(fee).toMatchObject({ account: DESK_ACCOUNTS.SAVINGS.id, pair: null })
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).transactions).toHaveLength(before)
+  })
+
+  it('keeps a transfer in one currency arriving in full when change-transfer gives a new amount alone', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, note: '' }),
+    ])
+    await desk.accept()
+    const count = bookOf(desk).transactions.length
+    const [out] = bookOf(desk).transactions.slice(-2)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-transfer', { entry: desk.ref('transaction', out!.id), amount: 60 })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).transactions).toHaveLength(count)
+    expect(
+      bookOf(desk)
+        .transactions.slice(-2)
+        .map((leg) => leg.amount),
+    ).toEqual([-6000, 6000])
+  })
+
   it('turns a plain entry into the leg its money is with no payee, and a kind turns a leg back into a plain entry with its other leg gone', async () => {
     const desk = await spendingDesk(used)
     const entry = EXAMPLE_RECORDS['transaction']!
