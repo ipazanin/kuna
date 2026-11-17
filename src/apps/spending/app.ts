@@ -17,7 +17,8 @@ import {
 } from './overview/presentation/spendingLinks'
 import { rowLinksOf } from './facts'
 import { toReviewCount } from './links/application/instalmentReview'
-import { targetsOf } from './links/application/linkTargets'
+import { sourceOf, targetsOf } from './links/application/linkTargets'
+import { readMoneyWithOwnerThrough } from './links/application/companyTargets'
 import { loanTargets } from './links/application/loanTargets'
 import { companyOib, oibToMatch } from './receipts/application/companyOib'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
@@ -59,8 +60,9 @@ export const spendingApp: AppContribution = {
   id: SPENDING_APP,
   name: words.name,
   colour: '--app-spending',
-  async install() {
+  async install(shell) {
     noteBankReturn()
+    readMoneyWithOwnerThrough(() => shell.moneyWithOwner())
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
@@ -138,7 +140,13 @@ export const spendingApp: AppContribution = {
       },
       companyOib: () => oibToMatch(companyOib()),
     }
-    const ports: SpendingPorts = { receipts, device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount }, linkTargets: targetsOf, loanTargets }
+    const ports: SpendingPorts = {
+      receipts,
+      device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount },
+      linkTargets: targetsOf,
+      linkSource: sourceOf,
+      loanTargets,
+    }
     return spendingAssistant(
       {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
@@ -147,6 +155,7 @@ export const spendingApp: AppContribution = {
         bankSetup: heldBankSetup,
         qrTextOn,
         linkTargets: targetsOf,
+        linkSource: sourceOf,
       },
       { proposer: spendingProposer(store, ports, file), acceptance: spendingAcceptance(store, ports, file) },
     )

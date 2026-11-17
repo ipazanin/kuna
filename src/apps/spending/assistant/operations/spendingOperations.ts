@@ -27,7 +27,7 @@ import type { LastAccountPorts } from './startingAccountOperation'
 import type { BankSetup } from '../../bankSync/application/bankSync'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
 import { instalmentLinksOf } from '../../links/domain/instalmentSplit'
-import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
+import type { AppTargets, LinkTarget, TargetSource } from '../../links/domain/linkTarget'
 import { words as linkWords } from '../../links/presentation/words'
 import { words as statementWords } from '../../statements/presentation/words'
 import { importWithRules, rowsRulesWouldChange, writeRules } from '../../statements/application/statementWrites'
@@ -269,7 +269,7 @@ function spendingWork(appName: string, ports: SpendingPorts): ProposalWork<Spend
     },
     narrower: (warnings) => (warnings.refiled === 0 ? null : statementWords.rules.apply.onlyNew),
     card: (checked, { workbook }, warnings, steps) => ({
-      groups: proposalGroupsOf(checked, workbook, ports.linkTargets, warnings),
+      groups: proposalGroupsOf(checked, workbook, ports.linkTargets, ports.linkSource, warnings),
       outside: receiptsOutside(steps),
       heldBack: statementHeldBack(warnings.leftOut),
     }),
@@ -303,6 +303,8 @@ export interface SpendingPorts {
   readonly device: SpendingDevice
   /** The records of the app a link names, which the card reads the link's state against, as the screens do. */
   linkTargets(app: string): AppTargets<LinkTarget>
+  /** Which kind of app the app a link names is, which the card's words for a link it cannot show follow. */
+  linkSource(app: string): TargetSource
   /** The records in Loans an entry or a rule's rows can link to, which a step names by the loan's name. */
   loanTargets(): AppTargets<LinkTarget>
 }

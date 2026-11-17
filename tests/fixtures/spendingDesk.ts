@@ -387,6 +387,7 @@ export function deskPorts(receipts: ReceiptPorts = receiptPorts(), bankSetup: Ba
     receipts,
     device: { bankSetup: () => bankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount },
     linkTargets: () => DESK_LOAN_TARGETS,
+    linkSource: () => 'loans',
     loanTargets: () => DESK_LOAN_TARGETS,
   }
 }

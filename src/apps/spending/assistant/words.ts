@@ -126,6 +126,11 @@ export const en = {
     linkGone: 'a record Loans no longer has',
     linkUnknown: 'a record of Loans, which cannot be read now',
     linkNotSetUp: 'a record of Loans, but Loans is not set up',
+    linkCompanyPayment: (kinds: string, day: string, toYou: boolean) =>
+      toYou ? `the payment from your company on ${day}, of ${kinds}, in Company` : `the payment to your company on ${day}, of ${kinds}, in Company`,
+    linkCompanyGone: 'a payment Company no longer has',
+    linkCompanyUnknown: 'a payment of Company, which cannot be read now',
+    linkCompanyNotSetUp: 'a payment of Company, but Company is not set up or keeps no owner pay',
     bankSync: 'Whether the bank sync can bring a new account its rows, which needs a bank sync deployment saved on Settings, Bank sync.',
     payee:
       'Each payee of every entry filed under a spending or an income category, once however its case and accents differ, with the IBANs its bank rows carry and the category its entries usually go under, as the Payees tab lists them. A payee is no record of the file.',
@@ -332,6 +337,10 @@ export const hr: Translation<typeof en> = {
     linkGone: 'zapis kojeg Krediti više nemaju',
     linkUnknown: 'zapis iz Kredita koji se sada ne može pročitati',
     linkNotSetUp: 'zapis iz Kredita, ali Krediti nisu postavljeni',
+    linkCompanyPayment: (kinds, day, toYou) => (toYou ? `isplata vaše tvrtke na dan ${day}, ${kinds}, u Tvrtki` : `uplata vašoj tvrtki na dan ${day}, ${kinds}, u Tvrtki`),
+    linkCompanyGone: 'isplata koju Tvrtka više nema',
+    linkCompanyUnknown: 'isplata iz Tvrtke koja se sada ne može pročitati',
+    linkCompanyNotSetUp: 'isplata iz Tvrtke, ali Tvrtka nije postavljena ili ne vodi plaću vlasnika',
     bankSync: 'Može li sinkronizacija s bankom donositi retke novom računu, za što treba spremiti implementaciju sinkronizacije u Postavkama, na kartici Banke.',
     payee:
       'Svaki primatelj ili platitelj unosa pod kategorijom potrošnje ili prihoda, jednom bez obzira na velika slova i kvačice, s IBAN-ima koje nose njegovi bankovni redovi i kategorijom pod koju mu unosi obično idu, kako ih navodi kartica Primatelji i platitelji. Nije zapis datoteke.',

@@ -261,7 +261,7 @@ describe('a row linked to a loan instalment', () => {
     const shown = [{ ...INSTALMENT, to: '/loans' }]
     const lines = [-652.4, -650, -640].map((amount) => {
       const paid = { amount: accountMoneyFromAmount(amount), currency: EURO }
-      return [targetLineOf(INSTALMENT, paid), linkLineOf(INSTALMENT.link, shown, paid).text]
+      return [targetLineOf(INSTALMENT, paid), linkLineOf(INSTALMENT.link, shown, 'loans', paid).text]
     })
 
     expect(lines.map(([onImport, onEntries]) => onImport === onEntries)).toEqual([true, true, true])

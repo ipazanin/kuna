@@ -58,7 +58,7 @@ export function readLoans(loans: AppTargets<LinkTarget>): readonly LinkTarget[] 
 /** The record in Loans a step names by its loan's name: an instalment by its due date, or a movement or an extra payment by its day. */
 function linkedTarget(loans: AppTargets<LinkTarget>, name: string, due: CivilDate): LinkTarget {
   const named = readLoans(loans)
-    .filter((target) => target.kind !== 'informal-loan')
+    .filter((target) => target.kind !== 'informal-loan' && target.kind !== 'owner-payment')
     .filter((target) => target.loanName === name && (target.kind === 'instalment' ? target.due : target.day) === due)
   if (named.length > 1) throw new StepRefused(`More than one record of a loan called ${name} falls on that day. Rename one in Loans, or link it on the entry's dialog.`)
   const [target] = named

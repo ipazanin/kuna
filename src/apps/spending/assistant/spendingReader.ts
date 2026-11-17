@@ -18,8 +18,8 @@ import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setu
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
 import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { fiscalQrOn } from '../receipts/domain/fiscalQr'
-import { linkStateOf, paidLoansIn, sameRecord } from '../links/domain/linkTarget'
-import type { AppTargets, LinkTarget } from '../links/domain/linkTarget'
+import { isPayLink, linkStateOf, paidLoansIn, sameRecord } from '../links/domain/linkTarget'
+import type { AppTargets, LinkTarget, TargetSource } from '../links/domain/linkTarget'
 import { receiptMatches } from '../receipts/domain/receiptMatch'
 import { waitsForBank } from '../receipts/domain/waitingReceipts'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
@@ -82,6 +82,8 @@ export interface SpendingReading {
   qrTextOn(photo: Blob): Promise<string | null>
   /** The records of the app a link names, as the screens read them. */
   linkTargets(app: string): AppTargets<LinkTarget>
+  /** Which kind of app the app a link names is: Loans, or a company app whose payments may be an employee's pay. */
+  linkSource(app: string): TargetSource
 }
 
 /** The payments a receipt may be, as Entries, Add a receipt finds them, on the QR code's date and total when the photo holds one. */
@@ -178,7 +180,7 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
 }
 
 /** What a part's link names, as the chat reads it, or null for a part with none. */
-function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<LinkTarget>): string | null {
+function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<LinkTarget>, sourceOf: (app: string) => TargetSource): string | null {
   if (item.link === null) return null
   const read = linkStateOf(item.link, targetsOf(item.link.app))
   if (read.state === 'there') {
@@ -192,7 +194,12 @@ function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<
         return words.reads.linkMovement(target.loanName, target.movement, target.day)
       case 'extra-payment':
         return words.reads.linkExtraPayment(target.loanName, target.day)
+      case 'owner-payment':
+        return words.reads.linkCompanyPayment(target.parts.map((part) => part.kind).join(', '), target.day, target.direction === 'to-owner')
     }
+  }
+  if (sourceOf(item.link.app) === 'company') {
+    return { gone: words.reads.linkCompanyGone, opening: words.reads.linkCompanyUnknown, failed: words.reads.linkCompanyUnknown, 'not-set-up': words.reads.linkCompanyNotSetUp }[read.state]
   }
   return { gone: words.reads.linkGone, opening: words.reads.linkUnknown, failed: words.reads.linkUnknown, 'not-set-up': words.reads.linkNotSetUp }[read.state]
 }
@@ -295,7 +302,7 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
-const itemFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, events: () => readonly SpendingEvent[]): FieldDocs<TransactionItem> => ({
+const itemFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, sourceOf: (app: string) => TargetSource, events: () => readonly SpendingEvent[]): FieldDocs<TransactionItem> => ({
   id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand and for the one part of a whole entry.' },
@@ -306,7 +313,7 @@ const itemFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, events: 
   link: {
     exposure: 'free-text',
     meaning: 'The record in another app this money is, such as the loan instalment it pays, or empty. It changes no figure: the part counts by its category.',
-    read: (item) => linkRead(item, targetsOf),
+    read: (item) => linkRead(item, targetsOf, sourceOf),
   },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
   ruleLabels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'Those of its labels a rule put on, which a rule change may take off.' },
@@ -598,6 +605,19 @@ export function spendingReader(reading: SpendingReading): AppReader {
     if (itemsIn?.book !== book) itemsIn = { book, of: rowItemsOf(book) }
     return itemsIn.of(row)
   }
+  /** Tells whether a part is linked to an employee's pay in a company app, which keeps it and its entry on this device while Anonymise is on. It reads each app's records once, however many parts it checks. */
+  const payCheck = (): ((item: TransactionItem) => boolean) => {
+    const companies = new Map<string, { readonly targets: AppTargets<LinkTarget> } | null>()
+    const companyOf = (app: string): { readonly targets: AppTargets<LinkTarget> } | null => {
+      if (!companies.has(app)) companies.set(app, reading.linkSource(app) === 'company' ? { targets: reading.linkTargets(app) } : null)
+      return companies.get(app) ?? null
+    }
+    return (item) => {
+      if (item.link === null) return false
+      const company = companyOf(item.link.app)
+      return company !== null && isPayLink(linkStateOf(item.link, company.targets))
+    }
+  }
   const report = (figures: (book: SpendingBook, rates: RateBook, period: string | null) => readonly ReportFigure[]) => (period: string | null) => {
     const book = reading.book()
     return book === null ? [] : figures(book, reading.rates(), period)
@@ -612,6 +632,11 @@ export function spendingReader(reading: SpendingReading): AppReader {
         dated: 'date',
         rows: () => rows((book) => book.transactions),
         currencyOf: (row) => accountCurrency(row.account),
+        payCheck: () => {
+          const book = reading.book()
+          const isPay = payCheck()
+          return (row) => book !== null && itemsOf(book, row).some(isPay)
+        },
         sets: [
           {
             name: 'waiting',
@@ -672,10 +697,11 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({
         kind: ITEM_RECORDS,
         about: words.reads.line,
-        fields: itemFields(reading.linkTargets, () => reading.book()?.events ?? []),
+        fields: itemFields(reading.linkTargets, reading.linkSource, () => reading.book()?.events ?? []),
         dated: null,
         rows: () => rows((book) => [...book.transactions.flatMap((row) => itemsOf(book, row)), ...book.items.filter((line) => line.transaction === null)]),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),
+        payCheck,
       }),
       readableKind<BankAccountLine>({
         kind: BANK_ACCOUNT_LINES,

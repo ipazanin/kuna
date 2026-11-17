@@ -11,7 +11,7 @@ import { words as cardWords } from '../../../../shared/app/words'
 import { words as categoryWords } from '../../categories/presentation/words'
 import type { DryRunLine, StatementDryRun } from '../../statements/domain/statementDryRun'
 import { linkStateOf } from '../../links/domain/linkTarget'
-import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
+import type { AppTargets, LinkTarget, TargetSource } from '../../links/domain/linkTarget'
 import { linkText } from '../../links/presentation/words'
 import { NEW_ACCOUNT_DEFAULTS, cardsText } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
@@ -86,12 +86,13 @@ function shownValue(
   book: SpendingBook,
   namesOf: ReadonlyMap<unknown, string>,
   targetsOf: (app: string) => AppTargets<LinkTarget>,
+  sourceOf: (app: string) => TargetSource,
   byDaysOf: (part: TransactionItem) => string | null,
 ): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
   if ((isKind(kind, TRANSACTION_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'link')
-    return record.link === null ? null : linkText(linkStateOf(record.link, targetsOf(record.link.app)))
+    return record.link === null ? null : linkText(linkStateOf(record.link, targetsOf(record.link.app)), sourceOf(record.link.app))
   if (isKind(kind, ITEM_RECORDS, record) && field === 'labels') return record.labels.length === 0 ? null : record.labels.map((label) => namesOf.get(label) ?? label).join(', ')
   if (isKind(kind, ITEM_RECORDS, record) && field === 'event')
     return record.event === BY_DAYS ? words.proposals.byDays(byDaysOf(record)) : record.event === OUT_OF_EVENTS ? words.proposals.noEvent : (namesOf.get(record.event) ?? record.event)
@@ -247,6 +248,7 @@ export function proposalGroupsOf(
   checked: CheckedWrite,
   before: SpendingBook,
   targetsOf: (app: string) => AppTargets<LinkTarget>,
+  sourceOf: (app: string) => TargetSource,
   { leftOut, receipts, moves, refiled }: CardWarnings,
 ): readonly ProposalGroup[] {
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
@@ -279,7 +281,7 @@ export function proposalGroupsOf(
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
-    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, targetsOf, byDaysOf),
+    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, targetsOf, sourceOf, byDaysOf),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf, categoryOf, payeeOf),
     defaultsOf: defaultsOnAdd,
     warns: (kind, field, after) =>

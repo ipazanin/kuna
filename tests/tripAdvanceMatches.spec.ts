@@ -89,6 +89,16 @@ describe('a trip cost the owner also entered as an owner advance', () => {
     ])
   })
 
+  it('matches a ticket bought weeks before the departure near its own day as well as near the trip', () => {
+    const ticket = { id: 'ticket', trip: 'zadar', date: '2026-02-20', kind: 'other', amount: '120.00', paid_by: 'traveller' }
+    const reading = tripsOf({ trips: tab(TRIP_CODECS.trip, [ZADAR]), legs: tab(TRIP_CODECS.leg, []), costs: tab(TRIP_CODECS.cost, [...COSTS, ticket]) }, new Set(['alex']))
+    const advances = [advance('bought', '2026-02-21', 120), advance('at-the-trip', '2026-03-12', 120), advance('weeks-later', '2026-02-28', 120)]
+    expect(tripCostsPaidAsAdvances(reading.files, advances, ALEX).map((match) => [match.cost.kind, match.advance.id])).toEqual([
+      ['other', recordIdOf(OWNER_ADVANCE_RECORDS, 'bought')],
+      ['other', recordIdOf(OWNER_ADVANCE_RECORDS, 'at-the-trip')],
+    ])
+  })
+
   it("leaves out a cost the company paid, another employee's trip and books with no director", () => {
     const advances = [advance('fuel', '2026-03-13', 61.2), advance('toll', '2026-03-12', 47.4)]
     expect(tripCostsPaidAsAdvances([zadar()], advances, ALEX).map((match) => match.cost.kind)).toEqual(['toll'])

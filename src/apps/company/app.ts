@@ -36,6 +36,7 @@ import { COMPANY_APP } from './workbook/domain/companyApp'
 import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
 import { REVIEW_LINK } from './transactions/presentation/transactionsLinks'
+import { publishedMoneyWithOwner } from './transactions/application/publishedMoneyWithOwner'
 
 const CORE_SCREENS: readonly AppScreen[] = [
   { path: '/company', title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
@@ -95,6 +96,7 @@ export const companyApp: AppContribution = {
   moneyFormat: () => moneyFormatOf(settings.value),
   homeCard: COMPANY_HOME_CARD,
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
+  moneyWithOwner: () => homeCardFigures(state, publishedMoneyWithOwner),
   assistant: async () => {
     const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { useStatementSync }, { gmailForDrafts }] = await Promise.all([
       import('./assistant/companyAssistant'),

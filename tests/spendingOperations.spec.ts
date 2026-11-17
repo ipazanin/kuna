@@ -288,6 +288,7 @@ describe('where an account takes its rows from', () => {
         bankSetup: deskBankSetup,
         qrTextOn: async () => null,
         linkTargets: () => DESK_LOAN_TARGETS,
+        linkSource: () => 'loans',
       })
       return reader.kinds
         .find((kind) => kind.name === 'bank-sync')!
@@ -788,7 +789,15 @@ describe('an entry’s link to Loans', () => {
   it('tells the chat what a link names, or that Loans no longer has it', async () => {
     const desk = await spendingDesk(used)
     const linkOf = (targets: typeof DESK_LOAN_TARGETS) =>
-      spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => targets })
+      spendingReader({
+        status: () => 'open',
+        book: () => bookOf(desk),
+        rates: () => NO_RATES,
+        bankSetup: deskBankSetup,
+        qrTextOn: async () => null,
+        linkTargets: () => targets,
+        linkSource: () => 'loans',
+      })
         .kinds.find((kind) => kind.name === ITEM_RECORDS.name)!
         .rows()
         .find((row) => row.id === wholeRowItemId({ id: EXAMPLE_RECORDS['transaction-linked'] as RecordId }))!
@@ -842,7 +851,15 @@ describe('bank account set-up', () => {
 
   it('reads each line of the list with what it offers, the account that keeps it and the opening a fix sets', async () => {
     const desk = await spendingDesk(used)
-    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => DESK_LOAN_TARGETS })
+    const reader = spendingReader({
+      status: () => 'open',
+      book: () => bookOf(desk),
+      rates: () => NO_RATES,
+      bankSetup: deskBankSetup,
+      qrTextOn: async () => null,
+      linkTargets: () => DESK_LOAN_TARGETS,
+      linkSource: () => 'loans',
+    })
     const lines = reader.kinds.find((kind) => kind.name === BANK_ACCOUNT_LINES.name)!.rows()
     const fieldOf = (at: number, name: string) => lines[at]!.fields.find((field) => field.name === name)
     expect(lines.map((line) => line.id)).toEqual([EXAMPLE_RECORDS['bank-account-missing'], EXAMPLE_RECORDS['bank-account-update'], EXAMPLE_RECORDS['bank-account-left-out']])
@@ -990,7 +1007,15 @@ describe('labels through the chat', () => {
 
   it('reads what each label counts as the month counts it, by group, with how many entries carry it', async () => {
     const desk = await spendingDesk(used)
-    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => DESK_LOAN_TARGETS })
+    const reader = spendingReader({
+      status: () => 'open',
+      book: () => bookOf(desk),
+      rates: () => NO_RATES,
+      bankSetup: deskBankSetup,
+      qrTextOn: async () => null,
+      linkTargets: () => DESK_LOAN_TARGETS,
+      linkSource: () => 'loans',
+    })
     const labels = reader.reports.find((report) => report.id === 'labels')!
 
     expect(labels.figures('2026-10-31')).toEqual([
@@ -1061,7 +1086,15 @@ describe('events through the chat', () => {
 
   it("reads what each event counts up to a day, and each part's event as by-days, out or the event it was put in", async () => {
     const desk = await spendingDesk(used)
-    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => DESK_LOAN_TARGETS })
+    const reader = spendingReader({
+      status: () => 'open',
+      book: () => bookOf(desk),
+      rates: () => NO_RATES,
+      bankSetup: deskBankSetup,
+      qrTextOn: async () => null,
+      linkTargets: () => DESK_LOAN_TARGETS,
+      linkSource: () => 'loans',
+    })
     const events = reader.reports.find((report) => report.id === 'events')!
 
     // The split's rent part on its day, its groceries part put in by hand, and the kiosk row on the 27th: 40 + 20 + 18.

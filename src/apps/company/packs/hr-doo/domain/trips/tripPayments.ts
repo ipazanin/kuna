@@ -23,6 +23,11 @@ export const TRIP_PAYMENTS = ['domestic-per-diem-over-12-hours', 'domestic-per-d
 
 export type TripPaymentKey = (typeof TRIP_PAYMENTS)[number]
 
+/** Whether a tax-free payment of the caps table, by its key, is one a trip's settlement pays. */
+export function paysForTrip(payment: string): boolean {
+  return TRIP_PAYMENTS.some((key) => key === payment)
+}
+
 /** What a settlement pays in one tax-free payment of the caps table. */
 export interface TripPayment {
   readonly payment: TripPaymentKey

@@ -68,8 +68,47 @@ export interface ExtraPaymentTarget {
 /** What an extra payment a row adds in Loans does to the rest of its loan: ends it sooner, or keeps the term with a lower instalment. */
 export type ExtraPaymentEffect = 'shorter-term' | 'lower-instalment'
 
+/** What money in a payment from or to your company is: salary, rent, a profit payout, an owner loan, a cost paid back, a travel allowance, other tax-free pay or other money. */
+export type CompanyMoney = 'salary' | 'rent' | 'profit-payout' | 'owner-loan' | 'cost-refund' | 'travel-allowance' | 'tax-free-pay' | 'other'
+
+/** One kind of money in a payment with your company. Above zero. */
+export interface CompanyMoneyPart {
+  readonly kind: CompanyMoney
+  readonly amount: Money
+}
+
+/** A bank row between your company and you in Company, which a row on your own account can be. */
+export interface OwnerPaymentTarget {
+  readonly kind: 'owner-payment'
+  readonly link: RowLink
+  readonly day: CivilDate
+  /** Above zero, whichever way the money went. */
+  readonly amount: Money
+  /** Money from the company to you, or from you to the company. */
+  readonly direction: 'to-owner' | 'from-owner'
+  /** Your IBAN the company paid to or was paid from. */
+  readonly ownerIban: string
+  /** One part per kind, larger first, which add up to the amount. */
+  readonly parts: readonly CompanyMoneyPart[]
+}
+
+/** The kinds of money from your company that are an employee's pay. A trip's allowances and other tax-free pay are paid for work as salary is. */
+const PAY: ReadonlySet<CompanyMoney> = new Set(['salary', 'travel-allowance', 'tax-free-pay'])
+
+/**
+ * Whether money linked to a record of a company app is an employee's pay, which stays on this device while Anonymise is on: a
+ * payment with a part of pay, or any payment while the company's books cannot be read to tell. A link to a row it no longer has is not.
+ */
+export function isPayLink(read: LinkState<LinkTarget>): boolean {
+  if (read.state === 'there') return read.target.kind === 'owner-payment' && read.target.parts.some((part) => PAY.has(part.kind))
+  return read.state !== 'gone'
+}
+
 /** A record in another app that a row can be. */
-export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget
+export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget | OwnerPaymentTarget
+
+/** Which kind of app a link names: Loans with its loans, or a company app with its payments with the owner. Its words for a link it cannot show depend on it. */
+export type TargetSource = 'loans' | 'company'
 
 /** An app's targets, a wait while its file opens, a failure, or null while the app is not set up on this device. */
 export type AppTargets<Target> = readonly Target[] | 'opening' | 'failed' | null

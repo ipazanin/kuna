@@ -112,4 +112,12 @@ export const CHAT_BOOK: SpendingBook = spendingBook(
 /** The people the chat knows in this book: the payee the owner flagged as a person. */
 export const CHAT_PERSONS: readonly KnownPerson[] = [{ name: 'Ana Horvat', employee: false, ibans: [] }]
 
-export const CHAT_READING: SpendingReading = { status: () => 'open', book: () => CHAT_BOOK, rates: () => NO_RATES, bankSetup: () => null, qrTextOn: async () => null, linkTargets: () => null }
+export const CHAT_READING: SpendingReading = {
+  status: () => 'open',
+  book: () => CHAT_BOOK,
+  rates: () => NO_RATES,
+  bankSetup: () => null,
+  qrTextOn: async () => null,
+  linkTargets: () => null,
+  linkSource: () => 'loans',
+}

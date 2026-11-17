@@ -5,7 +5,7 @@ import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAcc
 import { BANK_SYNC_LINES, PAYEE_LINES, UNREAD_KINDS, spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { wholeItemOf } from '../src/apps/spending/workbook/domain/rowItems'
-import { findRecords, getRecord, readFigures } from '../src/shared/ai/application/chatReads'
+import { findRecords, getRecord, readFigures, recordKeptHome } from '../src/shared/ai/application/chatReads'
 import type { ChatReads, FindRecordsInput } from '../src/shared/ai/application/chatReads'
 import { MOST_CHARACTERS_A_READ } from '../src/shared/ai/domain/chatAttachments'
 import { fileNotOpen } from '../src/shared/app/assistantOperations'
@@ -18,6 +18,10 @@ import type { AppReader } from '../src/shared/app/assistantReader'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, HOSTILE_TEXT, IBAN_OF_ANA } from './fixtures/chatBook'
+import type { AppTargets, CompanyMoney, LinkTarget } from '../src/apps/spending/links/domain/linkTarget'
+import { moneyFromAmount } from '../src/shared/money/money'
+import { civilDate } from '../src/shared/calendar/civilDate'
+import { words } from '../src/apps/spending/assistant/words'
 
 function readsOf(overrides: Partial<ChatReads> = {}): ChatReads {
   return {
@@ -95,6 +99,62 @@ describe('what a read gives the chat', () => {
     const answer = await getRecord('spending', records[1]!['ref']!, readsOf({ persons: () => employee, refs: open.refs }))
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('Anonymise')
+  })
+
+  describe('a row linked to a payment from your company', () => {
+    const link = { app: 'company', kind: 'ledger-row', key: 'row-salary', due: null }
+    const linked = recordIdOf(spendingKinds.TRANSACTION_RECORDS, 'transaction-2')
+    const book = { ...CHAT_BOOK, items: CHAT_BOOK.items.map((item) => (item.transaction === linked ? { ...item, link } : item)) }
+    const paymentOf = (kind: CompanyMoney): LinkTarget => ({
+      kind: 'owner-payment',
+      link,
+      day: civilDate(2026, 10, 12),
+      amount: moneyFromAmount(45.3),
+      direction: 'to-owner',
+      ownerIban: IBAN_OF_ANA,
+      parts: [{ kind, amount: moneyFromAmount(45.3) }],
+    })
+    const readsWith = (company: AppTargets<LinkTarget>, anonymising = true) =>
+      readsOf({
+        anonymising: () => anonymising,
+        readers: new Map([
+          [
+            'spending',
+            {
+              name: 'Spending',
+              reader: spendingReader({ ...CHAT_READING, book: () => book, linkTargets: (app) => (app === 'company' ? company : null), linkSource: (app) => (app === 'company' ? 'company' : 'loans') }),
+            },
+          ],
+        ]),
+      })
+
+    it('stays home with its part while Anonymise is on when the payment is salary, a travel allowance or other tax-free pay', async () => {
+      for (const kind of ['salary', 'travel-allowance', 'tax-free-pay'] as const) {
+        const reads = readsWith([paymentOf(kind)])
+        expect((await found({}, reads)).total).toBe(2)
+        expect((await found({ kind: 'item' }, reads)).total).toBe(2)
+        expect(recordKeptHome('spending', 'transaction', linked, reads)).toBe(true)
+      }
+    })
+
+    it('leaves as before when the payment is rent or a profit payout, or while Anonymise is off', async () => {
+      expect((await found({}, readsWith([paymentOf('rent')]))).total).toBe(3)
+      expect((await found({}, readsWith([paymentOf('profit-payout')]))).total).toBe(3)
+      expect((await found({}, readsWith([paymentOf('salary')], false))).total).toBe(3)
+    })
+
+    it('reads the part’s link as the payment, its kinds and its day, or in Company’s words when the payment is gone or Company is not set up', async () => {
+      const linkOf = async (company: AppTargets<LinkTarget>) => (await found({ kind: 'item' }, readsWith(company, false))).records.map((record) => record['link']).filter((read) => read !== undefined)
+
+      expect(await linkOf([paymentOf('salary')])).toEqual([words.reads.linkCompanyPayment('salary', '2026-10-12', true)])
+      expect(await linkOf([])).toEqual([words.reads.linkCompanyGone])
+      expect(await linkOf(null)).toEqual([words.reads.linkCompanyNotSetUp])
+    })
+
+    it('stays home while Company is opening, did not open or keeps no owner pay, since then no one can tell it is not pay', async () => {
+      for (const company of ['opening', 'failed', null] as const) expect((await found({}, readsWith(company))).total).toBe(2)
+      expect((await found({}, readsWith([]))).total).toBe(3)
+    })
   })
 
   it('reads the owner’s own account and the rows paid to it when the company pays the owner into it, and keeps the company’s pay rows home', async () => {

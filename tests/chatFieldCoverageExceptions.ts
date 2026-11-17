@@ -28,6 +28,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
+    reason: 'A payment between your company and you, which Company works out from its bank rows and publishes with your IBAN and what its money is, so nobody types its fields in Spending.',
+    fields: ['spending: LinkTarget.ownerIban', 'spending: LinkTarget.parts'],
+  },
+  {
     reason: 'The labels on a part of a quick add, which Settings, Quick add sets. A label goes on the entry the quick add wrote through label-entries.',
     fields: ['spending: ShortcutPart.labels'],
   },

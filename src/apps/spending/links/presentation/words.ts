@@ -1,11 +1,14 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { WholeReason } from '../domain/instalmentSplit'
-import type { ExtraPaymentEffect, InstalmentTarget, LinkState, LinkTarget, MovementKind } from '../domain/linkTarget'
+import type { CompanyMoney, ExtraPaymentEffect, InstalmentTarget, LinkState, LinkTarget, MovementKind, OwnerPaymentTarget, TargetSource } from '../domain/linkTarget'
+import { capitalised } from '../../../../shared/text/capitalised'
+import { listInWords } from '../../../../shared/text/listInWords'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian names the app Krediti, plural, so it takes plural verbs. A rate is rata, and an informal loan pozajmica.
+// Company is Tvrtka, singular and feminine.
 
 export const en = {
   instalment: (loan: string, number: number, count: number, due: CivilDate) => `${loan}, instalment ${number} of ${count}, due ${dayLabel(due)}`,
@@ -77,6 +80,25 @@ export const en = {
     keptInLoans: (reason: string) => `The link is off, and the movement stays in Loans. ${reason}`,
   },
   notUndone: 'Not undone',
+  /** A payment between your company and you in Company, as a link names it. */
+  company: {
+    kinds: {
+      salary: 'salary',
+      rent: 'rent',
+      'profit-payout': 'profit payout',
+      'owner-loan': 'owner loan',
+      'cost-refund': 'costs paid back',
+      'travel-allowance': 'travel allowances',
+      'tax-free-pay': 'tax-free pay',
+      other: 'other money',
+    } satisfies Record<CompanyMoney, string>,
+    toYou: (what: string, day: CivilDate) => `${capitalised(what)} from Company, paid ${dayLabel(day)}`,
+    fromYou: (what: string, day: CivilDate) => `${capitalised(what)} to Company, paid ${dayLabel(day)}`,
+    gone: 'No longer in Company',
+    opening: 'Linked to Company, which is still opening',
+    failed: 'Linked to Company, which did not open',
+    notSetUp: 'Linked to Company, which is not set up on this device or keeps no owner pay',
+  },
   /** The card of rows a loan's rule filed whole that To review offers to record in Loans as an extra payment, and the form that does it. */
   extra: {
     title: 'Extra payments to record',
@@ -173,6 +195,24 @@ export const hr: Translation<typeof en> = {
     keptInLoans: (reason) => `Poveznica je uklonjena, a promjena ostaje u Kreditima. ${reason}`,
   },
   notUndone: 'Nije poništeno',
+  company: {
+    kinds: {
+      salary: 'plaća',
+      rent: 'najamnina',
+      'profit-payout': 'isplata dobiti',
+      'owner-loan': 'pozajmica vlasnika',
+      'cost-refund': 'vraćeni troškovi',
+      'travel-allowance': 'putni dodaci',
+      'tax-free-pay': 'neoporezivi primici',
+      other: 'ostali novac',
+    },
+    toYou: (what, day) => `${capitalised(what)} iz Tvrtke, isplaćeno ${dayLabel(day)}`,
+    fromYou: (what, day) => `${capitalised(what)} Tvrtki, uplaćeno ${dayLabel(day)}`,
+    gone: 'Više nije u Tvrtki',
+    opening: 'Povezano s Tvrtkom, koja se još otvara',
+    failed: 'Povezano s Tvrtkom, koja se nije otvorila',
+    notSetUp: 'Povezano s Tvrtkom, koja na ovom uređaju nije postavljena ili ne vodi plaću vlasnika',
+  },
   extra: {
     title: 'Prijevremene otplate za upis',
     subtitle: 'Stavke koje je pravilo kredita razvrstalo cijele, iznad rate koju već plaća druga stavka.',
@@ -219,7 +259,15 @@ export function choiceText(target: LinkTarget): string {
       return words.movement(target.loanName, words.movementKinds[target.movement], target.day)
     case 'extra-payment':
       return words.extraPayment(target.loanName, target.day)
+    case 'owner-payment':
+      return companyPaymentText(target)
   }
+}
+
+/** A payment with your company by what its money is and its day, such as "Salary from Company, paid 10 Nov". */
+function companyPaymentText(target: OwnerPaymentTarget): string {
+  const what = listInWords(target.parts.map((part) => words.company.kinds[part.kind]))
+  return (target.direction === 'to-owner' ? words.company.toYou : words.company.fromYou)(what, target.day)
 }
 
 /** An instalment by its loan, its number in the plan and its due date, or interim interest by its loan and due date. */
@@ -227,11 +275,14 @@ export function instalmentText(target: InstalmentTarget): string {
   return target.number === null ? words.interim(target.loanName, target.due) : words.instalment(target.loanName, target.number, target.count, target.due)
 }
 
-/** What a row's link reads as: the record it names, or why that record is not shown. */
-export function linkText(read: LinkState<LinkTarget>): string {
-  if (read.state === 'there') {
-    const { target } = read
-    return target.kind === 'instalment' ? instalmentText(target) : choiceText(target)
-  }
-  return { opening: words.opening, failed: words.failed, 'not-set-up': words.notSetUp, gone: words.gone }[read.state]
+/** The record a link names in words: an instalment by its number in the plan, any other as the picker lists it. */
+export function targetText(target: LinkTarget): string {
+  return target.kind === 'instalment' ? instalmentText(target) : choiceText(target)
+}
+
+/** What a row's link reads as: the record it names, or why that record is not shown, in the words of the kind of app it names. */
+export function linkText(read: LinkState<LinkTarget>, source: TargetSource): string {
+  if (read.state === 'there') return targetText(read.target)
+  const said = source === 'company' ? words.company : words
+  return { opening: said.opening, failed: said.failed, 'not-set-up': said.notSetUp, gone: said.gone }[read.state]
 }

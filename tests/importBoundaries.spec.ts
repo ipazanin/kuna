@@ -614,6 +614,8 @@ describe('import boundaries', () => {
     const packRoles = Object.values(PACK_ROLES).filter((role) => role !== 'revenue')
     // The same word as another concept core knows: a VAT treatment, and a kind of record a slug names.
     const otherMeaning = (file: string, line: string): boolean =>
+      // A kind of money other apps file a payment to the owner as.
+      (file === 'src/apps/company/transactions/application/publishedMoneyWithOwner.ts' && /^ {6}return 'salary'$/.test(line)) ||
       ((file === 'src/apps/company/workbook/domain/vatTreatment.ts' || file === 'src/apps/company/settings/presentation/words.ts') && /'representation'/.test(line)) ||
       (file === 'src/apps/company/workbook/domain/words.ts' && /^export type SlugNoun = /.test(line))
     const coreFile = (file: string): boolean => file.startsWith('src/apps/company/') && packOf(file) === null && !isFakeSeed(file)

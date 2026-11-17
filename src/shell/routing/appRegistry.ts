@@ -1,5 +1,6 @@
 import type { AppContribution } from '../../shared/app/appContribution'
 import type { AppLinkedRows } from '../../shared/app/rowLinks'
+import type { AppOwnerPayments } from '../../shared/app/moneyWithOwner'
 
 const installed: AppContribution[] = []
 
@@ -17,7 +18,7 @@ export function inAppOrder<App extends { readonly id: string }>(apps: readonly A
 
 /** Called by main.ts for each app, before the router is made. */
 export async function installApp(app: AppContribution): Promise<void> {
-  await app.install({ linkedRows })
+  await app.install({ linkedRows, moneyWithOwner })
   installed.splice(0, installed.length, ...inAppOrder([...installed, app]))
 }
 
@@ -28,6 +29,11 @@ export function installedApps(): readonly AppContribution[] {
 /** The rows each installed app has linked to records in other apps, by app, which each app reads through the `ShellReads` it installed with. */
 function linkedRows(): readonly AppLinkedRows[] {
   return installed.flatMap((app) => (app.rowLinks === undefined ? [] : [{ app: app.id, links: app.rowLinks() }]))
+}
+
+/** The payments between a company and its owner each installed app keeps, by app, which each app reads through the `ShellReads` it installed with. */
+function moneyWithOwner(): readonly AppOwnerPayments[] {
+  return installed.flatMap((app) => (app.moneyWithOwner === undefined ? [] : [{ app: app.id, payments: app.moneyWithOwner() }]))
 }
 
 /** Whether the address is one of the app's: its id, or a path under it. */

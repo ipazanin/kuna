@@ -139,6 +139,8 @@ export interface PackContribution {
   ownerTakeOut(workbook: Workbook, asOf: CivilDate): OwnerTakeOut | null
   /** Each bank row with a row id to or from one of the owner's IBANs, oldest first. None without a pack, which knows no owner. */
   moneyWithOwner(workbook: Workbook): readonly OwnerPayment[]
+  /** Whether a tax-free payment, by the ruleset's key of it, is one a trip pays, such as a per diem or kilometres. None without a pack. */
+  paysForTrip(payment: string): boolean
   /** The VAT the company owes beyond a shared row for the owner's private share of it, which the owner's part carries. None without a pack. */
   readonly vatOnPrivateShare: VatOnPrivateShare
   /** The ECB rates the pack's figures need, each currency from the first day it is needed. Empty without a pack. */
@@ -188,6 +190,7 @@ const NO_PACK: PackContribution = {
   waitingJobs: () => [],
   ownerTakeOut: () => null,
   moneyWithOwner: () => [],
+  paysForTrip: () => false,
   vatOnPrivateShare: NO_VAT_ON_PRIVATE_SHARE,
   ratesDemand: () => new Map(),
   reviewCards: [],

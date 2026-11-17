@@ -6,7 +6,7 @@ import type { AppTargets, ExtraPaymentEffect, ExtraPaymentTarget, InformalLoanTa
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 
-/** A record in Loans as Spending shows it on a row, with its page in Loans. */
+/** A record in another app as Spending shows it on a row, with its page in that app. */
 export type ShownTarget = LinkTarget & { readonly to: RouteLocationRaw }
 
 /** The instalments, extra payments, movements and informal loans Loans publishes, as Spending reads them, each with the link Loans gives it. */

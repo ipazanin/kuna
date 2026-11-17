@@ -49,6 +49,8 @@ An app may publish facts in one file, `src/apps/<app>/facts.ts`, with types of i
 
 Facts that a matching across apps reads go to the shell instead, through a slot on `AppContribution` whose type sits in `src/shared/app`, since the shell imports no app. Spending's `facts.ts` builds the rows it has linked to records in other apps (`PublishedRowLink` in `src/shared/app/rowLinks.ts`), its `app.ts` hands them over as `rowLinks`, and `linkedRows` in `src/shell/routing/appRegistry.ts` gathers them by app. The shell hands each app a `ShellReads` (`src/shared/app/appContribution.ts`) as it installs, whose `linkedRows` reads them afresh at each call. Loans keeps it from its `app.ts` and reads the rows linked to its instalments in `src/apps/loans/bankLoans/application/statementPayments.ts`, so a bank loan's plan shows each instalment as paid, late or not seen in your statement.
 
+Company hands the shell its bank rows to and from the owner the same way, as `moneyWithOwner`, typed by `PublishedOwnerPayment` in `src/shared/app/moneyWithOwner.ts`. Company builds them in `src/apps/company/transactions/application/publishedMoneyWithOwner.ts` from the pack's `moneyWithOwner`, names each by its row id, and asks the pack's `paysForTrip` which tax-free pay is a travel allowance, so no other app reads ruleset keys. `ShellReads.moneyWithOwner` gives them by app, and Spending keeps the read in `src/apps/spending/links/application/companyTargets.ts`, which `linkTargets.ts` lists beside Loans' records, so a row links to a payment as it links to a loan's instalment.
+
 ## What may import what
 
 `tests/importBoundaries.spec.ts` runs with the unit tests and names the file, the line and the import of each break. Each rule below gives the name of its test.

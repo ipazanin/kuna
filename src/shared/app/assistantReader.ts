@@ -21,6 +21,8 @@ export type ReadableField =
 export interface ReadableRow {
   readonly id: string
   readonly fields: readonly ReadableField[]
+  /** Whether the record is an employee's pay, such as a salary paid into your own account, which stays on this device while Anonymise is on. Asked only then, as telling can read another app's records. */
+  aboutPay?(): boolean
 }
 
 /** A named part of a kind's rows that a search can keep to, such as the rows waiting on To review. */
@@ -60,6 +62,8 @@ export interface ReadableKindOf<R extends { readonly id: string }> {
   currencyOf(record: R): string
   readonly sets?: readonly { readonly name: string; readonly about: string; holds(record: R): boolean }[]
   readonly page?: `/${string}`
+  /** How to tell whether a record is an employee's pay, for a kind whose records can be. Built once for a read and only when a row is asked. */
+  payCheck?(): (record: R) => boolean
 }
 
 function readableFields<R extends { readonly id: string }>(kind: ReadableKindOf<R>, record: R): readonly ReadableField[] {
@@ -96,7 +100,11 @@ export function readableKind<R extends { readonly id: string }>(kind: ReadableKi
         : { name, meaning: doc.meaning, exposure: doc.exposure, amount: 'sign' in doc ? doc.sign : null },
     ),
     dated: kind.dated,
-    rows: () => kind.rows().map((record) => ({ id: record.id, fields: readableFields(kind, record) })),
+    rows: () => {
+      const { payCheck } = kind
+      let isPay: ((record: R) => boolean) | null = null
+      return kind.rows().map((record) => ({ id: record.id, fields: readableFields(kind, record), ...(payCheck === undefined ? {} : { aboutPay: () => (isPay ??= payCheck())(record) }) }))
+    },
     ...(kind.sets === undefined ? {} : { sets: kind.sets.map(({ name, about, holds }) => ({ name, about, ids: () => new Set(kind.rows().flatMap((record) => (holds(record) ? [record.id] : []))) })) }),
     ...(kind.page === undefined ? {} : { page: kind.page }),
   }

@@ -2,14 +2,14 @@ import { computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-import { allTargets } from '../application/linkTargets'
+import { allTargets, sourceIn } from '../application/linkTargets'
 import type { ShownTarget } from '../application/loanTargets'
 import { beyondPlan, beyondRecord } from '../domain/instalmentSplit'
 import { linkStateOf, targetsIn } from '../domain/linkTarget'
-import type { AppTargets, LinkState, LinkTarget } from '../domain/linkTarget'
+import type { AppTargets, LinkState, LinkTarget, TargetSource } from '../domain/linkTarget'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { linkText, words } from './words'
+import { linkText, targetText, words } from './words'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -54,13 +54,13 @@ export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
     ...(plan === null || plan === 0 ? [] : [(plan > 0 ? words.above : words.below)(money(plan))]),
     ...(record === null || record === 0 ? [] : [(record > 0 ? words.moreThanLoans : words.lessThanLoans)(money(record))]),
   ]
-  return [linkText({ state: 'there', target }), ...amount, ...differs].join(', ')
+  return [targetText(target), ...amount, ...differs].join(', ')
 }
 
 /** The line a link reads as against its app's records, with what the row paid above or below an instalment's plan. */
-export function linkLineOf(link: RowLink, targets: AppTargets<ShownTarget>, row: LinkedRow): LinkLine {
+export function linkLineOf(link: RowLink, targets: AppTargets<ShownTarget>, source: TargetSource, row: LinkedRow): LinkLine {
   const read = linkStateOf(link, targets)
-  return { text: read.state === 'there' ? targetLineOf(read.target, row) : linkText(read), ...LOOKS[read.state], to: read.state === 'there' ? read.target.to : null }
+  return { text: read.state === 'there' ? targetLineOf(read.target, row) : linkText(read, source), ...LOOKS[read.state], to: read.state === 'there' ? read.target.to : null }
 }
 
 /** The tone of a link's line by its look: muted while Loans waits, a warning while its record is missing. */
@@ -71,6 +71,6 @@ export function useLinkLines(): ComputedRef<(link: RowLink, row: LinkedRow) => L
   const apps = computed(() => allTargets())
   return computed(() => {
     const held = apps.value
-    return (link, row) => linkLineOf(link, targetsIn(held, link.app), row)
+    return (link, row) => linkLineOf(link, targetsIn(held, link.app), sourceIn(held, link.app), row)
   })
 }
