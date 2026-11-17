@@ -144,6 +144,8 @@ export interface AppReader {
   readonly bookings?: AccountBookings
   /** The payments a fiscal receipt may be, for an app that splits payments by receipts. */
   readonly receipts?: ReceiptPayments
+  /** The person's own account IBANs, normalised, for an app that keeps accounts with one. Its records that hold one are not about an employee for it. */
+  ownIbans?(): readonly string[]
 }
 
 /** A fiscal receipt as the chat read it, with the photo it was read off when there is one. */

@@ -12,7 +12,8 @@ import type { Period } from '../../../filters/domain/filterState'
 import { periodMonths } from '../../../filters/domain/periodPresets'
 import type { Booking, Category } from '../../../workbook/domain/workbook'
 import { RULESET_FIRST_DAY, ruleValue } from '../ruleset/ruleset'
-import { PACK_ROLES, categoriesInBucket, categoriesWithRole, dividendCategories } from './packRoles'
+import { PACK_ROLES, categoriesInBucket, categoriesWithRole, ownerMoneyKindOf } from './packRoles'
+import type { OwnerMoneyKind } from './packRoles'
 import { paidOut } from './paidOut'
 import type { RuleSource } from './payroll/payrollArithmetic'
 
@@ -61,12 +62,13 @@ export interface OwnerTakeMonth {
 export function ownerTake(bookings: readonly Booking[], categories: readonly Category[], period: Period, window: LedgerWindow, rules: RuleSource = ruleValue): OwnerTake {
   const rows = transactionsInPeriod(bookings, period, window)
   const pay = categoriesInBucket(categories, 'owner-pay')
-  const loans = [...categoriesWithRole(categories, PACK_ROLES.ownerLoanOut), ...categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid)]
+  const ofKind = (kind: OwnerMoneyKind['kind']): string[] => categories.filter((category) => ownerMoneyKindOf(category).kind === kind).map((category) => category.slug)
+  const loans = ofKind('owner-loan')
   const paid = pay.filter((category) => !loans.includes(category))
-  const dividends = dividendCategories(categories)
+  const dividends = ofKind('dividend')
   const salaried = paid.filter((category) => !dividends.includes(category))
-  const rentRole = categoriesWithRole(categories, PACK_ROLES.ownerRent)
-  const rented = salaried.filter((category) => rentRole.includes(category))
+  const rentKind = ofKind('rent')
+  const rented = salaried.filter((category) => rentKind.includes(category))
   const rentTax = rentTaxOn(
     rows.filter((booking) => rented.includes(booking.category)),
     rules,

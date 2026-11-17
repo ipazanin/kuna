@@ -16,6 +16,8 @@ import { ruleValue } from './ruleset/ruleset'
 import { vatOnPrivateShare } from './domain/vat/vatSplit'
 import { unaccountedInView } from './domain/ownerAdvances'
 import { ownerTakeOut } from './presentation/ownerTakeOut'
+import { ownerPayments } from './domain/ownerPayments'
+import { publishedOwnerPayments } from './application/moneyWithOwner'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { TRIPS_ROUTE } from './presentation/trips/tripLinks'
 import { categoriesToSort } from './preset/presentation/categoriesToSort'
@@ -42,6 +44,7 @@ export const hrDooPack: PackContribution = {
   ],
   waitingJobs: (workbook, asOf, rates) => packWaitingJobs(hrDooWorkbook(workbook), asOf, rates),
   ownerTakeOut: (workbook, asOf) => ownerTakeOut(hrDooWorkbook(workbook), asOf),
+  moneyWithOwner: (workbook) => publishedOwnerPayments(ownerPayments(hrDooWorkbook(workbook))),
   vatOnPrivateShare,
   ratesDemand: (workbook) =>
     tripRatesDemand(

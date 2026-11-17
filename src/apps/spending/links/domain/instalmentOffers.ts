@@ -1,8 +1,6 @@
 import { expectedOf } from './instalmentSplit'
 import { loanLinkOf, paidLoansIn, sameRecord } from './linkTarget'
 import type { InstalmentTarget, LinkTarget, PaidLoan } from './linkTarget'
-import { inWindow, isNear, nearestTo } from '../../pairing/domain/sameMoney'
-import type { DatedMoney } from '../../pairing/domain/sameMoney'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { filedAsTransfer, holdsLink, linksOfItems, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import { rowLinkText } from '../../workbook/domain/rowLink'
@@ -11,8 +9,8 @@ import type { InstalmentPutOff } from '../../workbook/domain/spendingSettings'
 import { payeeCondition, sameCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { isNear, matchMoney, nearestTo } from '../../../../shared/app/moneyMatch'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO_ACCOUNT_MONEY, subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -125,21 +123,8 @@ export function instalmentOffers<Target extends LinkTarget>(book: OffersBook, ta
     return (lender !== '' && fold(row.payee).includes(lender)) || (iban !== '' && (ibans.get(loanOf(target.link))?.has(iban) ?? false))
   }
 
-  const taken = new Set<Transaction>()
-  const take = (target: InstalmentTarget, fits: (expected: DatedMoney, row: Transaction) => boolean): Transaction | undefined => {
-    const row = nearestTo(
-      target.due,
-      rows.filter((candidate) => !taken.has(candidate) && fits(expectedOf(target), candidate)),
-    )
-    if (row !== undefined) taken.add(row)
-    return row
-  }
-  const exact = instalments.map((target) => ({ target, row: take(target, (expected, row) => row.amount === expected.amount && inWindow(expected, row)) }))
-  return exact.flatMap(({ target, row: paying }): InstalmentOffer<Target & InstalmentTarget>[] => {
-    if (paying !== undefined) return [{ row: paying, target, suggested: true, difference: ZERO_ACCOUNT_MONEY }]
-    const near = take(target, isNear)
-    return near === undefined ? [] : [{ row: near, target, suggested: knownPayee(near, target), difference: subtractAccountMoney(near.amount, expectedOf(target).amount) }]
-  })
+  const expected = instalments.map((target) => ({ ...expectedOf(target), target }))
+  return matchMoney(expected, rows, { near: isNear }).map(({ expected: { target }, row, exact, difference }) => ({ row, target, suggested: exact || knownPayee(row, target), difference }))
 }
 
 /** The rows filed already that Kuna suggests pay a loan's instalments, which To review offers to link at once. */

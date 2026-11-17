@@ -67,6 +67,30 @@ export type OwnerTakeOut =
     }
   | { readonly kind: 'missing'; readonly reason: string }
 
+/**
+ * What a part of the money between the company and the owner is: net salary, rent, a dividend, an owner loan either way, a
+ * cost paid back either way, a tax-free payment with the ruleset's key of it, such as `foreign-per-diem`, or other money.
+ */
+export type OwnerMoneyKind = { readonly kind: 'net-salary' | 'rent' | 'dividend' | 'owner-loan' | 'cost-refund' | 'other' } | { readonly kind: 'tax-free'; readonly payment: string }
+
+/** One kind of money in a payment between the company and the owner. Above zero. */
+export type OwnerPaymentPart = OwnerMoneyKind & { readonly amount: Money }
+
+/** A bank row between the company and the owner, by the row id it carries, with what its money is. */
+export interface OwnerPayment {
+  readonly rowId: string
+  readonly date: CivilDate
+  /** Above zero, whichever way the money went. */
+  readonly amount: Money
+  readonly direction: 'to-owner' | 'from-owner'
+  /** The company account's own IBAN, as the accounts tab gives it. */
+  readonly companyIban: string
+  /** The owner's IBAN the row was paid to or from, normalised. */
+  readonly ownerIban: string
+  /** One part per kind, larger first, which add up to the amount. */
+  readonly parts: readonly OwnerPaymentPart[]
+}
+
 /** How the categories editor explains a class: its name, what Kuna counts with it, and where the rule behind it shows. */
 export interface CategoryClassHelp {
   readonly name: string
@@ -113,6 +137,8 @@ export interface PackContribution {
   waitingJobs(workbook: Workbook, asOf: CivilDate, rates: RateBook): readonly WaitingJob[]
   /** What the owner could take out on the newest booking. Null without a pack, which has no such figure. */
   ownerTakeOut(workbook: Workbook, asOf: CivilDate): OwnerTakeOut | null
+  /** Each bank row with a row id to or from one of the owner's IBANs, oldest first. None without a pack, which knows no owner. */
+  moneyWithOwner(workbook: Workbook): readonly OwnerPayment[]
   /** The VAT the company owes beyond a shared row for the owner's private share of it, which the owner's part carries. None without a pack. */
   readonly vatOnPrivateShare: VatOnPrivateShare
   /** The ECB rates the pack's figures need, each currency from the first day it is needed. Empty without a pack. */
@@ -159,6 +185,7 @@ const NO_PACK: PackContribution = {
   screens: [],
   waitingJobs: () => [],
   ownerTakeOut: () => null,
+  moneyWithOwner: () => [],
   vatOnPrivateShare: NO_VAT_ON_PRIVATE_SHARE,
   ratesDemand: () => new Map(),
   reviewCards: [],

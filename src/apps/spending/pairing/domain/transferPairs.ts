@@ -1,5 +1,5 @@
 import { cardsNamedBy, namesCardOf } from './cardMentions'
-import { nearestTo } from './sameMoney'
+import { nearestTo } from '../../../../shared/app/moneyMatch'
 import type { Account } from '../../workbook/domain/account'
 import { refiledItems, waitsOnReview } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'

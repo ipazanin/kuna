@@ -77,7 +77,7 @@ export function payrollTaxCategories(categories: readonly Category[]): string[] 
 
 /** The owner-pay categories that pay out profit to the owner, such as a dividend. Their tax sits in the taxes bucket. */
 export function dividendCategories(categories: readonly Category[]): string[] {
-  return categories.filter((category) => category.bucket === 'owner-pay' && category.roles.includes(PACK_ROLES.profitDistribution)).map((category) => category.slug)
+  return categories.filter((category) => ownerMoneyKindOf(category).kind === 'dividend').map((category) => category.slug)
 }
 
 /** The slugs of the categories that carry a role, in the order the tab lists them. */
@@ -98,4 +98,28 @@ export function isOneOffCost(category: Category): boolean {
 /** A cost of paying the owner: the owner-pay bucket, and the taxes owed because the owner was paid. */
 export function isOwnerPayCost(category: Category): boolean {
   return category.bucket === 'owner-pay' || (category.bucket === 'taxes' && category.roles.includes(PACK_ROLES.ownerPayTax))
+}
+
+/** What money between the company and the owner in a category is. A tax-free payment names the ruleset's key of it. */
+export type OwnerMoneyKind = { readonly kind: 'salary' | 'rent' | 'dividend' | 'owner-loan' | 'reimbursement' | 'other' } | { readonly kind: 'tax-free'; readonly payment: string }
+
+/** The tax-free payment a trip's settlement pays back at cost, which repays what the traveller spent rather than paying them. */
+const TRAVEL_COST_PAYMENT = 'business-travel-cost'
+
+/**
+ * What money between the company and the owner in a category is: a loan either way, a dividend or rent of the owner-pay
+ * bucket, a reimbursement either way or the trip costs paid back, a tax-free payment, salary for the rest of the owner-pay
+ * bucket, and other money for anything else, such as share capital. A category carries one class, so the order only
+ * decides for a reimbursement beside a class.
+ */
+export function ownerMoneyKindOf(category: Category | undefined): OwnerMoneyKind {
+  if (category === undefined) return { kind: 'other' }
+  const { roles, bucket } = category
+  if (roles.includes(PACK_ROLES.ownerLoanOut) || roles.includes(PACK_ROLES.ownerLoanRepaid)) return { kind: 'owner-loan' }
+  if (bucket === 'owner-pay' && roles.includes(PACK_ROLES.profitDistribution)) return { kind: 'dividend' }
+  if (roles.includes(PACK_ROLES.ownerRent)) return { kind: 'rent' }
+  const payment = taxFreePaymentOf(category)
+  if (roles.includes(PACK_ROLES.reimbursement) || payment === TRAVEL_COST_PAYMENT) return { kind: 'reimbursement' }
+  if (payment !== null) return { kind: 'tax-free', payment }
+  return roles.includes(PACK_ROLES.salary) || bucket === 'owner-pay' ? { kind: 'salary' } : { kind: 'other' }
 }

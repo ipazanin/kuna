@@ -1,4 +1,4 @@
-import { inWindow, isNear } from '../../pairing/domain/sameMoney'
+import { inWindow, isNear } from '../../../../shared/app/moneyMatch'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'

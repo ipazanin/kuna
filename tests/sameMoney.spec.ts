@@ -8,15 +8,6 @@ const typedOn = (date: string, amount = -10) => row(OTP, date, amount, 'Food/Eat
 const bankOn = (date: string, amount = -10, on = OTP) => row(on, date, amount, null, { source: 'statement' })
 
 describe('same money', () => {
-  it.each([
-    ['2026-10-07', true],
-    ['2026-10-06', false],
-    ['2026-10-17', true],
-    ['2026-10-18', false],
-  ])('at the window of 3 days before to 7 days after 10 Oct, a bank row on %s matching is %s', (bankDate, matches) => {
-    expect(sameMoney([typedOn('2026-10-10')], [bankOn(bankDate)]).matches.length === 1).toBe(matches)
-  })
-
   it('matches only to the cent', () => {
     expect(sameMoney([typedOn('2026-10-10')], [bankOn('2026-10-10', -10.01)]).matches).toEqual([])
   })

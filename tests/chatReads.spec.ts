@@ -97,6 +97,32 @@ describe('what a read gives the chat', () => {
     expect(answer.text).toContain('Anonymise')
   })
 
+  it('reads the owner’s own account and the rows paid to it when the company pays the owner into it, and keeps the company’s pay rows home', async () => {
+    const director = [{ name: 'Mia Izmišljena', employee: true, ibans: [IBAN_OF_ANA] }]
+    const ownAccount = { ...CHAT_BOOK.accounts[0]!, id: recordIdOf(spendingKinds.ACCOUNT_RECORDS, 'account-b'), name: 'Salary account', iban: IBAN_OF_ANA }
+    const spending = spendingReader({ ...CHAT_READING, book: () => ({ ...CHAT_BOOK, accounts: [...CHAT_BOOK.accounts, ownAccount] }) })
+    const payRows = readableKind({
+      kind: { name: 'ledger-row', noun: spendingKinds.TRANSACTION_RECORDS.noun },
+      about: 'A bank row of the company.',
+      fields: { id: { exposure: 'ref', to: 'ledger-row', meaning: 'The row.' }, counterpartyIban: { exposure: 'identifier', meaning: 'Who it was paid to.' } },
+      dated: null,
+      rows: () => [{ id: 'ledger-row:salary', counterpartyIban: IBAN_OF_ANA }],
+      currencyOf: () => 'EUR',
+    })
+    const company: AppReader = { status: () => 'open', kinds: [payRows], reports: [] }
+    const reads = readsOf({
+      persons: () => director,
+      readers: new Map([
+        ['spending', { name: 'Spending', reader: spending }],
+        ['company', { name: 'Company', reader: company }],
+      ]),
+    })
+
+    expect((await found({ kind: 'account' }, reads)).total).toBe(2)
+    expect((await found({}, reads)).total).toBe(3)
+    expect((await found({ app: 'company', kind: 'ledger-row' }, reads)).total).toBe(0)
+  })
+
   it('sends a stranger’s text as data, marked as untrusted, without obeying or dropping it', async () => {
     const { untrusted, records } = await found({ query: 'Corner' }, readsOf())
     expect(untrusted).toBe(true)

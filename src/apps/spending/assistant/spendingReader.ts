@@ -1,4 +1,5 @@
 import { spendingFigures } from '../analytics/domain/spendingFigures'
+import { normaliseIban } from '../../../shared/text/fold'
 import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
@@ -714,5 +715,6 @@ export function spendingReader(reading: SpendingReading): AppReader {
       },
     },
     receipts: receiptPayments(reading),
+    ownIbans: () => rows((book) => book.accounts.map((account) => normaliseIban(account.iban)).filter((iban) => iban !== '')),
   }
 }

@@ -373,6 +373,7 @@ if (companyAsked) {
     group(`owner.${at}.owed`, () => [owedInPeriod(books, period, window, asOf), loanMonths(books.transactions, books.categories, periodMonths(period, window), window)])
   }
 
+  group('owner.payments', () => installedPack().moneyWithOwner(booked))
   const bookings = [...books.transactions, ...books.ownerAdvances.map(bookingOfAdvance)]
   const accountantYears = [...new Set(books.yearEndLines.map((line) => line.year))]
   group('year.roles', missingAccrualRoles(books.categories))

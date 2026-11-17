@@ -70,7 +70,7 @@ export function matchRecords(input: MatchRecordsInput, reads: ChatReads): ChatTo
   if (booked === null) return refusal('That account is no longer in the file.')
 
   const rows = copied.filter((row) => row !== null)
-  const keptHome = recordsKeptHome(kind, reads)
+  const keptHome = recordsKeptHome(app.reader, kind, reads)
   const pool = booked.filter((record) => !keptHome.has(record.id))
   const twins = bookedTwins(
     rows,
@@ -128,7 +128,7 @@ export async function matchReceipts(input: MatchRecordsInput, reads: ChatReads, 
   const status = app.reader.status()
   if (status !== 'open') return fileNotReadable(app.name, status)
 
-  const keptHome = recordsKeptHome(kind, reads)
+  const keptHome = recordsKeptHome(app.reader, kind, reads)
   const found = await Promise.all(
     input.receipts.map(async (receipt, at) => {
       const { date, total, photo } = read[at] as Exclude<(typeof read)[number], string>

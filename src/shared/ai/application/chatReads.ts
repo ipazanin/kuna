@@ -116,29 +116,38 @@ function textsOf(value: StoredValue): readonly string[] {
 /** Whether a record a person tagged stays on this device, with no ref: it is about an employee while Anonymise is on, or Kuna cannot find it to tell. */
 export function recordKeptHome(app: string, kindName: string, id: string, reads: ChatReads): boolean {
   if (!reads.anonymising()) return false
-  const row = reads.readers
-    .get(app)
-    ?.reader.kinds.find((kind) => kind.name === kindName)
+  const reader = reads.readers.get(app)?.reader
+  const row = reader?.kinds
+    .find((kind) => kind.name === kindName)
     ?.rows()
     .find((candidate) => candidate.id === id)
-  return row === undefined || aboutAnEmployee(row, employeesKeptHome(knownPersons(reads), reads))
+  return row === undefined || aboutAnEmployee(row, employeesKeptHome(knownPersons(reads), reads), ownIbansOf(reader))
 }
 
 /** The ids of a kind's records about an employee, which stay on this device while Anonymise is on, read once for a whole call. */
-export function recordsKeptHome(kind: ReadableKind, reads: ChatReads): ReadonlySet<string> {
+export function recordsKeptHome(reader: AppReader, kind: ReadableKind, reads: ChatReads): ReadonlySet<string> {
   if (!reads.anonymising()) return new Set()
   const employees = employeesKeptHome(knownPersons(reads), reads)
-  return new Set(kind.rows().flatMap((row) => (aboutAnEmployee(row, employees) ? [row.id] : [])))
+  const own = ownIbansOf(reader)
+  return new Set(kind.rows().flatMap((row) => (aboutAnEmployee(row, employees, own) ? [row.id] : [])))
 }
 
-/** Whether a record names an employee in any of its text, or goes to an IBAN an employee is paid into. */
-function aboutAnEmployee(row: ReadableRow, employees: readonly KnownPerson[]): boolean {
+/** The person's own account IBANs in an app, which name no employee in that app's records even when the company pays the owner into one. */
+function ownIbansOf(reader: AppReader | undefined): ReadonlySet<string> {
+  return new Set(reader?.ownIbans?.() ?? [])
+}
+
+/** Whether a record names an employee in any of its text, or goes to an IBAN an employee is paid into that is not one of the app's own accounts. */
+function aboutAnEmployee(row: ReadableRow, employees: readonly KnownPerson[], own: ReadonlySet<string>): boolean {
   return row.fields.some(
     (field) =>
       hasValue(field) &&
       textsOf(field.value).some((text) => {
         if (text === '') return false
-        if (field.exposure === 'identifier') return employees.some((employee) => employee.ibans.includes(normaliseIban(text)))
+        if (field.exposure === 'identifier') {
+          const iban = normaliseIban(text)
+          return !own.has(iban) && employees.some((employee) => employee.ibans.includes(iban))
+        }
         return employees.some((employee) => nameIn(text, employee.name))
       }),
   )
@@ -349,7 +358,8 @@ export function findRecords(input: FindRecordsInput, reads: ChatReads): ChatTool
       const date = dateOf(row, kind)
       return (input.from === null || date >= input.from) && (input.to === null || date.slice(0, input.to.length) <= input.to)
     })
-  const kept = inRange.filter((row) => !aboutAnEmployee(row, employees))
+  const own = ownIbansOf(app.reader)
+  const kept = inRange.filter((row) => !aboutAnEmployee(row, employees, own))
   const fieldOf = (row: ReadableRow, name: string) => row.fields.find((field) => field.name === name)
   const matching = kept
     .filter((row) => holdsWords === null || holdsQuery(row, holdsWords, reads))
@@ -399,7 +409,7 @@ export function getRecord(appId: string, ref: string, reads: ChatReads): ChatToo
   if (status !== 'open') return fileNotReadable(app.name, status)
   const row = kind.rows().find((candidate) => candidate.id === record.id)
   if (row === undefined) return refusal('That record is no longer in the file.')
-  if (aboutAnEmployee(row, employeesKeptHome(knownPersons(reads), reads))) return refusal(ABOUT_AN_EMPLOYEE)
+  if (aboutAnEmployee(row, employeesKeptHome(knownPersons(reads), reads), ownIbansOf(app.reader))) return refusal(ABOUT_AN_EMPLOYEE)
   return {
     text: JSON.stringify({ source: `${appId}/${kind.name}`, untrusted: true, record: shownRow(appId, kind, row, reads) }),
     isError: false,
