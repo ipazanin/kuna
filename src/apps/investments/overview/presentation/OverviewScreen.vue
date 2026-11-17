@@ -151,8 +151,8 @@ const importing = ref(false)
           </div>
         </AppCard>
         <DashboardGrid data-testid="investments-cards">
-          <ValueOverTimeCard :sources="sources" class="basis-full" />
-          <LatestTransactionsCard :sources="sources" class="basis-full" />
+          <ValueOverTimeCard :sources="sources" />
+          <LatestTransactionsCard :sources="sources" />
         </DashboardGrid>
       </template>
       <TransactionDialog v-model:open="adding" :book="state.workbook.book" :editing="null" />
