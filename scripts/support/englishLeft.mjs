@@ -403,7 +403,7 @@ export const ENGLISH_ALLOWED = [
   {
     name: "IBKR's product and menu names",
     reason: 'IBKR names its report, its query and its portal in English whatever the language, so Croatian copy names them as IBKR does.',
-    texts: ['Activity Flex Query', 'Activity Flex', 'Flex Query', 'Client Portal'],
+    texts: ['Activity Flex Query', 'Activity Flex', 'Flex Queries Delivery', 'Flex Queries', 'Flex Query', 'Performance & Reports', 'Email', 'Client Portal'],
   },
   {
     name: 'vendor words in fetched facts',

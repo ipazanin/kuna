@@ -40,7 +40,7 @@ export const en = {
     startDays: 'Each account under Accounts says from which day IBKR report by mail brings its rows. Earlier days stay as you typed or imported them.',
     unconfirmed: 'These filters are not confirmed yet',
     unconfirmedWhy: 'Kuna has not seen a real IBKR mail, so the sender is its best guess. The first sync that finds one confirms it.',
-    format: `In IBKR's Flex Query, set the format to XML for the last 7 to 14 days, with the sections ${SECTIONS}.`,
+    format: `In IBKR's Flex Query, set the format to XML for the last 7 to 14 days, with the sections ${SECTIONS}. The query mails nothing until you tick it under Performance & Reports, Flex Queries, Flex Queries Delivery, with Email as the method.`,
     saved: 'IBKR report settings saved',
     notSaved: 'IBKR report settings not saved',
     lastSync: 'What the last sync read',
@@ -69,7 +69,7 @@ export const en = {
   },
   guide: {
     title: 'IBKR report by mail',
-    body: `IBKR can mail its Activity Flex report each day, so trades, dividends, tax withheld, conversions, deposits, interest and fees reach Investments with no upload. In IBKR's Client Portal, make an Activity Flex Query in XML for the last 7 to 14 days with the sections ${SECTIONS}, and turn on its delivery by email. In Investments, Settings, General, turn on IBKR report by mail. Each sync reads what arrived, and new records wait for a review with one tap to accept and an Undo. A row Kuna has not seen, such as a corporate action or a corrected trade, is asked about and never guessed. It helps most for someone adding broker trades by hand or importing a statement.`,
+    body: `IBKR can mail its Activity Flex report each day, so trades, dividends, tax withheld, conversions, deposits, interest and fees reach Investments with no upload. In IBKR's Client Portal, make an Activity Flex Query in XML for the last 7 to 14 days with the sections ${SECTIONS}. Saving the query does not mail it. Under Performance & Reports, Flex Queries, open Flex Queries Delivery, choose Email and tick the query. In Investments, Settings, General, turn on IBKR report by mail. Each sync reads what arrived, and new records wait for a review with one tap to accept and an Undo. A row Kuna has not seen, such as a corporate action or a corrected trade, is asked about and never guessed. It helps most for someone adding broker trades by hand or importing a statement.`,
   },
 }
 
@@ -103,7 +103,7 @@ export const hr: Translation<typeof en> = {
     startDays: 'Svaki račun pod Računi kaže od kojeg dana izvješće IBKR-a poštom donosi njegove retke. Raniji dani ostaju kako ste ih upisali ili uvezli.',
     unconfirmed: 'Ovi filtri još nisu potvrđeni',
     unconfirmedWhy: 'Kuna još nije vidjela pravu poruku IBKR-a, pa je pošiljatelj njezina najbolja procjena. Prva sinkronizacija koja je pronađe to potvrđuje.',
-    format: `U IBKR-ovu upitu Flex Query postavite format XML za zadnjih 7 do 14 dana, s odjeljcima: ${SECTIONS}.`,
+    format: `U IBKR-ovu upitu Flex Query postavite format XML za zadnjih 7 do 14 dana, s odjeljcima: ${SECTIONS}. Upit ne stiže poštom dok ga ne označite pod Performance & Reports, Flex Queries, Flex Queries Delivery, s načinom Email.`,
     saved: 'Postavke izvješća IBKR-a su spremljene',
     notSaved: 'Postavke izvješća IBKR-a nisu spremljene',
     lastSync: 'Što je pročitala zadnja sinkronizacija',
@@ -140,7 +140,7 @@ export const hr: Translation<typeof en> = {
   },
   guide: {
     title: 'Izvješće IBKR-a poštom',
-    body: `IBKR svaki dan može poslati svoje izvješće Activity Flex, pa transakcije, dividende, obustavljeni porez, konverzije, uplate, kamate i naknade stižu u Ulaganja bez ručnog učitavanja. U IBKR-ovu Client Portalu napravite Activity Flex Query u formatu XML za zadnjih 7 do 14 dana, s odjeljcima: ${SECTIONS}. Zatim uključite slanje e-poštom. U Ulaganjima, Postavke, Općenito, uključite Izvješće IBKR-a poštom. Svaka sinkronizacija pročita što je stiglo, a novi zapisi čekaju pregled, s prihvaćanjem jednim dodirom i poništavanjem. Redak kakav Kuna još nije vidjela ide vama na pitanje i nikad se ne nagađa, primjerice korporativna akcija ili ispravljena transakcija. Najviše pomaže onome tko transakcije brokera upisuje ručno ili učitava izvod.`,
+    body: `IBKR svaki dan može poslati svoje izvješće Activity Flex, pa transakcije, dividende, obustavljeni porez, konverzije, uplate, kamate i naknade stižu u Ulaganja bez ručnog učitavanja. U IBKR-ovu Client Portalu napravite Activity Flex Query u formatu XML za zadnjih 7 do 14 dana, s odjeljcima: ${SECTIONS}. Spremljen upit još ne stiže poštom. Pod Performance & Reports, Flex Queries otvorite Flex Queries Delivery, odaberite Email i označite upit. U Ulaganjima, Postavke, Općenito, uključite Izvješće IBKR-a poštom. Svaka sinkronizacija pročita što je stiglo, a novi zapisi čekaju pregled, s prihvaćanjem jednim dodirom i poništavanjem. Redak kakav Kuna još nije vidjela ide vama na pitanje i nikad se ne nagađa, primjerice korporativna akcija ili ispravljena transakcija. Najviše pomaže onome tko transakcije brokera upisuje ručno ili učitava izvod.`,
   },
 }
 
