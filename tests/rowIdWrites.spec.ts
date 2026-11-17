@@ -5,6 +5,8 @@ import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWri
 import { giveRowsIds } from '../src/apps/company/workbook/application/rowIdWrites'
 import { writeSplit } from '../src/apps/company/transactions/application/splitWrites'
 import { rowsWithoutId } from '../src/apps/company/workbook/domain/ledgerReading'
+import { storesItems } from '../src/apps/company/workbook/domain/rowItems'
+import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { ID_FIELD } from '../src/shared/storage/domain/recordCodec'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
@@ -100,5 +102,20 @@ describe.each([
     const [entry] = recordsOf(store.state.records!.ledger)
 
     await expect(store.write('Other id', (unit) => unit.of(LEDGER_WRITES).change(entry!, { ...entry!, rowId: 'another' }))).rejects.toThrow(WorkbookWriteRefused)
+  })
+})
+
+describe('row ids in books that keep items on their own tab', () => {
+  it('reads a ledger row a person added to the file without an id as a row without one, and gives it one', async () => {
+    const moved = fakeWorkbookDocument('2026-10-16T09:00:00.000Z', 'browser')
+    const [first, ...rest] = moved.records['ledger-row'] ?? []
+    const { [ID_FIELD]: _id, ...added } = first!
+    const { store } = await browserHarness(used, { ...moved, records: { ...moved.records, 'ledger-row': [...rest, added] } })
+    expect(storesItems(store.state.records!)).toBe(true)
+    expect(rowsWithoutId(store.state.workbook!.transactions)).toHaveLength(1)
+
+    await store.write('Ids', (unit) => giveRowsIds(unit, store.state.records!))
+
+    expect(rowsWithoutId(store.state.workbook!.transactions)).toHaveLength(0)
   })
 })

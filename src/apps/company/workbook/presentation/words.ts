@@ -13,6 +13,31 @@ export const en = {
     given: (count: number): EnglishForms => ({ one: `Gave ${count} ledger row its id`, other: `Gave ${count} ledger rows their ids` }),
     notGiven: 'The ledger rows kept no new ids',
   },
+  /** The offer to move books from before items to the items tab, or what keeps them from moving. */
+  itemsMove: {
+    title: 'This file keeps categories the way older versions of Kuna did',
+    description:
+      'Updating it gives each bank row its own parts, which hold its category, owner share, note and the invoice it pays. A split row keeps its parts, and a payment that pays several invoices then shows as one part per invoice. No figure changes. Undo works until you reload the page. To keep this version, export a copy first.',
+    action: 'Update the file',
+    moved: 'Updated how this file keeps categories',
+    notMoved: 'The file was not updated',
+    blocked: (count: number): EnglishForms => ({
+      one: `${count} row or part needs fixing before this file can be updated`,
+      other: `${count} rows or parts need fixing before this file can be updated`,
+    }),
+    unreadableRow: (label: string) => `The ledger row ${label} cannot be read.`,
+    refusedParts: (count: number): EnglishForms => ({
+      one: 'A part on the splits tab cannot be read, nor which bank row it belongs to.',
+      other: `${count} parts on the splits tab cannot be read, nor which bank rows they belong to.`,
+    }),
+    refusedPartsOfRow: (count: number, account: string, day: string): EnglishForms => ({
+      one: `A split part of the ${account} row of ${day} cannot be read, or its split does not add up.`,
+      other: `${count} split parts of the ${account} row of ${day} cannot be read, or its split does not add up.`,
+    }),
+    keptWhole: (account: string, day: string) => `The ${account} row of ${day} is split, though it counts whole.`,
+    zeroRow: (account: string, day: string) => `The ${account} row of ${day} has no amount.`,
+    blockedFix: 'Fix or delete each of them in the file. Then the update is offered again.',
+  },
   /** What a file chosen as books says when it cannot be read. */
   reading: {
     notExcel: (fileName: string) => `${fileName} could not be read as an Excel workbook. Save it as .xlsx and try again.`,
@@ -61,6 +86,33 @@ export const hr: Translation<typeof en> = {
       other: `${count} stavki evidencije dobilo je ID`,
     }),
     notGiven: 'Stavke evidencije nisu dobile nove ID-ove',
+  },
+  itemsMove: {
+    title: 'Ova datoteka vodi kategorije kao starije verzije Kune',
+    description:
+      'Ažuriranjem svaka bankovna stavka dobiva svoje dijelove, koji nose njezinu kategoriju, udio vlasnika, napomenu i račun koji plaća. Podijeljena stavka zadržava svoje dijelove, a uplata koja plaća više računa tada se prikazuje kao jedan dio po računu. Nijedna se brojka ne mijenja. Poništi radi dok ponovno ne učitate stranicu. Ako želite sačuvati ovu verziju, prvo izvezite kopiju.',
+    action: 'Ažuriraj datoteku',
+    moved: 'Datoteka je ažurirana',
+    notMoved: 'Datoteka nije ažurirana',
+    blocked: (count) => ({
+      one: `${count} stavku ili dio treba ispraviti prije ažuriranja ove datoteke`,
+      few: `${count} stavke ili dijela treba ispraviti prije ažuriranja ove datoteke`,
+      other: `${count} stavki ili dijelova treba ispraviti prije ažuriranja ove datoteke`,
+    }),
+    unreadableRow: (label) => `Stavka evidencije ${label} ne može se pročitati.`,
+    refusedParts: (count) => ({
+      one: `${count} dio na listu „splits” ne može se pročitati, kao ni kojoj bankovnoj stavci pripada.`,
+      few: `${count} dijela na listu „splits” ne mogu se pročitati, kao ni kojim bankovnim stavkama pripadaju.`,
+      other: `${count} dijelova na listu „splits” ne može se pročitati, kao ni kojim bankovnim stavkama pripadaju.`,
+    }),
+    refusedPartsOfRow: (count, account, day) => ({
+      one: `${count} dio podjele stavke računa „${account}” od ${day} ne može se pročitati ili se podjela ne zbraja.`,
+      few: `${count} dijela podjele stavke računa „${account}” od ${day} ne mogu se pročitati ili se podjela ne zbraja.`,
+      other: `${count} dijelova podjele stavke računa „${account}” od ${day} ne može se pročitati ili se podjela ne zbraja.`,
+    }),
+    keptWhole: (account, day) => `Stavka računa „${account}” od ${day} podijeljena je, iako se broji cijela.`,
+    zeroRow: (account, day) => `Stavka računa „${account}” od ${day} nema iznos.`,
+    blockedFix: 'Ispravite ili obrišite svaku od njih u datoteci. Tada će se ažuriranje ponovno ponuditi.',
   },
   reading: {
     notExcel: (fileName) => `Datoteka „${fileName}” nije se mogla pročitati kao Excelova datoteka. Spremite je kao .xlsx i pokušajte ponovno.`,

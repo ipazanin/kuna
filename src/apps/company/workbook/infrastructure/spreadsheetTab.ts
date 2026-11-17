@@ -12,6 +12,7 @@ import {
   DISMISSAL_RECORDS,
   INVOICE_RECORDS,
   ITEM_RECORDS,
+  LABEL_RECORDS,
   LEDGER_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
@@ -74,6 +75,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
   },
   items: { tab: 'items', kind: ITEM_RECORDS, formatOf: byColumn({ date: 'date', amount: 'amount', owner_share: 'number' }) },
   dismissed: { tab: 'dismissed', kind: DISMISSAL_RECORDS, formatOf: byColumn({ dismissed_on: 'date' }) },
+  labels: { tab: 'labels', kind: LABEL_RECORDS, formatOf: byColumn({}) },
 }
 
 /** The mapping of a kind, core's or the installed pack's. Throws for a kind no tab holds. */

@@ -1,5 +1,5 @@
-import type { Label } from './label'
 import { LABEL_RECORDS } from './spendingKinds'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'

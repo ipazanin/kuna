@@ -1,4 +1,5 @@
 import { computed, reactive } from 'vue'
+import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import { useRoute, useRouter } from 'vue-router'
 
 import { filterCategoryChoices } from './categoryChoices'
@@ -12,7 +13,6 @@ import type { EntriesMonths } from '../../overview/presentation/spendingLinks'
 import { payeeKey } from '../../payees/domain/payeeKey'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { labelsOf } from '../../workbook/domain/carriedChoices'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'

@@ -11,8 +11,8 @@ export const SPENDING_ROW = {
 export const SPENDING_ITEM = { record: new Set(['link', 'labels', 'ruleLabels', 'event', 'splitByLink']), cells: new Set(['link', 'labels', 'rule_labels', 'event', 'split_by_link']) }
 export const SPENDING_ACCOUNT = { record: new Set(['rowsFrom', 'alsoFrom', 'cards']), cells: new Set(['rows_from', 'also_from', 'cards']) }
 export const INVESTMENT_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on', 'also_from']) }
-/** A Company item leaves nothing out: its invoice is a figure, since what an invoice is owed reads it. */
-export const COMPANY_ITEM = { record: new Set(), cells: new Set() }
+/** A Company item leaves out its labels, which company.labels hashes. Its invoice is a figure, since what an invoice is owed reads it. */
+export const COMPANY_ITEM = { record: new Set(['labels']), cells: new Set(['label_ids']) }
 export const COMPANY_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on', 'also_from']) }
 export const COMPANY_LEDGER_ROW = {
   record: new Set(['statement', 'counterpartyIban', 'description', 'flaggedBy', 'reference', 'signals']),

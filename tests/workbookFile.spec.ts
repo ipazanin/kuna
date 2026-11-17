@@ -66,6 +66,7 @@ describe('the template', () => {
       'trip-legs',
       'trip-costs',
       'items',
+      'labels',
       'dismissed',
     ])
     for (const name of book.SheetNames) {
@@ -101,9 +102,11 @@ describe('the template', () => {
       'owner_share',
       'note',
       'invoice_id',
+      'label_ids',
       'id',
     ])
     expect(book.Sheets.items?.A1?.c?.[0]?.t).toMatch(/ignores it on import/)
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.labels!, { header: 1 })[0]).toEqual(['name', 'id'])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.ledger!, { header: 1 })[0]).not.toContain('category')
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['outgoing-plan']!, { header: 1 })[0]).toEqual(['item', 'date', 'amount', 'client', 'description', 'id'])
     expect(book.Sheets['outgoing-plan']?.B1?.c?.[0]?.t).toMatch(/billable/)

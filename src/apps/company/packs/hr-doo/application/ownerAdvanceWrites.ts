@@ -91,7 +91,7 @@ function placeRepayments(unit: UnitOfWork, records: WorkbookRecords, advance: Ow
       if (index < 0 || applied[index]! <= 0) return [item]
       const parts = paymentParts(item, [advancePaid({ advance, applied: applied[index]! })], () => recordIdOf(ITEM_RECORDS, newRecordId()))
       itemOf.set(item.id, parts.find((part) => part.of !== null)!.id)
-      return parts.map((part) => ({ id: part.id, amount: part.amount, category: item.category, note: part.note, ownerShare: item.ownerShare }))
+      return parts.map((part) => ({ id: part.id, amount: part.amount, category: item.category, note: part.note, ownerShare: item.ownerShare, labels: item.labels }))
     })
     writeRowItems(unit, records, row, storedSplitOf(row), items)
   }

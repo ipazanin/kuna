@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { labelsOf } from '../../../../shared/categorising/domain/labels'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 
 import { categoryColours } from '../../categories/presentation/categoryColours'
 import { useLinkLines } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
-import type { Label } from '../../workbook/domain/label'
-import { labelsOf } from '../../workbook/domain/carriedChoices'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { holdsReceipt, linkOfItems } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'

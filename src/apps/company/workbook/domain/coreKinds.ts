@@ -10,6 +10,7 @@ import { recordKind } from '../../../../shared/storage/domain/recordKind'
 import type { ItemRecord } from './splitsReading'
 import type { SplitTabRow } from './splitsReading'
 import type { Invoice } from './workbook'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 
 export const LEDGER_RECORDS = recordKind<LedgerEntry>('ledger-row', {
   en: { one: 'ledger row', many: 'ledger rows', article: 'a' },
@@ -54,4 +55,8 @@ export const ITEM_RECORDS = recordKind<ItemRecord>('item', {
 export const DISMISSAL_RECORDS = recordKind<Dismissal>('dismissal', {
   en: { one: 'dismissed suggestion', many: 'dismissed suggestions', article: 'a' },
   hr: { one: 'odbačeni prijedlog', of: 'odbačenog prijedloga', few: 'odbačena prijedloga', other: 'odbačenih prijedloga', gender: 'masculine' },
+})
+export const LABEL_RECORDS = recordKind<Label>('label', {
+  en: { one: 'label', many: 'labels', article: 'a' },
+  hr: { one: 'oznaka', of: 'oznake', few: 'oznake', other: 'oznaka', gender: 'feminine' },
 })

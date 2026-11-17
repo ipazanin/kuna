@@ -137,6 +137,8 @@ export function exampleStudio(changes: Partial<HrDooWorkbook> = {}): HrDooWorkbo
     ownerAdvances: STUDIO_ADVANCES,
     splits: [],
     rowsKeptWhole: new Map(),
+    labels: [],
+    itemLabels: new Map(),
     assets: STUDIO_ASSETS,
     grants: [STUDIO_GRANT],
     yearEndLines: [],

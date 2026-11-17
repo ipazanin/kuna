@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import type { Label } from '../src/shared/categorising/domain/labels'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
@@ -6,7 +7,6 @@ import { removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/app
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
-import type { Label } from '../src/apps/spending/workbook/domain/label'
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
 import { differenceItem, entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'

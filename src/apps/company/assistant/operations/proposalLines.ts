@@ -80,6 +80,8 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   }
   if (isKind(kind, ITEM_RECORDS, record) && field === 'invoice')
     return record.invoice === null ? null : (workbook.invoices.find((invoice) => invoice.id === record.invoice)?.number ?? invoiceNumberOf(record.invoice))
+  if (isKind(kind, ITEM_RECORDS, record) && field === 'labels')
+    return record.labels.length === 0 ? null : record.labels.map((id) => workbook.labels.find((label) => label.id === id)?.name ?? id).join(', ')
   if (field === 'category' && !isKind(kind, CATEGORY_RECORDS, record)) return names.category(String(value))
   if (field === 'account' && !isKind(kind, ACCOUNT_RECORDS, record)) return names.account(String(value))
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return record.colour.swatch?.name ?? words.bucketColour

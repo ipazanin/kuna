@@ -198,7 +198,7 @@ describe.each([
 
     expect(filed(store, 'PRINT SHOP')).toEqual(['office', null, 'rule'])
     expect(recordsOf(store.state.records!.items).filter((item) => item.row === 'printed-row')).toEqual(
-      onItemsTab ? [{ row: 'printed-row', amount: euros(-10), category: 'office', note: '', ownerShare: null, invoice: null, id: recordIdOf(ITEM_RECORDS, 'printed-row') }] : [],
+      onItemsTab ? [{ row: 'printed-row', amount: euros(-10), category: 'office', note: '', ownerShare: null, invoice: null, labels: [], id: recordIdOf(ITEM_RECORDS, 'printed-row') }] : [],
     )
     await store.undo(store.state.writes[0]!)
     expect(store.state.workbook!.transactions.some((row) => row.counterparty === 'PRINT SHOP')).toBe(false)

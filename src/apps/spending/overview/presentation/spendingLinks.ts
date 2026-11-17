@@ -1,9 +1,9 @@
 import type { RouteLocationRaw } from 'vue-router'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingEvent } from '../../workbook/domain/event'
-import type { Label } from '../../workbook/domain/label'
 import { payeeKey } from '../../payees/domain/payeeKey'
 import { OPENING_PERIOD } from '../../payees/domain/payeePeriod'
 import type { PayeePeriod } from '../../payees/domain/payeePeriod'

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { itemsMoveBlockers, moveToItems } from '../src/apps/company/workbook/application/rowIdWrites'
 import { storesItems } from '../src/apps/company/workbook/domain/rowItems'
+import { itemsMoveBlockerLines } from '../src/apps/company/workbook/presentation/itemsMoveBlockers'
+import { en } from '../src/apps/company/workbook/presentation/words'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { ownerAdvances } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
@@ -22,10 +24,11 @@ afterEach(async () => {
 
 const SAVED = '2026-10-16T09:00:00.000Z'
 
-/** The kinds the move writes, as the file holds them. */
+/** The kinds the move writes, as the file holds them, with no labels on the items, since books from before items keep none to move. */
 function movedKinds(document: WorkbookDocument): Readonly<Record<string, unknown>> {
   const kinds = ['ledger-row', 'split-part', 'item', 'hr-doo.asset', 'hr-doo.trip']
-  return Object.fromEntries(kinds.map((kind) => [kind, document.records[kind] ?? []]))
+  const unlabelled = (kind: string) => (document.records[kind] ?? []).map(({ label_ids: _labels, ...fields }) => fields)
+  return Object.fromEntries(kinds.map((kind) => [kind, unlabelled(kind)]))
 }
 
 describe('moving books from before items to the items tab', () => {
@@ -100,12 +103,24 @@ describe('moving books from before items to the items tab', () => {
     expect(movedKinds(await held())).toEqual(movedKinds(before))
   })
 
-  it('names what keeps books whose splits the guards refuse from moving', async () => {
+  it('names what keeps books whose splits the guards refuse from moving, the parts of one row in one line that counts them', async () => {
     const before = fakeWorkbookDocumentBeforeItems(SAVED, 'browser')
     const parts = (before.records['split-part'] ?? []).map((fields) => (fields['note'] === 'Workshop facilitation' ? { ...fields, amount: '-300' } : fields))
     const { store } = await browserHarness(used, { ...before, records: { ...before.records, 'split-part': parts } })
 
-    expect(itemsMoveBlockers({ records: store.state.records!, workbook: store.state.workbook! }).map((blocker) => blocker.kind)).toEqual(['refused-part', 'refused-part'])
+    const blockers = itemsMoveBlockers({ records: store.state.records!, workbook: store.state.workbook! })
+
+    expect(blockers.map((blocker) => blocker.kind)).toEqual(['refused-part', 'refused-part'])
+    expect(itemsMoveBlockerLines(blockers, (account) => account, en)).toEqual([{ text: '2 split parts of the main row of 16 Mar 2026 cannot be read, or its split does not add up.', count: 2 }])
+  })
+
+  it('says the refused parts whose row cannot be read without naming them', () => {
+    const blockers = [
+      { kind: 'refused-part', row: null },
+      { kind: 'refused-part', row: null },
+    ] as const
+
+    expect(itemsMoveBlockerLines(blockers, (account) => account, en)).toEqual([{ text: '2 parts on the splits tab cannot be read, nor which bank rows they belong to.', count: 2 }])
   })
 
   it('has nothing to move in books that keep their items already', async () => {

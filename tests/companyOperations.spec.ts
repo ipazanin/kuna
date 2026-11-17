@@ -31,6 +31,7 @@ import type { RuledChange } from '../src/shared/storage/application/recordWrites
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { writeRulesChange } from '../src/apps/company/rules/application/ruleWrites'
 import { moveToItems } from '../src/apps/company/workbook/application/rowIdWrites'
+import { storesItems } from '../src/apps/company/workbook/domain/rowItems'
 import { companyDesk, deskPorts, mailDraftsHeld } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
@@ -73,9 +74,9 @@ function exampleRecords(desk: CompanyDesk): Readonly<Record<string, string>> {
   }
 }
 
-/** A field's value as the card reads it, where an empty text and a missing value both say nothing. */
+/** A field's value as the card reads it, where an empty text, an empty list and a missing value all say nothing. */
 function said(value: unknown): unknown {
-  return value === undefined || value === '' ? null : value
+  return value === undefined || value === '' || (Array.isArray(value) && value.length === 0) ? null : value
 }
 
 /** The names of the fields a change sets, but for those Kuna keeps and, on an add, those its label already names. */
@@ -811,6 +812,27 @@ describe("the catalogue of Company's operations", () => {
     expect(names.filter((name) => name === 'set-setting')).toHaveLength(1)
     expect(catalogue.proposers.get('company')).toBe(assistant.proposer)
     expect([...catalogue.pages.keys()].filter((path) => path.startsWith('company/op/'))).toEqual(names.map((name) => `company/op/${name}`))
+  })
+})
+
+describe('the move to items', () => {
+  it('moves books from before items to the items tab in one card, and Undo puts them back', async () => {
+    const desk = await companyDesk(used)
+    expect(storesItems(desk.store.state.records!)).toBe(false)
+    const answer = await desk.propose([{ op: 'move-to-items', input: {} }])
+    expect(answer.isError).toBe(false)
+    const accepted = await desk.accept()
+    expect(storesItems(desk.store.state.records!)).toBe(true)
+    if (accepted.kind === 'done') expect((await accepted.undo!()).kind).toBe('undone')
+    expect(storesItems(desk.store.state.records!)).toBe(false)
+  })
+
+  it('refuses books that keep their rows on the items tab already', async () => {
+    const desk = await companyDesk(used)
+    await desk.store.write('Moved', (unit) => moveToItems(unit, { records: desk.store.state.records!, workbook: desk.store.state.workbook! }))
+    const answer = await desk.propose([{ op: 'move-to-items', input: {} }])
+    expect(answer).toMatchObject({ isError: true })
+    expect(answer.text).toContain('items tab already')
   })
 })
 

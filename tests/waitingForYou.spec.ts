@@ -15,7 +15,7 @@ function withoutContributions(workbook: Workbook, months: readonly string[]): Wo
 }
 
 function jobsOf(workbook: Workbook) {
-  return waitingJobs(presentedWorkbook(workbook), workbook.transactions).map((job) => [job.key, job.text, job.tone, job.link.label])
+  return waitingJobs(presentedWorkbook(workbook), workbook.transactions, false).map((job) => [job.key, job.text, job.tone, job.link.label])
 }
 
 describe('waiting for you', () => {
@@ -31,7 +31,7 @@ describe('waiting for you', () => {
 
   it('links the rows to review and the reimbursements with no cost to the To review tab of Transactions', () => {
     const workbook = fake('drive')
-    const links = waitingJobs(presentedWorkbook(workbook), workbook.transactions)
+    const links = waitingJobs(presentedWorkbook(workbook), workbook.transactions, false)
       .filter((job) => job.key === 'review' || job.key === 'unaccounted')
       .map((job) => job.link.to)
 
@@ -40,7 +40,7 @@ describe('waiting for you', () => {
 
   it('links the invoice to its month on the Plan tab of Invoicing', () => {
     const workbook = fake('drive')
-    const invoice = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'invoice')
+    const invoice = waitingJobs(presentedWorkbook(workbook), workbook.transactions, false).find((job) => job.key === 'invoice')
 
     expect(invoice?.link.to).toEqual({ path: '/company/invoicing', query: { tab: 'plan', year: '2026', month: '2026-10' }, hash: '#billing-month-2026-10' })
   })
@@ -51,14 +51,14 @@ describe('waiting for you', () => {
 
   it('links the corporate tax to its card on the Taxes tab of Year', () => {
     const workbook = fake('browser')
-    const tax = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'corporate-tax')
+    const tax = waitingJobs(presentedWorkbook(workbook), workbook.transactions, false).find((job) => job.key === 'corporate-tax')
 
     expect(tax?.link.to).toEqual({ path: '/company/year', query: { tab: 'taxes' }, hash: '#corporate-tax' })
   })
 
   it('flags a complete month with no payroll contribution, linking to the payroll cadence', () => {
     const workbook = withoutContributions(fake('drive'), ['2026-03'])
-    const payroll = waitingJobs(presentedWorkbook(workbook), workbook.transactions).find((job) => job.key === 'payroll')
+    const payroll = waitingJobs(presentedWorkbook(workbook), workbook.transactions, false).find((job) => job.key === 'payroll')
 
     expect(payroll).toEqual({
       key: 'payroll',
@@ -76,6 +76,15 @@ describe('waiting for you', () => {
 
   it('says nothing of the payroll while every complete month has a payment', () => {
     expect(jobsOf(fake('drive')).map(([key]) => key)).not.toContain('payroll')
+  })
+
+  it('offers the update of books from before items in place of the ledger rows without an id', () => {
+    const workbook = fake('drive')
+    const rows = workbook.transactions.map((row) => ({ ...row, rowId: null }))
+    const jobs = waitingJobs(presentedWorkbook(workbook), rows, true).map((job) => [job.key, job.text, job.tone, job.link.label])
+
+    expect(jobs).toContainEqual(['items-move', 'This file keeps categories the way older versions of Kuna did', 'info', 'Update the file'])
+    expect(jobs.map(([key]) => key)).not.toContain('row-ids')
   })
 
   it('leaves the owner pay jobs out while the module is off', () => {

@@ -11,7 +11,18 @@ import { countedLedger } from '../transactions/domain/countedLedger'
 import type { CountedLedger } from '../transactions/domain/countedLedger'
 import { bucketTotals } from '../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../workbook/domain/bucketTotals'
-import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS } from '../workbook/domain/coreKinds'
+import {
+  ACCOUNT_RECORDS,
+  BILLING_RECORDS,
+  CATEGORY_RECORDS,
+  CLIENT_RECORDS,
+  INVOICE_RECORDS,
+  ITEM_RECORDS,
+  LABEL_RECORDS,
+  LEDGER_RECORDS,
+  RULE_RECORDS,
+  SETTING_RECORDS,
+} from '../workbook/domain/coreKinds'
 import { displayName, displayNamesOf } from '../workbook/domain/displayName'
 import { isHumanConfirmed, needsReview, reviewCount } from '../workbook/domain/needsReview'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
@@ -30,6 +41,9 @@ import { ZERO, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { RateBook } from '../../../shared/money/rateBook'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
+import type { Label } from '../../../shared/categorising/domain/labels'
+import type { RecordId } from '../../../shared/storage/domain/recordId'
+import { labelTotals } from '../labels/domain/labelTotals'
 import { ruleConditionValues } from './ruleConditionFields'
 import type { RuleConditionValues } from './ruleConditionFields'
 import { words } from './words'
@@ -138,6 +152,7 @@ interface SplitPartView {
   readonly note: string
   readonly ownerShare: string
   readonly invoice: string
+  readonly labels: readonly RecordId[]
 }
 
 interface CategoryView {
@@ -238,6 +253,12 @@ const SPLIT_PART_FIELDS: FieldDocs<SplitPartView> = {
   note: { exposure: 'free-text', meaning: "The person's note on the part, or empty, as it always is on the one part of a row not split." },
   ownerShare: { exposure: 'plain', meaning: "The owner's private share of it in percent, or empty for none." },
   invoice: { exposure: 'ref', to: INVOICE_RECORDS.name, meaning: 'The invoice a revenue part pays, in books that store it, or empty for none.' },
+  labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels the part carries, which change no figure of its category.' },
+}
+
+const LABEL_FIELDS: FieldDocs<Label> = {
+  id: { exposure: 'ref', to: LABEL_RECORDS.name, meaning: 'The label.' },
+  name: { exposure: 'plain', meaning: 'The name the owner gave it, such as a conference or an office fit-out.' },
 }
 
 const CATEGORY_FIELDS: FieldDocs<CategoryView> = {
@@ -381,7 +402,7 @@ function ledgerRowOf(row: Workbook['transactions'][number]): LedgerRowView {
   }
 }
 
-function splitPartOf(row: Transaction, part: SplitPart, paidInvoices: Workbook['paidInvoices']): SplitPartView {
+function splitPartOf(row: Transaction, part: SplitPart, { paidInvoices, itemLabels }: Pick<Workbook, 'paidInvoices' | 'itemLabels'>): SplitPartView {
   return {
     id: part.id,
     row: row.id,
@@ -392,6 +413,7 @@ function splitPartOf(row: Transaction, part: SplitPart, paidInvoices: Workbook['
     note: part.note,
     ownerShare: ownerShareText(part.ownerShare) ?? '',
     invoice: paidInvoices?.get(part.id) ?? '',
+    labels: itemLabels.get(part.id) ?? [],
   }
 }
 
@@ -493,6 +515,17 @@ function categoriesReport({ workbook, ledger, pay }: ReportBooks, period: string
   })
 }
 
+/** What each label counts over the parts that carry it up to the day, on the lines that hold no pay, as the cash screens count them. */
+function labelsReport({ workbook, ledger }: ReportBooks, period: string | null): readonly ReportFigure[] {
+  const day = dayOfPeriod(period, ledger.window.newestDay)
+  const currency = currencyOf(workbook)
+  const rows = ledger.workbook.transactions.filter((row) => row.date <= day)
+  return labelTotals(rows, workbook.itemLabels, workbook.labels).flatMap(({ label, profitAndLoss, parts }): readonly ReportFigure[] => [
+    ...payFreeLines(workbook).map((line): ReportFigure => ({ label: `${label.name}: ${lineLabel(workbook.settings, line)}`, of: 'app', cents: profitAndLoss[line], currency })),
+    { label: `${label.name}: parts of ledger rows`, count: parts },
+  ])
+}
+
 function balancesReport({ workbook, ledger }: ReportBooks, period: string | null): readonly ReportFigure[] {
   const day = dayOfPeriod(period, ledger.window.newestDay)
   const balances = latestBalances(ledger.workbook.transactions.filter((row) => row.date <= day))
@@ -567,10 +600,11 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
         rows: () =>
           rows((workbook) => {
             const itemsOf = rowItemsOf(workbook.splits)
-            return workbook.transactions.flatMap((row) => itemsOf(row).map((part) => splitPartOf(row, part, workbook.paidInvoices)))
+            return workbook.transactions.flatMap((row) => itemsOf(row).map((part) => splitPartOf(row, part, workbook)))
           }),
         currencyOf: currency,
       }),
+      readableKind({ kind: LABEL_RECORDS, about: words.reads.label, fields: LABEL_FIELDS, dated: null, rows: () => rows((workbook) => workbook.labels), currencyOf: currency }),
       readableKind({
         kind: CATEGORY_RECORDS,
         about: words.reads.category,
@@ -658,6 +692,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
       { id: 'month', title: words.reports.month.title, about: words.reports.month.about, period: 'month', figures: report(monthReport) },
       { id: 'profit', title: words.reports.profit.title, about: words.reports.profit.about, period: 'month', employees: true, figures: report(profitReport) },
       { id: 'categories', title: words.reports.categories.title, about: words.reports.categories.about, period: 'month', figures: report(categoriesReport) },
+      { id: 'labels', title: words.reports.labels.title, about: words.reports.labels.about, period: 'day', figures: report(labelsReport) },
       { id: 'balances', title: words.reports.balances.title, about: words.reports.balances.about, period: 'day', figures: report(balancesReport) },
       { id: 'receivables', title: words.reports.receivables.title, about: words.reports.receivables.about, period: 'day', figures: report(receivablesReport) },
       ...(pack?.reports ?? []),

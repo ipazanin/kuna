@@ -37,6 +37,7 @@ import { LINE_BUCKETS, bucketTotals } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { storesItems } from '../../workbook/domain/rowItems'
 import CompanySetUpCard from '../../onboarding/presentation/CompanySetUpCard.vue'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { euroSplit } from '../domain/euroSplit'
@@ -75,7 +76,7 @@ const statements = useStatementSync()
 const waiting = computed(() => {
   if (ledger.value === null || state.workbook === null) return []
   const held = statementsJob(statements.held.value?.length ?? 0, statements.state.outcome?.problem ?? null)
-  return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.booked, state.workbook.transactions, everydayRates(rates.value))]
+  return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.booked, state.workbook.transactions, state.records !== null && !storesItems(state.records), everydayRates(rates.value))]
 })
 
 /** Every row of the accounts in view as the bank booked it, from the workbook as read, so a split or shared row stays whole. */

@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import type { Label } from '../src/shared/categorising/domain/labels'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../src/apps/spending/categories/application/categoryWrites'
@@ -9,7 +10,6 @@ import { repeatsWithoutShortcut, shortcutDraftOf, shortcutsShown, shortcutsWithP
 import type { ShortcutWithParts } from '../src/apps/spending/shortcuts/domain/shortcuts'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { Category } from '../src/apps/spending/workbook/domain/category'
-import type { Label } from '../src/apps/spending/workbook/domain/label'
 import type { Shortcut, ShortcutPart } from '../src/apps/spending/workbook/domain/shortcut'
 import { SHORTCUT_CODEC, SHORTCUT_PART_CODEC } from '../src/apps/spending/workbook/domain/shortcutReading'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'

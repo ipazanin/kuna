@@ -15,6 +15,11 @@ import CurrencySelect from '../../shared/ui/CurrencySelect.vue'
 import DayField from '../../shared/ui/DayField.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FormGrid from '../../shared/ui/FormGrid.vue'
+import LabelsSelect from '../../shared/ui/LabelsSelect.vue'
+import type { Label } from '../../shared/categorising/domain/labels'
+import { recordIdOf } from '../../shared/storage/domain/recordId'
+import type { RecordId } from '../../shared/storage/domain/recordId'
+import { recordKind } from '../../shared/storage/domain/recordKind'
 import MoneyInput from '../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import { moneyFromCents, plainAmount } from '../../shared/money/money'
@@ -22,6 +27,25 @@ import { typedAmount } from '../../shared/money/typedAmount'
 import GallerySection from './GallerySection.vue'
 
 const formOpen = ref(false)
+/** Made-up labels of a kind only the gallery has. */
+const GALLERY_LABELS = recordKind<Label>('gallery-label', {
+  en: { one: 'label', many: 'labels', article: 'a' },
+  hr: { one: 'oznaka', of: 'oznake', few: 'oznake', other: 'oznaka', gender: 'feminine' },
+})
+const galleryLabels = ref<Label[]>([
+  { id: recordIdOf(GALLERY_LABELS, 'renovation'), name: 'Renovation' },
+  { id: recordIdOf(GALLERY_LABELS, 'berlin'), name: 'Berlin conference' },
+  { id: recordIdOf(GALLERY_LABELS, 'car'), name: 'New car' },
+])
+const noLabels = ref<readonly RecordId[]>([])
+const someLabels = ref<readonly RecordId[]>([recordIdOf(GALLERY_LABELS, 'renovation'), recordIdOf(GALLERY_LABELS, 'berlin')])
+
+/** The picked ids with a new label of the typed name, which the gallery adds to its labels. */
+function withGalleryLabel(picked: readonly RecordId[], name: string): readonly RecordId[] {
+  const label = { id: recordIdOf(GALLERY_LABELS, String(galleryLabels.value.length)), name: name.trim() }
+  galleryLabels.value = [...galleryLabels.value, label]
+  return [...picked, label.id]
+}
 const refusedOpen = ref(false)
 // Only a dialog marked `changes` shows it, so the other specimens stay as they are.
 provide(
@@ -187,6 +211,23 @@ const ROWS = [
         </UFormField>
         <UFormField label="Disabled" help="An account with entries keeps its currency.">
           <CurrencySelect v-model="keptCurrency" search="Find a currency" disabled class="w-full" />
+        </UFormField>
+      </FormGrid>
+    </AppCard>
+  </GallerySection>
+
+  <GallerySection
+    id="labels-select"
+    title="LabelsSelect"
+    description="The labels a part carries, picked from the file's labels and each shown as a badge. A name typed into its search that no label has is handed to the screen, which adds the label in the same write."
+  >
+    <AppCard as="div" class="p-5">
+      <FormGrid>
+        <UFormField label="No labels yet">
+          <LabelsSelect v-model="noLabels" :labels="galleryLabels" name="Labels of the payment" class="w-full" @create="noLabels = withGalleryLabel(noLabels, $event)" />
+        </UFormField>
+        <UFormField label="Two labels picked">
+          <LabelsSelect v-model="someLabels" :labels="galleryLabels" name="Labels of the part" class="w-full" @create="someLabels = withGalleryLabel(someLabels, $event)" />
         </UFormField>
       </FormGrid>
     </AppCard>

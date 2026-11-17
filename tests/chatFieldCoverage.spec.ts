@@ -351,7 +351,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/spending/receipts/domain/receiptLines.ts#LineRefile',
     operations: [{ name: 'refile-receipt', prefix: 'lines.' }],
   },
-  { path: 'src/apps/spending/labels/application/labelWrites.ts#addLabel', type: 'src/apps/spending/workbook/domain/label.ts#Label', operations: ['add-label'] },
+  { path: 'src/apps/spending/labels/application/labelWrites.ts#addLabel', type: 'src/shared/categorising/domain/labels.ts#Label', operations: ['add-label'] },
   { path: 'src/apps/spending/labels/application/labelWrites.ts#renameLabel', from: ['name'], operations: ['rename-label'] },
   {
     path: 'src/apps/spending/events/application/eventWrites.ts#addEvent',

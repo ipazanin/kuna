@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { labelNameProblem } from '../../../../shared/categorising/domain/labels'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { addLabel, deleteLabel, renameLabel } from '../application/labelWrites'
-import { labelNameProblem, newLabel } from '../domain/labels'
+import { newLabel } from '../domain/labels'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import type { Label } from '../../workbook/domain/label'
 import { words as spendingWords } from '../../words'
 import { words } from './words'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'

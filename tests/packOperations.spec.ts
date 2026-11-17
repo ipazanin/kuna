@@ -432,13 +432,15 @@ async function filedTrip(document: typeof fakeWorkbookDocument) {
   const stored = storedSplitsOf(held)(advance)
   const [, larger, smaller] = [...stored.parts].sort((one, other) => Math.abs(other.amount) - Math.abs(one.amount))
   // A person moves a euro between the two smaller parts and notes one.
-  const moved = stored.parts.map((part) =>
-    part.id === larger!.id
-      ? { ...part, amount: addMoney(part.amount, euros(1)) }
-      : part.id === smaller!.id
-        ? { ...part, amount: subtractMoney(part.amount, euros(1)), note: 'Two days in Split' }
-        : part,
-  )
+  const moved = stored.parts
+    .map((part) => ({ ...part, labels: [] }))
+    .map((part) =>
+      part.id === larger!.id
+        ? { ...part, amount: addMoney(part.amount, euros(1)) }
+        : part.id === smaller!.id
+          ? { ...part, amount: subtractMoney(part.amount, euros(1)), note: 'Two days in Split' }
+          : part,
+    )
   return {
     desk,
     advance,
@@ -498,7 +500,7 @@ describe("filing a trip's rows from its screen", () => {
     const books = () => desk.store.state as CompanyBooks
     const tripHeld = () => recordsOf(recordsOfKindIn(desk.store.state.records!, TRIP_RECORDS))[0]!
     const { payout } = tripRows(books())
-    const whole = { id: wholeItemId(payout), category: payout.category, note: '', ownerShare: payout.ownerShare }
+    const whole = { id: wholeItemId(payout), category: payout.category, note: '', ownerShare: payout.ownerShare, labels: [] }
     await desk.store.write('Split', (unit) =>
       writeRowItems(unit, books().records, payout, storedSplitsOf(books().records)(payout), [
         { ...whole, amount: addMoney(payout.amount, euros(100)) },
@@ -532,7 +534,7 @@ describe("filing a trip's rows from its screen", () => {
     const { payout } = tripRows(books())
     const invoice = books().workbook.invoices[0]!.id
     const itemsOfPayout = () => recordsOf(desk.store.state.records!.items).filter((item) => item.row === payout.rowId)
-    const whole = { id: wholeItemId(payout), category: payout.category, note: '', ownerShare: payout.ownerShare }
+    const whole = { id: wholeItemId(payout), category: payout.category, note: '', ownerShare: payout.ownerShare, labels: [] }
     await desk.store.write('Split', (unit) =>
       writeRowItems(unit, books().records, payout, storedSplitsOf(books().records)(payout), [
         { ...whole, amount: addMoney(payout.amount, euros(100)) },

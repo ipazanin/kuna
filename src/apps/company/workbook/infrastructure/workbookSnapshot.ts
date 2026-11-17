@@ -31,6 +31,7 @@ export const WORKBOOK_TABS = [
   'trip-costs',
   'splits',
   'items',
+  'labels',
   'dismissed',
 ] as const
 
@@ -68,6 +69,7 @@ export const EMPTY_TABS: WorkbookTabs = {
   'trip-costs': [],
   splits: [],
   items: [],
+  labels: [],
   dismissed: [],
 }
 

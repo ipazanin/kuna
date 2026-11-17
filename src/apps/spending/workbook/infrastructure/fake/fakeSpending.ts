@@ -1,4 +1,5 @@
 import { starterCategories } from '../../../categories/domain/starterCategories'
+import type { Label } from '../../../../../shared/categorising/domain/labels'
 import { accountBalance } from '../../../accounts/domain/accountBalance'
 import { codecOfSpendingKind } from '../../application/spendingCodecs'
 import type { Account, RowsFrom } from '../../domain/account'
@@ -6,7 +7,6 @@ import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
 import { BY_DAYS, OUT_OF_EVENTS } from '../../domain/event'
 import type { EventChoice, SpendingEvent } from '../../domain/event'
-import type { Label } from '../../domain/label'
 import type { Receipt } from '../../domain/receipt'
 import type { TransactionItem } from '../../domain/transactionItem'
 import {

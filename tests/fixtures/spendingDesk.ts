@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { Label } from '../../src/shared/categorising/domain/labels'
 import { FILE_OPEN } from './browserFile'
 
 import type { ReceiptPorts } from '../../src/apps/spending/assistant/operations/receiptOperation'
@@ -13,7 +14,6 @@ import { settingRow } from '../../src/shared/storage/domain/settingRows'
 import { codecOfSpendingKind } from '../../src/apps/spending/workbook/application/spendingCodecs'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
-import type { Label } from '../../src/apps/spending/workbook/domain/label'
 import type { TransactionItem } from '../../src/apps/spending/workbook/domain/transactionItem'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'

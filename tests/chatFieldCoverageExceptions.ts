@@ -223,6 +223,10 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
     paths: ['src/apps/spending/entries/application/rowRecords.ts#moveToItems'],
   },
   {
+    reason: "Moving Company books from before items to items, which the person confirms on the books file's offer and types nothing for. The chat's move-to-items reaches it.",
+    paths: ['src/apps/company/workbook/application/rowIdWrites.ts#moveToItems'],
+  },
+  {
     reason: 'Removing a record. It sets no field, and tests/chatCoverage.spec.ts checks the chat can do it.',
     paths: [
       'src/apps/assets/asset/application/assetWrites.ts#removeAsset',

@@ -21,6 +21,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordProblem, WorkbookSource } from '../../../../shared/storage/domain/recordsRead'
 import type { VatTreatment } from './vatTreatment'
 import type { LedgerSplit } from './splits'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 
 export interface Category {
   readonly slug: string
@@ -214,6 +215,7 @@ export interface WorkbookProblem extends RecordProblem {
     | 'trip-costs'
     | 'splits'
     | 'items'
+    | 'labels'
     | 'dismissed'
 }
 
@@ -254,6 +256,10 @@ export interface Workbook {
    * record. Absent on other books, which match a client's payments to its invoices on every read.
    */
   readonly paidInvoices?: ReadonlyMap<RecordId, RecordId>
+  /** The labels of the labels tab, in the order it holds them. */
+  readonly labels: readonly Label[]
+  /** The labels each counted item carries, by the item's id. An item that carries none is left out, and so is every item of books from before items. */
+  readonly itemLabels: ReadonlyMap<RecordId, readonly RecordId[]>
   /** The suggestions on the Category rules tab a person dismissed, in the order the tab holds them. */
   readonly dismissals: readonly Dismissal[]
   readonly settings: Settings

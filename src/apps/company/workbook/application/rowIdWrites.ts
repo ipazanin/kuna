@@ -2,7 +2,7 @@ import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
 import { installedPack } from '../../packs/packContribution'
 import { SPLIT_WRITES } from '../../transactions/application/splitWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
+import { recordsOf, storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { definedCategories } from '../domain/categoriesReading'
 import { readLedger } from '../domain/ledgerReading'
 import type { CompanyBooks, WorkbookRecords } from '../domain/readWorkbook'
@@ -18,7 +18,7 @@ import { ITEM_WRITES } from '../../transactions/application/itemWrites'
 import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ITEM_RECORDS, SPLIT_PART_RECORDS } from '../domain/coreKinds'
-import { newItemRecord } from '../domain/splitsReading'
+import { newItemRecord, storedSplitKey } from '../domain/splitsReading'
 import type { ItemRecord } from '../domain/splitsReading'
 import { storesItems } from '../domain/rowItems'
 
@@ -50,12 +50,15 @@ export function giveRowsIds(unit: UnitOfWork, records: WorkbookRecords, newId: (
 export type ItemsMoveBlocker =
   /** A ledger row the reader cannot read, which no item can name. */
   | { readonly kind: 'unreadable-row'; readonly label: string }
-  /** A part of the splits tab that cannot be read, or whose split the guards refuse, so its row counts whole today. */
-  | { readonly kind: 'refused-part'; readonly label: string }
+  /** A part of the splits tab that cannot be read, or whose split the guards refuse, so its row counts whole today. Its row, when its key can be read. */
+  | { readonly kind: 'refused-part'; readonly row: BlockedRow | null }
   /** A split of a row the pack keeps whole, so the row counts whole today. */
-  | { readonly kind: 'kept-whole'; readonly label: string }
+  | { readonly kind: 'kept-whole'; readonly row: BlockedRow }
   /** A row of no amount, which no item can hold. */
-  | { readonly kind: 'zero-row'; readonly label: string }
+  | { readonly kind: 'zero-row'; readonly row: BlockedRow }
+
+/** The ledger row a blocker names, by its account and day. */
+type BlockedRow = Pick<Transaction, 'account' | 'date'>
 
 /** Why the books cannot move to the items tab yet, each with what names the record. None for books that can, or already have. */
 export function itemsMoveBlockers(books: CompanyBooks): readonly ItemsMoveBlocker[] {
@@ -65,9 +68,15 @@ export function itemsMoveBlockers(books: CompanyBooks): readonly ItemsMoveBlocke
   const splitProblems = workbook.problems.filter((problem) => problem.tab === 'splits')
   return [
     ...records.ledger.refused.map((refused): ItemsMoveBlocker => ({ kind: 'unreadable-row', label: refused.label })),
-    ...splitProblems.map((problem): ItemsMoveBlocker => ({ kind: 'refused-part', label: problem.label })),
-    ...workbook.splits.filter((split) => workbook.rowsKeptWhole.has(split.row.id)).map((split): ItemsMoveBlocker => ({ kind: 'kept-whole', label: split.row.date })),
-    ...workbook.transactions.filter((row) => !counted.has(row.id) && row.amount === 0).map((row): ItemsMoveBlocker => ({ kind: 'zero-row', label: row.date })),
+    ...splitProblems.map((problem): ItemsMoveBlocker => {
+      const key = storedOf(records.splits).find((stored) => stored.id !== null && stored.id === problem.id)
+      const found = key === undefined ? null : storedSplitKey(key.fields)
+      return { kind: 'refused-part', row: found === null ? null : { account: found.account, date: found.date } }
+    }),
+    ...workbook.splits
+      .filter((split) => workbook.rowsKeptWhole.has(split.row.id))
+      .map((split): ItemsMoveBlocker => ({ kind: 'kept-whole', row: { account: split.row.account, date: split.row.date } })),
+    ...workbook.transactions.filter((row) => !counted.has(row.id) && row.amount === 0).map((row): ItemsMoveBlocker => ({ kind: 'zero-row', row: { account: row.account, date: row.date } })),
   ]
 }
 

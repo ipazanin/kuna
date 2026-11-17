@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { Label } from '../categorising/domain/labels'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
+import type { RecordId } from '../storage/domain/recordId'
 import { words } from './words'
-import type { Label } from '../../workbook/domain/label'
-import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** The labels a part of an entry carries, picked from the file's labels and each shown as a badge, with a new label typed into its search added by the caller. */
+/** The labels a part carries, picked from the file's labels and each shown as a badge, with a new label typed into its search added by the caller. */
 const props = defineProps<{
   labels: readonly Label[]
   /** What a screen reader calls it, such as the part it labels. */
@@ -36,16 +36,16 @@ const shown = computed(() => props.labels.filter((label) => picked.value.include
     multiple
     create-item
     icon="i-lucide-tag"
-    :placeholder="words.select.none"
-    :search-input="{ placeholder: words.select.search }"
+    :placeholder="words.labels.none"
+    :search-input="{ placeholder: words.labels.search }"
     :aria-label="name"
-    data-testid="spending-labels-select"
+    data-testid="labels-select"
     @create="emit('create', $event)"
   >
     <template #default>
-      <span v-if="shown.length === 0" class="text-muted">{{ words.select.none }}</span>
+      <span v-if="shown.length === 0" class="text-muted">{{ words.labels.none }}</span>
       <span v-else class="flex min-w-0 flex-wrap gap-1">
-        <UBadge v-for="label in shown" :key="label.id" :label="label.name" color="neutral" variant="subtle" size="xs" class="max-w-full" data-testid="spending-labels-pick" />
+        <UBadge v-for="label in shown" :key="label.id" :label="label.name" color="neutral" variant="subtle" size="xs" class="max-w-full" data-testid="labels-pick" />
       </span>
     </template>
   </USelectMenu>

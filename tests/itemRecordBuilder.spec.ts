@@ -9,7 +9,7 @@ const ROOT = join(import.meta.dirname, '..')
 const BUILDER = 'src/apps/company/workbook/domain/splitsReading.ts'
 
 /** The fields that make an object an item record of Company's items tab. */
-const ITEM_FIELDS: readonly string[] = ['row', 'amount', 'category', 'note', 'ownerShare', 'invoice', 'id']
+const ITEM_FIELDS: readonly string[] = ['row', 'amount', 'category', 'note', 'ownerShare', 'invoice', 'labels', 'id']
 
 /** The script of a source file, a Vue file's script blocks joined. */
 function scriptOf(path: string): string {

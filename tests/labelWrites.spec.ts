@@ -1,13 +1,13 @@
 import 'fake-indexeddb/auto'
+import type { Label } from '../src/shared/categorising/domain/labels'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { newEntry, retypedEntry, transferOver } from '../src/apps/spending/entries/application/entryWrites'
 import { newTransfer } from '../src/apps/spending/entries/domain/transfer'
 import { addLabel, deleteLabel, labelRows, renameLabel } from '../src/apps/spending/labels/application/labelWrites'
-import { labelCalled, labelNameProblem, newLabel } from '../src/apps/spending/labels/domain/labels'
+import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { ITEM_CODEC } from '../src/apps/spending/workbook/domain/transactionItemReading'
-import type { Label } from '../src/apps/spending/workbook/domain/label'
 import type { SpendingRule } from '../src/apps/spending/workbook/domain/spendingRule'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -64,21 +64,6 @@ async function storeWith(
 }
 
 const labelsOfItems = (store: WorkbookStore<SpendingBooks>) => store.state.workbook!.items.map((item) => item.labels)
-
-describe("a label's name", () => {
-  it('is not blank and no other label has it once folded, so Prague and prague are one label', () => {
-    expect(labelNameProblem('  ', [PRAGUE], null)).toBe('blank')
-    expect(labelNameProblem(' prague ', [PRAGUE], null)).toBe('taken')
-    expect(labelNameProblem('Prague', [PRAGUE], PRAGUE.id)).toBeNull()
-    expect(labelNameProblem('Praha', [PRAGUE], null)).toBeNull()
-  })
-
-  it('typed again names the label it already is once folded, and a blank or new name names none', () => {
-    expect(labelCalled(' PRAGUE ', [PRAGUE])).toBe(PRAGUE)
-    expect(labelCalled('Praha', [PRAGUE])).toBeNull()
-    expect(labelCalled('  ', [PRAGUE])).toBeNull()
-  })
-})
 
 describe('the labels of an item as the file stores them', () => {
   it('round-trips as keys separated by a bar, and an item with none stores no field', () => {

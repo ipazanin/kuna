@@ -179,6 +179,7 @@ import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/f
 import { rowLinksOf } from '../src/apps/spending/facts.ts'
 import { accountOnDay, countedAccounts, euroRows } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals.ts'
+import { labelTotals as companyLabelTotals } from '../src/apps/company/labels/domain/labelTotals.ts'
 import { eventTotals } from '../src/apps/spending/events/domain/eventTotals.ts'
 import { inPeriod } from '../src/apps/spending/payees/domain/payeePeriod.ts'
 import { payeeTotals } from '../src/apps/spending/payees/domain/payeeTotals.ts'
@@ -295,10 +296,13 @@ if (companyAsked) {
   const forecastWaits = forecastNeed(books)
   const rates = (await ratesOfInput(installedPack().ratesDemand(booked), options.fake !== undefined)).everyday
 
-  group('read.records', companyFiguresOf(records))
+  // company.labels hashes the labels and what each item carries, so the read groups leave them out.
+  const { labels: _labelRecords, ...recordsWithoutLabels } = records
+  const { labels: _labels, itemLabels: _itemLabels, ...workbookWithoutLabels } = raw
+  group('read.records', companyFiguresOf(recordsWithoutLabels))
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
   // How each account's rows come in has a group of its own, so read.workbook stays as it was before accounts said it.
-  const withoutSources = { ...raw, accounts: raw.accounts.map(({ intake: _intake, ...account }) => account) }
+  const withoutSources = { ...workbookWithoutLabels, accounts: raw.accounts.map(({ intake: _intake, ...account }) => account) }
   group('read.workbook', [withoutSources, raw.categories.map((category) => [category.label, category.family, category.colour.stored, category.roles])])
   group(
     'read.sources',
@@ -306,6 +310,7 @@ if (companyAsked) {
   )
   group('settings.problems', booked.problems)
   group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
+  group('company.labels', () => [raw.labels, raw.itemLabels, companyLabelTotals(cash.transactions, raw.itemLabels, raw.labels)])
   group('settings.uses', () => [categoryUses((kind) => recordsOfKindIn(records, kind)), accountUses((kind) => recordsOfKindIn(records, kind))])
 
   const averages = windowAverages(rows, window)
@@ -318,7 +323,7 @@ if (companyAsked) {
   group('overview.months', months)
   group('overview.headline', () => headline(months))
   group('overview.euro-split', () => euroSplit(bucketTotals(transactionsInPeriod(rows, { preset: 'l12' }, window)), { preset: 'l12' }))
-  group('overview.waiting', () => waitingJobs(booked, raw.transactions, rates))
+  group('overview.waiting', () => waitingJobs(booked, raw.transactions, !storesItems(records), rates))
   group('overview.pack-waiting', () => packWaiting(books, asOf))
 
   group('review.queue', () =>

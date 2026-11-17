@@ -39,8 +39,10 @@ export async function readWorkbookFile(bytes: ArrayBuffer | Uint8Array): Promise
     tabs[tab] = sheetRowsFromValues(found.grid)
   }
   const read = { ...EMPTY_TABS, ...tabs }
-  const otherShape: WorkbookTab = holdsItems(read.ledger.length, read.items.length) ? 'splits' : 'items'
-  return { tabs: read, missingTabs: missingTabs.filter((tab) => tab !== otherShape) }
+  const onItemsTab = holdsItems(read.ledger.length, read.items.length)
+  // Books from before items keep no labels, so they never have a labels tab.
+  const neverHeld: readonly WorkbookTab[] = onItemsTab ? ['splits'] : ['items', 'labels']
+  return { tabs: read, missingTabs: missingTabs.filter((tab) => !neverHeld.includes(tab)) }
 }
 
 /**
@@ -99,7 +101,7 @@ const ITEM_COLUMNS: readonly string[] = ['category', 'owner_share']
 
 /**
  * The grid of every tab of the books' own shape, without SheetJS, so the layout can be tested on its own. Books with an items tab
- * have no splits tab and no category or owner share on the ledger, and books from before items have no items tab.
+ * have no splits tab and no category or owner share on the ledger, and books from before items have no items tab and no labels tab.
  */
 export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Partial<Record<WorkbookTab, TabGrid>> {
   const onItemsTab = holdsItems(tabs.ledger.length, tabs.items.length)
@@ -122,7 +124,7 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Partial<R
     trips: gridFor('trips', tabs.trips),
     'trip-legs': gridFor('trip-legs', tabs['trip-legs']),
     'trip-costs': gridFor('trip-costs', tabs['trip-costs']),
-    ...(onItemsTab ? { items: gridFor('items', tabs.items) } : { splits: gridFor('splits', tabs.splits) }),
+    ...(onItemsTab ? { items: gridFor('items', tabs.items), labels: gridFor('labels', tabs.labels) } : { splits: gridFor('splits', tabs.splits) }),
     dismissed: gridFor('dismissed', tabs.dismissed),
   }
 }

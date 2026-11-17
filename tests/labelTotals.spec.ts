@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import type { Label } from '../src/shared/categorising/domain/labels'
 
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals'
 import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
-import type { Label } from '../src/apps/spending/workbook/domain/label'
 import { ITEM_RECORDS, LABEL_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'

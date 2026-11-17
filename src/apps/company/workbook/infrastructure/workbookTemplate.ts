@@ -203,8 +203,10 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
       name: 'invoice_id',
       note: 'The invoice a client paid with this item, by its client and number as the app keeps them, such as ["northwind","1-5-26"]. The app writes it when it places a payment on an invoice. Optional.',
     },
+    { name: 'label_ids', note: "The labels this item carries, by the ids in the labels tab's id column, separated by |. A label counts none of the item's money anywhere else. Optional." },
     ID_TEMPLATE_COLUMN,
   ],
+  labels: [{ name: 'name', note: 'What the label is called, such as Berlin conference. It groups items across categories and months. No two labels share a name. Required.' }, ID_TEMPLATE_COLUMN],
   dismissed: [
     {
       name: 'kind',

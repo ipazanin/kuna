@@ -302,7 +302,7 @@ describe('the reports the chat reads', () => {
     const names = displayNamesOf(BOOKS.workbook)
     const payNames = BOOKS.workbook.categories.filter(isPayCategory).map((category) => names.category(category.slug))
     expect(payNames).toEqual(expect.arrayContaining(['Payroll contributions', 'Payroll tax']))
-    expect(unmarked.map((candidate) => candidate.id)).toEqual(['month', 'categories', 'balances', 'receivables', 'taxes'])
+    expect(unmarked.map((candidate) => candidate.id)).toEqual(['month', 'categories', 'labels', 'balances', 'receivables', 'taxes'])
     for (const unmarkedReport of unmarked) {
       const periods = unmarkedReport.period === 'day' ? [null, NEWEST] : [null, MONTH, addMonths(MONTH, -1), addMonths(MONTH, -2)]
       for (const period of periods) {

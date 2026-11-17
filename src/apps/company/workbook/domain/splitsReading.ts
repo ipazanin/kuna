@@ -3,7 +3,7 @@ import type { Money } from '../../../../shared/money/money'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
-import { INVOICE_RECORDS, ITEM_RECORDS, SPLIT_PART_RECORDS } from './coreKinds'
+import { INVOICE_RECORDS, ITEM_RECORDS, LABEL_RECORDS, SPLIT_PART_RECORDS } from './coreKinds'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
@@ -13,7 +13,7 @@ import { SHARED_ID_REASON, idSharing, problemOf } from '../../../../shared/stora
 import type { ReadRecord, Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { partOrder, rowsOfSplitKey } from './splits'
 import type { LedgerSplit, SplitKey, SplitPart, StoredSplit } from './splits'
-import { ownId, refusalOr, refuse, requiredDate, requiredMoney, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
+import { idsOf, idsText, ownId, refusalOr, refuse, requiredDate, requiredMoney, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Category, Transaction } from './workbook'
 import { words } from './words'
@@ -209,15 +209,21 @@ export interface ItemRecord {
   readonly ownerShare: OwnerShare | null
   /** The invoice whose payment this item is, or null for an item that pays none. */
   readonly invoice: RecordId | null
+  /** The labels it carries, which count none of its money elsewhere. */
+  readonly labels: readonly RecordId[]
   readonly id: RecordId
 }
 
 /**
- * A new item of a row, paying the invoice given or none. A write that adds an item builds it here, and one that changes an item
- * spreads the one held, so no writer drops a field it does not set.
+ * A new item of a row, paying the invoice given or none and carrying the labels given or none. A write that adds an item builds it
+ * here, and one that changes an item spreads the one held, so no writer drops a field it does not set.
  */
-export function newItemRecord(row: string, id: RecordId, filed: Pick<ItemRecord, 'amount' | 'category' | 'note' | 'ownerShare'> & { readonly invoice?: RecordId | null }): ItemRecord {
-  return { row, amount: filed.amount, category: filed.category, note: filed.note, ownerShare: filed.ownerShare, invoice: filed.invoice ?? null, id }
+export function newItemRecord(
+  row: string,
+  id: RecordId,
+  filed: Pick<ItemRecord, 'amount' | 'category' | 'note' | 'ownerShare'> & { readonly invoice?: RecordId | null; readonly labels?: readonly RecordId[] },
+): ItemRecord {
+  return { row, amount: filed.amount, category: filed.category, note: filed.note, ownerShare: filed.ownerShare, invoice: filed.invoice ?? null, labels: filed.labels ?? [], id }
 }
 
 function itemOf(fields: StoredFields, id: RecordId | null): ItemRecord {
@@ -231,6 +237,7 @@ function itemOf(fields: StoredFields, id: RecordId | null): ItemRecord {
     note: textOf(fields.note),
     ownerShare: storedOwnerShare(fields.owner_share),
     invoice: invoice === '' ? null : recordIdOf(INVOICE_RECORDS, invoice),
+    labels: idsOf(fields.label_ids, LABEL_RECORDS),
     id: ownId(id),
   }
 }
@@ -243,6 +250,7 @@ export const ITEM_CODEC: RecordCodec<ItemRecord> = withIdField(ITEM_RECORDS, wor
     note: item.note,
     owner_share: ownerShareText(item.ownerShare),
     invoice_id: item.invoice === null ? undefined : keyOfRecordId(INVOICE_RECORDS, item.invoice),
+    label_ids: idsText(item.labels, LABEL_RECORDS),
   }),
 )
 
@@ -346,6 +354,25 @@ export function readItemInvoices(read: RecordsRead<ItemRecord>, counted: Readonl
     else problems.push(problemOf(stored, words.items.noInvoice(keyOfRecordId(INVOICE_RECORDS, invoice))))
   }
   return { paid, problems }
+}
+
+/** The labels each counted item carries, by the item's id, and an item that carries none left out. */
+export interface ItemLabels {
+  readonly labelled: ReadonlyMap<RecordId, readonly RecordId[]>
+  readonly problems: readonly RecordProblem[]
+}
+
+/** The labels the counted items carry, of those the labels tab holds. A label it lacks is reported on the item, which carries it no more. */
+export function readItemLabels(read: RecordsRead<ItemRecord>, counted: ReadonlySet<RecordId>, labels: ReadonlySet<RecordId>): ItemLabels {
+  const problems: RecordProblem[] = []
+  const labelled = new Map<RecordId, readonly RecordId[]>()
+  for (const stored of read.records) {
+    if (!counted.has(stored.record.id)) continue
+    const known = stored.record.labels.filter((label) => labels.has(label))
+    stored.record.labels.filter((label) => !labels.has(label)).forEach((label) => problems.push(problemOf(stored, words.items.noLabel(keyOfRecordId(LABEL_RECORDS, label)))))
+    if (known.length > 0) labelled.set(stored.record.id, known)
+  }
+  return { labelled, problems }
 }
 
 /** Items count only on a ledger row that no other row shares its id or its key with. */

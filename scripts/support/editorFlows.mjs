@@ -1718,48 +1718,76 @@ export function placedRefileFlowIn(language) {
 }
 
 /**
- * Books from before every ledger row had an id (`?fake=no-row-ids`): Overview's Waiting for you counts the rows, its link opens Settings, Books
- * file, whose prompt gives them all an id in one write. Undo takes the ids back and the prompt returns. Given again, the ids link the
- * split parts to their rows, and a split row on Transactions still shows its parts.
+ * Books from before items and from before every ledger row had an id (`?fake=no-row-ids`): Overview's Waiting for you offers the
+ * update in the notice's own words in place of counting the rows without an id, and its link opens Settings, Books file, which offers
+ * the move to items in place of the prompt for ids, since the move gives every row its id. The move is one write, Undo takes it back and the offer returns. Moved again, a split row on Transactions still shows
+ * its parts.
  */
 export function rowIdsFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const said = words.books.rowIds
+  const said = words.books.itemsMove
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const notice = '[data-testid="row-ids-notice"]'
-    await page.waitForSelector('[data-testid="waiting-for-you"] [data-job="row-ids"] a', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Waiting for you does not count the ledger rows without an id')
+    const notice = '[data-testid="company-items-move"]'
+    const waiting = '[data-testid="waiting-for-you"] [data-job="items-move"]'
+    await page.waitForSelector(`${waiting} a`, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Waiting for you does not offer to update books from before items')
     })
+    if ((await page.$('[data-testid="waiting-for-you"] [data-job="row-ids"]')) !== null) throw new Error('Waiting for you counts rows without an id beside the update, which gives them')
+    await elementSays(page, waiting, [said.title, said.action], 'Waiting for you offers the update in other words than the notice')
     await shoot('row-ids-waiting')
-    await pressSelector(page, press, '[data-testid="waiting-for-you"] [data-job="row-ids"] a')
+    await pressSelector(page, press, `${waiting} a`)
     await page.waitForSelector(notice, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Settings, Books file does not offer to give the ledger rows their ids')
+      throw new Error('Settings, Books file does not offer to move books from before items')
     })
-    const count = Number((await page.$eval(`${notice} [data-slot="title"]`, (title) => title.textContent ?? '')).match(/\d+/)?.[0])
-    if (!(count > 0)) throw new Error('the row id prompt names no count of rows')
-    await inspect?.('the row id prompt')
-    await shoot('row-ids-prompt')
-    await pressButton(page, press, `${notice} button`, said.give)
-    await toast(page, countedIn(words, said.given(count), count))
+    if ((await page.$('[data-testid="row-ids-notice"]')) !== null) throw new Error('Settings, Books file offers ids beside the move, which gives them')
+    await inspect?.('the move to items')
+    await shoot('items-move-offer')
+    await pressButton(page, press, `${notice} button`, said.action)
+    await toast(page, said.moved)
     await page.waitForSelector(notice, { hidden: true, timeout: 10_000 }).catch(() => {
-      throw new Error('the row id prompt stays once every row has an id')
+      throw new Error('the offer to move stays once the books keep items')
     })
-    await shoot('row-ids-given')
+    if ((await page.$('[data-testid="row-ids-notice"]')) !== null) throw new Error('rows are left without an id once the books moved')
+    await shoot('items-move-done')
     await undoIn(page, press, words)
     await page.waitForSelector(notice, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Undo does not bring the row id prompt back')
+      throw new Error('Undo does not bring the offer to move back')
     })
     await dismissToasts(page)
-    await pressButton(page, press, `${notice} button`, said.give)
-    await toast(page, countedIn(words, said.given(count), count))
+    await pressButton(page, press, `${notice} button`, said.action)
+    await toast(page, said.moved)
     await dismissToasts(page)
-    // The fake split parts lost their row ids with the rows, so the write links them to their rows by day, amount and balance.
     await page.evaluate(() => {
       window.location.hash = '#/company/transactions?p=all&q=BISTRO'
     })
     await waitForSplit(page, true)
-    await shoot('row-ids-split-kept')
+    await shoot('items-move-split-kept')
+  }
+}
+
+/**
+ * Books from before items with splits the guards refuse (`?fake=refused-splits`): Settings, Books file names what to fix, the parts of
+ * one row in one line that counts them, and offers no move.
+ */
+export function itemsMoveBlockedFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const blocked = '[data-testid="company-items-move-blocked"]'
+    await page.waitForSelector(blocked, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Settings, Books file does not say what keeps the books from moving to items')
+    })
+    const lines = await page.$$eval(`${blocked} li`, (items) => items.map((item) => ({ text: item.textContent ?? '', count: Number(item.dataset.count) })))
+    if (lines.length === 0) throw new Error('the move names no blocker')
+    if (new Set(lines.map((line) => line.text)).size !== lines.length) throw new Error(`the blocked notice says one line twice: ${lines.map((line) => line.text).join(' | ')}`)
+    const counted = lines.reduce((sum, line) => sum + line.count, 0)
+    if ((await page.$('[data-testid="company-items-move"]')) !== null) throw new Error('the move is offered beside what keeps it off')
+    const title = await page.$eval(`${blocked} [data-slot="title"]`, (node) => node.textContent ?? '')
+    if (!title.includes(String(counted))) throw new Error(`the blocked notice counts other than the ${counted} blockers it lists: ${title}`)
+    if (!(await page.$eval(blocked, (node) => node.textContent ?? '')).includes(words.books.itemsMove.blockedFix)) throw new Error('the blocked notice says nothing of how to fix it')
+    await inspect?.('what keeps the move to items off')
+    await shoot('items-move-blocked')
   }
 }
 
@@ -6261,7 +6289,7 @@ export function spendingEntryLabelsFlowIn(language) {
     await openSpendingRow(page, press, 'Corner market', -6120)
     const parts = await page.$$('[data-testid="spending-entry-part-labels"]')
     if (parts.length !== 2) throw new Error(`the receipt's entry dialog shows ${parts.length} labels fields, not one per line`)
-    if ((await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-labels-select"]`)).length > 0) throw new Error('a split entry shows a labels field for the whole entry beside its parts')
+    if ((await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="labels-select"]`)).length > 0) throw new Error('a split entry shows a labels field for the whole entry beside its parts')
     const held = await parts[1].evaluate((element) => element.textContent ?? '')
     if (!held.includes(flat)) throw new Error(`the receipt's second line shows "${held.trim()}", not its label ${flat}`)
     await inspect?.("the entry dialog of a receipt's row, a labels field on each line")
@@ -6279,7 +6307,7 @@ export function spendingEntryLabelsFlowIn(language) {
     await dismissToasts(page)
 
     await typeMoneyOut(page, press, words)
-    const whole = await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-labels-select"]`)
+    const whole = await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="labels-select"]`)
     if (whole.length !== 1) throw new Error(`a new entry shows ${whole.length} labels fields, not one`)
     await pickLabel(page, press, whole[0], typed, true)
     await delay(300)

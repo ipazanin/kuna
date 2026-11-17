@@ -8,7 +8,7 @@ import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import { NOTHING_STORED, rowItemsOf, wholeItemId } from '../../workbook/domain/splits'
 import { words } from '../../workbook/domain/words'
 import type { RowVerdict } from '../domain/verdictChanges'
-import { writeRowItems } from './itemWrites'
+import { heldLabels, writeRowItems } from './itemWrites'
 import { itemsKeptRefusal } from './splitWrites'
 import { filedInOneCategory } from '../domain/categoryChange'
 import { storedSplitsOf } from '../../workbook/domain/storedSplits'
@@ -31,9 +31,10 @@ export function fileRows(unit: UnitOfWork, books: CompanyBooks, verdicts: readon
     if (items.length > 1 && filedInOneCategory(items) && verdict.category !== items[0]!.category) {
       const kept = itemsKeptRefusal(books, row)
       refuseOn(kept === null ? [] : [kept])
+      const labelsOf = heldLabels(records, row)
       const refiled = items.map((item) => {
         const { category, ownerShare } = filedIn(item, verdict.category, categories)
-        return { id: item.id, amount: item.amount, note: item.note, category, ownerShare }
+        return { id: item.id, amount: item.amount, note: item.note, category, ownerShare, labels: labelsOf(item.id) }
       })
       writeRowItems(unit, records, row, storedSplitsOf(records)(row), refiled, verdict.flaggedBy)
       continue
@@ -44,6 +45,7 @@ export function fileRows(unit: UnitOfWork, books: CompanyBooks, verdicts: readon
       continue
     }
     const filed = filedIn({ category: row.category, ownerShare: row.ownerShare }, verdict.category, categories)
-    writeRowItems(unit, records, row, NOTHING_STORED, [{ id: wholeItemId(row), amount: row.amount, note: '', ...filed }], verdict.flaggedBy)
+    const whole = wholeItemId(row)
+    writeRowItems(unit, records, row, NOTHING_STORED, [{ id: whole, amount: row.amount, note: '', ...filed, labels: heldLabels(records, row)(whole) }], verdict.flaggedBy)
   }
 }

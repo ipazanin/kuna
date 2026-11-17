@@ -137,6 +137,8 @@ describe("the figure digest's fields", () => {
     expect(leftOutIn(investmentsFiguresOf(investments.records).accounts, investmentsKindOf)).toEqual([])
     expect(leftOutIn(company.records.ledger, companyKindOf)).toContain('signals')
     expect(leftOutIn(companyFiguresOf(company.records).ledger, companyKindOf)).toEqual([])
+    expect(leftOutIn(company.records.items, companyKindOf)).toContain('label_ids')
+    expect(leftOutIn(companyFiguresOf(company.records).items, companyKindOf)).toEqual([])
   })
 
   it('keeps every figure of a record and its stored cells', () => {

@@ -4,7 +4,7 @@ import type { PartReplacement } from '../../../../../shared/categorising/domain/
 import type { UnitOfWork } from '../../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import { filedIn, movedTo } from '../../../owner-share/domain/ownerShare'
-import { writeRowItems } from '../../../transactions/application/itemWrites'
+import { heldLabels, writeRowItems } from '../../../transactions/application/itemWrites'
 import type { ItemDraft } from '../../../transactions/application/itemWrites'
 import type { CompanyBooks } from '../../../workbook/domain/readWorkbook'
 import { storesItems } from '../../../workbook/domain/rowItems'
@@ -52,7 +52,12 @@ export function markTripReported(unit: UnitOfWork, trip: Trip, on: CivilDate | n
  * note and share. When it was one item, the first part keeps that item's id and every part takes its category's share. The rest
  * is a new item.
  */
-function filedItems(split: TripRowSplit, before: readonly SplitPart[], categories: CompanyBooks['workbook']['categories']): { readonly parts: ItemDraft[]; readonly rest: ItemDraft[] } {
+function filedItems(
+  split: TripRowSplit,
+  before: readonly SplitPart[],
+  categories: CompanyBooks['workbook']['categories'],
+  labelsOf: (id: RecordId | null) => readonly RecordId[],
+): { readonly parts: ItemDraft[]; readonly rest: ItemDraft[] } {
   const openable = before.length > 1 ? split.items : []
   const taken = new Set<RecordId>()
   const parts = split.parts.map((part, index): ItemDraft => {
@@ -60,13 +65,14 @@ function filedItems(split: TripRowSplit, before: readonly SplitPart[], categorie
     if (opened !== null) taken.add(opened.id)
     const filed = movedTo(opened ?? { category: '', ownerShare: null }, part.category, categories)
     const whole = index === 0 && before.length === 1 && split.row.rowId !== null ? wholeItemId(split.row) : null
-    return { id: opened?.id ?? whole, amount: part.amount, category: filed.category, note: opened?.note ?? '', ownerShare: filed.ownerShare }
+    const id = opened?.id ?? whole
+    return { id, amount: part.amount, category: filed.category, note: opened?.note ?? '', ownerShare: filed.ownerShare, labels: labelsOf(id) }
   })
   const [largest] = split.items
   const rest =
     split.rest === null || largest === undefined
       ? []
-      : [{ id: null, amount: split.rest.amount, category: split.rest.category, note: '', ownerShare: movedTo(largest, split.rest.category, categories).ownerShare }]
+      : [{ id: null, amount: split.rest.amount, category: split.rest.category, note: '', ownerShare: movedTo(largest, split.rest.category, categories).ownerShare, labels: [] }]
   return { parts, rest }
 }
 
@@ -86,8 +92,9 @@ export function fileTripRows(unit: UnitOfWork, books: CompanyBooks, trip: Trip, 
   let filedTrip = trip
   const replaced = splits.flatMap((split) => {
     const before = itemsOf(split.row)
-    const kept = split.others
-    const { parts, rest } = filedItems(split, before, categories)
+    const labelsOf = heldLabels(records, split.row)
+    const kept = split.others.map((item): ItemDraft => ({ id: item.id, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, labels: labelsOf(item.id) }))
+    const { parts, rest } = filedItems(split, before, categories, labelsOf)
     const items = [...kept, ...parts, ...rest]
     const [only] = items
     const one = items.length === 1 && only !== undefined
@@ -96,7 +103,7 @@ export function fileTripRows(unit: UnitOfWork, books: CompanyBooks, trip: Trip, 
       records,
       split.row,
       storedSplitOf(split.row),
-      one ? [{ ...filedIn(only, only.category, categories), id: wholeItemId(split.row) }] : items,
+      one ? [{ ...filedIn(only, only.category, categories), id: wholeItemId(split.row), labels: only.labels }] : items,
       one ? reviewLabel : null,
     )
     const filed = written.slice(kept.length, kept.length + parts.length).map((item) => item.id)

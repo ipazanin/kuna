@@ -165,6 +165,8 @@ export const en = {
     noCategoryBeside: (label: string) => `the part "${label}" has no category, which only the one part of a row may lack`,
     waitsOnReview: (reasons: string) => `${reasons}, so the ledger row counts whole and waits on To review`,
     noInvoice: (invoice: string) => `the invoices tab holds no invoice ${invoice}, so this item pays none`,
+    noLabel: (label: string) => `the labels tab holds no label ${label}, so this item carries none`,
+    noLabelsBeforeItems: 'Books from before items keep no labels. Update the file on Settings, Books file first.',
     fileTheSplit: (account: string, date: CivilDate, amount: Money) =>
       `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} is split in parts, each in its own category. Change its split to file it otherwise.`,
   },
@@ -269,6 +271,8 @@ export const hr: Translation<typeof en> = {
     noCategoryBeside: (label) => `dio „${label}” nema kategoriju, a bez nje smije biti samo jedini dio stavke`,
     waitsOnReview: (reasons) => `${reasons}, pa se stavka evidencije broji cijela i čeka provjeru`,
     noInvoice: (invoice) => `u kartici invoices nema računa ${invoice}, pa ovaj dio ne plaća nijedan račun`,
+    noLabel: (label) => `u kartici labels nema oznake ${label}, pa ovaj dio ne nosi nijednu`,
+    noLabelsBeforeItems: 'Datoteke iz vremena prije dijelova ne vode oznake. Najprije ažurirajte datoteku u Postavkama, Datoteka.',
     fileTheSplit: (account, date, amount) =>
       `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} podijeljena je na dijelove, svaki u svojoj kategoriji. Da biste je razvrstali drukčije, promijenite podjelu.`,
   },

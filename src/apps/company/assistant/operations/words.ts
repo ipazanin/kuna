@@ -29,6 +29,7 @@ export const en = {
     kind: 'Kind',
     dismissedOn: 'Dismissed on',
     invoice: 'Invoice',
+    labels: 'Labels',
   },
   filedBy: {
     person: 'you',
@@ -95,6 +96,7 @@ export const hr: Translation<typeof en> = {
     kind: 'Vrsta',
     dismissedOn: 'Odbačeno',
     invoice: 'Račun',
+    labels: 'Oznake',
   },
   filedBy: {
     person: 'vi',

@@ -18,6 +18,8 @@ export function emptyCompany(changes: Partial<Workbook> = {}): Workbook {
     ownerAdvances: [],
     splits: [],
     rowsKeptWhole: new Map(),
+    labels: [],
+    itemLabels: new Map(),
     dismissals: [],
     settings: DEFAULT_SETTINGS,
     packParts: {},

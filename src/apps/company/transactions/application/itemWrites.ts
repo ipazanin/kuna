@@ -1,6 +1,7 @@
 import { ZERO, absMoney, addMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
+import { carriedLabels } from '../../../../shared/categorising/domain/labels'
 import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
@@ -38,6 +39,14 @@ export interface ItemDraft {
   readonly category: string
   readonly note: string
   readonly ownerShare: OwnerShare | null
+  /** The labels it carries. A write that sets none passes those of the item it keeps, as `heldLabels` gives them. */
+  readonly labels: readonly RecordId[]
+}
+
+/** The labels the row's items carry now, by the item's id, and none for an item the books do not hold, such as every item of books from before items. */
+export function heldLabels(records: WorkbookRecords, row: Pick<Transaction, 'rowId'>): (id: RecordId | null) => readonly RecordId[] {
+  const held = new Map(storedItemsOfRow(records.items, row).map((item) => [item.id, item.labels]))
+  return (id) => (id === null ? [] : (held.get(id) ?? []))
 }
 
 /** A new item's id. */
@@ -152,6 +161,7 @@ export function writeRowItems(unit: UnitOfWork, records: WorkbookRecords, row: I
     if (ledger !== entry) unit.of(LEDGER_WRITES).change(entry, ledger)
     return writeItemsTab(unit, records, row, stored, items)
   }
+  refuseOn(items.some((item) => item.labels.length > 0) ? [words.items.noLabelsBeforeItems] : [])
   const parts = unit.of(SPLIT_WRITES)
   const held = stored.refused ? unit.of(REFUSED_SPLIT_WRITES) : parts
   const [only] = items
@@ -194,7 +204,7 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
   const { held, placed } = onTab
   const refusal = movedMoneyRefusal(records, row, onTab)
   refuseOn(refusal === null ? [] : [refusal])
-  const written = placed.map((item): ItemRecord => {
+  const written = carriedLabels(held, placed).map((item): ItemRecord => {
     const { id } = item
     const record = held.find((candidate) => candidate.id === id)
     if (record === undefined) {
@@ -202,7 +212,7 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
       unit.of(ITEM_WRITES).add(added)
       return added
     }
-    const wanted: ItemRecord = { ...record, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: item.invoice }
+    const wanted: ItemRecord = { ...record, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: item.invoice, labels: item.labels }
     if (itemChanged(record, wanted)) repository.change(record, wanted)
     return wanted
   })
@@ -214,7 +224,15 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
 
 /** Whether a write leaves the item otherwise than the tab holds it, in what a person or the books set on it. */
 export function itemChanged(held: ItemRecord, written: ItemRecord): boolean {
-  return held.amount !== written.amount || held.category !== written.category || held.note !== written.note || held.ownerShare !== written.ownerShare || held.invoice !== written.invoice
+  return (
+    held.amount !== written.amount ||
+    held.category !== written.category ||
+    held.note !== written.note ||
+    held.ownerShare !== written.ownerShare ||
+    held.invoice !== written.invoice ||
+    held.labels.length !== written.labels.length ||
+    held.labels.some((label, at) => written.labels[at] !== label)
+  )
 }
 
 /** An item a write leaves on the items tab, with its id and the invoice it pays. */

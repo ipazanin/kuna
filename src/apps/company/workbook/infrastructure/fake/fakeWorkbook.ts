@@ -300,7 +300,8 @@ export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: Fak
   return {
     ...records,
     setting: [...(records.setting ?? []), recordFields(setting(PAYMENTS_PLACED))],
-    item: withInvoicePayments(before, records.item ?? []),
+    item: withFakeLabels(withInvoicePayments(before, records.item ?? [])),
+    label: FAKE_LABELS,
     account: withAccountSources(records.account ?? [], records['ledger-row'] ?? []),
     'hr-doo.owner-advance': withStaffAdvances(records['hr-doo.owner-advance'] ?? [], staff),
   }
@@ -452,6 +453,26 @@ function withFixedId(kind: string, fields: FakeFields, index: number): FakeField
 
 function fixedIdOf(place: number, index: number): string {
   return `00000000-0000-4000-8000-${String(place).padStart(4, '0')}${String(index + 1).padStart(8, '0')}`
+}
+
+/** Where the ids of the fake's labels sit among its fixed ids. */
+const LABEL_PLACE = 9
+
+/** The labels books on the items tab keep: a conference, and a label nothing carries yet. */
+const FAKE_LABELS: readonly RecordFields[] = [
+  { name: 'Berlin conference', [ID_FIELD]: fixedIdOf(LABEL_PLACE, 0) },
+  { name: 'Office 2027', [ID_FIELD]: fixedIdOf(LABEL_PLACE, 1) },
+]
+
+/**
+ * The items the conference is on, by the place of their ledger row: a business lunch and a flight in September, a gadget in
+ * August, and the first part of the split repayment to the owner in October, which counts as financing.
+ */
+const CONFERENCE_ITEMS = new Set([16, 17, 30, 5].map((row) => fixedIdOf(FIXED_IDS['ledger-row']!, row - 1)))
+
+/** The items with the conference on those it is on. */
+function withFakeLabels(items: readonly RecordFields[]): RecordFields[] {
+  return items.map((item) => (CONFERENCE_ITEMS.has(String(item[ID_FIELD])) ? { ...item, label_ids: fixedIdOf(LABEL_PLACE, 0) } : item))
 }
 
 /** The fields as text, a number as its decimal text. */

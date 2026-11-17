@@ -20,12 +20,15 @@ import {
   DISMISSAL_RECORDS,
   INVOICE_RECORDS,
   ITEM_RECORDS,
+  LABEL_RECORDS,
   LEDGER_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SPLIT_PART_RECORDS,
 } from './coreKinds'
 import type { Dismissal } from './dismissals'
+import type { Label } from '../../../../shared/categorising/domain/labels'
+import { readLabels } from './labelReading'
 import { readDismissals } from './dismissalsReading'
 import { readInvoices } from './invoicesReading'
 import type { ItemRecord } from './splitsReading'
@@ -41,7 +44,7 @@ import { UNCLASSIFIED } from './bucket'
 import { storesItems } from './rowItems'
 import { rowFiledAs } from './splits'
 import type { LedgerSplit, SplitPart } from './splits'
-import { readItemInvoices, readItems, readSplits, rowWithoutItems } from './splitsReading'
+import { readItemInvoices, readItemLabels, readItems, readSplits, rowWithoutItems } from './splitsReading'
 import type { SplitTabRow } from './splitsReading'
 import { tabProblems } from './workbook'
 import type { Category, Invoice, Transaction, Workbook, WorkbookProblem } from './workbook'
@@ -58,6 +61,7 @@ export interface WorkbookRecordTypes {
   readonly 'outgoing-plan': BillingItem
   readonly splits: SplitTabRow
   readonly items: ItemRecord
+  readonly labels: Label
   readonly dismissed: Dismissal
 }
 
@@ -79,6 +83,7 @@ const CORE_PARTS: ReadonlyMap<string, keyof WorkbookRecordTypes> = new Map([
   [BILLING_RECORDS.name, 'outgoing-plan'],
   [SPLIT_PART_RECORDS.name, 'splits'],
   [ITEM_RECORDS.name, 'items'],
+  [LABEL_RECORDS.name, 'labels'],
   [DISMISSAL_RECORDS.name, 'dismissed'],
 ])
 
@@ -112,6 +117,7 @@ export function workbookRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     'outgoing-plan': of(BILLING_RECORDS),
     splits: of(SPLIT_PART_RECORDS),
     items: of(ITEM_RECORDS),
+    labels: of(LABEL_RECORDS),
     dismissed: of(DISMISSAL_RECORDS),
     pack: packRecordsOf(
       (pack?.kinds ?? []).map((rules) => rules.kind),
@@ -212,6 +218,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
   problems.push(...items.problems)
   const { transactions } = items
   const invoices = keep('invoices', readInvoices(records.invoices, clientSlugs))
+  const labels = keep('labels', readLabels(records.labels))
   const core: Workbook = {
     ...identity,
     transactions,
@@ -229,6 +236,8 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     packParts: {},
     problems,
     ...(placesPayments(records, settings) ? { paidInvoices: paidInvoicesOf(records.items, items.itemsByRow, invoices, problems) } : {}),
+    labels,
+    itemLabels: storesItems(records) ? itemLabelsOf(records.items, items.itemsByRow, labels, problems) : new Map(),
   }
   if (pack === null) {
     return core
@@ -262,6 +271,19 @@ function paidInvoicesOf(
   const { paid, problems: unknown } = readItemInvoices(read, counted, new Set(invoices.map((invoice) => invoice.id)))
   problems.push(...tabProblems('items', unknown))
   return paid
+}
+
+/** The labels each counted item carries, by the item's id, with a problem on the items tab for each label it names that the books lack. */
+function itemLabelsOf(
+  read: RecordsRead<ItemRecord>,
+  itemsByRow: ReadonlyMap<RecordId, readonly SplitPart[]>,
+  labels: readonly Label[],
+  problems: WorkbookProblem[],
+): ReadonlyMap<RecordId, readonly RecordId[]> {
+  const counted = new Set([...itemsByRow.values()].flatMap((parts) => parts.map((part) => part.id)))
+  const { labelled, problems: unknown } = readItemLabels(read, counted, new Set(labels.map((label) => label.id)))
+  problems.push(...tabProblems('items', unknown))
+  return labelled
 }
 
 /** The rows of several items, each with its items, in the order the tab holds their first items. */

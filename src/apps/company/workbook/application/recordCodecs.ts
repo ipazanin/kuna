@@ -7,6 +7,7 @@ import { CATEGORY_CODEC } from '../domain/categoriesReading'
 import { CLIENT_CODEC } from '../domain/clientsReading'
 import { DISMISSAL_CODEC } from '../domain/dismissalsReading'
 import { INVOICE_CODEC } from '../domain/invoicesReading'
+import { LABEL_CODEC } from '../domain/labelReading'
 import { LEDGER_CODEC } from '../domain/ledgerReading'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
@@ -24,6 +25,7 @@ const CORE_CODECS = [
   BILLING_CODEC,
   SPLIT_PART_CODEC,
   ITEM_CODEC,
+  LABEL_CODEC,
   DISMISSAL_CODEC,
 ] as readonly RecordCodec<unknown>[]
 

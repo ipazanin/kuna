@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { labelTotals } from '../domain/labelTotals'
@@ -12,7 +13,6 @@ import { waitsForRates } from '../../rates/presentation/waitsForRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import type { Label } from '../../workbook/domain/label'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import ItemsMoveNotice from '../../workbook/presentation/ItemsMoveNotice.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'

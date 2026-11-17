@@ -44,6 +44,7 @@ export const en = {
     client: 'The clients the company invoices.',
     invoice: 'The invoices on the register, each to a client.',
     billingItem: 'What is to be invoiced and when, from the billing plan.',
+    label: "The company's labels, each grouping parts of ledger rows across categories and months, such as a conference or an office fit-out.",
     setting: "The settings that say how the company's figures and invoices read.",
   },
   reports: {
@@ -58,6 +59,11 @@ export const en = {
         "A month's taxes, owner pay, whole cost, what is left and what the owner earns, under the labels on screen, with each category of pay and of the taxes on pay. It holds pay, so it stays on this device while Anonymise is on and the company has an employee.",
     },
     categories: { title: 'income and cost by category', about: 'What each category counted in a month, the month before and the change. Pay and the taxes on pay are left out.' },
+    labels: {
+      title: 'what each label counts',
+      about:
+        "What the parts of ledger rows each label is on counted up to a day: income, and operating cost while owner pay is shown apart from it, and how many parts carry the label. A move between the company's own accounts carries a label but counts nowhere.",
+    },
     balances: { title: 'the account balances', about: "Each account's balance at the end of a day, and all of them together." },
     receivables: { title: 'what clients owe', about: 'What the invoices still have unpaid on a day, how much of it is late, and how late.' },
   },
@@ -120,6 +126,7 @@ export const hr: Translation<typeof en> = {
     client: 'Klijenti kojima tvrtka izdaje račune.',
     invoice: 'Računi u knjizi računa, svaki jednom klijentu.',
     billingItem: 'Što treba fakturirati i kada, iz plana fakturiranja.',
+    label: 'Oznake tvrtke, svaka skuplja dijelove redaka evidencije preko kategorija i mjeseci, poput konferencije ili uređenja ureda.',
     setting: 'Postavke koje određuju kako se čitaju iznosi i računi tvrtke.',
   },
   reports: {
@@ -134,6 +141,11 @@ export const hr: Translation<typeof en> = {
         'Porezi, plaća vlasnika, ukupni trošak, ono što ostaje i koliko vlasnik zarađuje u mjesecu, pod nazivima sa zaslona, sa svakom kategorijom plaće i poreza na plaću. Sadrži plaću, pa ostaje na ovom uređaju dok je uključena anonimizacija i tvrtka ima zaposlenika.',
     },
     categories: { title: 'prihodi i troškovi po kategorijama', about: 'Koliko je svaka kategorija brojala u mjesecu, u mjesecu prije i razlika. Plaća i porezi na plaću nisu uključeni.' },
+    labels: {
+      title: 'što broji svaka oznaka',
+      about:
+        'Koliko su do nekog dana brojili dijelovi stavki evidencije s pojedinom oznakom: prihod te operativni trošak dok se plaća vlasnika prikazuje odvojeno, i koliko dijelova nosi oznaku. Prijenos između vlastitih računa tvrtke nosi oznaku, ali se nigdje ne broji.',
+    },
     balances: { title: 'stanja računa', about: 'Stanje svakog računa na kraju dana i svih zajedno.' },
     receivables: { title: 'što klijenti duguju', about: 'Što je na dan još neplaćeno po računima, koliko od toga kasni i koliko.' },
   },

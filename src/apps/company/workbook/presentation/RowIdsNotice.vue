@@ -2,20 +2,24 @@
 import { computed } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 
-import { NO_RECORDS, recordsOf } from '../../../../shared/storage/domain/recordsRead'
+import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import { giveRowsIds } from '../application/rowIdWrites'
 import { useWorkbook } from '../application/workbookStore'
 import { rowsWithoutId } from '../domain/ledgerReading'
+import { storesItems } from '../domain/rowItems'
 import { words } from './words'
 
-/** Offers, while ledger rows from before imports gave each row an id have none, to give them all one in one write with Undo. */
+/**
+ * Offers, while ledger rows from before imports gave each row an id have none, to give them all one in one write with Undo. Books
+ * from before items get their ids from the move to items, which `ItemsMoveNotice` offers instead.
+ */
 const store = useWorkbook()
 const { state } = store
 const writes = useRecordWrites(store)
 
-const count = computed(() => rowsWithoutId(recordsOf(state.records?.ledger ?? NO_RECORDS)).length)
+const count = computed(() => (state.records === null || !storesItems(state.records) ? 0 : rowsWithoutId(recordsOf(state.records.ledger)).length))
 
 function give(): void {
   const records = state.records

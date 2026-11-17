@@ -36,15 +36,15 @@ export interface WaitingJob {
 /**
  * What waits for a person across the whole workbook, whatever the filters, seen on the newest
  * booking: rows to review, invoices the billing plan expects by this month that are not made and
- * invoices past their due date, ledger rows that have no id yet, then the pack's jobs while its module is on. `bankRows` are the
- * ledger rows as read, since a person reviews the row the bank booked.
+ * invoices past their due date, the offer to update books from before items or else ledger rows that have no id yet, then the
+ * pack's jobs while its module is on. `bankRows` are the ledger rows as read, since a person reviews the row the bank booked.
  */
-export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[], rates: RateBook = NO_RATES): WaitingJob[] {
+export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[], beforeItems: boolean, rates: RateBook = NO_RATES): WaitingJob[] {
   const asOf = newestBookingOf(workbook.transactions)
   if (asOf === null) {
     return []
   }
-  const core = [reviewJob(bankRows), invoiceJob(workbook, asOf), overdueJob(workbook, asOf), rowIdsJob(bankRows)].flatMap((job) => (job === null ? [] : [job]))
+  const core = [reviewJob(bankRows), invoiceJob(workbook, asOf), overdueJob(workbook, asOf), beforeItems ? ITEMS_MOVE_JOB : rowIdsJob(bankRows)].flatMap((job) => (job === null ? [] : [job]))
   return [...core, ...shownPack(workbook.settings).waitingJobs(workbook, asOf, rates)]
 }
 
@@ -68,6 +68,14 @@ function reviewJob(bankRows: readonly Transaction[]): WaitingJob | null {
     tone: 'warning',
     link: { label: words.waiting.links.review, to: REVIEW_LINK },
   }
+}
+
+/** The update of books from before items, which also gives every row its id, in the words of the notice it opens. */
+const ITEMS_MOVE_JOB: WaitingJob = {
+  key: 'items-move',
+  text: booksWords.itemsMove.title,
+  tone: 'info',
+  link: { label: booksWords.itemsMove.action, to: BOOKS_FILE_LINK },
 }
 
 function rowIdsJob(bankRows: readonly Transaction[]): WaitingJob | null {

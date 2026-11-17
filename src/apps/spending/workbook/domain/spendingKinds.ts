@@ -1,7 +1,7 @@
 import type { Account } from './account'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 import type { Budget } from './budget'
 import type { Category } from './category'
-import type { Label } from './label'
 import type { SpendingEvent } from './event'
 import type { TransactionItem } from './transactionItem'
 import type { HeldBankRow } from './heldBankRow'

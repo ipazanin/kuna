@@ -5,6 +5,7 @@ import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { IMPORTING, importOperations } from './importOperations'
 import { INVOICING_OPERATIONS } from './invoicingOperations'
+import { ITEMS_MOVE_OPERATIONS } from './itemsMoveOperation'
 import type { HeldStatements } from './importOperations'
 import { LEDGER_OPERATIONS } from './ledgerOperations'
 import { SWITCH_MAIL_DRAFTS, mailDraftsAccept, mailDraftsCheck } from './mailDraftsOperation'
@@ -48,7 +49,7 @@ function packSet(pack: PackOperations): CompanyOperationSet {
 
 /** Every part of what the chat can do in Company, each in its own file. */
 function operationSets(ports: CompanyOperationPorts): readonly CompanyOperationSet[] {
-  return [LEDGER_OPERATIONS, importOperations(ports.heldStatements), settingsOperations(), INVOICING_OPERATIONS, ...(ports.pack === null ? [] : [packSet(ports.pack)])]
+  return [LEDGER_OPERATIONS, ITEMS_MOVE_OPERATIONS, importOperations(ports.heldStatements), settingsOperations(), INVOICING_OPERATIONS, ...(ports.pack === null ? [] : [packSet(ports.pack)])]
 }
 
 /**
