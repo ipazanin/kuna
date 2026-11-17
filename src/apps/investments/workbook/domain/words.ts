@@ -129,7 +129,7 @@ export const en = {
   mailReaderNoRecipe: 'it names no recipe',
   mailReaderNoSender: 'it is on, but has no sender',
   mailWithoutStart: 'rows_from mail needs starts_on, the first day the report brings rows of',
-  startWithoutMail: 'starts_on is for an account whose rows come from the mail',
+  startWithoutMail: 'starts_on and also_from are for an account whose rows come from the mail',
   checkChangesNothing: 'threshold is blank or the default, and off is not true, so it changes nothing',
   /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
   settingLabels: { surtaxCity2023: 'Your city in 2023' },
@@ -208,7 +208,7 @@ export const hr: Translation<typeof en> = {
   mailReaderNoRecipe: 'ne navodi recept',
   mailReaderNoSender: 'uključeno je, ali nema pošiljatelja',
   mailWithoutStart: 'rows_from mail traži starts_on, prvi dan od kojega izvješće donosi retke',
-  startWithoutMail: 'starts_on vrijedi za račun čiji retci stižu poštom',
+  startWithoutMail: 'starts_on i also_from vrijede za račun čiji retci stižu poštom',
   checkChangesNothing: 'polje threshold je prazno ili jednako zadanom, a off nije true, pa zapis ništa ne mijenja',
   settingLabels: { surtaxCity2023: 'Vaš grad u 2023.' },
 }

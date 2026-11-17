@@ -24,7 +24,7 @@ const DAY = parseCivilDate('2026-10-05')!
 const NEXT_DAY = parseCivilDate('2026-10-06')!
 const SINCE = parseCivilDate('2026-01-01')!
 const MAILED = { kind: 'mailed', since: SINCE } as const
-const ACCOUNT = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: SINCE })
+const ACCOUNT = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: SINCE, alsoFrom: [] })
 const ABC = instrument('abc', { name: 'Example Tech', isin: 'XX000000ABC1', currency: USD })
 const DEF = instrument('def', { name: 'Example Dividend Co', isin: 'US000000DEF2', currency: USD })
 const RATES = rateBookOf(new Map([[USD, [['2026-10-01', '1.10']]]]))
@@ -232,7 +232,7 @@ describe('a rolling report', () => {
   })
 
   it("leaves out a mailed report's rows before their account's start day, and says how many", () => {
-    const later = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: NEXT_DAY })
+    const later = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: NEXT_DAY, alsoFrom: [] })
     const rows = rowsOf([DAY, NEXT_DAY])
     const dryRun = workbookDryRun(rows, { book: book({ accounts: [later], instruments: [ABC, DEF] }), rates: RATES, answers: { ...ANSWERS, accounts: new Map([['U0000001', later]]) } })
     expect(dryRun.entries.length).toBeGreaterThan(0)
@@ -248,12 +248,17 @@ describe('a rolling report', () => {
     expect(dryRun.report).toMatchObject({ byHand: rows.rows.length, beforeStart: 0 })
   })
 
-  it('takes every row of an uploaded report, since an upload counts as by hand', () => {
-    const later = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: NEXT_DAY })
+  it('refuses an uploaded report on an account the mail fills, and takes every row of it once the account allows uploads', () => {
     const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY])], { leftOut: [] }, { kind: 'uploaded' })
-    const dryRun = workbookDryRun(rows, { book: book({ accounts: [later], instruments: [ABC, DEF] }), rates: RATES, answers: { ...ANSWERS, accounts: new Map([['U0000001', later]]) } })
-    expect(dryRun.entries.some((entry) => entry.rows[0].date === DAY)).toBe(true)
-    expect(dryRun.report).toMatchObject({ mailed: false, beforeStart: 0, byHand: 0 })
+    const dryRunOn = (alsoFrom: readonly 'provider-file'[]) => {
+      const later = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: NEXT_DAY, alsoFrom })
+      return workbookDryRun(rows, { book: book({ accounts: [later], instruments: [ABC, DEF] }), rates: RATES, answers: { ...ANSWERS, accounts: new Map([['U0000001', later]]) } })
+    }
+    expect(dryRunOn([]).entries).toEqual([])
+    expect(dryRunOn([]).skipped.map((row) => row.reason)).toContainEqual({ kind: 'mail-owns', account: 'Kuna IBKR' })
+    const allowed = dryRunOn(['provider-file'])
+    expect(allowed.entries.some((entry) => entry.rows[0].date === DAY)).toBe(true)
+    expect(allowed.report).toMatchObject({ mailed: false, beforeStart: 0, byHand: 0 })
   })
 
   it('holds a record back when tax withheld arrives after its dividend was booked, rather than book it twice or lose the tax', () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { displayName, displayNamesOf } from '../src/apps/company/workbook/domain/displayName'
 import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
+import { BY_HAND } from '../src/shared/app/accountSource'
 
 describe('displayName', () => {
   it('reads a slug with spaces for hyphens and a capital first letter', () => {
@@ -28,7 +29,7 @@ describe('displayNamesOf', () => {
   it('names the categories and accounts of a workbook, and any slug the tabs do not define', () => {
     const names = displayNamesOf({
       categories: [{ slug: 'rent-owner', label: 'Office rent', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: [], vat: 'none', ownerShare: null }],
-      accounts: [{ slug: 'main', label: '', iban: '', currency: '' }],
+      accounts: [{ slug: 'main', label: '', iban: '', currency: '', intake: BY_HAND }],
     })
 
     expect(names.category('rent-owner')).toBe('Office rent')

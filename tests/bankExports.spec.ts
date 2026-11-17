@@ -20,6 +20,8 @@ import { readTabularStatement } from '../src/apps/company/imports/domain/tabular
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
+import { noteText } from '../src/apps/company/imports/presentation/dryRunWords'
+import { BY_HAND } from '../src/shared/app/accountSource'
 
 /**
  * Files shaped like the exports Croatian banks give, every name, IBAN and amount invented: the banks' shared camt.053.001.02 guide,
@@ -83,7 +85,7 @@ describe("a camt.053.001.02 statement in the Croatian banks' shape", () => {
     const run = dryRunFor(readings, FAKE_BOOKS, new Map(), new Map([[ACCOUNT_IBAN, 'primjer']]))
     const [statement] = run.statements
     expect(statement?.refusal).toBeNull()
-    expect(statement?.notes).toEqual(['1 entry the bank has not booked yet, such as a pending one, is left out, since it has not moved the balance.'])
+    expect(statement?.notes.map(noteText)).toEqual(['1 entry the bank has not booked yet, such as a pending one, is left out, since it has not moved the balance.'])
     expect(statement?.label).toBe('2031-11-03-statement-041')
     expect(statement?.rows.map((row) => [row.date, row.amount, row.balance, row.counterparty, row.counterpartyIban, row.reviewReasons])).toEqual([
       ['2031-11-02', moneyFromCents(50_000), moneyFromCents(150_000), 'Primjer Trgovina d.o.o.', PAYER_IBAN, []],
@@ -204,7 +206,8 @@ describe.each([
     expect(reading.statement.notes).toEqual(['Row 8 reads "Ukupno" where the date goes, so it is skipped.'])
     expect(reading.statement.opening).toBe(moneyFromCents(100_000))
 
-    const withoutMain = { ...workbook, transactions: workbook.transactions.filter((row) => row.account !== 'main') }
+    // main is kept by hand here, since the bank's statements fill it in the fake books and a sheet goes on no such account.
+    const withoutMain = { ...workbook, transactions: workbook.transactions.filter((row) => row.account !== 'main'), accounts: workbook.accounts.map((account) => ({ ...account, intake: BY_HAND })) }
     const run = dryRunFor([reading], { ...FAKE_BOOKS, workbook: withoutMain }, new Map([['main', moneyFromCents(100_000)]]))
     expect(run.statements[0]?.refusal).toBeNull()
     expect(run.newRows).toBe(3)

@@ -41,8 +41,9 @@ export interface StatementSyncPorts {
 /**
  * Files the statements of the folder the ledger lacks, after the file was read: the files whose
  * name the ledger does not hold are downloaded and read, one dry run takes them all, and one write
- * adds every statement it accepts through the ledger's write rules, as Import does. A statement it
- * refuses, that waits for its account to start, or whose IBAN no account has, is held, and nothing
+ * adds every statement it accepts through the ledger's write rules, as Import does. Only an account the bank's statements fill
+ * takes them, from its start day. A statement it refuses, such as one of an account kept by hand or one before that day, one
+ * that waits for its account to start, or one whose IBAN no account has, is held, and nothing
  * after it is written for that account. A sync with nothing new downloads nothing and writes
  * nothing. Google turning the token away throws, so the sync can ask for access.
  */
@@ -93,7 +94,7 @@ async function readingsOf(file: StatementFile, ports: StatementSyncPorts, workbo
 async function fileReadings(readings: readonly StatementReading[], ports: StatementSyncPorts, mayRetry: boolean): Promise<StatementSyncOutcome> {
   const { store } = ports
   const books = companyBooksOf(store.state)!
-  const run = dryRunFor(readings, books, new Map(), new Map(), new Map(), false)
+  const run = dryRunFor(readings, books, new Map(), new Map(), new Map(), false, 'automation')
   const filed = run.statements.filter(isFiled)
   const kept = new Set(run.statements.filter(waitsForPerson).map(statementKey))
   const held = readings.filter((reading) => kept.has(readingKey(reading)))

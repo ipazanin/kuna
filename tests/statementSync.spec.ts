@@ -19,6 +19,7 @@ import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkb
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
 
 const used = new Set<string>()
 
@@ -40,11 +41,12 @@ function grids(): Record<string, CellValue[][]> {
       ...LEDGER_ROWS.map((row) => row.map((cell, column) => (column === 2 ? labels[String(cell)]! : cell))),
       [46296, 'savings', '2026-10-01-statement-001', 'Opening deposit', '', 'Deposit', 250, 250, 'revenue', 'rule', 'SAV-1', '', '', '', '', '', '', ''],
     ],
+    // Each account takes its rows from the bank's statements from 1 June 2026, so the sync files them.
     accounts: [
-      ['account', 'iban'],
-      ['main', MAIN_IBAN],
-      ['savings', SAVINGS_IBAN],
-      ['reserve', RESERVE_IBAN],
+      ['account', 'iban', 'rows_from', 'starts_on'],
+      ['main', MAIN_IBAN, 'mail', 46174],
+      ['savings', SAVINGS_IBAN, 'mail', 46174],
+      ['reserve', RESERVE_IBAN, 'mail', 46174],
     ],
   }
 }
@@ -172,14 +174,39 @@ describe.each([
 
     expect(outcome.filed.map((statement) => statement.label)).toEqual(['2026-10-06-statement-002'])
     expect(outcome.held.map((reading) => ('statement' in reading ? reading.statement.label : reading.label))).toEqual(['2026-10-06-statement-003', '2026-10-07-statement-004'])
-    const held = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map()).statements
-    expect(held.map((statement) => statement.refusal)).toEqual([
+    const held = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map(), new Map(), new Map(), true, 'automation').statements
+    expect(held.map((statement) => statement.refusal && refusalText(statement.refusal))).toEqual([
       "The ledger ends main at €1,000.00 on 5 Oct 2026, but this statement's first new entry starts from €900.00, so a statement between the two is missing. Import that one first.",
       "The ledger ends main at €1,000.00 on 5 Oct 2026, but this statement's first new entry starts from €1,100.00, so a statement between the two is missing. Import that one first.",
     ])
     expect(ledgerOf(store, 'main')[0]).toBe('2026-10-05 REF-4 100000')
     expect(ledgerOf(store, 'savings')).toEqual(['2026-10-06 S2-1 26000', '2026-10-01 SAV-1 25000'])
     expect(store.state.writes).toHaveLength(1)
+  })
+
+  it("holds a statement of an account kept by hand, and one from before a mail account's start day, for the person", async () => {
+    const seed = grids()
+    const { store } = await harnessOf(used, {
+      ...seed,
+      accounts: [
+        ['account', 'iban', 'rows_from', 'starts_on'],
+        ['main', MAIN_IBAN, 'mail', 46302],
+        ['savings', SAVINGS_IBAN, 'by-hand', ''],
+        ['reserve', RESERVE_IBAN, 'mail', 46174],
+      ],
+    })
+    const savings = camt(SAVINGS_IBAN, 2, '2026-10-06', 25_000, [{ reference: 'S2-1', cents: 1_000 }])
+    const { folder } = folderHolding({ '2026-10-06-statement-003-main.xml': MAIN_003, '2026-10-06-statement-002-savings.xml': savings })
+
+    const outcome = await syncOf(store, folder)
+
+    expect(outcome.filed).toEqual([])
+    const held = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map(), new Map(), new Map(), true, 'automation').statements
+    expect(held.map((statement) => statement.refusal)).toEqual([
+      { kind: 'before-start', account: 'main', startsOn: '2026-10-07', first: '2026-10-06' },
+      { kind: 'kept-by-hand', account: 'savings' },
+    ])
+    expect(store.state.writes).toEqual([])
   })
 
   it('downloads nothing, writes nothing and adds nothing to the session when every file is on the ledger by its name', async () => {
@@ -210,11 +237,11 @@ describe.each([
     expect(outcome.filed).toEqual([])
     expect(outcome.receipt).toBeNull()
     expect(store.state.writes).toEqual([])
-    const waiting = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map())
+    const waiting = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map(), new Map(), new Map(), true, 'automation')
     expect(waiting.statements[0]).toMatchObject({ refusal: null, start: { account: 'reserve', opening: moneyFromCents(5_000), date: '2026-10-06' } })
     expect(waiting.newRows).toBe(0)
 
-    const started = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map([['reserve', moneyFromCents(5_000)]]))
+    const started = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map([['reserve', moneyFromCents(5_000)]]), new Map(), new Map(), true, 'automation')
     await store.write('Filed', (unit) => started.added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)))
     expect(ledgerOf(store, 'reserve')).toEqual(['2026-10-06 R1-1 7000'])
   })
@@ -257,6 +284,10 @@ describe("the statements step against another device's sync", () => {
       statementReadings({ kind: 'camt', fileName: 'x.xml', document: new DOMParser().parseFromString(MAIN_003, 'application/xml') }, workbook, null),
       companyBooksOf(store.state)!,
       new Map(),
+      new Map(),
+      new Map(),
+      true,
+      'automation',
     )
     const filedElsewhere = {
       date: '2026-10-06',

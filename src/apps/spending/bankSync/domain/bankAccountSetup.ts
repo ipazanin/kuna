@@ -110,7 +110,7 @@ export function kindOfBankAccount(linked: Pick<LinkedAccount, 'cashAccountType' 
 
 /** A new account as its bank describes it, opening at zero on the day. */
 export function draftAccount(linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode, id: RecordId, day: CivilDate, accounts: readonly Pick<Account, 'name'>[]): Account {
-  return { id, ...draftedAccount({ kind: kindOfBankAccount(linked) ?? 'bank', bank, currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day }, accounts) }
+  return { id, ...draftedAccount({ kind: kindOfBankAccount(linked) ?? 'bank', bank, currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day }, accounts, 'automation') }
 }
 
 /** The draft starting on the day of the fetch, with the bank's rows and balance held for when it is added. */

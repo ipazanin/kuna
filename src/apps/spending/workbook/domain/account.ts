@@ -3,8 +3,7 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { SpendingSettings } from './spendingSettings'
-import { takesRowByHand } from '../../../../shared/app/accountSource'
-import type { AccountSource } from '../../../../shared/app/accountSource'
+import type { AccountSource, ExtraOrigin } from '../../../../shared/app/accountSource'
 
 /** A current account at a bank, cash in hand, or savings kept apart. */
 export const ACCOUNT_KINDS = ['bank', 'cash', 'savings'] as const
@@ -34,6 +33,8 @@ export interface Account {
   readonly openedOn: CivilDate
   /** Always by hand on cash. */
   readonly rowsFrom: RowsFrom
+  /** What else an account the bank fills takes rows from, such as the bank's statement file for days a lapsed link missed. Empty on one kept by hand. */
+  readonly alsoFrom: readonly ExtraOrigin[]
   /** Blank on cash. */
   readonly iban: string
   /** The last four digits of each card that pays from the account, which a top-up on another account may name in place of an IBAN. Empty on cash. */
@@ -42,7 +43,7 @@ export interface Account {
 }
 
 /** What a new account holds unless a person sets it: open, with no card. */
-export const NEW_ACCOUNT_DEFAULTS: Pick<Account, 'closed' | 'cards'> = { closed: false, cards: [] }
+export const NEW_ACCOUNT_DEFAULTS: Pick<Account, 'closed' | 'cards' | 'alsoFrom'> = { closed: false, cards: [], alsoFrom: [] }
 
 /** The cards typed or stored as a list, such as `3670, 1234`, each once in the order given, or null when an entry is not four digits. Blank text is no card. */
 export function cardsOfText(text: string): readonly string[] | null {
@@ -60,13 +61,13 @@ export function rowsFromOfDetails(account: Pick<Account, 'kind' | 'iban'>): Rows
   return account.kind !== 'cash' && account.iban !== '' ? 'bank-link' : 'by-hand'
 }
 
-/** Whether a person's own rows may go on the account. Kuna keeps no row of it before its start day, so one the bank fills takes its rows from the bank alone. */
-export function takesRowsByHand(account: Pick<Account, 'rowsFrom' | 'openedOn'>): boolean {
-  return takesRowByHand(account.rowsFrom, account.openedOn, account.openedOn)
+/** Whether a person's own rows may go on the account. One the bank fills takes no typed, copied or receipt's row on any day. */
+export function takesRowsByHand(account: Pick<Account, 'rowsFrom'>): boolean {
+  return account.rowsFrom === 'by-hand'
 }
 
 /** Whether a new typed row may go on the account: it is open and its rows come by hand. */
-export function takesNewRowsByHand(account: Pick<Account, 'closed' | 'rowsFrom' | 'openedOn'>): boolean {
+export function takesNewRowsByHand(account: Pick<Account, 'closed' | 'rowsFrom'>): boolean {
   return !account.closed && takesRowsByHand(account)
 }
 

@@ -6,6 +6,7 @@ import { statementFilesToRead } from '../src/apps/company/imports/domain/stateme
 import type { StatementFile } from '../src/apps/company/imports/domain/statementFiles'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
+import { refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
 
 const FAKE_BOOKS = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
 const FAKE = FAKE_BOOKS.workbook
@@ -51,7 +52,7 @@ describe('statementFilesToRead', () => {
     )
     const run = dryRunFor(statementReadings({ kind: 'camt', fileName: empty.name, document }, FAKE, null), FAKE_BOOKS, new Map())
 
-    expect(run.statements.map((statement) => [statement.label, statement.refusal, statement.rows.length])).toEqual([['2026-10-20-statement-091', null, 0]])
+    expect(run.statements.map((statement) => [statement.label, statement.refusal && refusalText(statement.refusal), statement.rows.length])).toEqual([['2026-10-20-statement-091', null, 0]])
     expect(run.added).toEqual([])
     expect(statementFilesToRead([empty], FAKE.transactions)).toEqual([empty])
   })

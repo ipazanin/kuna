@@ -18,6 +18,7 @@ import { GoogleApiError } from '../src/shared/google/googleApi'
 import { exampleStudio } from './fixtures/exampleStudio'
 import { testFolders, testMailbox } from './fixtures/mailbox'
 import type { TestFiled, TestMail } from './fixtures/mailbox'
+import { BY_HAND } from '../src/shared/app/accountSource'
 
 /** A statement anonymised from a real bank's camt file, label 2031-03-12-statement-042, of the IBAN below. */
 const CREDIT = readFileSync(join(import.meta.dirname, 'fixtures', 'camt', 'erste-credit.xml'), 'utf8').replace(/^﻿/, '')
@@ -31,7 +32,7 @@ const SINCE = Date.parse('2030-12-31T23:00:00Z')
 
 function books(settings: Partial<Settings> = {}): Workbook {
   return exampleStudio({
-    accounts: [{ slug: 'main', iban: OWN_IBAN, currency: '' }],
+    accounts: [{ slug: 'main', iban: OWN_IBAN, currency: '', intake: BY_HAND }],
     settings: { ...DEFAULT_SETTINGS, ownerPayModule: true, statementsFolder: FOLDER, statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Izvadak', ...settings },
   })
 }

@@ -695,9 +695,9 @@ describe('an account the bank fills', () => {
   const typedOn = (account: Account) =>
     newEntry({ account: account.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-12), payee: 'Kiosk', category: category('Food/Groceries').id, note: '', labels: [] })
 
-  it("refuses a typed or copied row, takes the bank sync's and a file's, and still takes a typed row on cash", async () => {
+  it("refuses a typed or copied row, takes the bank sync's and a file's it allows, and still takes a typed row on cash", async () => {
     const store = await spendingStore(ACCOUNTS)
-    const refusal = 'OTP current takes its rows from the bank, so a typed or copied row cannot go on it'
+    const refusal = 'OTP current takes its rows from the bank link, so a typed or copied row, or a row of a file it does not allow, cannot go on it'
     await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [typedOn(bankOtp!)]))).rejects.toThrow(refusal)
     const copied = row(bankOtp!, '2026-10-11', -5, 'Food/Groceries', { source: 'statement', importKey: 'read-otp-1' })
     await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [copied]))).rejects.toThrow(refusal)
@@ -705,6 +705,16 @@ describe('an account the bank fills', () => {
     const filed = row(bankOtp!, '2026-10-13', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-1' })
     await store.write('Added', (unit) => [synced, filed, typedOn(CASH)].forEach((added) => addEntries(unit, store.state.records!, [added])))
     expect(store.state.workbook!.transactions).toHaveLength(3)
+  })
+
+  it("refuses a file's row on an account that takes the bank sync's rows alone", async () => {
+    const syncOnly = { ...bankOtp!, alsoFrom: [] }
+    const store = await spendingStore([syncOnly, ...ACCOUNTS.slice(1)])
+    const filed = row(syncOnly, '2026-10-13', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-1' })
+    await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [filed]))).rejects.toThrow('a row of a file it does not allow')
+    const synced = row(syncOnly, '2026-10-12', -7, 'Food/Groceries', { source: 'statement', importKey: 'bank-otp-1' })
+    await store.write('Added', (unit) => addEntries(unit, store.state.records!, [synced]))
+    expect(store.state.workbook!.transactions).toHaveLength(1)
   })
 
   it('refuses moving a typed row onto it, and keeps one typed there before for the bank to fill', async () => {

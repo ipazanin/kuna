@@ -61,12 +61,14 @@ export function category(path: string): Category {
   return found
 }
 
-/** An account with no card unless the test names its cards. */
-export function account(place: number, fields: Omit<Account, 'id' | 'cards'> & Partial<Pick<Account, 'cards'>>): Account {
-  return { cards: [], ...fields, id: recordIdOf(ACCOUNT_RECORDS, keyOf(1000 + place)) }
+/** An account with no card and no other origin of its rows unless the test names them. */
+export function account(place: number, fields: Omit<Account, 'id' | 'cards' | 'alsoFrom'> & Partial<Pick<Account, 'cards' | 'alsoFrom'>>): Account {
+  return { cards: [], alsoFrom: [], ...fields, id: recordIdOf(ACCOUNT_RECORDS, keyOf(1000 + place)) }
 }
 
 const OPENED_ON = civil('2026-09-01')
+
+// The bank accounts also take the bank's statement file, so a file and the sync can both bring their rows.
 
 export const OTP = account(1, {
   name: 'OTP current',
@@ -76,6 +78,7 @@ export const OTP = account(1, {
   opening: accountMoneyFromAmount(1_550),
   openedOn: OPENED_ON,
   rowsFrom: 'bank-link',
+  alsoFrom: ['provider-file'],
   iban: 'HR0000000000000000001',
   closed: false,
 })
@@ -87,6 +90,7 @@ export const REVOLUT_EUR = account(2, {
   opening: accountMoneyFromAmount(300),
   openedOn: OPENED_ON,
   rowsFrom: 'bank-link',
+  alsoFrom: ['provider-file'],
   iban: 'LT000000000000000001',
   closed: false,
 })
@@ -98,6 +102,7 @@ export const REVOLUT_USD = account(3, {
   opening: accountMoneyFromAmount(200),
   openedOn: OPENED_ON,
   rowsFrom: 'bank-link',
+  alsoFrom: ['provider-file'],
   iban: 'LT000000000000000001',
   closed: false,
 })
@@ -106,7 +111,7 @@ export const CASH = account(4, { name: 'Cash', kind: 'cash', bank: null, currenc
 export const ACCOUNTS: readonly Account[] = [OTP, REVOLUT_EUR, REVOLUT_USD, CASH]
 
 /** The same accounts, each kept by hand, for a check of rows a person types, which an account the bank fills refuses. */
-export const ACCOUNTS_BY_HAND: readonly Account[] = ACCOUNTS.map((account) => ({ ...account, rowsFrom: 'by-hand' }))
+export const ACCOUNTS_BY_HAND: readonly Account[] = ACCOUNTS.map((account) => ({ ...account, rowsFrom: 'by-hand', alsoFrom: [] }))
 
 let rowPlace = 2000
 

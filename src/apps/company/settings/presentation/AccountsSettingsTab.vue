@@ -10,7 +10,12 @@ import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
-import { ACCOUNT_WRITES, accountUses } from '../application/namedRecordWrites'
+import { ACCOUNT_WRITES, accountUses, startDayRefusalText } from '../application/namedRecordWrites'
+import { startDayRefusal } from '../../../../shared/app/accountSource'
+import { today } from '../../../../shared/calendar/civilDate'
+import { installedPack } from '../../packs/packContribution'
+import { handDaysOf } from '../../workbook/domain/accountIntakes'
+import type { CompanyIntake } from '../../workbook/domain/workbook'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import AccountsEditor from './AccountsEditor.vue'
 import { storedCount } from './settingsCounts'
@@ -27,6 +32,14 @@ const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RE
 const accountsInUse = computed(() => accountUses(recordsOnScreen))
 const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
 
+const intakes = computed(() => new Map((state.workbook?.accounts ?? []).map((account) => [account.slug, account.intake])))
+
+/** Why the account's new intake may not be written, in the words the write would refuse it with. */
+function startDayFault(account: string, before: CompanyIntake | null, after: CompanyIntake): string | null {
+  const refusal = startDayRefusal(before, after, handDaysOf(account, state.workbook?.transactions ?? []), installedPack().firstOpenDay(today()))
+  return refusal === null ? null : startDayRefusalText(refusal)
+}
+
 function saveAccounts(made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]): void {
   void writes.write(words.accounts.saved, (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), {
     failedTitle: words.notSaved,
@@ -37,6 +50,15 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
 <template>
   <AppCard :title="words.accounts.title" collapse-id="settings.accounts" :summary="plural(words.accounts.count(storedCount(accounts)), storedCount(accounts))" :reveal="linked">
     <template #subtitle>{{ words.accounts.subtitle(settings.currency) }}</template>
-    <AccountsEditor :records="accounts" :uses="accountsInUse" :currency="settings.currency" :saving="writes.saving('save')" :refused="writes.refused.value" @save="saveAccounts" />
+    <AccountsEditor
+      :records="accounts"
+      :uses="accountsInUse"
+      :currency="settings.currency"
+      :saving="writes.saving('save')"
+      :refused="writes.refused.value"
+      :intakes="intakes"
+      :start-day-fault="startDayFault"
+      @save="saveAccounts"
+    />
   </AppCard>
 </template>

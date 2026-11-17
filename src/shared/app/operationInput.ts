@@ -1,5 +1,7 @@
 import type { ChatAttachment } from '../ai/domain/chatAttachments'
 import type { StrictSchema } from '../ai/domain/strictSchema'
+import { EXTRA_ORIGINS } from './accountSource'
+import type { ExtraOrigin } from './accountSource'
 import { StepRefused } from './proposedWrites'
 import { parseCivilDate } from '../calendar/civilDate'
 import type { CivilDate } from '../calendar/civilDate'
@@ -15,6 +17,20 @@ export const FLAG_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: ['ye
 /** The flag a step's yes or no sets, or the one kept on null. */
 export function flagOf(text: string | null, kept: boolean): boolean {
   return text === null ? kept : text === 'yes'
+}
+
+/** What else an account an automation fills takes rows from, as every app's account steps take it. */
+export const ALSO_FROM_OR_NULL: StrictSchema = {
+  type: ['string', 'null'],
+  enum: [...EXTRA_ORIGINS, 'none', null],
+  description: "provider-file also takes the provider's own file, such as the bank's statement export. none takes the automation's rows alone. Null leaves it, none on a new account.",
+}
+
+/** The origins a step names for an automated account, or the ones it has on null. */
+export function alsoFromOfInput(text: string | null, now: readonly ExtraOrigin[]): readonly ExtraOrigin[] {
+  if (text === null) return now
+  if (text === 'none') return []
+  return [choiceOf(EXTRA_ORIGINS, text, 'alsoFrom')!]
 }
 
 /** An operation's input: an object with every field required, where null leaves a field as it is. */

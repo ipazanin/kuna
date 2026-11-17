@@ -32,7 +32,13 @@ import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { pickedEdits, pickedUntouched } from '../../../../shared/storage/domain/writeRules'
-import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
+import type { FreshRecords, KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
+import { startDayRefusal } from '../../../../shared/app/accountSource'
+import type { StartDayRefusal } from '../../../../shared/app/accountSource'
+import { today } from '../../../../shared/calendar/civilDate'
+import { accountsWithIntakes, folderFiledOnSync, handDaysOf } from '../../workbook/domain/accountIntakes'
+import { definedCategories } from '../../workbook/domain/categoriesReading'
+import { readLedger } from '../../workbook/domain/ledgerReading'
 import { installedPack } from '../../packs/packContribution'
 import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
 import { RULE_WRITES } from '../../rules/application/ruleWrites'
@@ -247,14 +253,39 @@ function accountOfFields(fields: StoredFields): { readonly slug: string; readonl
   return { slug: slugOf(fields.account), iban: normaliseIban(textOf(fields.iban)) }
 }
 
-/** An account keeps to the slug format, keeps its name and IBAN while ledger rows name it, and its IBAN is valid, its own and no client's. */
+/** The sentence of a refused start day, for the accounts editor, the chat and the write alike. */
+export function startDayRefusalText(refusal: StartDayRefusal): string {
+  return refusal.kind === 'filed' ? words.startDay.filed(refusal.firstOpen) : words.startDay.overHandRows(refusal.startsOn)
+}
+
+/**
+ * Why the write would give the bank's statements days of an account that they did not fill: days already filed, which the
+ * pack says, or days holding rows by hand. Undo puts back what was there.
+ */
+function startDayRefusals(change: KindChange<AccountRecord>, fresh: FreshRecords): string[] {
+  if (change.undoing) return []
+  const ledger = readLedger(fresh.of(LEDGER_RECORDS), definedCategories(fresh.of(CATEGORY_RECORDS))).facts
+  const before = new Map(accountsWithIntakes(readAccounts(change.before, null).facts, ledger, folderFiledOnSync(fresh.of(SETTING_RECORDS))).map((account) => [account.slug, account.intake]))
+  const firstOpen = installedPack().firstOpenDay(today())
+  return change.edits.flatMap((edit) => {
+    const account = edit.after !== null && 'record' in edit.after ? edit.after.record : undefined
+    if (account === undefined || account.intake === null) return []
+    const refusal = startDayRefusal(before.get(account.slug) ?? null, account.intake, handDaysOf(account.slug, ledger), firstOpen)
+    return refusal === null ? [] : [`${account.slug}: ${startDayRefusalText(refusal)}`]
+  })
+}
+
+/**
+ * An account keeps to the slug format, keeps its name and IBAN while ledger rows name it, and its IBAN is valid, its own and no
+ * client's. A start day that gives the bank's statements more days reaches no filed day and no row by hand.
+ */
 export const ACCOUNT_WRITES: WriteRules<AccountRecord> = {
   kind: ACCOUNT_RECORDS,
-  reads: [LEDGER_RECORDS, CLIENT_RECORDS],
+  reads: [LEDGER_RECORDS, CLIENT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS],
   undoable: true,
   read: (read) => readAccounts(read, null),
-  refusals: (change, fresh) =>
-    accountChangeRefusals(
+  refusals: (change, fresh) => [
+    ...accountChangeRefusals(
       pickedEdits(change, accountOfFields),
       pickedUntouched(change, accountOfFields).filter((row) => row.slug !== ''),
       {
@@ -262,6 +293,8 @@ export const ACCOUNT_WRITES: WriteRules<AccountRecord> = {
         clientIbans: new Map(readClients(fresh.of(CLIENT_RECORDS)).facts.flatMap((client) => client.ibans.map((iban) => [iban, client.slug] as const))),
       },
     ),
+    ...startDayRefusals(change, fresh),
+  ],
 }
 
 function clientCellsOf(fields: StoredFields): { readonly slug: string; readonly ibans: readonly string[] } {

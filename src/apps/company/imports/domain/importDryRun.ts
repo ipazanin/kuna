@@ -14,11 +14,12 @@ import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
-import type { Transaction } from '../../workbook/domain/workbook'
+import type { CompanyIntake, Transaction } from '../../workbook/domain/workbook'
+import { BY_HAND, takesRowFrom } from '../../../../shared/app/accountSource'
+import type { RowOrigin } from '../../../../shared/app/accountSource'
 import type { PaymentItem, RowPayments } from '../../workbook/domain/rowPayments'
-import { isTranscribedReference } from './importedStatement'
+import { isTranscribedReference } from '../../workbook/domain/rowOrigin'
 import type { ImportedRow, ImportedStatement, NewAccountOffer, StatementReading } from './importedStatement'
-import { words } from './words'
 
 /** One entry of a statement as the dry run sees it: on the ledger already, or new with the verdict the rules give it. */
 export interface DryRunRow extends ImportedRow {
@@ -66,11 +67,49 @@ export interface NewAccountStart extends NewAccountOffer {
   readonly date: CivilDate | null
 }
 
-/** An account the import adds to the accounts tab, by the name the person gave it. */
+/** An account the import adds to the accounts tab, by the name the person gave it, with how its rows come in. */
 export interface AddedAccount {
   readonly slug: string
   readonly iban: string
   readonly currency: string
+  readonly intake: CompanyIntake
+}
+
+/** Why nothing of a statement is written. A reader's own refusal passes through as its reason. */
+export type DryRunRefusal =
+  | { readonly kind: 'unreadable'; readonly reason: string }
+  | { readonly kind: 'replace-blocked'; readonly row: string; readonly day: CivilDate }
+  | { readonly kind: 'imported-before'; readonly label: string; readonly noneMatch: boolean }
+  | { readonly kind: 'gap' }
+  | { readonly kind: 'no-reference'; readonly count: number }
+  | { readonly kind: 'before-newest'; readonly first: CivilDate; readonly newest: CivilDate; readonly account: string }
+  | { readonly kind: 'missing-between'; readonly account: string; readonly balance: Money; readonly day: CivilDate; readonly before: Money }
+  | { readonly kind: 'part-does-not-tie'; readonly account: string; readonly left: Money; readonly rows: Money; readonly reached: Money; readonly closing: Money; readonly gap: Money }
+  /** The account takes its rows from the bank's statements, which reach the statements folder, and takes none from where this statement came. */
+  | { readonly kind: 'statements-fill'; readonly account: string; readonly startsOn: CivilDate; readonly origin: Exclude<RowOrigin, 'automation'> }
+  /** A statement of the folder for an account kept by hand, which the sync leaves to the person. */
+  | { readonly kind: 'kept-by-hand'; readonly account: string }
+  /** A statement of the folder that starts before the day the bank's statements fill its account from. */
+  | { readonly kind: 'before-start'; readonly account: string; readonly startsOn: CivilDate; readonly first: CivilDate }
+
+/** What may be wrong with a statement, for the person to check. A reader's own note passes through as its text. */
+export type DryRunNote =
+  | { readonly kind: 'reader'; readonly text: string }
+  | { readonly kind: 'no-entries' }
+  | { readonly kind: 'all-held' }
+  | { readonly kind: 'sequence-gap'; readonly sequence: number; readonly newest: number; readonly account: string; readonly missing: number }
+  | { readonly kind: 'sequence-not-after'; readonly sequence: number; readonly newest: number; readonly account: string }
+  | { readonly kind: 'label-held'; readonly label: string }
+
+/** What the import does that needs no check. */
+export type DryRunFact =
+  | { readonly kind: 'partly-held'; readonly held: number; readonly fresh: number }
+  | { readonly kind: 'replaced-copied'; readonly count: number }
+  | { readonly kind: 'works-out-balances'; readonly opening: Money; readonly account: string; readonly day: CivilDate }
+
+/** A reader's notes as the dry run passes them on. */
+function readerNotes(notes: readonly string[]): DryRunNote[] {
+  return notes.map((text) => ({ kind: 'reader', text }))
 }
 
 export interface DryRunStatement {
@@ -80,7 +119,7 @@ export interface DryRunStatement {
   readonly account: string
   readonly rows: readonly DryRunRow[]
   /** Why nothing of the statement is written, or null. */
-  readonly refusal: string | null
+  readonly refusal: DryRunRefusal | null
   /** Set while the statement waits for the person to start its account. */
   readonly start: AccountStart | null
   /** Set for a statement of an IBAN the accounts tab lacks, named or not. */
@@ -88,9 +127,9 @@ export interface DryRunStatement {
   /** The entries that look like rows the AI copied, answered or not, in the statement's order. */
   readonly questions: readonly CopiedTwinQuestion[]
   /** What may be wrong with the statement, for the person to check. */
-  readonly notes: readonly string[]
+  readonly notes: readonly DryRunNote[]
   /** What the import does that needs no check, such as the entries on the ledger already. */
-  readonly facts: readonly string[]
+  readonly facts: readonly DryRunFact[]
   readonly opening: Money | null
   readonly closing: Money | null
 }
@@ -133,6 +172,10 @@ export interface DryRunInputs {
   readonly named: ReadonlyMap<string, string>
   /** What the person said of the entries that look like rows the AI copied, by `copiedTwinKey`. */
   readonly twinAnswers: ReadonlyMap<string, TwinAnswer>
+  /** How each account's rows come in, by its name. An account it lacks, such as one the import adds, is kept by hand. */
+  readonly intakes: ReadonlyMap<string, CompanyIntake>
+  /** Where a camt statement comes from: the statements folder, which the bank's statements reach, or a file the person brings. */
+  readonly camtOrigin: Extract<RowOrigin, 'automation' | 'provider-file'>
   /** What the new entries pay of the invoices and of the records a pack keeps, each entry as the items it becomes. */
   paymentsOf(added: readonly LedgerEntry[]): readonly RowPayments[]
 }
@@ -181,7 +224,7 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
         label: reading.label,
         account: '',
         rows: [],
-        refusal: reading.refusal,
+        refusal: { kind: 'unreadable', reason: reading.refusal },
         start: null,
         newAccount: null,
         questions: [],
@@ -208,11 +251,12 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
     const named = { ...reading.statement, account: slug }
     const starts = new Map(inputs.starts)
     if (newAccount.opening !== null && !starts.has(slug)) starts.set(slug, newAccount.opening)
-    const planned = planStatement(named, stateOf(slug), { ...inputs, starts })
+    const intake = newAccountIntake(named, newAccount, inputs.camtOrigin)
+    const planned = planStatement(named, stateOf(slug), { ...inputs, starts, intakes: new Map([...inputs.intakes, [slug, intake]]) })
     statements.push({ ...planned.statement, newAccount })
     added.push(...planned.added)
     removed.push(...planned.removed)
-    if (planned.statement.refusal === null) accounts.set(slug, { slug, iban: newAccount.iban, currency: newAccount.currency })
+    if (planned.statement.refusal === null) accounts.set(slug, { slug, iban: newAccount.iban, currency: newAccount.currency, intake })
   }
   const rows = statements.flatMap((statement) => statement.rows)
   const payments = inputs.paymentsOf(added.filter((entry) => !removed.some((copied) => copied.rowId !== null && copied.rowId === entry.rowId)))
@@ -242,6 +286,11 @@ function withPayments(statements: readonly DryRunStatement[], added: readonly Le
   }))
 }
 
+/** How a new account's rows come in: from the bank's statements from its first statement's day when that statement came from the statements folder, and by hand otherwise. */
+function newAccountIntake(statement: ImportedStatement, newAccount: NewAccountStart, camtOrigin: DryRunInputs['camtOrigin']): CompanyIntake {
+  return statement.source.kind === 'camt' && camtOrigin === 'automation' && newAccount.date !== null ? { rowsFrom: 'mail', startsOn: newAccount.date, alsoFrom: [] } : BY_HAND
+}
+
 /** Where a statement of a new account would start it: the balance before its first entry, on that entry's day. */
 function newAccountStart(statement: ImportedStatement, offer: NewAccountOffer): NewAccountStart {
   const first = statement.rows[0]
@@ -260,7 +309,7 @@ function waitingForName(statement: ImportedStatement, newAccount: NewAccountStar
     start: null,
     newAccount,
     questions: [],
-    notes: statement.notes,
+    notes: readerNotes(statement.notes),
     facts: [],
     opening: statement.opening,
     closing: statement.closing,
@@ -276,8 +325,8 @@ interface PlannedStatement {
 
 function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): PlannedStatement {
   const { account } = statement
-  const notes = [...statement.notes]
-  const facts: string[] = []
+  const notes = readerNotes(statement.notes)
+  const facts: DryRunFact[] = []
   const inLedger = statement.rows.map((row) => row.reference !== '' && state.references.has(row.reference))
   const likeOf = new Map<ImportedRow, Transaction>()
   const { source } = statement
@@ -329,7 +378,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     const copiedTwin = copiedTwinOf.get(statement.rows[index]!)
     return { ...row, inLedger: inLedger[index]!, verdict: null, ...(like === undefined ? {} : { like }), ...(copiedTwin === undefined ? {} : { copiedTwin }) }
   }
-  const shown = (refusal: string | null, start: AccountStart | null, opening: Money | null): Omit<DryRunStatement, 'newAccount'> => ({
+  const shown = (refusal: DryRunRefusal | null, start: AccountStart | null, opening: Money | null): Omit<DryRunStatement, 'newAccount'> => ({
     ...shell,
     rows: withBalances(statement.rows, opening).map(shownRow),
     refusal,
@@ -338,32 +387,34 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     notes,
     facts,
   })
-  const refused = (refusal: string): PlannedStatement => ({ statement: shown(refusal, null, statement.opening), added: [], removed: [] })
+  const refused = (refusal: DryRunRefusal): PlannedStatement => ({ statement: shown(refusal, null, statement.opening), added: [], removed: [] })
   const stray = takenOut.find((row) => !twinOnLedger.has(row))
-  if (stray !== undefined) return refused(words.dryRun.replaceBlocked(stray.counterparty || stray.description, stray.date))
+  if (stray !== undefined) return refused({ kind: 'replace-blocked', row: stray.counterparty || stray.description, day: stray.date })
   if (firstNew < 0) {
-    if (likeOf.size === 0) notes.push(statement.rows.length === 0 ? words.dryRun.noEntries : words.dryRun.allHeld)
+    if (likeOf.size === 0) notes.push({ kind: statement.rows.length === 0 ? 'no-entries' : 'all-held' })
     return { statement: shown(null, null, statement.opening), added: [], removed: [] }
   }
   if (statement.source.kind === 'table' && state.labels.has(statement.label)) {
-    return refused(words.dryRun.importedBefore(statement.label, firstNew === 0))
+    return refused({ kind: 'imported-before', label: statement.label, noneMatch: firstNew === 0 })
   }
   const fresh = statement.rows.slice(firstNew)
   if (held.slice(firstNew).some((kept) => kept)) {
-    return refused(words.dryRun.gap)
+    return refused({ kind: 'gap' })
   }
   const heldBefore = firstNew - likeOf.size - statement.rows.slice(0, firstNew).filter((row) => copiedTwinOf.has(row)).length
   if (heldBefore > 0) {
-    facts.push(words.dryRun.partlyHeld(heldBefore, fresh.length))
+    facts.push({ kind: 'partly-held', held: heldBefore, fresh: fresh.length })
   }
-  if (replacesOf.size > 0) facts.push(words.dryRun.replacedCopied(replacesOf.size))
+  if (replacesOf.size > 0) facts.push({ kind: 'replaced-copied', count: replacesOf.size })
   const unidentified = fresh.filter((row) => row.reference === '')
   if (unidentified.length > 0) {
-    return refused(words.dryRun.noReference(unidentified.length))
+    return refused({ kind: 'no-reference', count: unidentified.length })
   }
   const first = fresh[0]!
+  const intakeRefused = intakeRefusal(statement, inputs.intakes.get(account) ?? BY_HAND, inputs.camtOrigin, first.date)
+  if (intakeRefused !== null) return refused(intakeRefused)
   if (latest !== null && first.date < latest.date) {
-    return refused(words.dryRun.beforeNewest(first.date, latest.date, account))
+    return refused({ kind: 'before-newest', first: first.date, newest: latest.date, account })
   }
   const before = first.balance === null ? null : subtractMoney(first.balance, first.amount)
   let opening: Money | null
@@ -374,7 +425,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     }
     opening = latest.balance
     if (before === null) {
-      facts.push(words.dryRun.worksOutBalances(opening, account, latest.date))
+      facts.push({ kind: 'works-out-balances', opening, account, day: latest.date })
     }
   } else {
     start = { account, opening: before, date: first.date }
@@ -387,13 +438,13 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   if (statement.source.kind === 'camt' && state.lastSequence !== null) {
     const { sequence } = statement.source
     if (sequence > state.lastSequence + 1) {
-      notes.push(words.dryRun.sequenceGap(sequence, state.lastSequence, account, sequence - state.lastSequence - 1))
+      notes.push({ kind: 'sequence-gap', sequence, newest: state.lastSequence, account, missing: sequence - state.lastSequence - 1 })
     } else if (sequence <= state.lastSequence) {
-      notes.push(words.dryRun.sequenceNotAfter(sequence, state.lastSequence, account))
+      notes.push({ kind: 'sequence-not-after', sequence, newest: state.lastSequence, account })
     }
   }
   if (state.labels.has(statement.label) && !isLaterPart(statement)) {
-    notes.push(words.dryRun.labelHeld(statement.label))
+    notes.push({ kind: 'label-held', label: statement.label })
   }
   const balanced = withBalances(fresh, opening)
   const rows: DryRunRow[] = [
@@ -436,6 +487,23 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   }
 }
 
+/**
+ * Why the account does not take the statement's new rows from where they came, or null when it does. A camt statement of the
+ * statements folder is the bank's own, which goes only on an account the bank's statements fill, from its start day. Any other
+ * goes on such an account only from an origin it allows: a camt file the person brings when it allows the bank's file, and a
+ * sheet or a copied statement never.
+ */
+function intakeRefusal(statement: ImportedStatement, intake: CompanyIntake, camtOrigin: DryRunInputs['camtOrigin'], first: CivilDate): DryRunRefusal | null {
+  const { account } = statement
+  const origin: RowOrigin = statement.source.kind === 'camt' ? camtOrigin : 'by-hand'
+  if (origin === 'automation') {
+    if (intake.rowsFrom === 'by-hand') return { kind: 'kept-by-hand', account }
+    return first < intake.startsOn ? { kind: 'before-start', account, startsOn: intake.startsOn, first } : null
+  }
+  if (intake.rowsFrom === 'by-hand' || takesRowFrom(intake.rowsFrom, intake.alsoFrom, origin)) return null
+  return { kind: 'statements-fill', account, startsOn: intake.startsOn, origin }
+}
+
 /** The verdict an entry keeps from the copied row it takes the place of: that row's category, settled unless it waits on review. */
 function keptVerdict(copied: Transaction): Verdict {
   return { category: copied.category, flaggedBy: copied.flaggedBy === 'ai' ? 'ai' : 'rule', ruleId: null }
@@ -456,11 +524,11 @@ function isLaterPart(statement: ImportedStatement): boolean {
  * Why a statement's first new entry does not start where the ledger leaves the account. A later part of a copied statement runs
  * back from its printed closing, so it does not add up with its earlier parts, and any other statement misses one before it.
  */
-function notRunningOn(statement: ImportedStatement, fresh: readonly ImportedRow[], latest: { readonly date: CivilDate; readonly balance: Money }, before: Money): string {
+function notRunningOn(statement: ImportedStatement, fresh: readonly ImportedRow[], latest: { readonly date: CivilDate; readonly balance: Money }, before: Money): DryRunRefusal {
   const tie = isLaterPart(statement) && statement.closing !== null ? statementTies({ opening: latest.balance, amounts: fresh.map((row) => row.amount), closing: statement.closing }) : null
   return tie?.kind === 'off'
-    ? words.transcribed.partDoesNotTie(statement.account, latest.balance, tie.rows, tie.reached, tie.statement.closing, absMoney(tie.gap))
-    : words.dryRun.missingBetween(statement.account, latest.balance, latest.date, before)
+    ? { kind: 'part-does-not-tie', account: statement.account, left: latest.balance, rows: tie.rows, reached: tie.reached, closing: tie.statement.closing, gap: absMoney(tie.gap) }
+    : { kind: 'missing-between', account: statement.account, balance: latest.balance, day: latest.date, before }
 }
 
 /** The ledger entry a new entry of a statement makes, filed under its verdict with the category's default share. */

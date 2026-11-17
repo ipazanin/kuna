@@ -15,6 +15,7 @@ import { receiptsArriving } from '../../receipts/domain/waitingReceipts'
 import type { PlacedReceipt } from '../../receipts/domain/waitingReceipts'
 import { words as receiptWords } from '../../receipts/domain/words'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
+import { refusedOnAccount } from '../../entries/domain/bankRows'
 import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { transferCategoryOf } from '../../workbook/domain/category'
@@ -48,12 +49,12 @@ import { plural } from '../../../../shared/text/translation'
 const PAIRING_DAYS = 30
 
 /**
- * What happens to a row: `before-opening` is left out, `already-in` skipped, `outside-days` left out since the person named days
+ * What happens to a row: `before-opening` is left out, `not-taken` left out since its account takes no row from where it came, `already-in` skipped, `outside-days` left out since the person named days
  * the file brings that leave it out, `other-source` skipped since the other of a file and the bank sync covers its day, `look-alike` waits since it looks like a row on the file from another source, `filled` joins a
  * typed row, `replaced` takes the place of such a row on the person's word, `new` is added, and `refiled` is a row already on the file that
  * the pairing changes.
  */
-export type DryRunOutcome = 'before-opening' | 'already-in' | 'outside-days' | 'other-source' | 'look-alike' | 'filled' | 'replaced' | 'new' | 'refiled'
+export type DryRunOutcome = 'before-opening' | 'not-taken' | 'already-in' | 'outside-days' | 'other-source' | 'look-alike' | 'filled' | 'replaced' | 'new' | 'refiled'
 
 export type DryRunLine =
   | {
@@ -210,6 +211,15 @@ function twinsOnFile(rows: readonly StatementRow[], book: SpendingBook, statemen
   return twins
 }
 
+/** One note per account for the rows it takes from its bank link alone. */
+function notTakenNotes(lines: readonly DryRunLine[], accounts: ReadonlyMap<RecordId, Account>): readonly string[] {
+  const left = lines.filter((line) => line.outcome === 'not-taken')
+  return [...new Set(left.map((line) => line.row.account))].map((account) => {
+    const count = left.filter((line) => line.row.account === account).length
+    return plural(words.notTakenLeftOut(count, accounts.get(account)?.name ?? ''), count)
+  })
+}
+
 /** One note per account for the rows the other source's days left out. */
 function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<RecordId, SourceDays>, accounts: ReadonlyMap<RecordId, Account>): readonly string[] {
   return [...new Set(rows.map((row) => row.account))].map((account) => {
@@ -257,10 +267,14 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     const account = accounts.get(row.account)
     return account !== undefined && beforeStartDay(account, row.date)
   }
+  const notTaken = (row: StatementRow): boolean => {
+    const account = accounts.get(row.account)
+    return account !== undefined && refusedOnAccount(row, account)
+  }
   const alreadyIn = (row: StatementRow): boolean => onFile.has(rowKey(row))
   const { days } = statement
   const outsideDays = (row: StatementRow): boolean => days !== undefined && !rangeContains(days, row.date)
-  const notOnFile = statement.rows.filter((row) => !beforeOpening(row) && !alreadyIn(row) && !outsideDays(row))
+  const notOnFile = statement.rows.filter((row) => !beforeOpening(row) && !notTaken(row) && !alreadyIn(row) && !outsideDays(row))
   const sourceDays = sourceDaysOf(book.transactions)
   const coveredByOtherSource = (row: StatementRow): boolean => {
     const { lastFileDay, firstSyncDay } = sourceDays.get(row.account) ?? { lastFileDay: null, firstSyncDay: null }
@@ -388,6 +402,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
 
   const fileLines = statement.rows.map((row): DryRunLine => {
     if (beforeOpening(row)) return { row, outcome: 'before-opening', category: null }
+    if (notTaken(row)) return { row, outcome: 'not-taken', category: null }
     const byItsTwin = twinOutcome.get(row)
     if (alreadyIn(row) || byItsTwin === 'already-in' || byItsTwin === 'kept') return { row, outcome: 'already-in', category: null }
     if (outsideDays(row)) return { row, outcome: 'outside-days', category: null }
@@ -452,6 +467,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     notes: [
       ...statement.notes,
       ...(leftOut === 0 ? [] : [plural(words.beforeOpeningLeftOut(leftOut), leftOut)]),
+      ...notTakenNotes(lines, accounts),
       ...(outside === 0 || days === undefined ? [] : [plural(words.outsideDaysLeftOut(outside, dayLabel(days.from), dayLabel(days.to)), outside)]),
       ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)]),
       ...(wantingCash === 0 ? [] : [plural(words.withdrawalsWaiting(wantingCash), wantingCash)]),

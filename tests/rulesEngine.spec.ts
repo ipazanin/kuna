@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_SIGNALS } from './fixtures/ledger'
 import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
+import { BY_HAND } from '../src/shared/app/accountSource'
 
 const OWN_IBAN = 'XX00FAKE0000000001'
 const CARD_SETTLEMENT_IBAN = 'XX00FAKE0000000099'
@@ -17,8 +18,8 @@ const CLIENT_IBAN = 'XX00FAKE0000000042'
 
 const context = categorisationContextOf({
   accounts: [
-    { slug: 'main', iban: OWN_IBAN, currency: '' },
-    { slug: 'sterling', iban: 'XX00FAKE0000000002', currency: 'gbp' },
+    { slug: 'main', iban: OWN_IBAN, currency: '', intake: BY_HAND },
+    { slug: 'sterling', iban: 'XX00FAKE0000000002', currency: 'gbp', intake: BY_HAND },
   ],
   clients: [{ slug: 'acme', name: 'Acme', ibans: [CLIENT_IBAN], invoicing: NO_CLIENT_INVOICING }],
   settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [CARD_SETTLEMENT_IBAN] },

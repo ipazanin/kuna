@@ -172,6 +172,8 @@ export const en = {
     noName: 'no account name',
     otherCurrency: (slug: string, currency: string, workbook: string) => `${slug} is in ${currency} but the workbook counts in ${workbook}, so its amounts read as ${workbook}`,
     namedTwice: (slug: string) => `${slug} is named on more than one row, so none of them counts`,
+    mailWithoutStart: "rows_from mail needs starts_on, the first day the bank's statements bring rows of",
+    startWithoutMail: "starts_on and also_from are for an account whose rows come from the bank's statements",
   },
   dismissals: {
     noKey: 'no key',
@@ -274,6 +276,8 @@ export const hr: Translation<typeof en> = {
     noName: 'polje account je prazno',
     otherCurrency: (slug, currency, workbook) => `„${slug}” je u valuti ${currency}, a datoteka broji u valuti ${workbook}, pa se njegovi iznosi čitaju kao ${workbook}`,
     namedTwice: (slug) => `„${slug}” je naveden u više redaka, pa se nijedan ne broji`,
+    mailWithoutStart: 'rows_from mail traži starts_on, prvi dan od kojega izvodi banke donose retke',
+    startWithoutMail: 'starts_on i also_from vrijede za račun čiji retci stižu iz izvoda banke',
   },
   dismissals: {
     noKey: 'polje key je prazno',

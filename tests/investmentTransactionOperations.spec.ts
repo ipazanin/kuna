@@ -243,7 +243,7 @@ describe('accounts and instruments', () => {
     )
     await desk.accept()
     const added = bookOf(desk).accounts.find((account) => account.name === 'IBKR')!
-    expect(added.intake).toEqual({ rowsFrom: 'mail', startsOn: '2099-01-04' })
+    expect(added.intake).toEqual({ rowsFrom: 'mail', startsOn: '2099-01-04', alsoFrom: [] })
 
     const filed = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'change-account', { account: desk.ref('investment-account', added.id), startsOn: '2001-01-02' })])
     expect(filed.isError).toBe(true)
@@ -251,7 +251,7 @@ describe('accounts and instruments', () => {
     const noDay = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'IBKR 2', note: '', rowsFrom: 'mail', startsOn: null })])
     expect(noDay.isError, noDay.text).toBe(false)
     await desk.accept()
-    expect(bookOf(desk).accounts.find((account) => account.name === 'IBKR 2')!.intake).toEqual({ rowsFrom: 'mail', startsOn: today() })
+    expect(bookOf(desk).accounts.find((account) => account.name === 'IBKR 2')!.intake).toEqual({ rowsFrom: 'mail', startsOn: today(), alsoFrom: [] })
   })
 
   it('refuses deleting an account that records name, and a blank name', async () => {

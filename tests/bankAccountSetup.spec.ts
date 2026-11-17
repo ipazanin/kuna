@@ -93,13 +93,13 @@ describe('the setup list', () => {
   })
 
   it('offers an account of the bank and currency typed without an IBAN the bank details, rather than a second account', () => {
-    const typed = { ...REVOLUT_USD, iban: '', rowsFrom: 'by-hand' as const }
+    const typed = { ...REVOLUT_USD, iban: '', rowsFrom: 'by-hand' as const, alsoFrom: [] }
     const [line] = setupLines([revolut(linked('usd', REVOLUT_EUR.iban, 'USD'))], [], book([OTP, REVOLUT_EUR, typed]))
     expect(line).toMatchObject({ kind: 'fits', account: typed, update: { ...typed, iban: REVOLUT_EUR.iban, rowsFrom: 'bank-link' } })
   })
 
   it('offers to have the bank bring the rows of an account kept by hand, and stops once you keep it by hand', () => {
-    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const }
+    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const, alsoFrom: [] }
     const usd = revolut(linked('usd', REVOLUT_USD.iban, 'USD'))
     const [line] = setupLines([usd], [], book([OTP, REVOLUT_EUR, byHand]))
     expect(line).toMatchObject({ kind: 'kept', account: byHand, update: { ...byHand, rowsFrom: 'bank-link' }, keptMine: false })
@@ -243,6 +243,7 @@ describe('a drafted account', () => {
       opening: 0,
       openedOn: DAY,
       rowsFrom: 'bank-link',
+      alsoFrom: [],
       iban: 'LT001',
       cards: [],
       closed: false,
@@ -328,7 +329,7 @@ describe('the setup writes', () => {
   })
 
   it("gives an account the bank's details and its held rows in one write, keeping its name and opening, and from then on the bank brings its rows", async () => {
-    const typed = { ...REVOLUT_USD, iban: '', rowsFrom: 'by-hand' as const }
+    const typed = { ...REVOLUT_USD, iban: '', rowsFrom: 'by-hand' as const, alsoFrom: [] }
     const store = await spendingStore([OTP, REVOLUT_EUR, typed])
     const usd = linked('usd', REVOLUT_EUR.iban, 'USD')
     const proposal = proposeAccount(usd, 'revolut', USD, [bankRow({})], [], recordIdOf(ACCOUNT_RECORDS, 'never-written'), DAY, [])
@@ -360,7 +361,7 @@ describe('the setup writes', () => {
   })
 
   it('neither fetches nor drafts a linked account whose account in Kuna is kept by hand, and reads the rest', async () => {
-    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const }
+    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const, alsoFrom: [] }
     const asked: string[] = []
     const port = fakeBankSync('linked', DAY)
     const read = await readBanks(

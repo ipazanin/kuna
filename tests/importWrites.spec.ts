@@ -22,6 +22,8 @@ import { moneyFromCents } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { AN_ID, browserHarness, forgetCaches, driveHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { factText, noteText, refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
+import { BY_HAND } from '../src/shared/app/accountSource'
 
 const used = new Set<string>()
 
@@ -139,7 +141,7 @@ describe('the import dry run', () => {
     const run = dryRun(store, creditStatement('900.00', '1823.15'))
 
     expect(run.newRows).toBe(0)
-    expect(run.statements[0]?.refusal).toBe(
+    expect(refusalText(run.statements[0]!.refusal!)).toBe(
       "The ledger ends main at €1,000.00 on 5 Oct 2026, but this statement's first new entry starts from €900.00, so a statement between the two is missing. Import that one first.",
     )
   })
@@ -164,7 +166,7 @@ describe('the import dry run', () => {
     const run = dryRun(store, quiet)
 
     expect(run.newRows).toBe(0)
-    expect(run.statements[0]).toMatchObject({ refusal: null, notes: ['The statement has no booked entries, so importing it writes nothing.'] })
+    expect(run.statements[0]).toMatchObject({ refusal: null, notes: [{ kind: 'no-entries' }] })
   })
 
   it('refuses an entry without a reference, which a second import could not tell from others', async () => {
@@ -173,7 +175,7 @@ describe('the import dry run', () => {
       .replace(/<NtryRef>.*?<\/NtryRef>/, '')
       .replace(/(<\/RvslInd>[\s\S]*?)<AcctSvcrRef>.*?<\/AcctSvcrRef>/, '$1')
 
-    expect(dryRun(store, unreferenced).statements[0]?.refusal).toMatch(/^An entry carries no bank reference/)
+    expect(dryRun(store, unreferenced).statements[0]?.refusal).toEqual({ kind: 'no-reference', count: 1 })
   })
 
   it('takes two statements of one account oldest first, the second opening where the first closes, and notes a gap in their numbers', async () => {
@@ -187,11 +189,11 @@ describe('the import dry run', () => {
     const both = creditStatement().replace('<Stmt>', `${second}<Stmt>`)
     const run = dryRun(store, both)
 
-    expect(run.statements.map((statement) => [statement.label, statement.refusal])).toEqual([
+    expect(run.statements.map((statement) => [statement.label, statement.refusal && refusalText(statement.refusal)])).toEqual([
       ['2031-03-12-statement-042', null],
       ['2031-03-14-statement-044', null],
     ])
-    expect(run.statements[1]?.notes).toEqual([
+    expect(run.statements[1]?.notes.map(noteText)).toEqual([
       'It is statement 44, and the newest on the ledger for main is 42, so one statement is not on the ledger. The balances still join, so it may have held no entries.',
     ])
     expect(run.added.map((entry) => entry.statement)).toEqual(['2031-03-12-statement-042', '2031-03-14-statement-044'])
@@ -215,7 +217,7 @@ describe.each([
 
     const again = dryRun(store, creditStatement())
     expect(again).toMatchObject({ newRows: 0, inLedger: 1, added: [] })
-    expect(again.statements[0]?.notes).toEqual(['Every entry is on the ledger already, so importing it writes nothing.'])
+    expect(again.statements[0]?.notes.map(noteText)).toEqual(['Every entry is on the ledger already, so importing it writes nothing.'])
 
     const write = store.state.writes[0]!
     await store.undo(write)
@@ -291,15 +293,14 @@ describe('a tabular import through its profile', () => {
     const workbook = store.state.workbook!
     const run = dryRunFor(statementReadings(file, workbook, profile), companyBooksOf(store.state)!, new Map())
 
-    expect(run.statements[0]?.notes).toEqual([])
-    expect(run.statements[0]?.facts).toEqual(['The file gives no balances, so they are worked out from €1,000.00, where the ledger leaves main on 5 Oct 2026.'])
+    expect(run.statements[0]?.notes.map(noteText)).toEqual([])
+    expect(run.statements[0]?.facts.map(factText)).toEqual(['The file gives no balances, so they are worked out from €1,000.00, where the ledger leaves main on 5 Oct 2026.'])
     expect(rowsOf(run).map((cells) => [cells.date, cells.amount, cells.balance, cells.statement])).toEqual([
       [46312, -3.4, 8146.6, 'promet (ffffffff)'],
       [46311, 7150, 8150, 'promet (ffffffff)'],
     ])
-    expect(dryRunFor(statementReadings(file, workbook, { ...profile, account: 'nowhere' }), companyBooksOf(store.state)!, new Map()).statements[0]?.refusal).toMatch(
-      /is for nowhere, which is not on the accounts tab/,
-    )
+    const elsewhere = dryRunFor(statementReadings(file, workbook, { ...profile, account: 'nowhere' }), companyBooksOf(store.state)!, new Map())
+    expect(elsewhere.statements[0]?.refusal).toMatchObject({ kind: 'unreadable', reason: expect.stringMatching(/is for nowhere, which is not on the accounts tab/) })
   })
 
   it('finds a file it imported on the ledger, and refuses it once a changed profile gives its rows other keys', async () => {
@@ -329,7 +330,7 @@ describe('a tabular import through its profile', () => {
     expect(runOf(profile)).toMatchObject({ newRows: 0, inLedger: 2 })
     const changed = runOf({ ...profile, description: 'Naziv' })
     expect(changed.newRows).toBe(0)
-    expect(changed.statements[0]?.refusal).toBe(
+    expect(refusalText(changed.statements[0]!.refusal!)).toBe(
       'Rows of promet (ffffffff) are on the ledger already, so this file was imported before, and none of its entries match them now, such as after a change to its profile. Nothing of it is written.',
     )
   })
@@ -356,7 +357,7 @@ describe('an account from a camt file', () => {
     const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
     const run = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]))
 
-    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR' }])
+    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', intake: BY_HAND }])
     expect(run.added.map((entry) => entry.account)).toEqual(['business'])
     expect(run.statements[0]).toMatchObject({ account: 'business', refusal: null, newAccount: { iban: NEW_IBAN } })
     expect(importTitle(run)).toBe('Added business and imported 1 row')
@@ -368,6 +369,16 @@ describe('an account from a camt file', () => {
     const again = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]))
     expect(again).toMatchObject({ newRows: 0, accounts: [] })
     expect(again.statements[0]).toMatchObject({ account: 'business', newAccount: null })
+  })
+
+  it("adds an account named from a statement of the folder as filled by the bank's statements from its first entry's day", async () => {
+    const { store } = await driveHarness(used, grids())
+    const readings = statementReadings(camtFile(newAccountStatement()), store.state.workbook!, null)
+    const run = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]), new Map(), true, 'automation')
+
+    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', intake: { rowsFrom: 'mail', startsOn: '2031-03-11', alsoFrom: [] } }])
+    await store.write(importTitle(run), (unit) => writeImport(unit, run, companyBooksOf(store.state)))
+    expect(store.state.workbook!.accounts.find((account) => account.slug === 'business')?.intake).toEqual({ rowsFrom: 'mail', startsOn: '2031-03-11', alsoFrom: [] })
   })
 
   it('names no account with a name the accounts tab has, or one the app cannot use', async () => {

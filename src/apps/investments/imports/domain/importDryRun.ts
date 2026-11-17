@@ -1,4 +1,4 @@
-import { accountIntakes, mailOwned } from './accountIntake'
+import { accountIntakes } from './accountIntake'
 import type { RoundedCell, SkipReason, SkippedRow, WorkbookColumn, WorkbookRow, WorkbookType } from './portfolioWorkbook'
 import { accountScopeOf, isReportKey, isWorkbookKey } from './reportKey'
 import { isIncomeReversal, isWithheldRefund, workbookEntries } from './workbookEntries'
@@ -15,10 +15,9 @@ import { EXCHANGE_CODEC } from '../../workbook/domain/exchangeReading'
 import type { Income } from '../../workbook/domain/income'
 import { INCOME_CODEC } from '../../workbook/domain/incomeReading'
 import type { Instrument, InstrumentType, PriceSource } from '../../workbook/domain/instrument'
-import { BY_HAND } from '../../workbook/domain/investmentAccount'
-import type { AccountIntake, InvestmentAccount } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentIntake } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { takesRowByHand } from '../../../../shared/app/accountSource'
+import { BY_HAND, alsoFromOf, takesRowFrom } from '../../../../shared/app/accountSource'
 import {
   CASH_MOVEMENT_RECORDS,
   EXCHANGE_RECORDS,
@@ -369,7 +368,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
   const knownInstruments = knownInstrumentsOf(inKuna, keyed, identityOf)
   const accountOf = (row: WorkbookRow): InvestmentAccount | null => answers.accounts.get(row.account) ?? book.accounts.find((account) => account.id === knownAccounts.get(row.account)) ?? null
   const intakes = accountIntakes(book)
-  const intakeOf = (account: InvestmentAccount): AccountIntake => account.intake ?? intakes.get(account.id) ?? BY_HAND
+  const intakeOf = (account: InvestmentAccount): InvestmentIntake => account.intake ?? intakes.get(account.id) ?? BY_HAND
   const accountsSoFar = [...book.accounts, ...answers.accounts.values()]
   const instrumentsSoFar = [...book.instruments, ...answers.instruments.values()]
   const instrumentOf = (row: WorkbookRow): Instrument | null =>
@@ -377,21 +376,19 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
 
   const skipped: SkippedRow[] = [...reading.skipped]
   const leftOut = { beforeStart: 0, byHand: 0 }
-  // A mailed report brings only the days the mail fills its account, and a row by hand stays off those days.
+  // A mailed report brings only the days the mail fills its account. Another report is the broker's own file, which an account the mail fills takes only when it allows that, and any other row is by hand, which it never takes.
   const taken = entries.filter((entry) => {
     const account = accountOf(entry.rows[0])
     if (account === null) return true
     const intake = intakeOf(account)
     if (reading.report?.mailed === true) {
-      if (!takesRowByHand(intake.rowsFrom, intake.startsOn, entry.rows[0].date)) return true
+      if (intake.rowsFrom === 'mail' && entry.rows[0].date >= intake.startsOn) return true
       if (intake.rowsFrom === 'by-hand') leftOut.byHand += entry.rows.length
       else leftOut.beforeStart += entry.rows.length
       return false
     }
-    if (keyed.has(entry.key)) return true
-    const owned = mailOwned(new Map([[account.id, intake]]), { accounts: [account.id], date: entry.rows[0].date, importKey: entry.key })
-    if (owned === null) return true
-    entry.rows.forEach((row) => skipped.push({ fileRow: row.fileRow, reason: { kind: 'mail-owns', account: account.name, startsOn: owned.startsOn } }))
+    if (keyed.has(entry.key) || takesRowFrom(intake.rowsFrom, alsoFromOf(intake), reading.report === undefined ? 'by-hand' : 'provider-file')) return true
+    entry.rows.forEach((row) => skipped.push({ fileRow: row.fileRow, reason: { kind: 'mail-owns', account: account.name } }))
     return false
   })
   const questions: Mapping['questions'] = { spinOffs: [] }

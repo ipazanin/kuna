@@ -52,7 +52,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
     formatOf: byColumn({ date: 'date', amount: 'amount', balance: 'amount', owner_share: 'number' }),
   },
   categories: { tab: 'categories', kind: CATEGORY_RECORDS, formatOf: byColumn({ owner_share: 'number' }) },
-  accounts: { tab: 'accounts', kind: ACCOUNT_RECORDS, formatOf: byColumn({}) },
+  accounts: { tab: 'accounts', kind: ACCOUNT_RECORDS, formatOf: byColumn({ starts_on: 'date' }) },
   settings: {
     tab: 'settings',
     kind: SETTING_RECORDS,

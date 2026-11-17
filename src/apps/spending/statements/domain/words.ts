@@ -32,6 +32,10 @@ export const en = {
   }),
   balanceDiffers: (product: string, balance: string, worked: string) => `The export's last ${product} balance is ${balance}, but its rows add up to ${worked}, so a row may be missing.`,
   beforeOpeningLeftOut: (count: number): EnglishForms => ({ one: '1 row before its account opened left out.', other: `${count} rows before their accounts opened left out.` }),
+  notTakenLeftOut: (count: number, account: string): EnglishForms => ({
+    one: `1 row of ${account} left out, since it takes its rows from the bank link. Its settings can allow the bank's statement file.`,
+    other: `${count} rows of ${account} left out, since it takes its rows from the bank link. Its settings can allow the bank's statement file.`,
+  }),
   outsideDaysLeftOut: (count: number, from: string, to: string): EnglishForms => ({
     one: `1 row left out, since the file brings only the days from ${from} to ${to}.`,
     other: `${count} rows left out, since the file brings only the days from ${from} to ${to}.`,
@@ -99,6 +103,11 @@ export const hr: Translation<typeof en> = {
     other: `Podizanja gotovine: ${count}. Broje se kao prijenosi i na kartici Za pregled čekaju račun gotovine.`,
   }),
   balanceDiffers: (product, balance, worked) => `Zadnje stanje izvoza za ${product} je ${balance}, a njegovi retci daju ${worked}, pa možda neki redak nedostaje.`,
+  notTakenLeftOut: (count, account): CroatianForms => ({
+    one: `Izostavljeno redaka računa ${account}: ${count}, jer retke dobiva iz veze s bankom. U njegovim postavkama možete dopustiti izvod banke.`,
+    few: `Izostavljeno redaka računa ${account}: ${count}, jer retke dobiva iz veze s bankom. U njegovim postavkama možete dopustiti izvod banke.`,
+    other: `Izostavljeno redaka računa ${account}: ${count}, jer retke dobiva iz veze s bankom. U njegovim postavkama možete dopustiti izvod banke.`,
+  }),
   beforeOpeningLeftOut: (count): CroatianForms => ({
     one: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
     few: `Izostavljeno redaka prije otvaranja računa: ${count}.`,

@@ -36,6 +36,8 @@ export const en = {
     bankLinkHelp: (field: string) => `The bank sync finds it by its IBAN and fetches its rows from the day in “${field}”.`,
     byHandHelp: 'You type its rows, import its statement files or add them through the chat.',
     ibanNeeded: "Linking a bank needs the account's IBAN",
+    statementFile: "Also take the bank's statement file",
+    statementFileHelp: 'Only the bank sync brings its rows unless you allow this, for example to fill days a lapsed link missed. Typed and copied rows never go on it.',
   },
   /** The day an account drafted from a bank or its file starts on. */
   startDay: {
@@ -121,6 +123,8 @@ export const hr: Translation<typeof en> = {
     bankLinkHelp: (field) => `Sinkronizacija s bankom pronalazi ga po IBAN-u i dohvaća retke od dana u polju „${field}”.`,
     byHandHelp: 'Retke upisujete sami, uvozite iz datoteka izvoda ili dodajete kroz razgovor.',
     ibanNeeded: 'Za povezivanje banke potreban je IBAN računa',
+    statementFile: 'Primaj i datoteku izvoda banke',
+    statementFileHelp: 'Bez ovoga retke donosi samo sinkronizacija s bankom. Uključite, primjerice, da popunite dane koje je istekla veza propustila. Upisani i prepisani retci nikad ne idu na njega.',
   },
   startDay: {
     label: 'Prati se od',

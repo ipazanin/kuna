@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { INVESTMENT_ACCOUNT_WRITES } from '../../holdings/application/holdingWrites'
 import { intakeRefusalText } from '../../holdings/application/intakeRefusals'
@@ -10,10 +11,11 @@ import { accountIntakes, intakeRefusal, landingRecords, proposedMailStart } from
 import { writeAccountSources } from '../../mail/application/mailReaderWrites'
 import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
-import { BY_HAND, INVESTMENT_ROWS_FROM } from '../../workbook/domain/investmentAccount'
-import type { AccountIntake, InvestmentAccount, InvestmentRowsFrom } from '../../workbook/domain/investmentAccount'
+import { INVESTMENT_ROWS_FROM } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentIntake, InvestmentRowsFrom } from '../../workbook/domain/investmentAccount'
 import { INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { words } from './words'
+import { BY_HAND } from '../../../../shared/app/accountSource'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -50,6 +52,7 @@ const name = ref('')
 const note = ref('')
 const rowsFrom = ref<InvestmentRowsFrom>('by-hand')
 const startsOn = ref('')
+const takesUploads = ref(false)
 const tried = ref(false)
 
 watch(open, (opened) => {
@@ -59,15 +62,16 @@ watch(open, (opened) => {
   note.value = props.account?.note ?? ''
   accountId.value = props.account?.id ?? recordIdOf(INVESTMENT_ACCOUNT_RECORDS, newRecordId())
   rowsFrom.value = intake?.rowsFrom ?? 'by-hand'
+  takesUploads.value = intake?.rowsFrom === 'mail' && intake.alsoFrom.includes('provider-file')
   startsOn.value = intake?.rowsFrom === 'mail' ? intake.startsOn : proposedMailStart(accountId.value, book.value === null ? [] : landingRecords(book.value), today())
   tried.value = false
 })
 
 const nameError = computed(() => (name.value.trim() === '' ? text.nameError : null))
-const intake = computed((): AccountIntake | null => {
+const intake = computed((): InvestmentIntake | null => {
   if (rowsFrom.value === 'by-hand') return BY_HAND
   const day = parseCivilDate(startsOn.value)
-  return day === null ? null : { rowsFrom: 'mail', startsOn: day }
+  return day === null ? null : { rowsFrom: 'mail', startsOn: day, alsoFrom: takesUploads.value ? ['provider-file'] : [] }
 })
 /** A start day missing, or one the write would refuse, said under the field once Save is pressed. */
 const startsOnError = computed(() => {
@@ -126,6 +130,9 @@ async function remove(): Promise<void> {
       </UFormField>
       <UFormField v-if="rowsFrom === 'mail'" :label="text.startsOn" :error="(tried && startsOnError) || false">
         <DayField v-model="startsOn" class="w-full" data-testid="account-starts-on" />
+      </UFormField>
+      <UFormField v-if="rowsFrom === 'mail'" :help="text.uploadsHelp" class="sm:col-span-2">
+        <USwitch v-model="takesUploads" :label="text.uploads" class="min-h-11" data-testid="account-takes-uploads" />
       </UFormField>
     </FormGrid>
     <template #start>

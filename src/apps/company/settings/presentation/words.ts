@@ -91,8 +91,11 @@ export const en = {
   accounts: {
     title: 'Accounts',
     count: (count: number): EnglishForms => ({ one: `${count} account`, other: `${count} accounts` }),
-    subtitle: (currency: string) => `Your bank accounts, by the names ledger rows use. A blank currency means ${currency}.`,
-    columns: { account: 'Account', label: 'Shown as', iban: 'IBAN', currency: 'Currency', delete: 'Delete' },
+    subtitle: (currency: string) =>
+      `Your bank accounts, by the names ledger rows use. A blank currency means ${currency}. An account the bank's statements fill takes them from the statements folder, by mail or dropped there, and no sheet or copied row.`,
+    columns: { account: 'Account', label: 'Shown as', iban: 'IBAN', currency: 'Currency', rowsFrom: 'Rows come in', startsOn: 'Statements from', delete: 'Delete' },
+    rowsFrom: { mail: "Bank's statements", byHand: 'By hand' },
+    takesCamtFile: 'Also its camt file on Import',
     none: 'No accounts yet. Add the accounts your ledger rows name.',
     removeNew: 'Remove this new account',
     deleteName: (name: string) => `Delete ${name || 'this account'}`,
@@ -320,8 +323,11 @@ export const hr: Translation<typeof en> = {
   accounts: {
     title: 'Računi u banci',
     count: (count) => ({ one: `${count} račun`, few: `${count} računa`, other: `${count} računa` }),
-    subtitle: (currency) => `Vaši računi u banci, po nazivima koje koriste stavke evidencije. Prazna valuta znači ${currency}.`,
-    columns: { account: 'Račun', label: 'Prikazuje se kao', iban: 'IBAN', currency: 'Valuta', delete: 'Obriši' },
+    subtitle: (currency) =>
+      `Vaši računi u banci, po nazivima koje koriste stavke evidencije. Prazna valuta znači ${currency}. Račun koji pune izvodi banke dobiva ih iz mape izvoda, poštom ili spremljene ondje, a ne prima tablicu ni prepisane stavke.`,
+    columns: { account: 'Račun', label: 'Prikazuje se kao', iban: 'IBAN', currency: 'Valuta', rowsFrom: 'Stavke dolaze', startsOn: 'Izvodi od', delete: 'Obriši' },
+    rowsFrom: { mail: 'Izvodi banke', byHand: 'Ručno' },
+    takesCamtFile: 'I njegova camt datoteka u Uvozu',
     none: 'Još nema računa. Dodajte račune koje navode stavke evidencije.',
     removeNew: 'Ukloni ovaj novi račun',
     deleteName: (name) => (name === '' ? 'Obriši ovaj račun' : `Obriši „${name}”`),

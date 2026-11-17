@@ -297,7 +297,13 @@ if (companyAsked) {
 
   group('read.records', companyFiguresOf(records))
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
-  group('read.workbook', [raw, raw.categories.map((category) => [category.label, category.family, category.colour.stored, category.roles])])
+  // How each account's rows come in has a group of its own, so read.workbook stays as it was before accounts said it.
+  const withoutSources = { ...raw, accounts: raw.accounts.map(({ intake: _intake, ...account }) => account) }
+  group('read.workbook', [withoutSources, raw.categories.map((category) => [category.label, category.family, category.colour.stored, category.roles])])
+  group(
+    'read.sources',
+    raw.accounts.map((account) => account.intake),
+  )
   group('settings.problems', booked.problems)
   group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
   group('settings.uses', () => [categoryUses((kind) => recordsOfKindIn(records, kind)), accountUses((kind) => recordsOfKindIn(records, kind))])

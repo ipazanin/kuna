@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { tieRefusal, transcribedReferences } from '../src/apps/company/imports/domain/importedStatement'
+import { TranscribedRefused, transcribedReferences, transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
+import { transcribedRefusalText } from '../src/apps/company/imports/presentation/dryRunWords'
 import { statementTies } from '../src/shared/money/statementTies'
 import { moneyFromCents } from '../src/shared/money/money'
 import { civil } from './fixtures/ledger'
@@ -18,7 +19,19 @@ describe("a printed statement's balances, in Company's ledger", () => {
     if (tie.kind !== 'off') throw new Error('expected the statement to be off')
 
     expect(tie.gap).toBe(moneyFromCents(-1))
-    expect(tieRefusal(tie)).toBe('The statement does not add up: the opening balance €9,050.00 and its entries €1,567.50 reach €10,617.50, but the printed closing balance is €10,617.49, €0.01 apart.')
+    const rows = AMOUNTS.map((amount, at) => ({ date: civil(`2026-10-0${at + 1}`), amount, counterparty: 'Acme', counterpartyIban: '', description: '' }))
+    const refused = (() => {
+      try {
+        transcribedStatement('main', 'main, October', OPENING, moneyFromCents(1_061_749), rows, 'ask')
+      } catch (failure) {
+        if (failure instanceof TranscribedRefused) return failure.refusal
+      }
+      return null
+    })()
+    expect(refused).toEqual({ kind: 'does-not-tie', opening: OPENING, rows: moneyFromCents(156_750), reached: moneyFromCents(1_061_750), closing: moneyFromCents(1_061_749), gap: moneyFromCents(1) })
+    expect(transcribedRefusalText(refused!)).toBe(
+      'The statement does not add up: the opening balance €9,050.00 and its entries €1,567.50 reach €10,617.50, but the printed closing balance is €10,617.49, €0.01 apart.',
+    )
   })
 })
 

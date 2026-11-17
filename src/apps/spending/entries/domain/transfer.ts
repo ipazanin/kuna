@@ -15,7 +15,7 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 
 /** One side of a transfer: its account, and the leg already on it, whose amount the bank may have fixed. Both legs held is a transfer already saved. */
 export interface TransferSide {
-  readonly account: Pick<Account, 'id' | 'currency' | 'bank' | 'rowsFrom' | 'openedOn'>
+  readonly account: Pick<Account, 'id' | 'currency' | 'bank' | 'rowsFrom' | 'alsoFrom' | 'openedOn'>
   readonly row: Pick<Transaction, 'importKey'> | null
 }
 

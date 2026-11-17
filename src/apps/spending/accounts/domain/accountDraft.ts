@@ -2,18 +2,23 @@ import { words } from './words'
 import { NEW_ACCOUNT_DEFAULTS, rowsFromOfDetails } from '../../workbook/domain/account'
 import type { Account, AccountKind } from '../../workbook/domain/account'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
+import type { ExtraOrigin, RowOrigin } from '../../../../shared/app/accountSource'
 
 /**
  * A new account as its bank or its file describes it, named from the bank, the currency and whether it saves. A name another
- * account already has gains the IBAN's last four characters. The holder's name never comes into it.
+ * account already has gains the IBAN's last four characters. The holder's name never comes into it. One drafted from the
+ * bank's statement file that the bank link would fill also takes that file, whose rows it is made for.
  */
 export function draftedAccount(
   details: Pick<Account, 'kind' | 'currency' | 'iban' | 'opening' | 'openedOn'> & { readonly bank: LinkableBank },
   accounts: readonly Pick<Account, 'name'>[],
+  draftedFrom: Extract<RowOrigin, 'automation' | 'provider-file'>,
 ): Omit<Account, 'id'> {
   const plain = words.draftName(details.bank, details.currency, details.kind === 'savings')
   const name = details.iban !== '' && accounts.some((account) => account.name.trim() === plain) ? `${plain} ${details.iban.slice(-4)}` : plain
-  return { ...details, name, rowsFrom: rowsFromOfDetails(details), ...NEW_ACCOUNT_DEFAULTS }
+  const rowsFrom = rowsFromOfDetails(details)
+  const alsoFrom: readonly ExtraOrigin[] = rowsFrom === 'bank-link' && draftedFrom === 'provider-file' ? ['provider-file'] : []
+  return { ...details, name, rowsFrom, ...NEW_ACCOUNT_DEFAULTS, alsoFrom }
 }
 
 /**

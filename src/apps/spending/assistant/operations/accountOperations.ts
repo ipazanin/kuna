@@ -1,4 +1,4 @@
-import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, flagOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { ALSO_FROM_OR_NULL, FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, alsoFromOfInput, choiceOf, dayOf, flagOf, found, inputOf } from '../../../../shared/app/operationInput'
 import { ACCOUNT_WRITES, changeAccount, keptAccount, newAccount } from '../../accounts/application/accountWrites'
 import { startDayMove } from '../../accounts/domain/startDayMove'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
@@ -21,7 +21,7 @@ const CARDS_INPUT: StrictSchema = {
 }
 
 const ROWS_FROM_ABOUT =
-  'rowsFrom is by-hand when the person types its rows, imports its files or adds them through the chat, or bank-link when the bank sync fetches them. Ask the person which. bank-link needs an IBAN and a saved bank sync deployment, which the bank-sync line tells, and cash is always by-hand.'
+  "rowsFrom is by-hand when the person types its rows, imports its files or adds them through the chat, or bank-link when the bank sync fetches them. Ask the person which. bank-link needs an IBAN and a saved bank sync deployment, which the bank-sync line tells, and cash is always by-hand. A bank-link account takes no typed or copied row, and the bank's statement file only with alsoFrom provider-file."
 
 /** What Accounts does: add, change and delete an account. */
 export const ACCOUNT_OPERATIONS: readonly AssistantOperation[] = [
@@ -38,11 +38,12 @@ export const ACCOUNT_OPERATIONS: readonly AssistantOperation[] = [
       iban: TEXT_OR_NULL,
       cards: CARDS_INPUT,
       rowsFrom: { type: 'string', enum: [...ROWS_FROM] },
+      alsoFrom: ALSO_FROM_OR_NULL,
     }),
     refs: {},
     creates: ACCOUNT_RECORDS.name,
     alone: false,
-    example: { name: 'Savings', kind: 'savings', bank: null, currency: 'EUR', opening: 100, openedOn: '2026-11-01', iban: null, cards: null, rowsFrom: 'by-hand' },
+    example: { name: 'Savings', kind: 'savings', bank: null, currency: 'EUR', opening: 100, openedOn: '2026-11-01', iban: null, cards: null, rowsFrom: 'by-hand', alsoFrom: null },
   },
   {
     name: 'change-account',
@@ -59,12 +60,13 @@ export const ACCOUNT_OPERATIONS: readonly AssistantOperation[] = [
       iban: TEXT_OR_NULL,
       cards: CARDS_INPUT,
       rowsFrom: { type: ['string', 'null'], description: `${ROWS_FROM.join(', ')}, or null to leave it.` },
+      alsoFrom: ALSO_FROM_OR_NULL,
       closed: FLAG_OR_NULL,
     }),
     refs: { account: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { account: 'account', name: 'Renamed', kind: null, bank: null, currency: null, opening: 250, openedOn: null, iban: null, cards: '3670', rowsFrom: null, closed: 'yes' },
+    example: { account: 'account', name: 'Renamed', kind: null, bank: null, currency: null, opening: 250, openedOn: null, iban: null, cards: '3670', rowsFrom: null, alsoFrom: null, closed: 'yes' },
   },
   {
     name: 'delete-account',
@@ -134,6 +136,7 @@ export function writeAccountStep(
       rowsFrom: field['rowsFrom'] as RowsFrom,
       ...NEW_ACCOUNT_DEFAULTS,
       cards: typedCards(field['cards'], NEW_ACCOUNT_DEFAULTS.cards),
+      alsoFrom: field['rowsFrom'] === 'bank-link' ? alsoFromOfInput(field['alsoFrom'], []) : [],
     }
     refuseRowsFrom(rowsFromRefusal(typed, null, book.settings))
     const account = newAccount(typed)
@@ -147,6 +150,7 @@ export function writeAccountStep(
     const bank: AccountBank | 'none' | null = choiceOf([...ACCOUNT_BANKS, 'none'], field['bank'], 'bank')
     const move = field['openedOn'] === null ? null : startDayMove(book, before, dayOf(field['openedOn']))
     const kind = choiceOf(ACCOUNT_KINDS, field['kind'], 'kind') ?? before.kind
+    const rowsFrom = choiceOf(ROWS_FROM, field['rowsFrom'], 'rowsFrom') ?? (kind === 'cash' ? 'by-hand' : before.rowsFrom)
     const after = {
       ...before,
       name: (field['name'] as string | null) ?? before.name,
@@ -157,7 +161,8 @@ export function writeAccountStep(
       openedOn: move?.startsOn ?? before.openedOn,
       iban: (field['iban'] as string | null) ?? before.iban,
       cards: typedCards(field['cards'], before.cards),
-      rowsFrom: choiceOf(ROWS_FROM, field['rowsFrom'], 'rowsFrom') ?? (kind === 'cash' ? 'by-hand' : before.rowsFrom),
+      rowsFrom,
+      alsoFrom: rowsFrom === 'bank-link' ? alsoFromOfInput(field['alsoFrom'], before.alsoFrom) : [],
       closed: flagOf(field['closed'], before.closed),
     }
     refuseRowsFrom(rowsFromRefusal(after, before, book.settings))

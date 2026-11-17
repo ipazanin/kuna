@@ -16,7 +16,7 @@ import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
 import { installedPack } from '../../packs/packContribution'
 import { readCamtDocument } from '../domain/camtStatement'
 import { importDryRun } from '../domain/importDryRun'
-import type { ImportDryRun } from '../domain/importDryRun'
+import type { DryRunInputs, ImportDryRun } from '../domain/importDryRun'
 import { replaceLedgerRows } from '../../transactions/application/itemWrites'
 import type { ImportProfile } from '../domain/importProfile'
 import type { StatementReading } from '../domain/importedStatement'
@@ -64,7 +64,8 @@ export function newAccountNameProblem(name: string, taken: ReadonlySet<string>):
  * that look like rows the AI copied. A statement read before its IBAN was added to the accounts tab
  * is filed under that account, and a name that cannot be used names no account. The new rows pay
  * the invoices `proposedInvoicePayments` places them on, on books that place client payments, and
- * on books with an items tab that do not yet when `startsPlacing`, since confirming starts it.
+ * on books with an items tab that do not yet when `startsPlacing`, since confirming starts it. `camtOrigin` says whether a camt
+ * statement comes from the statements folder or from the person.
  */
 export function dryRunFor(
   readings: readonly StatementReading[],
@@ -73,6 +74,7 @@ export function dryRunFor(
   names: ReadonlyMap<string, string> = new Map(),
   twinAnswers: ReadonlyMap<string, TwinAnswer> = new Map(),
   startsPlacing = true,
+  camtOrigin: DryRunInputs['camtOrigin'] = 'provider-file',
 ): ImportDryRun {
   const { records, workbook } = books
   const placesInvoices = storesItems(records) && (workbook.paidInvoices !== undefined || startsPlacing)
@@ -97,6 +99,8 @@ export function dryRunFor(
     starts,
     named,
     twinAnswers,
+    intakes: new Map(workbook.accounts.map((account) => [account.slug, account.intake])),
+    camtOrigin,
     paymentsOf: (added) => [...(placesInvoices ? proposedInvoicePayments(presentedWorkbook(workbook), added) : []), ...installedPack().repaymentsOf(workbook, added)],
   })
 }
@@ -116,7 +120,9 @@ export function writeImport(unit: UnitOfWork, run: ImportDryRun, books: CompanyB
     startPlacingPayments(unit, books)
   }
   for (const account of run.accounts) {
-    unit.of(ACCOUNT_WRITES).add(accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }))
+    unit
+      .of(ACCOUNT_WRITES)
+      .add({ ...accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }), intake: account.intake })
   }
   const removed = run.removed.flatMap((copied) => recordWithId(records.ledger, copied.id)?.record ?? [])
   replaceLedgerRows(unit, records, removed, run.added, run.payments)

@@ -2127,13 +2127,20 @@ export function importCamtLookAlikeFlowIn(language, path) {
   }
 }
 
-/** Import: drop the sample bank export, make and save a profile from the guess, confirm the dry run, and Undo. */
+/** The dry run refuses the sample bank export, since the bank's statements fill the fake books' main account and a sheet goes on no such account. */
+async function sheetRefused(page) {
+  await page.waitForSelector('[data-testid="dry-run-refusal"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error("the dry run takes a sheet onto an account the bank's statements fill")
+  })
+  await delay(300)
+}
+
+/** Import: drop the sample bank export, make and save a profile from the guess, see the dry run refuse it onto main, and delete the profile. */
 export function importTableFlowIn(language, path) {
   const words = SCREEN_WORDS[language]
   const panel = words.imports.panel
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const addsFour = countedIn(words, panel.addsRows(4), 4)
     await dropFile(page, path)
     const name = await page
       .waitForSelector('[data-testid="profile-editor"] input[data-testid="profile-name"], [data-testid="profile-editor"] [data-testid="profile-name"] input', { timeout: 10_000 })
@@ -2141,7 +2148,7 @@ export function importTableFlowIn(language, path) {
         throw new Error('no profile editor for an export no saved profile fits')
       })
     await setField(name, 'example-bank')
-    await dryRunSays(page, addsFour)
+    await sheetRefused(page)
     await inspect?.('the new profile')
     await shoot('import-profile')
     await pressSelector(page, press, '[data-testid="profile-save"]')
@@ -2153,17 +2160,8 @@ export function importTableFlowIn(language, path) {
       .catch(() => {
         throw new Error('the saved profile is not the one picked')
       })
-    await dryRunSays(page, addsFour)
+    await sheetRefused(page)
     await shoot('import-table-dry-run')
-    await pressSelector(page, press, '[data-testid="import-confirm"]')
-    await toastCounted(page, (count) => words.importWrites.imported([], count))
-    await dryRunSays(page, panel.writesNothing)
-    await waitingOnReview(page, true)
-    await inspect?.('the export confirmed')
-    await undoIn(page, press, words)
-    await dryRunSays(page, addsFour)
-    await shoot('import-table-undone')
-    await dismissToasts(page)
 
     await pressSelector(page, press, '[data-testid="profile-delete"]')
     await toast(page, panel.profileDeleted)
@@ -2225,7 +2223,7 @@ export function importFlowIn(language, paths) {
     })
     await elementSays(page, '[data-testid="profile-editor"]', [words.imports.profile.name, words.imports.profile.saveNew], 'the profile editor is not in its language')
     await setField((await name.$('input')) ?? name, 'example-bank')
-    await dryRunSays(page, addsFour)
+    await sheetRefused(page)
     await inspect?.('the guessed profile')
     await shoot('import-profile')
   }
@@ -9815,6 +9813,10 @@ export function investmentsDialogsFlowIn(language) {
     })
     await delay(300)
     await shoot('dialog-investments-account-mail')
+    // The switch that lets the account take an uploaded report too, with its help under it.
+    await scrollIntoDialogView(page, '[data-testid="account-takes-uploads"]')
+    await delay(300)
+    await shoot('dialog-investments-account-mail-uploads')
     // A start day in a filed tax year is refused under the field once Save is pressed.
     await typeDay(await page.$('[data-testid="account-starts-on"]'), '2024-03-01')
     await pressSelector(page, press, '[data-testid="account-save"]')
@@ -11302,6 +11304,27 @@ const LOOK_ALIKE_WAITS = { en: '1 row waits, not imported', hr: '1 redak čeka, 
  * the card skips the row the books have, lists the look-alike that waits beside the row it looks like, and Accept writes the
  * rest with one Undo. `name` is what the screenshot is called.
  */
+/** The chat copies a statement onto Company's main account, which the bank's statements fill, so Kuna refuses it and the chat says so with no card. */
+export function chatStatementRefusedFlowIn(language, name) {
+  const request = language === 'en' ? 'transcribe the statement' : 'prenesi izvod'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (shot) => shootAs(language === 'en' ? shot : `${shot}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, request)
+      await allowIfAsked(page, press)
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      if (await page.$('[data-testid="chat-proposal-accept"]')) throw new Error("the chat offers a card that copies rows onto an account the bank's statements fill")
+      await inspect?.('the copied statement refused')
+      await shoot(name)
+      await newChat(page, press)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
 export function chatStatementLookAlikeFlowIn(language, name) {
   const request = language === 'en' ? 'transcribe the statement' : 'prenesi izvod'
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -12382,6 +12405,13 @@ export function spendingFirstAccountBankFlowIn(language) {
     await delay(300)
     await inspect?.('the account dialog linked to a bank with no IBAN')
     await shoot('spending-first-account-bank')
+    // The switch that lets a linked account take the bank's statement file too, with its help under it.
+    await page.waitForSelector('[data-testid="spending-account-statement-file"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error("an account linked to a bank offers no switch for the bank's statement file")
+    })
+    await scrollIntoDialogView(page, '[data-testid="spending-account-statement-file"]')
+    await delay(300)
+    await shoot('spending-first-account-bank-statement-file')
   }
 }
 

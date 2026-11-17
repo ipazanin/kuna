@@ -1,4 +1,7 @@
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -8,6 +11,11 @@ export const en = {
   /** Why a write to the settings tab is refused. */
   settings: {
     keyOnRows: (key: string, rows: number) => `The settings tab sets "${key}" on ${rows} rows. Keep one of them in an export and open that file again.`,
+  },
+  /** Why an account's start day for the bank's statements cannot be written, short enough for its field. */
+  startDay: {
+    filed: (firstOpen: CivilDate) => `Its VAT return is filed. Pick ${dayLabel(firstOpen)} or later.`,
+    overHandRows: (startsOn: CivilDate) => `It has rows by hand from ${dayLabel(startsOn)}. Pick a later day.`,
   },
   /** What names a category, an account or a client outside its tab, as a refusal and the editor's lock say it. */
   uses: {
@@ -26,6 +34,10 @@ export const hr: Translation<typeof en> = {
   settings: {
     keyOnRows: (key, rows) =>
       `Postavka „${key}” postavljena je u ${rows} ${plural({ one: 'retku', few: 'retka', other: 'redaka' }, rows)} kartice postavki. U izvozu zadržite jedan od njih i ponovno otvorite tu datoteku.`,
+  },
+  startDay: {
+    filed: (firstOpen) => `Prijava PDV-a za te dane je predana. ${withFullStop(`Odaberite od ${dayLabel(firstOpen)}`)}`,
+    overHandRows: (startsOn) => `${withFullStop(`Ima ručne stavke od ${dayLabel(startsOn)}`)} Odaberite kasniji dan.`,
   },
   uses: {
     ledgerRows: (count) => ({ one: `${count} stavka evidencije`, few: `${count} stavke evidencije`, other: `${count} stavki evidencije` }),

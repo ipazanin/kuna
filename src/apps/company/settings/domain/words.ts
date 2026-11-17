@@ -78,6 +78,7 @@ export const en = {
   /** What the categories editor says beside a field it cannot save. */
   fields: {
     required: 'Required',
+    aDay: 'A day, such as 1 Jan 2026',
     usedAbove: 'Already used above',
     keepsName: (name: string) => `${name} is in use, so it keeps its name`,
     slugFormat: 'Lower-case letters, digits and single hyphens',
@@ -212,6 +213,7 @@ export const hr: Translation<typeof en> = {
   },
   fields: {
     required: 'Obavezno',
+    aDay: 'Dan, na primjer 1. 1. 2026.',
     usedAbove: 'Već se koristi iznad',
     keepsName: (name) => `„${name}” je u upotrebi, pa zadržava naziv`,
     slugFormat: 'Mala slova, znamenke i pojedinačne crtice',

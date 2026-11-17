@@ -20,6 +20,7 @@ import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { civil, euros } from './fixtures/ledger'
 import { bankLoan, informalLoan, movement, ratePeriod } from './fixtures/loans'
 import { DATE_PARAMETER } from '../scripts/support/dateParameters.mjs'
+import { BY_HAND } from '../src/shared/app/accountSource'
 
 /** The sentences Croatian builds from a record's noun, with the language on screen pinned to Croatian. */
 async function croatian(): Promise<typeof import('../src/shared/storage/presentation/words')> {
@@ -336,7 +337,7 @@ describe('Company names Kuna seeds, in Croatian', () => {
 
   it('keeps a label the file gives and the words of a slug Kuna never seeded', async () => {
     const { displayName, displayNamesOf } = await inCroatian(() => import('../src/apps/company/workbook/domain/displayName'))
-    const names = displayNamesOf({ categories: [], accounts: [{ slug: 'travel', label: '', iban: '', currency: '' }] })
+    const names = displayNamesOf({ categories: [], accounts: [{ slug: 'travel', label: '', iban: '', currency: '', intake: BY_HAND }] })
 
     expect(displayName('office-rent', 'Ured u Splitu')).toBe('Ured u Splitu')
     expect(displayName('ai-services')).toBe('AI services')
@@ -410,14 +411,15 @@ describe('imports, sync and mail in Croatian', () => {
 
   it('writes a statement’s refusals with Croatian amounts and dates', async () => {
     const { words } = await inCroatian(() => import('../src/apps/company/imports/domain/words'))
+    const { words: dryRunWords } = await inCroatian(() => import('../src/apps/company/imports/presentation/dryRunWords'))
 
-    expect(words.dryRun.beforeNewest(civilDate(2026, 9, 1), civilDate(2026, 9, 15), 'main').replaceAll('\u00a0', ' ')).toBe(
+    expect(dryRunWords.dryRun.beforeNewest(civilDate(2026, 9, 1), civilDate(2026, 9, 15), 'main').replaceAll('\u00a0', ' ')).toBe(
       'Prva nova stavka ima datum 1. 9. 2026., prije 15. 9. 2026., datuma najnovije stavke računa „main”. Stavke se dodaju samo nakon najnovije.',
     )
-    expect(words.dryRun.noReference(1)).toMatch(/^Jedna stavka nema bankovnu referencu, pa je /)
-    expect(words.dryRun.noReference(3)).toMatch(/^3 stavke nemaju bankovnu referencu, pa ih /)
-    expect(words.dryRun.sequenceGap(30, 27, 'main', 2)).toContain('pa u evidenciji nedostaju 2 izvoda.')
-    expect(words.dryRun.partlyHeld(1, 2)).toBe('Stavke izvoda već u evidenciji: 1. Nove stavke koje dolaze nakon njih: 2.')
+    expect(dryRunWords.dryRun.noReference(1)).toMatch(/^Jedna stavka nema bankovnu referencu, pa je /)
+    expect(dryRunWords.dryRun.noReference(3)).toMatch(/^3 stavke nemaju bankovnu referencu, pa ih /)
+    expect(dryRunWords.dryRun.sequenceGap(30, 27, 'main', 2)).toContain('pa u evidenciji nedostaju 2 izvoda.')
+    expect(dryRunWords.dryRun.partlyHeld(1, 2)).toBe('Stavke izvoda već u evidenciji: 1. Nove stavke koje dolaze nakon njih: 2.')
     expect(words.camt.summaryCount('TtlDbtNtries', 3, 2, 'debit')).toBe('TtlDbtNtries navodi 3 stavke, a aplikacija je pročitala 2 stavke proknjiženih terećenja.')
   })
 

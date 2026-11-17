@@ -17,7 +17,9 @@ import { BANK_PRESETS } from '../../mail/domain/bankPresets'
 import { setSettings } from '../../settings/application/settingWrites'
 import { words as settingsWords } from '../../settings/presentation/words'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { firstMailDay, folderDeliveryRows, mailDeliveryRows, MAIL_STATEMENTS_FOLDER, OTHER_BANK, statementMailProblems } from '../domain/statementsChoice'
+import { ACCOUNT_WRITES } from '../../settings/application/namedRecordWrites'
+import { installedPack } from '../../packs/packContribution'
+import { accountsTheStatementsFill, firstMailDay, folderDeliveryRows, mailDeliveryRows, MAIL_STATEMENTS_FOLDER, OTHER_BANK, statementMailProblems } from '../domain/statementsChoice'
 import type { StatementMail } from '../domain/statementsChoice'
 import { words } from './words'
 
@@ -68,7 +70,15 @@ async function save(): Promise<void> {
   try {
     const rows = await rowsOfChoice()
     if (rows !== null) {
-      await store.write(settingsWords.saved, (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, rows))
+      const filled = accountsTheStatementsFill(store.state.workbook?.accounts ?? [], store.state.workbook?.transactions ?? [], since.value, installedPack().firstOpenDay(today()))
+      const accounts = store.state.records?.accounts.records ?? []
+      await store.write(settingsWords.saved, (unit) => {
+        setSettings(unit, store.state.records?.settings ?? NO_RECORDS, rows)
+        for (const { slug, intake } of filled) {
+          const before = accounts.find((stored) => stored.record.slug === slug)?.record
+          if (before !== undefined) unit.of(ACCOUNT_WRITES).change(before, { ...before, intake })
+        }
+      })
       open.value = false
     }
   } catch (refused) {

@@ -6,6 +6,9 @@ import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../.
 import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
 import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
 import type { Settings } from '../../settings/domain/settings'
+import { proposedStartDay } from '../../../../shared/app/accountSource'
+import { handDaysOf } from '../../workbook/domain/accountIntakes'
+import type { Account, CompanyIntake, Transaction } from '../../workbook/domain/workbook'
 import { words } from './words'
 
 /** The folder the app makes beside the books file for the statements it files from mail, which `drive.file` can then read. */
@@ -65,6 +68,24 @@ export function mailDeliveryRows(mail: StatementMail, today: CivilDate): readonl
     { key: 'statements_mail_subject', value: subject },
     { key: 'mail_since', value: mail.since ?? firstMailDay(today) },
   ]
+}
+
+/**
+ * The accounts kept by hand that the bank's statements fill once they reach the statements folder, each from the day the mail
+ * search starts, and never over a day already filed or a row by hand. Only an account with an IBAN, which a statement finds it by.
+ */
+export function accountsTheStatementsFill(
+  accounts: readonly Pick<Account, 'slug' | 'iban' | 'intake'>[],
+  ledger: readonly Pick<Transaction, 'account' | 'date' | 'statement' | 'reference'>[],
+  since: CivilDate,
+  firstOpen: CivilDate | null,
+): readonly { readonly slug: string; readonly intake: CompanyIntake }[] {
+  return accounts
+    .filter((account) => account.intake.rowsFrom === 'by-hand' && account.iban !== '')
+    .map((account) => {
+      const proposed = proposedStartDay(handDaysOf(account.slug, ledger), since, firstOpen)
+      return { slug: account.slug, intake: { rowsFrom: 'mail', startsOn: proposed > since ? proposed : since, alsoFrom: [] } }
+    })
 }
 
 /** The settings rows that read each sync's statements from a folder at this path from My Drive. */

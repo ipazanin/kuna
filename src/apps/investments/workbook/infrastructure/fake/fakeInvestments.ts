@@ -1,3 +1,4 @@
+import { BY_HAND } from '../../../../../shared/app/accountSource'
 import { codecOfInvestmentsKind } from '../../application/investmentsCodecs'
 import type { CashMovement } from '../../domain/cashMovement'
 import type { CheckSetting } from '../../domain/checkSetting'
@@ -6,7 +7,6 @@ import type { FundMixLine } from '../../domain/fundMix'
 import type { HandPrice } from '../../domain/handPrice'
 import type { Income } from '../../domain/income'
 import type { Instrument } from '../../domain/instrument'
-import { BY_HAND } from '../../domain/investmentAccount'
 import type { InvestmentAccount } from '../../domain/investmentAccount'
 import type { MailReader } from '../../domain/mailReader'
 import {
@@ -75,7 +75,7 @@ const BROKER_TWO: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 
 
 /** The first account as the mailed report fills it, from a month before the day. */
 function mailedBrokerOne(today: CivilDate): InvestmentAccount {
-  return { ...BROKER_ONE, intake: { rowsFrom: 'mail', startsOn: addDays(today, -30) } }
+  return { ...BROKER_ONE, intake: { rowsFrom: 'mail', startsOn: addDays(today, -30), alsoFrom: [] } }
 }
 
 /** Made-up instruments, the three priced ones on the made-up series of the fake prices file. */

@@ -19,6 +19,7 @@ import type { Account, AccountBank, AccountKind, RowsFrom } from '../../workbook
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { ExtraOrigin } from '../../../../shared/app/accountSource'
 import { absAccountMoney, negateAccountMoney, typedAccountAmount, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
@@ -70,6 +71,7 @@ const openedOn = ref('')
 const iban = ref('')
 const cards = ref('')
 const rowsFrom = ref<RowsFrom>('by-hand')
+const takesStatementFile = ref(false)
 const tried = ref(false)
 
 /** An account that entries name keeps its currency, since their amounts are in it. */
@@ -98,6 +100,7 @@ watch(open, (opened) => {
   iban.value = account?.iban ?? ''
   cards.value = cardsText(account?.cards ?? NEW_ACCOUNT_DEFAULTS.cards)
   rowsFrom.value = account?.rowsFrom ?? props.startingRowsFrom ?? 'by-hand'
+  takesStatementFile.value = account?.alsoFrom.includes('provider-file') ?? false
   tried.value = false
 })
 
@@ -131,6 +134,7 @@ const settings = computed(() => store.state.workbook?.settings ?? { bankSyncDepl
 const offersBankLink = computed(() => bankLinkOffered(kind.value, props.account, settings.value))
 /** By hand wherever the choice is not offered, as on cash. */
 const pickedRowsFrom = computed<RowsFrom>(() => (offersBankLink.value ? rowsFrom.value : 'by-hand'))
+const pickedAlsoFrom = computed<readonly ExtraOrigin[]>(() => (pickedRowsFrom.value === 'bank-link' && takesStatementFile.value ? ['provider-file'] : []))
 
 /** None on cash, which no card pays from. */
 const typedCards = computed(() => (kind.value === 'cash' ? NEW_ACCOUNT_DEFAULTS.cards : cardsOfText(cards.value)))
@@ -162,6 +166,7 @@ async function save(): Promise<void> {
     iban: iban.value,
     cards: typedCardList,
     rowsFrom: pickedRowsFrom.value,
+    alsoFrom: pickedAlsoFrom.value,
     closed: props.account?.closed ?? NEW_ACCOUNT_DEFAULTS.closed,
   })
   const before = props.account
@@ -207,6 +212,9 @@ async function remove(): Promise<void> {
         class="sm:col-span-2"
       >
         <ChoiceButtons v-model="rowsFrom" :options="ROWS_FROM_OPTIONS" :label="words.rowsFromChoice.label" data-testid="spending-account-rows-from" />
+      </UFormField>
+      <UFormField v-if="pickedRowsFrom === 'bank-link'" :help="words.rowsFromChoice.statementFileHelp" class="sm:col-span-2">
+        <USwitch v-model="takesStatementFile" :label="words.rowsFromChoice.statementFile" class="min-h-11" data-testid="spending-account-statement-file" />
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" :error="(tried && errors.iban) || false" class="sm:col-span-2">
         <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />

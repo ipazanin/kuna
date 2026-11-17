@@ -5,6 +5,7 @@ import type { Settings } from '../../settings/domain/settings'
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import type { AccountRecord } from './accountsReading'
 import { readAccounts } from './accountsReading'
+import { accountsWithIntakes, folderFiledOnSync } from './accountIntakes'
 import type { BillingItem } from './billingPlan'
 import { readBillingPlan } from './billingPlanReading'
 import type { CategoryRecord } from './categoriesReading'
@@ -215,7 +216,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     ...identity,
     transactions,
     categories,
-    accounts: withoutIds(keep('accounts', readAccounts(records.accounts, settings.currency))),
+    accounts: accountsWithIntakes(withoutIds(keep('accounts', readAccounts(records.accounts, settings.currency))), transactions, folderFiledOnSync(records.settings)),
     rules: rules.rules,
     invoices,
     clients,

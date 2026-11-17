@@ -155,8 +155,8 @@
  * Waiting for you to Settings, Books file, gives the rows their ids and undoes it, in Croatian too. On Settings, Category rules it dismisses a group of
  * confirmed rows no rule repeats, restores it and undoes the restore. There it also changes a rule's note in the rule's editor and undoes it,
  * then deletes the rule from its editor and brings it back with Undo. On the Import tab of Transactions it drops the sample camt.053 statement and the
- * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
- * new rows wait for review and undoes it, then deletes the profile, at 360, 430 and 1440 px. With the
+ * sample bank export, makes a profile for the export, reads each dry run, confirms the statement, reads how many
+ * new rows wait for review and undoes it, sees the export refused, since the bank's statements fill main, then deletes the profile, at 360, 430 and 1440 px. With the
  * file on Drive, from Overview, Sync files the fake statements folder's sample statement with no
  * toast, its step on Kuna settings says so with Undo, which takes it out, Import lists it,
  * and a last sync finds nothing new. With a held statement in the folder, the sync control says 1
@@ -556,6 +556,7 @@ import {
   chatQuestionFilesFlow,
   chatStatementCardFlowIn,
   chatStatementLookAlikeFlowIn,
+  chatStatementRefusedFlowIn,
   chatLookupFlowIn,
   chatReceiptFlowIn,
   chatReceiptPathFlowIn,
@@ -6234,18 +6235,18 @@ const FLOWS = [
     queries: { drive: '&spending=statements&lang=hr' },
   },
   {
-    name: 'company-chat-statement-lookalike',
+    name: 'company-chat-statement-refused',
     hash: '#/company',
     title: 'Overview',
-    run: chatStatementLookAlikeFlowIn('en', 'company-chat-statement-lookalike'),
+    run: chatStatementRefusedFlowIn('en', 'company-chat-statement-refused'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
   },
   {
-    name: 'company-chat-statement-lookalike-croatian',
+    name: 'company-chat-statement-refused-croatian',
     hash: '#/company',
     title: 'Pregled',
-    run: chatStatementLookAlikeFlowIn('hr', 'company-chat-statement-lookalike'),
+    run: chatStatementRefusedFlowIn('hr', 'company-chat-statement-refused'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr' },

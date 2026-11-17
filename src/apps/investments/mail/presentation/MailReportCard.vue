@@ -14,7 +14,8 @@ import MailReportReview from './MailReportReview.vue'
 import MailReportUpload from './MailReportUpload.vue'
 import { MAIL_SCOPE, misfitLine, useMailReports } from './useMailReports'
 import { mailReaderErrors, words } from './words'
-import { accountIntakes, earliestMailStart } from '../../imports/domain/accountIntake'
+import { accountIntakes } from '../../imports/domain/accountIntake'
+import { earliestStartDay } from '../../../../shared/app/accountSource'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { dateFormat } from '../../../../shared/calendar/dateFormat'
@@ -49,7 +50,7 @@ watch(shown, (now, before) => {
 })
 
 const on = computed(() => reader.value?.on === true)
-const takesAnAccount = computed(() => store.state.workbook !== null && earliestMailStart(accountIntakes(store.state.workbook.book)) !== null)
+const takesAnAccount = computed(() => store.state.workbook !== null && earliestStartDay(accountIntakes(store.state.workbook.book).values()) !== null)
 const errors = computed(() => mailReaderErrors(mailReaderFaults(texts.value, on.value)))
 
 const summary = computed(() => (on.value ? words.card.readFrom(reader.value?.senders ?? []) : words.card.off))

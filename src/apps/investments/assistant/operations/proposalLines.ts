@@ -17,7 +17,7 @@ import type { HandPrice } from '../../workbook/domain/handPrice'
 import type { Income } from '../../workbook/domain/income'
 import { NEW_INSTRUMENT_DEFAULTS } from '../../workbook/domain/instrument'
 import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
-import type { AccountIntake } from '../../workbook/domain/investmentAccount'
+import type { InvestmentIntake } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import {
   CASH_MOVEMENT_RECORDS,
@@ -213,7 +213,7 @@ function quotingText(quoted: Instrument['quoted']): string {
 }
 
 /** A field of an instrument or a line of its mix in the holding dialog's words, or undefined for a field shown as it is. */
-function intakeText(intake: AccountIntake | null): string | null {
+function intakeText(intake: InvestmentIntake | null): string | null {
   if (intake === null) return null
   return intake.rowsFrom === 'mail' ? settingsWords.accounts.fromMail(dayLabel(intake.startsOn)) : settingsWords.accounts.byHand
 }

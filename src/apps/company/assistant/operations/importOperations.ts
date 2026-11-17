@@ -4,7 +4,8 @@ import { words } from './words'
 import { dryRunFor, writeImport } from '../../imports/application/importStatements'
 import { DATE_FORMATS, DECIMAL_MARKS, profileDraftProblem, profileKey, profileValue } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
-import { StatementRefused, transcribedStatement } from '../../imports/domain/importedStatement'
+import { TranscribedRefused, transcribedStatement } from '../../imports/domain/importedStatement'
+import { factText, noteText, refusalText, transcribedRefusalText } from '../../imports/presentation/dryRunWords'
 import type { StatementReading } from '../../imports/domain/importedStatement'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { heldSettingValue } from '../../settings/domain/settings'
@@ -20,7 +21,7 @@ import { normaliseIban } from '../../../../shared/text/fold'
 import { BOOKING_LOOK_ALIKE, copiedStatementCheck, copiedStatementRowsWarning, lookAlikesForTheModel, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { BOOKING_DAYS_APART, LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
-import type { DryRunRow, ImportDryRun } from '../../imports/domain/importDryRun'
+import type { DryRunInputs, DryRunRow, ImportDryRun } from '../../imports/domain/importDryRun'
 import type { Transaction } from '../../workbook/domain/workbook'
 
 /** How the start of a statement goes, and the account a new IBAN takes. */
@@ -37,6 +38,7 @@ const IMPORT_STATEMENT: AssistantOperation = {
   about: [
     "Imports a bank statement through Import's own dry run: rows already on the ledger are skipped, the rules file the new rows, and each account's rows must run on from its balance.",
     'file names the attached file by its id, whatever its format, a camt XML file or a bank sheet included, or null for a statement pasted as text.',
+    "An account the bank's statements fill, rowsFrom mail on its reading, takes no copied row and no bank sheet on any day, and a camt file only when its alsoFrom holds provider-file. Its rows come in when the statement reaches the statements folder, so tell the person that rather than copy it.",
     'Read every row and copy each as written, oldest first, money out below zero. statementName names the statement in words as it names itself, such as its number or the month it covers, never as a key or as dates joined by a slash. Give the opening and closing balances only as the statement prints them, and never work one out. Without them the balances run on from the ledger and the card warns that Kuna could not check the rows.',
     `lookAlikes says what becomes of a copied row that looks like a ledger row from another source, such as a camt file or a bank sheet: the same amount on the same account at most ${BOOKING_DAYS_APART} days apart, unless the two counterparties and descriptions share no word. ask keeps it waiting, and the card lists it and asks the person to say in the chat. import imports it once the person says it is another payment: propose the same rows again with import once the card is answered, and a row dated before the account's newest row is still refused. A row of the same day, amount and counterparty as a ledger row is skipped either way.`,
     `A card carries at most ${ROWS_A_PART} copied rows. A longer statement goes in parts, oldest first, each its own card with only its own rows and the same statementName, part 1 first and each part once the one before is accepted. A part ends at the end of a day. Part 1 gives the opening alone and the last part both balances, and the parts between give neither. Kuna checks on the last part that its rows run on from where the earlier parts left the account to the closing. A statement in one part gives both or neither.`,
@@ -172,7 +174,7 @@ function copiedPart(card: CompanyCard, field: Readonly<Record<string, never>>): 
     const statement = transcribedStatement(account, label, printed(field['opening']), printed(field['closing']), entries, lookAlikes, part, card.workbook.transactions)
     return { readings: [{ statement }], shownAs: `${named.label || named.slug}, ${name.trim()}` }
   } catch (failure) {
-    if (failure instanceof StatementRefused) throw new StepRefused(failure.message)
+    if (failure instanceof TranscribedRefused) throw new StepRefused(transcribedRefusalText(failure.refusal))
     throw failure
   }
 }
@@ -190,15 +192,23 @@ function upToPart(readings: readonly StatementReading[], part: number): readonly
  * at zero for copied rows that print no balances, and a statement of a new IBAN under the account the step names. A statement the dry run refuses refuses the card, with its reason.
  * `copied` is the warning on rows the AI copied, null for held statements, and its label names the statement on every note. The card asks about look-alikes first, then warns, then states plain facts.
  * `earlierRows` is how many rows of each statement the parts before this card's hold, which the model does not hear of again.
+ * `camtOrigin` is `automation` for the statements folder's own held statements, as on Import's folder card, and the person's file otherwise.
  */
-function writeStatements(card: CompanyCard, readings: readonly StatementReading[], newAccount: string | null, copied: ProposalNote | null, earlierRows = 0): void {
+function writeStatements(
+  card: CompanyCard,
+  readings: readonly StatementReading[],
+  newAccount: string | null,
+  copied: ProposalNote | null,
+  camtOrigin: DryRunInputs['camtOrigin'],
+  earlierRows = 0,
+): void {
   const { workbook } = card
   const offers = [...new Set(readings.flatMap((reading) => ('newAccount' in reading ? [reading.newAccount.iban] : [])))]
   if (offers.length > 1) throw new StepRefused('The file names several IBANs the books lack. Import it on Import, which names each account.')
   if (offers.length === 1 && newAccount === null) throw new StepRefused("The statement's IBAN names no account in the books. Give newAccount a short name for it.")
   const names = new Map(offers.map((iban) => [iban, newAccount!.trim().toLowerCase()]))
   const books = { records: card.records(), workbook }
-  const waiting = dryRunFor(readings, books, new Map(), names)
+  const waiting = dryRunFor(readings, books, new Map(), names, new Map(), true, camtOrigin)
   const starts = new Map<string, Money>()
   const startedAtZero = new Set<string>()
   for (const statement of waiting.statements) {
@@ -214,9 +224,9 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
       )
     starts.set(statement.start.account, statement.start.opening)
   }
-  const run = starts.size === 0 ? waiting : dryRunFor(readings, books, starts, names)
+  const run = starts.size === 0 ? waiting : dryRunFor(readings, books, starts, names, new Map(), true, camtOrigin)
   const refused = run.statements.filter((statement) => statement.refusal !== null)
-  if (refused.length > 0) throw new StepRefused(refused.map((statement) => `${statement.label}: ${statement.refusal}`).join(' '))
+  if (refused.length > 0) throw new StepRefused(refused.map((statement) => `${statement.label}: ${refusalText(statement.refusal!)}`).join(' '))
   if (run.statements.some((statement) => statement.newAccount !== null && statement.account === '')) throw new StepRefused(`${newAccount} cannot be an account's short name.`)
   const lookAlikes = waitingLookAlikes(run)
   const lookAlikeRows = lookAlikes.map(({ number }) => number)
@@ -238,10 +248,10 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
         ]),
     ...(copied === null ? [] : [copied]),
     ...started.filter((account) => startedAtZero.has(account)).map((account): ProposalNote => ({ label: account, text: words.accountStartsAtZero(formatMoney(ZERO)), tone: 'warning' })),
-    ...run.statements.flatMap((statement) => statement.notes.map((text): ProposalNote => ({ label: shown(statement.label), text, tone: 'warning' }))),
+    ...run.statements.flatMap((statement) => statement.notes.map((note): ProposalNote => ({ label: shown(statement.label), text: noteText(note), tone: 'warning' }))),
     ...started.filter((account) => !startedAtZero.has(account)).map((account): ProposalNote => ({ label: account, text: words.accountStarted(account), tone: 'neutral' })),
     ...run.accounts.map(({ slug }): ProposalNote => ({ label: slug, text: words.accountAdded(slug), tone: 'neutral' })),
-    ...run.statements.flatMap((statement) => statement.facts.map((text): ProposalNote => ({ label: shown(statement.label), text, tone: 'neutral' }))),
+    ...run.statements.flatMap((statement) => statement.facts.map((fact): ProposalNote => ({ label: shown(statement.label), text: factText(fact), tone: 'neutral' }))),
   ]
   for (const note of notes) card.note({ noun: LEDGER_RECORDS.noun, note })
   if (lookAlikes.length > 0) card.holdBack(lookAlikesForTheModel(lookAlikeRows, false))
@@ -265,7 +275,7 @@ function importStatement(card: CompanyCard, step: ProposalStep): void {
     file === null ? null : file.name,
     copiedStatementCheck({ part: field['part'] as number, opening: field['opening'] as number | null, closing: field['closing'] as number | null }),
   )
-  writeStatements(card, readings, field['newAccount'], { label: shownAs, text: warning, tone: 'warning' })
+  writeStatements(card, readings, field['newAccount'], { label: shownAs, text: warning, tone: 'warning' }, 'provider-file')
 }
 
 /** The statements the last sync of the statements folder held back for a person, which `app.ts` hands in. */
@@ -276,7 +286,7 @@ function fileHeldStatements(card: CompanyCard, step: ProposalStep, held: HeldSta
   if (readings.length === 0) throw new StepRefused('The last sync held back no statement.')
   const field = fieldsOf(step)
   const part: number = field['part']
-  writeStatements(card, upToPart(readings, part), field['newAccount'], null, (part - 1) * ROWS_A_PART)
+  writeStatements(card, upToPart(readings, part), field['newAccount'], null, 'automation', (part - 1) * ROWS_A_PART)
 }
 
 function saveImportProfile(card: CompanyCard, step: ProposalStep): void {

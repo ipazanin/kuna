@@ -17,7 +17,7 @@ import { isHumanConfirmed, needsReview, reviewCount } from '../workbook/domain/n
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import { rowItemsOf } from '../workbook/domain/splits'
 import type { SplitPart } from '../workbook/domain/splits'
-import type { Category, Transaction, Workbook } from '../workbook/domain/workbook'
+import type { Category, CompanyIntake, Transaction, Workbook } from '../workbook/domain/workbook'
 import type { BillingItem } from '../workbook/domain/billingPlan'
 import { readableKind } from '../../../shared/app/assistantReader'
 import type { AppReader, AssistantReport, ReadableKind, ReportFigure, TraceRules } from '../../../shared/app/assistantReader'
@@ -156,6 +156,9 @@ interface AccountView {
   readonly label: string
   readonly currency: string
   readonly iban: string
+  readonly rowsFrom: string
+  readonly startsOn: string
+  readonly alsoFrom: string
 }
 
 /** A rule as the chat reads it, with each condition under the name add-rule and change-rule give it, so a payee's name goes as a party. */
@@ -256,11 +259,23 @@ const CATEGORY_FIELDS: FieldDocs<CategoryView> = {
   },
 }
 
+/** How the account's rows come in, as the chat reads it. */
+function intakeView(intake: CompanyIntake): Pick<AccountView, 'rowsFrom' | 'startsOn' | 'alsoFrom'> {
+  return intake.rowsFrom === 'mail' ? { rowsFrom: 'mail', startsOn: intake.startsOn, alsoFrom: intake.alsoFrom.join(', ') } : { rowsFrom: 'by-hand', startsOn: '', alsoFrom: '' }
+}
+
 const ACCOUNT_FIELDS: FieldDocs<AccountView> = {
   id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account, by its short name.' },
   label: { exposure: 'plain', meaning: 'What the screens call it.' },
   currency: { exposure: 'plain', meaning: "Its currency, or empty for the books' own." },
   iban: { exposure: 'identifier', meaning: "The account's own IBAN." },
+  rowsFrom: {
+    exposure: 'plain',
+    meaning:
+      "mail when the bank's statements, which reach the statements folder by mail or dropped there, bring its rows, or by-hand when its files are imported or the chat copies them. A mail account takes no sheet or copied row on any day.",
+  },
+  startsOn: { exposure: 'plain', meaning: "With mail, the first day the bank's statements bring rows of. Empty by hand." },
+  alsoFrom: { exposure: 'plain', meaning: "With mail, provider-file when it also takes the bank's camt file on Import or in the chat. Empty takes the folder's alone." },
 }
 
 const RULE_FIELDS: FieldDocs<RuleView> = {
@@ -582,7 +597,15 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
         fields: ACCOUNT_FIELDS,
         dated: null,
         rows: () =>
-          rows((workbook) => workbook.accounts.map((account) => ({ id: account.slug, label: displayNamesOf(workbook).account(account.slug), currency: account.currency, iban: account.iban }))),
+          rows((workbook) =>
+            workbook.accounts.map((account) => ({
+              id: account.slug,
+              label: displayNamesOf(workbook).account(account.slug),
+              currency: account.currency,
+              iban: account.iban,
+              ...intakeView(account.intake),
+            })),
+          ),
         currencyOf: currency,
       }),
       readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: RULE_FIELDS, dated: null, rows: () => rows((workbook) => workbook.rules.map(ruleOf)), currencyOf: currency }),

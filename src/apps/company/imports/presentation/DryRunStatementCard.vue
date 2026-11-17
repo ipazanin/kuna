@@ -14,6 +14,7 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { factText, noteText, refusalText } from './dryRunWords'
 import { reviewReasonLabel } from '../domain/camtStatement'
 import type { CopiedTwinQuestion, DryRunRow, DryRunStatement } from '../domain/importDryRun'
 import { absMoney } from '../../../../shared/money/money'
@@ -120,12 +121,14 @@ function paid(row: DryRunRow): readonly PaidLine[] {
 function grouped(iban: string): string {
   return iban.replace(/(.{4})(?=.)/g, '$1 ')
 }
+/** The notes to check, then what the import does that needs no check. */
+const noteLines = computed(() => [...props.statement.notes.map(noteText), ...props.statement.facts.map(factText)])
 </script>
 
 <template>
   <AppCard :title="statement.label" :subtitle="subtitle" :collapse-id="collapseId" :summary="summary" data-testid="dry-run-statement">
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-      <UAlert v-if="statement.refusal" icon="i-lucide-file-x" color="error" variant="subtle" :title="statement.refusal" data-testid="dry-run-refusal" />
+      <UAlert v-if="statement.refusal" icon="i-lucide-file-x" color="error" variant="subtle" :title="refusalText(statement.refusal)" data-testid="dry-run-refusal" />
 
       <div v-if="statement.newAccount" class="flex flex-col gap-3 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-new-account">
         <p class="text-sm text-toned">
@@ -159,7 +162,7 @@ function grouped(iban: string): string {
       </div>
 
       <ul v-if="statement.notes.length + statement.facts.length" class="flex flex-col gap-1 text-sm text-muted" data-testid="dry-run-notes">
-        <li v-for="note in [...statement.notes, ...statement.facts]" :key="note">{{ note }}</li>
+        <li v-for="note in noteLines" :key="note">{{ note }}</li>
       </ul>
 
       <QuestionList v-if="twinItems.length > 0" :items="twinItems" :options="TWIN_CHOICES.file" :label="twinWords.choice" :heading="twinWords.title" :intro="twinWords.intro.file" @answer="answerTwin">

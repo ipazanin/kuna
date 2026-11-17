@@ -8,6 +8,7 @@ import { StatementRefused } from './importedStatement'
 import { statementTies } from '../../../../shared/money/statementTies'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 import { words } from './words'
+import { camtStatementLabel } from '../../workbook/domain/rowOrigin'
 
 /**
  * Banks whose camt statements always carry TxsSummry, by the servicer's BIC. A statement from one
@@ -161,7 +162,7 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
 function statementLabelOf(statement: Element): string | null {
   const created = textAt(statement, ['CreDtTm']).slice(0, 10)
   const sequence = textAt(statement, ['LglSeqNb'])
-  return created === '' || sequence === '' ? null : `${created}-statement-${sequence.padStart(3, '0')}`
+  return created === '' || sequence === '' ? null : camtStatementLabel(created, sequence)
 }
 
 /** Signed by the balance's own CdtDbtInd, since DBIT on a balance is an overdraft. */

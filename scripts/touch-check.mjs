@@ -117,6 +117,7 @@ import {
   chatTagFlowIn,
   chatStatementCardFlowIn,
   chatStatementLookAlikeFlowIn,
+  chatStatementRefusedFlowIn,
   chatReceiptFlowIn,
   chatReceiptPathFlowIn,
   chatReceiptRowFlowIn,
@@ -3493,7 +3494,7 @@ async function checkWidth(width) {
     ['year-open-items-figure-ask', 'browser', figureAskFlowIn('en', 'open-items'), '#/company/year?year=2025', 'Year'],
     ['chat-statement-paste', 'drive&spending=sample', chatStatementCardFlowIn('en'), '#/spending/transactions?tab=import', 'Entries'],
     ['chat-statement-lookalike', 'drive&spending=statements', chatStatementLookAlikeFlowIn('en', 'chat-statement-lookalike'), '#/spending/transactions?tab=import', 'Entries'],
-    ['company-chat-statement-lookalike', 'drive', chatStatementLookAlikeFlowIn('en', 'company-chat-statement-lookalike'), '#/company', 'Overview'],
+    ['company-chat-statement-refused', 'drive', chatStatementRefusedFlowIn('en', 'company-chat-statement-refused'), '#/company', 'Overview'],
     // Spending's ways into the chat.
     ['spending-review-ask', 'drive&spending=statements', spendingReviewAskFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-chat-revolut-copy', 'drive&spending=sample', appChatCardFlowIn('en', 'revolut', CHAT_ATTACHMENT_SAMPLES), '#/spending', 'Overview'],

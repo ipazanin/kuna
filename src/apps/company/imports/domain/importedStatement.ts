@@ -4,10 +4,9 @@ import { absMoney, addMoney, subtractMoney } from '../../../../shared/money/mone
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { cardDaysRefusal, givesPrintedBalances, statementTies } from '../../../../shared/money/statementTies'
-import type { StatementTie } from '../../../../shared/money/statementTies'
-import { words } from './words'
 import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import type { Transaction } from '../../workbook/domain/workbook'
+import { TRANSCRIBED_PREFIX } from '../../workbook/domain/rowOrigin'
 
 /** The bank's codes of a row whose file gives none. */
 export const NO_SIGNALS: TransactionSignals = { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' }
@@ -68,19 +67,29 @@ export type StatementReading =
   | { readonly statement: ImportedStatement; readonly newAccount: NewAccountOffer }
   | { readonly fileName: string; readonly label: string; readonly refusal: string }
 
+/** Why a statement the AI copied is refused before its dry run: it gives one printed balance where it needs both or neither, its earlier parts are not on the ledger, its days reach into a part before it, or its entries do not tie its balances. */
+export type TranscribedRefusal =
+  | { readonly kind: 'one-balance' }
+  | { readonly kind: 'parts-before-missing'; readonly label: string }
+  | { readonly kind: 'day-reached'; readonly label: string; readonly part: number }
+  | { readonly kind: 'does-not-tie'; readonly opening: Money; readonly rows: Money; readonly reached: Money; readonly closing: Money; readonly gap: Money }
+
+export class TranscribedRefused extends Error {
+  readonly refusal: TranscribedRefusal
+
+  constructor(refusal: TranscribedRefusal) {
+    super(refusal.kind)
+    this.name = 'TranscribedRefused'
+    this.refusal = refusal
+  }
+}
+
 /** A file or statement the app will not read, with the reason in words a person can act on. */
 export class StatementRefused extends Error {
   constructor(reason: string) {
     super(reason)
     this.name = 'StatementRefused'
   }
-}
-
-/** What starts the reference of an entry read off a printed statement, so it is never taken for a bank's reference or a table's key. */
-const TRANSCRIBED_PREFIX = 'read-'
-
-export function isTranscribedReference(reference: string): boolean {
-  return reference.startsWith(TRANSCRIBED_PREFIX)
 }
 
 /**
@@ -115,7 +124,7 @@ export function transcribedStatement(
   part = 1,
   ledger: readonly LedgerRowOfStatement[] = [],
 ): ImportedStatement {
-  if (!givesPrintedBalances(opening, closing, part)) throw new StatementRefused(words.transcribed.oneBalance)
+  if (!givesPrintedBalances(opening, closing, part)) throw new TranscribedRefused({ kind: 'one-balance' })
   const references = transcribedReferences(account, rows)
   const onCard = new Set(references)
   const earlierDays = ledger.filter((row) => row.account === account && row.statement === label && !onCard.has(row.reference)).map((row) => row.date)
@@ -124,11 +133,12 @@ export function transcribedStatement(
     rows.map((row) => row.date),
     part,
   )
-  if (refusal?.kind === 'parts-before-missing') throw new StatementRefused(words.transcribed.partsBeforeMissing(label))
-  if (refusal?.kind === 'split') throw new StatementRefused(words.transcribed.dayReached(label, part))
+  if (refusal?.kind === 'parts-before-missing') throw new TranscribedRefused({ kind: 'parts-before-missing', label })
+  if (refusal?.kind === 'split') throw new TranscribedRefused({ kind: 'day-reached', label, part })
   if (part === 1 && opening !== null && closing !== null) {
     const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
-    if (tie.kind === 'off') throw new StatementRefused(tieRefusal(tie))
+    if (tie.kind === 'off')
+      throw new TranscribedRefused({ kind: 'does-not-tie', opening: tie.statement.opening, rows: tie.rows, reached: tie.reached, closing: tie.statement.closing, gap: absMoney(tie.gap) })
   }
   const balances = part === 1 ? balancesFrom(opening, rows) : balancesTo(closing, rows)
   const entries = rows.map((row, at): ImportedRow => ({ ...row, balance: balances[at]!, reference: references[at]!, signals: NO_SIGNALS, reviewReasons: [] }))
@@ -154,9 +164,4 @@ function balancesTo(closing: Money | null, rows: readonly Pick<ImportedRow, 'amo
     after = subtractMoney(after, rows[at]!.amount)
   }
   return balances
-}
-
-/** Why a statement that does not tie is refused, with the gap. */
-export function tieRefusal(tie: Extract<StatementTie<Money>, { kind: 'off' }>): string {
-  return words.transcribed.doesNotTie(tie.statement.opening, tie.rows, tie.reached, tie.statement.closing, absMoney(tie.gap))
 }

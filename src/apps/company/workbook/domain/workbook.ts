@@ -1,3 +1,4 @@
+import type { AccountIntake, AccountSource } from '../../../../shared/app/accountSource'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { anchorWindow } from '../../../../shared/calendar/ledgerWindow'
@@ -41,6 +42,12 @@ export function categoryIdOf(category: Pick<Category, 'slug'>): RecordId {
   return recordIdOf(CATEGORY_RECORDS, category.slug)
 }
 
+/** The ways a Company account's rows come in. Company has no bank link yet. */
+export const COMPANY_ROWS_FROM = ['mail', 'by-hand'] as const satisfies readonly AccountSource[]
+
+/** How an account's rows come in: from the bank's statements, which reach the statements folder by mail or by hand, from a start day, or by hand. */
+export type CompanyIntake = AccountIntake<'mail'>
+
 export interface Account {
   readonly slug: string
   /** What the screens call it, when the tab gives a name. The slug stays the identity. */
@@ -48,6 +55,8 @@ export interface Account {
   readonly iban: string
   /** Blank when the tab does not say, which means the workbook's currency. */
   readonly currency: string
+  /** As the accounts tab says it or, for an account that does not say, as `derivedIntake` reads it from its rows. */
+  readonly intake: CompanyIntake
 }
 
 /** One booked bank entry from the `ledger` tab. Credits are positive. */

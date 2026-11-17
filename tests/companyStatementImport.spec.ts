@@ -10,7 +10,7 @@ import { ACCOUNT_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
-import { companyDesk, deskPorts } from './fixtures/companyDesk'
+import { FRESH_IBAN, companyDesk, deskPorts } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { stepOf } from './fixtures/operationSteps'
@@ -325,6 +325,34 @@ describe('statements the folder sync held back', () => {
     )
     const desk = await companyDesk(used, { heldStatements: () => [{ statement }] })
     await desk.propose([stepOf(COMPANY_OPERATIONS, 'file-held-statements', { part: 1 })])
+    await desk.accept()
+    expect(rowsOf(desk, 'fresh').map((row) => row.balance)).toEqual([15000])
+  })
+
+  it("files a held camt statement on an account the bank's statements fill, though the account takes no camt file on Import", async () => {
+    const copied = transcribedStatement(
+      'fresh',
+      'fresh-statement-003',
+      moneyFromAmount(200),
+      moneyFromAmount(150),
+      [{ date: parseCivilDate('2026-10-20')!, amount: moneyFromAmount(-50), counterparty: 'Supplier', counterpartyIban: '', description: 'Goods' }],
+      'ask',
+    )
+    const statement = {
+      ...copied,
+      source: { kind: 'camt' as const, iban: FRESH_IBAN, sequence: 1 },
+      label: '2026-10-21-statement-001',
+      rows: copied.rows.map((row) => ({ ...row, reference: 'CAMT-1' })),
+    }
+    // 46296 is 1 October 2026, the day the statements start filling the account.
+    const accounts = [
+      ['account', 'iban', 'rows_from', 'starts_on', 'also_from'],
+      ['main', 'XX00FAKE0000000001', 'by-hand', '', ''],
+      ['fresh', FRESH_IBAN, 'mail', 46296, ''],
+    ]
+    const desk = await companyDesk(used, { heldStatements: () => [{ statement }] }, { accounts })
+    const answer = await desk.propose([stepOf(COMPANY_OPERATIONS, 'file-held-statements', { part: 1 })])
+    expect(answer.isError, answer.text).toBe(false)
     await desk.accept()
     expect(rowsOf(desk, 'fresh').map((row) => row.balance)).toEqual([15000])
   })

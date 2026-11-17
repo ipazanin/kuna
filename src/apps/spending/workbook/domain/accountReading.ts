@@ -9,7 +9,8 @@ import { labelWords, withIdField } from '../../../../shared/storage/domain/recor
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
+import { EXTRA_ORIGINS } from '../../../../shared/app/accountSource'
+import { choiceList, ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 
@@ -31,6 +32,8 @@ export function accountOf(fields: StoredFields, id: RecordId | null): Account {
   if (iban !== '' && kind === 'cash') refuse(words.ibanOnCash)
   const rowsFrom = fields.rows_from === undefined ? rowsFromOfDetails({ kind, iban }) : requiredChoice(fields, 'rows_from', ROWS_FROM, 'way its rows come in')
   if (rowsFrom === 'bank-link' && kind === 'cash') refuse(words.bankLinkOnCash)
+  const alsoFrom = choiceList(fields, 'also_from', EXTRA_ORIGINS, 'other origin of its rows')
+  if (alsoFrom.length > 0 && rowsFrom === 'by-hand') refuse(words.alsoFromByHand)
   const cardsField = textOf(fields.cards)
   const cards = cardsOfText(cardsField) ?? refuse(words.notCards(cardsField))
   if (cards.length > 0 && kind === 'cash') refuse(words.cardsOnCash)
@@ -43,6 +46,7 @@ export function accountOf(fields: StoredFields, id: RecordId | null): Account {
     opening: optionalAccountMoney(fields, 'opening') ?? ZERO_ACCOUNT_MONEY,
     openedOn: requiredDate(fields, 'opened_on'),
     rowsFrom,
+    alsoFrom,
     iban,
     cards,
     closed: flagOf(fields, 'closed'),
@@ -62,6 +66,7 @@ export const ACCOUNT_CODEC: RecordCodec<Account> = withIdField(
       opening: amountText(account.opening),
       opened_on: account.openedOn,
       rows_from: account.rowsFrom,
+      also_from: account.alsoFrom.join(','),
       iban: account.iban,
       cards: account.cards.length === 0 ? null : cardsText(account.cards),
       closed: account.closed ? true : null,

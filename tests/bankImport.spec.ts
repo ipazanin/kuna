@@ -394,7 +394,7 @@ describe('what the step says', () => {
   })
 
   it('stays quiet about a linked account kept by hand, which the person chose', () => {
-    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const }
+    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const, alsoFrom: [] }
     const book = { ...bookNow(), accounts: [...bookNow().accounts.filter((account) => account.id !== REVOLUT_USD.id), byHand] }
     expect(bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: linked('usd', REVOLUT_USD.iban, 'USD') }] }, book, null, 0)).toMatchObject({ kind: 'done' })
   })

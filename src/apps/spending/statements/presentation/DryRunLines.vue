@@ -56,7 +56,13 @@ const shown = computed(() => {
       account,
       currency,
       paid: pays === null ? null : { text: targetLineOf(pays.target, { amount: line.row.amount, currency }), parts: isSplit(pays.parts) ? pays.parts : [] },
-      skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'outside-days' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
+      skipped:
+        line.outcome === 'already-in' ||
+        line.outcome === 'other-source' ||
+        line.outcome === 'outside-days' ||
+        line.outcome === 'before-opening' ||
+        line.outcome === 'not-taken' ||
+        line.outcome === 'look-alike',
       tone,
     }
   })
@@ -81,6 +87,8 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
       return { label: words.import.outcome.outsideDays, color: 'neutral' }
     case 'before-opening':
       return { label: words.import.outcome.beforeOpening, color: 'neutral' }
+    case 'not-taken':
+      return { label: words.import.outcome.notTaken, color: 'neutral' }
     case 'refiled':
       return { label: words.import.outcome.refiled(named), color: 'info' }
     case 'new':

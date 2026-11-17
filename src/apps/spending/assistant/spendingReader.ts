@@ -143,6 +143,11 @@ const ACCOUNT_FIELDS: FieldDocs<Account> = {
     meaning: 'The last four digits of each card that pays from it. A row on another account that names one, such as Top-Up by *3670, pairs with this account as a transfer.',
   },
   rowsFrom: { exposure: 'plain', meaning: 'bank-link when the bank sync brings its rows, or by-hand when typing, the chat and files do. Cash is always by-hand.' },
+  alsoFrom: {
+    exposure: 'plain',
+    meaning:
+      "What else a bank-link account takes rows from: provider-file lets the bank's statement file fill it, such as days a lapsed link missed. Empty takes the sync's rows alone. Typed and copied rows never go on a bank-link account.",
+  },
   closed: { exposure: 'plain', meaning: 'Closed by the owner.' },
 }
 

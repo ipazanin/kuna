@@ -26,6 +26,7 @@ import { categoryNamingWords } from './presentation/categoryNamingWords'
 import { words as packWords } from './presentation/words'
 import { TAX_RULES_TAB } from './ruleset/presentation/taxRuleLinks'
 import { words as rulesetWords } from './ruleset/presentation/words'
+import { firstVatOpenDay } from './domain/vatFiledDays'
 
 /** The pages that break the taxes and the owner pay further down than the spending breakdown. */
 const COST_GROUP_LINKS: Readonly<Record<string, { readonly label: string; readonly to: RouteLocationRaw }>> = {
@@ -74,5 +75,6 @@ export const hrDooPack: PackContribution = {
   linkToItems: linkPackToItems,
   repaymentsOf: (workbook, added) => proposedRepayments(hrDooWorkbook(presentedWorkbook(workbook)), added),
   linkRepayments,
+  firstOpenDay: firstVatOpenDay,
   employees: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map(({ record }) => ({ name: record.name || record.slug, employee: true, ibans: record.ibans })),
 }

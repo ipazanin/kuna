@@ -59,7 +59,7 @@ export type CopiedRowProblem =
   | { readonly kind: 'unreadable' | 'missing'; readonly field: string }
   | { readonly kind: 'commission-below-zero' | 'commission-currency' | 'against-sign' | 'below-a-cent' | 'unknown-type' }
   | { readonly kind: 'refused'; readonly reason: string }
-  | { readonly kind: 'mail-owns'; readonly account: string; readonly startsOn: CivilDate }
+  | { readonly kind: 'mail-owns'; readonly account: string }
 
 export interface CopiedRowRefusal {
   readonly fileRow: number

@@ -284,7 +284,7 @@ function copiedProblemText(problem: CopiedRowRefusal['problem']): string {
     case 'refused':
       return problem.reason
     case 'mail-owns':
-      return `IBKR report by mail brings the rows of ${problem.account} from ${problem.startsOn}, so a copied row may go only on an earlier day`
+      return `IBKR report by mail brings the rows of ${problem.account}, so a copied row does not go on it`
   }
 }
 

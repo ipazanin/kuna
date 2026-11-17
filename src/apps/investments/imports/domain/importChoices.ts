@@ -1,5 +1,6 @@
+import { BY_HAND } from '../../../../shared/app/accountSource'
 import { accountIntakes, intakeRefusal } from './accountIntake'
-import type { IntakeRefusal } from './accountIntake'
+import type { StartDayRefusal } from '../../../../shared/app/accountSource'
 import { NO_ANSWERS, costShareFromCloses, proposedCostShare, workbookDryRun } from './importDryRun'
 import type { AccountQuestion, InstrumentQuestion, LookAlikeAnswer, SpinOffAnswer, SpinOffQuestion, SplitQuestion, SplitRatio, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from './importDryRun'
 import type { WorkbookRow } from './portfolioWorkbook'
@@ -9,8 +10,7 @@ import type { CloseRow } from '../../prices/domain/pricesFile'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { firstUnfiledDay } from '../../tax/domain/taxDeadlines'
-import { BY_HAND } from '../../workbook/domain/investmentAccount'
-import type { AccountIntake, InvestmentAccount } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentIntake } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { daysBetween, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -69,11 +69,11 @@ export interface AccountStep {
   /** The start day a new account of a mailed report takes, as typed or proposed. Null for a file or an upload, whose new accounts come in by hand. */
   readonly startsOn: string | null
   /** Why that start day cannot be kept: it is no day, or it reaches into a filed tax year. */
-  readonly startFault: { readonly kind: 'missing' } | { readonly kind: 'refused'; readonly refusal: IntakeRefusal } | null
+  readonly startFault: { readonly kind: 'missing' } | { readonly kind: 'refused'; readonly refusal: StartDayRefusal } | null
 }
 
 /** The accounts a mailed report's rows may go to: those the mail fills, by how each one's rows come in. Null for a file or an upload, which may go to any. */
-type MailAccounts = ReadonlyMap<RecordId, AccountIntake> | null
+type MailAccounts = ReadonlyMap<RecordId, InvestmentIntake> | null
 
 export interface InstrumentStep {
   readonly question: InstrumentQuestion
@@ -256,7 +256,7 @@ function accountStep(question: AccountQuestion, book: InvestmentBook, choices: I
   const on = today()
   const startsOn = mail === null ? null : (choice.startsOn ?? proposedStartDay(question, on))
   const day = startsOn === null ? null : parseCivilDate(startsOn)
-  const intake: AccountIntake | null = mail === null ? BY_HAND : day === null ? null : { rowsFrom: 'mail', startsOn: day }
+  const intake: InvestmentIntake | null = mail === null ? BY_HAND : day === null ? null : { rowsFrom: 'mail', startsOn: day, alsoFrom: [] }
   const refusal = intake === null ? null : intakeRefusal(id, null, intake, [], on)
   const startFault = startsOn === null ? null : intake === null ? { kind: 'missing' as const } : refusal === null ? null : { kind: 'refused' as const, refusal }
   return {

@@ -159,7 +159,7 @@ function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Accoun
   const evidence = { rows, stated, pending: false }
   const { opening, openedOn } = openingOn(evidence, earliestStart(evidence) ?? first.started.date)
   const kind = first.onSavings ? 'savings' : 'bank'
-  return { account: draftedAccount({ kind, bank: 'revolut', currency, iban: revolutIban(kind, accounts), opening, openedOn }, accounts), evidence }
+  return { account: draftedAccount({ kind, bank: 'revolut', currency, iban: revolutIban(kind, accounts), opening, openedOn }, accounts, 'provider-file'), evidence }
 }
 
 /** What to add to bring in the rows the drafted accounts would keep: the whole file when it was refused for them, else the savings rows left out. */

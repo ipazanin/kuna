@@ -178,6 +178,8 @@ export interface PackContribution {
   repaymentsOf(workbook: Workbook, added: readonly LedgerEntry[]): readonly RowPayments[]
   /** Has each record the import's rows pay back name the items that pay it, in the write that adds them. */
   linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repayments: readonly RowPayments[]): void
+  /** The first day whose figures are not yet filed, before which an account's start day may not reach, or null when the pack files nothing. */
+  firstOpenDay(today: CivilDate): CivilDate | null
 }
 
 const NO_PACK: PackContribution = {
@@ -204,6 +206,7 @@ const NO_PACK: PackContribution = {
   linkToItems: (_unit, _books, moved) => moved.items,
   repaymentsOf: () => [],
   linkRepayments: () => {},
+  firstOpenDay: () => null,
 }
 
 let installed: PackContribution = NO_PACK

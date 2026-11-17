@@ -2,7 +2,10 @@ import { normaliseIban } from '../../../../shared/text/fold'
 import { accountOfFields } from '../../workbook/domain/accountsReading'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import { slugProblem } from '../../workbook/domain/slug'
-import { storedFieldOfValue, textOf } from '../../../../shared/storage/domain/storedFields'
+import { slugOf, storedFieldOfValue, textOf } from '../../../../shared/storage/domain/storedFields'
+import { BY_HAND } from '../../../../shared/app/accountSource'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import type { COMPANY_ROWS_FROM, CompanyIntake } from '../../workbook/domain/workbook'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 import { madeOfDrafts } from './recordDrafts'
@@ -21,15 +24,43 @@ export interface AccountDraft {
   readonly label: string
   readonly iban: string
   readonly currency: string
+  readonly rowsFrom: CompanyRowsFrom
+  /** With mail, the first day the bank's statements bring rows of, as typed. */
+  readonly startsOn: string
+  /** With mail, whether it also takes the bank's camt file on Import or in the chat. */
+  readonly takesCamtFile: boolean
 }
 
-/** The drafts of the stored accounts, as the workbook holds their text. */
-export function accountDraftsOf(stored: readonly StoredRecord<unknown>[]): AccountDraft[] {
+export type CompanyRowsFrom = (typeof COMPANY_ROWS_FROM)[number]
+
+/** The draft's intake, or null for mail with no day typed. */
+export function intakeOfDraft(draft: Pick<AccountDraft, 'rowsFrom' | 'startsOn' | 'takesCamtFile'>): CompanyIntake | null {
+  if (draft.rowsFrom === 'by-hand') return BY_HAND
+  const startsOn = parseCivilDate(draft.startsOn)
+  return startsOn === null ? null : { rowsFrom: 'mail', startsOn, alsoFrom: draft.takesCamtFile ? ['provider-file'] : [] }
+}
+
+/** The drafts of the stored accounts, as the workbook holds their text, each with how its rows come in as the workbook reads it by its name. */
+export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], intakes: ReadonlyMap<string, CompanyIntake>): AccountDraft[] {
   return stored.map(({ fields }, saved) => {
     const text = (name: string): string => textOf(fields[name])
-    return { saved, savedName: text('account'), account: text('account'), label: text('label'), iban: text('iban'), currency: text('currency') }
+    const intake = intakes.get(slugOf(fields.account)) ?? BY_HAND
+    return {
+      saved,
+      savedName: text('account'),
+      account: text('account'),
+      label: text('label'),
+      iban: text('iban'),
+      currency: text('currency'),
+      rowsFrom: intake.rowsFrom,
+      startsOn: intake.startsOn ?? '',
+      takesCamtFile: intake.rowsFrom === 'mail' && intake.alsoFrom.includes('provider-file'),
+    }
   })
 }
+
+/** A new account's draft: kept by hand, with nothing typed. */
+export const NEW_ACCOUNT_DRAFT: AccountDraft = { saved: null, savedName: '', account: '', label: '', iban: '', currency: '', rowsFrom: 'by-hand', startsOn: '', takesCamtFile: false }
 
 /** The accounts the drafts make, each over the fields its stored record holds. */
 export function accountsOfDrafts(stored: readonly StoredRecord<unknown>[], drafts: readonly AccountDraft[]): MadeDraft<AccountRecord>[] {
@@ -37,7 +68,7 @@ export function accountsOfDrafts(stored: readonly StoredRecord<unknown>[], draft
   return madeOfDrafts(drafts, fields, stored, accountOfFields)
 }
 
-export type AccountField = 'account' | 'currency'
+export type AccountField = 'account' | 'currency' | 'startsOn'
 
 export type AccountDraftErrors = ReadonlyMap<number, Partial<Record<AccountField, string>>>
 
@@ -61,6 +92,9 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
     if (name !== '') {
       named.add(name)
     }
+    if (intakeOfDraft(draft) === null) {
+      found.startsOn = words.fields.aDay
+    }
     const currency = draft.currency.trim().toUpperCase()
     const problem = currency === '' ? null : currencyProblem(currency)
     if (problem !== null) {
@@ -73,13 +107,17 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
   return errors
 }
 
-/** The draft's fields, over the fields of the account it was read from. A blank field is absent. */
+/** The draft's fields, over the fields of the account it was read from. A blank field is absent. How its rows come in is always written, so an account that did not say says it from then on. */
 function accountFieldsOf(draft: AccountDraft, stored: StoredFields): StoredFields {
+  const mail = draft.rowsFrom === 'mail'
   const typed: Readonly<Record<string, string>> = {
     account: draft.account.trim().toLowerCase(),
     label: draft.label.trim(),
     iban: normaliseIban(draft.iban),
     currency: draft.currency.trim().toUpperCase(),
+    rows_from: draft.rowsFrom,
+    starts_on: mail ? draft.startsOn.trim() : '',
+    also_from: mail && draft.takesCamtFile ? 'provider-file' : '',
   }
   const fields: Record<string, StoredField> = { ...stored }
   for (const [name, text] of Object.entries(typed)) {

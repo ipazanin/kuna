@@ -11,6 +11,7 @@ import { dryRunFor, newAccountNameProblem } from '../application/importStatement
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import type { CopiedTwinQuestion, ImportDryRun } from '../domain/importDryRun'
 import type { StatementReading } from '../domain/importedStatement'
+import type { DryRunInputs } from '../domain/importDryRun'
 
 export interface DryRunWithStarts {
   /** Null without a workbook or without statements. */
@@ -45,7 +46,7 @@ function openingOf(text: string): Money | null {
  * The dry run of the statements against the workbook on screen, with each account the person started at its opening, each new
  * account by the name it takes, and what the person said of each entry that looks like a row the AI copied.
  */
-export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>): DryRunWithStarts {
+export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>, camtOrigin: DryRunInputs['camtOrigin'] = 'provider-file'): DryRunWithStarts {
   const store = useWorkbook()
   const started = ref<Record<string, boolean>>({})
   const typedOpenings = ref<Record<string, string>>({})
@@ -80,7 +81,7 @@ export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>):
     if (books === null || readings.value.length === 0) return null
     const names = new Map(Object.entries(accountNames.value))
     const answers = new Map(Object.entries(twinAnswers.value))
-    const waiting = dryRunFor(readings.value, books, new Map(), names, answers)
+    const waiting = dryRunFor(readings.value, books, new Map(), names, answers, true, camtOrigin)
     const starts = new Map<string, Money>()
     for (const statement of waiting.statements) {
       const start = statement.start
@@ -88,7 +89,7 @@ export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>):
       const opening = start.opening === null ? openingOf(typedOpenings.value[start.account] ?? '') : started.value[start.account] ? start.opening : null
       if (opening !== null) starts.set(start.account, opening)
     }
-    return starts.size === 0 ? waiting : dryRunFor(readings.value, books, starts, names, answers)
+    return starts.size === 0 ? waiting : dryRunFor(readings.value, books, starts, names, answers, true, camtOrigin)
   })
 
   return {

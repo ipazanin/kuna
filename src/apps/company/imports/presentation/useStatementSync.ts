@@ -19,6 +19,7 @@ import { googleStatementFolder } from '../infrastructure/googleStatementFolder'
 import { loadImportFile } from '../infrastructure/importFiles'
 import { REVIEW_LINK } from '../../transactions/presentation/transactionsLinks'
 import { words } from './words'
+import { factText, noteText } from './dryRunWords'
 
 interface StatementSyncState {
   /** What the last statements step of this page did, or null before one ran. */
@@ -72,7 +73,7 @@ export function useStatementSync(): StatementSync {
     const books = companyBooksOf(store.state)
     const readings = state.outcome?.held ?? []
     if (books === null || readings.length === 0) return null
-    return dryRunFor(readings, books, new Map()).statements.filter(stillHeld)
+    return dryRunFor(readings, books, new Map(), new Map(), new Map(), true, 'automation').statements.filter(stillHeld)
   })
 
   /** What the step did, in one line: what it filed with the rows that wait for review, the notes of each statement, and how many it held. */
@@ -87,7 +88,7 @@ export function useStatementSync(): StatementSync {
     const heldCount = outcome.held.length
     const line = [
       receipt === null ? '' : words.step.onReview(receipt.title, waiting),
-      ...outcome.filed.flatMap((statement) => [...statement.notes, ...statement.facts]),
+      ...outcome.filed.flatMap((statement) => [...statement.notes.map(noteText), ...statement.facts.map(factText)]),
       heldCount === 0 ? '' : plural(words.step.held(heldCount), heldCount),
     ]
       .filter((sentence) => sentence !== '')

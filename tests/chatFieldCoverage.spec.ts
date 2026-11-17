@@ -67,8 +67,8 @@ const COMPONENT_RENAMES = {
 }
 const SCENARIO_OPERATIONS: readonly OperationFields[] = [{ name: 'add-component', renames: COMPONENT_RENAMES }, { name: 'change-component', renames: COMPONENT_RENAMES }, { name: 'rename-scenario' }]
 const INTERIM_RENAMES = { 'interimInterest.amount': 'interimAmount', 'interimInterest.date': 'interimDate' }
-/** How an Investments account's rows come in, which its operations take flat. */
-const INTAKE_RENAMES = { 'intake.rowsFrom': 'rowsFrom', 'intake.startsOn': 'startsOn' }
+/** How an Investments or a Company account's rows come in, which their operations take flat. */
+const INTAKE_RENAMES = { 'intake.rowsFrom': 'rowsFrom', 'intake.startsOn': 'startsOn', 'intake.alsoFrom': 'alsoFrom' }
 const SUBSIDY_RENAMES = {
   'subsidy.monthly': 'subsidyMonthly',
   'subsidy.payer': 'subsidyPayer',
@@ -152,9 +152,13 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/company/settings/application/namedRecordWrites.ts#ACCOUNT_WRITES',
     operations: [
-      { name: 'add-account', renames: { slug: 'account' } },
-      { name: 'change-account', renames: { slug: 'name' } },
+      { name: 'add-account', renames: { slug: 'account', ...INTAKE_RENAMES } },
+      { name: 'change-account', renames: { slug: 'name', ...INTAKE_RENAMES } },
     ],
+  },
+  {
+    path: 'src/apps/company/settings/application/namedRecordWrites.ts#ACCOUNT_WRITES.change',
+    operations: [{ name: 'change-account', renames: { slug: 'name', ...INTAKE_RENAMES } }],
   },
   {
     path: 'src/apps/company/settings/application/namedRecordWrites.ts#CATEGORY_WRITES',

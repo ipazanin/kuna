@@ -193,7 +193,7 @@ describe('an import that pays back the costs the owner paid', () => {
     const fields = {
       account: 'main',
       date: civil('2026-10-20'),
-      statement: 's-new',
+      statement: '2026-10-20-statement-099',
       counterparty: newest.counterparty,
       counterpartyIban: '',
       description: 'Refund',

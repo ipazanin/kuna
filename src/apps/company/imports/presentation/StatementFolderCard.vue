@@ -29,7 +29,8 @@ const outcome = computed(() => statements.state.outcome)
 const folder = computed(() => store.state.workbook?.settings.statementsFolder.join('/') ?? '')
 
 const heldReadings = computed(() => outcome.value?.held ?? [])
-const starts = useDryRun(heldReadings)
+// The held statements are the folder's own, so they go on an account the bank's statements fill, and an account named here takes them.
+const starts = useDryRun(heldReadings, 'automation')
 const { dryRun, started, typedOpenings, accountNames, accountNameProblems } = starts
 
 const held = computed(() => dryRun.value?.statements.filter(stillHeld) ?? [])

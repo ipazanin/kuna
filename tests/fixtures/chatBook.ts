@@ -34,6 +34,7 @@ const ACCOUNT: Account = {
   opening: accountMoneyFromAmount(1000),
   openedOn: on('2026-01-01'),
   rowsFrom: 'bank-link',
+  alsoFrom: [],
   iban: 'HR6523400091110000001',
   cards: [],
   closed: false,

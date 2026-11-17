@@ -1,11 +1,12 @@
+import { BY_HAND } from '../../../../shared/app/accountSource'
 import { INVESTMENT_ACCOUNT_WRITES } from '../../holdings/application/holdingWrites'
 import { accountIntakes, landingRecords, proposedMailStart, sourcesSaid } from '../../imports/domain/accountIntake'
 import { writeAccountSources } from '../../mail/application/mailReaderWrites'
 import { words as settingsWords } from '../../settings/presentation/words'
-import { BY_HAND, INVESTMENT_ROWS_FROM } from '../../workbook/domain/investmentAccount'
-import type { AccountIntake, InvestmentAccount } from '../../workbook/domain/investmentAccount'
+import { INVESTMENT_ROWS_FROM } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentIntake } from '../../workbook/domain/investmentAccount'
 import { INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
-import { TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { ALSO_FROM_OR_NULL, TEXT, TEXT_OR_NULL, alsoFromOfInput, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -29,14 +30,15 @@ const STARTS_ON: StrictSchema = {
 }
 
 /** How the step says the account's rows come in, over how they come in now, null for a new account. Mail with no day keeps the one it has, or takes the day the dialog proposes. */
-function intakeOf(rowsFromText: string | null, startsOnText: string | null, now: AccountIntake | null, proposed: CivilDate): AccountIntake {
+function intakeOf(rowsFromText: string | null, startsOnText: string | null, alsoFromText: string | null, now: InvestmentIntake | null, proposed: CivilDate): InvestmentIntake {
   const rowsFrom = choiceOf(INVESTMENT_ROWS_FROM, rowsFromText, 'rowsFrom') ?? now?.rowsFrom ?? 'by-hand'
   if (rowsFrom === 'by-hand') {
-    if (startsOnText !== null) throw new StepRefused('startsOn is for an account whose rows come from the mail.')
+    if (startsOnText !== null || (alsoFromText !== null && alsoFromText !== 'none')) throw new StepRefused('startsOn and alsoFrom are for an account whose rows come from the mail.')
     return BY_HAND
   }
-  if (startsOnText !== null) return { rowsFrom: 'mail', startsOn: dayOf(startsOnText) }
-  return now?.rowsFrom === 'mail' ? now : { rowsFrom: 'mail', startsOn: proposed }
+  const kept = now?.rowsFrom === 'mail' ? now : null
+  const startsOn = startsOnText === null ? (kept?.startsOn ?? proposed) : dayOf(startsOnText)
+  return { rowsFrom: 'mail', startsOn, alsoFrom: alsoFromOfInput(alsoFromText, kept?.alsoFrom ?? []) }
 }
 
 /**
@@ -48,21 +50,21 @@ export const ACCOUNT_STEPS: InvestmentSteps = {
     {
       name: 'add-account',
       about:
-        'A new account at a broker, which trades, income and cash movements name. rowsFrom mail: IBKR report by mail brings its rows from startsOn, and rows by hand go only on earlier days. by-hand: typing, imports and the chat.',
-      input: inputOf({ name: TEXT, note: TEXT, rowsFrom: ROWS_FROM, startsOn: STARTS_ON }),
+        'A new account at a broker, which trades, income and cash movements name. rowsFrom mail: IBKR report by mail brings its rows from startsOn, and no row typed, copied or imported goes on it on any day. alsoFrom provider-file also takes an IBKR report you upload. by-hand: typing, imports and the chat.',
+      input: inputOf({ name: TEXT, note: TEXT, rowsFrom: ROWS_FROM, startsOn: STARTS_ON, alsoFrom: ALSO_FROM_OR_NULL }),
       refs: {},
       creates: INVESTMENT_ACCOUNT_RECORDS.name,
       alone: false,
-      example: { name: 'Broker, long term', note: '', rowsFrom: 'mail', startsOn: '2026-11-01' },
+      example: { name: 'Broker, long term', note: '', rowsFrom: 'mail', startsOn: '2026-11-01', alsoFrom: null },
     },
     {
       name: 'change-account',
-      about: 'A new name, note, rowsFrom or startsOn for an account. Null leaves a field as it is.',
-      input: inputOf({ account: TEXT, name: TEXT_OR_NULL, note: TEXT_OR_NULL, rowsFrom: ROWS_FROM_OR_NULL, startsOn: TEXT_OR_NULL }),
+      about: 'A new name, note, rowsFrom, startsOn or alsoFrom for an account. Null leaves a field as it is. Records already on an account that turns to mail stay.',
+      input: inputOf({ account: TEXT, name: TEXT_OR_NULL, note: TEXT_OR_NULL, rowsFrom: ROWS_FROM_OR_NULL, startsOn: TEXT_OR_NULL, alsoFrom: ALSO_FROM_OR_NULL }),
       refs: { account: INVESTMENT_ACCOUNT_RECORDS.name },
       creates: null,
       alone: false,
-      example: { account: 'account', name: 'Renamed', note: null, rowsFrom: null, startsOn: null },
+      example: { account: 'account', name: 'Renamed', note: null, rowsFrom: null, startsOn: null, alsoFrom: null },
     },
     {
       name: 'delete-account',
@@ -84,7 +86,7 @@ export const ACCOUNT_STEPS: InvestmentSteps = {
           id,
           name: nameOf(field['name']),
           note: (field['note'] as string).trim(),
-          intake: intakeOf(field['rowsFrom'], field['startsOn'], null, proposedMailStart(id, [], today())),
+          intake: intakeOf(field['rowsFrom'], field['startsOn'], field['alsoFrom'], null, proposedMailStart(id, [], today())),
         }
         unit.of(INVESTMENT_ACCOUNT_WRITES).add(account)
         writeAccountSources(unit, card.book, {})
@@ -95,7 +97,7 @@ export const ACCOUNT_STEPS: InvestmentSteps = {
         const name = field['name'] === null ? before.name : nameOf(field['name'])
         const note = field['note'] === null ? before.note : (field['note'] as string).trim()
         const proposed = proposedMailStart(before.id, landingRecords(card.book), today())
-        const intake = intakeOf(field['rowsFrom'], field['startsOn'], accountIntakes(card.book).get(before.id) ?? null, proposed)
+        const intake = intakeOf(field['rowsFrom'], field['startsOn'], field['alsoFrom'], accountIntakes(card.book).get(before.id) ?? null, proposed)
         const after: InvestmentAccount = { ...before, name, note, intake }
         unit.of(INVESTMENT_ACCOUNT_WRITES).change(before, after)
         writeAccountSources(unit, card.book, { account: before.id })

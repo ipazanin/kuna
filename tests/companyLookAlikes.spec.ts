@@ -8,7 +8,6 @@ import { importDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import type { DryRunInputs } from '../src/apps/company/imports/domain/importDryRun'
 import type { ImportedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
-import { en } from '../src/apps/company/imports/domain/words'
 import { paymentRowsOf } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister'
 import { ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -22,6 +21,7 @@ import { NO_SIGNALS, civil, euros, ledger } from './fixtures/ledger'
 import { companyDesk } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { en, factText, noteText, refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -42,6 +42,8 @@ function inputsOf(transactions: readonly Transaction[], twinAnswers: DryRunInput
     starts: new Map(),
     named: new Map(),
     twinAnswers,
+    intakes: new Map(),
+    camtOrigin: 'provider-file',
     paymentsOf: () => [],
   }
 }
@@ -84,7 +86,7 @@ describe('a copied statement over a camt import', () => {
       ),
       inputsOf(CAMT_ROWS),
     )
-    expect(run.statements[0]!.refusal).toContain('a statement between the two is missing')
+    expect(refusalText(run.statements[0]!.refusal!)).toContain('a statement between the two is missing')
     expect(run.added).toEqual([])
   })
 
@@ -94,13 +96,13 @@ describe('a copied statement over a camt import', () => {
   ])('keeps a row %s new, so it must run on from where the ledger leaves the account', (_, near) => {
     const run = importDryRun(copied([['2026-10-05', -27, 'Telecom d.d.'], near]), inputsOf(CAMT_ROWS))
     expect(run.statements[0]!.rows.map((row) => row.inLedger || row.like !== undefined)).toEqual([true, false])
-    expect(run.statements[0]!.refusal).toContain('a statement between the two is missing')
+    expect(refusalText(run.statements[0]!.refusal!)).toContain('a statement between the two is missing')
   })
 
   it('leaves a statement Kuna read itself matching by reference alone', () => {
     const [reading] = copied([['2026-10-05', -27, 'Telecom d.d.']])
     const camt = { statement: { ...reading!.statement, source: { kind: 'camt' as const, iban: '', sequence: 2 } } }
-    expect(importDryRun([camt], inputsOf(CAMT_ROWS)).statements[0]!.refusal).toContain('before 8 Oct 2026')
+    expect(refusalText(importDryRun([camt], inputsOf(CAMT_ROWS)).statements[0]!.refusal!)).toContain('before 8 Oct 2026')
   })
 })
 
@@ -339,8 +341,8 @@ describe('a camt statement over rows the AI copied', () => {
     expect(statement!.refusal).toBeNull()
     expect(statement!.rows.map((row) => row.inLedger)).toEqual([true, true, false])
     expect(statement!.rows[1]!.copiedTwin).toMatchObject({ counterparty: 'Office supplies d.o.o.', amount: moneyFromAmount(-12.5) })
-    expect(statement!.notes).toEqual([])
-    expect(statement!.facts).toEqual(['1 entry is on the ledger already. 1 new entry follows it.'])
+    expect(statement!.notes.map(noteText)).toEqual([])
+    expect(statement!.facts.map(factText)).toEqual(['1 entry is on the ledger already. 1 new entry follows it.'])
     expect(run.added.map((entry) => [entry.counterparty, entry.balance])).toEqual([['Harbour bistro', moneyFromAmount(920.5)]])
   })
 
@@ -363,7 +365,7 @@ describe('a camt statement over rows the AI copied', () => {
   it('takes the look-alike as new when the person keeps both, so the balances refuse what the bank booked once', () => {
     const run = importDryRun(camtOf(OCTOBER), inputsOf(COPIED, new Map([[OFFICE, { booked: copiedOf('REF-3').id, keep: 'both' as const }]])))
     expect(run.statements[0]!.rows.map((row) => row.inLedger)).toEqual([true, false, false])
-    expect(run.statements[0]!.refusal).toContain('before 8 Oct 2026')
+    expect(refusalText(run.statements[0]!.refusal!)).toContain('before 8 Oct 2026')
     expect(run.removed).toEqual([])
   })
 
@@ -386,7 +388,7 @@ describe('a camt statement over rows the AI copied', () => {
     expect(run.added[1]!.rowId).toBe('row-office')
     expect(run.added[0]!.rowId).not.toBeNull()
     expect(run.added[0]!.rowId).not.toBe('row-office')
-    expect(statement!.facts).toContain("1 row the AI copied gives way to the file's entry, which keeps its category.")
+    expect(statement!.facts.map(factText)).toContain("1 row the AI copied gives way to the file's entry, which keeps its category.")
   })
 
   it('gives the entry a new row id when the copied row it takes the place of has none, as rows of older books have none', () => {
@@ -409,7 +411,7 @@ describe('a camt statement over rows the AI copied', () => {
       ['CAMT-1', moneyFromAmount(960.5)],
       ['CAMT-2', moneyFromAmount(920.5)],
     ])
-    expect(statement!.facts).toContain("2 rows the AI copied give way to the file's entries, which keep their categories.")
+    expect(statement!.facts.map(factText)).toContain("2 rows the AI copied give way to the file's entries, which keep their categories.")
   })
 
   it('refuses to replace a copied row that a row of another statement follows', () => {
@@ -420,7 +422,7 @@ describe('a camt statement over rows the AI copied', () => {
       sequence: 10,
     }))
     const run = importDryRun(camtOf(OCTOBER), inputsOf([...COPIED, ...later], new Map([[OFFICE, { booked: copiedOf('REF-3').id, keep: 'file' as const }]])))
-    expect(run.statements[0]!.refusal).toContain('Parking of 9 Oct 2026 after it is not on this statement')
+    expect(refusalText(run.statements[0]!.refusal!)).toContain('Parking of 9 Oct 2026 after it is not on this statement')
     expect(run.added).toEqual([])
     expect(run.removed).toEqual([])
   })
@@ -428,7 +430,7 @@ describe('a camt statement over rows the AI copied', () => {
   it('keeps a near miss new, which the ledger refuses before its newest row', () => {
     const run = importDryRun(camtOf([['2026-10-05', -27.01, 'Telecom d.d.']]), inputsOf(COPIED))
     expect(run.statements[0]!.rows.map((row) => row.inLedger)).toEqual([false])
-    expect(run.statements[0]!.refusal).toContain('before 8 Oct 2026')
+    expect(refusalText(run.statements[0]!.refusal!)).toContain('before 8 Oct 2026')
   })
 
   it('counts only the entries on the ledger in the fact on a copied statement that is partly there, as the card lists the look-alikes', () => {
@@ -440,7 +442,7 @@ describe('a camt statement over rows the AI copied', () => {
       ]),
       inputsOf(CAMT_ROWS),
     )
-    expect(run.statements[0]!.facts).toContain('1 entry is on the ledger already. 1 new entry follows it.')
+    expect(run.statements[0]!.facts).toContainEqual({ kind: 'partly-held', held: 1, fresh: 1 })
   })
 
   it('agrees the note on a partly held statement with each count', () => {

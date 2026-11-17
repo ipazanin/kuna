@@ -1,5 +1,5 @@
 import type { TransactionKind, TransactionRecord } from './listedTransactions'
-import { accountIntakes, mailOwned } from '../../imports/domain/accountIntake'
+import { accountIntakes, landingRecordOf, landsAnew, mailOwned } from '../../imports/domain/accountIntake'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovementKind } from '../../workbook/domain/cashMovement'
 import type { IncomeKind } from '../../workbook/domain/income'
@@ -141,8 +141,7 @@ type PlainFault =
   | 'otherHolding'
 
 /** What is wrong with one field. A spin-off's received holding quoted in another currency names the parent's currency, and a day the mail fills names the account and its start day. */
-export type TransactionFault =
-  { readonly kind: PlainFault } | { readonly kind: 'receivedCurrency'; readonly currency: CurrencyCode } | { readonly kind: 'mailOwns'; readonly account: string; readonly startsOn: CivilDate }
+export type TransactionFault = { readonly kind: PlainFault } | { readonly kind: 'receivedCurrency'; readonly currency: CurrencyCode } | { readonly kind: 'mailOwns'; readonly account: string }
 
 export type TransactionFaults = Partial<Record<keyof TransactionTexts, TransactionFault>>
 
@@ -310,13 +309,16 @@ function wholeNumber(text: string): number | null {
   return /^\d{1,6}$/.test(trimmed) && Number(trimmed) > 0 ? Number(trimmed) : null
 }
 
-/** The account the mail fills on the record's day, which a record by hand may not land on. A record of a report keeps its key, so it stays the mail's own. */
+/**
+ * The account the mail fills that the record by hand would land on anew, added or moved there, or null. A fix that keeps the
+ * record's account and day is allowed, and a record of a report keeps its key, so it stays the mail's own.
+ */
 function mailOwnedFault(record: TransactionRecord, book: InvestmentBook, importKey: string | null): TransactionFault | null {
   if (record.kind === 'split' || record.kind === 'spin-off' || record.kind === 'price') return null
-  const accounts = record.kind === 'transfer' ? [record.record.from, record.record.to] : [record.record.account]
-  const owned = mailOwned(accountIntakes(book), { accounts, date: record.record.date, importKey })
-  if (owned === null) return null
-  return { kind: 'mailOwns', account: book.accounts.find((account) => account.id === owned.account)?.name ?? '', startsOn: owned.startsOn }
+  const before = landingRecordOf(book, record.record.id)
+  const landing = { accounts: record.kind === 'transfer' ? [record.record.from, record.record.to] : [record.record.account], date: record.record.date, importKey }
+  const owned = landsAnew(before, landing) ? mailOwned(accountIntakes(book), landing) : null
+  return owned === null ? null : { kind: 'mailOwns', account: book.accounts.find((account) => account.id === owned)?.name ?? '' }
 }
 
 /**
@@ -337,7 +339,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
   const note = texts.note.trim()
   const done = (record: TransactionRecord): TransactionDraft => {
     const owned = mailOwnedFault(record, book, importKey)
-    if (owned !== null) faults.date = owned
+    if (owned !== null) faults.account = owned
     return { faults, record: Object.keys(faults).length === 0 ? record : null }
   }
 

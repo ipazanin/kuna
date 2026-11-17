@@ -1,9 +1,9 @@
+import { BY_HAND } from '../../src/shared/app/accountSource'
 import type { CashMovement, CashMovementKind } from '../../src/apps/investments/workbook/domain/cashMovement'
 import type { Exchange } from '../../src/apps/investments/workbook/domain/exchange'
 import type { Income } from '../../src/apps/investments/workbook/domain/income'
 import type { Instrument } from '../../src/apps/investments/workbook/domain/instrument'
-import { BY_HAND } from '../../src/apps/investments/workbook/domain/investmentAccount'
-import type { AccountIntake, InvestmentAccount } from '../../src/apps/investments/workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentIntake } from '../../src/apps/investments/workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../src/apps/investments/workbook/domain/investmentBook'
 import {
   CASH_MOVEMENT_RECORDS,
@@ -45,7 +45,7 @@ function rateOf(text: string | null): Decimal | null {
   return text === null ? null : decimal(text)
 }
 
-export function account(key: string, name = key, intake: AccountIntake | null = BY_HAND): InvestmentAccount {
+export function account(key: string, name = key, intake: InvestmentIntake | null = BY_HAND): InvestmentAccount {
   return { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, key), name, note: '', intake }
 }
 

@@ -1,3 +1,4 @@
+import { BY_HAND } from '../../../shared/app/accountSource'
 import { HOLDING_ROUTE } from '../holdings/presentation/holdingLinks'
 import { accountIntakes } from '../imports/domain/accountIntake'
 import type { PortfolioSources } from '../holdings/domain/holding'
@@ -16,7 +17,6 @@ import type { FundMixLine } from '../workbook/domain/fundMix'
 import type { HandPrice } from '../workbook/domain/handPrice'
 import type { Income } from '../workbook/domain/income'
 import type { Instrument, Quoting } from '../workbook/domain/instrument'
-import { BY_HAND } from '../workbook/domain/investmentAccount'
 import type { InvestmentAccount } from '../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../workbook/domain/investmentBook'
 import {

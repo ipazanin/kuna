@@ -509,7 +509,7 @@ describe('categories and accounts', () => {
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
     const change = (fields: Record<string, unknown>) => ({
       op: 'change-account',
-      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, cards: null, rowsFrom: null, closed: null, ...fields },
+      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, cards: null, rowsFrom: null, alsoFrom: null, closed: null, ...fields },
     })
     expect((await desk.propose([change({ currency: 'USD' })])).isError).toBe(true)
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'delete-account', { account: current })])).isError).toBe(true)

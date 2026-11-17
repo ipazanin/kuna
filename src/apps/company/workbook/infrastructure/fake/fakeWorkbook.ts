@@ -301,8 +301,19 @@ export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: Fak
     ...records,
     setting: [...(records.setting ?? []), recordFields(setting(PAYMENTS_PLACED))],
     item: withInvoicePayments(before, records.item ?? []),
+    account: withAccountSources(records.account ?? [], records['ledger-row'] ?? []),
     'hr-doo.owner-advance': withStaffAdvances(records['hr-doo.owner-advance'] ?? [], staff),
   }
+}
+
+/**
+ * The accounts as books that say how each account's rows come in hold them: main from the bank's statements from its first
+ * statement's day, which also takes the bank's camt file on Import, and legacy by hand. Books from before items leave both unsaid, which the reader then works out from the ledger.
+ */
+function withAccountSources(accounts: readonly RecordFields[], ledger: readonly RecordFields[]): readonly RecordFields[] {
+  const mainDays = ledger.filter((row) => row.account === 'main').map((row) => String(row.date))
+  const startsOn = mainDays.reduce((first, day) => (day < first ? day : first), mainDays[0] ?? '')
+  return accounts.map((account) => (account.account === 'main' ? { ...account, rows_from: 'mail', starts_on: startsOn, also_from: 'provider-file' } : { ...account, rows_from: 'by-hand' }))
 }
 
 /**
