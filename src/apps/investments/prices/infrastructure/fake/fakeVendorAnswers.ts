@@ -1,5 +1,5 @@
 import type { VendorAnswer, VendorFetch } from '../../application/priceVendor'
-import { isWeekday } from './fakePrices'
+import { FAKE_SERIES, fakeClose, isWeekday } from './fakePrices'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { fakeEcbFetch } from '../../../../../shared/rates/infrastructure/fake/fakeEcbRates'
@@ -100,6 +100,27 @@ function twelveData(query: URLSearchParams): VendorAnswer {
   return json(200, { meta: { symbol }, values: days.map((day) => ({ datetime: day, close: madeUpClose(symbol, day, 100) })), status: 'ok' })
 }
 
+/** A made-up listing's price on a day: the walk of the fake prices file where it holds the series, so a quote follows its closes. */
+function quotedClose(series: string, symbol: string, day: CivilDate, base: number): string {
+  return (Object.values(FAKE_SERIES) as string[]).includes(series) ? fakeClose(series, day) : madeUpClose(symbol, day, base)
+}
+
+/**
+ * The fake Twelve Data's quote: a session today that is still open, priced where the made-up series walks to today, with
+ * its last trade a few minutes ago. On a weekend the session is Friday's, at its close.
+ */
+function twelveDataQuote(query: URLSearchParams): VendorAnswer {
+  const symbol = query.get('symbol') ?? ''
+  const day = weekdaysFrom(addDays(today(), -6)).at(-1)!
+  return json(200, {
+    symbol,
+    datetime: day,
+    close: quotedClose(`twelvedata:${symbol}`, symbol, day, 100),
+    is_market_open: day === today(),
+    last_quote_at: Math.floor(Date.now() / 1000) - 240,
+  })
+}
+
 /** The splits the fake Alpha Vantage lists, the made-up workbook's split among them. */
 const FAKE_SPLITS: Readonly<Record<string, readonly { readonly effective_date: string; readonly split_factor: string }[]>> = {
   ABC: [{ effective_date: '2025-06-10', split_factor: '2.0000' }],
@@ -155,6 +176,10 @@ function alphaVantage(query: URLSearchParams): VendorAnswer {
   }
   if (query.get('function') === 'DIVIDENDS') {
     return json(200, { symbol, data: FAKE_DIVIDENDS[symbol] ?? [] })
+  }
+  if (query.get('function') === 'GLOBAL_QUOTE') {
+    const day = weekdaysFrom(addDays(today(), -6)).at(-1)!
+    return json(200, { 'Global Quote': { '01. symbol': symbol, '05. price': quotedClose(`alphavantage:${symbol}`, symbol, day, 90), '07. latest trading day': day } })
   }
   if (query.get('function') === 'SYMBOL_SEARCH') {
     const bestMatches = fakeListings(query.get('keywords') ?? '').map((listing) => ({
@@ -217,6 +242,9 @@ export const fakeVendorFetch: VendorFetch = async (url) => {
   }
   if (url.startsWith('https://api.twelvedata.com/time_series?')) {
     return twelveData(query)
+  }
+  if (url.startsWith('https://api.twelvedata.com/quote?')) {
+    return twelveDataQuote(query)
   }
   if (url.startsWith('https://api.twelvedata.com/symbol_search?')) {
     return twelveDataSearch(query)

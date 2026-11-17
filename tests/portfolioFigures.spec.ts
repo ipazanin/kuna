@@ -4,6 +4,9 @@ import type { HoldingFigures } from '../src/apps/investments/holdings/domain/hol
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import { closeIsLate } from '../src/apps/investments/prices/domain/priceBook'
+import { seriesKey } from '../src/apps/investments/prices/domain/pricesFile'
+import { quotedPriceBook } from '../src/apps/investments/prices/domain/todaysQuotes'
+import type { TodaysQuote } from '../src/apps/investments/prices/domain/todaysQuotes'
 import type { PriceBook } from '../src/apps/investments/prices/domain/priceBook'
 import type { RateBook } from '../src/shared/money/rateBook'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
@@ -88,6 +91,19 @@ describe("the worked portfolio's figures on 29 Oct 2026", () => {
     // (3,414.75 ÷ 3,000.00) ^ (365 ÷ 665) − 1 = 0.0736613.
     expect(figures.yearlyReturn.kind).toBe('rate')
     expect(figures.yearlyReturn.kind === 'rate' && figures.yearlyReturn.rate).toBeCloseTo(0.0736613, 6)
+  })
+
+  it('counts Stock B at the quote Fetch today brought and the World ETF at its last close, and says so', () => {
+    // Stock B 15 × $59.00 at 1.12 (790.18) − 15 × $58.00 at 1.12 (776.79) = +13.39. The World ETF has nothing newer, so it adds nothing.
+    const quote: TodaysQuote = { series: seriesKey(STOCK_B.prices, STOCK_B.sourceSymbol), day: civil('2026-10-30'), price: decimal('59'), at: '2026-10-30T15:40:00.000Z', marketOpen: true }
+    const live = portfolioFigures({ book: workedPortfolio(), prices: quotedPriceBook(WORKED_PRICES, [quote]), rates: WORKED_RATES, today: civil('2026-10-30') })
+
+    expect(live.lastDay).toMatchObject({ from: '2026-10-29', to: '2026-10-30', change: euros(13.39), quoted: { holdings: 1, atLastClose: 1, at: '2026-10-30T15:40:00.000Z', marketOpen: true } })
+    expect(live.holdings.map((holding) => [holding.valuation?.close.quote !== undefined, holding.lastDay?.change])).toEqual([
+      [false, euros(0)],
+      [true, euros(13.39)],
+    ])
+    expect(Object.keys(figures.lastDay!)).not.toContain('quoted')
   })
 
   it('gives +€16.82 on the last day, from the close of 28 Oct to that of 29 Oct', () => {

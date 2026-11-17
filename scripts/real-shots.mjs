@@ -18,9 +18,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-import { launch } from 'puppeteer-core'
-
-import { chromeLaunch } from './support/browsers.mjs'
+import { chromeLaunch, withBrowser } from './support/browsers.mjs'
 import { runSelection } from './support/runSelection.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
@@ -178,18 +176,15 @@ async function shoot(browser, { screen, viewport, language, theme, stem }) {
 }
 
 mkdirSync(named.out, { recursive: true })
-const browser = await launch(chromeLaunch(false))
 const results = []
 const queue = [...visits]
-try {
-  await Promise.all(
+await withBrowser(chromeLaunch(false), (browser) =>
+  Promise.all(
     Array.from({ length: 4 }, async () => {
       for (let visit = queue.shift(); visit !== undefined; visit = queue.shift()) results.push(await shoot(browser, visit))
     }),
-  )
-} finally {
-  await browser.close()
-}
+  ),
+)
 
 const troubled = results.filter((result) => !result.ready || result.errors.length > 0)
 const report = troubled.map((result) => `${result.name}: ${result.ready ? '' : 'no screen title within 20 s. '}${[...new Set(result.errors)].join(' | ')}`)

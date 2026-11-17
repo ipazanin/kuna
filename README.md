@@ -2018,6 +2018,8 @@ npm run check:firefox  # after build:fake and preview:fake: real Firefox with cl
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
 npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample (or house-and-car or equal-principal) adds the Loans groups, or gives them alone, and --investments <kuna-investments.json> with --investments-prices <kuna-investments-prices.json>, or --fake-investments sample with the fake prices file, adds the Investments groups: the records, each holding, each account's cash, the portfolio, the last day, the Overview's cards, the value over time, the benchmark's closes, Performance over each period it offers and its returns by year. --assets <kuna-assets.json> with an optional --house-index <a saved answer of the DZS>, or --fake-assets sample (or house-and-car or loan-gone) with the fake index, adds the Assets groups: the records, each asset's value with how it was reached and its loan with what is yours, the total and its part of Net worth. An Assets file without a saved answer is valued as if the index failed, and an asset's loan is read from the Loans input. --spending <kuna-spending.json> with an optional --spending-rates <a folder of saved ECB answers, one per currency named like USD.csv>, or --fake-spending sample (or foreign or over, or statements, which adds the Revolut and bank sync dry runs) with the fake ECB, adds the Spending groups: the records, each account's balance in its currency and in euros, income, spending and saved for every month from the oldest row, what each category and group counts and each limit with its carry for the newest complete month and the day's month, and its part of Net worth. A Spending file without saved rates leaves its foreign rows unrated. With two or more personal inputs, hub.personal adds them up as Net worth does
+npm run clean          # removes visual-check/, dist/, dist-fake/ and node_modules/.vite, never through a symbolic link
+npm run check:leftovers   # fails on a server listening from this checkout, a browser profile its checks left, visual-check/ or a container labelled kuna
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
@@ -2119,7 +2121,10 @@ check covers each variant, and the import summary of an xlsx it writes from the 
 npm run build:fake && npm run preview:fake -- --port 4173
 npm run check:visual
 npm run check:touch
+npm run check:visual -- --serve fake   # or with no preview started: serves dist-fake/ on a free port for the run and stops it after
 ```
+
+Each check launches its browser with a profile folder of its own, named `kuna-browser-`, and removes it when the run ends, fails or is stopped. A limited run replaces the screenshots of what it runs, by the list in `shots.json` beside them.
 
 While working on a screen, both take `--only` and `--widths` to run a part of the check quickly:
 

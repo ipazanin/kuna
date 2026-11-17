@@ -23,7 +23,7 @@ const THRESHOLD_PLACES = 12
 /** A threshold as a check reads it, in percent, or in points for the gap to a target. */
 export function thresholdText(check: CheckName, threshold: Decimal): string {
   const limit = formatQuantity(threshold, THRESHOLD_PLACES)
-  return check === 'target-gap' ? plural(words.checks.points(limit), Number(decimalText(threshold))) : words.checks.percent(limit)
+  return check === 'target-gap' ? plural(words.points(limit), Number(decimalText(threshold))) : words.percent(limit)
 }
 
 /**
@@ -31,22 +31,21 @@ export function thresholdText(check: CheckName, threshold: Decimal): string {
  * value, over 20%". A group leads with its name and a colon, since a class or a sector such as Financials is plural.
  */
 export function checkLines(checks: readonly PortfolioCheck[], book: Pick<InvestmentBook, 'accounts'>): CheckLine[] {
-  const text = words.checks
   return checks.map((entry) => {
     const shown = thresholdText(entry.check, entry.threshold)
-    const bound = entry.over ? text.overLimit(shown) : text.withinLimit(shown)
+    const bound = entry.over ? words.overLimit(shown) : words.withinLimit(shown)
     const name =
-      entry.subject.kind === 'holding' ? entry.subject.instrument.name : entry.subject.kind === 'group' ? groupName(entry.subject.slice.mix, entry.subject.slice.group, book) : text.labels.cash
+      entry.subject.kind === 'holding' ? entry.subject.instrument.name : entry.subject.kind === 'group' ? groupName(entry.subject.slice.mix, entry.subject.slice.group, book) : words.labels.cash
     const sentence =
       entry.check === 'target-gap'
-        ? text.gap(name, formatDecimal(pointsOfShare(entry.measured)), bound)
+        ? words.gap(name, formatDecimal(pointsOfShare(entry.measured)), bound)
         : entry.check === 'costs'
-          ? text.costs(formatCostShare(entry.measured), bound)
+          ? words.costs(formatCostShare(entry.measured), bound)
           : entry.check === 'sector' || entry.check === 'country'
-            ? text.groupOfHoldings(name, formatShare(entry.measured), bound)
+            ? words.groupOfHoldings(name, formatShare(entry.measured), bound)
             : entry.subject.kind === 'group'
-              ? text.groupOfValue(name, formatShare(entry.measured), bound)
-              : text.ofValue(name, formatShare(entry.measured), bound)
-    return { check: entry.check, over: entry.over, label: text.labels[entry.check], sentence }
+              ? words.groupOfValue(name, formatShare(entry.measured), bound)
+              : words.ofValue(name, formatShare(entry.measured), bound)
+    return { check: entry.check, over: entry.over, label: words.labels[entry.check], sentence }
   })
 }

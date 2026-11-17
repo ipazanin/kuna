@@ -2,9 +2,9 @@ import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
 import { words as cardWords } from '../../../../shared/app/words'
 import { words as holdingsWords } from '../../holdings/presentation/words'
 import { words as mailWords } from '../../mail/presentation/words'
-import { thresholdText } from '../../overview/presentation/checkLines'
+import { thresholdText } from '../../checks/presentation/checkLines'
 import { words as settingsWords } from '../../settings/presentation/words'
-import { words as overviewWords } from '../../overview/presentation/words'
+import { words as checkWords } from '../../checks/presentation/words'
 import { words as vendorWords } from '../../prices/infrastructure/vendors/words'
 import { storedCityText } from '../../tax/presentation/surtaxCityChoices'
 import { words as taxWords } from '../../tax/presentation/words'
@@ -259,7 +259,7 @@ function settingValue(kind: RecordKind<unknown>, field: string, record: Proposed
   if (isKind(kind, CHECK_RECORDS, record)) {
     const setting: CheckSetting = record
     const shown: Partial<Record<keyof CheckSetting, string | null>> = {
-      check: overviewWords.checks.labels[setting.check],
+      check: checkWords.labels[setting.check],
       threshold: setting.threshold === null ? null : thresholdText(setting.check, setting.threshold),
     }
     return shown[field as keyof CheckSetting]
@@ -302,7 +302,7 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   if (isKind(kind, INCOME_RECORDS, record)) return [dayLabel(record.date), recordWords.incomeKinds[record.kind].toLowerCase(), formatCurrencyAmount(record.gross, record.currency)].join(', ')
   if (isKind(kind, FUND_MIX_RECORDS, record)) return namesOf.get(record.instrument) ?? fallback
   if (isKind(kind, TARGET_RECORDS, record)) return sliceText(record.slice, namesOf)
-  if (isKind(kind, CHECK_RECORDS, record)) return overviewWords.checks.labels[record.check]
+  if (isKind(kind, CHECK_RECORDS, record)) return checkWords.labels[record.check]
   if (isKind(kind, MAIL_READER_RECORDS, record)) return mailWords.card.title
   if (isSurtaxCity(kind, record)) return taxWords.surtaxCity.title
   return fallback

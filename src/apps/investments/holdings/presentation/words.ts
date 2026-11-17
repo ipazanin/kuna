@@ -1,9 +1,11 @@
 import type { FundMix, FundMixFaults, MixFault } from '../domain/fundMixDraft'
+import type { GainSource } from '../domain/gainSources'
 import type { HoldingGroup, HoldingsGrouping } from '../domain/holdingsList'
 import type { InstrumentFault, InstrumentFaults } from '../domain/instrumentDraft'
 import type { FundDistribution, InstrumentType, Quoting } from '../../workbook/domain/instrument'
 import type { Mix, Region, Sector } from '../../workbook/domain/mixGroup'
 import { language } from '../../../../shared/text/language'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -56,8 +58,16 @@ export const en = {
   findShort: 'Search',
   findCurrency: 'Find a currency',
   table: 'Holdings',
-  columns: { holding: 'Holding', units: 'Units', price: 'Price', cost: 'Cost', value: 'Value', gain: 'Gain', weight: 'Weight', lastDay: 'Last day' },
+  columns: { holding: 'Holding', units: 'Units', price: 'Price', cost: 'Cost', value: 'Value', gain: 'Gain', weight: 'Weight', lastDay: 'Last day', today: 'Today' },
+  today: {
+    live: (time: string, count: number): EnglishForms => ({ one: `Live at ${time} for 1 holding`, other: `Live at ${time} for ${count} holdings` }),
+    closed: (count: number): EnglishForms => ({ one: "Today's close for 1 holding", other: `Today's close for ${count} holdings` }),
+    rest: (day: string) => `, the rest at the close of ${day}`,
+    atLastClose: (count: number, day: string): EnglishForms => ({ one: `1 holding at the close of ${day}`, other: `${count} holdings at the close of ${day}` }),
+    atClose: (day: string) => `At the close of ${day}`,
+  },
   total: 'Total',
+  totalWithoutCash: 'Total without cash',
   holdingCount: (count: number): EnglishForms => ({ one: `${count} holding`, other: `${count} holdings` }),
   balanceCount: (count: number): EnglishForms => ({ one: `${count} cash balance`, other: `${count} cash balances` }),
   cashIn: (currency: string) => `Cash in ${currency}`,
@@ -429,6 +439,31 @@ export const en = {
     notSaved: 'Not saved',
     notDeleted: 'Not deleted',
   },
+  notice: {
+    toCheck: 'Some figures need a look',
+    byHandOnly: 'Prices entered by hand',
+    holding: (name: string, symbol: string) => `${name} (${symbol})`,
+    lateClose: (holding: string, day: string) => `${holding} is valued at its close of ${day}, which is late.`,
+    lateByHand: (holding: string, day: string) => `${holding} uses the price you entered on ${day}, which is late.`,
+    byHand: (holding: string, day: string) => `${holding} uses the price you entered on ${day}.`,
+    unpriced: (holding: string) => `${holding} has no price yet, so the value leaves it out.`,
+    unpricedBecause: (holding: string, why: string, advice: string) => `${holding} has no price, so the value leaves it out. ${why} ${advice}`,
+    cashBelowZero: (account: string, amount: string) => `${account} holds ${amount} of cash, below zero. A deposit or an exchange is probably missing.`,
+  },
+  gain: {
+    title: 'Where the gain comes from',
+    subtitle: 'All time, in euros',
+    sources: {
+      held: 'On what you hold',
+      realised: 'Realised on sales',
+      income: 'Income after tax withheld',
+      'account-fees': 'Account fees',
+      'currency-on-cash': 'Currency on cash',
+    } satisfies Record<GainSource, string>,
+    total: 'Total gain',
+    tradingFees: (amount: string) => `Trading fees of ${amount} are inside these figures.`,
+    notAddingUp: 'The parts leave out what has no price, so they do not add up to the total.',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -480,8 +515,16 @@ export const hr: Translation<typeof en> = {
   findShort: 'Pretraži',
   findCurrency: 'Pretraži valute',
   table: 'Pozicije',
-  columns: { holding: 'Pozicija', units: 'Količina', price: 'Cijena', cost: 'Trošak', value: 'Vrijednost', gain: 'Dobit', weight: 'Udio', lastDay: 'Zadnji dan' },
+  columns: { holding: 'Pozicija', units: 'Količina', price: 'Cijena', cost: 'Trošak', value: 'Vrijednost', gain: 'Dobit', weight: 'Udio', lastDay: 'Zadnji dan', today: 'Danas' },
+  today: {
+    live: (time, count) => ({ one: `Uživo u ${time} za ${count} poziciju`, few: `Uživo u ${time} za ${count} pozicije`, other: `Uživo u ${time} za ${count} pozicija` }),
+    closed: (count) => ({ one: `Današnje zatvaranje za ${count} poziciju`, few: `Današnje zatvaranje za ${count} pozicije`, other: `Današnje zatvaranje za ${count} pozicija` }),
+    rest: (day) => `, ostale po zatvaranju ${day}`,
+    atLastClose: (count, day) => ({ one: `${count} pozicija po zatvaranju ${day}`, few: `${count} pozicije po zatvaranju ${day}`, other: `${count} pozicija po zatvaranju ${day}` }),
+    atClose: (day) => `Po zatvaranju ${day}`,
+  },
   total: 'Ukupno',
+  totalWithoutCash: 'Ukupno bez novca',
   holdingCount: (count) => ({ one: `${count} pozicija`, few: `${count} pozicije`, other: `${count} pozicija` }),
   balanceCount: (count) => ({ one: `${count} novčano stanje`, few: `${count} novčana stanja`, other: `${count} novčanih stanja` }),
   cashIn: (currency) => `Novac u ${currency}`,
@@ -865,6 +908,31 @@ export const hr: Translation<typeof en> = {
     notAdded: 'Nije dodano',
     notSaved: 'Nije spremljeno',
     notDeleted: 'Nije obrisano',
+  },
+  notice: {
+    toCheck: 'Neke brojke treba provjeriti',
+    byHandOnly: 'Cijene unesene ručno',
+    holding: (name, symbol) => `${name} (${symbol})`,
+    lateClose: (holding, day) => `${holding}: vrednuje se po zaključnoj cijeni od ${day}, koja kasni.`,
+    lateByHand: (holding, day) => `${holding}: koristi se cijena koju ste unijeli ${day}, a ona kasni.`,
+    byHand: (holding, day) => withFullStop(`${holding}: koristi se cijena koju ste unijeli ${day}`),
+    unpriced: (holding) => `${holding}: još nema cijene, pa nije u vrijednosti.`,
+    unpricedBecause: (holding, why, advice) => `${holding}: nema cijene, pa nije u vrijednosti. ${why} ${advice}`,
+    cashBelowZero: (account, amount) => `${account}: novac je ${amount}, ispod nule. Vjerojatno nedostaje uplata ili konverzija.`,
+  },
+  gain: {
+    title: 'Odakle dolazi dobit',
+    subtitle: 'Od početka, u eurima',
+    sources: {
+      held: 'Na onome što držite',
+      realised: 'Ostvareno prodajom',
+      income: 'Prihod nakon zadržanog poreza',
+      'account-fees': 'Naknade računa',
+      'currency-on-cash': 'Tečaj na novcu',
+    },
+    total: 'Ukupna dobit',
+    tradingFees: (amount) => `Naknade trgovanja od ${amount} već su u ovim iznosima.`,
+    notAddingUp: 'Dijelovi ne uključuju ono što nema cijenu, pa ne daju ukupnu dobit.',
   },
 }
 

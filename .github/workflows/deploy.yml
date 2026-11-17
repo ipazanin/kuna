@@ -82,17 +82,15 @@ jobs:
       - run: npm ci
       # ubuntu-latest ships Chrome at /usr/bin/google-chrome and Firefox at /usr/bin/firefox, which the checks probe for.
       # They run against the fake build, so every screen has data and no Google call is made.
+      # The check serves the fake build itself and stops the server when it ends.
       - name: Check
         run: |
           npm run build:fake
-          # Redirected, or the backgrounded server holds the step's stdout open and the job hangs
-          # after the check has already passed.
-          npm run preview:fake -- --port 4173 > preview.log 2>&1 &
-          for attempt in $(seq 1 30); do
-            curl -sf http://localhost:4173/kuna/ > /dev/null && break
-            sleep 1
-          done
-          npm run check:${{ matrix.check }} -- ${{ matrix.selection }} || { cat preview.log; exit 1; }
+          npm run check:${{ matrix.check }} -- --serve fake ${{ matrix.selection }}
+      # The shots go with the runner, so only the processes, profiles and containers a run leaves count here.
+      - name: Nothing left over
+        if: always()
+        run: npm run check:leftovers -- --with-shots
 
   deploy:
     needs: [verify, checks]

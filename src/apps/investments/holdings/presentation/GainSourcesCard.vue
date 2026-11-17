@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { gainSources } from '../domain/overviewFigures'
-import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
+import { gainSources } from '../domain/gainSources'
+import type { PortfolioFigures } from '../domain/portfolioFigures'
 import { words } from './words'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
-/** The total gain in its five parts, with the trading fees that are already inside them. */
+/** The total gain in its five parts, with the trading fees that are already inside them. The table keeps a short measure, so an amount stays near its label across a wide screen. */
 const props = defineProps<{
   figures: PortfolioFigures
 }>()
@@ -19,7 +19,7 @@ const sources = computed(() => gainSources(props.figures))
 
 <template>
   <AppCard :title="words.gain.title" :subtitle="words.gain.subtitle" data-testid="investments-gain-sources">
-    <FigureTable class="mt-2 px-1 sm:px-2" :label="words.gain.title">
+    <FigureTable class="mt-2 max-w-2xl px-1 sm:px-2" :label="words.gain.title">
       <tbody>
         <tr v-for="part in sources.parts" :key="part.source" :data-source="part.source">
           <th scope="row" class="cell-wraps text-start font-normal text-highlighted">{{ words.gain.sources[part.source] }}</th>

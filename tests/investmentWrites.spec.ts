@@ -7,7 +7,7 @@ import { fundMixChanges, fundMixFaults, fundMixTexts, mixLineTexts, mixSum } fro
 import { instrumentFaults, instrumentOfTexts, instrumentTexts, withQuoting } from '../src/apps/investments/holdings/domain/instrumentDraft'
 import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
 import { fundMixErrors, instrumentErrors } from '../src/apps/investments/holdings/presentation/words'
-import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
+import { writeCheck } from '../src/apps/investments/checks/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
 import { listedTransactions, passesFilter, transactionCount, withImportFacts } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { TransactionRecord } from '../src/apps/investments/transactions/domain/listedTransactions'

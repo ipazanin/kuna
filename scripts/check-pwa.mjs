@@ -19,9 +19,8 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launch } from 'puppeteer-core'
 
-import { chromePath, ENGLISH_CHROME_ARG, ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
+import { chromePath, ENGLISH_CHROME_ARG, ENGLISH_FIREFOX_PREFS, firefoxPath, withBrowser } from './support/browsers.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 import { en as homeEnglish } from '../src/shell/home/words.ts'
 
@@ -91,7 +90,6 @@ const server = createServer((request, response) => {
 const browserName = process.argv.includes('--firefox') ? 'firefox' : 'chrome'
 // Port 9 is the discard port, where nothing listens, so every request through the proxy fails at once.
 const DEAD_PROXY = '127.0.0.1:9'
-let browser
 try {
   await new Promise((resolve, reject) => {
     server.once('error', reject)
@@ -99,7 +97,7 @@ try {
   })
   const origin = `http://127.0.0.1:${server.address().port}`
   const appUrl = origin + base
-  browser = await launch(
+  const launchOptions =
     browserName === 'firefox'
       ? {
           browser: 'firefox',
@@ -115,214 +113,214 @@ try {
             'network.proxy.no_proxies_on': '127.0.0.1',
           },
         }
-      : { executablePath: chromePath(), headless: true, args: ['--no-sandbox', `--proxy-server=http://${DEAD_PROXY}`, ENGLISH_CHROME_ARG] },
-  )
-  console.log(`Checking ${await browser.version()}`)
-  const context = await browser.createBrowserContext()
-  const probe = await context.newPage()
-  await probe.goto(`${origin}/probe`)
-  await probe.evaluate(async () => {
-    const cache = await caches.open('another-project-cache')
-    await cache.put('/unrelated', new Response('Keep another app intact'))
-  })
-
-  const errors = []
-  const foreignRequests = []
-  const watch = (page) => {
-    page.on('pageerror', (error) => errors.push(error.message))
-    page.on('console', (message) => {
-      // A Google script the dead proxy refused is expected. The app catches that and carries on.
-      const source = message.location()?.url ?? ''
-      if (message.type() === 'error' && (source === '' || source.startsWith(origin))) errors.push(message.text())
+      : { executablePath: chromePath(), headless: true, args: ['--no-sandbox', `--proxy-server=http://${DEAD_PROXY}`, ENGLISH_CHROME_ARG] }
+  await withBrowser(launchOptions, async (browser) => {
+    console.log(`Checking ${await browser.version()}`)
+    const context = await browser.createBrowserContext()
+    const probe = await context.newPage()
+    await probe.goto(`${origin}/probe`)
+    await probe.evaluate(async () => {
+      const cache = await caches.open('another-project-cache')
+      await cache.put('/unrelated', new Response('Keep another app intact'))
     })
-    page.on('request', (request) => {
-      if (!request.url().startsWith(origin) && !request.url().startsWith('data:') && !request.url().startsWith('blob:')) {
-        foreignRequests.push(request.url())
-      }
-    })
-    return page
-  }
 
-  const page = watch(await context.newPage())
-  await page.setCacheEnabled(false)
-  await page.goto(appUrl)
-  await waitForWorker(page)
-  const manifest = await page.evaluate(async () => {
-    const url = document.querySelector('link[rel="manifest"]').href
-    const manifest = await (await fetch(url)).json()
-    const icons = await Promise.all(
-      manifest.icons.map(async (icon) => {
-        const bitmap = await createImageBitmap(await (await fetch(new URL(icon.src, url))).blob())
-        return { declared: icon.sizes, purpose: icon.purpose, actual: `${bitmap.width}x${bitmap.height}` }
-      }),
-    )
-    return { ...manifest, url, icons }
-  })
-  assert.equal(new URL(manifest.scope, manifest.url).href, appUrl)
-  assert.equal(new URL(manifest.start_url, manifest.url).href, appUrl)
-  assert.equal(new URL(manifest.id, manifest.url).href, appUrl)
-  assert.equal(manifest.display, 'standalone')
-  assert.equal(manifest.theme_color, '#0d1219')
-  assert.equal(manifest.background_color, '#0d1219')
-  for (const size of ['192x192', '512x512']) {
-    assert.ok(
-      manifest.icons.some((icon) => icon.declared === size && icon.actual === size && icon.purpose === 'any'),
-      `Missing valid ${size} icon`,
-    )
-  }
-  assert.ok(
-    manifest.icons.some((icon) => icon.purpose === 'maskable' && icon.actual === icon.declared),
-    'Missing a valid maskable icon',
-  )
-  assert.equal(await page.evaluate(async () => (await navigator.serviceWorker.ready).scope), appUrl)
-  if (browserName === 'chrome') {
-    // Chrome's own verdict on whether the page can be installed, as Android Chrome makes it.
-    const session = await page.createCDPSession()
-    const { installabilityErrors } = await session.send('Page.getInstallabilityErrors')
-    // The check runs in a separate browser context, which Chrome treats as incognito, where nothing installs.
-    const blocking = installabilityErrors.map((error) => error.errorId).filter((errorId) => errorId !== 'in-incognito')
-    assert.deepEqual(blocking, [], 'Chrome must consider the app installable.')
-    await session.detach()
-  }
-  const assets = filenames.filter((filename) => filename !== 'sw.js').map((filename) => appUrl + filename)
-  assert.deepEqual(
-    await page.evaluate(async (urls) => {
-      const missing = []
-      for (const url of urls) if (!(await caches.match(url))) missing.push(url)
-      return missing
-    }, assets),
-    [],
-    'Every built asset, including lazy screens, SheetJS and fonts, must be available offline.',
-  )
-  console.log(`PASS: manifest, icons, scoped worker, complete precache${browserName === 'chrome' ? ', installable' : ''}`)
-
-  // The first visit opens the home. Its Company card starts onboarding, which brings an xlsx file into this browser, kept in IndexedDB.
-  await waitForTitle(page, 'Welcome to Kuna')
-  await clickStart(page, '[data-testid="kuna-welcome-apps"] label', 'Company')
-  await clickStart(page, '[data-testid="kuna-welcome-home"] label', 'Only this browser')
-  await clickText(page, '[data-testid="kuna-welcome-continue"]', 'Continue')
-  await clickStart(page, '[data-testid="home-card"]', 'Company')
-  await clickStart(page, '[data-testid="onboarding-path"] label', 'Bring my books')
-  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
-  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
-  await (await page.waitForSelector('input[data-testid="onboarding-file"]')).uploadFile(templateFile)
-  await page.waitForSelector('[data-testid="import-summary"] dl')
-  await clickText(page, '[data-testid="onboarding-step"] button', 'Keep in this browser')
-  await page.waitForSelector('[data-testid="onboarding-step"][data-step="company"]')
-  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
-  await waitForTitle(page, 'Overview')
-  await page.waitForSelector('.chart-body canvas')
-  // The Loans first run keeps its own file in this browser too, and asks nothing, since the welcome said this browser.
-  await page.goto(`${appUrl}#/loans`)
-  await page.waitForSelector('[data-testid="loans-start-in-browser"]')
-  await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
-  await page.waitForSelector('[data-testid="loans-empty"]')
-  assert.deepEqual(await cachedForeignUrls(page, origin), [], 'Nothing from another origin may be cached.')
-
-  // Firefox's WebDriver offline emulation rejects navigation before service-worker handling.
-  serverUnavailable = true
-  if (browserName === 'chrome') await page.setOfflineMode(true)
-  await page.goto(`${appUrl}?offline-check=1#/company/transactions`)
-  await waitForTitle(page, 'Transactions')
-  await page.waitForFunction(() => document.body.innerText.includes('Northwind Analytics'))
-  await page.goto(`${appUrl}?offline-check=loans#/loans`)
-  await waitForTitle(page, 'Overview')
-  await page.waitForFunction(() => document.querySelector('[data-testid="loans-empty"]')?.textContent?.includes('kept in this browser') === true)
-  await page.goto(`${appUrl}?offline-check=2#/company/analysis?tab=over-time`)
-  await waitForTitle(page, 'Analysis')
-  await page.waitForSelector('.chart-body canvas')
-  await page.reload()
-  await waitForTitle(page, 'Analysis')
-  await page.waitForSelector('.chart-body canvas')
-  assert.deepEqual(errors, [], 'Offline navigation must not produce browser errors.')
-  console.log('PASS: offline reload shows the imported workbook, lazy screens and charts included, and the Loans file kept in this browser')
-
-  serverUnavailable = false
-  if (browserName === 'chrome') await page.setOfflineMode(false)
-  const secondWindow = watch(await context.newPage())
-  await secondWindow.goto(appUrl)
-  await waitForWorker(secondWindow)
-  await waitForTitle(secondWindow, homeEnglish.title)
-  const originalCaches = await probe.evaluate(() => caches.keys())
-  const originalDocument = await page.evaluate(() => {
-    window.pwaCheckDocument = crypto.randomUUID()
-    return window.pwaCheckDocument
-  })
-  release = 'updated'
-  await page.evaluate(async () => (await navigator.serviceWorker.ready).update())
-  await probe.waitForFunction(async (scope) => Boolean((await navigator.serviceWorker.getRegistration(scope))?.waiting), { polling: 100 }, appUrl)
-  await page.waitForSelector('[data-testid="update-prompt"]')
-  assert.equal(await page.evaluate(() => window.pwaCheckDocument), originalDocument, 'An update must wait for the prompt, not reload the page.')
-  const cachesWithUpdate = await probe.evaluate(() => caches.keys())
-  for (const cacheName of originalCaches) assert.ok(cachesWithUpdate.includes(cacheName), 'A waiting update must keep the active cache.')
-  assert.ok(
-    cachesWithUpdate.some((cacheName) => !originalCaches.includes(cacheName)),
-    'The next release must have its own complete cache.',
-  )
-
-  // A background tab never reports its elements in view, so a click there would wait forever.
-  await page.bringToFront()
-  await clickText(page, '[data-testid="update-prompt"] button', 'Reload')
-  await page.waitForFunction(() => window.pwaCheckDocument === undefined, { polling: 100 })
-  await waitForTitle(page, 'Analysis')
-  await probe.waitForFunction(
-    async (scope) => {
-      const registration = await navigator.serviceWorker.getRegistration(scope)
-      return registration?.active?.state === 'activated' && !registration.waiting
-    },
-    { polling: 100 },
-    appUrl,
-  )
-  await secondWindow.waitForSelector('[data-testid="update-prompt"]')
-  const activeCaches = await probe.evaluate(() => caches.keys())
-  for (const cacheName of originalCaches.filter((name) => name !== 'another-project-cache')) {
-    assert.ok(!activeCaches.includes(cacheName), 'The old release cache should be removed once the update is active.')
-  }
-  assert.equal(await probe.evaluate(async () => (await caches.match('/unrelated'))?.text()), 'Keep another app intact')
-  await secondWindow.close()
-  const reopened = watch(await context.newPage())
-  await reopened.setCacheEnabled(false)
-  serverUnavailable = true
-  if (browserName === 'chrome') await reopened.setOfflineMode(true)
-  await reopened.goto(`${appUrl}?offline-check=updated#/company/analysis?tab=over-time`)
-  await waitForTitle(reopened, 'Analysis')
-  await reopened.waitForSelector('.chart-body canvas')
-  await context.close()
-  assert.deepEqual(errors, [], 'The update must not produce browser errors.')
-  console.log('PASS: an update waits for the prompt, reloads on request, tells other windows, and keeps unrelated caches')
-
-  release = 'broken'
-  serverUnavailable = false
-  const failedContext = await browser.createBrowserContext()
-  const failedPage = await failedContext.newPage()
-  await failedPage.goto(`${origin}/probe`)
-  const failedInstallation = await failedPage.evaluate(async (scope) => {
-    try {
-      const registration = await navigator.serviceWorker.register(`${scope}sw.js`, { scope })
-      const worker = registration.installing
-      if (worker)
-        await new Promise((resolve) => {
-          if (worker.state === 'redundant' || worker.state === 'activated') resolve()
-          else
-            worker.addEventListener('statechange', () => {
-              if (worker.state === 'redundant' || worker.state === 'activated') resolve()
-            })
-        })
-      return { active: Boolean(registration.active), state: worker?.state, caches: await caches.keys() }
-    } catch {
-      return { active: false, state: 'rejected', caches: await caches.keys() }
+    const errors = []
+    const foreignRequests = []
+    const watch = (page) => {
+      page.on('pageerror', (error) => errors.push(error.message))
+      page.on('console', (message) => {
+        // A Google script the dead proxy refused is expected. The app catches that and carries on.
+        const source = message.location()?.url ?? ''
+        if (message.type() === 'error' && (source === '' || source.startsWith(origin))) errors.push(message.text())
+      })
+      page.on('request', (request) => {
+        if (!request.url().startsWith(origin) && !request.url().startsWith('data:') && !request.url().startsWith('blob:')) {
+          foreignRequests.push(request.url())
+        }
+      })
+      return page
     }
-  }, appUrl)
-  assert.equal(failedInstallation.active, false, 'An incomplete shell must not become available offline.')
-  assert.ok(['redundant', 'rejected'].includes(failedInstallation.state))
-  assert.deepEqual(failedInstallation.caches, [], 'An unsuccessful first install must not leave a partial app cache.')
-  await failedContext.close()
-  console.log('PASS: a missing precache asset rejects installation and removes the incomplete cache')
 
-  const unexpected = foreignRequests.filter((url) => !url.startsWith('https://accounts.google.com/gsi/client'))
-  assert.deepEqual(unexpected, [], 'The only other origin the app may ask for before sign-in is the Google sign-in script.')
+    const page = watch(await context.newPage())
+    await page.setCacheEnabled(false)
+    await page.goto(appUrl)
+    await waitForWorker(page)
+    const manifest = await page.evaluate(async () => {
+      const url = document.querySelector('link[rel="manifest"]').href
+      const manifest = await (await fetch(url)).json()
+      const icons = await Promise.all(
+        manifest.icons.map(async (icon) => {
+          const bitmap = await createImageBitmap(await (await fetch(new URL(icon.src, url))).blob())
+          return { declared: icon.sizes, purpose: icon.purpose, actual: `${bitmap.width}x${bitmap.height}` }
+        }),
+      )
+      return { ...manifest, url, icons }
+    })
+    assert.equal(new URL(manifest.scope, manifest.url).href, appUrl)
+    assert.equal(new URL(manifest.start_url, manifest.url).href, appUrl)
+    assert.equal(new URL(manifest.id, manifest.url).href, appUrl)
+    assert.equal(manifest.display, 'standalone')
+    assert.equal(manifest.theme_color, '#0d1219')
+    assert.equal(manifest.background_color, '#0d1219')
+    for (const size of ['192x192', '512x512']) {
+      assert.ok(
+        manifest.icons.some((icon) => icon.declared === size && icon.actual === size && icon.purpose === 'any'),
+        `Missing valid ${size} icon`,
+      )
+    }
+    assert.ok(
+      manifest.icons.some((icon) => icon.purpose === 'maskable' && icon.actual === icon.declared),
+      'Missing a valid maskable icon',
+    )
+    assert.equal(await page.evaluate(async () => (await navigator.serviceWorker.ready).scope), appUrl)
+    if (browserName === 'chrome') {
+      // Chrome's own verdict on whether the page can be installed, as Android Chrome makes it.
+      const session = await page.createCDPSession()
+      const { installabilityErrors } = await session.send('Page.getInstallabilityErrors')
+      // The check runs in a separate browser context, which Chrome treats as incognito, where nothing installs.
+      const blocking = installabilityErrors.map((error) => error.errorId).filter((errorId) => errorId !== 'in-incognito')
+      assert.deepEqual(blocking, [], 'Chrome must consider the app installable.')
+      await session.detach()
+    }
+    const assets = filenames.filter((filename) => filename !== 'sw.js').map((filename) => appUrl + filename)
+    assert.deepEqual(
+      await page.evaluate(async (urls) => {
+        const missing = []
+        for (const url of urls) if (!(await caches.match(url))) missing.push(url)
+        return missing
+      }, assets),
+      [],
+      'Every built asset, including lazy screens, SheetJS and fonts, must be available offline.',
+    )
+    console.log(`PASS: manifest, icons, scoped worker, complete precache${browserName === 'chrome' ? ', installable' : ''}`)
+
+    // The first visit opens the home. Its Company card starts onboarding, which brings an xlsx file into this browser, kept in IndexedDB.
+    await waitForTitle(page, 'Welcome to Kuna')
+    await clickStart(page, '[data-testid="kuna-welcome-apps"] label', 'Company')
+    await clickStart(page, '[data-testid="kuna-welcome-home"] label', 'Only this browser')
+    await clickText(page, '[data-testid="kuna-welcome-continue"]', 'Continue')
+    await clickStart(page, '[data-testid="home-card"]', 'Company')
+    await clickStart(page, '[data-testid="onboarding-path"] label', 'Bring my books')
+    await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
+    await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
+    await (await page.waitForSelector('input[data-testid="onboarding-file"]')).uploadFile(templateFile)
+    await page.waitForSelector('[data-testid="import-summary"] dl')
+    await clickText(page, '[data-testid="onboarding-step"] button', 'Keep in this browser')
+    await page.waitForSelector('[data-testid="onboarding-step"][data-step="company"]')
+    await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
+    await waitForTitle(page, 'Overview')
+    await page.waitForSelector('.chart-body canvas')
+    // The Loans first run keeps its own file in this browser too, and asks nothing, since the welcome said this browser.
+    await page.goto(`${appUrl}#/loans`)
+    await page.waitForSelector('[data-testid="loans-start-in-browser"]')
+    await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
+    await page.waitForSelector('[data-testid="loans-empty"]')
+    assert.deepEqual(await cachedForeignUrls(page, origin), [], 'Nothing from another origin may be cached.')
+
+    // Firefox's WebDriver offline emulation rejects navigation before service-worker handling.
+    serverUnavailable = true
+    if (browserName === 'chrome') await page.setOfflineMode(true)
+    await page.goto(`${appUrl}?offline-check=1#/company/transactions`)
+    await waitForTitle(page, 'Transactions')
+    await page.waitForFunction(() => document.body.innerText.includes('Northwind Analytics'))
+    await page.goto(`${appUrl}?offline-check=loans#/loans`)
+    await waitForTitle(page, 'Overview')
+    await page.waitForFunction(() => document.querySelector('[data-testid="loans-empty"]')?.textContent?.includes('kept in this browser') === true)
+    await page.goto(`${appUrl}?offline-check=2#/company/analysis?tab=over-time`)
+    await waitForTitle(page, 'Analysis')
+    await page.waitForSelector('.chart-body canvas')
+    await page.reload()
+    await waitForTitle(page, 'Analysis')
+    await page.waitForSelector('.chart-body canvas')
+    assert.deepEqual(errors, [], 'Offline navigation must not produce browser errors.')
+    console.log('PASS: offline reload shows the imported workbook, lazy screens and charts included, and the Loans file kept in this browser')
+
+    serverUnavailable = false
+    if (browserName === 'chrome') await page.setOfflineMode(false)
+    const secondWindow = watch(await context.newPage())
+    await secondWindow.goto(appUrl)
+    await waitForWorker(secondWindow)
+    await waitForTitle(secondWindow, homeEnglish.title)
+    const originalCaches = await probe.evaluate(() => caches.keys())
+    const originalDocument = await page.evaluate(() => {
+      window.pwaCheckDocument = crypto.randomUUID()
+      return window.pwaCheckDocument
+    })
+    release = 'updated'
+    await page.evaluate(async () => (await navigator.serviceWorker.ready).update())
+    await probe.waitForFunction(async (scope) => Boolean((await navigator.serviceWorker.getRegistration(scope))?.waiting), { polling: 100 }, appUrl)
+    await page.waitForSelector('[data-testid="update-prompt"]')
+    assert.equal(await page.evaluate(() => window.pwaCheckDocument), originalDocument, 'An update must wait for the prompt, not reload the page.')
+    const cachesWithUpdate = await probe.evaluate(() => caches.keys())
+    for (const cacheName of originalCaches) assert.ok(cachesWithUpdate.includes(cacheName), 'A waiting update must keep the active cache.')
+    assert.ok(
+      cachesWithUpdate.some((cacheName) => !originalCaches.includes(cacheName)),
+      'The next release must have its own complete cache.',
+    )
+
+    // A background tab never reports its elements in view, so a click there would wait forever.
+    await page.bringToFront()
+    await clickText(page, '[data-testid="update-prompt"] button', 'Reload')
+    await page.waitForFunction(() => window.pwaCheckDocument === undefined, { polling: 100 })
+    await waitForTitle(page, 'Analysis')
+    await probe.waitForFunction(
+      async (scope) => {
+        const registration = await navigator.serviceWorker.getRegistration(scope)
+        return registration?.active?.state === 'activated' && !registration.waiting
+      },
+      { polling: 100 },
+      appUrl,
+    )
+    await secondWindow.waitForSelector('[data-testid="update-prompt"]')
+    const activeCaches = await probe.evaluate(() => caches.keys())
+    for (const cacheName of originalCaches.filter((name) => name !== 'another-project-cache')) {
+      assert.ok(!activeCaches.includes(cacheName), 'The old release cache should be removed once the update is active.')
+    }
+    assert.equal(await probe.evaluate(async () => (await caches.match('/unrelated'))?.text()), 'Keep another app intact')
+    await secondWindow.close()
+    const reopened = watch(await context.newPage())
+    await reopened.setCacheEnabled(false)
+    serverUnavailable = true
+    if (browserName === 'chrome') await reopened.setOfflineMode(true)
+    await reopened.goto(`${appUrl}?offline-check=updated#/company/analysis?tab=over-time`)
+    await waitForTitle(reopened, 'Analysis')
+    await reopened.waitForSelector('.chart-body canvas')
+    await context.close()
+    assert.deepEqual(errors, [], 'The update must not produce browser errors.')
+    console.log('PASS: an update waits for the prompt, reloads on request, tells other windows, and keeps unrelated caches')
+
+    release = 'broken'
+    serverUnavailable = false
+    const failedContext = await browser.createBrowserContext()
+    const failedPage = await failedContext.newPage()
+    await failedPage.goto(`${origin}/probe`)
+    const failedInstallation = await failedPage.evaluate(async (scope) => {
+      try {
+        const registration = await navigator.serviceWorker.register(`${scope}sw.js`, { scope })
+        const worker = registration.installing
+        if (worker)
+          await new Promise((resolve) => {
+            if (worker.state === 'redundant' || worker.state === 'activated') resolve()
+            else
+              worker.addEventListener('statechange', () => {
+                if (worker.state === 'redundant' || worker.state === 'activated') resolve()
+              })
+          })
+        return { active: Boolean(registration.active), state: worker?.state, caches: await caches.keys() }
+      } catch {
+        return { active: false, state: 'rejected', caches: await caches.keys() }
+      }
+    }, appUrl)
+    assert.equal(failedInstallation.active, false, 'An incomplete shell must not become available offline.')
+    assert.ok(['redundant', 'rejected'].includes(failedInstallation.state))
+    assert.deepEqual(failedInstallation.caches, [], 'An unsuccessful first install must not leave a partial app cache.')
+    await failedContext.close()
+    console.log('PASS: a missing precache asset rejects installation and removes the incomplete cache')
+
+    const unexpected = foreignRequests.filter((url) => !url.startsWith('https://accounts.google.com/gsi/client'))
+    assert.deepEqual(unexpected, [], 'The only other origin the app may ask for before sign-in is the Google sign-in script.')
+  })
 } finally {
-  await browser?.close()
   if (server.listening) await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
   rmSync(scratch, { recursive: true, force: true })
 }

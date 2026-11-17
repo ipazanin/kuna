@@ -1,6 +1,8 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
 import { comparedSeriesToAsk, fetchPrices, seriesToAskAgain, vendorsNeeded } from './priceFetch'
+import { fetchQuotes, quotesOff } from './quoteFetch'
+import type { QuotesFetched, QuotesOff } from './quoteFetch'
 import type { PriceFetchScope } from './priceFetch'
 import type { FetchPause, PriceFetchPorts, PricesCopy, PricesDrive, PricesPlace } from './pricesPorts'
 import type { PriceVendor, VendorFetch } from './priceVendor'
@@ -9,6 +11,7 @@ import type { PricesFile, PricesFileRefusal } from '../domain/pricesFile'
 import type { ComparedListing, RatesWanted } from '../domain/priceDemand'
 import { withImportedCloses } from '../domain/closesImport'
 import type { ClosesImportLine } from '../domain/closesImport'
+import type { QuotedDay } from '../domain/todaysQuotes'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { civilDateIn } from '../../../../shared/calendar/civilDate'
@@ -123,6 +126,10 @@ export interface PricesUpdateState {
   readonly fetching: PricesFetching | null
   /** What this page's last fetch ended in, or null before one. A fetch that found the day's prices already written leaves it as it was. */
   readonly lastRun: PricesFetchRun | null
+  /** The quotes Fetch today brought for the file on screen, which no file keeps. Null before a click and once another file comes on screen. */
+  readonly quoted: QuotedDay | null
+  /** Fetch today is asking the vendors. */
+  readonly quoting: boolean
 }
 
 export interface PricesUpdatePorts {
@@ -140,6 +147,9 @@ export interface PricesUpdatePorts {
   now(): string
   /** A new revision for a copy this browser alone keeps. */
   newRevision(): string
+  /** The series this browser asked a once-a-day quote of on the Zagreb day, kept so a reload asks them no more. */
+  askedOnce(day: CivilDate): readonly string[]
+  rememberAskedOnce(day: CivilDate, series: readonly string[]): void
 }
 
 export interface PricesUpdate {
@@ -165,6 +175,13 @@ export interface PricesUpdate {
   fetchCompared(compared: ComparedListing): Promise<PricesFetchRun | 'no-books'>
   /** Asks the vendors again for one holding's profile and fund profile, whatever their day, once a fetch of this page under way is over. Asks for no closes. */
   askFactsAgain(instrument: RecordId): Promise<PricesFetchRun | 'no-books'>
+  /**
+   * Asks the vendors for today's quotes of the holdings held, once a fetch of this page under way is over, and keeps them
+   * in the page beside the closes. Answers running while a click's quotes are still being asked.
+   */
+  fetchQuotes(): Promise<QuotesFetched | 'running' | 'no-books'>
+  /** Why a Fetch today click at `at` would ask no vendor for this book, or null while it would ask one. */
+  quotesOff(book: InvestmentBook, at: string): QuotesOff | null
   /** Runs `work` once a fetch of this page under way is over, while no fetch or read starts, which answer as with no file open. */
   whileStopped<Result>(work: () => Promise<Result>): Promise<Result>
 }
@@ -184,7 +201,14 @@ function messageOf(failure: unknown): string {
 
 /** The page's prices: its copy of the prices file, the read of the file on Drive, and the fetch, one at a time in the browser. */
 export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
-  const state = shallowReactive<{ -readonly [Field in keyof PricesUpdateState]: PricesUpdateState[Field] }>({ investmentsFileId: null, copy: null, fetching: null, lastRun: null })
+  const state = shallowReactive<{ -readonly [Field in keyof PricesUpdateState]: PricesUpdateState[Field] }>({
+    investmentsFileId: null,
+    copy: null,
+    fetching: null,
+    lastRun: null,
+    quoted: null,
+    quoting: false,
+  })
   let running = false
   let stopped = false
   let current: Promise<PricesFetchRun> | null = null
@@ -235,6 +259,11 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
     }
     const keys = seriesToAskAgain(ports.vendors, decoded.file, book, { at, day: today })
     return keys.length === 0 ? null : { kind: 'series', keys }
+  }
+
+  /** The quotes of `day` this page holds, else none, with the listings this browser asked once that day. */
+  function quotedSoFar(day: CivilDate): QuotedDay {
+    return state.quoted !== null && state.quoted.day === day ? state.quoted : { day, quotes: [], askedOnce: ports.askedOnce(day) }
   }
 
   function pauseOf(pause: FetchPause | null): PricesPause | null {
@@ -364,6 +393,7 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
       const place = await placeNow()
       state.investmentsFileId = null
       state.copy = null
+      state.quoted = null
       if (place !== null) {
         try {
           const copy = await place.cache.read()
@@ -474,6 +504,35 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
           return runFetch(found.place, found.book, { kind: 'compared', compared })
         }
       }
+    },
+
+    async fetchQuotes() {
+      if (state.quoting) {
+        return 'running'
+      }
+      state.quoting = true
+      try {
+        await afterRun()
+        const found = await opened()
+        if (found === null) {
+          return 'no-books'
+        }
+        const at = ports.now()
+        const day = pricesDay(at)
+        const fetched = await fetchQuotes(ports, ports.vendors, found.book, { at, day }, quotedSoFar(day))
+        ports.rememberAskedOnce(day, fetched.quoted.askedOnce)
+        if ((await ports.place())?.investmentsFileId === found.place.investmentsFileId) {
+          state.quoted = fetched.quoted
+        }
+        return fetched
+      } finally {
+        state.quoting = false
+      }
+    },
+
+    quotesOff(book, at) {
+      const day = pricesDay(at)
+      return quotesOff(ports.vendors, book, { at, day }, quotedSoFar(day), (vendorId) => ports.key(vendorId) !== null)
     },
 
     async whileStopped(work) {

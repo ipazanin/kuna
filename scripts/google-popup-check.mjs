@@ -8,9 +8,7 @@
  *   npm run check:google-popup -- http://localhost:4173/kuna/
  */
 
-import { launch } from 'puppeteer-core'
-
-import { ENGLISH_FIREFOX_PREFS, chromeLaunch, firefoxPath } from './support/browsers.mjs'
+import { ENGLISH_FIREFOX_PREFS, chromeLaunch, firefoxPath, withBrowser } from './support/browsers.mjs'
 import { forgetAssist, keepAiKey, openChat, sendInChat, allowIfAsked } from './support/chatFlows.mjs'
 
 const BASE = process.argv[2] ?? 'http://localhost:4173/kuna/'
@@ -18,15 +16,14 @@ const VISIBLE = { visible: true, timeout: 15_000 }
 const click = (handle) => handle.click()
 
 const BROWSERS = {
-  chrome: () => launch({ ...chromeLaunch(false), defaultViewport: { width: 1440, height: 900 }, ignoreDefaultArgs: ['--disable-popup-blocking'] }),
-  firefox: () =>
-    launch({
-      browser: 'firefox',
-      executablePath: firefoxPath(),
-      headless: true,
-      defaultViewport: { width: 1440, height: 900 },
-      extraPrefsFirefox: { ...ENGLISH_FIREFOX_PREFS, 'dom.disable_open_during_load': true },
-    }),
+  chrome: () => ({ ...chromeLaunch(false), defaultViewport: { width: 1440, height: 900 }, ignoreDefaultArgs: ['--disable-popup-blocking'] }),
+  firefox: () => ({
+    browser: 'firefox',
+    executablePath: firefoxPath(),
+    headless: true,
+    defaultViewport: { width: 1440, height: 900 },
+    extraPrefsFirefox: { ...ENGLISH_FIREFOX_PREFS, 'dom.disable_open_during_load': true },
+  }),
 }
 
 /**
@@ -71,19 +68,18 @@ async function acceptOpensGoogle(page) {
 }
 
 const failures = []
-for (const [name, start] of Object.entries(BROWSERS)) {
-  const browser = await start()
-  const page = await browser.newPage()
-  const started = Date.now()
-  try {
-    await acceptOpensGoogle(page)
-    console.log(`ok   ${name}  ${((Date.now() - started) / 1000).toFixed(1)} s`)
-  } catch (failure) {
-    failures.push(name)
-    console.log(`FAIL ${name}: ${failure instanceof Error ? failure.message : String(failure)}`)
-  } finally {
-    await browser.close()
-  }
+for (const [name, launchOptions] of Object.entries(BROWSERS)) {
+  await withBrowser(launchOptions(), async (browser) => {
+    const page = await browser.newPage()
+    const started = Date.now()
+    try {
+      await acceptOpensGoogle(page)
+      console.log(`ok   ${name}  ${((Date.now() - started) / 1000).toFixed(1)} s`)
+    } catch (failure) {
+      failures.push(name)
+      console.log(`FAIL ${name}: ${failure instanceof Error ? failure.message : String(failure)}`)
+    }
+  })
 }
 if (failures.length > 0) {
   console.error(`Google's window did not open from Accept in ${failures.join(', ')}`)

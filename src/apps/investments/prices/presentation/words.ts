@@ -84,6 +84,14 @@ export const en = {
   lastFetched: 'Fetched',
   neverFetched: 'Not yet',
   fetching: 'Fetching prices',
+  today: {
+    fetch: 'Fetch today',
+    noKey: "Today's prices need a free price key.",
+    nothingQuoted: 'No holding has a price during the day on a free key.',
+    beforeClose: (hour: number) => `Today's closes come after ${hour}:00. Fetch again then.`,
+    allIn: "Today's closes are in. The rest come with tomorrow's fetch.",
+    failed: (count: number): EnglishForms => ({ one: '1 holding got no price for today.', other: `${count} holdings got no price for today.` }),
+  },
   fetchingCount: (asked: number, of: number) => `Fetching prices: ${asked} of ${of}`,
   minutesLeft: (minutes: number): EnglishForms => ({ one: 'about a minute left', other: `about ${minutes} minutes left` }),
   waiting: (seconds: number, vendor: string, perMinute: number | null): EnglishForms =>
@@ -205,6 +213,18 @@ export const hr: Translation<typeof en> = {
   lastFetched: 'Dohvaćeno',
   neverFetched: 'Još nije',
   fetching: 'Dohvaćanje cijena',
+  today: {
+    fetch: 'Dohvati danas',
+    noKey: 'Današnje cijene trebaju besplatni ključ za cijene.',
+    nothingQuoted: 'Nijedna pozicija nema cijenu tijekom dana uz besplatni ključ.',
+    beforeClose: (hour) => `Današnja zatvaranja stižu nakon ${hour}:00. Tada dohvati ponovno.`,
+    allIn: 'Današnja zatvaranja su tu. Ostalo stiže sa sutrašnjim dohvatom.',
+    failed: (count) => ({
+      one: `${count} pozicija nije dobila današnju cijenu.`,
+      few: `${count} pozicije nisu dobile današnju cijenu.`,
+      other: `${count} pozicija nije dobilo današnju cijenu.`,
+    }),
+  },
   fetchingCount: (asked, of) => `Dohvaćanje cijena: ${asked} od ${of}`,
   minutesLeft: (minutes) => ({ one: minutes === 1 ? 'još otprilike minutu' : `još otprilike ${minutes} minutu`, few: `još otprilike ${minutes} minute`, other: `još otprilike ${minutes} minuta` }),
   waiting: (seconds, vendor, perMinute) => {

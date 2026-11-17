@@ -7,9 +7,12 @@
  *   --shard 3/8            the third of eight shares of the visual check's screens and flows, so CI runs the shares side by side
  *   --every-theme          the dark and the light theme at every width, as a design review needs, not only at the widths that check both
  *   --classic-scrollbars   scrollbars that take a 15 px gutter, as Linux and Windows draw them, in place of hidden ones
+ *   --serve fake           serves the fake build on a free port for the run and stops it after, in place of a base address
  */
 
 import { parseArgs } from 'node:util'
+
+import { servableBuild } from './servePreview.mjs'
 
 /**
  * Reads the base address and the options from the command line, or from `args`. `widths` are the widths the check
@@ -19,7 +22,14 @@ export function runSelection(widths, args = process.argv.slice(2)) {
   const { values, positionals } = parseArgs({
     args,
     allowPositionals: true,
-    options: { only: { type: 'string' }, widths: { type: 'string' }, shard: { type: 'string' }, 'every-theme': { type: 'boolean' }, 'classic-scrollbars': { type: 'boolean' } },
+    options: {
+      only: { type: 'string' },
+      widths: { type: 'string' },
+      shard: { type: 'string' },
+      'every-theme': { type: 'boolean' },
+      'classic-scrollbars': { type: 'boolean' },
+      serve: { type: 'string' },
+    },
   })
   const listOf = (text) =>
     (text ?? '')
@@ -32,8 +42,11 @@ export function runSelection(widths, args = process.argv.slice(2)) {
   const shardParts = values.shard?.match(/^(\d+)\/(\d+)$/)
   const shard = shardParts ? [Number(shardParts[1]), Number(shardParts[2])] : null
   const badShard = values.shard !== undefined && (shard === null || shard[0] < 1 || shard[0] > shard[1])
-  if (unknownWidths.length > 0 || chosenWidths?.length === 0 || only?.length === 0 || badShard) {
-    console.error(`--widths takes a comma-separated list of ${widths.join(', ')}, --only a comma-separated list of names, and --shard a share and a count, like 3/8.`)
+  const badServe = values.serve !== undefined && (!servableBuild(values.serve) || positionals.length > 0)
+  if (unknownWidths.length > 0 || chosenWidths?.length === 0 || only?.length === 0 || badShard || badServe) {
+    console.error(
+      `--widths takes a comma-separated list of ${widths.join(', ')}, --only a comma-separated list of names, --shard a share and a count, like 3/8, and --serve fake in place of a base address.`,
+    )
     process.exit(2)
   }
   const everyTheme = values['every-theme'] === true
@@ -41,6 +54,8 @@ export function runSelection(widths, args = process.argv.slice(2)) {
   const seen = new Set()
   return {
     base: positionals[0] ?? 'http://localhost:4173/kuna/',
+    /** The build the run serves itself, or null when it runs against `base`. */
+    serve: values.serve ?? null,
     limited: only !== null || chosenWidths !== null || shard !== null,
     sharded: shard !== null,
     classicScrollbars: values['classic-scrollbars'] === true,

@@ -39,7 +39,20 @@ export interface IncomeTotals {
 /** The money-weighted return a year, once the first deposit is a year old. */
 export type YearlyReturn = { readonly kind: 'rate'; readonly rate: Share } | { readonly kind: 'under-a-year' } | { readonly kind: 'none' }
 
-export interface LastDay extends LastDayDates, DayChange {}
+/** How many held holdings the day's change counts at today's quote, how many stay at their last close, and how fresh the quotes are. */
+export interface QuotedLastDay {
+  readonly holdings: number
+  readonly atLastClose: number
+  /** ISO timestamp of the newest trade among the quotes, or null where every vendor gave the day alone. */
+  readonly at: string | null
+  /** A quoted market still trades, so the figure moves until its close. */
+  readonly marketOpen: boolean
+}
+
+export interface LastDay extends LastDayDates, DayChange {
+  /** Only once Fetch today brought a quote that counts, so the change is today's for those holdings. */
+  readonly quoted?: QuotedLastDay
+}
 
 /** The figures of the whole portfolio, in euros. */
 export interface PortfolioFigures {
@@ -144,12 +157,26 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
     totalGain,
     totalGainShare: putIn > 0 ? ratioOf(totalGain, putIn) : null,
     yearlyReturn: yearlyReturn(firstDeposit, flows, value, today),
-    lastDay: dates === null ? null : { ...dates, ...dayChange(sumMoney(changes.map((change) => change.earlier)), sumMoney(changes.map((change) => change.later))) },
+    lastDay: dates === null ? null : { ...dates, ...dayChange(sumMoney(changes.map((change) => change.earlier)), sumMoney(changes.map((change) => change.later))), ...quotedOn(holdings, dates) },
     feesPaid: sumMoney([...holdings.map((holding) => holding.feesPaid), ...exchangeFees.map((fee) => fee.euros ?? ZERO)]),
     holdings,
     cash: cashFigures,
     unrated: [...cash.unrated, ...exchangeFees.filter((fee) => fee.euros === null && !cash.unrated.includes(fee.exchange.id)).map((fee) => fee.exchange.id)],
   }
+}
+
+/** The quotes the day's change counts, left out when no held holding is valued at one, so a day of closes alone keeps its shape. */
+function quotedOn(holdings: readonly HoldingFigures[], dates: LastDayDates): { readonly quoted?: QuotedLastDay } {
+  const priced = holdings.filter((holding) => holding.quantity > DECIMAL_ZERO && holding.valuation !== null)
+  const quotes = priced.flatMap((holding) => {
+    const close = holding.valuation!.close
+    return close.quote !== undefined && close.date === dates.to ? [close.quote] : []
+  })
+  if (quotes.length === 0) {
+    return {}
+  }
+  const times = quotes.flatMap((quote) => (quote.at === null ? [] : [quote.at])).sort()
+  return { quoted: { holdings: quotes.length, atLastClose: priced.length - quotes.length, at: times.at(-1) ?? null, marketOpen: quotes.some((quote) => quote.marketOpen) } }
 }
 
 /** The newest close among held instruments, and the latest earlier day on which any of them closed. */

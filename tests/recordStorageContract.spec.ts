@@ -12,7 +12,7 @@ import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/apps/comp
 import { SPLIT_WRITES } from '../src/apps/company/transactions/application/splitWrites'
 import { HAND_PRICE_WRITES, INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, TARGET_WRITES } from '../src/apps/investments/holdings/application/mixWrites'
-import { CHECK_WRITES } from '../src/apps/investments/overview/application/checkWrites'
+import { CHECK_WRITES } from '../src/apps/investments/checks/application/checkWrites'
 import {
   CASH_MOVEMENT_WRITES,
   EXCHANGE_WRITES,

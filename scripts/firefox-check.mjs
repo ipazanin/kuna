@@ -5,7 +5,8 @@
  * own reader, Cmd+K or Ctrl+K taken from Firefox's search bar, the chat's edge by drag and keyboard, the theme and language menu from the
  * sidebar and the drawer, its rows inside the window, with Light and Hrvatski picked and Browser language back, and the warning on leaving during a save.
  *
- *   npm run build:fake && npm run preview:fake -- --port 4173
+ *   npm run build:fake && npm run check:firefox -- --serve fake
+ * or against a preview already running:
  *   npm run check:firefox -- http://localhost:4173/kuna/
  */
 
@@ -14,227 +15,234 @@ import { createServer } from 'node:http'
 import { stripTypeScriptTypes } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { launch } from 'puppeteer-core'
+import { parseArgs } from 'node:util'
 
-import { ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
+import { ENGLISH_FIREFOX_PREFS, firefoxPath, withBrowser } from './support/browsers.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { keepAiKey, openChat, sendInChat } from './support/chatFlows.mjs'
 import { pressSelector } from './support/pressing.mjs'
+import { servableBuild, servePreview } from './support/servePreview.mjs'
 import { chartsFollowWidth } from './support/settleCharts.mjs'
 import { pressJumpKey } from './support/shellFlows.mjs'
 import { en as shellEnglish, hr as shellCroatian } from '../src/shell/ui/words.ts'
 
-const BASE = process.argv[2] ?? 'http://localhost:4173/kuna/'
+const { values: options, positionals } = parseArgs({ allowPositionals: true, options: { serve: { type: 'string' } } })
+if (options.serve !== undefined && !servableBuild(options.serve)) {
+  console.error('--serve takes fake, in place of a base address.')
+  process.exit(2)
+}
+const served = options.serve === undefined ? null : await servePreview(options.serve)
+const BASE = served?.base ?? positionals[0] ?? 'http://localhost:4173/kuna/'
 const VISIBLE = { visible: true, timeout: 15_000 }
 const click = (handle) => handle.click()
 
-const browser = await launch({
+const failures = []
+const launchFirefox = {
   browser: 'firefox',
   executablePath: firefoxPath(),
   headless: true,
   defaultViewport: { width: 1440, height: 900 },
   extraPrefsFirefox: { ...ENGLISH_FIREFOX_PREFS, 'ui.useOverlayScrollbars': 0 },
-})
+}
 
-const failures = []
-
-async function step(name, run) {
-  const page = await browser.newPage()
-  const started = Date.now()
-  try {
-    await run(page)
-    console.log(`ok   ${name}  ${((Date.now() - started) / 1000).toFixed(1)} s`)
-  } catch (failure) {
-    failures.push(name)
-    console.log(`FAIL ${name}: ${failure instanceof Error ? failure.message : String(failure)}`)
-  } finally {
-    if (!page.isClosed()) await page.close()
+await withBrowser(launchFirefox, async (browser) => {
+  async function step(name, run) {
+    const page = await browser.newPage()
+    const started = Date.now()
+    try {
+      await run(page)
+      console.log(`ok   ${name}  ${((Date.now() - started) / 1000).toFixed(1)} s`)
+    } catch (failure) {
+      failures.push(name)
+      console.log(`FAIL ${name}: ${failure instanceof Error ? failure.message : String(failure)}`)
+    } finally {
+      if (!page.isClosed()) await page.close()
+    }
   }
-}
 
-function open(page, query, hash) {
-  return page.goto(`${BASE}?theme=dark&${query}#${hash}`, { waitUntil: 'load' })
-}
+  function open(page, query, hash) {
+    return page.goto(`${BASE}?theme=dark&${query}#${hash}`, { waitUntil: 'load' })
+  }
 
-/** How wide a classic scrollbar is on this Firefox, which is above zero or the checks of the room it takes prove nothing. */
-async function scrollbarWidth(page) {
-  return page.evaluate(() => {
-    const box = document.createElement('div')
-    box.style.cssText = 'width:100px;height:100px;overflow:scroll;position:absolute;top:-999px'
-    document.body.append(box)
-    const width = box.offsetWidth - box.clientWidth
-    box.remove()
-    return width
-  })
-}
+  /** How wide a classic scrollbar is on this Firefox, which is above zero or the checks of the room it takes prove nothing. */
+  async function scrollbarWidth(page) {
+    return page.evaluate(() => {
+      const box = document.createElement('div')
+      box.style.cssText = 'width:100px;height:100px;overflow:scroll;position:absolute;top:-999px'
+      document.body.append(box)
+      const width = box.offsetWidth - box.clientWidth
+      box.remove()
+      return width
+    })
+  }
 
-async function pageFits(page, where) {
-  const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }))
-  if (scroll > client) throw new Error(`${where} is ${scroll} px wide in ${client} px`)
-}
+  async function pageFits(page, where) {
+    const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }))
+    if (scroll > client) throw new Error(`${where} is ${scroll} px wide in ${client} px`)
+  }
 
-await step('sidebar', async (page) => {
-  await open(page, 'fake=drive', '/company')
-  await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
-  const bar = await scrollbarWidth(page)
-  if (bar === 0) throw new Error('this Firefox has overlay scrollbars, so nothing here takes their room')
-  for (const [width, height] of [
-    [1024, 800],
-    [1440, 900],
-    [1440, 300],
-  ]) {
-    await page.setViewport({ width, height })
+  await step('sidebar', async (page) => {
+    await open(page, 'fake=drive', '/company')
     await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
-    // A chart that never fits keeps the page too wide, which the next line names.
-    await chartsFollowWidth(page).catch(() => {})
-    await pageFits(page, `the page at ${width} by ${height}`)
-    const list = await page.$eval('[data-testid="nav-apps"]', (apps) => {
-      const scroller = apps.parentElement
-      return { scroll: scroller.scrollWidth, client: scroller.clientWidth, whole: scroller.offsetWidth }
-    })
-    if (list.scroll > list.client) throw new Error(`the menu at ${width} by ${height} is ${list.scroll} px wide in ${list.client} px`)
-    if (list.whole - list.client < bar) throw new Error(`the menu at ${width} by ${height} keeps ${list.whole - list.client} px for a ${bar} px scrollbar`)
-  }
-  await page.setViewport({ width: 1440, height: 900 })
-  await page.click('[data-testid="nav-app-link"][data-app="company"]')
-  await page.waitForFunction(() => window.location.hash.startsWith('#/company'), { timeout: 10_000 })
-})
-
-await step('focus', async (page) => {
-  await open(page, 'fake=drive', '/')
-  await page.waitForSelector('[data-testid="home-card"][data-state="set-up"]', VISIBLE)
-  const shown = await page.evaluate(() => {
-    const card = document.querySelector('[data-testid="home-card"][data-state="set-up"]')
-    card.focus({ focusVisible: true })
-    return document.activeElement === card && card.matches(':focus-visible')
+    const bar = await scrollbarWidth(page)
+    if (bar === 0) throw new Error('this Firefox has overlay scrollbars, so nothing here takes their room')
+    for (const [width, height] of [
+      [1024, 800],
+      [1440, 900],
+      [1440, 300],
+    ]) {
+      await page.setViewport({ width, height })
+      await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+      // A chart that never fits keeps the page too wide, which the next line names.
+      await chartsFollowWidth(page).catch(() => {})
+      await pageFits(page, `the page at ${width} by ${height}`)
+      const list = await page.$eval('[data-testid="nav-apps"]', (apps) => {
+        const scroller = apps.parentElement
+        return { scroll: scroller.scrollWidth, client: scroller.clientWidth, whole: scroller.offsetWidth }
+      })
+      if (list.scroll > list.client) throw new Error(`the menu at ${width} by ${height} is ${list.scroll} px wide in ${list.client} px`)
+      if (list.whole - list.client < bar) throw new Error(`the menu at ${width} by ${height} keeps ${list.whole - list.client} px for a ${bar} px scrollbar`)
+    }
+    await page.setViewport({ width: 1440, height: 900 })
+    await page.click('[data-testid="nav-app-link"][data-app="company"]')
+    await page.waitForFunction(() => window.location.hash.startsWith('#/company'), { timeout: 10_000 })
   })
-  if (!shown) throw new Error('focus({ focusVisible: true }) does not show on the home card')
-  await page.keyboard.press('Tab')
-  const tabbed = await page.evaluate(() => document.activeElement !== document.body && document.activeElement.matches(':focus-visible'))
-  if (!tabbed) throw new Error('Tab moves to nothing that shows its focus')
-})
 
-await step('dialog', async (page) => {
-  await open(page, 'fake=mail-move', '/company/settings?tab=books')
-  const opener = await page.waitForSelector('[data-testid="move-into-kuna-open"]', VISIBLE)
-  const main = () => page.$eval('main', (element) => element.getBoundingClientRect().left + element.getBoundingClientRect().width)
-  const before = await main()
-  await opener.click()
-  await page.waitForSelector('[role="dialog"]', VISIBLE)
-  const during = await main()
-  if (Math.abs(during - before) > 1) throw new Error(`the page moved ${during - before} px as the dialog opened`)
-  await page.keyboard.press('Escape')
-  await page.waitForSelector('[role="dialog"]', { hidden: true, timeout: 10_000 })
-  await page
-    .waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'move-into-kuna-open', { timeout: 5_000 })
-    .catch(() => {
-      throw new Error('closing the dialog does not hand focus back')
+  await step('focus', async (page) => {
+    await open(page, 'fake=drive', '/')
+    await page.waitForSelector('[data-testid="home-card"][data-state="set-up"]', VISIBLE)
+    const shown = await page.evaluate(() => {
+      const card = document.querySelector('[data-testid="home-card"][data-state="set-up"]')
+      card.focus({ focusVisible: true })
+      return document.activeElement === card && card.matches(':focus-visible')
     })
-  const after = await main()
-  if (Math.abs(after - before) > 1) throw new Error(`the page moved ${after - before} px as the dialog closed`)
-})
-
-await step('chat', async (page) => {
-  await open(page, 'fake=drive&spending=sample', '/spending')
-  await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
-  await keepAiKey(page)
-  await openChat(page, click)
-  await sendInChat(page, click, 'Hello')
-  await pressSelector(page, click, '[data-testid="chat-allow"]')
-  await page.waitForSelector('[data-testid="chat-answer"]', VISIBLE).catch(() => {
-    throw new Error('the chat gave no answer')
+    if (!shown) throw new Error('focus({ focusVisible: true }) does not show on the home card')
+    await page.keyboard.press('Tab')
+    const tabbed = await page.evaluate(() => document.activeElement !== document.body && document.activeElement.matches(':focus-visible'))
+    if (!tabbed) throw new Error('Tab moves to nothing that shows its focus')
   })
-})
 
-await step('prompt', async (page) => {
-  await open(page, 'fake=drive&spending=sample', '/spending')
-  await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
-  await keepAiKey(page)
-  await openChat(page, click)
-  const prompt = await pressSelector(page, click, 'textarea[data-testid="chat-prompt"]')
-  for (let line = 1; line <= 9; line++) {
-    await prompt.type(`Line ${line}`)
-    await page.keyboard.down('Shift')
-    await page.keyboard.press('Enter')
-    await page.keyboard.up('Shift')
-  }
-  await page
-    .waitForFunction(
-      () => {
-        const field = document.querySelector('textarea[data-testid="chat-prompt"]')
-        const style = getComputedStyle(field)
-        const lines = field.value.slice(0, field.selectionStart).split('\n').length
-        return parseFloat(style.paddingTop) + lines * parseFloat(style.lineHeight) - field.scrollTop <= field.clientHeight
-      },
-      { timeout: 3_000 },
-    )
-    .catch(() => {
-      throw new Error('the new line is below what the prompt shows')
-    })
-})
+  await step('dialog', async (page) => {
+    await open(page, 'fake=mail-move', '/company/settings?tab=books')
+    const opener = await page.waitForSelector('[data-testid="move-into-kuna-open"]', VISIBLE)
+    const main = () => page.$eval('main', (element) => element.getBoundingClientRect().left + element.getBoundingClientRect().width)
+    const before = await main()
+    await opener.click()
+    await page.waitForSelector('[role="dialog"]', VISIBLE)
+    const during = await main()
+    if (Math.abs(during - before) > 1) throw new Error(`the page moved ${during - before} px as the dialog opened`)
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('[role="dialog"]', { hidden: true, timeout: 10_000 })
+    await page
+      .waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'move-into-kuna-open', { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('closing the dialog does not hand focus back')
+      })
+    const after = await main()
+    if (Math.abs(after - before) > 1) throw new Error(`the page moved ${after - before} px as the dialog closed`)
+  })
 
-await step('attach', async (page) => {
-  const folder = mkdtempSync(join(tmpdir(), 'kuna-firefox-'))
-  try {
-    const samples = await writeChatAttachmentSamples(folder)
+  await step('chat', async (page) => {
     await open(page, 'fake=drive&spending=sample', '/spending')
     await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
     await keepAiKey(page)
     await openChat(page, click)
-    const input = await page.waitForSelector('[data-testid="chat-attach-input"]', { timeout: 10_000 })
-    await input.uploadFile(samples.photo, samples.sheet)
+    await sendInChat(page, click, 'Hello')
+    await pressSelector(page, click, '[data-testid="chat-allow"]')
+    await page.waitForSelector('[data-testid="chat-answer"]', VISIBLE).catch(() => {
+      throw new Error('the chat gave no answer')
+    })
+  })
+
+  await step('prompt', async (page) => {
+    await open(page, 'fake=drive&spending=sample', '/spending')
+    await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+    await keepAiKey(page)
+    await openChat(page, click)
+    const prompt = await pressSelector(page, click, 'textarea[data-testid="chat-prompt"]')
+    for (let line = 1; line <= 9; line++) {
+      await prompt.type(`Line ${line}`)
+      await page.keyboard.down('Shift')
+      await page.keyboard.press('Enter')
+      await page.keyboard.up('Shift')
+    }
     await page
       .waitForFunction(
         () => {
-          const chips = [...document.querySelectorAll('[data-testid="chat-file"]')]
-          return chips.length === 2 && chips.every((chip) => chip.getAttribute('data-state') === 'ready')
+          const field = document.querySelector('textarea[data-testid="chat-prompt"]')
+          const style = getComputedStyle(field)
+          const lines = field.value.slice(0, field.selectionStart).split('\n').length
+          return parseFloat(style.paddingTop) + lines * parseFloat(style.lineHeight) - field.scrollTop <= field.clientHeight
         },
-        { timeout: 15_000 },
+        { timeout: 3_000 },
       )
-      .catch(async () => {
-        const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => `${chip.textContent?.trim()} ${chip.getAttribute('data-state')}`))
-        throw new Error(`the photo and the sheet picked are not both ready: ${states.join(', ') || 'no chip'}`)
+      .catch(() => {
+        throw new Error('the new line is below what the prompt shows')
       })
-    await sendInChat(page, click, 'What is on these?')
-    await pressSelector(page, click, '[data-testid="chat-allow"]')
-    await page.waitForSelector('[data-testid="chat-answer"]', VISIBLE).catch(() => {
-      throw new Error('the chat gave no answer to a message with files')
-    })
-    const listed = await page.$eval('[data-testid="chat-question-files"]', (files) => files.textContent ?? '').catch(() => '')
-    if (!listed.includes('chat-sample-receipt.png') || !listed.includes('chat-sample-turnover.xlsx')) throw new Error(`the sent message lists "${listed}", not the photo and the sheet`)
-  } finally {
-    rmSync(folder, { recursive: true, force: true })
-  }
-})
-
-await step('stream', async (page) => {
-  const events = ['first', 'druga šljiva', 'last']
-  const server = createServer((request, response) => {
-    if (request.url !== '/stream') {
-      response.writeHead(200, { 'content-type': 'text/html' })
-      response.end('<!doctype html><title>stream</title>')
-      return
-    }
-    response.writeHead(200, { 'content-type': 'text/event-stream' })
-    const wire = Buffer.from(events.map((event) => `data: ${event}\r\n\r\n`).join(''))
-    // Cut inside a Croatian letter and between a carriage return and its line feed, as a network may.
-    const cuts = [wire.indexOf('\n'), wire.indexOf(Buffer.from('š')) + 1, wire.length]
-    let from = 0
-    const send = () => {
-      const to = cuts.shift()
-      response.write(wire.subarray(from, to))
-      from = to
-      if (cuts.length === 0) response.end()
-      else setTimeout(send, 300)
-    }
-    send()
   })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  try {
-    await page.goto(`http://127.0.0.1:${server.address().port}/`)
-    const reader = stripTypeScriptTypes(readFileSync(new URL('../src/shared/ai/infrastructure/serverSentEvents.ts', import.meta.url), 'utf8')).replace('export ', '')
-    const heard = await page.evaluate(
-      `(async () => {
+
+  await step('attach', async (page) => {
+    const folder = mkdtempSync(join(tmpdir(), 'kuna-firefox-'))
+    try {
+      const samples = await writeChatAttachmentSamples(folder)
+      await open(page, 'fake=drive&spending=sample', '/spending')
+      await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+      await keepAiKey(page)
+      await openChat(page, click)
+      const input = await page.waitForSelector('[data-testid="chat-attach-input"]', { timeout: 10_000 })
+      await input.uploadFile(samples.photo, samples.sheet)
+      await page
+        .waitForFunction(
+          () => {
+            const chips = [...document.querySelectorAll('[data-testid="chat-file"]')]
+            return chips.length === 2 && chips.every((chip) => chip.getAttribute('data-state') === 'ready')
+          },
+          { timeout: 15_000 },
+        )
+        .catch(async () => {
+          const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => `${chip.textContent?.trim()} ${chip.getAttribute('data-state')}`))
+          throw new Error(`the photo and the sheet picked are not both ready: ${states.join(', ') || 'no chip'}`)
+        })
+      await sendInChat(page, click, 'What is on these?')
+      await pressSelector(page, click, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-answer"]', VISIBLE).catch(() => {
+        throw new Error('the chat gave no answer to a message with files')
+      })
+      const listed = await page.$eval('[data-testid="chat-question-files"]', (files) => files.textContent ?? '').catch(() => '')
+      if (!listed.includes('chat-sample-receipt.png') || !listed.includes('chat-sample-turnover.xlsx')) throw new Error(`the sent message lists "${listed}", not the photo and the sheet`)
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  })
+
+  await step('stream', async (page) => {
+    const events = ['first', 'druga šljiva', 'last']
+    const server = createServer((request, response) => {
+      if (request.url !== '/stream') {
+        response.writeHead(200, { 'content-type': 'text/html' })
+        response.end('<!doctype html><title>stream</title>')
+        return
+      }
+      response.writeHead(200, { 'content-type': 'text/event-stream' })
+      const wire = Buffer.from(events.map((event) => `data: ${event}\r\n\r\n`).join(''))
+      // Cut inside a Croatian letter and between a carriage return and its line feed, as a network may.
+      const cuts = [wire.indexOf('\n'), wire.indexOf(Buffer.from('š')) + 1, wire.length]
+      let from = 0
+      const send = () => {
+        const to = cuts.shift()
+        response.write(wire.subarray(from, to))
+        from = to
+        if (cuts.length === 0) response.end()
+        else setTimeout(send, 300)
+      }
+      send()
+    })
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      await page.goto(`http://127.0.0.1:${server.address().port}/`)
+      const reader = stripTypeScriptTypes(readFileSync(new URL('../src/shared/ai/infrastructure/serverSentEvents.ts', import.meta.url), 'utf8')).replace('export ', '')
+      const heard = await page.evaluate(
+        `(async () => {
         ${reader}
         const response = await fetch('/stream')
         const started = performance.now()
@@ -242,116 +250,116 @@ await step('stream', async (page) => {
         for await (const event of serverSentEvents(response.body)) heard.push({ event, at: performance.now() - started })
         return heard
       })()`,
-    )
-    if (JSON.stringify(heard.map((item) => item.event)) !== JSON.stringify(events)) throw new Error(`the reader heard ${JSON.stringify(heard)}`)
-    if (heard.at(-1).at - heard[0].at < 200) throw new Error('the events came all at once, so the body was not read as it arrived')
-  } finally {
-    server.close()
-  }
-})
-
-await step('shell-keys', async (page) => {
-  await open(page, 'fake=drive', '/company')
-  await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
-  await keepAiKey(page)
-  await page.evaluate(() => {
-    window.location.hash = '#/company?chat=1'
+      )
+      if (JSON.stringify(heard.map((item) => item.event)) !== JSON.stringify(events)) throw new Error(`the reader heard ${JSON.stringify(heard)}`)
+      if (heard.at(-1).at - heard[0].at < 200) throw new Error('the events came all at once, so the body was not read as it arrived')
+    } finally {
+      server.close()
+    }
   })
-  await page.waitForSelector('[data-testid="chat-dock"]', VISIBLE)
-  await page.focus('textarea[data-testid="chat-prompt"]')
-  await pressJumpKey(page)
-  await page.waitForSelector('[data-testid="quick-jump"]', VISIBLE).catch(() => {
-    throw new Error('the jump key did not open Jump to a page, so Firefox may have taken it')
-  })
-  if (!(await page.evaluate(() => document.hasFocus()))) throw new Error('the jump key moved focus out of the page')
-  await page.keyboard.press('Escape')
-  await page.waitForSelector('[data-testid="quick-jump"]', { hidden: true, timeout: 5_000 })
 
-  const handle = await page.waitForSelector('[data-testid="chat-resize"]', VISIBLE)
-  const box = await handle.boundingBox()
-  await page.mouse.move(box.x + box.width / 2, box.y + 200)
-  await page.mouse.down()
-  await page.mouse.move(box.x + box.width / 2 - 24, box.y + 200, { steps: 4 })
-  await page.mouse.up()
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const dragged = await handle.evaluate((element) => Number(element.getAttribute('aria-valuenow')))
-  if (dragged !== 408) throw new Error(`a 24 px drag at 1440 px left the chat at ${dragged}, not 408`)
-  await handle.focus()
-  await page.keyboard.press('Home')
-  await page.keyboard.press('ArrowLeft')
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const keyed = await handle.evaluate((element) => Number(element.getAttribute('aria-valuenow')))
-  if (keyed !== 400) throw new Error(`Home then Left Arrow left the chat at ${keyed}, not 400`)
-  await page.evaluate(() => localStorage.clear())
-})
-
-await step('theme-and-language', async (page) => {
-  const menuRows = () =>
-    page.$$eval('[role="menuitemcheckbox"]', (rows) =>
-      rows.map((row) => {
-        const box = row.getBoundingClientRect()
-        return {
-          text: row.textContent?.trim() ?? '',
-          checked: row.getAttribute('aria-checked') === 'true',
-          inside: box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight,
-        }
-      }),
-    )
-  const openMenu = async (within) => {
-    // The drawer slides in and takes focus as it lands, which would close a menu opened sooner.
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    await (await page.waitForSelector(`${within} [data-testid="theme-and-language"]`, VISIBLE)).click()
-    await page.waitForSelector('[role="menuitemcheckbox"]', VISIBLE)
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    const rows = await menuRows()
-    if (rows.length !== 6 || rows.filter((row) => row.checked).length !== 2 || rows.some((row) => !row.inside)) throw new Error(`the theme and language menu from ${within} is ${JSON.stringify(rows)}`)
-  }
-  const pick = async (label) => {
-    const row = await page.evaluateHandle((wanted) => [...document.querySelectorAll('[role="menuitemcheckbox"]')].find((item) => item.textContent?.trim().startsWith(wanted)), label)
-    await row.asElement().click()
-  }
-  const openDrawer = async () => {
-    await page.waitForFunction(() => document.querySelector('[role="menuitemcheckbox"]') === null, { timeout: 5_000 })
-    await (await page.waitForSelector('[data-testid="open-navigation"]', VISIBLE)).click()
-    await page.waitForSelector('[role="dialog"] [data-testid="theme-and-language"]', VISIBLE)
-  }
-  try {
+  await step('shell-keys', async (page) => {
     await open(page, 'fake=drive', '/company')
-    await openMenu('aside')
-    await pick(shellEnglish.themeAndLanguage.themes.light)
-    await page.waitForFunction(() => document.documentElement.classList.contains('light'), { timeout: 5_000 })
-    await page.setViewport({ width: 800, height: 700 })
-    await openDrawer()
-    await openMenu('[role="dialog"]')
-    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), pick(shellEnglish.themeAndLanguage.languages.hr)])
-    await page.waitForFunction(() => document.documentElement.lang === 'hr', { timeout: 10_000 })
-    await openDrawer()
-    await openMenu('[role="dialog"]')
-    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), pick(shellCroatian.themeAndLanguage.languages.browser)])
-    await page.waitForFunction(() => document.documentElement.lang === 'en', { timeout: 10_000 })
-  } finally {
-    await page.evaluate(() => localStorage.clear()).catch(() => {})
-  }
-})
+    await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+    await keepAiKey(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/company?chat=1'
+    })
+    await page.waitForSelector('[data-testid="chat-dock"]', VISIBLE)
+    await page.focus('textarea[data-testid="chat-prompt"]')
+    await pressJumpKey(page)
+    await page.waitForSelector('[data-testid="quick-jump"]', VISIBLE).catch(() => {
+      throw new Error('the jump key did not open Jump to a page, so Firefox may have taken it')
+    })
+    if (!(await page.evaluate(() => document.hasFocus()))) throw new Error('the jump key moved focus out of the page')
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('[data-testid="quick-jump"]', { hidden: true, timeout: 5_000 })
 
-await step('save-warning', async (page) => {
-  const dialogs = []
-  page.on('dialog', async (dialog) => {
-    dialogs.push(dialog.type())
-    await dialog.accept()
+    const handle = await page.waitForSelector('[data-testid="chat-resize"]', VISIBLE)
+    const box = await handle.boundingBox()
+    await page.mouse.move(box.x + box.width / 2, box.y + 200)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 - 24, box.y + 200, { steps: 4 })
+    await page.mouse.up()
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    const dragged = await handle.evaluate((element) => Number(element.getAttribute('aria-valuenow')))
+    if (dragged !== 408) throw new Error(`a 24 px drag at 1440 px left the chat at ${dragged}, not 408`)
+    await handle.focus()
+    await page.keyboard.press('Home')
+    await page.keyboard.press('ArrowLeft')
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    const keyed = await handle.evaluate((element) => Number(element.getAttribute('aria-valuenow')))
+    if (keyed !== 400) throw new Error(`Home then Left Arrow left the chat at ${keyed}, not 400`)
+    await page.evaluate(() => localStorage.clear())
   })
-  await open(page, 'fake=slow-writes', '/company/transactions?tab=review')
-  await page.waitForSelector('[data-testid="review-row"] > button', VISIBLE)
-  const row = await page.evaluateHandle(() => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes('GADGET CORNER')))
-  await row.asElement().click()
-  await (await page.waitForSelector('[data-testid="review-details"] [data-testid="confirm-row"]', VISIBLE)).click()
-  await page.waitForSelector('[data-testid="write-progress"]', VISIBLE)
-  await page.close({ runBeforeUnload: true })
-  await new Promise((resolve) => setTimeout(resolve, 500))
-  if (dialogs.join() !== 'beforeunload') throw new Error(`closing the page during a save brought ${dialogs.join() || 'no dialog'}`)
-})
 
-await browser.close()
+  await step('theme-and-language', async (page) => {
+    const menuRows = () =>
+      page.$$eval('[role="menuitemcheckbox"]', (rows) =>
+        rows.map((row) => {
+          const box = row.getBoundingClientRect()
+          return {
+            text: row.textContent?.trim() ?? '',
+            checked: row.getAttribute('aria-checked') === 'true',
+            inside: box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight,
+          }
+        }),
+      )
+    const openMenu = async (within) => {
+      // The drawer slides in and takes focus as it lands, which would close a menu opened sooner.
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      await (await page.waitForSelector(`${within} [data-testid="theme-and-language"]`, VISIBLE)).click()
+      await page.waitForSelector('[role="menuitemcheckbox"]', VISIBLE)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      const rows = await menuRows()
+      if (rows.length !== 6 || rows.filter((row) => row.checked).length !== 2 || rows.some((row) => !row.inside))
+        throw new Error(`the theme and language menu from ${within} is ${JSON.stringify(rows)}`)
+    }
+    const pick = async (label) => {
+      const row = await page.evaluateHandle((wanted) => [...document.querySelectorAll('[role="menuitemcheckbox"]')].find((item) => item.textContent?.trim().startsWith(wanted)), label)
+      await row.asElement().click()
+    }
+    const openDrawer = async () => {
+      await page.waitForFunction(() => document.querySelector('[role="menuitemcheckbox"]') === null, { timeout: 5_000 })
+      await (await page.waitForSelector('[data-testid="open-navigation"]', VISIBLE)).click()
+      await page.waitForSelector('[role="dialog"] [data-testid="theme-and-language"]', VISIBLE)
+    }
+    try {
+      await open(page, 'fake=drive', '/company')
+      await openMenu('aside')
+      await pick(shellEnglish.themeAndLanguage.themes.light)
+      await page.waitForFunction(() => document.documentElement.classList.contains('light'), { timeout: 5_000 })
+      await page.setViewport({ width: 800, height: 700 })
+      await openDrawer()
+      await openMenu('[role="dialog"]')
+      await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), pick(shellEnglish.themeAndLanguage.languages.hr)])
+      await page.waitForFunction(() => document.documentElement.lang === 'hr', { timeout: 10_000 })
+      await openDrawer()
+      await openMenu('[role="dialog"]')
+      await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), pick(shellCroatian.themeAndLanguage.languages.browser)])
+      await page.waitForFunction(() => document.documentElement.lang === 'en', { timeout: 10_000 })
+    } finally {
+      await page.evaluate(() => localStorage.clear()).catch(() => {})
+    }
+  })
+
+  await step('save-warning', async (page) => {
+    const dialogs = []
+    page.on('dialog', async (dialog) => {
+      dialogs.push(dialog.type())
+      await dialog.accept()
+    })
+    await open(page, 'fake=slow-writes', '/company/transactions?tab=review')
+    await page.waitForSelector('[data-testid="review-row"] > button', VISIBLE)
+    const row = await page.evaluateHandle(() => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes('GADGET CORNER')))
+    await row.asElement().click()
+    await (await page.waitForSelector('[data-testid="review-details"] [data-testid="confirm-row"]', VISIBLE)).click()
+    await page.waitForSelector('[data-testid="write-progress"]', VISIBLE)
+    await page.close({ runBeforeUnload: true })
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    if (dialogs.join() !== 'beforeunload') throw new Error(`closing the page during a save brought ${dialogs.join() || 'no dialog'}`)
+  })
+}).finally(() => served?.stop())
 if (failures.length > 0) {
   console.error(`Failed in Firefox: ${failures.join(', ')}`)
   process.exit(1)

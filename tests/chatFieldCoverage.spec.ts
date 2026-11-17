@@ -236,7 +236,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.add', operations: [{ name: 'add-account', renames: INTAKE_RENAMES }] },
   { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.change', operations: [{ name: 'change-account', renames: INTAKE_RENAMES }] },
   { path: 'src/apps/investments/mail/application/mailReaderWrites.ts#writeReader', from: ['after'], operations: ['set-mail-reader'] },
-  { path: 'src/apps/investments/overview/application/checkWrites.ts#writeCheck', from: ['check', 'threshold', 'on'], operations: ['set-check'] },
+  { path: 'src/apps/investments/checks/application/checkWrites.ts#writeCheck', from: ['check', 'threshold', 'on'], operations: ['set-check'] },
   { path: 'src/apps/investments/workbook/application/settingWrites.ts#SETTING_WRITES', operations: ['set-setting'] },
   {
     path: 'src/apps/investments/transactions/application/transactionWrites.ts#writeTransaction',

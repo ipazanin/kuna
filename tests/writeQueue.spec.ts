@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { GoogleTimedOut } from '../src/shared/google/googleApi'
-import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
+import { writeCheck } from '../src/apps/investments/checks/application/checkWrites'
 import { emptyInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import type { InvestmentsBooks } from '../src/apps/investments/workbook/domain/investmentsBooks'
 import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'

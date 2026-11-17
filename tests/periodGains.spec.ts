@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { PortfolioSources } from '../src/apps/investments/holdings/domain/holding'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
-import { gainSources } from '../src/apps/investments/overview/domain/overviewFigures'
+import { gainSources } from '../src/apps/investments/holdings/domain/gainSources'
 import { gainSteps, periodGains } from '../src/apps/investments/performance/domain/periodGains'
 import { periodDrivers } from '../src/apps/investments/performance/presentation/driversChart'
 import type { PeriodGains } from '../src/apps/investments/performance/domain/periodGains'

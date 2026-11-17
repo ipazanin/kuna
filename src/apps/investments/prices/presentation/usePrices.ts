@@ -9,7 +9,7 @@ import { browserFetch, browserPause } from '../infrastructure/browserPricePorts'
 import { googlePricesDrive } from '../infrastructure/googlePricesDrive'
 import { openPricesCache } from '../infrastructure/pricesCache'
 import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
-import { countRequest, requestsToday, setRequestsToday } from '../infrastructure/vendorUsage'
+import { countRequest, quoteAsksOn, rememberQuoteAsks, requestsToday, setRequestsToday } from '../infrastructure/vendorUsage'
 import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { fetchInBackground, pricesStep } from './pricesStep'
@@ -98,6 +98,8 @@ const prices: PricesUpdate = createPricesUpdate({
   exclusively: exclusivelyInBrowser,
   now: () => new Date().toISOString(),
   newRevision: () => `browser-${crypto.randomUUID()}`,
+  askedOnce: quoteAsksOn,
+  rememberAskedOnce: rememberQuoteAsks,
 })
 
 /** The page's one prices update, over the Investments file on screen. */

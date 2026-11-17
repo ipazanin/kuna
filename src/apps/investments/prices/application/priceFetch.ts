@@ -185,6 +185,26 @@ function wantedSeries(vendor: ClosesVendor, stored: PricesFile, book: Investment
   return stillPublished(vendor, stored, wantedOf(vendor, priceDemand(book, day, ratesWanted ?? (compared === null ? null : ratesOf(compared))), listingSpans(book, day), day, compared))
 }
 
+/** A listing an instrument with units held today names, with the vendor that prices it. */
+export interface HeldListing {
+  readonly vendor: ClosesVendor
+  readonly series: string
+  readonly symbol: string
+}
+
+/** The listings of the holdings held today, vendor by vendor in the order given. */
+export function heldListings(vendors: readonly PriceVendor[], book: InvestmentBook, day: string): HeldListing[] {
+  const demand = priceDemand(book, day)
+  const spans = listingSpans(book, day)
+  return closesVendors(vendors)
+    .filter((vendor) => vendor.prices === 'listings')
+    .flatMap((vendor) =>
+      wantedOf(vendor, demand, spans, day)
+        .filter((series) => series.held)
+        .map((series) => ({ vendor, series: series.key, symbol: series.symbol })),
+    )
+}
+
 /** The vendors the records need closes or rates from, in the order given. */
 export function vendorsNeeded(vendors: readonly PriceVendor[], book: InvestmentBook, day: string): ClosesVendor[] {
   const demand = priceDemand(book, day)

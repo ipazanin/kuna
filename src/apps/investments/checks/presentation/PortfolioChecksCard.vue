@@ -14,7 +14,7 @@ import { dayValuer } from '../../performance/domain/portfolioPerformance'
 import { CHECKS } from '../../workbook/domain/checkSetting'
 import type { FactsBook } from '../../prices/domain/factsBook'
 import { checkLines } from './checkLines'
-import { INVESTMENTS_CHECKS_ROUTE } from './investmentLinks'
+import { INVESTMENTS_CHECKS_ROUTE } from '../../overview/presentation/investmentLinks'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 import { withFullStop } from '../../../../shared/text/withFullStop'
@@ -29,7 +29,7 @@ const props = defineProps<{
   facts: FactsBook
 }>()
 
-const text = words.checks
+const text = words
 const route = useRoute()
 
 const lines = computed(() => {
@@ -52,7 +52,7 @@ const summary = computed(() => {
     id="portfolio-checks"
     :title="text.title"
     :subtitle="text.subtitle"
-    collapse-id="overview.checks"
+    collapse-id="holdings.checks"
     :summary="summary"
     :reveal="route.hash === '#portfolio-checks'"
     data-testid="portfolio-checks"

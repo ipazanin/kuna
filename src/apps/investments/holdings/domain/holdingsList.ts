@@ -18,7 +18,7 @@ export const HOLDINGS_GROUPINGS = ['class', 'currency', 'none'] as const
 
 export type HoldingsGrouping = (typeof HOLDINGS_GROUPINGS)[number]
 
-export const HOLDINGS_COLUMNS = ['name', 'cost', 'value', 'gain', 'weight', 'last-day'] as const
+export const HOLDINGS_COLUMNS = ['last-day', 'name', 'cost', 'value', 'gain', 'weight'] as const
 
 export type HoldingsColumn = (typeof HOLDINGS_COLUMNS)[number]
 
@@ -27,9 +27,11 @@ export interface HoldingsSort {
   readonly descending: boolean
 }
 
-/** How the Holdings screen lists them: grouped or not, narrowed by a search, in a column's order. */
+/** How a screen lists them: grouped or not, with each account's cash or without, narrowed by a search, in a column's order. */
 export interface HoldingsView {
   readonly grouping: HoldingsGrouping
+  /** False for the Overview's list of the holdings alone. */
+  readonly withCash: boolean
   /** Matches a holding's name, symbol or ISIN, and a balance's account or currency, whatever the case and accents. */
   readonly find: string
   /** Null for the list's own order: holdings by value, largest first, then the cash as the accounts come. */
@@ -82,14 +84,14 @@ export function heldHoldings(figures: PortfolioFigures): HoldingFigures[] {
 }
 
 /**
- * Every holding held and each account's cash per currency, grouped by class with the cash apart, by currency with the
+ * Every holding held and, when the view asks for it, each account's cash per currency, grouped by class with the cash apart, by currency with the
  * cash of each currency in it, or not at all. Groups come largest first, with the cash last when grouped by class.
  */
 export function holdingsList(figures: PortfolioFigures, book: InvestmentBook, view: HoldingsView): HoldingsList {
   const accountName = new Map(book.accounts.map((account) => [account.id, account.name]))
   const held: HoldingsLine[] = heldHoldings(figures).map((holding) => ({ kind: 'holding', holding, gainShare: holding.unrealised === null ? null : ratioOf(holding.unrealised, holding.cost) }))
   const cash: HoldingsLine[] = figures.cash
-    .filter((balance) => balance.balance !== DECIMAL_ZERO)
+    .filter((balance) => view.withCash && balance.balance !== DECIMAL_ZERO)
     .map((balance) => ({ kind: 'cash', balance, account: accountName.get(balance.account) ?? '', weight: balance.value === null ? null : ratioOf(balance.value, figures.value) }))
   const found = (line: HoldingsLine): boolean => matches(line, fold(view.find))
   const groups = groupsOf(view.grouping, held.filter(found), cash.filter(found))

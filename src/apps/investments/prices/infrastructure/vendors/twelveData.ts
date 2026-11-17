@@ -2,7 +2,7 @@ import { words } from './words'
 import { answerOf, parsedJson, statusFailure } from './vendorAnswers'
 import { isCloseText, isDay, isJsonObject } from '../../domain/pricesFile'
 import type { CloseRow, FailureReason } from '../../domain/pricesFile'
-import type { ClosesVendor, Fetched, FoundListing, VendorAnswer, VendorCloses, VendorFetch, VendorLimit, VendorSearch } from '../../application/priceVendor'
+import type { ClosesVendor, Fetched, FoundListing, VendorAnswer, VendorCloses, VendorFetch, VendorLimit, VendorQuote, VendorSearch } from '../../application/priceVendor'
 
 // The field names of symbol_search (`data` of `symbol`, `instrument_name`, `exchange`, `mic_code`, `currency`,
 // `instrument_type` and `country`) are read from Twelve Data's documentation, unconfirmed until a request with a real
@@ -99,6 +99,36 @@ async function twelveDataCloses(fetch: VendorFetch, key: string | null, symbol: 
   }
 }
 
+/**
+ * A listing's latest price with `/quote`, at one credit. The free key quotes US listings live during their session, so
+ * `datetime` is the session's day, `last_quote_at` the last trade in seconds and `is_market_open` whether it still trades.
+ */
+async function twelveDataQuote(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorQuote>> {
+  if (key === null) {
+    return { kind: 'failed', reason: 'no-key' }
+  }
+  const fetched = await answerOf(fetch, `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(key)}`)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const { status, text } = fetched.answer
+  const parsed = parsedJson(text)
+  if (isJsonObject(parsed) && parsed.status === 'error') {
+    const failure = errorFailure(typeof parsed.code === 'number' ? parsed.code : status, typeof parsed.message === 'string' ? parsed.message : '')
+    return { kind: 'failed', reason: failure === 'no-rows' ? 'unknown-symbol' : failure }
+  }
+  if (status !== 200) {
+    return { kind: 'failed', reason: statusFailure(status) }
+  }
+  const price = isJsonObject(parsed) ? parsed.close : undefined
+  const day = isJsonObject(parsed) ? parsed.datetime : undefined
+  if (!isJsonObject(parsed) || typeof price !== 'string' || !isCloseText(price) || typeof day !== 'string' || !isDay(day)) {
+    return { kind: 'failed', reason: 'unreadable' }
+  }
+  const lastTrade = typeof parsed.last_quote_at === 'number' ? new Date(parsed.last_quote_at * 1000).toISOString() : null
+  return { kind: 'quote', price, day, at: lastTrade, marketOpen: parsed.is_market_open === true }
+}
+
 /** The most listings one search answer holds. */
 const SEARCH_ROWS = 30
 
@@ -160,5 +190,6 @@ export const twelveData: ClosesVendor & Required<Pick<ClosesVendor, 'search'>> =
   // A currency pair, which the free key covers and which names no one's holding.
   testSymbol: 'EUR/USD',
   closes: twelveDataCloses,
+  quote: twelveDataQuote,
   search: twelveDataSearch,
 }

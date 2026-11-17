@@ -58,6 +58,14 @@ function madeUpVendor(id: string, prices: ClosesVendor['prices'], needsKey: bool
       if (world.gate !== null) await world.gate
       return { kind: 'closes', closes: [['2026-10-29', '10.00']], splits: [], earlierFailure: null }
     },
+    ...(prices === 'listings'
+      ? {
+          async quote(_fetch, _key, symbol) {
+            world.asked.push(`quote:${id}:${symbol}`)
+            return { kind: 'quote', price: '10.50', day: TODAY, at: NOW, marketOpen: true } as const
+          },
+        }
+      : {}),
   }
 }
 
@@ -137,6 +145,8 @@ async function worldOf(options: { readonly onDrive?: boolean; readonly records?:
       exclusively: async (run) => (self.locked ? 'busy' : run()),
       now: () => NOW,
       newRevision: () => `browser-${worlds}`,
+      askedOnce: () => [],
+      rememberAskedOnce: () => {},
     }),
   }
   return self
@@ -278,7 +288,7 @@ describe('the Prices step of a sync', () => {
       kind: 'done',
       line: 'Read the latest prices. Vendors sent nothing usable for 2 holdings.',
       writeId: null,
-      link: { label: words.step.checks, to: '/investments#portfolio-checks' },
+      link: { label: words.step.checks, to: '/investments/holdings#portfolio-checks' },
     })
   })
 
@@ -633,6 +643,34 @@ describe('a day whose fetch already wrote the prices file', () => {
     expect(await added).toBe('due')
     expect(world.asked).toEqual(['twelvedata:ABC', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'twelvedata:NEW'])
     expect(world.update.state.copy?.file.series['twelvedata:NEW']).toBeDefined()
+  })
+})
+
+describe('Fetch today', () => {
+  it('keeps the quotes in the page for the day, writes nothing to the prices file and forgets them when the file comes on screen again', async () => {
+    const world = await worldOf()
+    await world.update.open()
+    const before = await world.cache.read()
+
+    const fetched = await world.update.fetchQuotes()
+
+    expect(fetched).toMatchObject({ asked: 1, failed: 0 })
+    expect(world.asked).toEqual(['quote:twelvedata:ABC'])
+    expect(world.update.state.quoted?.day).toBe(TODAY)
+    expect(world.update.state.quoted?.quotes.map((quote) => quote.series)).toEqual(['twelvedata:ABC'])
+    expect(world.update.state.quoting).toBe(false)
+    expect(await world.cache.read()).toEqual(before)
+    expect(await pricesDriveOn(world.drive).filesNamed(world.folderId, PRICES_FILE_NAME)).toHaveLength(before === null ? 0 : 1)
+
+    await world.update.open()
+    expect(world.update.state.quoted).toBeNull()
+  })
+
+  it('asks nothing before the Investments records are read', async () => {
+    const world = await worldOf({ records: null })
+
+    expect(await world.update.fetchQuotes()).toBe('no-books')
+    expect(world.asked).toEqual([])
   })
 })
 

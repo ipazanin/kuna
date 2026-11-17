@@ -12,10 +12,9 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { launch } from 'puppeteer-core'
 import { preview } from 'vite'
 
-import { chromePath, ENGLISH_CHROME_ARG, ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
+import { chromePath, ENGLISH_CHROME_ARG, ENGLISH_FIREFOX_PREFS, firefoxPath, withBrowser } from './support/browsers.mjs'
 import { writeForeignWorkbookFiles } from './support/foreignWorkbookFiles.mjs'
 
 const browserName = process.argv.includes('--firefox') ? 'firefox' : 'chrome'
@@ -26,44 +25,44 @@ writeFileSync(brokenFile, new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x
 
 const server = await preview({ logLevel: 'silent', preview: { host: '127.0.0.1', port: 0 } })
 const appUrl = server.resolvedUrls.local[0]
-const browser = await launch(
+const launchOptions =
   browserName === 'firefox'
     ? { browser: 'firefox', executablePath: firefoxPath(), headless: true, extraPrefsFirefox: ENGLISH_FIREFOX_PREFS }
-    : { executablePath: chromePath(), headless: true, args: [ENGLISH_CHROME_ARG] },
-)
+    : { executablePath: chromePath(), headless: true, args: [ENGLISH_CHROME_ARG] }
 
 try {
-  console.log(`Checking ${await browser.version()} against ${appUrl}`)
-  for (const foreignFile of foreignFiles) {
-    const { errors, outcome } = await importFile(foreignFile.path)
-    assert.deepEqual(errors, [], `${foreignFile.name} must import without browser errors.`)
-    if ('refusal' in foreignFile.expected) {
-      assert.equal(outcome.refusal, foreignFile.expected.refusal, `${foreignFile.name} must be refused for its missing ledger, not fail to read.`)
-    } else {
-      assert.equal(outcome.failure, null, `${foreignFile.name} must be readable.`)
-      assert.equal(outcome.facts.Transactions, String(foreignFile.expected.transactions))
-      assert.equal(outcome.facts.Accounts, foreignFile.expected.accounts.join(', '))
-      assert.equal(outcome.facts.Categories, String(foreignFile.expected.categories))
+  await withBrowser(launchOptions, async (browser) => {
+    console.log(`Checking ${await browser.version()} against ${appUrl}`)
+    for (const foreignFile of foreignFiles) {
+      const { errors, outcome } = await importFile(browser, foreignFile.path)
+      assert.deepEqual(errors, [], `${foreignFile.name} must import without browser errors.`)
+      if ('refusal' in foreignFile.expected) {
+        assert.equal(outcome.refusal, foreignFile.expected.refusal, `${foreignFile.name} must be refused for its missing ledger, not fail to read.`)
+      } else {
+        assert.equal(outcome.failure, null, `${foreignFile.name} must be readable.`)
+        assert.equal(outcome.facts.Transactions, String(foreignFile.expected.transactions))
+        assert.equal(outcome.facts.Accounts, foreignFile.expected.accounts.join(', '))
+        assert.equal(outcome.facts.Categories, String(foreignFile.expected.categories))
+      }
+      console.log(`PASS: ${foreignFile.name}`)
     }
-    console.log(`PASS: ${foreignFile.name}`)
-  }
 
-  const broken = await importFile(brokenFile)
-  assert.match(broken.outcome.failure ?? '', /could not be read as an Excel workbook/)
-  assert.ok(broken.outcome.failureDetail, 'A file that cannot be read must show the underlying error.')
-  assert.ok(
-    broken.errors.some((error) => error.includes('Reading broken.xlsx failed')),
-    'The underlying error must reach the console.',
-  )
-  console.log(`PASS: broken.xlsx shows "${broken.outcome.failureDetail}"`)
+    const broken = await importFile(browser, brokenFile)
+    assert.match(broken.outcome.failure ?? '', /could not be read as an Excel workbook/)
+    assert.ok(broken.outcome.failureDetail, 'A file that cannot be read must show the underlying error.')
+    assert.ok(
+      broken.errors.some((error) => error.includes('Reading broken.xlsx failed')),
+      'The underlying error must reach the console.',
+    )
+    console.log(`PASS: broken.xlsx shows "${broken.outcome.failureDetail}"`)
+  })
 } finally {
-  await browser.close()
   await server.close()
   rmSync(scratch, { recursive: true, force: true })
 }
 
 /** Drops one file on onboarding's file step and reads what its summary says about it. */
-async function importFile(path) {
+async function importFile(browser, path) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
   const errors = []

@@ -6,6 +6,9 @@ import { valueOverTime } from '../domain/valueOverTime'
 import type { PortfolioSources } from '../../holdings/domain/holding'
 import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
 import { PERFORMANCE_ROUTE } from '../../performance/presentation/performanceLinks'
+import { HOLDINGS_ROUTE } from '../../holdings/presentation/holdingLinks'
+import { todayLine } from '../../holdings/presentation/holdingText'
+import { words as holdingWords } from '../../holdings/presentation/words'
 import { words } from './words'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney, formatPercent, formatPercentChange } from '../../../../shared/money/moneyFormat'
@@ -15,7 +18,7 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import type { KpiDelta } from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
-/** The four figures that lead the Overview: the value, the total gain, the yearly return and this year's income, which opens the income on Performance. */
+/** The figures that lead the Overview: the day's change, which opens each holding's change on Holdings, the value, the total gain, the yearly return and this year's income, which opens the income on Performance. */
 const props = defineProps<{
   sources: PortfolioSources
   figures: PortfolioFigures
@@ -23,22 +26,27 @@ const props = defineProps<{
 
 const unpriced = computed(() => props.figures.unpriced.length)
 
-/** The last day's change and the month ends of the last year as a sparkline, each once there is one. */
-const valueExtras = computed((): { delta?: KpiDelta; trend?: readonly number[] } => {
-  const change = props.figures.lastDay
+/** The month ends of the last year as a sparkline, once there are two. */
+const valueTrend = computed((): { trend?: readonly number[] } => {
   const trend = valueOverTime(props.sources, { kind: 'years', years: 1 }).points.flatMap((point) => (point.value === null ? [] : [point.value]))
-  return {
-    ...(change === null
-      ? {}
-      : {
-          delta: {
-            change: change.change,
-            text: change.share === null ? formatMoney(change.change, 'always') : words.tiles.change(formatMoney(change.change, 'always'), formatPercentChange(change.share)),
-            comparison: words.tiles.lastDay(shortDayLabel(change.to)),
-          },
-        }),
-    ...(trend.length >= 2 ? { trend } : {}),
+  return trend.length >= 2 ? { trend } : {}
+})
+
+/** The day's change in euros, with its share as the delta against the close before. */
+const day = computed(() => {
+  const change = props.figures.lastDay
+  if (change === null) {
+    return null
   }
+  const delta: KpiDelta | undefined = change.share === null ? undefined : { change: change.change, text: formatPercentChange(change.share), comparison: words.tiles.since(shortDayLabel(change.from)) }
+  const quoted = change.quoted
+  const caption =
+    quoted === undefined
+      ? words.tiles.closeOf(shortDayLabel(change.to))
+      : quoted.atLastClose > 0
+        ? plural(holdingWords.today.atLastClose(quoted.atLastClose, shortDayLabel(change.from)), quoted.atLastClose)
+        : (todayLine(change) ?? '')
+  return { change, label: quoted === undefined ? words.tiles.lastDay : words.tiles.today, caption, ...(delta === undefined ? {} : { delta }) }
 })
 
 const gainCaption = computed(() => {
@@ -65,9 +73,21 @@ const incomeDelta = computed((): KpiDelta => ({ change: income.value.change, tex
 <template>
   <DashboardGrid layout="tiles" data-testid="investments-tiles">
     <KpiTile
+      v-if="day !== null"
+      :label="day.label"
+      :value="formatMoney(day.change.change, 'always')"
+      :caption="day.caption"
+      v-bind="day.delta === undefined ? {} : { delta: day.delta }"
+      :definition="words.tiles.lastDayDefinition"
+      :to="HOLDINGS_ROUTE"
+      data-testid="investments-day"
+    >
+      <template #value><MoneyText :cents="day.change.change" tone="outcome" /></template>
+    </KpiTile>
+    <KpiTile
       :label="unpriced > 0 ? words.tiles.knownValue : words.tiles.value"
       :value="formatMoney(figures.value)"
-      v-bind="valueExtras"
+      v-bind="valueTrend"
       :caption="unpriced > 0 ? plural(words.tiles.leavesOut(unpriced), unpriced) : ''"
       :definition="words.tiles.valueDefinition"
       :to="null"

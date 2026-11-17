@@ -6,9 +6,8 @@
 
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { launch } from 'puppeteer-core'
 
-import { chromePath } from './support/browsers.mjs'
+import { chromePath, withBrowser } from './support/browsers.mjs'
 
 const ICONS = [
   { mark: 'kuna-maskable.svg', file: 'kuna-180.png', size: 180 },
@@ -17,8 +16,7 @@ const ICONS = [
   { mark: 'kuna-maskable.svg', file: 'kuna-maskable-512.png', size: 512 },
 ]
 
-const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--no-sandbox'] })
-try {
+await withBrowser({ executablePath: chromePath(), headless: true, args: ['--no-sandbox'] }, async (browser) => {
   const page = await browser.newPage()
   for (const icon of ICONS) {
     const svg = await readFile(new URL(`../public/icons/${icon.mark}`, import.meta.url), 'utf8')
@@ -26,6 +24,4 @@ try {
     await page.setContent(`<style>html,body{margin:0;background:transparent}svg{display:block;width:100vw;height:100vh}</style>${svg}`)
     await page.screenshot({ path: fileURLToPath(new URL(`../public/icons/${icon.file}`, import.meta.url)), omitBackground: true })
   }
-} finally {
-  await browser.close()
-}
+})

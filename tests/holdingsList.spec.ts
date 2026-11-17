@@ -6,11 +6,12 @@ import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfo
 import { dayValuer } from '../src/apps/investments/performance/domain/portfolioPerformance'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { EURO } from '../src/shared/money/currencyCode'
+import { sumMoney } from '../src/shared/money/money'
 import { BROKER, STOCK_B, USD, WORKED_PRICES, WORKED_RATES, WORLD_ETF, cashMovement, decimal, instrument, trade, workedPortfolio } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 
 const TODAY = civil('2026-10-29')
-const BY_CLASS: HoldingsView = { grouping: 'class', find: '', sort: null }
+const BY_CLASS: HoldingsView = { grouping: 'class', withCash: true, find: '', sort: null }
 const SOLD_CO = instrument('sold-co', { name: 'Sold Co' })
 
 /** The worked portfolio with a third holding bought and sold whole in 2025, for €20.00 realised. */
@@ -79,6 +80,13 @@ describe("the worked portfolio's holdings on 29 Oct 2026", () => {
       [USD, euros(1093.75), ['Stock B', 'Broker USD']],
     ])
     expect(listOf(workedPortfolio(), { grouping: 'none' }).groups.map((group) => [group.key, group.lines.map(named)])).toEqual([['all', ['World ETF', 'Stock B', 'Broker EUR', 'Broker USD']]])
+  })
+
+  it('lists the holdings alone for the Overview, their total leaving the cash out', () => {
+    const list = listOf(workedPortfolio(), { grouping: 'none', withCash: false })
+
+    expect(list.groups.map((group) => [group.key, group.lines.map(named)])).toEqual([['all', ['World ETF', 'Stock B']]])
+    expect(list.total.value).toBe(sumMoney(list.groups[0]!.lines.map((line) => (line.kind === 'holding' ? (line.holding.valuation?.value ?? euros(0)) : euros(0)))))
   })
 
   it('finds a holding by its name whatever the case, and a balance by its account or currency', () => {

@@ -1,7 +1,7 @@
 import { INSTRUMENT_WRITES } from '../../holdings/application/holdingWrites'
 import { TARGET_WRITES, replaceRows } from '../../holdings/application/mixWrites'
 import { words as holdingsWords } from '../../holdings/presentation/words'
-import { writeCheck } from '../../overview/application/checkWrites'
+import { writeCheck } from '../../checks/application/checkWrites'
 import { benchmarkChanges } from '../../performance/domain/benchmark'
 import { words as settingsWords } from '../../settings/presentation/words'
 import { CHECKS, CHECK_DEFAULTS } from '../../workbook/domain/checkSetting'

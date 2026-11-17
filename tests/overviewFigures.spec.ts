@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { gainSources, incomeAgainstLastYear, lastDayMovers, noticeIsEmpty, pricesNotice } from '../src/apps/investments/overview/domain/overviewFigures'
+import { gainSources } from '../src/apps/investments/holdings/domain/gainSources'
+import { noticeIsEmpty, pricesNotice } from '../src/apps/investments/holdings/domain/pricesNotice'
+import { incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures'
 import { shownValueOverTime, valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime'
 import { rollingPeriods } from '../src/apps/investments/performance/domain/performancePeriod'
 import { firstDepositIn } from '../src/apps/investments/performance/domain/portfolioPerformance'
@@ -64,12 +66,6 @@ describe("the worked portfolio's Overview on 29 Oct 2026", () => {
       addsUp: true,
       tradingFees: euros(5.8),
     })
-  })
-
-  it('lists the movers of the last day by share, the World ETF ahead of Stock B', () => {
-    // World ETF +15.00 on 1,860.00 is +0.81%. Stock B +3.25 on 773.54 is +0.42%.
-    expect(lastDayMovers(figures, 3)).toEqual({ up: [figures.holdings[0], figures.holdings[1]], down: [] })
-    expect(lastDayMovers(figures, 1).up.map((holding) => holding.instrument)).toEqual([WORLD_ETF])
   })
 
   it('compares no income so far in 2026 with the €5.98 of the same months of 2025', () => {

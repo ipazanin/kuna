@@ -149,8 +149,10 @@ import { latestRecords } from '../src/apps/investments/holdings/domain/latestRec
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { recentCosts, yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
-import { gainSources, incomeAgainstLastYear, lastDayMovers, pricesNotice } from '../src/apps/investments/overview/domain/overviewFigures.ts'
-import { portfolioChecks } from '../src/apps/investments/overview/domain/portfolioChecks.ts'
+import { incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
+import { gainSources } from '../src/apps/investments/holdings/domain/gainSources.ts'
+import { pricesNotice } from '../src/apps/investments/holdings/domain/pricesNotice.ts'
+import { portfolioChecks } from '../src/apps/investments/checks/domain/portfolioChecks.ts'
 import { valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { performancePeriods } from '../src/apps/investments/performance/domain/performancePeriod.ts'
@@ -628,16 +630,7 @@ function investmentsGroups(addGroup) {
   const { holdings, cash, lastDay, ...portfolio } = figures
   add('investments.portfolio', portfolio)
   add('investments.last-day', lastDay)
-  add('investments.overview', [
-    figuresClose(figures),
-    pricesNotice(figures),
-    gainSources(figures),
-    holdingMix(figures, workbook.book, facts, 'class').parts,
-    holdingMix(figures, workbook.book, facts, 'currency').parts,
-    lastDayMovers(figures, 3),
-    incomeAgainstLastYear(workbook.book, today),
-    latestRecords(workbook.book, sources.rates, 5),
-  ])
+  add('investments.overview', [figuresClose(figures), pricesNotice(figures), gainSources(figures), incomeAgainstLastYear(workbook.book, today), latestRecords(workbook.book, sources.rates, 5)])
   for (const mix of MIXES) {
     add(`investments.holdings.mix.${mix}`, holdingMix(figures, workbook.book, facts, mix))
   }

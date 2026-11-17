@@ -216,6 +216,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
 
 export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
   {
+    reason: 'Which listings Fetch today asked a once-a-day quote of, which this browser keeps so a reload asks them no more. The person types nothing for it.',
+    paths: ['src/apps/investments/prices/infrastructure/vendorUsage.ts#rememberQuoteAsks'],
+  },
+  {
     reason: "Link all on To review's card of past instalments, which links each row as link-entry does and takes no field of its own.",
     paths: ['src/apps/spending/entries/application/entryWrites.ts#linkEntries'],
   },

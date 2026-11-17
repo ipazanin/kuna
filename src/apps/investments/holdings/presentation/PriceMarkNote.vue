@@ -4,17 +4,20 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { HoldingFigures } from '../domain/holding'
 import { priceMarkOf } from './holdingText'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 
-/** Says when a holding's price is late or entered by hand, with its icon. Bare, it shows the icon alone and keeps the words for a screen reader. */
+/** Says when a holding's price is late, entered by hand or at an earlier close than today's quotes, with its icon. Bare, it shows the icon alone and keeps the words for a screen reader. */
 const props = withDefaults(
   defineProps<{
     holding: HoldingFigures
     bare?: boolean
+    /** The day Fetch today's quotes are of, so a holding still at an earlier close says which. */
+    quotedDay?: CivilDate | null
   }>(),
-  { bare: false },
+  { bare: false, quotedDay: null },
 )
 
-const mark = computed(() => priceMarkOf(props.holding))
+const mark = computed(() => priceMarkOf(props.holding, props.quotedDay))
 </script>
 
 <template>

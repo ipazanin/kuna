@@ -3,7 +3,7 @@ import { fetchedFactsBook } from '../domain/factsBook'
 import { holdingsWithFactProblems } from '../../holdings/domain/factProblems'
 import { holdingLink } from '../../holdings/presentation/holdingLinks'
 import { INVESTMENTS_PRICES_ROUTE, PORTFOLIO_CHECKS_ROUTE } from '../../overview/presentation/investmentLinks'
-import { words as overviewWords } from '../../overview/presentation/words'
+import { words as checkWords } from '../../checks/presentation/words'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
 import { BOOKS_STEP } from '../../../../shared/sync/application/syncRun'
@@ -53,7 +53,7 @@ export function pricesStep(prices: PricesUpdate, investments: () => InvestmentBo
       }
       return {
         kind: 'done',
-        line: `${withFullStop(line)} ${withFullStop(plural(overviewWords.checks.factProblems(troubled.length), troubled.length))}`,
+        line: `${withFullStop(line)} ${withFullStop(plural(checkWords.factProblems(troubled.length), troubled.length))}`,
         writeId: null,
         link: troubled.length === 1 ? { label: only.instrument.name, to: holdingLink(only.instrument) } : { label: words.step.checks, to: PORTFOLIO_CHECKS_ROUTE },
       }

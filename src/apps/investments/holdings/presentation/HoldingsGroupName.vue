@@ -5,7 +5,7 @@ import type { HoldingsGroup } from '../domain/holdingsList'
 import { groupCount } from './holdingText'
 import { words } from './words'
 
-/** A group's name, a class, a currency or the cash, with how many holdings and cash balances it lists. */
+/** A group's name, a class, a currency or the cash, with how many holdings and cash balances it lists and whatever figures the slot adds after the count. */
 const props = defineProps<{
   group: HoldingsGroup
 }>()
@@ -18,5 +18,5 @@ const name = computed(() => NAMES[props.group.key] ?? props.group.key)
 
 <template>
   <span>{{ name }}</span>
-  <span class="block type-caption font-normal">{{ groupCount(group) }}</span>
+  <span class="block type-caption font-normal">{{ groupCount(group) }}<slot /></span>
 </template>

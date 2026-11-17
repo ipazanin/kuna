@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { PortfolioCheck } from '../src/apps/investments/overview/domain/portfolioChecks'
+import type { PortfolioCheck } from '../src/apps/investments/checks/domain/portfolioChecks'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import type { YearlyRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
@@ -123,7 +123,7 @@ describe('record labels in Croatian', () => {
 
 describe('the portfolio checks in Croatian', () => {
   it('says a holding’s share with its threshold, and a gap in points in the case the number asks for', async () => {
-    const { checkLines, thresholdText } = await inCroatian(() => import('../src/apps/investments/overview/presentation/checkLines'))
+    const { checkLines, thresholdText } = await inCroatian(() => import('../src/apps/investments/checks/presentation/checkLines'))
     const tech = { id: 'instrument:tech', name: 'Example Tech' } as unknown as Instrument
     const over: PortfolioCheck = { check: 'holding', subject: { kind: 'holding', instrument: tech }, measured: shareFromPercent(34.2), threshold: decimalOfText('20')!, over: true }
 

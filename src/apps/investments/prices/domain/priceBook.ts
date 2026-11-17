@@ -3,11 +3,23 @@ import { addDays, daysBetween, weekdaysBetween } from '../../../../shared/calend
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Decimal } from '../../../../shared/money/decimal'
 
-/** A day's closing price in the instrument's quote currency, as it closed, before any later split. */
+/**
+ * The price a day is valued at, in the instrument's quote currency and before any later split: the day's close, or for
+ * today the quote a click on Fetch today brought, which the next day's fetch replaces with the close.
+ */
 export interface Close {
   readonly date: CivilDate
   readonly price: Decimal
   readonly byHand: boolean
+  /** Only on a price from today's quote, which stays in the page and never in the prices file. */
+  readonly quote?: CloseQuote
+}
+
+/** When a quoted price is from and whether its market was still open, so the screens can say the figure is live. */
+export interface CloseQuote {
+  /** ISO timestamp of the last trade, or null where the vendor gives the day alone. */
+  readonly at: string | null
+  readonly marketOpen: boolean
 }
 
 /** Where the figures read closes: the fetched ones, and those entered by hand where no fetched close exists for the day. */

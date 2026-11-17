@@ -45,7 +45,7 @@ export const en = {
   },
   checks: {
     title: 'Portfolio checks',
-    subtitle: 'What the Overview checks, and how far each check lets the portfolio lean',
+    subtitle: 'What Holdings checks, and how far each check lets the portfolio lean',
     on: 'On',
     standard: (limit: string) => `Default threshold ${limit}`,
     error: 'A percent above 0, at most 100',
@@ -123,7 +123,7 @@ export const hr: Translation<typeof en> = {
   },
   checks: {
     title: 'Provjere portfelja',
-    subtitle: 'Što Pregled provjerava i koliko svaka provjera dopušta da portfelj bude nagnut',
+    subtitle: 'Što Pozicije provjeravaju i koliko svaka provjera dopušta da portfelj bude nagnut',
     on: 'Uključeno',
     standard: (limit) => `Zadani prag ${limit}`,
     error: 'Postotak veći od 0, najviše 100',

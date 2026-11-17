@@ -12,4 +12,4 @@ export const INVESTMENTS_CHECKS_ROUTE = `${INVESTMENTS_SETTINGS_ROUTE}?tab=check
 export const INVESTMENTS_ASSISTANT_ROUTE = `${INVESTMENTS_SETTINGS_ROUTE}?tab=assistant`
 
 /** The Overview's Portfolio checks, opened even when this device folded them. */
-export const PORTFOLIO_CHECKS_ROUTE = `${INVESTMENTS_OVERVIEW_ROUTE}#portfolio-checks`
+export const PORTFOLIO_CHECKS_ROUTE = `${INVESTMENTS_OVERVIEW_ROUTE}/holdings#portfolio-checks`

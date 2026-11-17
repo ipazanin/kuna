@@ -1,4 +1,11 @@
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, lstatSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { launch } from 'puppeteer-core'
+
+import { whenRunEnds } from './runEnd.mjs'
 
 // puppeteer-core ships no browser, so the executable path must be explicit.
 // Well-known install locations per platform. The first that exists wins.
@@ -62,4 +69,52 @@ function found(candidates, advice) {
   if (path) return path
   console.error(advice)
   process.exit(1)
+}
+
+/** What every browser profile a check makes is named from, so a sweep and `check:leftovers` touch only these. */
+export const PROFILE_PREFIX = 'kuna-browser-'
+
+const CHECKOUT = resolve(fileURLToPath(new URL('../..', import.meta.url)))
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** The profile prefix of this checkout's runs, so a lane's leftovers are told apart from another lane's run still going. */
+export function checkoutProfilePrefix(checkout = CHECKOUT) {
+  return `${PROFILE_PREFIX}${createHash('sha256').update(checkout).digest('hex').slice(0, 8)}-`
+}
+
+/**
+ * Launches the browser `options` name with a profile folder of its own and hands it to `run`. The browser is closed and
+ * the profile removed when `run` ends, fails or the run is stopped. Every check launches its browser through this.
+ */
+export async function withBrowser(options, run) {
+  sweepStaleProfiles()
+  const profile = mkdtempSync(join(tmpdir(), checkoutProfilePrefix()))
+  let browser = null
+  const removeProfile = whenRunEnds(() => {
+    browser?.process()?.kill('SIGKILL')
+    rmSync(profile, { recursive: true, force: true })
+  })
+  try {
+    browser = await launch({ ...options, userDataDir: profile })
+    return await run(browser)
+  } finally {
+    await browser?.close().catch(() => {})
+    removeProfile()
+  }
+}
+
+/**
+ * Removes the browser profiles in `folder` that are older than a day, which only a killed run leaves behind. Nothing
+ * without the profile prefix is touched, and a symbolic link is never followed.
+ */
+export function sweepStaleProfiles(folder = tmpdir(), now = Date.now()) {
+  const swept = []
+  for (const name of readdirSync(folder).filter((entry) => entry.startsWith(PROFILE_PREFIX))) {
+    const path = join(folder, name)
+    const stat = lstatSync(path, { throwIfNoEntry: false })
+    if (stat === undefined || !stat.isDirectory() || now - stat.mtimeMs <= DAY_MS) continue
+    rmSync(path, { recursive: true, force: true })
+    swept.push(name)
+  }
+  return swept
 }

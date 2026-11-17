@@ -32,3 +32,26 @@ export function setRequestsToday(vendorId: string, at: Date, count: number): voi
 export function countRequest(vendorId: string, at: Date): void {
   setRequestsToday(vendorId, at, requestsToday(vendorId, at) + 1)
 }
+
+/** The series this browser asked a once-a-day quote of, by the Zagreb day the click was on. */
+const quoteAsks = jsonChoice('kuna.price-quote-asks', (stored): { readonly day: string; readonly series: readonly string[] } | null =>
+  typeof stored === 'object' &&
+  stored !== null &&
+  'day' in stored &&
+  'series' in stored &&
+  typeof stored.day === 'string' &&
+  Array.isArray(stored.series) &&
+  stored.series.every((series) => typeof series === 'string')
+    ? { day: stored.day, series: stored.series }
+    : null,
+)
+
+/** The series asked a once-a-day quote of on the day, or none for another day. */
+export function quoteAsksOn(day: string): readonly string[] {
+  const asks = quoteAsks.read()
+  return asks !== null && asks.day === day ? asks.series : []
+}
+
+export function rememberQuoteAsks(day: string, series: readonly string[]): void {
+  quoteAsks.remember({ day, series })
+}

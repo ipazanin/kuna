@@ -17,14 +17,15 @@ import { MIXES } from '../../workbook/domain/mixGroup'
 import type { Mix } from '../../workbook/domain/mixGroup'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 import { words as transactionWords } from '../../transactions/presentation/words'
+import PortfolioChecksCard from '../../checks/presentation/PortfolioChecksCard.vue'
 import ClosedPositionsCard from './ClosedPositionsCard.vue'
-import HoldingRow from './HoldingRow.vue'
+import GainSourcesCard from './GainSourcesCard.vue'
 import HoldingsMapCard from './HoldingsMapCard.vue'
-import HoldingsGroupName from './HoldingsGroupName.vue'
 import HoldingsTable from './HoldingsTable.vue'
 import MixMissingLine from './MixMissingLine.vue'
 import { mixDonut } from './mixDonut'
 import TargetMixCard from './TargetMixCard.vue'
+import { todayLine } from './holdingText'
 import { usePortfolio } from './usePortfolio'
 import { fetchingAnnouncement, usePricesFetchingLine } from '../../prices/presentation/fetchingLine'
 import { usePrices } from '../../prices/presentation/usePrices'
@@ -32,30 +33,26 @@ import { words } from './words'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
-import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
-import { formatMoney, formatPercent, formatShare, percentAsShown } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
- * One mix of the value, picked from five, with the target mix, a map of the holdings, every holding with its value, cost, gain, weight and last day, and the
- * cash of each account, grouped, found and sorted, then what was sold in full. `?on=` shows them at an earlier day's close.
+ * One mix of the value, picked from five, with the target mix and the portfolio checks of today, a map of the holdings, every holding with its last day, value, cost, gain and weight, and the
+ * cash of each account, grouped, found and sorted, then what was sold in full and where the gain comes from. `?on=` shows them at an earlier day's close.
  */
 const { state } = useInvestmentsBooks()
 const { sources, figures: today, facts } = usePortfolio()
 const route = useRoute()
 const router = useRouter()
-const wide = roomAtLeast(45)
 const phone = usePhoneLayout()
 
 const find = ref('')
@@ -99,7 +96,7 @@ const noTransactions = computed(() => state.workbook !== null && !hasTransaction
 /** The file, and for a file with transactions this browser's copy of its prices too. */
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && !noTransactions.value && figures.value === null))
 const list = computed(() =>
-  figures.value === null || sources.value === null ? null : holdingsList(figures.value, sources.value.book, { grouping: grouping.value, find: find.value, sort: sort.value }),
+  figures.value === null || sources.value === null ? null : holdingsList(figures.value, sources.value.book, { grouping: grouping.value, withCash: true, find: find.value, sort: sort.value }),
 )
 const closed = computed(() => (figures.value === null ? [] : closedPositions(figures.value)))
 const held = computed(() => (figures.value === null ? 0 : heldHoldings(figures.value).length))
@@ -118,6 +115,8 @@ const description = computed(() => {
   if (on.value !== null) return words.onDay.description(dayLabel(on.value))
   const close = figures.value === null ? null : figuresClose(figures.value)
   if (figures.value === null || close === null) return words.description
+  const live = todayLine(figures.value.lastDay)
+  if (live !== null) return live
   const worth = figures.value.cash.some((balance) => balance.balance !== DECIMAL_ZERO) ? words.worth : words.worthWithoutCash
   return plural(worth(held.value, formatMoney(figures.value.value), shortDayLabel(close)), held.value)
 })
@@ -170,6 +169,7 @@ const description = computed(() => {
         </DonutCard>
         <TargetMixCard v-if="mixes !== null && sources !== null" :book="sources.book" :mixes="mixes" />
       </DashboardGrid>
+      <PortfolioChecksCard v-if="on === null && sources !== null && today !== null" :sources="sources" :figures="today" :facts="facts" />
       <HoldingsMapCard v-if="figures !== null && held > 0" :figures="figures" />
       <AppCard data-testid="holdings">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-4 pb-3 sm:px-5">
@@ -185,43 +185,10 @@ const description = computed(() => {
           <USelect v-model="grouping" :items="groupings" size="sm" :aria-label="words.groupBy" class="w-36 shrink-0" data-testid="holdings-group-by" />
         </div>
         <p v-if="list.groups.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="holdings-none">{{ find === '' ? words.nothingHeld : words.noMatch(find) }}</p>
-        <HoldingsTable v-else-if="wide" v-model:sort="sort" :list="list" />
-        <div v-else class="row-list pb-2" data-testid="holdings-rows">
-          <section v-for="group in list.groups" :key="group.key">
-            <h2 v-if="group.key !== 'all'" class="group-row flex items-baseline justify-between gap-3 px-4 py-2.5 type-body sm:px-5">
-              <span class="min-w-0"><HoldingsGroupName :group="group" /></span>
-              <span class="row-list-edge shrink-0 text-end">
-                <MoneyText :cents="group.value" />
-                <span v-if="group.weight !== null" class="block type-caption font-normal">{{ words.ofValue(formatShare(group.weight)) }}</span>
-              </span>
-            </h2>
-            <ul>
-              <li
-                v-for="line in group.lines"
-                :key="line.kind === 'cash' ? `${line.balance.account}|${line.balance.currency}` : line.holding.instrument.id"
-                class="border-t border-default first:border-t-0"
-              >
-                <HoldingRow :line="line" />
-              </li>
-            </ul>
-          </section>
-          <div class="flex flex-col gap-0.5 border-t border-accented px-4 pt-2.5 sm:px-5" data-testid="holdings-total">
-            <span class="row-list-edge flex items-baseline justify-between gap-3 type-body font-medium text-highlighted">
-              <span>{{ words.total }}</span>
-              <MoneyText :cents="list.total.value" />
-            </span>
-            <span class="row-list-edge flex items-baseline justify-between gap-3 type-caption">
-              <span>{{ words.columns.cost }} <MoneyText :cents="list.total.cost" /></span>
-              <span v-if="list.total.gain !== null">
-                <MoneyText :cents="list.total.gain" tone="outcome" /><template v-if="list.total.gainShare !== null">
-                  · <span class="figure" :class="moneyToneClass(percentAsShown(list.total.gainShare), 'outcome')">{{ formatPercent(list.total.gainShare, 'always') }}</span></template
-                >
-              </span>
-            </span>
-          </div>
-        </div>
+        <HoldingsTable v-else v-model:sort="sort" :list="list" :quoted-day="on === null && figures?.lastDay?.quoted !== undefined ? figures.lastDay.to : null" />
       </AppCard>
       <ClosedPositionsCard v-if="closed.length > 0" :positions="closed" />
+      <GainSourcesCard v-if="figures !== null" :figures="figures" />
     </template>
     <TransactionDialog v-if="state.workbook !== null" v-model:open="adding" :book="state.workbook.book" :editing="null" />
   </section>

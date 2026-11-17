@@ -9,7 +9,7 @@ import { civil } from './fixtures/ledger'
 
 function groupsBy(grouping: HoldingsView['grouping']): readonly HoldingsGroup[] {
   const records = workedPortfolio()
-  return holdingsList(portfolioFigures({ book: records, prices: WORKED_PRICES, rates: WORKED_RATES, today: civil('2026-10-29') }), records, { grouping, find: '', sort: null }).groups
+  return holdingsList(portfolioFigures({ book: records, prices: WORKED_PRICES, rates: WORKED_RATES, today: civil('2026-10-29') }), records, { grouping, withCash: true, find: '', sort: null }).groups
 }
 
 function counts(groups: readonly HoldingsGroup[], count: (group: HoldingsGroup) => string): Record<string, string> {

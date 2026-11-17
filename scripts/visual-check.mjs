@@ -187,25 +187,26 @@
  * moves to the fake Drive through its summary, Settings, Books file moves a workbook kept in this
  * browser there with the Drive read its folders need asked up front, and a row confirmed on the To review tab while another device files the other row keeps both.
  *
- * Run against a preview of the fake build:
- *   npm run build:fake && npm run preview:fake -- --port 4173
+ * Run on the fake build, which `--serve fake` serves on a free port for the run and stops after:
+ *   npm run build:fake && npm run check:visual -- --serve fake
+ * or against a preview already running:
+ *   npm run preview:fake -- --port 4173
  *   npm run check:visual -- http://localhost:4173/kuna/
  *
  * While working on one screen, `--only billing,owner` limits the run to the screens and flows with exactly those names,
  * `--only 'chat-receipt*'` to those whose names start so, and `--widths 360,1440` to those widths. A limited
- * run keeps the other screenshots and says it was limited. The full run without options is the check.
+ * run replaces the screenshots of what it runs, keeps the others and says it was limited. The full run without options is the check.
  * `--classic-scrollbars` draws 15 px scrollbars from 640 px up, as Linux and Windows do, where a Mac floats them over the page,
  * so a run here finds what a scrollbar's room changes. The docked widths then name the shell's width, without the scrollbar.
  * `--every-theme` shoots both themes at every width, for a design review, which looks at 360, 640, 1024 and 1440 px:
- *   npm run check:visual -- http://localhost:4173/kuna/ --every-theme --widths 360,640,1024,1440 --only chat-read
+ *   npm run check:visual -- --serve fake --every-theme --widths 360,640,1024,1440 --only chat-read
  *
  * Screenshots go to visual-check/ (gitignored), or to VISUAL_OUTPUT_DIR.
  */
 
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launch } from 'puppeteer-core'
 import * as XLSX from 'xlsx'
 
 import { en as homeEnglish, hr as homeCroatian } from '../src/shell/home/words.ts'
@@ -234,9 +235,10 @@ import { taxFreeCalendar } from '../src/apps/investments/tax/domain/taxFreeCalen
 import { taxReminder } from '../src/apps/investments/tax/domain/taxReminders.ts'
 import { capitalGainsYear } from '../src/apps/investments/tax/domain/taxYear.ts'
 import { recentCosts, yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
-import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
-import { portfolioChecks } from '../src/apps/investments/overview/domain/portfolioChecks.ts'
-import { checkLines } from '../src/apps/investments/overview/presentation/checkLines.ts'
+import { incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
+import { gainSources } from '../src/apps/investments/holdings/domain/gainSources.ts'
+import { portfolioChecks } from '../src/apps/investments/checks/domain/portfolioChecks.ts'
+import { checkLines } from '../src/apps/investments/checks/presentation/checkLines.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { monthlyReturns } from '../src/apps/investments/performance/domain/monthlyReturns.ts'
 import { periodGains } from '../src/apps/investments/performance/domain/periodGains.ts'
@@ -281,7 +283,7 @@ import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
 import { formatAccountMoney, formatMoney, formatPercent, formatPercentChange } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
-import { chromeLaunch, floatPhoneScrollbars } from './support/browsers.mjs'
+import { chromeLaunch, floatPhoneScrollbars, withBrowser } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { englishLeftOn } from './support/englishLeft.mjs'
 import { textOverlapsOn } from './support/textOverlap.mjs'
@@ -598,7 +600,10 @@ import { chatResizeFlow, menuLitFlow, quickJumpFlowIn, shellSqueezeFlow, sidebar
 import { cutSidebarFlowIn, cutTextFlow, transactionGroupsFlowIn } from './support/cutTextFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
+import { fetchTodayFlowIn } from './support/fetchTodayFlows.mjs'
 import { runSelection } from './support/runSelection.mjs'
+import { servePreview } from './support/servePreview.mjs'
+import { shotIndex } from './support/shotIndex.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
 
@@ -626,7 +631,8 @@ const VIEWPORTS = [
 ]
 
 const selection = runSelection(VIEWPORTS.map((viewport) => viewport.width))
-const BASE = selection.base
+const served = selection.serve === null ? null : await servePreview(selection.serve)
+const BASE = served?.base ?? selection.base
 
 /** A card is a raised surface. One nested inside another card is part of that card. */
 const CARD_SELECTOR = '.rounded-card'
@@ -670,11 +676,11 @@ function fakeInvestmentsShows(variant, pricesVariant) {
       formatMoney(figures.totalGain, 'always'),
       `${formatPercent(figures.totalGainShare, 'always')} on the ${formatMoney(figures.putIn)} you put in`,
       formatMoney(income.thisYear),
-      formatMoney(sources.tradingFees),
       ...(figures.lastDay?.share == null ? [] : [formatPercentChange(figures.lastDay.share)]),
       ...(newestFlow === undefined ? [] : [formatMoney(newestFlow.euros, 'always')]),
     ],
     croatian: [formatMoney(figures.value, 'negative', CROATIAN_MONEY), formatMoney(figures.totalGain, 'always', CROATIAN_MONEY), formatMoney(figures.putIn, 'negative', CROATIAN_MONEY)],
+    tradingFees: formatMoney(sources.tradingFees),
     home: [formatMoney(figures.value), formatMoney(figures.totalGain, 'always')],
     homeCroatian: [formatMoney(figures.value, 'negative', CROATIAN_MONEY), formatMoney(figures.totalGain, 'always', CROATIAN_MONEY)],
     ...homeBadge(workbook.book, rates, figuresClose(figures)),
@@ -850,7 +856,7 @@ function fakeOverviewShows(spendingSample) {
 /** The sample's Holdings figures: the value, the holdings' cost and their gain, in English and in Croatian. */
 function fakeHoldingsShows() {
   const { workbook, figures } = fakePortfolio('sample', 'sample')
-  const { total } = holdingsList(figures, workbook.book, { grouping: 'class', find: '', sort: null })
+  const { total } = holdingsList(figures, workbook.book, { grouping: 'class', withCash: true, find: '', sort: null })
   return {
     english: [formatMoney(total.value), formatMoney(total.cost), formatMoney(total.gain, 'always')],
     croatian: [formatMoney(total.value, 'negative', CROATIAN_MONEY), formatMoney(total.cost, 'negative', CROATIAN_MONEY), formatMoney(total.gain, 'always', CROATIAN_MONEY)],
@@ -4180,21 +4186,15 @@ const SOURCE_SCREENS = [
       'Prices entered by hand',
       'Example Money Fund (EMF) uses the price you entered on',
       ...SAMPLE_INVESTMENTS.english,
-      'Value over time',
-      'Where the money is',
-      'Cash and currencies',
+      'Last day',
+      'What you hold',
+      'Each holding, with how it moved on the day',
       'All holdings',
-      'Where the gain comes from',
-      'Movers on the last day',
+      'Value over time',
       'Latest transactions',
       'Stock lending',
-      'Portfolio checks',
-      'Change the thresholds',
-      ...SAMPLE_CHECKS,
-      'Fetched facts',
-      'Vendors sent nothing usable for 2 holdings:',
-      'Example Dividend Co',
     ],
+    lacks: ['Portfolio checks', 'Where the money is', 'Movers on the last day', 'Where the gain comes from'],
   },
   {
     name: 'investments-overview-sample-croatian',
@@ -4202,21 +4202,8 @@ const SOURCE_SCREENS = [
     hash: '#/investments',
     title: 'Pregled',
     charts: 1,
-    shows: [
-      'Stanje na zatvaranju:',
-      'Cijene unesene ručno',
-      ...SAMPLE_INVESTMENTS.croatian,
-      'Vrijednost kroz vrijeme',
-      'Gdje je novac',
-      'Sve pozicije',
-      'Odakle dolazi dobit',
-      'Zadnje transakcije',
-      'Provjere portfelja',
-      'Iznad praga',
-      'Promijeni pragove',
-      'Dohvaćeni podaci',
-      'Izvori nisu poslali ništa upotrebljivo za 2 pozicije:',
-    ],
+    shows: ['Stanje na zatvaranju:', 'Cijene unesene ručno', ...SAMPLE_INVESTMENTS.croatian, 'Zadnji dan', 'Što držite', 'Sve pozicije', 'Vrijednost kroz vrijeme', 'Zadnje transakcije'],
+    lacks: ['Provjere portfelja', 'Gdje je novac'],
   },
   {
     name: 'investments-overview-cash-below-zero',
@@ -4259,10 +4246,18 @@ const SOURCE_SCREENS = [
       'Total',
       'Closed positions',
       'Example Retired Co',
+      'Where the gain comes from',
+      `Trading fees of ${SAMPLE_INVESTMENTS.tradingFees} are inside these figures.`,
       'Map of holdings',
       'Size is the value, colour the gain on what you hold',
       'Gain of 10 to 25%',
       'Target mix',
+      'Portfolio checks',
+      'Change the thresholds',
+      ...SAMPLE_CHECKS,
+      'Fetched facts',
+      'Vendors sent nothing usable for 2 holdings:',
+      'Example Dividend Co',
       ...SAMPLE_HOLDINGS.english,
     ],
   },
@@ -4286,9 +4281,15 @@ const SOURCE_SCREENS = [
       'Novac i valute',
       'Ukupno',
       'Zatvorene pozicije',
+      'Odakle dolazi dobit',
       'Karta pozicija',
       'Veličina je vrijednost, boja dobit na onome što držite',
       'Ciljna raspodjela',
+      'Provjere portfelja',
+      'Iznad praga',
+      'Promijeni pragove',
+      'Dohvaćeni podaci',
+      'Izvori nisu poslali ništa upotrebljivo za 2 pozicije:',
       ...SAMPLE_HOLDINGS.croatian,
     ],
   },
@@ -4361,6 +4362,8 @@ const SOURCE_SCREENS = [
     expandedBefore: ['holdings.map'],
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: [`Holdings at the close of ${dayLabel(HOLDINGS_PAST_DAY)}`, 'Today', 'By sector', 'Example World ETF', 'Closed positions', 'Example Retired Co'],
+
+    lacks: ['Portfolio checks'],
   },
   {
     name: 'investments-holdings-on-date-croatian',
@@ -5955,13 +5958,7 @@ async function slowWebFonts(page) {
   })
 }
 
-mkdirSync(SCREENSHOT_DIR, { recursive: true })
-// Screenshots of a screen that no longer exists would otherwise survive and mislead a review. A limited run keeps the others.
-if (!selection.limited) {
-  for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => file.endsWith('.png'))) {
-    rmSync(join(SCREENSHOT_DIR, stale))
-  }
-}
+const shots = shotIndex(SCREENSHOT_DIR, selection.limited)
 
 /** The fake workbook as an xlsx file, with a ledger row that has no amount and a setting the app does not know. */
 function writeImportFile() {
@@ -9461,6 +9458,24 @@ const FLOWS = [
   { name: 'dialogs-loans-croatian', hash: '#/loans', title: 'Pregled', run: loansDialogsFlowIn('hr'), viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
   { name: 'investments-editor', hash: '#/investments/transactions', title: 'Transactions', run: investmentsEditorFlow, modes: ['drive'], queries: { drive: '&investments=partial-history' } },
   {
+    name: 'investments-fetch-today',
+    hash: '#/investments',
+    title: 'Overview',
+    run: fetchTodayFlowIn('en'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-fetch-today-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: fetchTodayFlowIn('hr'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample&lang=hr' },
+  },
+  {
     name: 'dialogs-investments',
     hash: '#/investments/transactions',
     title: 'Transactions',
@@ -10105,307 +10120,303 @@ if (unmatched !== null) {
 const shared = selection.share([...chosenVisits, ...chosenFlows].map((checked) => checked.name))
 const visits = chosenVisits.filter((visit) => shared.has(visit.name))
 const flows = chosenFlows.filter((flow) => shared.has(flow.name))
-// A flow that fails fails the run and leaves a `-failed` shot. One left by an earlier run is removed, so a review never reads it as this run's.
-for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => flows.some((flow) => file.includes(`-${flow.name}-failed-`)))) {
-  rmSync(join(SCREENSHOT_DIR, stale))
-}
-
-const browser = await launch(chromeLaunch(selection.classicScrollbars))
 let checked = 0
 
-/**
- * The gutter this browser keeps beside the shell from the phone step up, in px. A docked viewport names the shell's width,
- * so its window is wider by this much, as a person's with a classic scrollbar is. Linux Chrome keeps one even for a hidden scrollbar.
- */
-async function shellGutter() {
-  const context = await browser.createBrowserContext()
-  const page = await context.newPage()
-  if (selection.classicScrollbars) await floatPhoneScrollbars(page)
-  await page.setViewport({ width: 1024, height: 768 })
-  await page.goto(BASE, { waitUntil: 'load' })
-  const kept = await page.evaluate(() => window.innerWidth - document.body.clientWidth)
-  await context.close()
-  return kept
-}
-const gutter = VIEWPORTS.some((viewport) => viewport.chatDocked && selection.takesWidth(viewport.width)) ? await shellGutter() : 0
-
-for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
-  for (const visit of visits) {
-    if (!selection.takesTheme(visit.theme, viewport.theme)) continue
-    // A screen that shows what Kuna says without an AI key has no chat to dock.
-    if (viewport.chatDocked && visit.keyless) continue
-    const scope = `${viewport.name} ${visit.name}`
+await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => {
+  /**
+   * The gutter this browser keeps beside the shell from the phone step up, in px. A docked viewport names the shell's width,
+   * so its window is wider by this much, as a person's with a classic scrollbar is. Linux Chrome keeps one even for a hidden scrollbar.
+   */
+  async function shellGutter() {
     const context = await browser.createBrowserContext()
     const page = await context.newPage()
     if (selection.classicScrollbars) await floatPhoneScrollbars(page)
-    const errors = watchForErrors(page)
-    const foreignRequests = watchForForeignRequests(page)
-
-    if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
-    // A docked chat needs a key. A visit that keeps a key of its own keeps it alone, so its company stays the one in use.
-    const aiKeyKept = PROVIDER_PRESETS.some((preset) => `kuna.secret.${preset.id}` in (visit.stored ?? {}))
-    const stored = viewport.chatDocked && !aiKeyKept ? { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY, ...visit.stored } : visit.stored
-    if (stored) {
-      await page.evaluateOnNewDocument((entries) => {
-        for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value)
-      }, stored)
-    }
-    if (visit.collapsedBefore || visit.expandedBefore) {
-      await page.evaluateOnNewDocument(
-        (collapsed, expanded) => {
-          for (const card of collapsed) localStorage.setItem(`kuna.card.${card}`, 'collapsed')
-          for (const card of expanded) localStorage.setItem(`kuna.card.${card}`, 'expanded')
-        },
-        visit.collapsedBefore ?? [],
-        visit.expandedBefore ?? [],
-      )
-    }
-    await page.setViewport({ width: viewport.chatDocked ? viewport.width + gutter : viewport.width, height: viewport.height })
-    // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
-    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
-    await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
-
-    const drawsCharts = visit.gallery || visit.charts > 0
-    const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
-    let rendered = await page
-      .waitForSelector(ready, { timeout: 10_000 })
-      .then(() => true)
-      .catch(() => false)
-
-    if (visit.upload && rendered) {
-      const input = await page.$('input[data-testid="onboarding-file"]')
-      await input?.uploadFile(IMPORT_FILE)
-      rendered = await page
-        .waitForSelector('[data-testid="import-summary"] dl', { timeout: 10_000 })
-        .then(() => true)
-        .catch(() => false)
-      await new Promise((resolve) => setTimeout(resolve, 600))
-    }
-
-    if (visit.clickThen && rendered) {
-      await page.click(visit.clickThen.click)
-      rendered = await page
-        .waitForFunction((gone) => document.querySelector(gone) === null, { timeout: 10_000 }, visit.clickThen.gone)
-        .then(() => true)
-        .catch(() => false)
-      await new Promise((resolve) => setTimeout(resolve, 600))
-    }
-
-    if (visit.linkedRule && rendered) {
-      await page.evaluate(() => document.fonts.ready.then(() => undefined))
-      const shown = await page
-        .waitForFunction(linkedRuleInView, { timeout: 5_000 }, visit.linkedRule)
-        .then(() => true)
-        .catch(() => false)
-      if (!shown) fail(scope, `the deep link did not open ${visit.linkedRule} in the side panel and bring its line to just below the search bar, marked, once the fonts loaded`)
-    }
-
-    // The screenshot and the hole of a donut should show where the bars and rings land.
-    if (rendered && (drawsCharts || (await page.$('.donut-ring canvas')) !== null)) {
-      await settleCharts(page).catch(() => fail(scope, 'the charts were still moving 10 s after the screen opened'))
-    }
-
-    if (visit.linkedPart && rendered) {
-      await page.evaluate(() => document.fonts.ready.then(() => undefined))
-      const landed = await page
-        .waitForFunction(linkedPartLanded, { timeout: 5_000 }, visit.linkedPart)
-        .then(() => true)
-        .catch(() => false)
-      if (!landed) fail(scope, `the deep link to #${visit.linkedPart} did not open its card and bring the part to just below the top`)
-    }
-    if (visit.linkedCard && rendered) {
-      const opened = await page.evaluate((card) => document.querySelector(`[data-card="${card}"]`)?.getAttribute('data-collapsed') === 'false', visit.linkedCard)
-      if (!opened) fail(scope, `the link to the tab did not open ${visit.linkedCard}, which this device keeps collapsed`)
-    }
-    if (visit.linkedRow && rendered) {
-      const shown = await page
-        .waitForFunction(linkedRowShown, { timeout: 5_000 }, visit.linkedRow)
-        .then(() => true)
-        .catch(() => false)
-      if (!shown) fail(scope, `the deep link did not open the collapsed card and bring ${visit.linkedRow} into view`)
-    }
-
-    const report = await readPage(page)
-    // A first run draws without the shell, so it has no chat to dock.
-    const framed = (await page.$('[data-testid="app-shell"]')) !== null
-    if (viewport.chatDocked && rendered && framed && (await page.$('[data-testid="chat-dock"]')) === null) fail(scope, 'the chat did not dock beside the page')
-    if (inCroatian(visit.query)) for (const english of await englishLeftOn(page)) fail(scope, english)
-    for (const overlap of await textOverlapsOn(page)) fail(scope, overlap)
-    if (!rendered) fail(scope, `nothing matched ${ready} within 10 s`)
-    if (report.title !== visit.title) fail(scope, `title was ${JSON.stringify(report.title)}, expected "${visit.title}"`)
-    if (report.themeClass !== visit.theme) fail(scope, `rendered ${report.themeClass}, expected the ${visit.theme} theme`)
-    for (const text of [visit.shows ?? []].flat()) {
-      if (!report.text.includes(text)) fail(scope, `"${text}" is missing, so the fake workbook did not reach the screen`)
-    }
-    for (const text of [visit.lacks ?? []].flat()) {
-      if (report.text.includes(text)) fail(scope, `"${text}" shows, though the screen should no longer say it`)
-    }
-    const expectedCharts = visit.gallery ? GALLERY_CHARTS : visit.charts
-    // With the chat open, the charts are the screen's own and those under a pane do not draw, and its cards are the screen's visit's to check.
-    if (!visit.chatOpen && report.chartHeights.length !== expectedCharts) fail(scope, `drew ${report.chartHeights.length} charts, expected ${expectedCharts}`)
-    const collapsed = report.chartHeights.filter((height) => height < 100)
-    if (collapsed.length) fail(scope, `${collapsed.length} chart(s) drew under 100px tall: ${collapsed.join(', ')}`)
-    if (visit.gallery && report.iconCount < 10) fail(scope, `only ${report.iconCount} icons rendered as SVG`)
-    if (visit.gallery && (report.donutHeights.length !== GALLERY_DONUTS || report.donutHeights.some((height) => height < 150))) {
-      fail(scope, `drew donuts ${report.donutHeights.map(Math.round).join(', ')} px tall, expected ${GALLERY_DONUTS} of at least 150 px`)
-    }
-    if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
-    for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
-    for (const donut of report.crowdedDonuts) fail(scope, donut)
-    for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
-      fail(scope, problem)
-    if (NEAR_FIGURE_SCREENS.includes(visit.name) && viewport.width <= NEAR_FIGURE_WIDEST) for (const far of report.farRowFigures) fail(scope, far)
-    if (GRID_ROW_WIDTHS.includes(viewport.width)) for (const row of report.emptyGridRows) fail(scope, row)
-    if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
-    if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
-      for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
-    }
-    for (const wide of report.cardOverflow) {
-      const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && report.contentRoom <= entry.roomUpTo)
-      overflowSeen.push({ viewport: viewport.width, room: report.contentRoom, screen: visit.name, theme: visit.theme, ...wide, allowed: allowed !== undefined })
-      if (!allowed) fail(scope, `"${wide.title}" is ${wide.content} px wide inside a ${wide.width} px card, by ${wide.by}`)
-    }
-    if (report.unrenderedIcons) fail(scope, `${report.unrenderedIcons} icon(s) did not render`)
-    if (report.scrollWidth > report.clientWidth + 1) {
-      fail(scope, `horizontal overflow: scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
-      if (report.overflowing.length) fail(scope, `overflowing: ${report.overflowing.join(', ')}`)
-    }
-    if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
-    if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
-
-    await screenshotWholePage(page, join(SCREENSHOT_DIR, `${viewport.name}-${visit.file}.png`))
-    if (visit.gallery && viewport.name === 'desktop') {
-      const firstChart = await page.$('[data-testid="chart-card"]')
-      await firstChart?.screenshot({ path: join(SCREENSHOT_DIR, `${viewport.name}-${visit.file}-chart.png`) })
-    }
-
-    // A linked rule opens its side panel over the screen, so the plain visit of that tab collapses its card instead.
-    if (viewport.cardFlow && rendered && !visit.linkedRule && !visit.chatOpen) {
-      const collapsible = (await page.$('[data-card]')) !== null
-      if (visit.cards === false) {
-        if (collapsible) fail(scope, 'has a collapsible card, so it should not say cards: false')
-      } else if (!collapsible) {
-        fail(scope, 'has no collapsible card. Say cards: false if none of its cards holds a long list or table')
-      } else {
-        await collapseAndExpand(
-          page,
-          (handle) => handle.click(),
-          (card) => card.screenshot({ path: join(SCREENSHOT_DIR, `${viewport.name}-${visit.file}-collapsed.png`) }),
-        ).catch((error) => fail(scope, error.message))
-        const after = await readPage(page)
-        if (after.scrollWidth > after.clientWidth + 1) fail(scope, `horizontal overflow after collapsing a card: scrollWidth ${after.scrollWidth}`)
-      }
-    }
-
-    checked += 1
-    console.log(
-      `${`${scope} ${visit.theme}`.padEnd(34)} ${String(viewport.width).padStart(4)}px  ` +
-        `scroll=${report.scrollWidth} client=${report.clientWidth}  errors=${errors.length}  ` +
-        `foreign=${foreignRequests.length}  icons=${report.iconCount}`,
-    )
-
+    await page.setViewport({ width: 1024, height: 768 })
+    await page.goto(BASE, { waitUntil: 'load' })
+    const kept = await page.evaluate(() => window.innerWidth - document.body.clientWidth)
     await context.close()
+    return kept
   }
-}
+  const gutter = VIEWPORTS.some((viewport) => viewport.chatDocked && selection.takesWidth(viewport.width)) ? await shellGutter() : 0
 
-if (REFLOW_WIDTHS.every((width) => selection.takesWidth(width))) {
-  // Two grids of one screen may open with the same title, so each is known by its title and how many came before it with that title.
-  const keyed = (grids) => grids.map((grid, index) => [`${grid.name} ${grids.slice(0, index).filter((other) => other.name === grid.name).length}`, grid])
-  for (const name of new Set(visits.map((visit) => visit.name))) {
-    for (const [narrow, wide] of REFLOW_WIDTHS.slice(1).map((width, index) => [REFLOW_WIDTHS[index], width])) {
-      const before = new Map(keyed(dashboardGridsSeen.get(`${name} ${narrow}`)?.grids ?? []))
-      const after = dashboardGridsSeen.get(`${name} ${wide}`) ?? { grids: [], steps: [] }
-      for (const [key, grid] of keyed(after.grids)) {
-        const earlier = before.get(key)
-        if (grid.rows.length > 1 && earlier?.rows.join() === grid.rows.join() && after.steps.some((step) => earlier.room < step && step <= grid.room)) {
-          fail(
-            `${name} ${wide}px`,
-            `the ${grid.layout} grid "${grid.name}" keeps ${grid.rows.join(', ')} cards a row from ${narrow} px, though its room grows from ${earlier.room} to ${grid.room} px, so it does not rearrange for the wider screen`,
-          )
+  for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
+    for (const visit of visits) {
+      if (!selection.takesTheme(visit.theme, viewport.theme)) continue
+      // A screen that shows what Kuna says without an AI key has no chat to dock.
+      if (viewport.chatDocked && visit.keyless) continue
+      const scope = `${viewport.name} ${visit.name}`
+      shots.begin(visit.name)
+      const context = await browser.createBrowserContext()
+      const page = await context.newPage()
+      if (selection.classicScrollbars) await floatPhoneScrollbars(page)
+      const errors = watchForErrors(page)
+      const foreignRequests = watchForForeignRequests(page)
+
+      if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
+      // A docked chat needs a key. A visit that keeps a key of its own keeps it alone, so its company stays the one in use.
+      const aiKeyKept = PROVIDER_PRESETS.some((preset) => `kuna.secret.${preset.id}` in (visit.stored ?? {}))
+      const stored = viewport.chatDocked && !aiKeyKept ? { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY, ...visit.stored } : visit.stored
+      if (stored) {
+        await page.evaluateOnNewDocument((entries) => {
+          for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value)
+        }, stored)
+      }
+      if (visit.collapsedBefore || visit.expandedBefore) {
+        await page.evaluateOnNewDocument(
+          (collapsed, expanded) => {
+            for (const card of collapsed) localStorage.setItem(`kuna.card.${card}`, 'collapsed')
+            for (const card of expanded) localStorage.setItem(`kuna.card.${card}`, 'expanded')
+          },
+          visit.collapsedBefore ?? [],
+          visit.expandedBefore ?? [],
+        )
+      }
+      await page.setViewport({ width: viewport.chatDocked ? viewport.width + gutter : viewport.width, height: viewport.height })
+      // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
+      await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
+      await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
+
+      const drawsCharts = visit.gallery || visit.charts > 0
+      const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
+      let rendered = await page
+        .waitForSelector(ready, { timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false)
+
+      if (visit.upload && rendered) {
+        const input = await page.$('input[data-testid="onboarding-file"]')
+        await input?.uploadFile(IMPORT_FILE)
+        rendered = await page
+          .waitForSelector('[data-testid="import-summary"] dl', { timeout: 10_000 })
+          .then(() => true)
+          .catch(() => false)
+        await new Promise((resolve) => setTimeout(resolve, 600))
+      }
+
+      if (visit.clickThen && rendered) {
+        await page.click(visit.clickThen.click)
+        rendered = await page
+          .waitForFunction((gone) => document.querySelector(gone) === null, { timeout: 10_000 }, visit.clickThen.gone)
+          .then(() => true)
+          .catch(() => false)
+        await new Promise((resolve) => setTimeout(resolve, 600))
+      }
+
+      if (visit.linkedRule && rendered) {
+        await page.evaluate(() => document.fonts.ready.then(() => undefined))
+        const shown = await page
+          .waitForFunction(linkedRuleInView, { timeout: 5_000 }, visit.linkedRule)
+          .then(() => true)
+          .catch(() => false)
+        if (!shown) fail(scope, `the deep link did not open ${visit.linkedRule} in the side panel and bring its line to just below the search bar, marked, once the fonts loaded`)
+      }
+
+      // The screenshot and the hole of a donut should show where the bars and rings land.
+      if (rendered && (drawsCharts || (await page.$('.donut-ring canvas')) !== null)) {
+        await settleCharts(page).catch(() => fail(scope, 'the charts were still moving 10 s after the screen opened'))
+      }
+
+      if (visit.linkedPart && rendered) {
+        await page.evaluate(() => document.fonts.ready.then(() => undefined))
+        const landed = await page
+          .waitForFunction(linkedPartLanded, { timeout: 5_000 }, visit.linkedPart)
+          .then(() => true)
+          .catch(() => false)
+        if (!landed) fail(scope, `the deep link to #${visit.linkedPart} did not open its card and bring the part to just below the top`)
+      }
+      if (visit.linkedCard && rendered) {
+        const opened = await page.evaluate((card) => document.querySelector(`[data-card="${card}"]`)?.getAttribute('data-collapsed') === 'false', visit.linkedCard)
+        if (!opened) fail(scope, `the link to the tab did not open ${visit.linkedCard}, which this device keeps collapsed`)
+      }
+      if (visit.linkedRow && rendered) {
+        const shown = await page
+          .waitForFunction(linkedRowShown, { timeout: 5_000 }, visit.linkedRow)
+          .then(() => true)
+          .catch(() => false)
+        if (!shown) fail(scope, `the deep link did not open the collapsed card and bring ${visit.linkedRow} into view`)
+      }
+
+      const report = await readPage(page)
+      // A first run draws without the shell, so it has no chat to dock.
+      const framed = (await page.$('[data-testid="app-shell"]')) !== null
+      if (viewport.chatDocked && rendered && framed && (await page.$('[data-testid="chat-dock"]')) === null) fail(scope, 'the chat did not dock beside the page')
+      if (inCroatian(visit.query)) for (const english of await englishLeftOn(page)) fail(scope, english)
+      for (const overlap of await textOverlapsOn(page)) fail(scope, overlap)
+      if (!rendered) fail(scope, `nothing matched ${ready} within 10 s`)
+      if (report.title !== visit.title) fail(scope, `title was ${JSON.stringify(report.title)}, expected "${visit.title}"`)
+      if (report.themeClass !== visit.theme) fail(scope, `rendered ${report.themeClass}, expected the ${visit.theme} theme`)
+      for (const text of [visit.shows ?? []].flat()) {
+        if (!report.text.includes(text)) fail(scope, `"${text}" is missing, so the fake workbook did not reach the screen`)
+      }
+      for (const text of [visit.lacks ?? []].flat()) {
+        if (report.text.includes(text)) fail(scope, `"${text}" shows, though the screen should no longer say it`)
+      }
+      const expectedCharts = visit.gallery ? GALLERY_CHARTS : visit.charts
+      // With the chat open, the charts are the screen's own and those under a pane do not draw, and its cards are the screen's visit's to check.
+      if (!visit.chatOpen && report.chartHeights.length !== expectedCharts) fail(scope, `drew ${report.chartHeights.length} charts, expected ${expectedCharts}`)
+      const collapsed = report.chartHeights.filter((height) => height < 100)
+      if (collapsed.length) fail(scope, `${collapsed.length} chart(s) drew under 100px tall: ${collapsed.join(', ')}`)
+      if (visit.gallery && report.iconCount < 10) fail(scope, `only ${report.iconCount} icons rendered as SVG`)
+      if (visit.gallery && (report.donutHeights.length !== GALLERY_DONUTS || report.donutHeights.some((height) => height < 150))) {
+        fail(scope, `drew donuts ${report.donutHeights.map(Math.round).join(', ')} px tall, expected ${GALLERY_DONUTS} of at least 150 px`)
+      }
+      if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
+      for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
+      for (const donut of report.crowdedDonuts) fail(scope, donut)
+      for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
+        fail(scope, problem)
+      if (NEAR_FIGURE_SCREENS.includes(visit.name) && viewport.width <= NEAR_FIGURE_WIDEST) for (const far of report.farRowFigures) fail(scope, far)
+      if (GRID_ROW_WIDTHS.includes(viewport.width)) for (const row of report.emptyGridRows) fail(scope, row)
+      if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
+      if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
+        for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
+      }
+      for (const wide of report.cardOverflow) {
+        const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && report.contentRoom <= entry.roomUpTo)
+        overflowSeen.push({ viewport: viewport.width, room: report.contentRoom, screen: visit.name, theme: visit.theme, ...wide, allowed: allowed !== undefined })
+        if (!allowed) fail(scope, `"${wide.title}" is ${wide.content} px wide inside a ${wide.width} px card, by ${wide.by}`)
+      }
+      if (report.unrenderedIcons) fail(scope, `${report.unrenderedIcons} icon(s) did not render`)
+      if (report.scrollWidth > report.clientWidth + 1) {
+        fail(scope, `horizontal overflow: scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
+        if (report.overflowing.length) fail(scope, `overflowing: ${report.overflowing.join(', ')}`)
+      }
+      if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
+      if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
+
+      await screenshotWholePage(page, shots.path(`${viewport.name}-${visit.file}.png`))
+      if (visit.gallery && viewport.name === 'desktop') {
+        const firstChart = await page.$('[data-testid="chart-card"]')
+        await firstChart?.screenshot({ path: shots.path(`${viewport.name}-${visit.file}-chart.png`) })
+      }
+
+      // A linked rule opens its side panel over the screen, so the plain visit of that tab collapses its card instead.
+      if (viewport.cardFlow && rendered && !visit.linkedRule && !visit.chatOpen) {
+        const collapsible = (await page.$('[data-card]')) !== null
+        if (visit.cards === false) {
+          if (collapsible) fail(scope, 'has a collapsible card, so it should not say cards: false')
+        } else if (!collapsible) {
+          fail(scope, 'has no collapsible card. Say cards: false if none of its cards holds a long list or table')
+        } else {
+          await collapseAndExpand(
+            page,
+            (handle) => handle.click(),
+            (card) => card.screenshot({ path: shots.path(`${viewport.name}-${visit.file}-collapsed.png`) }),
+          ).catch((error) => fail(scope, error.message))
+          const after = await readPage(page)
+          if (after.scrollWidth > after.clientWidth + 1) fail(scope, `horizontal overflow after collapsing a card: scrollWidth ${after.scrollWidth}`)
         }
       }
+
+      checked += 1
+      console.log(
+        `${`${scope} ${visit.theme}`.padEnd(34)} ${String(viewport.width).padStart(4)}px  ` +
+          `scroll=${report.scrollWidth} client=${report.clientWidth}  errors=${errors.length}  ` +
+          `foreign=${foreignRequests.length}  icons=${report.iconCount}`,
+      )
+
+      await context.close()
     }
   }
-} else {
-  console.log(`\nthe dashboard grids were not compared, which needs the widths ${REFLOW_WIDTHS.join(', ')}`)
-}
 
-for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
-  for (const mode of MODES) {
-    for (const theme of THEMES) {
-      if (!selection.takesTheme(theme, viewport.theme)) continue
-      for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['drive', 'browser']).includes(mode.name))) {
-        const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
-        const context = await browser.createBrowserContext()
-        const page = await context.newPage()
-        if (selection.classicScrollbars) await floatPhoneScrollbars(page)
-        const errors = watchForErrors(page)
-        const foreignRequests = watchForForeignRequests(page)
-        await page.setViewport({ width: viewport.width, height: viewport.height })
-        await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
-        const file = (name) => join(SCREENSHOT_DIR, `${viewport.name}-${mode.name}-${name}-${theme}.png`)
-        const query = flow.queries?.[mode.name] ?? mode.query
-        const toldOnce = new Set()
-        const stateCheck = async (when) => {
-          const report = await readPage(page)
-          if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
-          for (const row of report.unevenFieldRows) fail(scope, `${when}: uneven form row: ${row}`)
-          // A text left in English, an overlap or a card laid out off its rule stays on screen through the states after it, so each is told once.
-          const lingering = [
-            ...(await textOverlapsOn(page)),
-            ...(inCroatian(query) ? await englishLeftOn(page) : []),
-            ...report.offsetTables,
-            ...report.phoneHeaderActions,
-            ...report.wideLoneCards,
-            ...report.drillLinksOffColour,
-            ...report.misplacedRowArrows,
-            ...report.raggedRowAmounts,
-          ]
-          for (const problem of lingering.filter((text) => !toldOnce.has(text))) {
-            toldOnce.add(problem)
-            fail(scope, `${when}: ${problem}`)
+  if (REFLOW_WIDTHS.every((width) => selection.takesWidth(width))) {
+    // Two grids of one screen may open with the same title, so each is known by its title and how many came before it with that title.
+    const keyed = (grids) => grids.map((grid, index) => [`${grid.name} ${grids.slice(0, index).filter((other) => other.name === grid.name).length}`, grid])
+    for (const name of new Set(visits.map((visit) => visit.name))) {
+      for (const [narrow, wide] of REFLOW_WIDTHS.slice(1).map((width, index) => [REFLOW_WIDTHS[index], width])) {
+        const before = new Map(keyed(dashboardGridsSeen.get(`${name} ${narrow}`)?.grids ?? []))
+        const after = dashboardGridsSeen.get(`${name} ${wide}`) ?? { grids: [], steps: [] }
+        for (const [key, grid] of keyed(after.grids)) {
+          const earlier = before.get(key)
+          if (grid.rows.length > 1 && earlier?.rows.join() === grid.rows.join() && after.steps.some((step) => earlier.room < step && step <= grid.room)) {
+            fail(
+              `${name} ${wide}px`,
+              `the ${grid.layout} grid "${grid.name}" keeps ${grid.rows.join(', ')} cards a row from ${narrow} px, though its room grows from ${earlier.room} to ${grid.room} px, so it does not rearrange for the wider screen`,
+            )
           }
         }
-        /** A press that opens a menu looks at the open menu too, so every menu any flow opens is checked. */
-        const pressLookingAtMenus = async (handle) => {
-          const opensMenu = await handle.evaluate((element) => element.matches('[role="combobox"], [aria-haspopup="listbox"]') && element.getAttribute('aria-expanded') !== 'true')
-          await handle.click()
-          if (!opensMenu) return
-          const opened = await page
-            .waitForSelector('[role="listbox"]', { visible: true, timeout: 2_000 })
-            .then(() => true)
-            .catch(() => false)
-          if (!opened) return
-          await new Promise((resolve) => setTimeout(resolve, 250))
-          await stateCheck('an open menu')
+      }
+    }
+  } else {
+    console.log(`\nthe dashboard grids were not compared, which needs the widths ${REFLOW_WIDTHS.join(', ')}`)
+  }
+
+  for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
+    for (const mode of MODES) {
+      for (const theme of THEMES) {
+        if (!selection.takesTheme(theme, viewport.theme)) continue
+        for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['drive', 'browser']).includes(mode.name))) {
+          const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
+          shots.begin(flow.name)
+          const context = await browser.createBrowserContext()
+          const page = await context.newPage()
+          if (selection.classicScrollbars) await floatPhoneScrollbars(page)
+          const errors = watchForErrors(page)
+          const foreignRequests = watchForForeignRequests(page)
+          await page.setViewport({ width: viewport.width, height: viewport.height })
+          await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
+          const file = (name) => shots.path(`${viewport.name}-${mode.name}-${name}-${theme}.png`)
+          const query = flow.queries?.[mode.name] ?? mode.query
+          const toldOnce = new Set()
+          const stateCheck = async (when) => {
+            const report = await readPage(page)
+            if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
+            for (const row of report.unevenFieldRows) fail(scope, `${when}: uneven form row: ${row}`)
+            // A text left in English, an overlap or a card laid out off its rule stays on screen through the states after it, so each is told once.
+            const lingering = [
+              ...(await textOverlapsOn(page)),
+              ...(inCroatian(query) ? await englishLeftOn(page) : []),
+              ...report.offsetTables,
+              ...report.phoneHeaderActions,
+              ...report.wideLoneCards,
+              ...report.drillLinksOffColour,
+              ...report.misplacedRowArrows,
+              ...report.raggedRowAmounts,
+            ]
+            for (const problem of lingering.filter((text) => !toldOnce.has(text))) {
+              toldOnce.add(problem)
+              fail(scope, `${when}: ${problem}`)
+            }
+          }
+          /** A press that opens a menu looks at the open menu too, so every menu any flow opens is checked. */
+          const pressLookingAtMenus = async (handle) => {
+            const opensMenu = await handle.evaluate((element) => element.matches('[role="combobox"], [aria-haspopup="listbox"]') && element.getAttribute('aria-expanded') !== 'true')
+            await handle.click()
+            if (!opensMenu) return
+            const opened = await page
+              .waitForSelector('[role="listbox"]', { visible: true, timeout: 2_000 })
+              .then(() => true)
+              .catch(() => false)
+            if (!opened) return
+            await new Promise((resolve) => setTimeout(resolve, 250))
+            await stateCheck('an open menu')
+          }
+          try {
+            await page.goto(`${BASE}?theme=${theme}${query}&day=${SAMPLE_DAY}${flow.hash}`, { waitUntil: 'networkidle0' })
+            await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
+            await flow.run(page, {
+              press: pressLookingAtMenus,
+              shoot: async (name) => {
+                await stateCheck(name)
+                await page.screenshot({ path: file(name) })
+              },
+              inspect: stateCheck,
+            })
+            await stateCheck('after the flow')
+          } catch (error) {
+            fail(scope, error.message)
+            await page.screenshot({ path: file(`${flow.name}-failed`) }).catch(() => {})
+          }
+          if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
+          if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
+          checked += 1
+          console.log(`${scope.padEnd(44)} ${String(viewport.width).padStart(4)}px  errors=${errors.length}  foreign=${foreignRequests.length}`)
+          await context.close()
         }
-        try {
-          await page.goto(`${BASE}?theme=${theme}${query}&day=${SAMPLE_DAY}${flow.hash}`, { waitUntil: 'networkidle0' })
-          await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
-          await flow.run(page, {
-            press: pressLookingAtMenus,
-            shoot: async (name) => {
-              await stateCheck(name)
-              await page.screenshot({ path: file(name) })
-            },
-            inspect: stateCheck,
-          })
-          await stateCheck('after the flow')
-        } catch (error) {
-          fail(scope, error.message)
-          await page.screenshot({ path: file(`${flow.name}-failed`) }).catch(() => {})
-        }
-        if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
-        if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
-        checked += 1
-        console.log(`${scope.padEnd(44)} ${String(viewport.width).padStart(4)}px  errors=${errors.length}  foreign=${foreignRequests.length}`)
-        await context.close()
       }
     }
   }
-}
-
-await browser.close()
+}).finally(() => served?.stop())
 if (checked === 0) fail(selection.summary(), 'checked nothing, since none of these screens or flows runs at these widths')
 
 if (overflowSeen.length) {

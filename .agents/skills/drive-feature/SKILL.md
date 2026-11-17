@@ -20,7 +20,13 @@ Keep the drive's state in the project memory file `drive-ledger.md`: each issue 
 5. **Integrate.** Bring lanes onto main one at a time in a fixed order, with conflicts resolved by the lead. Then run once on main: `npm run check`, both builds, `npm run check:figures` against the previous main, and every visual and touch flow of a screen the wave changed. Shared budgets, such as the chat's instructions, are checked here, since two lanes can each fit alone.
 6. **Real data.** Copy the owner's Kuna files from Google Drive into the session scratchpad and run the figure digest on the copies. Only the groups a commit names may move. Never write to the real files, and keep real figures out of issues and commits.
 7. **Push and deploy.** Push to `origin/main` and watch the run with `gh run watch <id> --exit-status`. Do not push again while a run is red, since each push cancels the one before. Fix forward with a new commit. Close each issue whose work is complete once the deploy is green.
-8. **Clean up.** Remove each lane's worktree and delete its branch once it is on main. Bring the batch's out-of-scope proposals to the owner as one picker: create, drop or merge into an existing issue.
+8. **Clean up.** Leave the machine as the wave found it, then bring the batch's out-of-scope proposals to the owner as one picker: create, drop or merge into an existing issue.
+   - Each builder and reviewer stops every server it started, by its port, and says so in its report. A check run with `--serve fake` stops its own.
+   - A reviewer that ran the real books removes its real-book screenshots once the lead has read the findings.
+   - Each lane ends with `npm run check:leftovers` in its worktree, and what it lists is removed before the lane reports.
+   - After integration, remove each lane's worktree, its branch and its `node_modules` link, and move the wave's scratch folder to the trash with `trash <path>`, the real-book copies included.
+   - Nothing is removed with a recursive `rm`. A folder goes through `trash` or the scripts' own code, such as `npm run clean`.
+   - Kuna runs no container. A check that ever needs one starts it with `--rm` or through Testcontainers with Ryuk on, labels it `kuna`, and stops it and its volumes in `finally`, with `docker compose down -v` for a compose file. A sweep removes only what is labelled `kuna`, and nothing runs `docker system prune` or touches a container Kuna did not start.
 
 ## Stop and ask
 

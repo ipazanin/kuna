@@ -1,12 +1,16 @@
 import type { HoldingFigures } from '../domain/holding'
 import type { HoldingsGroup } from '../domain/holdingsList'
+import type { LastDay } from '../domain/portfolioFigures'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { words } from './words'
 import { usePrices } from '../../prices/presentation/usePrices'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { dateFormat } from '../../../../shared/calendar/dateFormat'
+import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount } from '../../../../shared/money/moneyFormat'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 
 /** As many places as a broker books a fractional unit with. */
 export const QUANTITY_PLACES = 6
@@ -40,7 +44,8 @@ export interface PriceMark {
   readonly late: boolean
 }
 
-export function priceMarkOf(holding: HoldingFigures): PriceMark | null {
+/** `quotedDay` is the day Fetch today's quotes are of, so a holding still at an earlier close says which. */
+export function priceMarkOf(holding: HoldingFigures, quotedDay: CivilDate | null = null): PriceMark | null {
   const close = holding.valuation?.close ?? null
   if (close === null) {
     return null
@@ -48,5 +53,26 @@ export function priceMarkOf(holding: HoldingFigures): PriceMark | null {
   if (holding.late) {
     return { icon: 'i-lucide-clock-alert', text: words.late(dayLabel(close.date)), late: true }
   }
-  return close.byHand ? { icon: 'i-lucide-hand', text: words.byHand(dayLabel(close.date)), late: false } : null
+  if (close.byHand) {
+    return { icon: 'i-lucide-hand', text: words.byHand(dayLabel(close.date)), late: false }
+  }
+  return quotedDay !== null && close.date < quotedDay ? { icon: 'i-lucide-clock', text: words.today.atClose(shortDayLabel(close.date)), late: false } : null
+}
+
+const QUOTE_TIME = dateFormat({ hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zagreb' })
+
+/**
+ * What a page header says once Fetch today brought quotes: live at the time of the newest trade, or today's close for a
+ * market that has shut, with the rest at the close before. Null for a day of closes alone.
+ */
+export function todayLine(lastDay: LastDay | null): string | null {
+  const quoted = lastDay?.quoted
+  if (lastDay === null || quoted === undefined) {
+    return null
+  }
+  const head =
+    quoted.marketOpen && quoted.at !== null
+      ? plural(words.today.live(QUOTE_TIME(Date.parse(quoted.at)), quoted.holdings), quoted.holdings)
+      : plural(words.today.closed(quoted.holdings), quoted.holdings)
+  return withFullStop(`${head}${quoted.atLastClose > 0 ? words.today.rest(shortDayLabel(lastDay.from)) : ''}`)
 }

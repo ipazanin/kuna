@@ -70,21 +70,21 @@
  * After each step it asserts that no text overlaps other text, by `support/textOverlap.mjs`, that every visible control, a row of an open list included, is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
- * Run against a preview of the fake build:
- *   npm run build:fake && npm run preview:fake -- --port 4173
+ * Run on the fake build, which `--serve fake` serves on a free port for the run and stops after:
+ *   npm run build:fake && npm run check:touch -- --serve fake
+ * or against a preview already running:
+ *   npm run preview:fake -- --port 4173
  *   npm run check:touch -- http://localhost:4173/kuna/
  *
  * While working on one screen, `--only billing,owner` limits the run to the steps with exactly those names,
  * `--only 'chat-receipt*'` to the steps whose names start so, and `--widths 360,1440` to those widths. A limited
- * run keeps the other screenshots and says it was limited. The full run without options is the check.
+ * run replaces the screenshots of what it runs, keeps the others and says it was limited. The full run without options is the check.
  *
  * Screenshots go to visual-check/touch/ (gitignored), or to TOUCH_OUTPUT_DIR.
  */
 
-import { mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launch } from 'puppeteer-core'
 
 import { en as sharedEnglish } from '../src/shared/app/words.ts'
 import { en as homeEnglish, hr as homeCroatian } from '../src/shell/home/words.ts'
@@ -98,7 +98,7 @@ import { en as overviewEnglish, hr as overviewCroatian } from '../src/apps/compa
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../src/apps/company/transactions/presentation/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../src/apps/company/invoicing/presentation/words.ts'
 import { en as writesEnglish, hr as writesCroatian } from '../src/shared/storage/presentation/words.ts'
-import { chromeLaunch, floatPhoneScrollbars } from './support/browsers.mjs'
+import { chromeLaunch, floatPhoneScrollbars, withBrowser } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
@@ -327,6 +327,8 @@ import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
+import { servePreview } from './support/servePreview.mjs'
+import { shotIndex } from './support/shotIndex.mjs'
 import { textOverlapsOn } from './support/textOverlap.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
@@ -359,7 +361,8 @@ if (selection.sharded) {
   console.error('The touch check runs each width as one session whose steps build on each other, so it splits by --widths, not --shard.')
   process.exit(2)
 }
-const BASE = selection.base
+const served = selection.serve === null ? null : await servePreview(selection.serve)
+const BASE = served?.base ?? selection.base
 
 /** Steps that carry on from the page an earlier step left, so a run limited to one of them runs that one too. */
 const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview', 'drawer-footer': 'overview' }
@@ -398,12 +401,7 @@ const SCREENS = [
   { name: 'kuna-settings', hash: '#/settings', title: settingsEnglish.menu, ready: '[data-testid="sync-card"]', cards: false },
 ]
 
-mkdirSync(OUTPUT_DIR, { recursive: true })
-if (!selection.limited) {
-  for (const stale of readdirSync(OUTPUT_DIR).filter((file) => file.endsWith('.png') || file.endsWith('.xlsx'))) {
-    rmSync(join(OUTPUT_DIR, stale))
-  }
-}
+const shots = shotIndex(OUTPUT_DIR, selection.limited)
 const TEMPLATE_FILE = await writeFakeTemplateFile(join(OUTPUT_DIR, 'filled-template.xlsx'))
 const IMPORT_SAMPLES = await writeImportSamples(OUTPUT_DIR)
 const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(OUTPUT_DIR)
@@ -420,15 +418,12 @@ function fail(failure) {
   console.error(`  ✗ ${failure}`)
 }
 let checked = 0
-const browser = await launch(chromeLaunch(selection.classicScrollbars))
 
-try {
+await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => {
   for (const width of WIDTHS.filter(selection.takesWidth)) {
-    await checkWidth(width)
+    await checkWidth(browser, width)
   }
-} finally {
-  await browser.close()
-}
+}).finally(() => served?.stop())
 const unmatched = selection.unmatched()
 if (unmatched !== null) fail(unmatched)
 if (checked === 0) fail(`${selection.summary()} checked nothing`)
@@ -440,7 +435,7 @@ if (failures.length) {
 }
 console.log(selection.limited ? `\nevery step of this limited run clean (${selection.summary()}). The full run without options is the check` : '\nall touch checks clean')
 
-async function checkWidth(width) {
+async function checkWidth(browser, width) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
   if (selection.classicScrollbars) await floatPhoneScrollbars(page)
@@ -467,6 +462,7 @@ async function checkWidth(width) {
     const followed = Object.entries(CARRIES_ON_FROM).some(([later, earlier]) => earlier === name && selection.takes(later))
     if (!selection.takes(name) && !followed) return
     checked += 1
+    shots.begin(name)
     const scope = `${width}px ${name}`
     const startedAt = Date.now()
     try {
@@ -475,7 +471,7 @@ async function checkWidth(width) {
       console.log(`${scope.padEnd(36)} ok  ${((Date.now() - startedAt) / 1000).toFixed(1)} s`)
     } catch (error) {
       fail(`[${scope}] ${error.message}`)
-      await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${name}-failed.png`) }).catch(() => {})
+      await page.screenshot({ path: shots.path(`${width}-${name}-failed.png`) }).catch(() => {})
       // A page the step opened and never closed stays in front, and the shared page behind it stops drawing frames, so every later wait hangs.
       for (const opened of await context.pages()) {
         if (opened !== page) await opened.close().catch(() => {})
@@ -483,7 +479,7 @@ async function checkWidth(width) {
       await page.bringToFront()
     }
   }
-  const shoot = (name) => page.screenshot({ path: join(OUTPUT_DIR, `${width}-${name}.png`), fullPage: false })
+  const shoot = (name) => page.screenshot({ path: shots.path(`${width}-${name}.png`), fullPage: false })
 
   await step('overview', async () => {
     await open(page, '#/company', 'Overview')
@@ -887,7 +883,7 @@ async function checkWidth(width) {
       (heights) => heights.length >= 4 && heights.every((height) => height >= 44),
       'a row or a Set up button on Net worth is under 44 px tall',
     )
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-kuna-overview.png`))
+    await screenshotWholePage(page, shots.path(`${width}-kuna-overview.png`))
     for (const [label, path, title] of [
       ['Investments value', '#/investments', 'Overview'],
       ['Assets value', '#/assets', 'Overview'],
@@ -1110,7 +1106,7 @@ async function checkWidth(width) {
     await open(page, '#/company/year?tab=taxes&p=all#payroll-cadence', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="cadence-paid"]')
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes.png`))
+    await screenshotWholePage(page, shots.path(`${width}-taxes.png`))
     await page.tap('[data-testid="cadence-paid"]')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the cadence cell opened Transactions without its filters')
@@ -1119,12 +1115,12 @@ async function checkWidth(width) {
   await step('assets-doubled-and-drill', async () => {
     await open(page, '#/company/year?tab=assets&p=all', 'Year')
     await settleCharts(page)
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-assets.png`))
+    await screenshotWholePage(page, shots.path(`${width}-assets.png`))
     await page.tap('[role="switch"][data-testid="doubled-rates-switch"]')
     await page.waitForSelector('[data-testid="doubled-rates-changes"]')
     await expect(hashOf(page), (hash) => hash.includes('rates=doubled'), 'the switch did not put the doubled rates in the address')
     await inspect(page, `${width}px assets at doubled rates`)
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-assets-doubled.png`))
+    await screenshotWholePage(page, shots.path(`${width}-assets-doubled.png`))
     const years = await page.waitForSelector('[data-card="year.depreciation"] [data-testid="card-toggle"][aria-expanded="false"]')
     await years.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -1146,7 +1142,7 @@ async function checkWidth(width) {
   await step('year-end-build-up-and-drill', async () => {
     await open(page, '#/company/year?year=2025&tab=statements&p=all', 'Year')
     await page.waitForSelector('[data-testid="comparison-pl"]')
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-year-end.png`))
+    await screenshotWholePage(page, shots.path(`${width}-year-end.png`))
     const toggle = await page.waitForSelector('[data-testid="comparison-pl"] [data-testid="comparison-toggle"][aria-expanded="false"]')
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -1166,7 +1162,7 @@ async function checkWidth(width) {
     await openFreshBrowser(page, '#/company/year?year=2026&p=all', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="forecast-tiles"]')
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-forecast.png`))
+    await screenshotWholePage(page, shots.path(`${width}-forecast.png`))
     const card = await page.waitForSelector('[data-card="year.forecast-pl"] [data-testid="card-toggle"]')
     await card.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -1205,14 +1201,14 @@ async function checkWidth(width) {
     await (await waitForText(page, '[role="tab"]', 'Plan')).tap()
     await waitForText(page, '[data-testid="plan-editor"] h2', 'Plan for 2027')
     await inspect(page, `${width}px plan for 2027`)
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-plan-2027.png`))
+    await screenshotWholePage(page, shots.path(`${width}-plan-2027.png`))
   })
 
   await step('taxes-corporate-tax-drill', async () => {
     await openFreshBrowser(page, '#/company/year?tab=taxes&p=all', 'Year')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="corporate-tax-2026"]')
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-taxes-corporate-tax.png`))
+    await screenshotWholePage(page, shots.path(`${width}-taxes-corporate-tax.png`))
     const paid = await page.waitForSelector('[data-testid="corporate-tax-2026"] a[aria-label$="paid, open the rows"]')
     await paid.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -1225,7 +1221,7 @@ async function checkWidth(width) {
     await open(page, '#/company/owner?tab=owed&p=all', 'Owner')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="loan-list"]')
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner.png`))
+    await screenshotWholePage(page, shots.path(`${width}-owner.png`))
     await page.tap('[data-testid="loan-list"] ol a')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the repayment opened Transactions without its filters')
@@ -1278,7 +1274,7 @@ async function checkWidth(width) {
       'the owner take under the ring does not add up to the Owner take tile',
     )
     await inspect(page, `${width}px owner, taken`)
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-owner-taken.png`))
+    await screenshotWholePage(page, shots.path(`${width}-owner-taken.png`))
   })
 
   await step('owner-taken-loan-balance', async () => {
@@ -1321,7 +1317,7 @@ async function checkWidth(width) {
     await open(page, '#/company/invoicing?p=all', 'Invoicing')
     await settleCharts(page)
     await page.waitForSelector('[data-testid="invoice-list"]')
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-invoicing.png`))
+    await screenshotWholePage(page, shots.path(`${width}-invoicing.png`))
     await page.tap('[data-testid="invoice-list"] ol a')
     await waitForTitle(page, 'Transactions')
     await expect(filterCount(page), (count) => Number(count) >= 1, 'the payment opened Transactions without its filters')
@@ -1427,7 +1423,7 @@ async function checkWidth(width) {
   await step('billing-month-link', async () => {
     await open(page, '#/company/invoicing?tab=plan&p=all', 'Invoicing')
     await page.waitForSelector('[data-testid="billing-rows"]')
-    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-invoicing-plan.png`))
+    await screenshotWholePage(page, shots.path(`${width}-invoicing-plan.png`))
     await open(page, '#/company/invoicing?p=all', 'Invoicing')
     await (await waitForText(page, '[data-testid="invoicing-tiles"] .kpi-link', 'Next invoice')).tap()
     await page.waitForFunction(() => window.location.hash.includes('tab=plan') && window.location.hash.includes('month='))
@@ -1703,7 +1699,7 @@ async function checkWidth(width) {
           press: (handle) => handle.tap(),
           shoot: async (shot) => {
             await inspect(page, `${width}px ${mode} ${shot}`)
-            await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${mode}-${shot}.png`), fullPage: false })
+            await page.screenshot({ path: shots.path(`${width}-${mode}-${shot}.png`), fullPage: false })
           },
           inspect: (when) => inspect(page, `${width}px ${mode} ${when}`),
         })
@@ -1748,7 +1744,7 @@ async function checkWidth(width) {
           press: (handle) => handle.tap(),
           shoot: async (shot) => {
             await inspect(page, `${width}px ${shot}`, within)
-            await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${shot}.png`), fullPage: false })
+            await page.screenshot({ path: shots.path(`${width}-${shot}.png`), fullPage: false })
           },
           inspect: (when) => inspect(page, `${width}px ${when}`, within),
         })

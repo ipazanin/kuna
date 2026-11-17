@@ -4,9 +4,9 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { writeCheck } from '../../overview/application/checkWrites'
-import { thresholdText } from '../../overview/presentation/checkLines'
-import { words as overviewWords } from '../../overview/presentation/words'
+import { writeCheck } from '../../checks/application/checkWrites'
+import { thresholdText } from '../../checks/presentation/checkLines'
+import { words as checkWords } from '../../checks/presentation/words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { CHECKS, CHECK_DEFAULTS } from '../../workbook/domain/checkSetting'
 import type { CheckName, CheckSetting } from '../../workbook/domain/checkSetting'
@@ -26,7 +26,7 @@ const store = useInvestmentsBooks()
 const { state } = store
 const writes = useRecordWrites(store)
 const text = words.checks
-const labels = overviewWords.checks.labels
+const labels = checkWords.labels
 
 const settings = computed((): readonly CheckSetting[] => state.workbook?.book.checks ?? [])
 const heldOf = (check: CheckName): CheckSetting | null => settings.value.find((setting) => setting.check === check) ?? null

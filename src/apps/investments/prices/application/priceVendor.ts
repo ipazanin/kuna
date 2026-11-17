@@ -99,6 +99,28 @@ export interface VendorSearch {
   readonly listings: readonly FoundListing[]
 }
 
+/** A listing's latest price as the vendor quotes it, during its session or after its close. */
+export interface VendorQuote {
+  readonly kind: 'quote'
+  /** Decimal text in the listing's quote currency. */
+  readonly price: string
+  /** The session's day, as ISO text. */
+  readonly day: string
+  /** ISO timestamp of the last trade, or null where the vendor gives the day alone. */
+  readonly at: string | null
+  readonly marketOpen: boolean
+}
+
+/**
+ * A vendor whose quote is the day's close alone, such as Alpha Vantage's free quote, is asked once its markets have
+ * closed, once a day for each listing and at most so many times a day, so a click never spends the next day's fetch.
+ */
+export interface QuoteAfterClose {
+  /** The hour in Zagreb from which the day's close is in. */
+  readonly fromHour: number
+  readonly perDay: number
+}
+
 /** What an instrument is asked by: its ISIN where it has one, and the symbol the vendor knows it by. */
 export interface ProfileQuery {
   readonly isin: string | null
@@ -130,6 +152,10 @@ interface VendorEntry {
   fundProfile?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorFundProfile>>
   /** A listing's dividends, announced ones among them, for a vendor that lists them. */
   dividends?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorDividends>>
+  /** A listing's latest price, for a vendor that quotes on a click. */
+  quote?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorQuote>>
+  /** Set for a vendor whose quote is the day's close alone, which says when and how often to ask. */
+  readonly quoteAfterClose?: QuoteAfterClose
   /** The listings whose symbol or name matches the text, for a vendor that searches. */
   search?(fetch: VendorFetch, key: string | null, text: string): Promise<Fetched<VendorSearch>>
 }

@@ -13,6 +13,7 @@ import type {
   VendorFetch,
   VendorFundProfile,
   VendorLimit,
+  VendorQuote,
   VendorSearch,
   VendorSplits,
 } from '../../application/priceVendor'
@@ -130,6 +131,31 @@ async function alphaVantageCloses(fetch: VendorFetch, key: string | null, symbol
     return { kind: 'closes', closes: daily.closes, splits: [], earlierFailure: monthly.reason }
   }
   return { kind: 'closes', closes: [...monthly.closes.filter(([day]) => day < firstDaily), ...daily.closes], splits: [], earlierFailure: null }
+}
+
+/**
+ * A listing's latest close with GLOBAL_QUOTE. The free key's quote is updated at the end of each trading day, so it is
+ * never live: `05. price` is the close of `07. latest trading day`.
+ */
+async function alphaVantageQuote(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorQuote>> {
+  if (key === null) {
+    return { kind: 'failed', reason: 'no-key' }
+  }
+  const fetched = await answerObject(fetch, `function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}`, key)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const quote = fetched.answer['Global Quote']
+  // An unknown symbol gets an empty quote rather than an error.
+  if (isJsonObject(quote) && Object.keys(quote).length === 0) {
+    return { kind: 'failed', reason: 'unknown-symbol' }
+  }
+  const price = isJsonObject(quote) ? quote['05. price'] : undefined
+  const day = isJsonObject(quote) ? quote['07. latest trading day'] : undefined
+  if (typeof price !== 'string' || !isCloseText(price) || typeof day !== 'string' || !isDay(day)) {
+    return { kind: 'failed', reason: 'unreadable' }
+  }
+  return { kind: 'quote', price, day, at: null, marketOpen: false }
 }
 
 /** The splits of a listing, from its split factors that are ratios of small whole numbers, such as 4.0000 for 4 for 1. */
@@ -283,6 +309,9 @@ export const alphaVantage: ClosesVendor & Required<Pick<ClosesVendor, 'splits' |
   // The symbol of Alpha Vantage's own examples.
   testSymbol: 'IBM',
   closes: alphaVantageCloses,
+  quote: alphaVantageQuote,
+  // XETRA and Euronext close at 17:30 in Zagreb. Three a day keeps the 25 free requests for the next day's fetch.
+  quoteAfterClose: { fromHour: 18, perDay: 3 },
   splits: alphaVantageSplits,
   fundProfile: alphaVantageFundProfile,
   dividends: alphaVantageDividends,
