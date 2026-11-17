@@ -45,9 +45,6 @@ const bucket = computed({
 
 const taxClassItems = computed(() => [{ value: ANY, label: words.categories.anyTaxClass }, ...props.taxClasses.map((taxClass) => ({ value: taxClass.role, label: taxClass.name }))])
 
-/** A tax class's name can be long, so it wraps in the menu rather than being cut. */
-const TAX_CLASS_UI = { itemLabel: 'text-clip whitespace-normal' }
-
 const role = computed({
   get: () => filters.value.role ?? ANY,
   set: (chosen: string) => {
@@ -109,15 +106,7 @@ const sheetOpen = ref(false)
         <template #body>
           <div class="flex flex-col gap-4">
             <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" class="w-full" data-testid="category-bucket-filter" />
-            <USelect
-              v-if="taxClasses.length > 0"
-              v-model="taxClass"
-              :items="taxClassItems"
-              :ui="TAX_CLASS_UI"
-              :aria-label="words.categories.byTaxClass"
-              class="w-full"
-              data-testid="category-class-filter"
-            />
+            <USelect v-if="taxClasses.length > 0" v-model="taxClass" :items="taxClassItems" :aria-label="words.categories.byTaxClass" class="w-full" data-testid="category-class-filter" />
             <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" class="w-full" data-testid="category-role-filter" />
             <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" @update:model-value="set('withOwnerShare', $event === true)" />
             <UCheckbox :model-value="filters.unsavedOnly" :label="words.categories.unsaved" data-testid="category-unsaved-filter" @update:model-value="set('unsavedOnly', $event === true)" />
@@ -129,16 +118,7 @@ const sheetOpen = ref(false)
       </USlideover>
       <template v-else>
         <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" size="sm" class="w-36" data-testid="category-bucket-filter" />
-        <USelect
-          v-if="taxClasses.length > 0"
-          v-model="taxClass"
-          :items="taxClassItems"
-          :ui="TAX_CLASS_UI"
-          :aria-label="words.categories.byTaxClass"
-          size="sm"
-          class="w-48"
-          data-testid="category-class-filter"
-        />
+        <USelect v-if="taxClasses.length > 0" v-model="taxClass" :items="taxClassItems" :aria-label="words.categories.byTaxClass" size="sm" class="w-48" data-testid="category-class-filter" />
         <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" size="sm" class="w-44" data-testid="category-role-filter" />
         <span class="flex items-center gap-x-4">
           <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" size="sm" @update:model-value="set('withOwnerShare', $event === true)" />

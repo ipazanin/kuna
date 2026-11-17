@@ -67,7 +67,6 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
     :ui="{
       content: 'w-max min-w-[max(16rem,var(--reka-combobox-trigger-width))] max-w-[calc(100vw-1.5rem)]',
       itemWrapper: 'flex-row flex-wrap items-baseline gap-x-3',
-      itemLabel: 'whitespace-normal',
       itemDescription: 'identifier ms-auto',
     }"
     :disabled="disabled"

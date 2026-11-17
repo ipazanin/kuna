@@ -33,7 +33,6 @@ const offers = computed(() => items.value.length > 0 && !(items.value.length ===
     :open="listOpen && offers"
     autocomplete="off"
     class="w-full"
-    :ui="{ itemLabel: 'text-clip whitespace-normal break-words' }"
     data-testid="spending-entry-payee"
     @update:open="listOpen = $event"
     @focusout="listOpen = false"

@@ -11,6 +11,9 @@ import { offlineApp } from './scripts/pwa.ts'
 // The row of a list that Enter picks or a pointer is over, on the accented surface, so it shows on a card and in a popover in both themes.
 const highlightedRow = 'data-highlighted:not-data-disabled:before:bg-accented'
 
+// A menu option's label and description are the whole choice a person reads, so a long one wraps instead of being cut.
+const wholeOption = 'text-clip whitespace-normal break-words'
+
 // The folder the packages come from. A worktree under .claude/worktrees has none of its own and reads the main checkout's,
 // which the dev server refuses to serve, fonts included, unless it is allowed.
 const packagesFolder = dirname(dirname(dirname(createRequire(import.meta.url).resolve('@fontsource/inter/package.json'))))
@@ -53,11 +56,14 @@ export default defineConfig(({ command, isPreview }) => ({
         },
         // Two actions with Croatian labels are wider than a toast on a phone, so the second one moves to its own line.
         toast: { slots: { actions: 'flex-wrap' } },
-        select: { slots: { item: highlightedRow } },
-        selectMenu: { slots: { item: highlightedRow } },
-        inputMenu: { slots: { item: highlightedRow } },
-        commandPalette: { variants: { active: { false: { item: highlightedRow } } } },
-        dropdownMenu: { variants: { active: { false: { item: 'data-highlighted:before:bg-accented data-[state=open]:before:bg-accented' } } } },
+        select: { slots: { item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
+        selectMenu: { slots: { item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
+        inputMenu: { slots: { item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
+        commandPalette: { slots: { itemLabel: wholeOption, itemDescription: wholeOption }, variants: { active: { false: { item: highlightedRow } } } },
+        dropdownMenu: {
+          slots: { itemLabel: wholeOption, itemDescription: wholeOption },
+          variants: { active: { false: { item: 'data-highlighted:before:bg-accented data-[state=open]:before:bg-accented' } } },
+        },
         // An unchecked box or radio draws its edge in a colour that passes 3:1, where Nuxt's border-strong does not.
         checkbox: { slots: { base: 'ring-control-edge' } },
         radioGroup: { slots: { base: 'ring-control-edge' } },

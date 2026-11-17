@@ -366,7 +366,7 @@ function save(): void {
               :aria-label="words.categories.columns.taxClass"
               size="sm"
               class="w-60"
-              :ui="{ value: 'text-clip whitespace-normal text-start', itemLabel: 'text-clip whitespace-normal' }"
+              :ui="{ value: 'text-clip whitespace-normal text-start' }"
               data-testid="category-class"
               @update:model-value="pickClass(index, String($event))"
             />
