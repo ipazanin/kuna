@@ -155,7 +155,7 @@ describe('a yearly cost', () => {
 
     expect(monthOf([insurance()], paid, '2027-06')?.left).toBe(ZERO)
     expect(monthOf([insurance()], paid, '2027-07')).toEqual(figures(50, 0, 50, 0, 50))
-    expect(budgetMonths([insurance()], spent(paid), month('2027-07'))[0]?.yearly).toEqual({ amount: euros(600), due: '2028-06' })
+    expect(budgetMonths([insurance()], spent(paid), month('2027-07'))[0]?.yearly).toEqual({ amount: euros(600), due: '2028-06', paidEarly: false })
   })
 
   it('carries a €650.00 payment €50.00 short into July, which the next twelve months make up', () => {
@@ -193,5 +193,63 @@ describe('a yearly cost', () => {
 
   it('keeps a monthly limit without a yearly key, as it read before yearly costs', () => {
     expect(budgetMonths([budget(1, 'Food', '2026-09', 400)], spent({}), month('2026-09'))[0]).not.toHaveProperty('yearly')
+  })
+})
+
+describe('a yearly cost paid before or after its due month', () => {
+  const insurance: Budget = { ...budget(1, 'Food', '2025-11', 360), due: month('2026-10') }
+
+  function yearlyOf(table: Readonly<Record<string, number>>, asked: string) {
+    return budgetMonths([insurance], spent(table), month(asked)).find((entry) => entry.category === FOOD)?.yearly
+  }
+
+  it('counts a payment in late September as the year paid from the money set aside, sets nothing aside in October, and starts the twelfths again in November', () => {
+    const paid = { '2026-09': 360 }
+
+    // November to August set aside €300.00, so September sets aside the €60.00 the year still lacks.
+    expect(monthOf([insurance], paid, '2026-09')).toEqual(figures(60, 300, 360, 360, 0))
+    expect(yearlyOf(paid, '2026-09')).toEqual({ amount: euros(360), due: '2026-10', paidEarly: true })
+    expect(monthOf([insurance], paid, '2026-10')).toEqual(figures(0, 0, 0, 0, 0))
+    expect(yearlyOf(paid, '2026-10')).toEqual({ amount: euros(360), due: '2027-10', paidEarly: false })
+    expect(setAsideForYearly(budgetMonths([insurance], spent(paid), month('2026-10')))).toBe(ZERO)
+    expect(monthOf([insurance], paid, '2026-11')).toEqual(figures(30, 0, 30, 0, 30))
+  })
+
+  it('counts a payment two months early, in August, as the year paid, and sets nothing aside in September or October', () => {
+    const paid = { '2026-08': 360 }
+
+    // November to July set aside €270.00, so August sets aside the €90.00 the year still lacks.
+    expect(monthOf([insurance], paid, '2026-08')).toEqual(figures(90, 270, 360, 360, 0))
+    expect(yearlyOf(paid, '2026-08')?.paidEarly).toBe(true)
+    expect(monthOf([insurance], paid, '2026-09')).toEqual(figures(0, 0, 0, 0, 0))
+    expect(monthOf([insurance], paid, '2026-10')).toEqual(figures(0, 0, 0, 0, 0))
+    expect(monthOf([insurance], paid, '2026-11')).toEqual(figures(30, 0, 30, 0, 30))
+  })
+
+  it('keeps a payment three months early, in July, as an overspent month, which August to October make up so October holds €360.00 again', () => {
+    const paid = { '2026-07': 360 }
+
+    expect(monthOf([insurance], paid, '2026-07')).toEqual(figures(30, 240, 270, 360, -90))
+    expect(yearlyOf(paid, '2026-07')?.paidEarly).toBe(false)
+    // €450.00 missing over August to October is €150.00 a month.
+    expect(monthOf([insurance], paid, '2026-10')).toEqual(figures(150, 210, 360, 0, 360))
+    expect(monthOf([insurance], paid, '2026-11')).toEqual(figures(0, 360, 360, 0, 360))
+  })
+
+  it('keeps a purchase in September that fits in what is set aside as spending, which October makes up', () => {
+    const bought = { '2026-09': 20 }
+
+    expect(yearlyOf(bought, '2026-09')?.paidEarly).toBe(false)
+    expect(monthOf([insurance], bought, '2026-10')).toEqual(figures(50, 310, 360, 0, 360))
+  })
+
+  it('pays a late payment in November from what October held, and spreads the next year over December to October', () => {
+    const paid = { '2026-11': 360 }
+
+    expect(monthOf([insurance], paid, '2026-10')).toEqual(figures(30, 330, 360, 0, 360))
+    expect(monthOf([insurance], paid, '2026-11')).toEqual(figures(0, 360, 360, 360, 0))
+    expect(yearlyOf(paid, '2026-11')).toEqual({ amount: euros(360), due: '2027-10', paidEarly: false })
+    // €360.00 over the eleven months December to October is €32.73 a month.
+    expect(monthOf([insurance], paid, '2026-12')).toEqual(figures(32.73, 0, 32.73, 0, 32.73))
   })
 })

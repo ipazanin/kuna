@@ -63,20 +63,18 @@ export function nextDue(due: MonthKey, month: MonthKey): MonthKey {
   return addMonths(due, 12 * years)
 }
 
-/**
- * What a yearly cost sets aside in the month: what the next due month still lacks once the money carried in counts, spread
- * over the months up to it, the month itself and the due month included, so the due month holds the whole amount. Nothing
- * once the carry covers it.
- */
-function setAsideIn(cost: Budget & { readonly due: MonthKey }, month: MonthKey, carriedIn: Money): Money {
-  const missing = subtractMoney(cost.amount, carriedIn)
+/** What a yearly cost sets aside in a month: what the amount still lacks once the money carried in counts, spread over the months to its due month, both included. Nothing once the carry covers it. */
+function setAsideIn(amount: Money, carriedIn: Money, months: number): Money {
+  const missing = subtractMoney(amount, carriedIn)
   if (missing <= 0) return ZERO
-  const months = monthCountBetween(month, nextDue(cost.due, month))
   return moneyParts(
     missing,
     Array.from({ length: months }, () => 1n),
   )[0]!
 }
+
+/** How many months before its due month a yearly cost's payment still counts as that year's. */
+const EARLY_PAYMENT_MONTHS = 2
 
 /** A yearly cost of the category in the month, or null for a monthly limit or none. */
 function yearlyIn(budgets: readonly Budget[], category: RecordId, month: MonthKey): (Budget & { readonly due: MonthKey }) | null {
@@ -84,16 +82,40 @@ function yearlyIn(budgets: readonly Budget[], category: RecordId, month: MonthKe
   return budget?.due === undefined ? null : { ...budget, due: budget.due }
 }
 
-/** What the category's limit gives the month: a monthly limit's amount, or what a yearly cost sets aside after what carried in. */
-function givenIn(budgets: readonly Budget[], category: RecordId, month: MonthKey, carriedIn: Money): Money {
-  const yearly = yearlyIn(budgets, category, month)
-  return yearly === null ? limitIn(budgets, category, month) : setAsideIn(yearly, month, carriedIn)
-}
-
 /** A yearly cost's facts in a month: the amount due each year and the month it next falls due, this month or later. */
 export interface YearlyCost {
   readonly amount: Money
   readonly due: MonthKey
+  /** Whether this month paid the year's cost before its due month, so the money set aside paid it as in the due month. */
+  readonly paidEarly: boolean
+}
+
+/** What the category's limit gives one month, its yearly cost's facts, and the due month an early payment has already settled. */
+interface MonthGiven {
+  readonly limit: Money
+  readonly yearly?: YearlyCost
+  readonly settled: MonthKey | null
+}
+
+/**
+ * What the category's limit gives the month: a monthly limit's amount, or what a yearly cost sets aside after what carried in.
+ * A yearly cost spent beyond what it holds in one of the two months before its due month was paid early. That month sets
+ * aside all the year still lacks, as the due month would, and the months up to the due month set nothing more aside, so the
+ * next year's share starts the month after it. A payment earlier than that, or in the due month or later, spends from the
+ * carry as any month does. `settled` is the due month an early payment before this month has paid.
+ */
+function givenIn(budgets: readonly Budget[], category: RecordId, month: MonthKey, carriedIn: Money, spent: Money, settled: MonthKey | null): MonthGiven {
+  const cost = yearlyIn(budgets, category, month)
+  if (cost === null) return { limit: limitIn(budgets, category, month), settled: null }
+  const due = nextDue(cost.due, month)
+  if (due === settled) return { limit: ZERO, yearly: { amount: cost.amount, due: addMonths(due, 12), paidEarly: false }, settled }
+  const monthsToDue = monthCountBetween(month, due)
+  const share = setAsideIn(cost.amount, carriedIn, monthsToDue)
+  const monthsBefore = monthsToDue - 1
+  if (monthsBefore >= 1 && monthsBefore <= EARLY_PAYMENT_MONTHS && spent > addMoney(carriedIn, share)) {
+    return { limit: setAsideIn(cost.amount, carriedIn, 1), yearly: { amount: cost.amount, due, paidEarly: true }, settled: due }
+  }
+  return { limit: share, yearly: { amount: cost.amount, due, paidEarly: false }, settled: null }
 }
 
 /** One limited category in one month. */
@@ -127,7 +149,7 @@ export interface CategoryMonth {
  * Every category with a limit in the month, with what carried in from the months of its run before it. What a month
  * leaves, its limit and carry less what it spent, carries into the next, and an overspent month lowers the next. A
  * budget of zero ends the run, so nothing carries past it, and a later budget starts a new run from nothing. A yearly cost
- * sets aside each month what `setAsideIn` says in place of a limit, and its payment in the due month spends what was set aside.
+ * sets aside each month what `givenIn` says in place of a limit, and its payment spends what was set aside.
  * `spentIn` gives a category's spending in a month, its children's included.
  */
 export function budgetMonths(budgets: readonly Budget[], spentIn: (category: RecordId, month: MonthKey) => CategoryMonth, month: MonthKey): BudgetMonth[] {
@@ -137,17 +159,19 @@ export function budgetMonths(budgets: readonly Budget[], spentIn: (category: Rec
     if (run === undefined) return []
     let carriedIn = ZERO
     let unratedCarried = 0
+    let settled: MonthKey | null = null
     for (let earlier = run.from; earlier < month; earlier = addMonths(earlier, 1)) {
       const before = spentIn(category, earlier)
-      carriedIn = subtractMoney(addMoney(carriedIn, givenIn(budgets, category, earlier, carriedIn)), before.spent)
+      const given = givenIn(budgets, category, earlier, carriedIn, before.spent, settled)
+      carriedIn = subtractMoney(addMoney(carriedIn, given.limit), before.spent)
       unratedCarried += before.unrated
+      settled = given.settled
     }
-    const limit = givenIn(budgets, category, month, carriedIn)
-    const available = addMoney(limit, carriedIn)
     const { spent, unrated } = spentIn(category, month)
-    const yearly = yearlyIn(budgets, category, month)
+    const { limit, yearly } = givenIn(budgets, category, month, carriedIn, spent, settled)
+    const available = addMoney(limit, carriedIn)
     const facts = { category, limit, carriedIn, available, spent, left: subtractMoney(available, spent), unrated, unratedCarried }
-    return [yearly === null ? facts : { ...facts, yearly: { amount: yearly.amount, due: nextDue(yearly.due, month) } }]
+    return [yearly === undefined ? facts : { ...facts, yearly }]
   })
 }
 

@@ -76,10 +76,11 @@ const rows = computed(() =>
 const hasYearly = computed(() => rows.value.some((row) => row.limit.yearly !== undefined))
 const hasMonthly = computed(() => holdsMonthlyLimit(limits.value))
 
-/** What a yearly cost's row says under its name: what falls due and when, and in its due month whether the money set aside paid it. */
+/** What a yearly cost's row says under its name: what falls due and when, and in its due month or an early payment's month whether the money set aside paid it. */
 function dueLines(limit: BudgetMonth): readonly string[] {
   if (limit.yearly === undefined) return []
   const amount = formatMoney(limit.yearly.amount)
+  if (limit.yearly.paidEarly) return [words.table.dueIn(amount, monthLabel(limit.yearly.due)), words.table.paidFromSetAside]
   if (limit.yearly.due !== shown.value) return [words.table.dueIn(amount, monthLabel(limit.yearly.due)), words.table.setAsideAmount(formatMoney(limit.limit))]
   return [words.table.dueNow(amount), ...(limit.spent > 0 && limit.left >= 0 ? [words.table.paidFromSetAside] : [])]
 }

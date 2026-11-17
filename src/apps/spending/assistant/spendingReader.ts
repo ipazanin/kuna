@@ -382,7 +382,8 @@ function limitsReport(book: SpendingBook, rates: RateBook, period: string | null
         euros(`${name}: spent`, limit.spent),
         euros(`${name}: left`, limit.left),
       ]
-      return limit.yearly === undefined ? figures : [...figures, euros(`${name}: due in ${limit.yearly.due}`, limit.yearly.amount)]
+      if (limit.yearly === undefined) return figures
+      return [...figures, euros(`${name}: ${limit.yearly.paidEarly ? 'paid early, due in' : 'due in'} ${limit.yearly.due}`, limit.yearly.amount)]
     })
 }
 
