@@ -3519,7 +3519,7 @@ async function ruleNoteReads(page, id, note, when) {
     .waitForFunction(
       (selector, wanted, text) => {
         const row = [...document.querySelectorAll(selector)].find((candidate) => candidate.querySelector('.identifier')?.textContent?.trim() === wanted)
-        return row !== undefined && (row.querySelector('.rule-main > p.text-xs')?.textContent?.trim() ?? '') === text
+        return row !== undefined && (row.querySelector('.rule-main > p.type-caption')?.textContent?.trim() ?? '') === text
       },
       { timeout: 10_000 },
       RULE_ROW,

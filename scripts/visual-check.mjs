@@ -5636,6 +5636,8 @@ function readPage(page) {
      */
     function recordRowsMissed() {
       const found = []
+      // An open menu or dialog takes presses away from the whole page, and a drag of the chat's edge shows its own cursor everywhere.
+      if (getComputedStyle(document.body).pointerEvents === 'none' || document.documentElement.classList.contains('chat-resizing')) return found
       const recordRowControls =
         'a, button, input, select, textarea, label, summary, [contenteditable], [role="button"], [role="checkbox"], [role="combobox"], [role="link"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="radio"], [role="slider"], [role="spinbutton"], [role="switch"], [role="tab"], [role="textbox"]'
       const pinned = (element) => {
