@@ -36,6 +36,8 @@ import {
   BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
   BANK_SYNC_DEPLOYMENT_KEY,
   INSTALMENTS_PUT_OFF_KEY,
+  COMPANY_ROLES_PUT_OFF_KEY,
+  COMPANY_PAYMENTS_PUT_OFF_KEY,
   LINKABLE_BANKS,
   PERSON_PAYEES_KEY,
   bankFetchedKey,
@@ -80,6 +82,8 @@ export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingVal
   [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
   [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY)],
   [INSTALMENTS_PUT_OFF_KEY, (value: string) => linesOf(value).flatMap((line) => (instalmentPutOffOf(line) === null ? [words.settingNotAPutOff(INSTALMENTS_PUT_OFF_KEY, line)] : []))],
+  [COMPANY_ROLES_PUT_OFF_KEY, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(COMPANY_ROLES_PUT_OFF_KEY, value)] : [])],
+  [COMPANY_PAYMENTS_PUT_OFF_KEY, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(COMPANY_PAYMENTS_PUT_OFF_KEY, value)] : [])],
   ...LINKABLE_BANKS.map(bankLinkKey).map((key) => [key, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])] as const),
   ...LINKABLE_BANKS.map(bankFetchedKey).map((key) => [key, (value: string) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])] as const),
 ])

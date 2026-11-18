@@ -50,14 +50,14 @@ export interface ReviewQueue {
 
 /**
  * How many things wait on To review for the person: rows for a category, the bank rows on hold, the withdrawals filed with no
- * cash leg, the waiting receipts that ask which payment they are, and what the caller found To review asks about Loans.
+ * cash leg, the waiting receipts that ask which payment they are, and what the caller found To review asks about records in Loans and Company.
  */
-export function reviewCount(book: SpendingBook, loanAsks = 0): number {
+export function reviewCount(book: SpendingBook, linkAsks = 0): number {
   const itemsOf = rowItemsOf(book)
   const isWaiting = (row: Transaction): boolean => waitsOnReview(itemsOf(row))
   const filedWithoutCash = withdrawalsWithoutCash(book, filedAsTransfer(book.categories), itemsOf).filter(({ row }) => !isWaiting(row)).length
   const receiptsAsking = waitingReceipts(book).filter(asksForPayment).length
-  return book.transactions.filter(isWaiting).length + book.held.length + filedWithoutCash + receiptsAsking + loanAsks
+  return book.transactions.filter(isWaiting).length + book.held.length + filedWithoutCash + receiptsAsking + linkAsks
 }
 
 /**

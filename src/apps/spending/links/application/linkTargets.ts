@@ -1,8 +1,12 @@
+import type { RouteLocationRaw } from 'vue-router'
+
 import { companyTargets } from './companyTargets'
-import { LOAN_TARGETS } from './loanTargets'
-import type { ShownTarget } from './loanTargets'
+import { loanApps } from './loanRecords'
 import { targetsIn } from '../domain/linkTarget'
-import type { AppTargets, TargetSource, TargetsOfApp } from '../domain/linkTarget'
+import type { AppTargets, LinkTarget, TargetSource, TargetsOfApp } from '../domain/linkTarget'
+
+/** A record in another app as Spending shows it on a row, with its page in that app. */
+export type ShownTarget = LinkTarget & { readonly to: RouteLocationRaw }
 
 /** An app's records a row can link to, with which kind of app it is, which the words for a link it cannot show depend on. */
 export interface ShownApp extends TargetsOfApp<ShownTarget> {
@@ -11,7 +15,7 @@ export interface ShownApp extends TargetsOfApp<ShownTarget> {
 
 /** Every app's records a row can link to, for a picker, each app with its own wait, failure or not set up. */
 export function allTargets(): readonly ShownApp[] {
-  return [{ ...LOAN_TARGETS, targets: LOAN_TARGETS.targets(), source: 'loans' }, ...companyTargets().map((app): ShownApp => ({ ...app, source: 'company' }))]
+  return [...loanApps().map((app): ShownApp => ({ ...app, source: 'loans' })), ...companyTargets().map((app): ShownApp => ({ ...app, source: 'company' }))]
 }
 
 /** The records of the app a link names, which its state is read against. */

@@ -6,7 +6,9 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { linkEntry, unlinkEntry } from '../../entries/application/entryWrites'
 import { allTargets } from '../application/linkTargets'
-import type { ShownTarget } from '../application/loanTargets'
+import type { ShownTarget } from '../application/linkTargets'
+import { categoryOfHome } from '../domain/companyPaymentFiling'
+import type { CompanyPaymentSplit } from '../domain/companyPaymentFiling'
 import { beyondPlan, linkFiling, wholeLoanKindOf } from '../domain/instalmentSplit'
 import { targetsFor } from '../domain/linkTarget'
 import type { InformalLoanTarget } from '../domain/linkTarget'
@@ -28,8 +30,9 @@ import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyF
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { language } from '../../../../shared/text/language'
+import { listInWords } from '../../../../shared/text/listInWords'
 
-/** A saved entry's links to records in other apps: each record its parts name with Remove, or a picker of records to link it to with Add to Loans. */
+/** A saved entry's links to records in other apps: each record its parts name with Remove, or a picker of Loans' records and Company's payments to link it to, with Add to Loans. */
 const props = defineProps<{
   entry: Transaction
   /** The entry's items as the file holds them. */
@@ -67,17 +70,34 @@ const entryLinks = computed(() =>
 )
 
 const apps = computed(() => allTargets())
+/** The kinds of app set up that the picker names. */
+const pickSources = computed(() => [...new Set(apps.value.filter(({ targets }) => targets !== null).map(({ source }) => source))])
 /** The records the entry can be linked to in each app that is open, none while it has a link. */
 const openTargets = computed((): readonly ShownTarget[] =>
   !props.linkable || entryLinks.value.length > 0 ? [] : apps.value.flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets)),
 )
-const linkTargets = computed(() => targetsFor(props.entry, props.currency, openTargets.value))
+/** The entry's account as the file holds it, whose IBAN tells which payments with your company it can be. */
+const account = computed(() => ({ currency: props.currency, iban: store.state.workbook?.accounts.find((held) => held.id === props.entry.account)?.iban ?? '' }))
+const linkTargets = computed(() => targetsFor(props.entry, account.value, openTargets.value))
 const informalLoans = computed(() => openTargets.value.filter((target): target is ShownTarget & InformalLoanTarget => target.kind === 'informal-loan'))
 
 /** What the picker says under each record: an instalment's share, or a movement's or extra payment's amount. */
 function choiceDetail(target: (typeof linkTargets.value)[number]): string {
   if (target.kind === 'instalment') return target.interim ? words.interimShare(formatMoney(target.yourShare)) : formatMoney(target.yourShare)
   return target.kind === 'informal-loan' ? target.counterparty : formatMoney(target.amount)
+}
+
+/** Where linking to a payment with your company files each of the entry's parts, and how the entry differs from the payment. */
+function paymentNote(filing: CompanyPaymentSplit): string {
+  const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), props.currency)
+  const nameOf = (id: string | null): string | null => (id === null ? null : (props.categories.find((category) => category.id === id)?.name ?? null))
+  const parts = filing.parts.map(({ home, amount }) => {
+    const name = home === null ? null : home === 'difference' ? nameOf(filing.rowCategory) : categoryOfHome(home, props.categories, { language }).category.name
+    return name === null ? words.company.waits(money(amount)) : words.company.under(money(amount), name)
+  })
+  const difference = filing.parts.find((part) => part.home === 'difference')?.amount ?? 0
+  const differs = difference === 0 ? null : (difference > 0 === props.entry.amount > 0 ? words.company.more : words.company.less)(money(difference))
+  return [words.company.files(listInWords(parts)), differs, split.value ? words.replacesParts : null].filter((sentence): sentence is string => sentence !== null).join(' ')
 }
 const linkItems = computed(() => linkTargets.value.map((target) => ({ label: choiceText(target), value: rowLinkText(target.link), description: choiceDetail(target) })))
 const pickedLink = ref('')
@@ -89,6 +109,8 @@ const linkNote = computed(() => {
   if (target === null) return ''
   if (props.edited) return words.saveFirst
   const filing = linkFiling({ row: props.entry, items: props.lines }, target, { currency: props.currency, receipt: props.receipt, categories: props.categories })
+  if (filing.split === 'payment') return paymentNote(filing)
+  if (target.kind === 'owner-payment') return filing.split ? '' : words.whole[filing.why]
   if (!filing.split && filing.why === 'principal')
     return [words.filesWhole(fixedCategoryIn(props.categories, wholeLoanKindOf(target), language).category.name), ...(split.value ? [words.replacesParts] : [])].join(' ')
   if (!filing.split) return words.whole[filing.why]
@@ -122,7 +144,16 @@ async function removeLink(link: RowLink): Promise<void> {
       <div class="flex flex-col items-start gap-1">
         <NoteLine as="span" size="body" :tone="LINK_TONE[line.look]" :icon="line.icon">{{ line.text }}</NoteLine>
         <div class="flex flex-wrap gap-2">
-          <UButton v-if="line.to !== null" :to="line.to" :label="words.open" color="neutral" variant="link" :disabled="edited" class="px-0" data-testid="spending-entry-link-open" />
+          <UButton
+            v-if="line.to !== null"
+            :to="line.to"
+            :label="line.source === 'company' ? words.company.open : words.open"
+            color="neutral"
+            variant="link"
+            :disabled="edited"
+            class="px-0"
+            data-testid="spending-entry-link-open"
+          />
           <UButton
             :label="words.remove"
             icon="i-lucide-unlink"
@@ -139,7 +170,15 @@ async function removeLink(link: RowLink): Promise<void> {
   </template>
   <UFormField v-else-if="linkItems.length > 0 || informalLoans.length > 0" :label="words.pickLabel" class="sm:col-span-2" data-testid="spending-entry-link-pick">
     <div class="flex flex-col items-start gap-2">
-      <USelectMenu v-if="linkItems.length > 0" v-model="pickedLink" :items="linkItems" value-key="value" :placeholder="words.pick" class="w-full" data-testid="spending-entry-link-target" />
+      <USelectMenu
+        v-if="linkItems.length > 0"
+        v-model="pickedLink"
+        :items="linkItems"
+        value-key="value"
+        :placeholder="words.pick(pickSources)"
+        class="w-full"
+        data-testid="spending-entry-link-target"
+      />
       <div class="flex flex-wrap gap-2">
         <UButton
           v-if="linkItems.length > 0"

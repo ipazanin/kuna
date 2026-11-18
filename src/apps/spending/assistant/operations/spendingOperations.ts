@@ -208,7 +208,7 @@ function plannedSteps(
       continue
     }
     if (isLinkStep(operation)) {
-      const linked = writeLinkStep(unit, book, records(), operation, field, idOf, loans)
+      const linked = writeLinkStep(unit, book, records(), operation, field, idOf, { loans, companyPayments: ports.companyPayments() })
       if (linked !== null) book = withEntry({ ...book, categories: [...book.categories, ...linked.added] }, linked.entry)
       continue
     }
@@ -307,6 +307,8 @@ export interface SpendingPorts {
   linkSource(app: string): TargetSource
   /** The records in Loans an entry or a rule's rows can link to, which a step names by the loan's name. */
   loanTargets(): AppTargets<LinkTarget>
+  /** The payments between a company and you of every company app that is open, which a step names by Company and their day. */
+  companyPayments(): readonly LinkTarget[]
 }
 
 /**

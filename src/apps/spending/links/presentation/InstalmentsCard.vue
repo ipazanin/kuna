@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { putOffPastInstalments } from '../application/instalmentReview'
-import type { ShownInstalment } from '../application/instalmentReview'
+import { putOffPastInstalments } from '../application/linkReview'
+import type { ShownInstalment } from '../application/linkReview'
 import type { PastInstalments } from '../domain/instalmentOffers'
 import { instalmentText, words } from './words'
 import { linkEntries } from '../../entries/application/entryWrites'

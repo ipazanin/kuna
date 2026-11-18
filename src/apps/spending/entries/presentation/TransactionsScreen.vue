@@ -25,7 +25,7 @@ import ReceiptPhotoPicker from '../../receipts/presentation/ReceiptPhotoPicker.v
 import { useReceiptRows } from '../../receipts/presentation/useReceiptRows'
 import { receiptAccounts } from '../../receipts/domain/receiptMatch'
 import { words as receiptWords } from '../../receipts/presentation/words'
-import { toReviewCount } from '../../links/application/instalmentReview'
+import { toReviewCount } from '../../links/application/linkReview'
 import ImportPanel from '../../statements/presentation/ImportPanel.vue'
 import ReviewPanel from '../../statements/presentation/ReviewPanel.vue'
 import { words as statementWords } from '../../statements/presentation/words'

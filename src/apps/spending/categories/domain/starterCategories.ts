@@ -1,5 +1,5 @@
 import { categoryWithRole } from '../../workbook/domain/category'
-import type { Category, CategoryKind, CategoryRole, FixedKind } from '../../workbook/domain/category'
+import type { Category, CategoryKind, CategoryRole, CompanyMoneyRole, FixedKind } from '../../workbook/domain/category'
 import { CATEGORY_RECORDS } from '../../workbook/domain/spendingKinds'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { Language } from '../../../../shared/text/language'
@@ -26,6 +26,28 @@ const MONEY_AND_FEES: StarterGroup = {
     ['Taxes and charges', 'Porezi i pristojbe'],
     ['Other insurance', 'Ostala osiguranja'],
     { name: LOAN_INTEREST, role: 'loan-interest' },
+  ],
+}
+
+/** The starter Income children a linked payment from your company files under, by their role. */
+const COMPANY_MONEY_CHILDREN: Readonly<Record<CompanyMoneyRole, { readonly name: Named; readonly role: CompanyMoneyRole }>> = {
+  salary: { name: ['Salary', 'Plaća'], role: 'salary' },
+  'rental-income': { name: ['Rental income', 'Prihod od najma'], role: 'rental-income' },
+  'profit-payout': { name: ['Profit payout', 'Isplata dobiti'], role: 'profit-payout' },
+  'travel-allowance': { name: ['Travel allowances', 'Putni dodaci'], role: 'travel-allowance' },
+}
+
+const INCOME_GROUP: StarterGroup = {
+  name: ['Income', 'Prihodi'],
+  kind: 'income',
+  children: [
+    COMPANY_MONEY_CHILDREN.salary,
+    ['Pension', 'Mirovina'],
+    ['Benefits', 'Naknade i potpore'],
+    COMPANY_MONEY_CHILDREN['rental-income'],
+    COMPANY_MONEY_CHILDREN['profit-payout'],
+    ['Interest', 'Kamate'],
+    ['Other income', 'Ostali prihodi'],
   ],
 }
 
@@ -120,19 +142,7 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
   },
   MONEY_AND_FEES,
   { name: ['Other', 'Ostalo'], kind: 'spending', children: [['Other', 'Ostalo']] },
-  {
-    name: ['Income', 'Prihodi'],
-    kind: 'income',
-    children: [
-      ['Salary', 'Plaća'],
-      ['Pension', 'Mirovina'],
-      ['Benefits', 'Naknade i potpore'],
-      ['Rental income', 'Prihod od najma'],
-      ['Profit payout', 'Isplata dobiti'],
-      ['Interest', 'Kamate'],
-      ['Other income', 'Ostali prihodi'],
-    ],
-  },
+  INCOME_GROUP,
   { name: ['Between my accounts', 'Između mojih računa'], kind: 'transfer', children: [] },
   { name: ['Saved to investments', 'Prijenos u ulaganja'], kind: 'saving', children: [] },
   { name: ['For the company', 'Za tvrtku'], kind: 'company', children: [] },
@@ -154,16 +164,42 @@ export function loanInterestCategoryIn(categories: readonly Category[], language
   return { category: child, added: heldGroup === undefined ? [group, child] : [child] }
 }
 
+/** The names a starter Income child of the role has, English first, which the card asking where Kuna files a payment from your company looks for. */
+export function starterNamesOf(role: CompanyMoneyRole): readonly string[] {
+  return COMPANY_MONEY_CHILDREN[role].name
+}
+
+/**
+ * The file's category of the role, or a new one as a new file names it, in the language, as the last child of the file's
+ * first Income group, or of a new Income group when the file has none. Says which categories are new, so the write that needs them adds them.
+ */
+export function companyMoneyCategoryIn(
+  categories: readonly Category[],
+  role: CompanyMoneyRole,
+  language: Language,
+  newKey: () => string = newRecordId,
+): { readonly category: Category; readonly added: readonly Category[] } {
+  const held = categoryWithRole(categories, role)
+  if (held !== undefined) return { category: held, added: [] }
+  const heldGroup = categories.find((category) => category.kind === 'income' && category.parent === null)
+  const group = heldGroup ?? groupCategory(INCOME_GROUP, STARTER_GROUPS.indexOf(INCOME_GROUP), language, newKey)
+  const order = Math.max(0, ...categories.filter((category) => category.parent === group.id).map((category) => category.order)) + 1
+  const child = childCategory(COMPANY_MONEY_CHILDREN[role], group, order, language, newKey)
+  return { category: child, added: heldGroup === undefined ? [group, child] : [child] }
+}
+
 /**
  * The categories a new Spending file starts with, named in the first run's language: eleven spending groups with their
- * children, Income, and the five fixed categories. Every one can be renamed, moved, hidden or deleted later, but the
+ * children, Income, and the five fixed categories. Travel allowances, the last child of Income, comes last in the list, so
+ * the keys a counting `newKey` gave the others before it joined stay theirs. Every one can be renamed, moved, hidden or deleted later, but the
  * fixed five, which can only be renamed. `newKey` makes each category's bare UUID.
  */
 export function starterCategories(language: Language, newKey: () => string = newRecordId): Category[] {
-  return STARTER_GROUPS.flatMap((group, groupPlace) => {
+  const categories = STARTER_GROUPS.flatMap((group, groupPlace) => {
     const parent = groupCategory(group, groupPlace, language, newKey)
     return [parent, ...group.children.map((child, childPlace) => childCategory(child, parent, childPlace + 1, language, newKey))]
   })
+  return [...categories, ...companyMoneyCategoryIn(categories, 'travel-allowance', language, newKey).added]
 }
 
 /**

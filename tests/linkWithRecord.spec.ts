@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { addAndLink } from '../src/apps/spending/links/application/linkWithRecord'
 import { addLoansExtraPayment, addLoansMovement } from '../src/apps/spending/links/application/loanTargets'
-import type { ShownTarget } from '../src/apps/spending/links/application/loanTargets'
+import type { ShownTarget } from '../src/apps/spending/links/application/linkTargets'
 import type { InformalLoanTarget, InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'

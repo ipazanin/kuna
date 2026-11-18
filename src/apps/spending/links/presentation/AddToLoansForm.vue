@@ -7,7 +7,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { addAndLink } from '../application/linkWithRecord'
 import { addLoansMovement } from '../application/loanTargets'
-import type { ShownTarget } from '../application/loanTargets'
+import type { ShownTarget } from '../application/linkTargets'
 import { movementKindsFor } from '../domain/linkTarget'
 import type { InformalLoanTarget, MovementKind } from '../domain/linkTarget'
 import { toastLinkedInLoans } from './linkedInLoansToasts'

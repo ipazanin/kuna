@@ -1,4 +1,5 @@
-import type { AddedInLoans, ShownTarget } from './loanTargets'
+import type { AddedInLoans } from './loanTargets'
+import type { ShownTarget } from './linkTargets'
 import type { LinkPlace } from '../domain/instalmentSplit'
 import type { LinkTarget } from '../domain/linkTarget'
 import { linkEntry } from '../../entries/application/entryWrites'

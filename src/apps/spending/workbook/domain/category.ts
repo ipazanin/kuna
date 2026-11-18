@@ -34,8 +34,16 @@ export function companyCategoryOf(categories: readonly Category[]): Category | n
   return categories.find((category) => category.kind === 'company') ?? null
 }
 
-/** What Kuna files in a spending category of its own: a statement's bank fees, or the interest of a linked loan instalment. */
-export const CATEGORY_ROLES = ['bank-fees', 'loan-interest'] as const
+/**
+ * What Kuna files in a category of its own, spending or income: a statement's bank fees, the interest of a linked loan
+ * instalment, or the salary, rent, profit payout or travel allowances of a linked payment from your company.
+ */
+export const CATEGORY_ROLES = ['bank-fees', 'loan-interest', 'salary', 'rental-income', 'profit-payout', 'travel-allowance'] as const
+
+/** The roles of the income a payment from your company files under. */
+export const COMPANY_MONEY_ROLES = ['salary', 'rental-income', 'profit-payout', 'travel-allowance'] as const satisfies readonly CategoryRole[]
+
+export type CompanyMoneyRole = (typeof COMPANY_MONEY_ROLES)[number]
 
 export type CategoryRole = (typeof CATEGORY_ROLES)[number]
 

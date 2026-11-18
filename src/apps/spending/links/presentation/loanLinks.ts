@@ -1,5 +1,5 @@
 import { words } from './words'
-import { loanTargets } from '../application/loanTargets'
+import { loanTargets } from '../application/loanRecords'
 import { instalmentLinksOf } from '../domain/instalmentSplit'
 import type { InstalmentLinks } from '../domain/instalmentSplit'
 import { language } from '../../../../shared/text/language'

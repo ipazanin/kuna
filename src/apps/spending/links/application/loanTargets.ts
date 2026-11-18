@@ -1,58 +1,8 @@
-import type { RouteLocationRaw } from 'vue-router'
-
-import { addExtraPayment, addMovement, LOANS_APP, publishedLoanTargets } from '../../../loans/facts'
-import type { PublishedLoanTargets } from '../../../loans/facts'
-import type { AppTargets, ExtraPaymentEffect, ExtraPaymentTarget, InformalLoanTarget, InstalmentTarget, LinkTarget, MovementKind, MovementTarget } from '../domain/linkTarget'
+import { addExtraPayment, addMovement } from '../../../loans/facts'
+import type { ExtraPaymentEffect, ExtraPaymentTarget, InformalLoanTarget, InstalmentTarget, LinkTarget, MovementKind, MovementTarget } from '../domain/linkTarget'
+import type { ShownTarget } from './linkTargets'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
-
-/** A record in another app as Spending shows it on a row, with its page in that app. */
-export type ShownTarget = LinkTarget & { readonly to: RouteLocationRaw }
-
-/** The instalments, extra payments, movements and informal loans Loans publishes, as Spending reads them, each with the link Loans gives it. */
-export function loanTargetsFrom(published: PublishedLoanTargets): readonly ShownTarget[] {
-  return [
-    ...published.instalments.map(({ kind, link, loanName, lender, number, count, due, yourShare, interest, principal, to }): ShownTarget => ({
-      kind: 'instalment',
-      interim: kind === 'interim-interest',
-      link,
-      loanName,
-      lender,
-      number,
-      count,
-      due,
-      yourShare,
-      interest,
-      principal,
-      to,
-    })),
-    ...published.extraPayments.map(({ link, loanName, day, amount, to }): ShownTarget => ({ kind: 'extra-payment', link, loanName, day, amount, to })),
-    ...published.informalLoans.flatMap(({ link, name, counterparty, direction, movements, to }): ShownTarget[] => [
-      { kind: 'informal-loan', link, name, counterparty, direction, to },
-      ...movements.map((movement): ShownTarget => ({
-        kind: 'movement',
-        link: movement.link,
-        loan: link,
-        loanName: name,
-        counterparty,
-        direction,
-        day: movement.day,
-        movement: movement.kind,
-        amount: movement.amount,
-        to,
-      })),
-    ]),
-  ]
-}
-
-/** The records of the Loans file on screen that a row can link to, a wait while it opens, a failure, or null while Loans is not set up. */
-export function loanTargets(): AppTargets<ShownTarget> {
-  const published = publishedLoanTargets()
-  return published === null || typeof published === 'string' ? published : loanTargetsFrom(published)
-}
-
-/** Loans, whose records a row can link to, under the app's id its links name. */
-export const LOAN_TARGETS = { app: LOANS_APP, targets: loanTargets } as const
 
 /** What a row adds to an informal loan in Loans. */
 export interface NewMovement {

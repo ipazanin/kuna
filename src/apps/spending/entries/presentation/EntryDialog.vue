@@ -19,7 +19,8 @@ import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writ
 import { addLabel } from '../../labels/application/labelWrites'
 import { newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
-import type { ShownTarget } from '../../links/application/loanTargets'
+import { sourceOf } from '../../links/application/linkTargets'
+import type { ShownTarget } from '../../links/application/linkTargets'
 import { sideOf } from '../../categories/domain/rowSide'
 import { eventMembership } from '../../events/domain/eventMembership'
 import { eventsNewestFirst } from '../../events/domain/events'
@@ -47,7 +48,7 @@ import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
 import type { EventChoice } from '../../workbook/domain/event'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { holdsLink, isSplit, itemizedRow, rowItemsOf } from '../../workbook/domain/rowItems'
+import { isSplit, itemizedRow, rowItemsOf } from '../../workbook/domain/rowItems'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
@@ -159,8 +160,8 @@ const entryCurrency = computed(() => (props.entry === null ? EURO : (accountOf(p
 /** What the entry's parts are: a receipt's lines, the plan's interest and principal its link split it into, or parts you made. */
 const splitNote = computed(() => {
   if (receipt.value !== null) return receiptWords.splitNote
-  const byLink = holdsLink(entryLines.value) && entryLines.value.some((line) => line.splitByLink)
-  return byLink ? linkWords.splitNote : words.split.note
+  const link = entryLines.value.some((line) => line.splitByLink) ? (entryLines.value.find((line) => line.link !== null)?.link ?? null) : null
+  return link === null ? words.split.note : linkWords.splitNote[sourceOf(link.app)]
 })
 
 /** While set, the dialog adds a movement to one of these informal loans from the saved entry, and its footer goes back or adds and links. */

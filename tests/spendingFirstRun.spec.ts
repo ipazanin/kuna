@@ -32,7 +32,7 @@ const FIXED = [
 ] as const
 
 // Eleven spending groups with 39 children, Income with 7, and the five fixed categories.
-const STARTER_COUNT = 11 + 39 + 1 + 7 + 5
+const STARTER_COUNT = 11 + 39 + 1 + 8 + 5
 
 const downloads: { readonly contents: unknown; readonly fileName: string; readonly type: string }[] = []
 
@@ -171,7 +171,7 @@ describe('the starter categories', () => {
     expect(tree.map(([name]) => name)).toEqual([...ENGLISH_GROUPS, ...FIXED.map(([en]) => en)])
     expect(tree.filter(([, kind]) => kind === 'spending')).toHaveLength(11)
     expect(tree.slice(11).map(([name, kind, children]) => [name, kind, children])).toEqual([
-      ['Income', 'income', ['Salary', 'Pension', 'Benefits', 'Rental income', 'Profit payout', 'Interest', 'Other income']],
+      ['Income', 'income', ['Salary', 'Pension', 'Benefits', 'Rental income', 'Profit payout', 'Interest', 'Other income', 'Travel allowances']],
       ...FIXED.map(([en, , kind]) => [en, kind, []]),
     ])
     expect(tree[0]).toEqual(['Food', 'spending', ['Groceries', 'Eating out', 'Delivery']])
@@ -186,7 +186,7 @@ describe('the starter categories', () => {
     expect(tree.map(([name]) => name)).toEqual([...CROATIAN_GROUPS, ...FIXED.map(([, hr]) => hr)])
     expect(tree[0]).toEqual(['Hrana', 'spending', ['Namirnice', 'Restorani i kafići', 'Dostava']])
     expect(tree[5]).toEqual(['Djeca i obrazovanje', 'spending', ['Vrtić i škola', 'Aktivnosti djece', 'Tečajevi i knjige']])
-    expect(tree[11]).toEqual(['Prihodi', 'income', ['Plaća', 'Mirovina', 'Naknade i potpore', 'Prihod od najma', 'Isplata dobiti', 'Kamate', 'Ostali prihodi']])
+    expect(tree[11]).toEqual(['Prihodi', 'income', ['Plaća', 'Mirovina', 'Naknade i potpore', 'Prihod od najma', 'Isplata dobiti', 'Kamate', 'Ostali prihodi', 'Putni dodaci']])
     expect(treeOf('hr').map(([, kind, children]) => [kind, children.length])).toEqual(treeOf('en').map(([, kind, children]) => [kind, children.length]))
   })
 
@@ -199,12 +199,16 @@ describe('the starter categories', () => {
     expect(categories.every((category) => category.colour === '' && !category.hidden)).toBe(true)
   })
 
-  it('give Bank fees and Loan interest the roles Kuna files fees and interest by, and no other category a role', () => {
+  it('give Bank fees, Loan interest and the income a payment from your company files under the roles Kuna files them by, and no other category a role', () => {
     const categories = starterCategories('hr')
 
     expect(categories.filter((category) => category.role !== null).map((category) => [category.name, category.role])).toEqual([
       ['Bankovne naknade', 'bank-fees'],
       ['Kamate na kredit', 'loan-interest'],
+      ['Plaća', 'salary'],
+      ['Prihod od najma', 'rental-income'],
+      ['Isplata dobiti', 'profit-payout'],
+      ['Putni dodaci', 'travel-allowance'],
     ])
   })
 })

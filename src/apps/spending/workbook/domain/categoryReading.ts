@@ -16,6 +16,11 @@ import type { StoredFields } from '../../../../shared/storage/domain/storedField
 const NAMES_BEFORE_ROLES: Readonly<Record<CategoryRole, readonly string[]>> = {
   'bank-fees': ['Bank fees', 'Bankovne naknade'],
   'loan-interest': ['Loan interest', 'Kamate na kredit', 'Loan instalments', 'Rate kredita'],
+  // A file from before these roles is asked on To review which category is which.
+  salary: [],
+  'rental-income': [],
+  'profit-payout': [],
+  'travel-allowance': [],
 }
 
 /** The role a spending category of a file from before roles holds by its starter name, which its next write stores, so a rename after it keeps the role. */

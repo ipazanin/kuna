@@ -6865,6 +6865,60 @@ export function spendingLinkFlowIn(language, goneMonth) {
 }
 
 /**
+ * The company set's rows paid by the fake Company with one employee: To review with the trip's payout offered as a payment
+ * from Company and the card of rows filed already, September's salary linked to its ledger row, then the trip's payout linked
+ * from its dialog, which files its per diems and kilometres under Travel allowances and its costs under For the company.
+ */
+export function spendingCompanyLinkFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const links = words.spendingLinks
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-review-offer"]', { visible: true, timeout: 10_000 })
+    await shootAt(page, shoot, '[data-testid="spending-review"]', 'spending-review-company-offer')
+    await shootAt(page, shoot, '[data-testid="spending-review-company-payments"]', 'spending-review-company-payments')
+    await page.evaluate(() => (location.hash = '#/spending/transactions?month=2026-09'))
+    await openSpendingRow(page, press, 'Example Studio', 103626)
+    await shootAt(page, shoot, '[data-testid="spending-entry-link"]', 'spending-entry-company-link')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await page.evaluate(() => (location.hash = '#/spending/transactions?month=2026-03'))
+    await openSpendingRow(page, press, 'Example Studio', 38340)
+    const picker = await page.waitForSelector('[data-testid="spending-entry-link-target"]', { visible: true })
+    await picker.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(picker)
+    const payment = await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await shoot('spending-entry-company-picker-open')
+    await press(payment)
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await waitForTextIn(page, '[data-testid="spending-entry-link-note"]', words.spendingStarter['For the company'])
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-company-pick')
+    await press(await page.waitForSelector('[data-testid="spending-entry-link-add"]:not([disabled])', { visible: true }))
+    await toast(page, links.linked)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, 'Example Studio', 38340)
+    await waitForTextIn(page, '[data-testid="spending-entry-lines"]', words.spendingStarter['Travel allowances'])
+    await shootAt(page, shoot, '[data-testid="spending-entry-lines"]', 'spending-entry-company-linked')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/** Link on the company set's waiting trip payout on To review, which links it to Company's payment and takes it off the queue. */
+export function spendingCompanyReviewLinkFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-review-link"]', { visible: true, timeout: 10_000 })
+    await shootAt(page, shoot, '[data-testid="spending-review-offer"]', 'spending-review-company-link')
+    await press(await page.$('[data-testid="spending-review-link"]'))
+    await toast(page, words.spendingLinks.linked)
+    await page.waitForFunction(() => document.querySelector('[data-testid="spending-review-offer"]') === null, { timeout: 10_000 })
+  }
+}
+
+/**
  * The sample's standing order below the home loan's instalment, split by hand: its parts, the open Link to Loans picker and what
  * linking it to the instalment would do, then the dialog switches to adding a movement to an informal loan, which says it replaces
  * the parts, adds a repayment to the loan from Marko and links the row in one write each, and one Undo takes both back. Last, the row from `movementMonth` linked to a movement of that loan.

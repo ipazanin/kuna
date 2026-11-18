@@ -14,6 +14,9 @@ import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { DESK_ACCOUNTS, DESK_LOAN_TARGETS, EXAMPLE_RECORDS, attachedPhoto, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
+import type { LinkTarget } from '../src/apps/spending/links/domain/linkTarget'
+import { parseCivilDate } from '../src/shared/calendar/civilDate'
+import { moneyFromAmount } from '../src/shared/money/money'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { addEntries, filedRows } from './fixtures/spending'
@@ -784,6 +787,29 @@ describe('an entry’s link to Loans', () => {
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'From Marko', due: '2026-10-12' })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction']!)?.link).toEqual({ app: 'loans', kind: 'movement', key: 'made-up-movement', due: null })
+  })
+
+  it("links a payment between the person's company and them by Company and its day, filed by what its money is, and refuses a day with no payment the entry can be", async () => {
+    const repaid: LinkTarget = {
+      kind: 'owner-payment',
+      link: { app: 'company', kind: 'ledger-row', key: 'made-up-ledger-row', due: null },
+      day: parseCivilDate('2026-10-12')!,
+      amount: moneyFromAmount(45.3),
+      direction: 'from-owner',
+      ownerIban: 'HR6523400091110000001',
+      parts: [{ kind: 'owner-loan', amount: moneyFromAmount(45.3) }],
+    }
+    const desk = await spendingDesk(used, { ...deskPorts(), companyPayments: () => [repaid] })
+    const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Company', due: '2026-10-13' })])).text).toContain('Company has no payment on 2026-10-13')
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Company', due: '2026-10-12' })])
+    expect((await desk.accept()).kind).toBe('done')
+    const loans = bookOf(desk).categories.find((held) => held.kind === 'informal-loan')
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === EXAMPLE_RECORDS['transaction'])
+        .map((part) => [part.amount, part.category, part.link]),
+    ).toEqual([[accountMoneyFromAmount(-45.3), loans?.id, repaid.link]])
   })
 
   it('tells the chat what a link names, or that Loans no longer has it', async () => {

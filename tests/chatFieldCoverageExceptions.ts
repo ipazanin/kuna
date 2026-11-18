@@ -205,6 +205,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['spending: Setting.loan_instalments_not_now'],
   },
   {
+    reason: "What To review's cards of payments from Company keep when the person says Not now, which only those cards write.",
+    fields: ['spending: Setting.company_roles_not_now', 'spending: Setting.company_payments_not_now'],
+  },
+  {
     reason: "Where the bank's statements come from. Reading the folder or the bank's mail needs Google's consent, so the chat links the screen that asks for it.",
     fields: ['company: Setting.statements_folder', 'company: Setting.statements_mail_from'],
   },

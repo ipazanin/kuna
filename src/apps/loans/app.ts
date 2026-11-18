@@ -1,5 +1,6 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { loansData } from './workbook/presentation/loansData'
+import { publishedLoanTargets } from './facts'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { isFirstRun } from '../../shared/app/isFirstRun'
 import { today } from '../../shared/calendar/civilDate'
@@ -93,6 +94,7 @@ export const loansApp: AppContribution = {
   firstRun: () => isFirstRun(state),
   startPath: LOANS_START_ROUTE,
   syncGroup: loansSyncGroup,
+  loanTargets: publishedLoanTargets,
   asksGoogleOnOpen: () => loadWorkbookChoice(LOANS_APP)?.source === 'drive' && autoSyncOn.value,
   // The shell hands over only a find or a pick the Loans file asked Google for. The page's sync resumes a sync.
   start(router, googleReturn) {

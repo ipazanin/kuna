@@ -179,7 +179,11 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
   order: { exposure: 'plain', meaning: 'Its place among its siblings.' },
   colour: { exposure: 'never', meaning: 'Its colour on screen.' },
   hidden: { exposure: 'plain', meaning: 'Hidden from the pickers, while its rows keep counting.' },
-  role: { exposure: 'plain', meaning: 'bank-fees where a statement files its fees, loan-interest where a linked instalment files its interest, or empty for a category Kuna does not fill.' },
+  role: {
+    exposure: 'plain',
+    meaning:
+      'bank-fees where a statement files its fees, loan-interest where a linked instalment files its interest, salary, rental-income, profit-payout or travel-allowance where a linked payment from your company files that money, or empty for a category Kuna does not fill.',
+  },
 }
 
 /** What a part's link names, as the chat reads it, or null for a part with none. */

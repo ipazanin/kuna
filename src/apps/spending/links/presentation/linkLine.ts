@@ -3,7 +3,7 @@ import type { ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import { allTargets, sourceIn } from '../application/linkTargets'
-import type { ShownTarget } from '../application/loanTargets'
+import type { ShownTarget } from '../application/linkTargets'
 import { beyondPlan, beyondRecord } from '../domain/instalmentSplit'
 import { linkStateOf, targetsIn } from '../domain/linkTarget'
 import type { AppTargets, LinkState, LinkTarget, TargetSource } from '../domain/linkTarget'
@@ -25,6 +25,8 @@ export interface LinkLine {
   /** Left out where the line's warning tone gives the icon. */
   readonly icon: string | undefined
   readonly to: RouteLocationRaw | null
+  /** Which kind of app the link names, which the words of its Open button follow. */
+  readonly source: TargetSource
 }
 
 const LOOKS: Readonly<Record<LinkState<unknown>['state'], { readonly look: LinkLook; readonly icon: string | undefined }>> = {
@@ -49,7 +51,7 @@ export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
   const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), row.currency)
   const plan = beyondPlan(target, row, row.currency)
   const record = beyondRecord(target, row, row.currency)
-  const amount = target.kind === 'movement' || target.kind === 'extra-payment' ? [formatMoney(target.amount)] : []
+  const amount = target.kind === 'movement' || target.kind === 'extra-payment' || target.kind === 'owner-payment' ? [formatMoney(target.amount)] : []
   const differs = [
     ...(plan === null || plan === 0 ? [] : [(plan > 0 ? words.above : words.below)(money(plan))]),
     ...(record === null || record === 0 ? [] : [(record > 0 ? words.moreThanLoans : words.lessThanLoans)(money(record))]),
@@ -60,7 +62,7 @@ export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
 /** The line a link reads as against its app's records, with what the row paid above or below an instalment's plan. */
 export function linkLineOf(link: RowLink, targets: AppTargets<ShownTarget>, source: TargetSource, row: LinkedRow): LinkLine {
   const read = linkStateOf(link, targets)
-  return { text: read.state === 'there' ? targetLineOf(read.target, row) : linkText(read, source), ...LOOKS[read.state], to: read.state === 'there' ? read.target.to : null }
+  return { text: read.state === 'there' ? targetLineOf(read.target, row) : linkText(read, source), ...LOOKS[read.state], to: read.state === 'there' ? read.target.to : null, source }
 }
 
 /** The tone of a link's line by its look: muted while Loans waits, a warning while its record is missing. */

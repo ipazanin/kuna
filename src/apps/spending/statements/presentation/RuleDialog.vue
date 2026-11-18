@@ -20,7 +20,7 @@ import { entryCategoryChoices } from '../../entries/presentation/categoryChoices
 import { addLabel } from '../../labels/application/labelWrites'
 import { newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
-import { loanTargets } from '../../links/application/loanTargets'
+import { loanTargets } from '../../links/application/loanRecords'
 import { paidLoansIn } from '../../links/domain/linkTarget'
 import { loanLinks } from '../../links/presentation/loanLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import type { ShownInstalment } from '../application/instalmentReview'
+import type { ShownInstalment } from '../application/linkReview'
 import type { ExtraPaymentOffer } from '../domain/instalmentOffers'
 import ExtraPaymentForm from './ExtraPaymentForm.vue'
 import { instalmentText, words } from './words'

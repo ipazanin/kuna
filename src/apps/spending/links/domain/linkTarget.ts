@@ -1,10 +1,11 @@
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
-import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { Money } from '../../../../shared/money/money'
+import type { Account } from '../../workbook/domain/account'
 import type { RowLink } from '../../workbook/domain/rowLink'
+import { normaliseIban } from '../../../../shared/text/fold'
 import type { Transaction } from '../../workbook/domain/transaction'
 
 /** A bank loan's instalment in Loans that a row can pay, or its interim interest: when it falls due and what of it you pay. */
@@ -107,6 +108,9 @@ export function isPayLink(read: LinkState<LinkTarget>): boolean {
 /** A record in another app that a row can be. */
 export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget | OwnerPaymentTarget
 
+/** A record in Loans that a row can be. */
+export type LoanTarget = Exclude<LinkTarget, OwnerPaymentTarget>
+
 /** Which kind of app a link names: Loans with its loans, or a company app with its payments with the owner. Its words for a link it cannot show depend on it. */
 export type TargetSource = 'loans' | 'company'
 
@@ -186,15 +190,24 @@ function nearest<Target>(targets: readonly Target[], day: CivilDate, dayOf: (tar
     .map(({ target }) => target)
 }
 
+/** Whether the row on the account can be the payment between your company and you: money the way the payment went, on a euro account whose IBAN the payment names. */
+export function maybeCompanyPayment(row: Pick<Transaction, 'amount'>, account: Pick<Account, 'currency' | 'iban'>, target: OwnerPaymentTarget): boolean {
+  const iban = normaliseIban(account.iban)
+  return account.currency === EURO && iban !== '' && iban === target.ownerIban && (target.direction === 'to-owner' ? row.amount > 0 : row.amount < 0)
+}
+
 /**
  * The records an entry can be linked to, each kind nearest its day first within half a month: for money out the instalments,
- * then the movements its money can be as `movementKindsFor` has it, then for money out of a euro account the extra payments.
+ * then the movements its money can be as `movementKindsFor` has it, then for money out of a euro account the extra payments,
+ * then the payments between your company and you that `maybeCompanyPayment` lets it be.
  */
-export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'date' | 'amount'>, currency: CurrencyCode, targets: readonly Target[]): readonly Target[] {
+export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'date' | 'amount'>, account: Pick<Account, 'currency' | 'iban'>, targets: readonly Target[]): readonly Target[] {
+  const { currency } = account
   const out = row.amount < 0
   const instalments = out ? targets.filter((target) => target.kind === 'instalment') : []
   const movements = targets.filter((target) => target.kind === 'movement' && movementKindsFor(row.amount, target.direction).includes(target.movement))
   const extraPayments = out && currency === EURO ? targets.filter((target) => target.kind === 'extra-payment') : []
+  const payments = targets.filter((target) => target.kind === 'owner-payment' && maybeCompanyPayment(row, account, target))
   const dayOf = (target: Target): CivilDate => (target.kind === 'instalment' ? target.due : target.kind === 'informal-loan' ? row.date : target.day)
-  return [...nearest(instalments, row.date, dayOf), ...nearest(movements, row.date, dayOf), ...nearest(extraPayments, row.date, dayOf)]
+  return [...nearest(instalments, row.date, dayOf), ...nearest(movements, row.date, dayOf), ...nearest(extraPayments, row.date, dayOf), ...nearest(payments, row.date, dayOf)]
 }

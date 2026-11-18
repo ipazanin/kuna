@@ -5,7 +5,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { addAndLink } from '../application/linkWithRecord'
 import { addLoansExtraPayment } from '../application/loanTargets'
-import type { ShownInstalment } from '../application/instalmentReview'
+import type { ShownInstalment } from '../application/linkReview'
 import type { ExtraPaymentEffect } from '../domain/linkTarget'
 import { toastLinkedInLoans } from './linkedInLoansToasts'
 import { words } from './words'

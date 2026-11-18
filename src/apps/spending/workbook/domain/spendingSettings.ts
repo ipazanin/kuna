@@ -25,6 +25,10 @@ export interface SpendingSettings {
   readonly bankAccountsKeepMine: readonly string[]
   /** Per loan, the last due date its card of past instalments on To review offered when you said Not now. */
   readonly instalmentsPutOff: readonly InstalmentPutOff[]
+  /** The day of the latest payment from your company the card asking where Kuna files them had in view when you said Not now, or null. */
+  readonly companyRolesPutOff: CivilDate | null
+  /** The day of the latest payment from your company the card of rows filed already offered when you said Not now, or null. */
+  readonly companyPaymentsPutOff: CivilDate | null
 }
 
 /** A loan whose past instalments To review no longer offers up to a due date. */
@@ -39,6 +43,8 @@ export const PERSON_PAYEES_KEY = 'person_payees'
 export const BANK_ACCOUNTS_NOT_IN_KUNA_KEY = 'bank_sync_not_in_kuna'
 export const BANK_ACCOUNTS_KEEP_MINE_KEY = 'bank_sync_keep_mine'
 export const INSTALMENTS_PUT_OFF_KEY = 'loan_instalments_not_now'
+export const COMPANY_ROLES_PUT_OFF_KEY = 'company_roles_not_now'
+export const COMPANY_PAYMENTS_PUT_OFF_KEY = 'company_payments_not_now'
 
 /** One loan per line: its key, then the last due date put off. */
 const PUT_OFF_LINE = /^(\S+) (\S+)$/
@@ -104,5 +110,7 @@ export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSetting
     bankAccountsNotInKuna: linesOf(settingValue(rows, BANK_ACCOUNTS_NOT_IN_KUNA_KEY)),
     bankAccountsKeepMine: linesOf(settingValue(rows, BANK_ACCOUNTS_KEEP_MINE_KEY)),
     instalmentsPutOff: linesOf(settingValue(rows, INSTALMENTS_PUT_OFF_KEY)).flatMap((line) => instalmentPutOffOf(line) ?? []),
+    companyRolesPutOff: parseCivilDate(settingValue(rows, COMPANY_ROLES_PUT_OFF_KEY)),
+    companyPaymentsPutOff: parseCivilDate(settingValue(rows, COMPANY_PAYMENTS_PUT_OFF_KEY)),
   }
 }

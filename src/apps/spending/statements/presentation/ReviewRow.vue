@@ -10,7 +10,8 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { WaitingRow } from '../domain/reviewQueue'
 import type { InstalmentOffer } from '../../links/domain/instalmentOffers'
-import { instalmentText, words as linkWords } from '../../links/presentation/words'
+import type { OwnerPaymentOffer } from '../../links/domain/ownerPaymentOffers'
+import { choiceText, instalmentText, words as linkWords } from '../../links/presentation/words'
 import { words } from './words'
 import { rowCaption, rowTitle } from './rowParts'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
@@ -34,8 +35,8 @@ const props = defineProps<{
   accounts: readonly Account[]
   /** What a rule would file this row under, offered beside joining it with what you typed. */
   ruleCategory: Category | null
-  /** An instalment in Loans this row may pay, which Link links it to. */
-  offer: InstalmentOffer | null
+  /** An instalment in Loans this row may pay, or a payment in Company it may be, which Link links it to. */
+  offer: InstalmentOffer | OwnerPaymentOffer | null
   takesReceipt: boolean
   /** Whether it is picked while rows are being selected, or null while its own controls file it. */
   picked: boolean | null
@@ -70,6 +71,13 @@ const typedLine = computed(() => {
 const offerLine = computed(() => {
   const offer = props.offer
   if (offer === null) return null
+  if (offer.target.kind === 'owner-payment') {
+    const payment = choiceText(offer.target)
+    if (offer.difference === 0) return (offer.suggested ? linkWords.companyOffer.is : linkWords.companyOffer.mayBeAnotherDay)(payment)
+    const amount = formatAccountMoney(absAccountMoney(offer.difference), currency.value)
+    const more = offer.difference > 0 === props.waiting.row.amount > 0
+    return linkWords.companyOffer.mayBe(payment, (more ? linkWords.companyOffer.more : linkWords.companyOffer.less)(amount))
+  }
   const instalment = instalmentText(offer.target)
   if (offer.difference === 0) return (offer.suggested ? linkWords.offer.pays : linkWords.offer.mayPayAnotherDay)(instalment)
   const amount = formatAccountMoney(absAccountMoney(offer.difference), currency.value)

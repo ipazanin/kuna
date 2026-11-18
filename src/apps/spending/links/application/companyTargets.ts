@@ -1,6 +1,6 @@
 import type { AppOwnerPayments, PublishedOwnerPayment } from '../../../../shared/app/moneyWithOwner'
 import type { AppTargets, TargetsOfApp } from '../domain/linkTarget'
-import type { ShownTarget } from './loanTargets'
+import type { ShownTarget } from './linkTargets'
 
 /** A payment between your company and you as Spending reads it, with the link and the page Company gives it. */
 function companyTargetOf({ link, day, amount, direction, ownerIban, parts, to }: PublishedOwnerPayment): ShownTarget {

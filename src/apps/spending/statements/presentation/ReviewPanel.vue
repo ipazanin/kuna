@@ -14,7 +14,9 @@ import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingRe
 import ReviewRow from './ReviewRow.vue'
 import type { ReviewAction } from './ReviewRow.vue'
 import { linkEntry } from '../../entries/application/entryWrites'
-import { instalmentReview } from '../../links/application/instalmentReview'
+import { companyPaymentReview, instalmentReview } from '../../links/application/linkReview'
+import CompanyPaymentsCard from '../../links/presentation/CompanyPaymentsCard.vue'
+import CompanyRolesCard from '../../links/presentation/CompanyRolesCard.vue'
 import InstalmentsCard from '../../links/presentation/InstalmentsCard.vue'
 import ExtraPaymentsCard from '../../links/presentation/ExtraPaymentsCard.vue'
 import { words as linkWords } from '../../links/presentation/words'
@@ -66,8 +68,9 @@ const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED,
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
 const receipts = computed(() => (book.value === null ? [] : waitingReceipts(book.value)))
 const instalments = computed(() => (book.value === null ? { offers: [], past: [], extraPayments: [] } : instalmentReview(book.value, today())))
+const company = computed(() => (book.value === null ? { offers: [], past: [], roles: null } : companyPaymentReview(book.value)))
 const offerOf = computed(() => {
-  const offers = new Map(instalments.value.offers.map((offer) => [offer.row.id, offer]))
+  const offers = new Map([...company.value.offers, ...instalments.value.offers].map((offer) => [offer.row.id, offer]))
   return (row: Transaction) => offers.get(row.id) ?? null
 })
 /** Waiting receipts sit beside the pairs and lone legs, which also only wait, unless one asks which payment it is. */
@@ -229,6 +232,7 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
     </AppCard>
     <CashWithdrawalsCard v-if="queue.withdrawals.length > 0" :withdrawals="queue.withdrawals" />
     <WaitingReceiptsCard v-if="receiptsAsk" :waiting="receipts" />
+    <CompanyRolesCard v-if="company.roles !== null" :ask="company.roles" />
     <EmptyState
       v-if="
         queue.waiting.length === 0 &&
@@ -236,7 +240,9 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
         queue.withdrawals.length === 0 &&
         receipts.length === 0 &&
         instalments.past.length === 0 &&
-        instalments.extraPayments.length === 0
+        instalments.extraPayments.length === 0 &&
+        company.past.length === 0 &&
+        company.roles === null
       "
       icon="i-lucide-inbox"
       :title="words.review.empty"
@@ -307,6 +313,7 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
         </div>
       </AppCard>
     </template>
+    <CompanyPaymentsCard v-if="company.past.length > 0" :offers="company.past" @open="emit('open', $event)" />
     <InstalmentsCard v-for="card in instalments.past" :key="card.loan" :card="card" @open="emit('open', $event)" />
     <ExtraPaymentsCard v-if="instalments.extraPayments.length > 0" :offers="instalments.extraPayments" />
     <TransfersCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :pairs="queue.pairs" :lone-legs="queue.loneLegs" />

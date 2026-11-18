@@ -7,6 +7,7 @@ import type { AppData } from '../storage/application/appData'
 import type { RatesDemand } from '../rates/domain/ratesDemand'
 import type { AppLinkedRows, AppRowLinks } from './rowLinks'
 import type { AppMoneyWithOwner, AppOwnerPayments } from './moneyWithOwner'
+import type { AppLoanTargets, LoanTargetsOfApp } from './loanTargets'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
@@ -180,6 +181,8 @@ export interface ShellReads {
   linkedRows(): readonly AppLinkedRows[]
   /** The payments between a company and its owner each installed app keeps, by app, read afresh at each call. */
   moneyWithOwner(): readonly AppOwnerPayments[]
+  /** The loan records each installed app publishes for payments to name, by app, read afresh at each call. */
+  loanTargets(): readonly LoanTargetsOfApp[]
 }
 
 /** What an app gives the shell: its screens and menu, its card on the home, its figures on Net worth, its first run, its part of the page's sync, and what runs while the page is open. */
@@ -226,6 +229,8 @@ export interface AppContribution {
   readonly rowLinks?: () => AppRowLinks
   /** The payments between the company and its owner, for an app that keeps any, which the shell gathers for matching across apps. */
   readonly moneyWithOwner?: () => AppMoneyWithOwner
+  /** The loan records a payment in another app may name, for an app that keeps loans, which the shell gathers for matching across apps. */
+  readonly loanTargets?: () => AppLoanTargets
   /** The exchange rates the app's records need, for an app that holds other currencies, or null before its file is read. */
   readonly ratesDemand?: () => RatesDemand | null
   /** Whether the page should fetch its Google token on the way in, with no screen at Google. */

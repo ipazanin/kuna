@@ -20,7 +20,16 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   },
   {
     reason: "Not now on To review's card of past instalments. It only stops that card offering what the person saw on it, and the chat does not show the card.",
-    paths: ['src/apps/spending/links/application/instalmentReview.ts#putOffPastInstalments'],
+    paths: ['src/apps/spending/links/application/linkReview.ts#putOffPastInstalments'],
+  },
+  {
+    reason: "Not now on To review's cards of payments from Company. It only stops a card offering what the person saw on it, and the chat does not show the cards.",
+    paths: ['src/apps/spending/links/application/linkReview.ts#putOffPastOwnerPayments', 'src/apps/spending/categories/application/companyRoleWrites.ts#putOffCompanyRoles'],
+  },
+  {
+    reason:
+      "Which income category takes each kind of money from Company, answered once on To review's card. A role is Kuna's own mark on a category, which no chat operation sets, and a link the chat makes adds the starter category a role lacks.",
+    paths: ['src/apps/spending/categories/application/companyRoleWrites.ts#writeCompanyRoles'],
   },
   {
     reason: "Giving the ledger's rows their ids. The app's own prompt on Settings, Books file does it in one write, and no agent fills an id.",

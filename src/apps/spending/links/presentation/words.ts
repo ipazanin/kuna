@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { WholeReason } from '../domain/instalmentSplit'
+import type { CompanyMoneyRole } from '../../workbook/domain/category'
 import type { CompanyMoney, ExtraPaymentEffect, InstalmentTarget, LinkState, LinkTarget, MovementKind, OwnerPaymentTarget, TargetSource } from '../domain/linkTarget'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -32,8 +33,15 @@ export const en = {
   open: 'Open in Loans',
   remove: 'Remove link',
   removed: 'Link removed',
-  pickLabel: 'Link to Loans',
-  pick: 'Pick a record in Loans',
+  pickLabel: 'Link to a record',
+  /** The picker's prompt, naming the apps set up that a row can link to. */
+  pick: (sources: readonly TargetSource[]) =>
+    sources.length === 0
+      ? 'Pick a record'
+      : `Pick a record in ${listInWords(
+          sources.map((source) => ({ loans: 'Loans', company: 'Company' })[source]),
+          'or',
+        )}`,
   link: 'Link',
   linked: 'Entry linked',
   saveFirst: 'Save your changes before linking.',
@@ -42,7 +50,11 @@ export const en = {
   paidLess: (amount: string, category: string) => `You paid ${amount} less than the plan. The difference goes under ${category} as money in, which lowers its spending.`,
   replacesParts: 'This replaces the parts the entry has now.',
   filesWhole: (category: string) => `Files the whole entry under ${category}, which counts as neither spending nor income.`,
-  splitNote: "The link split this entry into the plan's interest and principal, so its amount and account stay as they are. Removing the link leaves the parts.",
+  /** What the parts of an entry its link split are, by the app the link names. */
+  splitNote: {
+    loans: "The link split this entry into the loan plan's interest and principal. Its amount and account stay as they are, and removing the link leaves the parts.",
+    company: 'The link split this entry into the kinds of money in the payment with Company. Its amount and account stay as they are, and removing the link leaves the parts.',
+  } satisfies Record<TargetSource, string>,
   /** Why an entry links whole, where a person can link it. */
   whole: {
     'not-euro': 'Links the whole entry, since the plan is in euros and the account is not.',
@@ -98,6 +110,13 @@ export const en = {
     opening: 'Linked to Company, which is still opening',
     failed: 'Linked to Company, which did not open',
     notSetUp: 'Linked to Company, which is not set up on this device or keeps no owner pay',
+    open: 'Open in Company',
+    /** A part of a payment as the link files it, such as "€1,800.00 under Salary". */
+    under: (amount: string, category: string) => `${amount} under ${category}`,
+    waits: (amount: string) => `${amount} waiting for a category`,
+    files: (parts: string) => `Files the entry as ${parts}.`,
+    more: (amount: string) => `The entry is ${amount} more than the payment, and the difference stays as a part of its own.`,
+    less: (amount: string) => `The entry is ${amount} less than the payment, and the difference stays as a part of its own.`,
   },
   /** The card of rows a loan's rule filed whole that To review offers to record in Loans as an extra payment, and the form that does it. */
   extra: {
@@ -117,6 +136,32 @@ export const en = {
     staysInLoans: (reason: string) => `The extra payment stays in Loans, where you can see and delete it. ${reason}`,
     undone: 'The link and the extra payment are taken back.',
     keptInLoans: (reason: string) => `The link is off, and the extra payment stays in Loans. ${reason}`,
+  },
+  /** The card of rows filed already that are payments between your company and you. */
+  payments: {
+    title: 'Payments with Company',
+    rows: (count: number): EnglishForms => ({ one: '1 row filed already is a payment between Company and you.', other: `${count} rows filed already are payments between Company and you.` }),
+    note: 'Linking files each by what its money is, paid to you or to Company: salary, rent, a profit payout, travel allowances, an owner loan or costs paid back.',
+    putOff: 'Not offered again before the next payment',
+  },
+  /** What To review offers for a row that may be a payment with your company. */
+  companyOffer: {
+    is: (payment: string) => `Looks like ${payment}.`,
+    mayBe: (payment: string, difference: string) => `May be ${payment}, ${difference}.`,
+    mayBeAnotherDay: (payment: string) => `May be ${payment}.`,
+    more: (amount: string) => `${amount} more than the payment`,
+    less: (amount: string) => `${amount} less than the payment`,
+  },
+  /** The card that asks once which income category takes each kind of money your company pays you. */
+  roles: {
+    title: 'Where Kuna files payments from Company',
+    subtitle: 'Pick the category each kind of money goes under when you link a row to a payment from Company.',
+    names: { salary: 'Salary and tax-free pay', 'rental-income': 'Rent', 'profit-payout': 'Profit payouts', 'travel-allowance': 'Per diems and kilometres' } satisfies Record<CompanyMoneyRole, string>,
+    add: (name: string) => `Add ${name}`,
+    clash: 'Pick a different category for each kind of money.',
+    save: 'Save',
+    saved: 'Categories for payments from Company saved',
+    putOff: 'Not asked again before the next payment',
   },
   /** The card of rows filed already that look like a loan's instalments. */
   past: {
@@ -151,8 +196,14 @@ export const hr: Translation<typeof en> = {
   open: 'Otvori u Kreditima',
   remove: 'Ukloni poveznicu',
   removed: 'Poveznica uklonjena',
-  pickLabel: 'Poveznica s Kreditima',
-  pick: 'Odaberi zapis u Kreditima',
+  pickLabel: 'Poveznica sa zapisom',
+  pick: (sources) =>
+    sources.length === 0
+      ? 'Odaberi zapis'
+      : `Odaberi zapis u ${listInWords(
+          sources.map((source) => ({ loans: 'Kreditima', company: 'Tvrtki' })[source]),
+          'or',
+        )}`,
   link: 'Poveži',
   linked: 'Unos povezan',
   saveFirst: 'Spremite promjene prije povezivanja.',
@@ -161,7 +212,10 @@ export const hr: Translation<typeof en> = {
   paidLess: (amount, category) => `Platili ste ${amount} manje od plana. Razlika ide pod kategoriju „${category}” kao uplata i smanjuje njezinu potrošnju.`,
   replacesParts: 'Ovo zamjenjuje dijelove koje unos sada ima.',
   filesWhole: (category) => `Cijeli unos ide pod kategoriju „${category}”, koja se ne računa ni u potrošnju ni u prihode.`,
-  splitNote: 'Poveznica je podijelila unos na kamate i glavnicu iz plana, pa iznos i račun ostaju kakvi jesu. Kad uklonite poveznicu, dijelovi ostaju.',
+  splitNote: {
+    loans: 'Poveznica je podijelila unos na kamate i glavnicu iz plana kredita. Iznos i račun ostaju kakvi jesu, a kad uklonite poveznicu, dijelovi ostaju.',
+    company: 'Poveznica je podijelila unos na vrste novca u plaćanju s Tvrtkom. Iznos i račun ostaju kakvi jesu, a kad uklonite poveznicu, dijelovi ostaju.',
+  },
   whole: {
     'not-euro': 'Povezuje se cijeli unos jer je plan u eurima, a račun nije.',
     receipt: 'Povezuje se cijeli unos jer ga je podijelio fiskalni račun.',
@@ -212,6 +266,12 @@ export const hr: Translation<typeof en> = {
     opening: 'Povezano s Tvrtkom, koja se još otvara',
     failed: 'Povezano s Tvrtkom, koja se nije otvorila',
     notSetUp: 'Povezano s Tvrtkom, koja na ovom uređaju nije postavljena ili ne vodi plaću vlasnika',
+    open: 'Otvori u Tvrtki',
+    under: (amount, category) => `${amount} pod kategorijom „${category}”`,
+    waits: (amount) => `${amount} bez kategorije`,
+    files: (parts) => `Unos se razvrstava kao ${parts}.`,
+    more: (amount) => `Unos je ${amount} veći od isplate, a razlika ostaje kao zaseban dio.`,
+    less: (amount) => `Unos je ${amount} manji od isplate, a razlika ostaje kao zaseban dio.`,
   },
   extra: {
     title: 'Prijevremene otplate za upis',
@@ -230,6 +290,34 @@ export const hr: Translation<typeof en> = {
     staysInLoans: (reason) => `Prijevremena otplata ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
     undone: 'Poveznica i prijevremena otplata su vraćene.',
     keptInLoans: (reason) => `Poveznica je uklonjena, a prijevremena otplata ostaje u Kreditima. ${reason}`,
+  },
+  payments: {
+    title: 'Plaćanja s Tvrtkom',
+    rows: (count) => ({
+      one: `${count} već razvrstana stavka odgovara isplati između Tvrtke i vas.`,
+      few: `${count} već razvrstane stavke odgovaraju isplatama između Tvrtke i vas.`,
+      other: `${count} već razvrstanih stavki odgovara isplatama između Tvrtke i vas.`,
+    }),
+    note: 'Povezivanje svaku razvrstava prema tome što je novac, isplaćen vama ili uplaćen Tvrtki: plaća, najamnina, isplata dobiti, putni dodaci, pozajmica vlasnika ili vraćeni troškovi.',
+    putOff: 'Neće se ponovno nuditi do sljedeće isplate',
+  },
+  companyOffer: {
+    // A payment's text ends in a Croatian date, which already ends in a full stop.
+    is: (payment) => `Izgleda kao: ${payment}`,
+    mayBe: (payment, difference) => `Možda je: ${payment}, ${difference}.`,
+    mayBeAnotherDay: (payment) => `Možda je: ${payment}`,
+    more: (amount) => `${amount} više od isplate`,
+    less: (amount) => `${amount} manje od isplate`,
+  },
+  roles: {
+    title: 'Kamo Kuna razvrstava isplate iz Tvrtke',
+    subtitle: 'Odaberite kategoriju za svaku vrstu novca kad stavku povežete s isplatom iz Tvrtke.',
+    names: { salary: 'Plaća i neoporezivi primici', 'rental-income': 'Najamnina', 'profit-payout': 'Isplate dobiti', 'travel-allowance': 'Dnevnice i kilometri' },
+    add: (name) => `Dodaj „${name}”`,
+    clash: 'Za svaku vrstu novca odaberite drugu kategoriju.',
+    save: 'Spremi',
+    saved: 'Kategorije za isplate iz Tvrtke spremljene',
+    putOff: 'Neće se ponovno pitati do sljedeće isplate',
   },
   past: {
     title: (loan) => `Prošle rate kredita ${loan}`,
@@ -266,7 +354,7 @@ export function choiceText(target: LinkTarget): string {
 
 /** A payment with your company by what its money is and its day, such as "Salary from Company, paid 10 Nov". */
 function companyPaymentText(target: OwnerPaymentTarget): string {
-  const what = listInWords(target.parts.map((part) => words.company.kinds[part.kind]))
+  const what = listInWords([...new Set(target.parts.map((part) => words.company.kinds[part.kind]))])
   return (target.direction === 'to-owner' ? words.company.toYou : words.company.fromYou)(what, target.day)
 }
 

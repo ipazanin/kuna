@@ -6,7 +6,7 @@ import { linkEntries, linkEntry, unlinkEntry, writeEntrySplit } from '../src/app
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import type { LinkPlace } from '../src/apps/spending/links/domain/instalmentSplit'
-import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
+import { loanTargetsFrom } from '../src/apps/spending/links/application/loanRecords'
 import { linkLineOf, targetLineOf } from '../src/apps/spending/links/presentation/linkLine'
 import { beyondPlan, linkFiling, linkedEntry, splitByInstalment } from '../src/apps/spending/links/domain/instalmentSplit'
 import type { InstalmentSplit } from '../src/apps/spending/links/domain/instalmentSplit'
@@ -379,7 +379,7 @@ describe('a row linked to a loan instalment', () => {
     const extra: LinkTarget = { kind: 'extra-payment', link: { app: 'loans', kind: 'extra-payment', key: 'e', due: null }, loanName: 'Home loan', day: on('2026-11-21'), amount: moneyFromAmount(2000) }
     const targets = [due('2026-10-20'), INFORMAL, moved('2026-11-01', 'repaid'), moved('2026-11-24', 'borrowed'), extra, due('2026-12-05'), due('2026-11-20'), moved('2026-11-23', 'repaid')]
     const offered = (amount: number, currency = EURO) =>
-      targetsFor({ date: on('2026-11-22'), amount: accountMoneyFromAmount(amount) }, currency, targets).map((target) =>
+      targetsFor({ date: on('2026-11-22'), amount: accountMoneyFromAmount(amount) }, { currency, iban: '' }, targets).map((target) =>
         target.kind === 'instalment' ? target.due : target.kind === 'movement' ? `${target.movement} ${target.day}` : target.kind,
       )
     expect(offered(-650)).toEqual(['2026-11-20', '2026-12-05', 'repaid 2026-11-23', 'extra-payment'])

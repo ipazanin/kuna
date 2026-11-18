@@ -13,6 +13,8 @@ import {
   BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
   BANK_SYNC_DEPLOYMENT_KEY,
   INSTALMENTS_PUT_OFF_KEY,
+  COMPANY_ROLES_PUT_OFF_KEY,
+  COMPANY_PAYMENTS_PUT_OFF_KEY,
   LINKABLE_BANKS,
   PERSON_PAYEES_KEY,
   bankFetchedKey,
@@ -34,6 +36,8 @@ function settingLabel(key: string): string {
     [BANK_ACCOUNTS_NOT_IN_KUNA_KEY]: labels.notInKuna,
     [BANK_ACCOUNTS_KEEP_MINE_KEY]: labels.keepMine,
     [INSTALMENTS_PUT_OFF_KEY]: labels.instalmentsPutOff,
+    [COMPANY_ROLES_PUT_OFF_KEY]: labels.companyRolesPutOff,
+    [COMPANY_PAYMENTS_PUT_OFF_KEY]: labels.companyPaymentsPutOff,
     ...Object.fromEntries(
       LINKABLE_BANKS.flatMap((bank) => [
         [bankLinkKey(bank), labels.bankLink(accountWords.banks[bank])],
