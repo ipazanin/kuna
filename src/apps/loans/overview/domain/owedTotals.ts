@@ -1,7 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { bankLoanFigures } from '../../bankLoans/domain/bankLoanFigures'
+import { bankLoanFigures, owedByYou } from '../../bankLoans/domain/bankLoanFigures'
 import type { BankLoanFigures } from '../../bankLoans/domain/bankLoanFigures'
 import { informalLoanFigures } from '../../informalLoans/domain/informalLoanFigures'
 import type { InformalLoanFigures } from '../../informalLoans/domain/informalLoanFigures'
@@ -9,7 +9,7 @@ import type { LoanDirection } from '../../workbook/domain/informalLoan'
 import type { LoanBook } from '../../workbook/domain/readLoanBook'
 
 export interface OwedTotals {
-  /** What you owe over every loan. */
+  /** What you owe over every loan, your part of each bank loan you took out with others. */
   readonly owed: Money
   /** What others owe you on informal loans, apart from what you owe. */
   readonly owedToYou: Money
@@ -26,7 +26,7 @@ export interface LoanFigures {
 
 /** The totals the Loans Overview and its card on the home lead with, each way by who owes on the day. A bank loan without figures adds nothing. */
 export function owedTotals(loans: LoanFigures): OwedTotals {
-  const owed: Money[] = [...loans.bank.flatMap((figures) => (figures === null ? [] : [figures.owed])), ...loans.informal.map((figures) => figures.owedByYou)]
+  const owed: Money[] = [...loans.bank.flatMap((figures) => (figures === null ? [] : [owedByYou(figures)])), ...loans.informal.map((figures) => figures.owedByYou)]
   const youOwe = owed.filter((amount) => amount > 0)
   const owedToYou = owed.filter((amount) => amount < 0).map(negateMoney)
   return { owed: sumMoney(youOwe), owedToYou: sumMoney(owedToYou), loansYouOwe: youOwe.length, loansOwedToYou: owedToYou.length }

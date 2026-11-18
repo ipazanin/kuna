@@ -9,6 +9,8 @@ import type { Equity } from './equity'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { Percent } from '../../../../shared/money/percent'
+import { partOnDay } from '../../../../shared/money/yourPart'
 
 /** What an asset's figures read of a bank loan: its bare UUID and what you owe on it on the day, null while Loans cannot work out its plan. */
 export interface OwedLoan {
@@ -25,11 +27,13 @@ export type LoansOnDay<Loan extends OwedLoan = OwedLoan> = readonly Loan[] | 'op
  */
 export type LoanLink<Loan extends OwedLoan = OwedLoan> = { readonly kind: 'none' | 'shared' | 'opening' | 'failed' | 'gone' } | { readonly kind: 'linked'; readonly loan: Loan }
 
-/** An asset on the day: its value and how it was reached, its loan, and what is counted and yours. */
+/** An asset on the day: its whole value and how it was reached, your part of it, its loan, and what is counted and yours. */
 export interface AssetOnDay<Loan extends OwedLoan = OwedLoan> {
   readonly asset: Asset
   readonly valuations: readonly Valuation[]
   readonly value: AssetValue | null
+  /** Your part on the day, null when it is all yours. */
+  readonly share: Percent | null
   readonly link: LoanLink<Loan>
   readonly equity: Equity
 }
@@ -46,14 +50,15 @@ function linkOf<Loan extends OwedLoan>({ asset, loanShared }: AssetWithValuation
 export function assetsOnDay<Loan extends OwedLoan>(book: Pick<AssetBook, 'assets'>, day: CivilDate, index: HouseIndexState, loans: LoansOnDay<Loan>): AssetOnDay<Loan>[] {
   const inHand = typeof index === 'object' ? index : null
   return book.assets.map((entry) => {
-    const { asset, valuations } = entry
+    const { asset, valuations, shares } = entry
     const value = assetValueOn(asset, valuations, day, inHand)
+    const share = partOnDay(asset.share, shares, day)
     const link = linkOf(entry, loans)
-    return { asset, valuations, value, link, equity: equityOf(value?.cents ?? null, link.kind === 'linked' ? link.loan : null) }
+    return { asset, valuations, value, share, link, equity: equityOf(value?.cents ?? null, share, link.kind === 'linked' ? link.loan : null) }
   })
 }
 
-/** What the assets add up to on the day: their value, whether it includes an estimate, what is yours after each loan that is known, how many have no value, and whether a home's region waited on an index that failed. */
+/** What the assets add up to on the day: your part of their value, whether it includes an estimate, what is yours after each loan that is known, how many have no value, and whether a home's region waited on an index that failed. */
 export interface AssetsTotal<Loan extends OwedLoan = OwedLoan> {
   readonly value: Money
   readonly estimated: boolean

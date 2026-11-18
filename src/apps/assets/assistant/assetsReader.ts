@@ -14,6 +14,7 @@ import { distinctNames } from '../../../shared/app/distinctNames'
 import { parseCivilDate, today } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { EURO } from '../../../shared/money/currencyCode'
+import { writtenPercent } from '../../../shared/money/percent'
 import { sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
@@ -58,6 +59,11 @@ function assetFields(loans: () => LoansOnScreen): FieldDocs<Asset> {
     region: { exposure: 'plain', meaning: "A home's region for the house price index: zagreb, adriatic or rest, or empty." },
     firstRegistration: { exposure: 'plain', meaning: "A car's first registration, from which the customs table counts its months, or empty." },
     loan: { exposure: 'free-text', meaning: 'The name of the bank loan on it, as Loans lists it, or empty.', read: (asset) => loanNameOf(asset, loans()) },
+    share: {
+      exposure: 'plain',
+      meaning: 'Your part of it from the day it was bought, as a percent such as 50, or empty when it is all yours.',
+      read: (asset) => (asset.share === undefined ? null : `${writtenPercent(asset.share)}%`),
+    },
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
 }

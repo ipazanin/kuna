@@ -5,7 +5,7 @@ The Croatian law three of Kuna's apps build on, each in a folder of its own.
 - `investments/` is the personal income tax law behind the Investments Tax screen (`src/apps/investments/tax/`), for one case: a resident individual who invests through foreign brokers and files their own JOPPD, INO-IZJAVA and INO-DOH.
 - `company/` is the profit tax, VAT, accounting and income tax law behind the Company app's tax classes, state payments (`src/apps/company/packs/hr-doo/preset/`) and business trips, for a Croatian d.o.o. whose accountant keeps the books.
 
-- `assets/` is the customs table of value loss (NN 1/2017) the Assets app estimates a car by.
+- `assets/` is the customs table of value loss (NN 1/2017) the Assets app estimates a car by, and the co-ownership and co-borrower law behind your part of an asset and of a bank loan in the Assets and Loans apps.
 
 Each file gives the rates, codes, days, deadlines and edge cases, with a citation for each and a mark for how sure the research is. `sources/` is shared by all three.
 
@@ -15,20 +15,21 @@ This is research for building software. It is not legal or tax advice. Where the
 
 ## How the docs are organised
 
-| Folder or file                                                      | Holds                                                                                |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [Capital gains](investments/capital-gains.md)                       | Rates by year, the two-year exemption, losses, FIFO, fees, the year a sale counts in |
-| [Foreign capital income](investments/foreign-capital-income.md)     | Dividends and interest from abroad, the credit, US withholding, INO-IZJAVA, INO-DOH  |
-| [Other investment income](investments/other-investment-income.md)   | Stock lending and referral credits                                                   |
-| [JOPPD for investors](investments/joppd-for-investors.md)           | Report mark, report type, codes, the fields Kuna fills, the code-02 line, due dates  |
-| [HNB rates and settlement](investments/hnb-rates-and-settlement.md) | Which HNB list converts a payment, settlement cycles, TARGET days                    |
-| [Filing calendar](investments/filing-calendar.md)                   | Every deadline in one table, each naming the file that owns it                       |
-| [Tax classes](company/tax-classes.md)                               | Each Company category's class, its add-back, its VAT and buckets, and the law        |
-| [State payments](company/state-payments.md)                         | The Naputak's revenue codes, model HR68, the contribution accounts, the seeded rules |
-| [Business trips](company/business-trips.md)                         | Per diems at home and abroad, private car kilometres, meals, the travel order, JOPPD |
-| [Books and kontos](company/books-and-kontos.md)                     | What the accounting act asks, why Kuna ships no chart of accounts                    |
-| [Used car value](assets/used-car-value.md)                          | Tablica 1 of NN 1/2017, how its months count, how the Assets app estimates a car     |
-| `sources/`                                                          | Where to read the law, versions and dates, marks and citations, acts, the watch list |
+| Folder or file                                                           | Holds                                                                                   |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| [Capital gains](investments/capital-gains.md)                            | Rates by year, the two-year exemption, losses, FIFO, fees, the year a sale counts in    |
+| [Foreign capital income](investments/foreign-capital-income.md)          | Dividends and interest from abroad, the credit, US withholding, INO-IZJAVA, INO-DOH     |
+| [Other investment income](investments/other-investment-income.md)        | Stock lending and referral credits                                                      |
+| [JOPPD for investors](investments/joppd-for-investors.md)                | Report mark, report type, codes, the fields Kuna fills, the code-02 line, due dates     |
+| [HNB rates and settlement](investments/hnb-rates-and-settlement.md)      | Which HNB list converts a payment, settlement cycles, TARGET days                       |
+| [Filing calendar](investments/filing-calendar.md)                        | Every deadline in one table, each naming the file that owns it                          |
+| [Tax classes](company/tax-classes.md)                                    | Each Company category's class, its add-back, its VAT and buckets, and the law           |
+| [State payments](company/state-payments.md)                              | The Naputak's revenue codes, model HR68, the contribution accounts, the seeded rules    |
+| [Business trips](company/business-trips.md)                              | Per diems at home and abroad, private car kilometres, meals, the travel order, JOPPD    |
+| [Books and kontos](company/books-and-kontos.md)                          | What the accounting act asks, why Kuna ships no chart of accounts                       |
+| [Used car value](assets/used-car-value.md)                               | Tablica 1 of NN 1/2017, how its months count, how the Assets app estimates a car        |
+| [Co-ownership and co-borrowers](assets/co-ownership-and-co-borrowers.md) | Your part of a co-owned asset and of a loan taken with others, and who the bank can ask |
+| `sources/`                                                               | Where to read the law, versions and dates, marks and citations, acts, the watch list    |
 
 Every file starts with frontmatter that the index below is generated from:
 
@@ -73,6 +74,9 @@ Citations name the act by its abbreviation and the article, as `ZPDoh Art. 67(8)
 | OPZ          | Opći porezni zakon (general tax act)                                   |
 | ZUP          | Zakon o općem upravnom postupku (general administrative procedure act) |
 | CSDR         | Regulation (EU) No 909/2014 on central securities depositories         |
+| ZV           | Zakon o vlasništvu i drugim stvarnim pravima (ownership act)           |
+| ZOO          | Zakon o obveznim odnosima (obligations act)                            |
+| ObZ          | Obiteljski zakon (family act)                                          |
 
 [Acts and issues](sources/acts-and-issues.md) lists every act the Investments files cite, with its NN history, its consolidated text and how the research read it. The company's acts are in the ruleset's act registry (`src/apps/company/packs/hr-doo/ruleset/acts.ts`). [Confidence and citations](sources/confidence-and-citations.md) explains how a citation is written and how values are tied to a year.
 
@@ -97,9 +101,10 @@ Citations name the act by its abbreviation and the article, as `ZPDoh Art. 67(8)
 
 ### `assets/`
 
-| File                                       | Checked through     | Covers                                                                                                                                                        |
-| ------------------------------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Used car value](assets/used-car-value.md) | NN 1/17, 2026-11-04 | The customs table of NN 1/2017 that the Assets app estimates a car by, from its price and first registration, how its months count, and what the table is not |
+| File                                                                     | Checked through       | Covers                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Co-ownership and co-borrowers](assets/co-ownership-and-co-borrowers.md) | NN 132/26, 2026-11-18 | Your part of an asset you own with others and of a bank loan you took with others, what the law presumes when nothing is agreed, who the bank can ask for the whole debt, and how Kuna counts your part |
+| [Used car value](assets/used-car-value.md)                               | NN 1/17, 2026-11-04   | The customs table of NN 1/2017 that the Assets app estimates a car by, from its price and first registration, how its months count, and what the table is not                                           |
 
 ### `company/`
 

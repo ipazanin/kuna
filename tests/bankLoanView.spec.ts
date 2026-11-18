@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { instalmentStandings, seenExtraPaymentDays } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoanFigures } from '../src/apps/loans/bankLoans/domain/bankLoanFigures'
+import { loanMoves, planYearsOnDay } from '../src/apps/loans/bankLoans/domain/planOnDay'
 import { planYears } from '../src/apps/loans/bankLoans/domain/planYears'
 import { bankLoanMoves, planYearsOnScreen } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
 import { wordsFor } from '../src/apps/loans/bankLoans/presentation/words'
@@ -15,7 +16,7 @@ describe("a bank loan's plan by year", () => {
   it('marks only the payments still to come at a variable rate as estimates', () => {
     const loan = bankLoan()
     const periods = [ratePeriod(loan, '2026-02-05', '12'), { ...ratePeriod(loan, '2026-08-05', '6'), rateType: 'variable' as const }]
-    const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
+    const book = { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
 
     const lines = planYears(book, civil('2026-09-20'), new Map()).flatMap((year) => year.lines)
 
@@ -28,7 +29,7 @@ describe("a bank loan's plan on the table", () => {
   it('words each line by how it stands, a late one with the day it went out, and adds nothing else to the plan', () => {
     const loan = bankLoan()
     const periods = [ratePeriod(loan, '2026-02-05', '12')]
-    const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, []) }
+    const book = { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, []) }
     const day = civil('2026-03-20')
 
     const onScreen = planYearsOnScreen(book, day, instalmentStandings(book, [], day))
@@ -45,7 +46,7 @@ describe("a bank loan's plan on the table", () => {
     const loan = bankLoan()
     const periods = [ratePeriod(loan, '2026-02-05', '12')]
     const extras = [extraPayment(loan, '2026-04-10', 200, 'shorter-term'), extraPayment(loan, '2026-06-10', 100, 'shorter-term')]
-    const book = { loan, ratePeriods: periods, extraPayments: extras, lateInstalments: [], plan: loanPlan(loan, periods, extras) }
+    const book = { loan, ratePeriods: periods, extraPayments: extras, shares: [], lateInstalments: [], plan: loanPlan(loan, periods, extras) }
     const day = civil('2026-07-01')
     const payments = [{ kind: 'extra-payment' as const, payment: extras[0]!.id, booked: civil('2026-04-10') }]
 
@@ -60,7 +61,7 @@ describe("a bank loan's plan on the table", () => {
   it('words each instalment by your statement from the first linked one on, the linked row winning over a late record, and marks one not seen', () => {
     const loan = bankLoan()
     const periods = [ratePeriod(loan, '2026-02-05', '12')]
-    const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [lateInstalment(loan, '2026-04-05', '2026-04-08')], plan: loanPlan(loan, periods, []) }
+    const book = { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [lateInstalment(loan, '2026-04-05', '2026-04-08')], plan: loanPlan(loan, periods, []) }
     const payments = [
       { kind: 'instalment' as const, loan: loan.id, due: civil('2026-03-05'), booked: civil('2026-03-03') },
       { kind: 'instalment' as const, loan: loan.id, due: civil('2026-04-05'), booked: civil('2026-04-10') },
@@ -84,7 +85,7 @@ describe("a bank loan's plan on the table", () => {
 describe("a bank loan's figures on a day", () => {
   const loan = bankLoan({ subsidy: { monthly: euros(20), firstInstalment: 1, instalments: 12, payer: 'APN' } })
   const periods = [ratePeriod(loan, '2026-02-05', '12')]
-  const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
+  const book = { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
 
   it('gives what is paid back, what is still to pay and who pays it, and the subsidy instalments to go', () => {
     const figures = bankLoanFigures(book, civil('2026-11-05'))
@@ -103,7 +104,7 @@ describe("what a bank loan's balance chart marks", () => {
     const loan = bankLoan()
     const periods = [ratePeriod(loan, '2026-02-05', '12'), { ...ratePeriod(loan, '2026-06-05', '6'), rateType: 'variable' as const, note: 'Index + margin' }]
     const extras = [extraPayment(loan, '2026-04-20', 300, 'shorter-term'), extraPayment(loan, '2026-09-20', 100, 'shorter-term')]
-    const book = { loan, ratePeriods: periods, extraPayments: extras, lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, extras) }
+    const book = { loan, ratePeriods: periods, extraPayments: extras, shares: [], lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, extras) }
 
     const day = civil('2026-04-30')
 
@@ -119,6 +120,30 @@ describe("what a bank loan's balance chart marks", () => {
     ])
     expect(moves[0]!.amount).toBe(book.plan[1 - 1]!.payment)
     expect(moves.at(-1)!.amount).toBeNull()
+  })
+})
+
+describe('how each row of the plan stands on a day', () => {
+  it('gives a late instalment the day it went out and its days late, and the chart the same instalment with its amount', () => {
+    const loan = bankLoan()
+    const periods = [ratePeriod(loan, '2026-02-05', '12')]
+    const book = { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, []) }
+    const day = civil('2026-03-20')
+    const standings = instalmentStandings(book, [], day)
+
+    expect(
+      planYearsOnDay(book, day, standings)[0]!
+        .lines.slice(0, 3)
+        .map((line) => line.status),
+    ).toEqual([
+      { kind: 'instalment', paid: true, note: null },
+      { kind: 'instalment', paid: true, note: { kind: 'recorded', paid: '2026-03-09', daysLate: 4 } },
+      { kind: 'instalment', paid: false, note: null },
+    ])
+    expect(loanMoves(book, day, standings)).toEqual([
+      { kind: 'instalment', date: '2026-02-05', number: 1, amount: book.plan[0]!.payment, note: null },
+      { kind: 'instalment', date: '2026-03-05', number: 2, amount: book.plan[1]!.payment, note: { kind: 'recorded', paid: '2026-03-09', daysLate: 4 } },
+    ])
   })
 })
 

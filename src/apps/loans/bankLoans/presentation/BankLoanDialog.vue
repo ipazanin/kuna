@@ -117,7 +117,7 @@ async function save(): Promise<void> {
     }
     return
   }
-  const after: BankLoan = { ...newBankLoan(terms), id: book.loan.id }
+  const after: BankLoan = { ...book.loan, ...newBankLoan(terms), id: book.loan.id }
   const firstPeriod = book.ratePeriods.find((period) => period.from === book.loan.firstInstalment) ?? null
   const saved = await writes.write(
     loanWords.value.loanDialog.saved,

@@ -22,6 +22,7 @@ import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
+import { percentFromWhole } from '../../../../../shared/money/percent'
 import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
@@ -301,13 +302,18 @@ const DORA_MOVEMENTS: readonly Movement[] = movementsOf(FROM_DORA, 61, [
  * loan alone, `house-and-car` with the home loan, a car loan and an informal loan you owe and are behind on, each
  * with the same scenarios and offers, `equal-principal` with one equal principal bank loan and nothing else, and `lending`
  * with no bank loan and the informal loans to Petra, to Luka and from Dora, so you are owed more than you owe.
+ * `co-owned` is `one-loan` with the home loan taken out with someone else, half of it yours from its drawdown.
  */
-export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car' | 'equal-principal' | 'lending'
+export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car' | 'equal-principal' | 'lending' | 'co-owned'
 
 /** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up, and its scenarios and offers are never counted as loans. */
 export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample'): WorkbookDocument {
   if (set === 'equal-principal') {
     return { ...emptyLoansDocument(savedAt), records: { ...stored(BANK_LOAN_RECORDS, [FLAT_LOAN]), ...stored(RATE_PERIOD_RECORDS, FLAT_RATE_PERIODS) } }
+  }
+  if (set === 'co-owned') {
+    const alone = fakeLoansDocument(savedAt, 'one-loan')
+    return { ...alone, records: { ...alone.records, ...stored(BANK_LOAN_RECORDS, [{ ...HOME_LOAN, share: percentFromWhole(50) }]) } }
   }
   if (set === 'lending') {
     return {

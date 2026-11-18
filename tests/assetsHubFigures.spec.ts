@@ -57,7 +57,7 @@ const BOAT: Asset = {
 const HOME_LOAN: AssetLoan = { key: HOME_LOAN_UUID, name: 'Home loan', owed: euros(150_000), to: { path: '/loans/bank-loan', query: { loan: HOME_LOAN_UUID } } }
 
 function held(asset: Asset, valuations: readonly Valuation[] = []): AssetWithValuations {
-  return { asset, valuations, loanShared: false }
+  return { asset, valuations, shares: [], loanShared: false }
 }
 
 function valuedOn(asset: Asset, date: string, value: number): Valuation {

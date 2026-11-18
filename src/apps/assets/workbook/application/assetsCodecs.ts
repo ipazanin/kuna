@@ -1,9 +1,10 @@
 import { ASSET_CODEC } from '../domain/assetReading'
+import { ASSET_SHARE_CODEC } from '../domain/assetShareReading'
 import { VALUATION_CODEC } from '../domain/valuationReading'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
-const ASSETS_CODECS = [ASSET_CODEC, VALUATION_CODEC] as readonly RecordCodec<unknown>[]
+const ASSETS_CODECS = [ASSET_CODEC, VALUATION_CODEC, ASSET_SHARE_CODEC] as readonly RecordCodec<unknown>[]
 
 /** The codec of an Assets kind. Throws for a kind the Assets file does not keep. */
 export function codecOfAssetsKind<R>(kind: RecordKind<R>): RecordCodec<R> {

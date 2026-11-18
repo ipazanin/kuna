@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
+import type { Percent } from '../../../../shared/money/percent'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** A flat or house, which the house price index can carry, a car, which the customs table can estimate, or anything else, valued only as typed. */
@@ -26,5 +27,7 @@ export interface Asset {
   readonly firstRegistration: CivilDate | null
   /** The bare UUID of the bank loan on it, as Loans keeps it. Whether Loans still has it is known only on screen. */
   readonly loan: string | null
+  /** Your part of it from the day it was bought, when you own it with others. Absent when it is all yours. Later changes are share changes. */
+  readonly share?: Percent
   readonly note: string
 }

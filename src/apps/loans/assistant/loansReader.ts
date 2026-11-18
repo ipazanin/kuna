@@ -35,7 +35,7 @@ import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { EURO } from '../../../shared/money/currencyCode'
 import { plainAmount } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
-import { nearestBasisPoints, pointsOfShare } from '../../../shared/money/percent'
+import { nearestBasisPoints, pointsOfShare, writtenPercent } from '../../../shared/money/percent'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import type { RecordId } from '../../../shared/storage/domain/recordId'
 import { words } from './words'
@@ -90,6 +90,11 @@ const BANK_LOAN_FIELDS: FieldDocs<BankLoan> = {
         : `${euros(subsidy.monthly)} a month, instalments ${subsidy.firstInstalment} to ${subsidy.firstInstalment + subsidy.instalments - 1}${subsidy.payer === '' ? '' : `, paid by ${subsidy.payer}`}`,
   },
   repayment: { exposure: 'plain', meaning: 'annuity, the same instalment every month, or equal-principal, the same share of principal with the interest on top.' },
+  share: {
+    exposure: 'plain',
+    meaning: 'Your part of what it owes from the payout, as a percent such as 50, or empty when it is all yours.',
+    read: (loan) => (loan.share === undefined ? null : `${writtenPercent(loan.share)}%`),
+  },
   note: { exposure: 'free-text', meaning: "The owner's note." },
 }
 
@@ -224,6 +229,7 @@ function balancesReport(book: LoanBook, period: string | null): readonly ReportF
     if (figures === null) return [{ label: `${named}: rate periods that leave its plan unworked, so it has no figures`, count: 1 }]
     return [
       amount(`${named}: owed`, figures.owed),
+      ...(figures.yours === undefined ? [] : [amount(`${named}: your part of what is owed, which the totals count`, figures.yours)]),
       ...(figures.next === null
         ? []
         : [amount(`${named}: next instalment, due ${figures.next.date}`, figures.next.payment), amount(`${named}: your share of it after the subsidy`, figures.next.yourShare)]),

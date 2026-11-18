@@ -3,6 +3,9 @@ import type { CivilDate } from '../../calendar/civilDate'
 import type { DateRange } from '../../calendar/dateRange'
 import { moneyFromAmount } from '../../money/money'
 import type { Money } from '../../money/money'
+import { percentFromWritten } from '../../money/percent'
+import type { Percent } from '../../money/percent'
+import { isPartOfWhole } from '../../money/yourPart'
 import { keyOfRecordId, recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import type { RecordKind } from './recordKind'
@@ -172,6 +175,18 @@ export function requiredMoney(fields: StoredFields, name: string): Money {
 export function positiveMoney(fields: StoredFields, name: string): Money {
   const money = requiredMoney(fields, name)
   return money > 0 ? money : refuse(words.reasons.notAboveZero(name))
+}
+
+/** Your part of something you hold with others, written as a percent with no sign, so 50 is a half and 0.8 is 0.8%. Null for a blank field. */
+export function optionalPart(fields: StoredFields, name: string): Percent | null {
+  const field = fields[name]
+  if (field === undefined) return null
+  const part = field.number === null ? null : percentFromWritten(field.number)
+  return part !== null && isPartOfWhole(part) ? part : refuse(words.reasons.notAPart(name, field.text))
+}
+
+export function requiredPart(fields: StoredFields, name: string): Percent {
+  return optionalPart(fields, name) ?? refuse(words.reasons.none(name, ''))
 }
 
 /** A year such as 2026, from a number or text. */

@@ -12,7 +12,7 @@ import { bankLoan, informalLoan, movement, ratePeriod } from './fixtures/loans'
 
 function bankBook(loan: BankLoan) {
   const periods = [ratePeriod(loan, loan.firstInstalment, '12')]
-  return { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
+  return { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
 }
 
 function overviewOf(bank: BankLoan[], informal: { loan: InformalLoan; movements: Movement[] }[], day: string) {

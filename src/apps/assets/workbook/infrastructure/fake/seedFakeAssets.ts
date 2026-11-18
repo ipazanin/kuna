@@ -16,7 +16,7 @@ const FAKE_ASSETS_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP-ASSETS'
 
 const DAY = 86_400_000
 
-const SETS: readonly FakeAssetsSet[] = ['sample', 'house-and-car', 'loan-gone']
+const SETS: readonly FakeAssetsSet[] = ['sample', 'house-and-car', 'loan-gone', 'co-owned']
 
 function isSet(variant: string | null): variant is FakeAssetsSet {
   return (SETS as readonly (string | null)[]).includes(variant)

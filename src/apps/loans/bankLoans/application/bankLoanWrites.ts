@@ -3,7 +3,16 @@ import { bookWith, dependentRefusals } from '../../workbook/application/loanWrit
 import type { BankLoan } from '../../workbook/domain/bankLoan'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, LOAN_SCENARIO_RECORDS, RATE_PERIOD_RECORDS, SCENARIO_CHANGE_RECORDS } from '../../workbook/domain/loanKinds'
+import {
+  BANK_LOAN_RECORDS,
+  EXTRA_PAYMENT_RECORDS,
+  LATE_INSTALMENT_RECORDS,
+  LOAN_SCENARIO_RECORDS,
+  LOAN_SHARE_RECORDS,
+  RATE_PERIOD_RECORDS,
+  SCENARIO_CHANGE_RECORDS,
+} from '../../workbook/domain/loanKinds'
+import type { LoanShare } from '../../workbook/domain/loanShare'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { LoansRecords } from '../../workbook/domain/readLoanBook'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -11,15 +20,15 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
 /** Every bank loan kind, since the plan that a late instalment's due date must be on reads them all. */
-const BANK_LOAN_KINDS = [BANK_LOAN_RECORDS, RATE_PERIOD_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS]
+const BANK_LOAN_KINDS = [BANK_LOAN_RECORDS, RATE_PERIOD_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, LOAN_SHARE_RECORDS]
 
-/** A bank loan keeps the rate periods, extra payments, late instalments and scenarios that name it. */
+/** A bank loan keeps the rate periods, extra payments, late instalments, share changes and scenarios that name it. */
 export const BANK_LOAN_WRITES: WriteRules<BankLoan> = {
   kind: BANK_LOAN_RECORDS,
   reads: [...BANK_LOAN_KINDS, LOAN_SCENARIO_RECORDS, SCENARIO_CHANGE_RECORDS],
   undoable: true,
   read: (read, records) => bookWith(BANK_LOAN_RECORDS, read, records).readings.bankLoans,
-  refusals: (_change, fresh, after) => dependentRefusals(['ratePeriods', 'extraPayments', 'lateInstalments', 'loanScenarios'], fresh, after),
+  refusals: (_change, fresh, after) => dependentRefusals(['ratePeriods', 'extraPayments', 'lateInstalments', 'loanShares', 'loanScenarios'], fresh, after),
 }
 
 /** A rate period leaves its loan with a rate from its first instalment, and keeps the due dates late instalments name. */
@@ -40,6 +49,14 @@ export const EXTRA_PAYMENT_WRITES: WriteRules<ExtraPayment> = {
   refusals: (_change, fresh, after) => dependentRefusals(['lateInstalments'], fresh, after),
 }
 
+export const LOAN_SHARE_WRITES: WriteRules<LoanShare> = {
+  kind: LOAN_SHARE_RECORDS,
+  reads: BANK_LOAN_KINDS,
+  undoable: true,
+  read: (read, records) => bookWith(LOAN_SHARE_RECORDS, read, records).readings.loanShares,
+  refusals: () => [],
+}
+
 export const LATE_INSTALMENT_WRITES: WriteRules<LateInstalment> = {
   kind: LATE_INSTALMENT_RECORDS,
   reads: BANK_LOAN_KINDS,
@@ -54,6 +71,7 @@ export function removeBankLoan(unit: UnitOfWork, records: LoansRecords, loan: Ba
   records.ratePeriods.records.filter((stored) => stored.record.loan === loan.id).forEach((stored) => unit.of(RATE_PERIOD_WRITES).remove(stored.record))
   records.extraPayments.records.filter((stored) => stored.record.loan === loan.id).forEach((stored) => unit.of(EXTRA_PAYMENT_WRITES).remove(stored.record))
   records.lateInstalments.records.filter((stored) => stored.record.loan === loan.id).forEach((stored) => unit.of(LATE_INSTALMENT_WRITES).remove(stored.record))
+  records.loanShares.records.filter((stored) => stored.record.loan === loan.id).forEach((stored) => unit.of(LOAN_SHARE_WRITES).remove(stored.record))
   records.loanScenarios.records.filter((stored) => stored.record.start.kind === 'loan' && stored.record.start.loan === loan.id).forEach((stored) => removeScenario(unit, records, stored.record))
 }
 

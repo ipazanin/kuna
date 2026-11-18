@@ -3,10 +3,10 @@ import type { BankLoan, InterimInterest, LoanSubsidy, LoanTerms } from './bankLo
 import { BANK_LOAN_RECORDS } from './loanKinds'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
-import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
+import { amountText, filledFields, partText } from '../../../../shared/storage/domain/recordFields'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { optionalDate, optionalMoney, ownId, positiveMoney, refuse, requiredChoice, requiredDate, textOf, wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
+import { optionalDate, optionalMoney, optionalPart, ownId, positiveMoney, refuse, requiredChoice, requiredDate, textOf, wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 import { words } from './words'
@@ -105,12 +105,13 @@ export function loanTermsFields(terms: LoanTerms): Readonly<Record<(typeof LOAN_
 export function bankLoanOf(fields: StoredFields, id: RecordId | null): BankLoan {
   const name = textOf(fields.name)
   if (name === '') refuse(storedWords.reasons.none('name', ''))
-  return { id: ownId(id), name, ...loanTermsOf(fields), note: textOf(fields.note) }
+  const share = optionalPart(fields, 'share')
+  return { id: ownId(id), name, ...loanTermsOf(fields), ...(share === null ? {} : { share }), note: textOf(fields.note) }
 }
 
 export const BANK_LOAN_CODEC: RecordCodec<BankLoan> = withIdField(
   BANK_LOAN_RECORDS,
   (fields) => labelWords([textOf(fields.name)]),
   bankLoanOf,
-  (loan) => filledFields({ name: loan.name, ...loanTermsFields(loan), note: loan.note }),
+  (loan) => filledFields({ name: loan.name, ...loanTermsFields(loan), share: loan.share === undefined ? null : partText(loan.share), note: loan.note }),
 )

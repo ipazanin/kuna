@@ -2,6 +2,7 @@ import type { BankLoan } from './bankLoan'
 import type { ExtraPayment } from './extraPayment'
 import type { InformalLoan } from './informalLoan'
 import type { LateInstalment } from './lateInstalment'
+import type { LoanShare } from './loanShare'
 import type { Movement } from './movement'
 import type { RatePeriod } from './ratePeriod'
 import type { LoanScenario, ScenarioChange } from '../../scenarios/domain/loanScenario'
@@ -38,4 +39,8 @@ export const LOAN_SCENARIO_RECORDS = recordKind<LoanScenario>('loan-scenario', {
 export const SCENARIO_CHANGE_RECORDS = recordKind<ScenarioChange>('scenario-change', {
   en: { one: 'scenario change', many: 'scenario changes', article: 'a' },
   hr: { one: 'promjena scenarija', of: 'promjene scenarija', few: 'promjene scenarija', other: 'promjena scenarija', gender: 'feminine' },
+})
+export const LOAN_SHARE_RECORDS = recordKind<LoanShare>('loan-share', {
+  en: { one: 'share change', many: 'share changes', article: 'a' },
+  hr: { one: 'promjena udjela', of: 'promjene udjela', few: 'promjene udjela', other: 'promjena udjela', gender: 'feminine' },
 })

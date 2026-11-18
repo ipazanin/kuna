@@ -9,10 +9,14 @@ import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/mont
 import { ZERO, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { wholePercentOf } from '../../../../shared/money/percent'
+import { partOnDay, yourPartOf } from '../../../../shared/money/yourPart'
 
 /** The figures a bank loan's card and page lead with, on a day. */
 export interface BankLoanFigures {
+  /** What the bank is owed on the day. */
   readonly owed: Money
+  /** Your part of it, only for a loan you took out with others. */
+  readonly yours?: Money
   /** The principal repaid by the day, and its whole percent of the principal borrowed. */
   readonly paidBack: Money
   readonly paidBackPercent: number
@@ -36,12 +40,13 @@ export function bankLoanFigures(book: BankLoanBook, day: CivilDate): BankLoanFig
   const { subsidy } = loan
   const lastCovered = subsidyLastCovered(loan)
   const year = yearOf(day)
-  const owed = balanceOn(loan, plan, day)
+  const balance = balanceWithYoursOn(book, plan, day)
+  const { owed } = balance
   const paidBack = day < loan.drawdown ? ZERO : subtractMoney(loan.principal, owed)
   const thisYear = paymentsInYear(plan, year)
   const instalmentsAfter = plan.filter((row) => row.kind === 'instalment' && row.date > day)
   return {
-    owed,
+    ...balance,
     paidBack,
     paidBackPercent: wholePercentOf(paidBack, loan.principal),
     next: next === null ? null : { date: next.date, payment: next.payment, yourShare: next.yourShare },
@@ -61,16 +66,28 @@ export function bankLoanFigures(book: BankLoanBook, day: CivilDate): BankLoanFig
   }
 }
 
+/** What the bank is owed on the day, and your part of it at that day's share for a loan you took out with others. */
+export function balanceWithYoursOn(book: Pick<BankLoanBook, 'loan' | 'shares'>, plan: readonly PlanRow[], day: CivilDate): Pick<BankLoanFigures, 'owed' | 'yours'> {
+  const owed = balanceOn(book.loan, plan, day)
+  const share = partOnDay(book.loan.share, book.shares, day)
+  return share === null ? { owed } : { owed, yours: yourPartOf(owed, share) }
+}
+
+/** What you owe of the loan: your part of it, or all of it when you took it out alone. */
+export function owedByYou(figures: Pick<BankLoanFigures, 'owed' | 'yours'>): Money {
+  return figures.yours ?? figures.owed
+}
+
 /** The day the loan was paid off, once that day has come, or null while it is open or its plan cannot be worked out. */
 export function bankLoanPaidOffOn(book: BankLoanBook, day: CivilDate): CivilDate | null {
   const payoff = book.plan === null ? null : payoffDate(book.plan)
   return payoff !== null && payoff <= day ? payoff : null
 }
 
-/** What the loan owes at each month end from its drawdown to its last payment. */
+/** What the loan owes at each month end from its drawdown to its last payment, with your part at that day's share for a loan you took out with others. */
 export function bankLoanMonths(book: BankLoanBook): MonthBalance[] {
   const { loan, plan } = book
   const end = plan === null ? null : payoffDate(plan)
   if (plan === null || end === null) return []
-  return monthsFrom(monthOf(loan.drawdown), monthOf(end)).map((month) => ({ month, owed: balanceOn(loan, plan, lastDayOf(month)) }))
+  return monthsFrom(monthOf(loan.drawdown), monthOf(end)).map((month) => ({ month, ...balanceWithYoursOn(book, plan, lastDayOf(month)) }))
 }

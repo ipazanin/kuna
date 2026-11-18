@@ -2,6 +2,7 @@ import { BANK_LOAN_CODEC } from '../domain/bankLoanReading'
 import { EXTRA_PAYMENT_CODEC } from '../domain/extraPaymentReading'
 import { INFORMAL_LOAN_CODEC } from '../domain/informalLoanReading'
 import { LATE_INSTALMENT_CODEC } from '../domain/lateInstalmentReading'
+import { LOAN_SHARE_CODEC } from '../domain/loanShareReading'
 import { LOAN_SCENARIO_CODEC } from '../domain/loanScenarioReading'
 import { MOVEMENT_CODEC } from '../domain/movementReading'
 import { RATE_PERIOD_CODEC } from '../domain/ratePeriodReading'
@@ -18,6 +19,7 @@ const LOANS_CODECS = [
   MOVEMENT_CODEC,
   LOAN_SCENARIO_CODEC,
   SCENARIO_CHANGE_CODEC,
+  LOAN_SHARE_CODEC,
 ] as readonly RecordCodec<unknown>[]
 
 /** The codec of a Loans kind. Throws for a kind the Loans file does not keep. */

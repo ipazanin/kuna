@@ -86,7 +86,8 @@ async function save(): Promise<void> {
     }
     return
   }
-  if (await writes.write(words.assetDialog.saved, (unit) => unit.of(ASSET_WRITES).change(before, { ...asset, id: before.id }), { failedTitle: assetsWords.form.notSaved })) open.value = false
+  if (await writes.write(words.assetDialog.saved, (unit) => unit.of(ASSET_WRITES).change(before, { ...before, ...asset, id: before.id }), { failedTitle: assetsWords.form.notSaved }))
+    open.value = false
 }
 
 async function remove(): Promise<void> {

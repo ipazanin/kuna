@@ -1,5 +1,6 @@
 import type { Asset } from './asset'
-import { ASSET_RECORDS, VALUATION_RECORDS } from './assetKinds'
+import { ASSET_RECORDS, ASSET_SHARE_RECORDS, VALUATION_RECORDS } from './assetKinds'
+import type { AssetShare } from './assetShare'
 import type { Valuation } from './valuation'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
@@ -11,26 +12,29 @@ import { words } from './words'
 export interface AssetsRecords {
   readonly assets: RecordsRead<Asset>
   readonly valuations: RecordsRead<Valuation>
+  readonly assetShares: RecordsRead<AssetShare>
 }
 
 /** The kind each part of the records holds. */
 export const ASSET_PARTS: { readonly [Part in keyof AssetsRecords]: RecordKind<AssetsRecords[Part]['records'][number]['record']> } = {
   assets: ASSET_RECORDS,
   valuations: VALUATION_RECORDS,
+  assetShares: ASSET_SHARE_RECORDS,
 }
 
 /** The records of every Assets kind, as `of` gives each kind. */
 export function assetsRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>): AssetsRecords {
-  return { assets: of(ASSET_PARTS.assets), valuations: of(ASSET_PARTS.valuations) }
+  return { assets: of(ASSET_PARTS.assets), valuations: of(ASSET_PARTS.valuations), assetShares: of(ASSET_PARTS.assetShares) }
 }
 
 /** Which records of each kind count, and why the rest do not or are doubted. */
 export type AssetReadings = { readonly [Part in keyof AssetsRecords]: Reading<AssetsRecords[Part]['records'][number]['record']> }
 
-/** An asset with the valuations that name it, oldest first. */
+/** An asset with the valuations and the share changes that name it, each oldest first. */
 export interface AssetWithValuations {
   readonly asset: Asset
   readonly valuations: readonly Valuation[]
+  readonly shares: readonly AssetShare[]
   /** Another asset names its loan too, so neither counts the loan. */
   readonly loanShared: boolean
 }
@@ -49,8 +53,8 @@ export interface AssetBook {
 }
 
 /**
- * Reads the Assets file with the rules across records: a valuation names an asset that counts, is not before the day
- * it was bought, and is the only one of its asset on its day. A bank loan goes on one asset, so two assets that name
+ * Reads the Assets file with the rules across records: a valuation or a share change names an asset that counts, is not
+ * before the day it was bought, and is the only one of its kind for its asset on its day. A bank loan goes on one asset, so two assets that name
  * the same loan both count but are doubted, and neither counts the loan.
  */
 export function readAssetBook(records: AssetsRecords): AssetBook {
@@ -72,11 +76,19 @@ export function readAssetBook(records: AssetsRecords): AssetBook {
     if (asset.bought !== null && valuation.date < asset.bought) return [words.beforeBought(valuation.date, asset.name, asset.bought)]
     return sharingDay.has(`${valuation.asset} ${valuation.date}`) ? [words.valuationSharesDay(asset.name, valuation.date)] : []
   })
-  const readings: AssetReadings = { assets: assetReading, valuations }
+  const changingDay = sharedKeys(records.assetShares.records, (stored) => `${stored.record.asset} ${stored.record.from}`)
+  const assetShares = readEach(records.assetShares, ({ record: change }) => {
+    const asset = assets.get(change.asset)
+    if (asset === undefined) return [words.noAsset]
+    if (asset.bought !== null && change.from < asset.bought) return [words.shareBeforeBought(change.from, asset.name, asset.bought)]
+    return changingDay.has(`${change.asset} ${change.from}`) ? [words.shareChangesSameDay(asset.name, change.from)] : []
+  })
+  const readings: AssetReadings = { assets: assetReading, valuations, assetShares }
   return {
     assets: assetReading.facts.map((asset) => ({
       asset,
       valuations: valuations.facts.filter((valuation) => valuation.asset === asset.id).sort((earlier, later) => earlier.date.localeCompare(later.date)),
+      shares: assetShares.facts.filter((change) => change.asset === asset.id).sort((earlier, later) => earlier.from.localeCompare(later.from)),
       loanShared: sharesLoan(asset),
     })),
     readings,

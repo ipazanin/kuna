@@ -14,7 +14,7 @@ import { bankLoan, informalLoan, movement, ratePeriod } from './fixtures/loans'
 
 function bankBook(loan: BankLoan, withPlan = true) {
   const periods = [ratePeriod(loan, loan.firstInstalment, '12')]
-  return { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: withPlan ? loanPlan(loan, periods, []) : null }
+  return { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [], plan: withPlan ? loanPlan(loan, periods, []) : null }
 }
 
 function informalBook(loan: InformalLoan, movements: ReturnType<typeof movement>[] = []) {

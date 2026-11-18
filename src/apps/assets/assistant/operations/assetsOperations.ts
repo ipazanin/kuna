@@ -169,7 +169,10 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<AssetsBooks>
     return made.get(text) ?? text
   }
   const taken = () => ({
-    assets: [...workbook.assets.map((entry) => ({ ...entry, asset: changedAssets.get(entry.asset.id) ?? entry.asset })), ...addedAssets.map((asset) => ({ asset, valuations: [], loanShared: false }))],
+    assets: [
+      ...workbook.assets.map((entry) => ({ ...entry, asset: changedAssets.get(entry.asset.id) ?? entry.asset })),
+      ...addedAssets.map((asset) => ({ asset, valuations: [], shares: [], loanShared: false })),
+    ],
   })
   const storedAssetOf = (value: unknown): Asset => {
     const id = idOf(value)
@@ -179,7 +182,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<AssetsBooks>
   const entryOf = (value: unknown): AssetWithValuations => {
     const id = idOf(value)
     const added = addedAssets.find((asset) => asset.id === id)
-    const base = workbook.assets.find((entry) => entry.asset.id === id) ?? (added === undefined ? undefined : { asset: added, valuations: [], loanShared: false })
+    const base = workbook.assets.find((entry) => entry.asset.id === id) ?? (added === undefined ? undefined : { asset: added, valuations: [], shares: [], loanShared: false })
     if (base === undefined) throw new StepRefused('That asset is no longer in the file.')
     return { ...base, valuations: [...base.valuations, ...addedValuations.filter((valuation) => valuation.asset === id)] }
   }
@@ -197,7 +200,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<AssetsBooks>
       }
       case 'change-asset': {
         const before = storedAssetOf(field['asset'])
-        const after = { ...newAsset(assetOf(field, before, loans, taken())), id: before.id }
+        const after = { ...before, ...newAsset(assetOf(field, before, loans, taken())), id: before.id }
         unit.of(ASSET_WRITES).change(before, after)
         changedAssets.set(before.id, after)
         break

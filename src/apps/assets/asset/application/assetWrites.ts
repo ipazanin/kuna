@@ -1,21 +1,22 @@
 import { bookWith, dependentRefusals } from '../../workbook/application/assetWriteGuards'
 import type { Asset } from '../../workbook/domain/asset'
-import { ASSET_RECORDS, VALUATION_RECORDS } from '../../workbook/domain/assetKinds'
+import { ASSET_RECORDS, ASSET_SHARE_RECORDS, VALUATION_RECORDS } from '../../workbook/domain/assetKinds'
+import type { AssetShare } from '../../workbook/domain/assetShare'
 import type { AssetsRecords } from '../../workbook/domain/readAssetBook'
 import type { Valuation } from '../../workbook/domain/valuation'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-const ASSET_KINDS = [ASSET_RECORDS, VALUATION_RECORDS]
+const ASSET_KINDS = [ASSET_RECORDS, VALUATION_RECORDS, ASSET_SHARE_RECORDS]
 
-/** An asset keeps the valuations that name it. */
+/** An asset keeps the valuations and the share changes that name it. */
 export const ASSET_WRITES: WriteRules<Asset> = {
   kind: ASSET_RECORDS,
   reads: ASSET_KINDS,
   undoable: true,
   read: (read, records) => bookWith(ASSET_RECORDS, read, records).readings.assets,
-  refusals: (_change, fresh, after) => dependentRefusals(['valuations'], fresh, after),
+  refusals: (_change, fresh, after) => dependentRefusals(['valuations', 'assetShares'], fresh, after),
 }
 
 export const VALUATION_WRITES: WriteRules<Valuation> = {
@@ -26,10 +27,19 @@ export const VALUATION_WRITES: WriteRules<Valuation> = {
   refusals: () => [],
 }
 
-/** Deletes the asset and its valuations in one write, so one Undo puts them all back. */
+export const ASSET_SHARE_WRITES: WriteRules<AssetShare> = {
+  kind: ASSET_SHARE_RECORDS,
+  reads: ASSET_KINDS,
+  undoable: true,
+  read: (read, records) => bookWith(ASSET_SHARE_RECORDS, read, records).readings.assetShares,
+  refusals: () => [],
+}
+
+/** Deletes the asset, its valuations and its share changes in one write, so one Undo puts them all back. */
 export function removeAsset(unit: UnitOfWork, records: AssetsRecords, asset: Asset): void {
   unit.of(ASSET_WRITES).remove(asset)
   records.valuations.records.filter((stored) => stored.record.asset === asset.id).forEach((stored) => unit.of(VALUATION_WRITES).remove(stored.record))
+  records.assetShares.records.filter((stored) => stored.record.asset === asset.id).forEach((stored) => unit.of(ASSET_SHARE_WRITES).remove(stored.record))
 }
 
 /** A new asset, its text trimmed, with an id of its own. */

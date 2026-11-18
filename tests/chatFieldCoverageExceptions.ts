@@ -163,6 +163,14 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
+    reason: 'Your part of an asset, which an edit on the asset dialog or in the chat keeps as it is. Neither sets it until the asset page shows your part.',
+    fields: ['assets: Asset.share'],
+  },
+  {
+    reason: 'Your part of a bank loan, which an edit on the loan dialog or in the chat keeps as it is. Neither sets it until the loan page shows your part.',
+    fields: ['loans: BankLoan.share'],
+  },
+  {
     reason: 'A record stays under the loan or asset it was added to. The screen edits it there and never moves it to another one.',
     fields: ['assets: Valuation.asset', 'loans: RatePeriod.loan', 'loans: ExtraPayment.loan', 'loans: LateInstalment.loan', 'loans: Movement.loan'],
   },

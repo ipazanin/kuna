@@ -297,7 +297,7 @@ describe('the next payment of Loans in Croatian', () => {
     const { plannedLoans, upcomingPayments } = await import('../src/apps/loans/overview/domain/loansTogether')
     const books = bankLoans.map((loan) => {
       const periods = [ratePeriod(loan, loan.firstInstalment, '12')]
-      return { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
+      return { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
     })
     const [next] = upcomingPayments(plannedLoans(books), informalLoans, day, 1)
     const owes = loansHubFigures({ bankLoans: books, informalLoans }, day).parts.find((part) => part.side === 'owes')

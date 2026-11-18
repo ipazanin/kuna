@@ -11,7 +11,7 @@ import { civil, euros } from './fixtures/ledger'
 import { bankLoan, extraPayment, percent, ratePeriod } from './fixtures/loans'
 
 function bookOf(loan: BankLoan, periods: readonly RatePeriod[]): BankLoanBook {
-  return { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
+  return { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
 }
 
 describe('what an extra payment would do', () => {

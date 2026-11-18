@@ -1,4 +1,5 @@
-import { balanceOn, interestOf, isEstimate, paymentsAfter, paymentsDueAfter, paymentsInYear, payoffDate, scheduledPayments } from '../../bankLoans/domain/loanFigures'
+import { balanceWithYoursOn, owedByYou } from '../../bankLoans/domain/bankLoanFigures'
+import { interestOf, isEstimate, paymentsAfter, paymentsDueAfter, paymentsInYear, payoffDate, scheduledPayments } from '../../bankLoans/domain/loanFigures'
 import type { PaymentSplit } from '../../bankLoans/domain/loanFigures'
 import type { PlanRow } from '../../bankLoans/domain/loanPlan'
 import { planPayments } from '../../informalLoans/domain/expectedPlan'
@@ -36,12 +37,12 @@ function monthsOver(loans: readonly PlannedLoan[], startOf: (loan: PlannedLoan) 
   })
 }
 
-/** What each loan owes at each month end, from the earliest drawdown to the last payoff. */
+/** What you owe of each loan at each month end, your part at that day's share, from the earliest drawdown to the last payoff. */
 export function owedByMonth(loans: readonly PlannedLoan[]): LoansMonth[] {
   return monthsOver(
     loans,
     (loan) => loan.loan.drawdown,
-    (loan, month) => balanceOn(loan.loan, loan.plan, lastDayOf(month)),
+    (loan, month) => owedByYou(balanceWithYoursOn(loan, loan.plan, lastDayOf(month))),
   )
 }
 

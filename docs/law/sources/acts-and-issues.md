@@ -29,6 +29,14 @@ Every act and bylaw these docs cite: its abbreviation, its title, the Narodne no
 | ------------ | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------- |
 | PravPPMV     | [Pravilnik o posebnom porezu na motorna vozila](https://narodne-novine.nn.hr/clanci/sluzbeni/2017_01_1_2.html) | 1/17. Later amendments were not looked for | NN page, Art. 9(1), 9(3), 9(4) and Tablica 1 |
 
+## Ownership and obligations
+
+| Abbreviation | Act                                                                                                               | NN issues                                                                                                                     | Read                                                                                                                                  |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| ZV           | [Zakon o vlasništvu i drugim stvarnim pravima](https://narodne-novine.nn.hr/clanci/sluzbeni/1996_10_91_1596.html) | 91/96, 68/98, 137/99, 22/00, 73/00, 129/00, 114/01, 79/06, 141/06, 146/08, 38/09, 153/09, 143/12, 152/14, 81/15, 94/17, 52/25 | NN page of NN 91/96, Art. 36, 37, 38 and 57, checked against the consolidated text on zakon.hr                                        |
+| ZOO          | [Zakon o obveznim odnosima](https://narodne-novine.nn.hr/clanci/sluzbeni/2005_03_35_707.html)                     | 35/05, 41/08, 125/11, 78/15, 29/18, 126/21, 114/22, 156/22, 155/23, 69/26                                                     | NN page of NN 35/05, Art. 14, 41, 42, 43, 52 and 53, checked against the consolidated text on zakon.hr. NN 69/26 changes none of them |
+| ObZ          | [Obiteljski zakon](https://narodne-novine.nn.hr/clanci/sluzbeni/2015_09_103_1992.html)                            | 103/15, 98/19, 47/20, 49/23, 156/23                                                                                           | NN page of NN 103/15, Art. 36(3), checked against the consolidated text on zakon.hr                                                   |
+
 ## Procedure
 
 | Abbreviation | Act                                                                                               | NN issues                                                    | Read                           |

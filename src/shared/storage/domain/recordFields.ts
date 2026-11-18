@@ -1,6 +1,8 @@
 import type { AccountMoney } from '../../money/accountMoney'
 import { plainAmount } from '../../money/money'
 import type { Money } from '../../money/money'
+import { writtenPercent } from '../../money/percent'
+import type { Percent } from '../../money/percent'
 
 /** One field as a record gives it to a storage: text, with a day as `yyyy-mm-dd` and an amount as decimal text, or a flag. */
 export type FieldValue = string | boolean
@@ -11,6 +13,11 @@ export type RecordFields = Readonly<Record<string, FieldValue>>
 /** An amount as decimal text from its cents, such as `-95.49` or `1200.00`. */
 export function amountText(money: AccountMoney | Money): string {
   return plainAmount(money)
+}
+
+/** A part as `optionalPart` reads it back, a percent with no sign, such as `33.33`. */
+export function partText(part: Percent): string {
+  return String(writtenPercent(part))
 }
 
 /** The fields that are filled. A blank text or a missing value is left out, and a false flag is kept. */

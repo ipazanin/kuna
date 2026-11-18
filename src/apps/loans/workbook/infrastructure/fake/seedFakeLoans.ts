@@ -36,7 +36,7 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
   const document =
     variant === 'sample' || variant === 'opening' || variant === 'failed'
       ? fakeLoansDocument(savedAt)
-      : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal' || variant === 'lending'
+      : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal' || variant === 'lending' || variant === 'co-owned'
         ? fakeLoansDocument(savedAt, variant)
         : emptyLoansDocument(savedAt)
   const text = encodeDocument(document)
@@ -47,6 +47,7 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
     variant === 'house-and-car' ||
     variant === 'equal-principal' ||
     variant === 'lending' ||
+    variant === 'co-owned' ||
     variant === 'other-device' ||
     variant === 'opening' ||
     variant === 'failed'

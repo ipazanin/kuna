@@ -3,12 +3,14 @@ import type { ExtraPayment } from './extraPayment'
 import { beforeLoanStarts } from './informalLoan'
 import type { InformalLoan } from './informalLoan'
 import type { LateInstalment } from './lateInstalment'
+import type { LoanShare } from './loanShare'
 import {
   BANK_LOAN_RECORDS,
   EXTRA_PAYMENT_RECORDS,
   INFORMAL_LOAN_RECORDS,
   LATE_INSTALMENT_RECORDS,
   LOAN_SCENARIO_RECORDS,
+  LOAN_SHARE_RECORDS,
   MOVEMENT_RECORDS,
   RATE_PERIOD_RECORDS,
   SCENARIO_CHANGE_RECORDS,
@@ -36,6 +38,7 @@ export interface LoansRecords {
   readonly movements: RecordsRead<Movement>
   readonly loanScenarios: RecordsRead<LoanScenario>
   readonly scenarioChanges: RecordsRead<ScenarioChange>
+  readonly loanShares: RecordsRead<LoanShare>
 }
 
 /** The kind each part of the records holds. */
@@ -48,6 +51,7 @@ export const LOAN_PARTS: { readonly [Part in keyof LoansRecords]: RecordKind<Loa
   movements: MOVEMENT_RECORDS,
   loanScenarios: LOAN_SCENARIO_RECORDS,
   scenarioChanges: SCENARIO_CHANGE_RECORDS,
+  loanShares: LOAN_SHARE_RECORDS,
 }
 
 /** The records of every Loans kind, as `of` gives each kind. */
@@ -61,6 +65,7 @@ export function loansRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>): 
     movements: of(LOAN_PARTS.movements),
     loanScenarios: of(LOAN_PARTS.loanScenarios),
     scenarioChanges: of(LOAN_PARTS.scenarioChanges),
+    loanShares: of(LOAN_PARTS.loanShares),
   }
 }
 
@@ -72,6 +77,8 @@ export interface BankLoanBook {
   readonly loan: BankLoan
   readonly ratePeriods: readonly RatePeriod[]
   readonly extraPayments: readonly ExtraPayment[]
+  /** Your part of what it owes from a day on, oldest first. */
+  readonly shares: readonly LoanShare[]
   readonly lateInstalments: readonly LateInstalment[]
   readonly plan: readonly PlanRow[] | null
 }
@@ -119,7 +126,8 @@ function sharingDay<R extends { readonly loan: RecordId }>(read: RecordsRead<R>,
  * gap and do not overlap. A late instalment names a due date of its loan's plan, once. A bank loan
  * without a rate period at its first instalment counts but is doubted, since its plan cannot be
  * worked out. A scenario of a bank loan names one that counts, a scenario's change names a scenario
- * that counts, and a scenario moves to another bank once at most. Whether a change falls on a due
+ * that counts, and a scenario moves to another bank once at most. A loan's share changes start on its drawdown or after,
+ * one a day at most. Whether a change falls on a due
  * date waits until the scenario is worked out, so a write to a loan is never refused over one.
  */
 export function readLoanBook(records: LoansRecords): LoanBook {
@@ -197,6 +205,14 @@ export function readLoanBook(records: LoansRecords): LoanBook {
     return change.kind === 'move' && movingTwice.has(change.scenario) ? [words.secondMove(scenario.name)] : []
   })
 
+  const sharesChangingDay = sharingDay(records.loanShares, (change) => change.from)
+  const loanShares = readEach(records.loanShares, ({ record: change }) => {
+    const loan = bankLoans.get(change.loan)
+    if (loan === undefined) return [words.noBankLoan]
+    if (change.from < loan.drawdown) return [words.shareBeforeDrawdown(change.from, loan.name, loan.drawdown)]
+    return sharesChangingDay.has(`${change.loan} ${change.from}`) ? [words.shareChangesSameDay(loan.name, change.from)] : []
+  })
+
   const readings: LoanReadings = {
     bankLoans: { facts: bankLoanReading.facts, problems: [...bankLoanReading.problems, ...unplanned] },
     ratePeriods,
@@ -206,12 +222,14 @@ export function readLoanBook(records: LoansRecords): LoanBook {
     movements,
     loanScenarios,
     scenarioChanges,
+    loanShares,
   }
   return {
     bankLoans: bankLoanReading.facts.map((loan) => ({
       loan,
       ratePeriods: ratePeriods.facts.filter((period) => period.loan === loan.id).sort((earlier, later) => earlier.from.localeCompare(later.from)),
       extraPayments: extraPayments.facts.filter((payment) => payment.loan === loan.id),
+      shares: loanShares.facts.filter((change) => change.loan === loan.id).sort((earlier, later) => earlier.from.localeCompare(later.from)),
       lateInstalments: lateInstalments.facts.filter((late) => late.loan === loan.id),
       plan: plans.get(loan.id) ?? null,
     })),

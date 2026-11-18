@@ -6,11 +6,11 @@
  *   npm run check:figures -- --fake <drive, browser, browser-donations, one-employee or five-employees> [--today yyyy-mm-dd]
  *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-loans <sample, house-and-car, equal-principal or lending> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-loans <sample, house-and-car, equal-principal, lending or co-owned> [--today yyyy-mm-dd]
  *   npm run check:figures -- --investments <path to a Kuna Investments file> [--investments-prices <path to its prices file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-assets <sample, house-and-car or loan-gone> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-assets <sample, house-and-car, loan-gone or co-owned> [--today yyyy-mm-dd]
  *   npm run check:figures -- --spending <path to a Kuna Spending file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-spending <sample, foreign, over, statements, cash or receipts> [--today yyyy-mm-dd]
  *
@@ -126,7 +126,7 @@ import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate.ts'
 import { bankLoanFigures, bankLoanMonths, bankLoanPaidOffOn } from '../src/apps/loans/bankLoans/domain/bankLoanFigures.ts'
 import { statementPaymentsFrom } from '../src/apps/loans/bankLoans/application/statementPayments.ts'
 import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments.ts'
-import { bankLoanMoves, planYearsOnScreen } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
+import { loanMoves, planYearsOnDay } from '../src/apps/loans/bankLoans/domain/planOnDay.ts'
 import { savedTries } from '../src/apps/loans/bankLoans/presentation/savedTries.ts'
 import { planStanding, plannedOwed } from '../src/apps/loans/informalLoans/domain/expectedPlan.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
@@ -251,14 +251,14 @@ if (
   (options.rates !== undefined && options.spending === undefined) ||
   (!companyAsked && !loansAsked && !investmentsAsked && !assetsAsked && !spendingAsked) ||
   (options.fake !== undefined && !knownFake) ||
-  (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal', 'lending'].includes(options['fake-loans'])) ||
+  (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal', 'lending', 'co-owned'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
-  (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone'].includes(options['fake-assets'])) ||
+  (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone', 'co-owned'].includes(options['fake-assets'])) ||
   (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal or lending>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash or receipts>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal, lending or co-owned>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car, loan-gone or co-owned>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash or receipts>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -499,17 +499,20 @@ function loansGroups(add) {
   const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
   const { records, workbook } = LOANS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   const statements = statementsOfRun()
-  add('loans.read.records', records)
+  // The share changes have a group of their own, so a file with none keeps the records' digest.
+  const { loanShares, ...kept } = records
+  add('loans.read.records', kept)
+  add('loans.read.shares', loanShares)
   add('loans.read.problems', workbook.problems)
   for (const [index, book] of workbook.bankLoans.entries()) {
     const at = `loans.bank-loan-${index + 1}`
     add(`${at}.plan`, book.plan)
     add(`${at}.figures`, () => [bankLoanFigures(book, today), book.plan && paidSoFar(book.plan, book.lateInstalments, today)])
-    add(`${at}.years`, () => planYearsOnScreen(book, today, instalmentStandings(book, [], today)))
+    add(`${at}.years`, () => planYearsOnDay(book, today, instalmentStandings(book, [], today)))
     add(`${at}.payments`, () => book.plan && [...paymentsByYear(book.plan), splitOfRows(book.plan)])
     add(`${at}.months`, () => bankLoanMonths(book))
     add(`${at}.what-if`, () => whatIfExtraPayment(book, today, moneyFromAmount(1000)))
-    add(`${at}.moves`, () => bankLoanMoves(book, today, instalmentStandings(book, [], today)))
+    add(`${at}.moves`, () => loanMoves(book, today, instalmentStandings(book, [], today)))
     add(`${at}.statements`, () => instalmentStandings(book, statements, today))
     add(`${at}.saved-tries`, () => savedTries(book, workbook.scenarios, today))
     add(`${at}.what-if-rate`, () => {
@@ -686,7 +689,10 @@ function houseIndexOfInput() {
 function assetsGroups(add, loansBook) {
   const document = options.assets === undefined ? fakeAssetsDocument(AT, options['fake-assets']) : decodeDocument(readFileSync(options.assets, 'utf8'))
   const { records, workbook } = ASSETS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
-  add('assets.read.records', records)
+  // The share changes have a group of their own, so a file with none keeps the records' digest.
+  const { assetShares, ...kept } = records
+  add('assets.read.records', kept)
+  add('assets.read.shares', assetShares)
   add('assets.read.problems', workbook.problems)
   const index = houseIndexOfInput()
   const loans = loansBook === null ? null : assetLoansOf(bankLoansOf(loansBook, today))

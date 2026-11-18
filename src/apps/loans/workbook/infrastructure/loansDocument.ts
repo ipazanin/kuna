@@ -6,7 +6,7 @@ import type { WorkbookDocument } from '../../../../shared/storage/infrastructure
 import { newDocument, recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
 
-const LOANS_SCHEMA: WorkbookDocument['schema'] = { loans: 1 }
+const LOANS_SCHEMA: WorkbookDocument['schema'] = { loans: 2 }
 
 /** A Loans file with no records, which a first run keeps on Drive or in this browser. */
 export function emptyLoansDocument(savedAt: string): WorkbookDocument {

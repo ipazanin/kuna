@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
+import type { Percent } from '../../../../shared/money/percent'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** The interest a bank charged from the drawdown up to the date the loan entered repayment, as the bank charged it. */
@@ -37,6 +38,8 @@ export interface BankLoan {
   readonly interimInterest: InterimInterest | null
   readonly subsidy: LoanSubsidy | null
   readonly repayment: (typeof REPAYMENTS)[number]
+  /** Your part of what it owes from its drawdown, when you took it out with others. Absent when it is all yours. Later changes are share changes. */
+  readonly share?: Percent
   readonly note: string
 }
 

@@ -505,7 +505,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
           interimDate: interimGone ? '' : (field['interimDate'] ?? kept.interimDate),
           repayment: choiceOf(REPAYMENTS, field['repayment'], 'repayment') ?? kept.repayment,
         }
-        const after: BankLoan = { ...newBankLoan(loanOf(texts, field['name'] ?? before.name, before.subsidy, field['note'] ?? before.note)), id: before.id }
+        const after: BankLoan = { ...before, ...newBankLoan(loanOf(texts, field['name'] ?? before.name, before.subsidy, field['note'] ?? before.note)), id: before.id }
         unit.of(BANK_LOAN_WRITES).change(before, after)
         printedBy(after.id, field['bankInstalment'])
         const firstPeriod = loanBook.ratePeriods.find((period) => period.from === before.firstInstalment) ?? null

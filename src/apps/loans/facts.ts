@@ -7,7 +7,7 @@ import type { Money } from '../../shared/money/money'
 import { keyOfRecordId, recordIdOf } from '../../shared/storage/domain/recordId'
 import type { RecordId } from '../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../shared/storage/domain/recordKind'
-import { bankLoanFigures } from './bankLoans/domain/bankLoanFigures'
+import { bankLoanFigures, owedByYou } from './bankLoans/domain/bankLoanFigures'
 import { splitOf } from './bankLoans/domain/loanFigures'
 import { bankLoanLink, informalLoanLink } from './overview/presentation/loanLinks'
 import { EXTRA_PAYMENT_WRITES, newExtraPayment } from './bankLoans/application/bankLoanWrites'
@@ -25,19 +25,22 @@ export interface PublishedBankLoan {
   /** The loan's bare UUID, as a record that names it stores it. */
   readonly key: string
   readonly name: string
-  /** Null while its plan cannot be worked out. */
+  /** Your part of what the bank is owed, or all of it for a loan you took out alone. Null while its plan cannot be worked out. */
   readonly owed: Money | null
   readonly to: RouteLocationRaw
 }
 
 /** Every bank loan of the book on the day, for a reader that has the book in hand, such as check:figures. */
 export function bankLoansOf(book: Pick<LoanBook, 'bankLoans'>, day: CivilDate): readonly PublishedBankLoan[] {
-  return book.bankLoans.map((entry) => ({
-    key: keyOfRecordId(BANK_LOAN_RECORDS, entry.loan.id),
-    name: entry.loan.name,
-    owed: bankLoanFigures(entry, day)?.owed ?? null,
-    to: bankLoanLink(entry.loan),
-  }))
+  return book.bankLoans.map((entry) => {
+    const figures = bankLoanFigures(entry, day)
+    return {
+      key: keyOfRecordId(BANK_LOAN_RECORDS, entry.loan.id),
+      name: entry.loan.name,
+      owed: figures === null ? null : owedByYou(figures),
+      to: bankLoanLink(entry.loan),
+    }
+  })
 }
 
 const { state } = useLoansBooks()

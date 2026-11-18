@@ -39,14 +39,14 @@ function homeLoan(owed: number | null): AssetLoan {
 }
 
 function flatWith(loans: LoansOnScreen) {
-  const [shown] = assetsOnDay({ assets: [{ asset: FLAT, valuations: [], loanShared: false }] }, DAY, INDEX, loans)
+  const [shown] = assetsOnDay({ assets: [{ asset: FLAT, valuations: [], shares: [], loanShared: false }] }, DAY, INDEX, loans)
   return { link: shown!.link.kind, equity: shown!.equity }
 }
 
 describe('what is yours after the loan on an asset', () => {
   it('leaves a flat worth 238,884.80 at 88,884.80 yours after the 150,000.00 owed on the Home loan', () => {
     // 238,884.80 − 150,000.00.
-    expect(equityOf(euros(238_884.8), homeLoan(150_000))).toEqual({ value: euros(238_884.8), owed: euros(150_000), yours: euros(88_884.8) })
+    expect(equityOf(euros(238_884.8), null, homeLoan(150_000))).toEqual({ value: euros(238_884.8), owed: euros(150_000), yours: euros(88_884.8) })
     expect(flatWith([homeLoan(150_000)])).toEqual({ link: 'linked', equity: { value: euros(238_884.8), owed: euros(150_000), yours: euros(88_884.8) } })
   })
 
@@ -69,7 +69,7 @@ describe('what is yours after the loan on an asset', () => {
   })
 
   it('shows no loan for an asset that names none', () => {
-    const [shown] = assetsOnDay({ assets: [{ asset: { ...FLAT, loan: null }, valuations: [], loanShared: false }] }, DAY, INDEX, [homeLoan(150_000)])
+    const [shown] = assetsOnDay({ assets: [{ asset: { ...FLAT, loan: null }, valuations: [], shares: [], loanShared: false }] }, DAY, INDEX, [homeLoan(150_000)])
     expect(shown!.link).toEqual({ kind: 'none' })
   })
 

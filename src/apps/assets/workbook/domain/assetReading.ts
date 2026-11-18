@@ -3,9 +3,9 @@ import type { Asset } from './asset'
 import { ASSET_RECORDS } from './assetKinds'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
-import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
+import { amountText, filledFields, partText } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { optionalDate, optionalMoney, ownId, refuse, requiredChoice, textOf } from '../../../../shared/storage/domain/storedFields'
+import { optionalDate, optionalMoney, optionalPart, ownId, refuse, requiredChoice, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 import { words } from './words'
@@ -25,6 +25,7 @@ export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
   if (fields.first_registration !== undefined && kind !== 'car') refuse(words.registrationNotCar)
   const loan = textOf(fields.loan)
   if (loan !== '' && !UUID.test(loan)) refuse(words.notALoan(loan))
+  const share = optionalPart(fields, 'share')
   return {
     id: ownId(id),
     name,
@@ -34,6 +35,7 @@ export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
     region: fields.region === undefined ? null : requiredChoice(fields, 'region', HOUSE_REGIONS),
     firstRegistration: optionalDate(fields, 'first_registration'),
     loan: loan === '' ? null : loan,
+    ...(share === null ? {} : { share }),
     note: textOf(fields.note),
   }
 }
@@ -51,6 +53,7 @@ export const ASSET_CODEC: RecordCodec<Asset> = withIdField(
       region: asset.region,
       first_registration: asset.firstRegistration,
       loan: asset.loan,
+      share: asset.share === undefined ? null : partText(asset.share),
       note: asset.note,
     }),
 )

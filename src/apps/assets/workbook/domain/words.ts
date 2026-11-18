@@ -29,6 +29,8 @@ export const en = {
   notALoan: (text: string) => `loan "${text}" is not the bare UUID of a bank loan`,
   beforeBought: (date: CivilDate, asset: string, bought: CivilDate) => `date ${date} is before "${asset}" was bought on ${bought}`,
   valuationSharesDay: (asset: string, date: CivilDate) => `another valuation of "${asset}" is on ${date} too`,
+  shareBeforeBought: (from: CivilDate, asset: string, bought: CivilDate) => `from ${from} is before "${asset}" was bought on ${bought}`,
+  shareChangesSameDay: (asset: string, from: CivilDate) => `another share change of "${asset}" is from ${from} too`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -42,6 +44,8 @@ export const hr: Translation<typeof en> = {
   notALoan: (text) => `loan „${text}” nije UUID kredita`,
   beforeBought: (date, asset, bought) => `datum ${dayLabel(date)} je prije kupnje „${asset}” ${dayLabel(bought)}`,
   valuationSharesDay: (asset, date) => `i druga procjena „${asset}” ima datum ${dayLabel(date)}`,
+  shareBeforeBought: (from, asset, bought) => `from ${dayLabel(from)} je prije kupnje „${asset}” ${dayLabel(bought)}`,
+  shareChangesSameDay: (asset, from) => `i druga promjena udjela „${asset}” vrijedi od ${dayLabel(from)}`,
 }
 
 export const words = language === 'hr' ? hr : en

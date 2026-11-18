@@ -29,7 +29,7 @@ function sample() {
 
 function bookOf(loan: BankLoan, planned = true): BankLoanBook {
   const periods = [ratePeriod(loan, loan.firstInstalment, '6')]
-  return { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: planned ? loanPlan(loan, periods, []) : null }
+  return { loan, ratePeriods: periods, extraPayments: [], shares: [], lateInstalments: [], plan: planned ? loanPlan(loan, periods, []) : null }
 }
 
 describe('the bank loans Loans publishes', () => {

@@ -28,6 +28,7 @@ export const en = {
     /** A blank field, named as the reader names what it holds. */
     none: (name: string, what: string) => `no ${what === '' ? name : what}`,
     notAboveZero: (name: string) => `${name} must be more than zero`,
+    notAPart: (name: string, text: string) => `${name} "${text}" is not a part above 0 and at most 100, with two decimals at most, such as 50 or 33.33`,
     notAYear: (name: string, text: string) => `${name} "${text}" is not a year`,
     notAChoice: (word: string, name: string, what: string, choices: string) => `"${word}" is not a ${what === '' ? name : what}. Use ${choices}`,
     noId: 'no id, so it is left out. Give it an id in the workbook that no other row holds, or delete the row and add it in the app',
@@ -48,6 +49,7 @@ export const hr: Translation<typeof en> = {
     notANumber: (name, text) => `${name} „${text}” nije broj`,
     none: (name) => `polje ${name} je prazno`,
     notAboveZero: (name) => `polje ${name} mora biti veće od nule`,
+    notAPart: (name, text) => `${name} „${text}” nije dio veći od 0 i najviše 100, s najviše dvije decimale, poput 50 ili 33.33`,
     notAYear: (name, text) => `${name} „${text}” nije godina`,
     notAChoice: (word, name, _what, choices) => `„${word}” nije dopuštena vrijednost polja ${name}. Upotrijebite ${choices}`,
     noId: 'nema id-a, pa je redak izostavljen. U datoteci mu dajte id koji nema nijedan drugi redak ili obrišite redak i dodajte ga u aplikaciji',

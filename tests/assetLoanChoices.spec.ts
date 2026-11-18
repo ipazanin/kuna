@@ -19,7 +19,7 @@ function asset(key: string, loan: string | null): Asset {
 
 const FLAT = asset('flat', HOME_LOAN)
 const CAR = asset('car', null)
-const BOOK = { assets: [FLAT, CAR].map((owned) => ({ asset: owned, valuations: [], loanShared: false })) }
+const BOOK = { assets: [FLAT, CAR].map((owned) => ({ asset: owned, valuations: [], shares: [], loanShared: false })) }
 
 describe('the loans the asset dialog offers', () => {
   it('hides a loan another asset names, and offers the rest after No loan', () => {

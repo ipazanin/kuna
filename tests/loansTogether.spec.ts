@@ -32,7 +32,7 @@ const HOUSE = bankLoan({
 const CAR = bankLoan({ id: recordIdOf(BANK_LOAN_RECORDS, OTHER_UUID), principal: euros(600), drawdown: civil('2026-01-20'), firstInstalment: civil('2026-02-20'), instalments: 6 })
 
 function book(loan: BankLoan, periods: readonly RatePeriod[], extraPayments: readonly ExtraPayment[] = []) {
-  return { loan, ratePeriods: periods, extraPayments, lateInstalments: [], plan: loanPlan(loan, periods, extraPayments) }
+  return { loan, ratePeriods: periods, extraPayments, shares: [], lateInstalments: [], plan: loanPlan(loan, periods, extraPayments) }
 }
 
 const LOANS = plannedLoans([book(HOUSE, [ratePeriod(HOUSE, '2026-02-05', '12')]), book(CAR, [ratePeriod(CAR, '2026-02-20', '0', 'car')])])
