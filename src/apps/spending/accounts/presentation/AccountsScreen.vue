@@ -32,6 +32,7 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
@@ -133,7 +134,7 @@ const adding = ref(false)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in section.rows" :key="row.account.id" data-testid="spending-account-row">
+            <RecordRow v-for="row in section.rows" :key="row.account.id" :to="accountLink(row.account)" data-testid="spending-account-row">
               <th scope="row" class="cell-wraps text-start align-top font-normal">
                 <DrillLink :to="accountLink(row.account)" class="inline-flex items-center gap-1 text-highlighted">
                   <span>{{ row.account.name }}</span
@@ -148,7 +149,7 @@ const adding = ref(false)
                 <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
                 <span v-if="row.euro !== null && row.euro.caption !== ''" class="block type-caption">{{ row.euro.caption }}</span>
               </td>
-            </tr>
+            </RecordRow>
           </tbody>
         </FigureTable>
         <ul v-else class="flex flex-col py-2">

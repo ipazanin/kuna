@@ -242,7 +242,7 @@ async function remove(): Promise<void> {
       <UFormField v-if="paymentItems.length > 0" :label="words.advanceDialog.paidBackBy" :help="words.advanceDialog.paidBackHelp" :error="(tried && errors.paidBackBy) || false" class="sm:col-span-2">
         <PaymentsSelect v-model="paidBackBy" data-testid="advance-paid-back-by" :payments="paymentItems" :none="words.advanceDialog.notPaidBack" :search="words.advanceDialog.searchPayments" />
       </UFormField>
-      <p class="text-xs text-muted">{{ words.advanceDialog.splitInstead }}</p>
+      <p class="type-caption">{{ words.advanceDialog.splitInstead }}</p>
     </FormGrid>
     <template #start>
       <UButton

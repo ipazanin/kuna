@@ -107,7 +107,7 @@ function flaggedByInWords(flaggedBy: string): string {
       <UBadge :label="String(writes.length)" color="neutral" variant="subtle" size="sm" class="figure" data-testid="session-count" />
     </template>
     <div class="mt-3 border-t border-default">
-      <p class="px-4 pt-3 text-xs text-muted sm:px-5">
+      <p class="px-4 pt-3 type-caption sm:px-5">
         {{ words.review.session.about }}
       </p>
       <ol class="mt-2">
@@ -116,8 +116,8 @@ function flaggedByInWords(flaggedBy: string): string {
             <span class="flex min-w-0 items-start gap-2">
               <UIcon :name="iconOf(write)" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
               <span class="min-w-0">
-                <span class="block text-sm text-highlighted">{{ titleOf(write) }}</span>
-                <time :datetime="write.at" class="figure text-xs text-muted">{{ timeFormat(new Date(write.at)) }}</time>
+                <span class="block type-row-title">{{ titleOf(write) }}</span>
+                <time :datetime="write.at" class="figure type-caption">{{ timeFormat(new Date(write.at)) }}</time>
               </span>
             </span>
             <UBadge v-if="wasUndone(write, writes)" :label="storageWords.undone" color="neutral" variant="outline" size="sm" class="shrink-0" />
@@ -141,7 +141,7 @@ function flaggedByInWords(flaggedBy: string): string {
                 <CutText class="min-w-0 text-toned">{{ verdict.after.counterparty || words.noCounterparty }}</CutText>
                 <span class="figure shrink-0 text-muted">{{ dayLabel(verdict.after.date) }}, <MoneyText :cents="verdict.after.amount" tone="flow" /></span>
               </span>
-              <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
+              <span class="flex min-w-0 flex-wrap items-center gap-1.5 type-caption">
                 <span class="verdict">
                   <CategoryChip :category="verdict.before.category" :bucket="bucketOf(verdict.before.category)" />
                   <span>{{ flaggedByInWords(verdict.before.flaggedBy) }}</span>
@@ -153,16 +153,16 @@ function flaggedByInWords(flaggedBy: string): string {
                 </span>
               </span>
             </li>
-            <li v-if="write.receipt.records.length > SHOWN_ROWS" class="text-xs text-muted">
+            <li v-if="write.receipt.records.length > SHOWN_ROWS" class="type-caption">
               {{ plural(words.review.session.moreRows(write.receipt.records.length - SHOWN_ROWS), write.receipt.records.length - SHOWN_ROWS) }}
             </li>
           </ul>
           <ul v-else class="detail-list">
-            <li v-for="(record, index) in write.receipt.records.slice(0, SHOWN_ROWS)" :key="`record-${index}`" class="text-xs text-muted">
+            <li v-for="(record, index) in write.receipt.records.slice(0, SHOWN_ROWS)" :key="`record-${index}`" class="type-caption">
               {{ VERBS[record.change.verb] }} <span class="text-toned">{{ record.label }}</span
               >{{ words.review.session.recordNoun(record.change.kind.noun) }}
             </li>
-            <li v-if="write.receipt.records.length > SHOWN_ROWS" class="text-xs text-muted">{{ words.review.session.more(write.receipt.records.length - SHOWN_ROWS) }}</li>
+            <li v-if="write.receipt.records.length > SHOWN_ROWS" class="type-caption">{{ words.review.session.more(write.receipt.records.length - SHOWN_ROWS) }}</li>
           </ul>
         </li>
       </ol>

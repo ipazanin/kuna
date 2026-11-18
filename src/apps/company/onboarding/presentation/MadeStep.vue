@@ -66,12 +66,12 @@ async function startOver(): Promise<void> {
   <StepCard :title="words.made.title" :subtitle="words.made.subtitle">
     <div v-if="books" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-made">
       <template v-if="onDrive">
-        <p class="text-sm text-muted">{{ words.made.savedIn }}</p>
-        <p v-if="where" class="identifier text-sm font-medium break-words text-highlighted" data-testid="onboarding-made-folder">{{ where.folderName ?? words.made.aDriveFolder }}</p>
-        <p v-else class="text-sm text-toned">{{ words.made.aDriveFolder }}</p>
+        <p class="type-aside">{{ words.made.savedIn }}</p>
+        <p v-if="where" class="identifier type-card-title break-words" data-testid="onboarding-made-folder">{{ where.folderName ?? words.made.aDriveFolder }}</p>
+        <p v-else class="type-body">{{ words.made.aDriveFolder }}</p>
       </template>
-      <p v-else class="text-sm text-muted">{{ words.made.inBrowser }}</p>
-      <p class="flex items-center gap-2 text-sm text-toned">
+      <p v-else class="type-aside">{{ words.made.inBrowser }}</p>
+      <p class="flex items-center gap-2 type-body">
         <UIcon :name="onDrive ? 'i-lucide-file-json' : 'i-lucide-monitor-smartphone'" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span class="min-w-0 break-words" :class="{ identifier: onDrive }">{{ shownName }}</span>
       </p>
@@ -80,7 +80,7 @@ async function startOver(): Promise<void> {
         <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
       </a>
     </div>
-    <p class="text-sm text-toned">{{ onDrive ? words.made.startOverDrive : words.made.startOverBrowser }}</p>
+    <p class="type-body">{{ onDrive ? words.made.startOverDrive : words.made.startOverBrowser }}</p>
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.made.startOverFailed" :description="failure" />
 
     <template #actions>

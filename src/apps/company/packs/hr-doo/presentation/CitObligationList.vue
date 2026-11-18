@@ -67,8 +67,8 @@ const phone = usePhoneLayout()
     <li v-for="line in lines" :key="line.key" class="obligation-card" :data-status="line.status">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <p class="text-sm font-medium" :class="line.status === 'to-come' ? 'text-muted' : 'text-highlighted'">{{ line.label }}</p>
-          <p class="text-xs text-muted">{{ words.citObligations.due(line.dueOn) }}</p>
+          <p :class="line.status === 'to-come' ? 'font-medium type-aside' : 'type-card-title'">{{ line.label }}</p>
+          <p class="type-caption">{{ words.citObligations.due(line.dueOn) }}</p>
         </div>
         <UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" class="shrink-0" />
       </div>
@@ -107,7 +107,7 @@ const phone = usePhoneLayout()
         <tr v-for="line in lines" :key="line.key" :data-status="line.status" :class="{ 'is-to-come': line.status === 'to-come' }">
           <th scope="row" class="text-start font-normal text-toned">
             <CutText class="block">{{ line.label }}</CutText>
-            <span class="block text-xs text-muted @2xl:hidden">{{ words.citObligations.due(line.dueOn) }}</span>
+            <span class="block type-caption @2xl:hidden">{{ words.citObligations.due(line.dueOn) }}</span>
             <UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" class="mt-1 @2xl:hidden" />
           </th>
           <td class="figure hidden text-muted @2xl:table-cell">{{ line.dueOn }}</td>

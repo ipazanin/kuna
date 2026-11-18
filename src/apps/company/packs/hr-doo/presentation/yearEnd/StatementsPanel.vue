@@ -50,28 +50,28 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
         :start-collapsed="index > 0"
       >
         <div class="px-4 pt-3 pb-3 sm:px-3">
-          <p v-if="table.rows.length === 0" class="py-4 text-sm text-muted">{{ words.statements.noneOfThese(year) }}</p>
+          <p v-if="table.rows.length === 0" class="py-4 type-aside">{{ words.statements.noneOfThese(year) }}</p>
           <ComparisonTable v-else :rows="table.rows" :test-id="`comparison-${table.key}`" />
         </div>
         <div v-if="table.key === 'tax' && (view.recorded.length > 0 || view.distribution)" class="flex flex-col gap-2 border-t border-default px-4 py-3 sm:px-5" data-testid="recorded-lines">
-          <h3 class="text-xs font-medium text-muted">{{ words.statements.recorded }}</h3>
+          <h3 class="type-label">{{ words.statements.recorded }}</h3>
           <ul class="flex flex-col">
             <li v-for="entry in view.recorded" :key="entry.key" class="recorded-row">
-              <p class="min-w-0 text-sm text-toned">{{ entry.label }}</p>
-              <p class="text-sm text-highlighted">
+              <p class="min-w-0 type-body">{{ entry.label }}</p>
+              <p class="type-row-title">
                 <MoneyText v-if="'cents' in entry.value" :cents="entry.value.cents" /><template v-else>{{ entry.value.text }}</template>
               </p>
               <div v-if="entry.check" class="recorded-check">
                 <StatusBadge :status="entry.check.status" />
-                <DrillLink :to="entry.check.to" :label="words.statements.findingRows(entry.check.finding)" class="text-xs text-muted">{{ entry.check.finding }}</DrillLink>
+                <DrillLink :to="entry.check.to" :label="words.statements.findingRows(entry.check.finding)" class="type-caption">{{ entry.check.finding }}</DrillLink>
               </div>
             </li>
             <li v-if="view.distribution" class="recorded-row">
-              <p class="min-w-0 text-sm text-toned">{{ words.statements.decisionSharesOut }}</p>
-              <p class="text-sm text-highlighted"><MoneyText :cents="view.distribution.shared" /></p>
+              <p class="min-w-0 type-body">{{ words.statements.decisionSharesOut }}</p>
+              <p class="type-row-title"><MoneyText :cents="view.distribution.shared" /></p>
               <div class="recorded-check">
                 <StatusBadge :status="view.distribution.residual === 0 ? 'matched' : 'open'" />
-                <span class="text-xs text-muted">
+                <span class="type-caption">
                   {{ words.statements.ourProfit }}<MoneyText :cents="view.distribution.profitAfterTax" tone="outcome" /><template v-if="view.distribution.residual !== 0"
                     >{{ words.statements.residualOf }}<MoneyText :cents="view.distribution.residual" sign="always"
                   /></template>
@@ -85,7 +85,7 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
       <AppCard :title="words.statements.kontoTitle" collapse-id="year.konto" :summary="view.kontoSummary" start-collapsed>
         <template #subtitle> {{ words.statements.kontoBefore }}<span class="identifier">categories</span>{{ words.statements.kontoAfter }} </template>
         <div class="px-4 pt-2 pb-3 sm:px-5">
-          <p v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" class="py-4 text-sm text-muted">{{ words.statements.noKonto(year) }}</p>
+          <p v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" class="py-4 type-aside">{{ words.statements.noKonto(year) }}</p>
           <KontoTable v-else :groups="view.konto" :unnamed="view.unnamedKonto" />
         </div>
       </AppCard>

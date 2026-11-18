@@ -12,24 +12,24 @@ defineProps<{
 
 <template>
   <section class="flex flex-col gap-1.5" :aria-label="words.detail.sources">
-    <h4 class="text-xs font-medium text-muted">{{ words.detail.sources }}</h4>
+    <h4 class="type-label">{{ words.detail.sources }}</h4>
     <ul class="flex flex-col gap-1">
       <li v-for="source in sources" :key="source.key">
         <a :href="source.url" target="_blank" rel="noopener noreferrer" class="source-link" data-testid="rule-source">
           <span class="flex items-start gap-1.5">
-            <span class="min-w-0 text-sm text-highlighted">
+            <span class="min-w-0 type-row-title">
               <span lang="hr">{{ source.act }}</span
               >, {{ source.reference }}
             </span>
             <UIcon name="i-lucide-external-link" class="mt-0.5 size-3.5 shrink-0 text-muted" aria-hidden="true" />
           </span>
-          <span class="figure text-xs text-muted">
+          <span class="figure type-caption">
             <span v-if="source.periods !== null" class="text-toned">{{ words.detail.forPeriods(source.periods) }}</span>
             <template v-if="source.issues">{{ source.issues }}. </template>{{ words.detail.checkedOn(source.loadedOn) }}
           </span>
           <span class="sr-only">{{ words.detail.opensInNewTab }}</span>
         </a>
-        <blockquote v-if="source.quote" lang="hr" class="mt-1 border-s-2 border-default ps-3 text-xs text-toned italic">{{ source.quote }}</blockquote>
+        <blockquote v-if="source.quote" lang="hr" class="mt-1 border-s-2 border-default ps-3 type-caption italic">{{ source.quote }}</blockquote>
       </li>
     </ul>
   </section>

@@ -68,7 +68,7 @@ defineProps<{
       <h4 class="build-up-title">{{ words.buildUp.rules }}</h4>
       <ul class="flex flex-wrap gap-x-4 gap-y-1">
         <li v-for="rule in rules" :key="rule.id">
-          <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-sm text-highlighted">{{ rule.title }}</DrillLink>
+          <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="type-row-title">{{ rule.title }}</DrillLink>
         </li>
       </ul>
     </section>

@@ -53,7 +53,7 @@ function daysText(days: number | null): string {
     </div>
     <ul>
       <li v-for="row in rows" :key="row.key" class="days-row">
-        <CutText class="days-name text-sm text-toned">{{ row.name }}</CutText>
+        <CutText class="days-name type-body">{{ row.name }}</CutText>
         <span class="days-strip-area">
           <span class="strip" role="img" :aria-label="words.strip.eachTook(row.name, row.days.map((days) => daysText(days)).join(', '))">
             <span v-for="tick in ticks" :key="tick" class="tick" :style="{ left: at(tick) }" />
@@ -63,9 +63,9 @@ function daysText(days: number | null): string {
         </span>
         <span class="days-figure text-end">
           <DrillLink :to="row.to" :label="words.strip.openPayments(row.name, daysText(row.median))">
-            <span class="figure text-sm font-medium text-highlighted">{{ daysText(row.median) }}</span>
+            <span class="figure type-card-title">{{ daysText(row.median) }}</span>
           </DrillLink>
-          <span class="figure block text-xs text-muted">{{ words.strip.meanOf(daysText(row.mean), row.days.length) }}</span>
+          <span class="figure block type-caption">{{ words.strip.meanOf(daysText(row.mean), row.days.length) }}</span>
         </span>
       </li>
     </ul>

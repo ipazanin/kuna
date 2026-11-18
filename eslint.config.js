@@ -65,6 +65,10 @@ const restrictedClasses = [
     message: '"$0": dimmed ink is the same colour as muted ink, so use text-muted.',
   },
   {
+    pattern: utility(String.raw`max-w-\[[\d.]+ch\]`),
+    message: '"$0": running text takes the one reading width, max-w-prose.',
+  },
+  {
     pattern: utility(String.raw`z-[\d\[(].*`),
     message: '"$0": stack with a named layer, not a number.',
   },
@@ -403,6 +407,10 @@ const kunaPlugin = {
       ],
       "A row of a list that opens a page is a ListRow with to, which draws its arrow on the title's line.",
     ),
+    'record-rows': refusedSyntax(
+      ["VElement[name='tr'] VElement[name='th']:has(VAttribute[directive=false][key.name='scope'][value.value='row']) VElement[rawName=/^(?:DrillLink|drill-link|RouterLink|router-link)$/]"],
+      "A table row that stands for a record is a RecordRow, which opens the record from anywhere on the row. A link in a row's heading cell names the row's record.",
+    ),
     'card-reasons': refusedSyntax(
       ["Property[key.name='reason'] > Literal.value[value=/[A-Za-z]/]", "Property[key.name='reason'] > TemplateLiteral.value > TemplateElement[value.raw=/[A-Za-z]/]"],
       "A card's reason is read by the person, so it comes from the app's words in both languages, never a sentence typed beside the operation.",
@@ -541,6 +549,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     { name: 'kuna/link-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/link-rows': 'error' } },
+    { name: 'kuna/record-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/record-rows': 'error' } },
     { name: 'kuna/all-links', files: ['src/**/*.vue'], rules: { 'kuna/all-links': 'error' } },
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },

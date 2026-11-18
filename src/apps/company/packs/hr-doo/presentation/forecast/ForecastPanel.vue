@@ -47,7 +47,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
       tone="error"
     />
     <template v-else-if="view && chart">
-      <div v-if="view.employment.length > 0 || view.uninvoiced.length > 0 || view.rowsToInvoice > 0" class="flex flex-col gap-2 text-sm text-toned" data-testid="forecast-notices">
+      <div v-if="view.employment.length > 0 || view.uninvoiced.length > 0 || view.rowsToInvoice > 0" class="flex flex-col gap-2 type-body" data-testid="forecast-notices">
         <p v-for="line in view.employment" :key="line" class="flex items-start gap-2">
           <UIcon name="i-lucide-briefcase" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
           <span>{{ line }}</span>
@@ -98,7 +98,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
         data-testid="forecast-cash"
       >
         <div class="px-4 pt-2 pb-3 sm:px-5">
-          <p v-if="view.runway" class="pb-2 text-sm text-toned">{{ words.panel.runwayBefore(view.runway.lasts ?? '') }}<MoneyText :cents="view.runway.monthlyCost" />{{ words.panel.runwayAfter }}</p>
+          <p v-if="view.runway" class="pb-2 type-body">{{ words.panel.runwayBefore(view.runway.lasts ?? '') }}<MoneyText :cents="view.runway.monthlyCost" />{{ words.panel.runwayAfter }}</p>
           <BuildUpList :lines="view.cashMonths" test-id="forecast-cash-months" />
         </div>
       </AppCard>
@@ -112,7 +112,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
         data-testid="forecast-plan-actual"
       >
         <div class="px-4 pt-2 pb-3 sm:px-5">
-          <p v-if="view.planActual.length === 0" class="py-4 text-sm text-muted">{{ words.panel.noPlanToCompare(year) }}</p>
+          <p v-if="view.planActual.length === 0" class="py-4 type-aside">{{ words.panel.noPlanToCompare(year) }}</p>
           <PlanActualList v-else :lines="view.planActual" />
         </div>
       </AppCard>

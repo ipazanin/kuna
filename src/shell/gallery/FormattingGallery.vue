@@ -90,7 +90,7 @@ const MONEY_TEXTS = [
         </p>
       </div>
     </AppCard>
-    <p class="max-w-[65ch] text-sm text-default">
+    <p class="max-w-prose text-sm text-default">
       Travel cost <DrillLink :to="galleryLink" in-prose><MoneyText :cents="moneyFromCents(391000)" /></DrillLink> over the last 12 months, down from
       <DrillLink :to="galleryLink" in-prose><MoneyText :cents="moneyFromCents(512000)" /></DrillLink>. Every figure opens the rows behind it.
     </p>

@@ -65,19 +65,19 @@ function rowsInWords(count: number): string {
     <template v-if="coverage.notCovered.length">
       <header class="group-heading">
         <UIcon name="i-lucide-list-plus" class="size-4 shrink-0 self-center text-muted" aria-hidden="true" />
-        <h3 class="text-sm font-medium text-highlighted">{{ words.coverage.notCovered }}</h3>
-        <span class="figure text-sm text-muted">{{ coverage.notCovered.length }}</span>
-        <p class="basis-full text-xs text-muted">{{ words.coverage.notCoveredHelp }}</p>
+        <h3 class="type-card-title">{{ words.coverage.notCovered }}</h3>
+        <span class="figure type-aside">{{ coverage.notCovered.length }}</span>
+        <p class="basis-full type-caption">{{ words.coverage.notCoveredHelp }}</p>
       </header>
       <ul class="border-t border-default" data-testid="coverage-not-covered">
         <li v-for="group in coverage.notCovered" :key="group.key" class="coverage-row" data-testid="coverage-gap">
           <div class="min-w-0">
             <p class="flex flex-wrap items-baseline gap-x-2">
               <span class="font-medium text-highlighted">{{ group.name || transactionWords.noCounterparty }}</span>
-              <span class="figure text-xs text-muted">{{ rowsInWords(group.rows.length) }}</span>
+              <span class="figure type-caption">{{ rowsInWords(group.rows.length) }}</span>
               <UBadge v-if="group.categories.length > 1" :label="plural(words.coverage.categories(group.categories.length), group.categories.length)" color="warning" variant="subtle" size="sm" />
             </p>
-            <p class="mt-0.5 flex items-center gap-1 text-xs text-muted">
+            <p class="mt-0.5 flex items-center gap-1 type-caption">
               <UIcon :name="group.iban ? 'i-lucide-landmark' : 'i-lucide-store'" class="size-3.5 shrink-0" aria-hidden="true" />
               <span v-if="group.iban" class="identifier break-all">{{ group.iban }}</span>
               <span v-else>{{ words.coverage.byName }}</span>
@@ -85,7 +85,7 @@ function rowsInWords(count: number): string {
             <ul class="mt-2 flex flex-wrap gap-1.5">
               <li v-for="entry in group.categories" :key="entry.category" class="flex items-center gap-1">
                 <CategoryChip :category="entry.category" :bucket="bucketOf(entry.category)" />
-                <span v-if="group.categories.length > 1" class="figure text-xs text-muted">{{ entry.count }}</span>
+                <span v-if="group.categories.length > 1" class="figure type-caption">{{ entry.count }}</span>
               </li>
             </ul>
           </div>
@@ -111,29 +111,29 @@ function rowsInWords(count: number): string {
     <template v-if="coverage.exceptions.length">
       <header class="group-heading">
         <UIcon name="i-lucide-split" class="size-4 shrink-0 self-center text-warning" aria-hidden="true" />
-        <h3 class="text-sm font-medium text-highlighted">{{ words.coverage.exceptions }}</h3>
-        <span class="figure text-sm text-muted">{{ coverage.exceptions.length }}</span>
-        <p class="basis-full text-xs text-muted">{{ words.coverage.exceptionsHelp }}</p>
+        <h3 class="type-card-title">{{ words.coverage.exceptions }}</h3>
+        <span class="figure type-aside">{{ coverage.exceptions.length }}</span>
+        <p class="basis-full type-caption">{{ words.coverage.exceptionsHelp }}</p>
       </header>
       <ul class="border-t border-default" data-testid="coverage-exceptions">
         <li v-for="group in coverage.exceptions" :key="group.key" class="coverage-row" data-testid="coverage-exception">
           <div class="min-w-0">
             <p class="flex flex-wrap items-baseline gap-x-2">
               <span class="font-medium text-highlighted">{{ group.name || transactionWords.noCounterparty }}</span>
-              <span class="figure text-xs text-muted">{{ rowsInWords(group.rows.length) }}</span>
+              <span class="figure type-caption">{{ rowsInWords(group.rows.length) }}</span>
             </p>
-            <p v-if="group.iban" class="mt-0.5 flex items-center gap-1 text-xs text-muted">
+            <p v-if="group.iban" class="mt-0.5 flex items-center gap-1 type-caption">
               <UIcon name="i-lucide-landmark" class="size-3.5 shrink-0" aria-hidden="true" />
               <span class="identifier break-all">{{ group.iban }}</span>
             </p>
-            <p class="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            <p class="mt-2 flex flex-wrap items-center gap-1.5 type-caption">
               <span>{{ words.coverage.personFiled }}</span>
               <span v-for="entry in group.categories" :key="entry.category" class="flex items-center gap-1">
                 <CategoryChip :category="entry.category" :bucket="bucketOf(entry.category)" />
                 <span v-if="group.categories.length > 1" class="figure">{{ entry.count }}</span>
               </span>
             </p>
-            <p class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            <p class="mt-1.5 flex flex-wrap items-center gap-1.5 type-caption">
               <span
                 ><span class="identifier text-toned">{{ group.ruleId }}</span> {{ words.coverage.filesThemAs }}</span
               >

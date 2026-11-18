@@ -131,7 +131,7 @@ watch(
 
 <template>
   <div class="flex flex-col gap-6">
-    <p class="max-w-[75ch] text-sm text-muted">{{ words.intro(checkedOn) }}</p>
+    <p class="max-w-prose type-aside">{{ words.intro(checkedOn) }}</p>
 
     <ChoiceButtons v-model="area" :options="areaChoices" :label="words.area" />
 
@@ -141,13 +141,13 @@ watch(
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" :aria-label="words.clearSearch" @click="search = ''" />
         </template>
       </UInput>
-      <p class="figure text-xs text-muted" aria-live="polite" data-testid="ruleset-count">
+      <p class="figure type-caption" aria-live="polite" data-testid="ruleset-count">
         {{ rulesShown.length === rules.length ? plural(words.count(rules.length), rules.length) : words.shownOf(rulesShown.length, rules.length) }}
       </p>
     </div>
 
     <AppCard v-if="linkedMissing" as="div" class="px-4 py-3" role="status">
-      <p class="text-sm text-toned">
+      <p class="type-body">
         {{ words.linkedMissing.before }} <span class="identifier">{{ linkedRule }}</span
         >{{ words.linkedMissing.after }}
       </p>
@@ -155,7 +155,7 @@ watch(
 
     <WatchList :items="watchShown" :total="watched.length" :checked-on="checkedOn" :searching="searched !== ''" />
 
-    <p v-if="sections.length === 0" class="py-6 text-sm text-muted">
+    <p v-if="sections.length === 0" class="py-6 type-aside">
       {{ words.noMatch(search, area === 'all' ? null : words.areas[area].label) }}
       <UButton :label="words.clearSearch" color="neutral" variant="link" size="sm" class="inline-target" @click="clearSearch" />
     </p>
@@ -166,17 +166,17 @@ watch(
           <dl class="flex max-w-sm flex-col gap-2.5 p-3" data-testid="confidence-legend">
             <div v-for="confidence in CONFIDENCE_ORDER" :key="confidence" class="flex flex-col items-start gap-1">
               <dt><ConfidenceBadge :confidence="confidence" /></dt>
-              <dd class="text-xs text-toned">{{ CONFIDENCE_WORDING[confidence].meaning }}</dd>
+              <dd class="type-caption">{{ CONFIDENCE_WORDING[confidence].meaning }}</dd>
             </div>
-            <p class="text-xs text-muted">{{ words.planningOnly }}</p>
+            <p class="type-caption">{{ words.planningOnly }}</p>
           </dl>
         </InfoPopover>
       </template>
       <section v-for="section in sections" :key="section.area" class="mt-3" :aria-labelledby="`area-${section.area}-title`">
-        <h3 :id="`area-${section.area}-title`" class="area-heading text-sm font-semibold text-highlighted">
+        <h3 :id="`area-${section.area}-title`" class="area-heading type-card-title">
           {{ section.label }} <span class="figure font-normal text-muted">{{ section.rules.length }}</span>
         </h3>
-        <p class="area-description text-xs text-muted">{{ section.description }}</p>
+        <p class="area-description type-caption">{{ section.description }}</p>
         <ul>
           <li v-for="rule in section.rules" :key="rule.id" class="border-t border-default first:border-t-0">
             <ListRow

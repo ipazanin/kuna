@@ -58,9 +58,9 @@ function rowsOf(entry: DismissedSuggestion<Transaction>): string {
         <div class="min-w-0">
           <p class="flex flex-wrap items-baseline gap-x-2">
             <span class="font-medium break-words text-highlighted">{{ nameOf(entry) }}</span>
-            <span class="figure text-xs text-muted">{{ rowsOf(entry) }}</span>
+            <span class="figure type-caption">{{ rowsOf(entry) }}</span>
           </p>
-          <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+          <p class="mt-1 flex flex-wrap items-center gap-1.5 type-caption">
             <span>{{ KIND_LABELS[entry.dismissal.kind] }}</span>
             <CategoryChip v-if="entry.dismissal.category" :category="entry.dismissal.category" :bucket="bucketBySlug.get(entry.dismissal.category) ?? UNCLASSIFIED" />
             <span v-if="entry.dismissal.dismissedOn">{{ words.dismissedCard.dismissedOn(dayLabel(entry.dismissal.dismissedOn)) }}</span>

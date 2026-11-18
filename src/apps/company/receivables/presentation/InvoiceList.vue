@@ -63,17 +63,17 @@ const STATUS = {
       <div class="invoice-head">
         <div class="invoice-id min-w-0">
           <p class="flex min-w-0 items-baseline gap-2">
-            <span class="figure text-sm font-medium whitespace-nowrap text-highlighted">{{ invoice.number }}</span>
-            <CutText v-if="showClient" class="text-xs text-muted">{{ invoice.client }}</CutText>
+            <span class="figure type-card-title whitespace-nowrap">{{ invoice.number }}</span>
+            <CutText v-if="showClient" class="type-caption">{{ invoice.client }}</CutText>
           </p>
-          <CutText v-if="invoice.item" as="p" class="text-xs text-muted">{{ invoice.item }}</CutText>
+          <CutText v-if="invoice.item" as="p" class="type-caption">{{ invoice.item }}</CutText>
         </div>
-        <p class="invoice-timing figure text-xs text-toned">
+        <p class="invoice-timing figure type-caption">
           {{ invoice.issued }}<span :class="invoice.late ? 'text-warning' : 'text-muted'">, {{ invoice.timing }}</span>
         </p>
-        <MoneyText :cents="invoice.amount" class="invoice-amount text-end text-sm font-medium text-highlighted" />
+        <MoneyText :cents="invoice.amount" class="invoice-amount text-end type-card-title" />
         <UBadge :label="STATUS[invoice.status].label" :color="STATUS[invoice.status].color" variant="subtle" size="sm" class="invoice-status justify-self-start" />
-        <p class="invoice-outcome text-xs text-muted">
+        <p class="invoice-outcome type-caption">
           <template v-if="invoice.status === 'paid' && invoice.received">{{ words.list.paidOn(invoice.received) }}</template>
           <template v-else-if="invoice.status === 'paid'">{{ words.list.nothingToPay }}</template>
           <template v-else><MoneyText :cents="invoice.remaining" class="text-toned" /> {{ words.list.stillOwed }}</template>

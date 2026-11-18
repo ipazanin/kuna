@@ -89,7 +89,7 @@ async function proceed(): Promise<void> {
       </FormGrid>
 
       <template v-if="pack">
-        <URadioGroup v-model="packOn" :items="answers" :legend="pack.question" :ui="{ legend: 'text-sm font-medium text-highlighted mb-2', fieldset: 'gap-3' }" data-testid="onboarding-pack" />
+        <URadioGroup v-model="packOn" :items="answers" :legend="pack.question" :ui="{ legend: 'type-card-title mb-2', fieldset: 'gap-3' }" data-testid="onboarding-pack" />
       </template>
       <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.failed" :description="failure" />
     </template>

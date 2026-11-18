@@ -12,7 +12,7 @@ defineProps<{
   <section :id="id" class="flex flex-col gap-4" :aria-labelledby="`${id}-heading`">
     <div>
       <h2 :id="`${id}-heading`" class="text-base font-semibold text-highlighted">{{ title }}</h2>
-      <p v-if="description" class="mt-0.5 max-w-[65ch] type-caption">{{ description }}</p>
+      <p v-if="description" class="mt-0.5 max-w-prose type-caption">{{ description }}</p>
     </div>
     <slot />
   </section>

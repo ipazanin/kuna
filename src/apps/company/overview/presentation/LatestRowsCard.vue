@@ -18,6 +18,7 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /**
  * The five rows the bank booked last on the accounts in view, each opening its row on Transactions, with a link to all of them. The card
@@ -66,7 +67,7 @@ const lines = computed(() =>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="line in lines" :key="line.row.id">
+        <RecordRow v-for="line in lines" :key="line.row.id" :to="line.to">
           <td class="align-top text-toned">{{ line.day }}</td>
           <th scope="row" class="cell-wraps text-start align-top font-normal">
             <DrillLink :to="line.to" class="text-highlighted" data-testid="company-latest-row">{{ line.title }}</DrillLink>
@@ -74,7 +75,7 @@ const lines = computed(() =>
           <td class="cell-wraps align-top text-toned">{{ line.category }}</td>
           <td class="cell-wraps align-top text-toned">{{ line.account }}</td>
           <td class="text-end align-top"><MoneyText :cents="line.row.amount" tone="flow" /></td>
-        </tr>
+        </RecordRow>
       </tbody>
     </FigureTable>
     <ul v-else class="row-list flex flex-col py-2">

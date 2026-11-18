@@ -30,14 +30,14 @@ const phone = usePhoneLayout()
         <div class="flex min-w-0 items-start gap-2">
           <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
           <div class="min-w-0">
-            <CutText as="p" class="text-sm font-medium text-highlighted">{{ row.item }}</CutText>
-            <p class="figure text-xs text-muted">
+            <CutText as="p" class="type-card-title">{{ row.item }}</CutText>
+            <p class="figure type-caption">
               {{ dayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template>
             </p>
-            <CutText v-if="row.description" as="p" class="text-xs text-muted">{{ row.description }}</CutText>
+            <CutText v-if="row.description" as="p" class="type-caption">{{ row.description }}</CutText>
           </div>
         </div>
-        <MoneyText :cents="row.amount" class="shrink-0 text-sm font-medium text-highlighted" />
+        <MoneyText :cents="row.amount" class="shrink-0 type-card-title" />
       </div>
       <div class="mt-1 flex items-center justify-between gap-3">
         <UBadge :label="BILLING_STATUS[row.status].label" :color="BILLING_STATUS[row.status].color" variant="subtle" size="sm" />

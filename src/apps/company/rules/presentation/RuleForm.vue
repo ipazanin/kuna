@@ -88,11 +88,11 @@ function presenceOf(value: DraftCondition['value']): string {
     </FormGrid>
 
     <fieldset class="flex flex-col gap-3">
-      <legend class="text-sm font-medium text-highlighted">{{ words.form.conditions }}</legend>
-      <p class="-mt-1 text-xs text-muted">{{ words.form.conditionsHelp }}</p>
+      <legend class="type-card-title">{{ words.form.conditions }}</legend>
+      <p class="-mt-1 type-caption">{{ words.form.conditionsHelp }}</p>
       <ul v-if="draft.conditions.length" class="flex flex-col gap-2">
         <li v-for="condition in draft.conditions" :key="condition.column" class="condition-row" data-testid="rule-condition">
-          <span class="text-sm text-toned">{{ ruleWords.labels[condition.column] }}</span>
+          <span class="type-body">{{ ruleWords.labels[condition.column] }}</span>
           <USelect
             v-if="condition.column === 'direction'"
             :model-value="String(condition.value).toLowerCase()"
@@ -109,7 +109,7 @@ function presenceOf(value: DraftCondition['value']): string {
             :aria-label="ruleWords.labels[condition.column]"
             @update:model-value="setCondition(condition.column, $event === 'TRUE')"
           />
-          <span v-else-if="FLAG_COLUMNS.has(condition.column)" class="text-xs text-muted">{{ words.form.holds }}</span>
+          <span v-else-if="FLAG_COLUMNS.has(condition.column)" class="type-caption">{{ words.form.holds }}</span>
           <UInput
             v-else
             :model-value="String(condition.value)"
@@ -120,7 +120,7 @@ function presenceOf(value: DraftCondition['value']): string {
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="words.form.remove(ruleWords.labels[condition.column])" @click="setCondition(condition.column, null)" />
         </li>
       </ul>
-      <p v-else class="text-xs text-muted">{{ words.form.noCondition }}</p>
+      <p v-else class="type-caption">{{ words.form.noCondition }}</p>
       <USelect
         v-if="unusedColumns.length"
         :key="draft.conditions.length"

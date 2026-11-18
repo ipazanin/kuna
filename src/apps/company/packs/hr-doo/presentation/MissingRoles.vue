@@ -11,7 +11,7 @@ defineProps<{
 </script>
 
 <template>
-  <div v-if="missing.length > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="missing-roles">
+  <div v-if="missing.length > 0" class="flex items-start gap-2 type-body leading-5" data-testid="missing-roles">
     <UIcon name="i-lucide-tag" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
     <div class="flex flex-col gap-1">
       <p v-for="entry in missing" :key="entry.role">

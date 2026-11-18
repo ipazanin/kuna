@@ -207,7 +207,7 @@ function openDetail(opened: AskableDetail): void {
           <template #footer>
             <ul class="flex flex-col border-t border-default px-4 py-2 sm:px-5" :aria-label="words.panel.warningsAndNotes" data-testid="scenario-warnings">
               <li v-for="{ column, badge } in warningRows" :key="column.key" class="warning-row" :data-scenario-warnings="column.key">
-                <span class="min-w-0 text-sm text-toned">{{ column.label }}</span>
+                <span class="min-w-0 type-body">{{ column.label }}</span>
                 <UPopover v-if="badge" :content="{ side: 'top', align: 'end', collisionPadding: 12 }">
                   <UButton
                     :label="badge.label"
@@ -225,7 +225,7 @@ function openDetail(opened: AskableDetail): void {
                         <NoteLine v-for="warning in column.warnings" :key="warning" as="li" size="body" tone="warning">{{ warning }}</NoteLine>
                       </ul>
                       <ul v-if="column.notes.length > 0" class="flex flex-col gap-1">
-                        <li v-for="note in column.notes" :key="note" class="text-xs text-muted">{{ note }}</li>
+                        <li v-for="note in column.notes" :key="note" class="type-caption">{{ note }}</li>
                       </ul>
                     </div>
                   </template>
@@ -282,8 +282,8 @@ function openDetail(opened: AskableDetail): void {
           <FigureAsk v-for="entry in marginal" :key="entry.title" v-slot="{ ask, askLabel, marked }" :detail="entry">
             <li class="flex items-center gap-1" v-bind="marked">
               <button type="button" class="route-row" :aria-label="words.panel.openRoute(entry.title)" @click="openDetail(entry)">
-                <span class="min-w-0 text-start text-sm text-toned">{{ entry.title }}</span>
-                <MoneyText :cents="entry.cents" class="shrink-0 text-sm font-medium text-highlighted" />
+                <span class="min-w-0 text-start type-body">{{ entry.title }}</span>
+                <MoneyText :cents="entry.cents" class="shrink-0 type-card-title" />
               </button>
               <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
             </li>
@@ -297,8 +297,8 @@ function openDetail(opened: AskableDetail): void {
     <AppDialog v-model:open="startingOpen" :title="words.panel.startFrom" :description="ready ? words.panel.startingDescription(ready.company.takenFrom) : ''">
       <ul class="flex flex-col" data-testid="starting-figures">
         <li v-for="line in companyLines" :key="line.title" class="starting-row">
-          <span class="min-w-0 text-sm text-toned">{{ line.title }}</span>
-          <BuildUpButton :cents="line.cents" :label="line.title" class="shrink-0 text-sm text-highlighted" @open="openDetail(line)" />
+          <span class="min-w-0 type-body">{{ line.title }}</span>
+          <BuildUpButton :cents="line.cents" :label="line.title" class="shrink-0 type-row-title" @open="openDetail(line)" />
         </li>
       </ul>
     </AppDialog>

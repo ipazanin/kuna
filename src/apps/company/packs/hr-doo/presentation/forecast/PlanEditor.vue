@@ -134,7 +134,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
 <template>
   <AppCard :title="words.plan.title(year)" :subtitle="words.plan.subtitle" data-testid="plan-editor">
     <div class="flex flex-col gap-5 px-4 pt-3 pb-4 sm:px-5">
-      <p class="flex items-start gap-2 text-sm text-toned" data-testid="plan-revenue">
+      <p class="flex items-start gap-2 type-body" data-testid="plan-revenue">
         <UIcon name="i-lucide-receipt-text" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
         <span>
           {{ words.plan.revenue }}
@@ -143,7 +143,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
       </p>
       <section class="flex flex-col gap-2" data-testid="plan-owner-pay">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-sm font-medium text-highlighted">{{ words.plan.ownerPay }}</h3>
+          <h3 class="type-card-title">{{ words.plan.ownerPay }}</h3>
           <UButton
             v-if="scenarios.length > 0"
             :label="ownerPayLines.length === 0 ? words.plan.planOwnerPay : words.plan.change"
@@ -155,7 +155,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
             @click="ownerPayOpen = true"
           />
         </div>
-        <p class="text-sm text-toned">
+        <p class="type-body">
           <template v-if="ownerPayWords">{{ withFullStop(ownerPayWords) }}</template>
           <template v-else-if="scenarios.length === 0">
             {{ words.plan.noScenarioBefore(year)
@@ -168,8 +168,8 @@ function editPurchase(purchase: PurchaseLine | null): void {
       </section>
 
       <section class="flex flex-col gap-1" data-testid="plan-categories">
-        <h3 class="text-sm font-medium text-highlighted">{{ words.plan.categories }}</h3>
-        <p v-if="entries.length === 0" class="py-2 text-sm text-muted">{{ words.plan.noCategory }}</p>
+        <h3 class="type-card-title">{{ words.plan.categories }}</h3>
+        <p v-if="entries.length === 0" class="py-2 type-aside">{{ words.plan.noCategory }}</p>
         <ul v-else class="flex flex-col">
           <li v-for="entry in entries" :key="entry.category.slug">
             <button
@@ -182,8 +182,8 @@ function editPurchase(purchase: PurchaseLine | null): void {
               @click="editCategory(entry)"
             >
               <span class="min-w-0 text-start">
-                <span class="block text-sm text-toned">{{ entry.name }}</span>
-                <span class="block text-xs text-muted">{{ entry.caption }}</span>
+                <span class="block type-body">{{ entry.name }}</span>
+                <span class="block type-caption">{{ entry.caption }}</span>
                 <span v-for="reason in entry.reasons" :key="reason" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(reason) }}</span>
               </span>
               <UIcon v-if="!(ownerPaySet && isOwnerPayCost(entry.category))" name="i-lucide-pencil" class="size-4 shrink-0 text-muted" aria-hidden="true" />
@@ -194,10 +194,10 @@ function editPurchase(purchase: PurchaseLine | null): void {
 
       <section class="flex flex-col gap-1" data-testid="plan-purchases">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-sm font-medium text-highlighted">{{ words.plan.purchases }}</h3>
+          <h3 class="type-card-title">{{ words.plan.purchases }}</h3>
           <UButton :label="words.plan.planPurchase" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="plan-add-purchase" @click="editPurchase(null)" />
         </div>
-        <p v-if="purchases.length === 0" class="py-2 text-sm text-muted">{{ words.plan.nonePlanned }}</p>
+        <p v-if="purchases.length === 0" class="py-2 type-aside">{{ words.plan.nonePlanned }}</p>
         <ul v-else class="flex flex-col">
           <li v-for="purchase in purchases" :key="purchase.id">
             <button
@@ -208,11 +208,11 @@ function editPurchase(purchase: PurchaseLine | null): void {
               @click="editPurchase(purchase)"
             >
               <span class="min-w-0 text-start">
-                <span class="block text-sm text-toned">{{ purchase.note || words.plan.purchase }}</span>
-                <span class="block text-xs text-muted">{{ dayLabel(purchase.date) }}, {{ uncapitalised(GROUP_WORDS[purchase.group]) }}</span>
+                <span class="block type-body">{{ purchase.note || words.plan.purchase }}</span>
+                <span class="block type-caption">{{ dayLabel(purchase.date) }}, {{ uncapitalised(GROUP_WORDS[purchase.group]) }}</span>
                 <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(notCounted.get(purchase.id) ?? '') }}</span>
               </span>
-              <MoneyText :cents="purchase.amount" class="shrink-0 text-sm text-toned" />
+              <MoneyText :cents="purchase.amount" class="shrink-0 type-body" />
             </button>
           </li>
         </ul>
@@ -220,7 +220,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
 
       <section class="flex flex-col gap-1" data-testid="plan-dividend">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-sm font-medium text-highlighted">{{ words.plan.dividend }}</h3>
+          <h3 class="type-card-title">{{ words.plan.dividend }}</h3>
           <UButton
             v-if="dividend === null"
             :label="words.plan.planDividend"
@@ -232,14 +232,14 @@ function editPurchase(purchase: PurchaseLine | null): void {
             @click="dividendOpen = true"
           />
         </div>
-        <p v-if="dividend === null" class="py-2 text-sm text-muted">{{ words.plan.noDividend }}</p>
+        <p v-if="dividend === null" class="py-2 type-aside">{{ words.plan.noDividend }}</p>
         <button v-else type="button" class="plan-row" :aria-label="words.plan.editDividend" data-testid="plan-dividend-row" @click="dividendOpen = true">
           <span class="min-w-0 text-start">
-            <span class="block text-sm text-toned">{{ words.plan.paidIn(dividend.month === null ? String(year) : monthLabel(monthKey(year, dividend.month))) }}</span>
-            <span v-if="dividend.note" class="block text-xs text-muted">{{ dividend.note }}</span>
+            <span class="block type-body">{{ words.plan.paidIn(dividend.month === null ? String(year) : monthLabel(monthKey(year, dividend.month))) }}</span>
+            <span v-if="dividend.note" class="block type-caption">{{ dividend.note }}</span>
             <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(notCounted.get(dividend.id) ?? '') }}</span>
           </span>
-          <MoneyText :cents="dividend.amount" class="shrink-0 text-sm text-toned" />
+          <MoneyText :cents="dividend.amount" class="shrink-0 type-body" />
         </button>
       </section>
     </div>

@@ -38,7 +38,7 @@ const total = computed(() => props.fills.reduce((sum, fill) => sum + fill.target
           <span class="figure text-muted">{{ plural(words.fillDialog.rows(fill.targets.length), fill.targets.length) }}</span>
         </li>
       </ul>
-      <p class="text-sm text-toned">{{ words.fillDialog.keepTheirs }}</p>
+      <p class="type-body">{{ words.fillDialog.keepTheirs }}</p>
     </div>
     <template #end>
       <UButton :label="words.fillDialog.cancel" color="neutral" variant="ghost" @click="open = false" />

@@ -89,17 +89,17 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
     <section v-for="list in lists" :key="list.key" class="flex flex-col gap-2" :data-testid="`backtest-${list.key}`">
       <header class="flex items-baseline gap-2">
         <UIcon :name="list.icon" class="size-4 shrink-0 self-center" :class="list.tone" aria-hidden="true" />
-        <h3 class="text-sm font-medium text-highlighted">{{ list.title }}</h3>
-        <span class="figure text-sm text-muted">{{ list.changes.length }}</span>
+        <h3 class="type-card-title">{{ list.title }}</h3>
+        <span class="figure type-aside">{{ list.changes.length }}</span>
       </header>
-      <p class="-mt-1 text-xs text-muted">{{ list.help }}</p>
+      <p class="-mt-1 type-caption">{{ list.help }}</p>
       <ul v-if="list.changes.length" class="overflow-hidden rounded-control border border-default">
         <li v-for="change in shown(list.changes)" :key="change.transaction.id" class="backtest-row">
           <span class="flex min-w-0 items-baseline justify-between gap-3">
-            <CutText class="min-w-0 text-sm text-highlighted">{{ change.transaction.counterparty || transactionWords.noCounterparty }}</CutText>
+            <CutText class="min-w-0 type-row-title">{{ change.transaction.counterparty || transactionWords.noCounterparty }}</CutText>
             <MoneyText :cents="change.transaction.amount" tone="flow" class="shrink-0 text-sm" />
           </span>
-          <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
+          <span class="flex min-w-0 flex-wrap items-center gap-1.5 type-caption">
             <span class="figure">{{ dayLabel(change.transaction.date) }}</span>
             <span class="verdict-pair">
               <span>{{ list.fromLabel }}</span>
@@ -110,13 +110,11 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
               <span v-if="change.after.flaggedBy === 'ai'" class="text-muted">{{ words.backtest.waitsForReview }}</span>
             </span>
           </span>
-          <span v-if="change.from !== change.transaction.category" class="text-xs text-muted" data-testid="backtest-stored">{{
-            words.backtest.storedAs(names.category(change.transaction.category))
-          }}</span>
+          <span v-if="change.from !== change.transaction.category" class="type-caption" data-testid="backtest-stored">{{ words.backtest.storedAs(names.category(change.transaction.category)) }}</span>
         </li>
-        <li v-if="list.changes.length > SHOWN_ROWS" class="px-3 py-2 text-xs text-muted">{{ words.backtest.more(list.changes.length - SHOWN_ROWS) }}</li>
+        <li v-if="list.changes.length > SHOWN_ROWS" class="px-3 py-2 type-caption">{{ words.backtest.more(list.changes.length - SHOWN_ROWS) }}</li>
       </ul>
-      <p v-else class="text-xs text-muted">{{ words.backtest.none }}</p>
+      <p v-else class="type-caption">{{ words.backtest.none }}</p>
     </section>
 
     <UCheckbox v-if="needsAcceptance && preview.refusals.length === 0" v-model="accepted" :label="words.backtest.accept" :description="words.backtest.acceptHelp" data-testid="accept-backtest" />

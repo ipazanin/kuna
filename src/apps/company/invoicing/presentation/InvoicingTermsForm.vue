@@ -131,8 +131,8 @@ function updateInvoicing(field: InvoicingField, value: string): void {
 <template>
   <form class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft)">
     <fieldset class="flex flex-col gap-3" data-testid="billing-terms">
-      <legend class="text-sm font-medium text-highlighted">{{ words.terms.billingPlan }}</legend>
-      <p class="-mt-1 text-xs text-muted">{{ words.terms.billingIntro }}</p>
+      <legend class="type-card-title">{{ words.terms.billingPlan }}</legend>
+      <p class="-mt-1 type-caption">{{ words.terms.billingIntro }}</p>
       <FormGrid>
         <template v-for="term in BILLING_TERMS" :key="term.amount">
           <UFormField :label="term.label" :error="errors[term.amount] ?? false" :help="term.help">
@@ -170,8 +170,8 @@ function updateInvoicing(field: InvoicingField, value: string): void {
     </fieldset>
 
     <fieldset class="flex flex-col gap-3" data-testid="invoicing-terms">
-      <legend class="text-sm font-medium text-highlighted">{{ words.terms.invoices }}</legend>
-      <p class="-mt-1 text-xs text-muted">{{ words.terms.invoicesIntro }}</p>
+      <legend class="type-card-title">{{ words.terms.invoices }}</legend>
+      <p class="-mt-1 type-caption">{{ words.terms.invoicesIntro }}</p>
       <FormGrid>
         <UFormField
           v-for="entry in INVOICING_FIELDS"

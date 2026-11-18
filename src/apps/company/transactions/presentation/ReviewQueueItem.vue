@@ -130,23 +130,23 @@ function recategorise(category: string | undefined): void {
     </ListRow>
 
     <div v-if="expanded && picked === null" class="flex flex-col gap-3 bg-elevated px-4 pb-4 sm:px-5" data-testid="review-details">
-      <p v-if="transaction.description" class="text-sm text-toned">{{ transaction.description }}</p>
+      <p v-if="transaction.description" class="type-body">{{ transaction.description }}</p>
 
       <FactGrid :facts="facts">
         <template #value="{ fact }">
           <span v-if="fact.look === 'verdict'" class="flex flex-wrap items-center gap-1.5">
             <CategoryChip :category="verdict.category" :bucket="bucketOf(verdict.category)" />
-            <span v-if="verdict.ruleId" class="text-xs text-muted">
+            <span v-if="verdict.ruleId" class="type-caption">
               {{ words.review.item.by }} <span class="identifier">{{ verdict.ruleId }}</span
               >{{ verdict.flaggedBy === 'ai' ? words.review.item.sendsToReview : '' }}
             </span>
-            <span v-else class="text-xs text-muted">{{ words.review.item.noRuleDecides }}</span>
+            <span v-else class="type-caption">{{ words.review.item.noRuleDecides }}</span>
           </span>
-          <span v-else class="text-sm text-default" :class="{ 'identifier break-all': fact.look === 'identifier' }">{{ fact.value }}</span>
+          <span v-else class="type-body" :class="{ 'identifier break-all': fact.look === 'identifier' }">{{ fact.value }}</span>
         </template>
       </FactGrid>
 
-      <p v-if="!confirmable" class="text-xs text-muted">{{ words.review.item.notConfirmable }}</p>
+      <p v-if="!confirmable" class="type-caption">{{ words.review.item.notConfirmable }}</p>
       <div class="flex flex-wrap items-center gap-2 pt-1">
         <UButton
           v-if="confirmable"

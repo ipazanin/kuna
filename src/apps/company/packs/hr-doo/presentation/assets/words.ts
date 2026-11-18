@@ -68,7 +68,7 @@ export const en = {
       'Against the rates the workbook asks for, year by year. More depreciation lowers profit before tax. The profit tax change is the profit change at the corporate tax rate of the year.',
     changesGrant: "A grant released with the depreciation of the assets it paid for rises with it, so those assets change profit only once the grant's variable part runs out.",
     registerTitle: 'Asset register',
-    registerSubtitle: "From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule.",
+    registerSubtitle: 'From the assets tab. An asset opens the ledger payment that bought it, and its rate opens the rule.',
     noPaymentBefore: (assets: string) => `No ledger payment found for ${assets}. Put the bank reference, or words from the bank description, in its `,
     noPaymentAfter: ' under Asset rows.',
     linkGone: (_count: number, assets: string): EnglishForms => ({
@@ -240,7 +240,7 @@ export const hr: Translation<typeof en> = {
       'U odnosu na stope koje traži datoteka, godinu po godinu. Veća amortizacija smanjuje dobit prije oporezivanja. Promjena poreza na dobit je promjena dobiti po stopi poreza na dobit za tu godinu.',
     changesGrant: 'Potpora koja se priznaje s amortizacijom sredstava koja je platila raste s njom, pa ta sredstva mijenjaju dobit tek kad se potroši varijabilni dio potpore.',
     registerTitle: 'Popis dugotrajne imovine',
-    registerSubtitle: 'S lista „assets”. Naziv sredstva otvara plaćanje iz evidencije kojim je kupljeno, a njegova stopa otvara odredbu.',
+    registerSubtitle: 'S lista „assets”. Sredstvo otvara plaćanje iz evidencije kojim je kupljeno, a njegova stopa otvara odredbu.',
     noPaymentBefore: (assets) => `Za ${assets} nije pronađeno plaćanje u evidenciji. Upišite bankovnu referencu ili riječi iz opisa banke u polje `,
     noPaymentAfter: ' pod Retci sredstava.',
     linkGone: (_count, assets) => ({

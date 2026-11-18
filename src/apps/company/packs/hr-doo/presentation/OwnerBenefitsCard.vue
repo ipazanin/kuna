@@ -91,9 +91,9 @@ const dialogOpen = ref(false)
 
 <template>
   <AppCard v-if="benefits.payments === 0" :title="title" :subtitle="period" data-testid="owner-benefits">
-    <div class="flex flex-col gap-1 px-4 pt-1 pb-4 text-sm text-toned sm:px-5">
+    <div class="flex flex-col gap-1 px-4 pt-1 pb-4 type-body sm:px-5">
       <p>{{ words.benefits.noneShared(period) }}</p>
-      <DrillLink :to="DEFAULTS" class="self-start text-xs text-highlighted" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
+      <DrillLink :to="DEFAULTS" class="self-start type-label" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
     </div>
   </AppCard>
   <DonutCard
@@ -124,11 +124,11 @@ const dialogOpen = ref(false)
             <MoneyText :cents="comparison.asDividend" class="shrink-0 text-highlighted" />
           </p>
         </template>
-        <p v-else-if="comparison.state === 'unregistered'" class="note text-sm text-toned">
+        <p v-else-if="comparison.state === 'unregistered'" class="note type-body">
           {{ words.benefits.dividendNeeds }}
           <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.benefits.setOnSettings }}</DrillLink>
         </p>
-        <p v-else class="note text-sm text-toned">{{ words.benefits.notWorkedOut(comparison.failure) }}</p>
+        <p v-else class="note type-body">{{ words.benefits.notWorkedOut(comparison.failure) }}</p>
         <div class="note flex flex-col items-start gap-1 text-xs">
           <p class="text-muted">{{ ESTIMATE }}</p>
           <DrillLink :to="DEFAULTS" class="text-highlighted" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>

@@ -15,6 +15,7 @@ import { formatCurrencyAmount, formatPercent, formatQuantity, formatShare, forma
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
@@ -91,7 +92,12 @@ function heldLine(holding: HoldingFigures): string {
         </td>
         <td class="figure text-end">{{ group.weight === null ? '' : formatShare(group.weight) }}</td>
       </tr>
-      <tr v-for="line in group.lines" :key="line.kind === 'cash' ? `${line.balance.account}|${line.balance.currency}` : line.holding.instrument.id" data-testid="holding-line">
+      <RecordRow
+        v-for="line in group.lines"
+        :key="line.kind === 'cash' ? `${line.balance.account}|${line.balance.currency}` : line.holding.instrument.id"
+        :to="line.kind === 'cash' ? null : holdingLink(line.holding.instrument)"
+        data-testid="holding-line"
+      >
         <template v-if="line.kind === 'cash'">
           <td class="text-end"><LastDayChange v-if="line.balance.lastDay !== null && line.balance.currency !== EURO" :change="line.balance.lastDay" /></td>
           <th scope="row" class="cell-wraps text-start font-normal">
@@ -136,7 +142,7 @@ function heldLine(holding: HoldingFigures): string {
           </td>
           <td class="figure text-end">{{ line.holding.weight === null ? '' : formatShare(line.holding.weight) }}</td>
         </template>
-      </tr>
+      </RecordRow>
     </tbody>
     <tfoot>
       <tr>

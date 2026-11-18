@@ -181,7 +181,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
 
 <template>
   <div class="flex flex-col gap-6">
-    <p v-if="owed.otherFilters" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="owner-owed-filters">
+    <p v-if="owed.otherFilters" class="flex items-start gap-2 type-body leading-5" data-testid="owner-owed-filters">
       <UIcon name="i-lucide-funnel-x" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
       <span>{{ words.owed.otherFilters }}</span>
     </p>
@@ -190,7 +190,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       <KpiTile v-for="tile in owed.tiles" :key="tile.label" v-bind="tile" />
     </DashboardGrid>
 
-    <p v-if="owed.unaccounted > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="owner-unaccounted">
+    <p v-if="owed.unaccounted > 0" class="flex items-start gap-2 type-body leading-5" data-testid="owner-unaccounted">
       <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>
         {{ plural(words.owed.unaccounted(owed.unaccounted), owed.unaccounted) }}
@@ -208,8 +208,8 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
         <template #header>
           <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="owner-loans-figures">
             <div v-for="figure in owed.loanSummary" :key="figure.label" class="min-w-0">
-              <dt class="text-xs text-muted">{{ figure.label }}</dt>
-              <dd class="text-sm font-medium text-highlighted">
+              <dt class="type-caption">{{ figure.label }}</dt>
+              <dd class="type-card-title">
                 <DrillLink :to="figure.to" :label="words.figure.openRows(figure.label)"><MoneyText :cents="figure.amount" /></DrillLink>
               </dd>
             </div>
@@ -223,15 +223,15 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
 
       <AppCard :title="words.owed.advances.title" collapse-id="owner.advances" :summary="owed.advancesSummary" data-testid="owner-advances">
         <template #subtitle>
-          <span class="block max-w-[65ch]">
+          <span class="block max-w-prose">
             {{ words.owed.advances.subtitle(owed.period, owed.on) }}
           </span>
         </template>
         <template #header>
           <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="owner-advances-figures">
             <div v-for="figure in owed.advanceSummary" :key="figure.label" class="min-w-0">
-              <dt class="text-xs text-muted">{{ figure.label }}</dt>
-              <dd class="text-sm font-medium text-highlighted">
+              <dt class="type-caption">{{ figure.label }}</dt>
+              <dd class="type-card-title">
                 <DrillLink :to="figure.to" :label="words.figure.openRows(figure.label)"><MoneyText :cents="figure.amount" /></DrillLink>
               </dd>
             </div>

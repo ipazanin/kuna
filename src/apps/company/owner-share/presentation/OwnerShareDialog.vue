@@ -94,7 +94,7 @@ async function save(): Promise<void> {
         <dt>{{ words.shareDialog.youTake }}</dt>
         <dd><MoneyText :cents="ownerPart" sign="magnitude" /></dd>
       </dl>
-      <p class="text-xs text-muted">{{ words.shareDialog.note }}</p>
+      <p class="type-caption">{{ words.shareDialog.note }}</p>
     </form>
     <template #end>
       <UButton :label="words.shareDialog.cancel" color="neutral" variant="ghost" @click="open = false" />

@@ -40,7 +40,7 @@ const dialogOpen = computed({
 
 <template>
   <div class="flex flex-col gap-6" :data-payday="view.payday">
-    <p v-if="view.unpaid" class="flex items-start gap-2 text-sm text-toned" data-testid="salaries-unpaid">
+    <p v-if="view.unpaid" class="flex items-start gap-2 type-body" data-testid="salaries-unpaid">
       <UIcon name="i-lucide-hourglass" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>{{ words.month.stillRunning(view.label) }}</span>
     </p>
@@ -50,7 +50,7 @@ const dialogOpen = computed({
     </DashboardGrid>
 
     <FigureAsk v-if="view.strip" v-slot="{ ask, askLabel, marked }" :detail="view.strip.netDetail">
-      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-toned" data-testid="salaries-strip" v-bind="marked">
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 type-body" data-testid="salaries-strip" v-bind="marked">
         <span class="font-medium text-highlighted">{{ view.strip.name }}</span>
         <span>
           {{ words.month.gross }}<MoneyText :cents="view.strip.gross" />{{ words.month.toNet }}
@@ -74,7 +74,7 @@ const dialogOpen = computed({
         data-testid="salaries-ring"
       >
         <template #below>
-          <p v-if="view.ring.split" class="mt-2 border-t border-default pt-2 text-xs text-muted" data-testid="salaries-ring-split">
+          <p v-if="view.ring.split" class="mt-2 border-t border-default pt-2 type-caption" data-testid="salaries-ring-split">
             {{ words.month.splitBefore }}<MoneyText :cents="view.ring.split.net" />{{ words.month.splitAnd }}<MoneyText :cents="view.ring.split.beside" />{{ words.month.splitAfter }}
           </p>
         </template>

@@ -78,13 +78,13 @@ function changeText(change: CostChange | null): string {
       <ChartLegend v-if="legend.length > 0" :entries="legend" />
     </template>
 
-    <p v-if="sections.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.costs.nothingSpentSentence }}</p>
+    <p v-if="sections.length === 0" class="px-5 py-8 type-aside">{{ words.costs.nothingSpentSentence }}</p>
     <div v-else class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
       <section v-for="section in sections" :key="section.key" :aria-label="section.title">
         <h3 class="cost-row cost-heading">
           <span class="cost-name">
             {{ section.title }}
-            <DrillLink v-if="section.link" :to="section.link.to" class="ms-1.5 text-xs font-normal text-muted">{{ section.link.label }}</DrillLink>
+            <DrillLink v-if="section.link" :to="section.link.to" class="ms-1.5 type-caption font-normal">{{ section.link.label }}</DrillLink>
           </span>
           <span class="cost-amount figure">{{ formatMoney(section.total) }}</span>
           <span v-if="compared" class="cost-change figure">{{ changeText(section.change) }}</span>

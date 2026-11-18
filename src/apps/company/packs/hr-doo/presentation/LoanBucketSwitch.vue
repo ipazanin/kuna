@@ -50,7 +50,7 @@ async function choose(asPay: boolean): Promise<void> {
 <template>
   <AppCard :title="words.loanBucket.title" :subtitle="words.loanBucket.subtitle" data-testid="loan-bucket">
     <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-      <p v-if="loanCategories.length === 0" class="text-sm text-muted">{{ words.loanBucket.none }}</p>
+      <p v-if="loanCategories.length === 0" class="type-aside">{{ words.loanBucket.none }}</p>
       <template v-else>
         <USwitch
           :model-value="countsAsPay"

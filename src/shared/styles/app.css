@@ -24,6 +24,16 @@
   @apply text-sm text-toned;
 }
 
+/* The line a row or a summary leads with, at regular weight. */
+@utility type-row-title {
+  @apply text-sm text-highlighted;
+}
+
+/* The quiet sentence beside content, such as an empty list's line or a page's intro. */
+@utility type-aside {
+  @apply text-sm text-muted;
+}
+
 /* The small heading over a group of figures or a column. */
 @utility type-label {
   @apply text-xs font-medium text-muted;
@@ -431,7 +441,7 @@ section + section > .group-row:not(tr) {
  * `row-list-edge`, such as a group's heading or the total, leave the arrow's size-4 and the gap-3 before it empty,
  * so every amount of the list ends at one edge.
  */
-.row-list:has([data-row-arrow]) :is(.list-row-lines:not(a > *), .row-list-edge) {
+.row-list:has([data-row-arrow]) :is(.list-row-lines:not(a .list-row-lines), .row-list-edge) {
   margin-inline-end: 1.75rem;
 }
 

@@ -63,12 +63,12 @@ async function save(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" changes :title="words.startingDialog.title(year)" :description="words.startingDialog.description">
     <form id="starting-scenarios" class="flex flex-col gap-4" data-testid="starting-scenarios-form" @submit.prevent="save">
-      <ol class="flex list-decimal flex-col gap-1 ps-5 text-sm text-toned">
+      <ol class="flex list-decimal flex-col gap-1 ps-5 type-body">
         <li v-for="draft in seeded.drafts" :key="draft.slug">
           {{ scenarioName(draft) }}<span v-if="draft === seeded.drafts[0]" class="text-muted">{{ words.startingDialog.theBase }}</span>
         </li>
       </ol>
-      <p class="text-xs text-muted">
+      <p class="type-caption">
         {{ words.startingDialog.eachPaysOut }}<template v-if="seeded.switchOn !== null && seeded.switchOn > `${year}-01-01`">{{ words.startingDialog.stopOn(dayLabel(seeded.switchOn)) }}</template
         ><template v-else-if="seeded.switchOn === null">{{ words.startingDialog.noFreeDay(year) }}</template>
       </p>

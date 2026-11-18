@@ -125,7 +125,7 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
     :description="deleting ? words.editor.deleteDescription : words.editor.formDescription"
   >
     <div v-if="deleting" class="flex flex-col gap-4" data-testid="rule-delete">
-      <p class="text-sm text-toned">{{ words.editor.leavesTab }}</p>
+      <p class="type-body">{{ words.editor.leavesTab }}</p>
       <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
     </div>
     <div v-else-if="draft" class="flex flex-col gap-6" data-testid="rule-editor">
@@ -143,8 +143,8 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
       <RuleForm v-model="draft" :rules="state.workbook?.rules ?? []" :categories="state.workbook?.categories ?? []" :editing-id="source?.edited?.id ?? null" />
       <section class="flex flex-col gap-3 border-t border-default pt-5">
         <header>
-          <h2 class="text-sm font-medium text-highlighted">{{ words.editor.backtest }}</h2>
-          <p class="mt-0.5 text-xs text-muted">{{ words.editor.backtestHelp }}</p>
+          <h2 class="type-card-title">{{ words.editor.backtest }}</h2>
+          <p class="mt-0.5 type-caption">{{ words.editor.backtestHelp }}</p>
         </header>
         <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
         <UAlert v-if="waiting.length" icon="i-lucide-inbox" color="info" variant="subtle" :description="words.editor.filedOnSave" data-testid="rule-files-waiting" />

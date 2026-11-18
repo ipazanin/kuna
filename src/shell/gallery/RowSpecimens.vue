@@ -2,18 +2,25 @@
 import { ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 
 import { moneyFromCents } from '../../shared/money/money'
 import AppCard from '../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
+import DrillLink from '../../shared/ui/DrillLink.vue'
+import FigureTable from '../../shared/ui/FigureTable.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import NoteLine from '../../shared/ui/NoteLine.vue'
 import ListRow from '../../shared/ui/ListRow.vue'
 import PickBox from '../../shared/ui/PickBox.vue'
+import RecordRow from '../../shared/ui/RecordRow.vue'
 import SelectionBar from '../../shared/ui/SelectionBar.vue'
 import GallerySection from './GallerySection.vue'
 
 const picked = ref<ReadonlySet<string>>(new Set(['pharmacy']))
+const reported = ref(false)
+/** Where each specimen row opens, which is this specimen again. */
+const recordLink = { path: '/gallery', hash: '#record-rows' }
 
 function pick(key: string): void {
   const current = new Set(picked.value)
@@ -110,12 +117,12 @@ function pick(key: string): void {
       <AppCard title="Rows that open a page">
         <ul class="row-list flex flex-col py-2">
           <li class="border-t border-default first:border-t-0">
-            <ListRow to="/gallery" title="Current account" caption="Bank · Main Bank · EUR">
+            <ListRow :to="recordLink" title="Current account" caption="Bank · Main Bank · EUR">
               <template #amount><MoneyText :cents="moneyFromCents(1_204_470)" class="text-highlighted" /></template>
             </ListRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ListRow to="/gallery" title="Travel card" caption="Bank · Card Bank · USD">
+            <ListRow :to="recordLink" title="Travel card" caption="Bank · Card Bank · USD">
               <template #amount>
                 <span class="figure text-highlighted">$1,234.56</span>
                 <span class="figure text-xs text-toned">€1,140.20</span>
@@ -124,7 +131,7 @@ function pick(key: string): void {
             </ListRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ListRow to="/gallery" title="Savings for the long summer holiday by the sea with the whole family" caption="Savings · Main Bank · EUR">
+            <ListRow :to="recordLink" title="Savings for the long summer holiday by the sea with the whole family" caption="Savings · Main Bank · EUR">
               <template #amount><MoneyText :cents="moneyFromCents(560_000)" class="text-highlighted" /></template>
             </ListRow>
           </li>
@@ -134,7 +141,7 @@ function pick(key: string): void {
             </ListRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ListRow to="/gallery" title="Car loan">
+            <ListRow :to="recordLink" title="Car loan">
               <template #caption>Bank loan · <span class="text-toned">Main Bank</span></template>
               <template #amount><span class="type-caption">Settled on 3 Mar 2026</span></template>
             </ListRow>
@@ -175,6 +182,46 @@ function pick(key: string): void {
     </AppCard>
   </GallerySection>
 
+  <GallerySection
+    id="record-rows"
+    title="RecordRow"
+    description="A table row that stands for a record opens it on a tap anywhere on the row, and its name stays the one real link for the keyboard and a new tab. A link in a cell opens only that cell's own details, a control works only itself, and a total opens nothing."
+  >
+    <AppCard title="Travel orders" subtitle="Made-up trips. Each row opens this gallery again.">
+      <FigureTable class="px-1 pt-2 pb-2 sm:px-2" label="Travel orders">
+        <thead>
+          <tr>
+            <th scope="col" class="text-start">Order</th>
+            <th scope="col" class="text-start">Destination</th>
+            <th scope="col" class="text-end">Payout</th>
+          </tr>
+        </thead>
+        <tbody>
+          <RecordRow :to="recordLink" data-testid="gallery-record-row">
+            <th scope="row" class="text-start font-normal">
+              <DrillLink :to="recordLink" label="Travel order 3/2026" class="font-medium text-highlighted">3/2026</DrillLink>
+            </th>
+            <td class="cell-wraps">Zagreb, three days</td>
+            <td class="text-end">
+              <DrillLink :to="recordLink" label="Open the payout's rows"><MoneyText :cents="moneyFromCents(41_250)" /></DrillLink>
+            </td>
+          </RecordRow>
+          <RecordRow :to="recordLink">
+            <th scope="row" class="cell-wraps text-start font-normal">
+              <DrillLink :to="recordLink" label="Travel order 4/2026" class="font-medium text-highlighted">4/2026</DrillLink>
+              <UCheckbox v-model="reported" class="mt-1" label="Reported" />
+            </th>
+            <td class="cell-wraps">Split, one day</td>
+            <td class="text-end"><MoneyText :cents="moneyFromCents(12_800)" /></td>
+          </RecordRow>
+          <RecordRow :to="null" class="total-row">
+            <th scope="row" class="text-start" colspan="2">Together</th>
+            <td class="text-end"><MoneyText :cents="moneyFromCents(54_050)" /></td>
+          </RecordRow>
+        </tbody>
+      </FigureTable>
+    </AppCard>
+  </GallerySection>
   <GallerySection
     id="note-line"
     title="NoteLine"

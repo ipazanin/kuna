@@ -104,7 +104,7 @@ function updateSenders(text: string): void {
         </UFormField>
       </FormGrid>
       <div class="flex flex-col gap-1" data-testid="mail-accounts">
-        <h3 class="text-sm font-medium text-highlighted">{{ words.card.accounts }}</h3>
+        <h3 class="type-card-title">{{ words.card.accounts }}</h3>
         <ul v-if="filled.length > 0" class="row-list flex flex-col">
           <li v-for="account in filled" :key="account.slug" class="border-t border-default first:border-t-0">
             <ListRow :to="ACCOUNTS_LINK.to" flush :title="account.name">
@@ -120,7 +120,7 @@ function updateSenders(text: string): void {
         </template>
       </div>
       <div class="flex flex-col gap-3">
-        <h3 class="text-sm font-medium text-highlighted">{{ words.card.lastSync }}</h3>
+        <h3 class="type-card-title">{{ words.card.lastSync }}</h3>
         <MailPlanList :plan="mail.state.plan" :stopped="mail.state.stopped" :why="words.card.searchedFrom" />
       </div>
     </div>

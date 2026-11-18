@@ -32,6 +32,17 @@ describe('the lint rules that keep a row that opens a page on ListRow and a link
     expect(await rulesBroken('<UButton label="Continue" trailing-icon="i-lucide-arrow-right" />')).not.toContain('kuna/all-links')
   })
 
+  it("refuses a link in a plain table row's heading cell, since the row opens its record as a RecordRow", async () => {
+    expect(await rulesBroken('<table><tbody><tr><th scope="row"><DrillLink to="/a">A</DrillLink></th><td>1</td></tr></tbody></table>')).toContain('kuna/record-rows')
+    expect(await rulesBroken('<table><tbody><tr><template v-if="shown"><th scope="row"><RouterLink to="/a">A</RouterLink></th></template></tr></tbody></table>')).toContain('kuna/record-rows')
+  })
+
+  it("leaves a RecordRow's heading link, a cell's own link and a link in a group's heading alone", async () => {
+    expect(await rulesBroken('<table><tbody><RecordRow to="/a"><th scope="row"><DrillLink to="/a">A</DrillLink></th></RecordRow></tbody></table>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<table><tbody><tr><th scope="row">A</th><td><DrillLink to="/a">1</DrillLink></td></tr></tbody></table>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<table><tbody><tr><th scope="rowgroup"><DrillLink to="/a">A</DrillLink></th></tr></tbody></table>')).not.toContain('kuna/record-rows')
+  })
+
   it('leaves a disclosure chevron in a button and a ListRow that opens a page alone', async () => {
     expect(await rulesBroken('<button type="button"><UIcon name="i-lucide-chevron-right" /></button>')).not.toContain('kuna/link-rows')
     expect(await rulesBroken('<ListRow to="/a" title="A" />')).not.toContain('kuna/link-rows')

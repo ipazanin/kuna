@@ -57,12 +57,12 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
       <UButton :label="words.editor.addStarting" icon="i-lucide-list-plus" color="neutral" variant="outline" size="sm" data-testid="add-starting-scenarios" @click="startingOpen = true" />
     </template>
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-      <p v-if="scenarios.length === 0" class="py-4 text-sm text-muted">{{ words.editor.noneForYear(year) }}</p>
+      <p v-if="scenarios.length === 0" class="py-4 type-aside">{{ words.editor.noneForYear(year) }}</p>
       <article v-for="scenario in scenarios" :key="scenario.slug" class="scenario-card" :data-scenario="scenario.slug">
         <header class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0">
-            <h3 class="text-sm font-medium text-highlighted">{{ scenarioName(scenario) }}</h3>
-            <p class="identifier text-xs text-muted">{{ scenario.slug }}</p>
+            <h3 class="type-card-title">{{ scenarioName(scenario) }}</h3>
+            <p class="identifier type-caption">{{ scenario.slug }}</p>
           </div>
           <div class="flex flex-wrap gap-1">
             <UButton :label="words.editor.rename" icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" data-testid="scenario-rename" @click="name(scenario, 'rename')" />
@@ -70,7 +70,7 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
           </div>
         </header>
         <ul v-if="refusals.get(scenario.slug)" class="mt-2 flex flex-col gap-1" role="alert">
-          <li v-for="reason in refusals.get(scenario.slug)" :key="reason" class="flex items-start gap-2 text-sm text-toned">
+          <li v-for="reason in refusals.get(scenario.slug)" :key="reason" class="flex items-start gap-2 type-body">
             <UIcon name="i-lucide-octagon-x" class="mt-0.5 size-4 shrink-0 text-error" aria-hidden="true" />
             <span>{{ reason }}</span>
           </li>
@@ -85,8 +85,8 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
               @click="editComponent(scenario, component)"
             >
               <span class="min-w-0 text-start">
-                <span class="block text-sm text-toned">{{ componentText(component) }}</span>
-                <span class="block text-xs text-muted">{{ spanText(component) }}</span>
+                <span class="block type-body">{{ componentText(component) }}</span>
+                <span class="block type-caption">{{ spanText(component) }}</span>
               </span>
               <UIcon name="i-lucide-pencil" class="size-4 shrink-0 text-muted" aria-hidden="true" />
             </button>

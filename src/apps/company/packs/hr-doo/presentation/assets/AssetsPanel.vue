@@ -341,7 +341,7 @@ function employmentState(until: CivilDate | null): string | null {
           data-testid="doubled-rates-switch"
           @update:model-value="showDoubled($event)"
         />
-        <p v-if="view.doublingAllowed" class="max-w-[60ch] text-xs text-muted">
+        <p v-if="view.doublingAllowed" class="max-w-prose type-caption">
           {{ words.panel.doublingAllowed }}
           <DrillLink :to="ruleLink('hr.cit.depreciation-rates')" class="inline-target text-highlighted">{{ words.panel.openRule }}</DrillLink>
         </p>
@@ -349,7 +349,7 @@ function employmentState(until: CivilDate | null): string | null {
 
       <AppCard v-if="view.doubled" :title="words.panel.changesTitle" :subtitle="words.panel.changesSubtitle">
         <div class="flex flex-col gap-2 px-4 pt-2 pb-4 sm:px-5">
-          <p v-if="view.changesGrant" class="max-w-[75ch] text-xs text-muted">
+          <p v-if="view.changesGrant" class="max-w-prose type-caption">
             {{ words.panel.changesGrant }}
           </p>
           <DoubledRatesChanges :lines="view.changes" :show-grant="view.changesGrant" />
@@ -369,15 +369,15 @@ function employmentState(until: CivilDate | null): string | null {
           class="flex flex-col gap-3 border-t border-default px-4 py-3 sm:px-5"
           data-testid="asset-notices"
         >
-          <div v-if="view.unmatchedAssets.length > 0" class="flex items-start gap-2 text-sm text-toned">
+          <div v-if="view.unmatchedAssets.length > 0" class="flex items-start gap-2 type-body">
             <UIcon name="i-lucide-search-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>{{ words.panel.noPaymentBefore(view.unmatchedAssets.join(', ')) }}<span class="identifier">ledger_reference</span>{{ words.panel.noPaymentAfter }}</p>
           </div>
-          <div v-if="view.lostLinks.length > 0" class="flex items-start gap-2 text-sm text-toned" data-testid="asset-link-gone">
+          <div v-if="view.lostLinks.length > 0" class="flex items-start gap-2 type-body" data-testid="asset-link-gone">
             <UIcon name="i-lucide-unlink" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>{{ listed(words.panel.linkGone(view.lostLinks.length, view.lostLinks.join(', ')), view.lostLinks.length) }}</p>
           </div>
-          <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 text-sm text-toned">
+          <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 type-body">
             <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
@@ -386,7 +386,7 @@ function employmentState(until: CivilDate | null): string | null {
               <ul class="flex flex-col" data-testid="unmatched-purchases">
                 <li v-for="purchase in view.unmatchedPurchases" :key="purchase.key">
                   <DrillLink :to="purchase.to" :label="words.panel.purchaseRow(purchase.counterparty, purchase.date)" class="purchase-link">
-                    <span class="figure shrink-0 text-xs text-muted">{{ purchase.date }}</span>
+                    <span class="figure shrink-0 type-caption">{{ purchase.date }}</span>
                     <CutText class="min-w-0 flex-1">{{ purchase.counterparty }}</CutText>
                     <MoneyText :cents="purchase.amount" class="text-toned" />
                   </DrillLink>
@@ -394,7 +394,7 @@ function employmentState(until: CivilDate | null): string | null {
               </ul>
             </div>
           </div>
-          <div v-if="view.mismatchedPayments.length > 0" class="flex items-start gap-2 text-sm text-toned">
+          <div v-if="view.mismatchedPayments.length > 0" class="flex items-start gap-2 type-body">
             <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
@@ -404,7 +404,7 @@ function employmentState(until: CivilDate | null): string | null {
               <ul class="flex flex-col" data-testid="mismatched-payments">
                 <li v-for="payment in view.mismatchedPayments" :key="payment.key">
                   <DrillLink :to="payment.to" :label="words.panel.paymentRow(payment.date)" class="purchase-link">
-                    <span class="figure shrink-0 text-xs text-muted">{{ payment.date }}</span>
+                    <span class="figure shrink-0 type-caption">{{ payment.date }}</span>
                     <CutText class="min-w-0 flex-1">{{ payment.claimedBy }}</CutText>
                     <MoneyText :cents="payment.amount" class="text-toned" />
                   </DrillLink>
@@ -412,7 +412,7 @@ function employmentState(until: CivilDate | null): string | null {
               </ul>
             </div>
           </div>
-          <DrillLink :to="{ query: route.query, hash: '#asset-rows' }" class="self-start text-sm text-highlighted">{{ words.panel.openAssetRows }}</DrillLink>
+          <DrillLink :to="{ query: route.query, hash: '#asset-rows' }" class="self-start type-row-title">{{ words.panel.openAssetRows }}</DrillLink>
         </div>
       </AppCard>
 
@@ -444,7 +444,7 @@ function employmentState(until: CivilDate | null): string | null {
 
       <AppCard :title="words.panel.perYearTitle" :subtitle="words.panel.perYearSubtitle" collapse-id="year.depreciation" :summary="view.yearsSummary" start-collapsed>
         <div class="px-4 pt-2 pb-2 sm:px-5">
-          <p v-if="view.years.length === 0" class="py-6 text-sm text-muted">{{ words.panel.noDepreciationNote }}</p>
+          <p v-if="view.years.length === 0" class="py-6 type-aside">{{ words.panel.noDepreciationNote }}</p>
           <DepreciationYears v-else :key="String(view.doubled)" :years="view.years" />
         </div>
       </AppCard>

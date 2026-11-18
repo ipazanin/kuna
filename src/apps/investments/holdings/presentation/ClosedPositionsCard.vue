@@ -17,6 +17,7 @@ import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import ListRow from '../../../../shared/ui/ListRow.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
@@ -68,7 +69,7 @@ function span(position: ClosedPosition): string {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="position in shown" :key="position.instrument.id" data-testid="closed-line">
+        <RecordRow v-for="position in shown" :key="position.instrument.id" :to="holdingLink(position.instrument)" data-testid="closed-line">
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink :to="holdingLink(position.instrument)" class="text-highlighted" data-testid="closed-link">{{ position.instrument.name }}</DrillLink>
             <span class="block type-caption">{{ listingLine(position.instrument) }}</span>
@@ -87,7 +88,7 @@ function span(position: ClosedPosition): string {
           <td class="figure text-end">{{ days(position) }}</td>
           <td class="figure hidden text-end @4xl:table-cell">{{ dayLabel(position.firstBought) }}</td>
           <td class="figure hidden text-end @4xl:table-cell">{{ dayLabel(position.lastSold) }}</td>
-        </tr>
+        </RecordRow>
       </tbody>
     </FigureTable>
     <ul v-else class="pb-2" data-testid="closed-rows">

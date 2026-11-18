@@ -50,7 +50,7 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
   >
     <div class="flex flex-col gap-5 px-4 pt-3 pb-4 sm:px-3">
       <section v-for="section in view.sections" :key="section.key" :aria-label="section.title" :data-section="section.key" class="flex flex-col gap-2">
-        <h3 class="text-sm font-medium text-highlighted sm:px-2">{{ section.title }}</h3>
+        <h3 class="type-card-title sm:px-2">{{ section.title }}</h3>
         <ul v-if="phone" class="flex flex-col">
           <FigureAsk v-for="line in section.lines" :key="line.key" v-slot="{ ask, askLabel, marked }" :detail="line.app">
             <li class="line-card" :data-verdict="line.verdict" v-bind="marked">

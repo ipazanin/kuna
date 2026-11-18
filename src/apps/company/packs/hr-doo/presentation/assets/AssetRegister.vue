@@ -37,6 +37,7 @@ import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
 import CutText from '../../../../../../shared/ui/CutText.vue'
+import RecordRow from '../../../../../../shared/ui/RecordRow.vue'
 
 /** The assets tab with what the books make of each asset: a table where the page has 70rem, and one card per asset below it, where ten columns do not fit. */
 defineProps<{
@@ -55,16 +56,16 @@ const tableFits = roomAtLeast(70)
       <li v-for="line in lines" :key="line.key" class="rounded-control border border-default px-3 py-2.5">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <DrillLink :to="line.payment" :label="words.register.openPayment(line.name)" class="text-sm font-medium text-highlighted">
+            <DrillLink :to="line.payment" :label="words.register.openPayment(line.name)" class="type-card-title">
               <CutText>{{ line.name }}</CutText>
             </DrillLink>
-            <p class="text-xs text-muted">
+            <p class="type-caption">
               {{ line.group }}<template v-if="line.fundedBy">{{ words.register.paidBy(line.fundedBy) }}</template>
             </p>
           </div>
           <div class="shrink-0 text-end">
-            <MoneyText :cents="line.bookValue" class="text-sm font-medium text-highlighted" />
-            <p class="text-xs text-muted">{{ line.gone ?? words.register.bookValue }}</p>
+            <MoneyText :cents="line.bookValue" class="type-card-title" />
+            <p class="type-caption">{{ line.gone ?? words.register.bookValue }}</p>
           </div>
         </div>
         <dl class="asset-cells mt-2">
@@ -127,7 +128,7 @@ const tableFits = roomAtLeast(70)
         </tr>
       </thead>
       <tbody>
-        <tr v-for="line in lines" :key="line.key">
+        <RecordRow v-for="line in lines" :key="line.key" :to="line.payment">
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink v-if="line.payment" :to="line.payment" :label="words.register.openPayment(line.name)" class="text-highlighted">{{ line.name }}</DrillLink>
             <span v-else class="text-highlighted">{{ line.name }}</span>
@@ -144,13 +145,13 @@ const tableFits = roomAtLeast(70)
           <td class="text-end"><MoneyText :cents="line.accumulated" /></td>
           <td class="text-end">
             <MoneyText :cents="line.bookValue" class="text-highlighted" />
-            <span v-if="line.gone" class="block text-xs text-muted">{{ line.gone }}</span>
+            <span v-if="line.gone" class="block type-caption">{{ line.gone }}</span>
           </td>
           <td class="cell-wraps text-toned">
             <span v-if="line.fundedBy" class="identifier">{{ line.fundedBy }}</span
             ><span v-else class="text-muted">–</span>
           </td>
-        </tr>
+        </RecordRow>
       </tbody>
       <tfoot>
         <tr>

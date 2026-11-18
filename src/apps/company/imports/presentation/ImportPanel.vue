@@ -207,24 +207,24 @@ const summary = computed(() => {
     <EmptyState v-if="workbook === null" icon="i-lucide-book-open" :title="words.panel.noWorkbook" :description="words.panel.noWorkbookDescription" />
 
     <template v-else>
-      <p class="max-w-[65ch] text-sm text-muted">{{ words.panel.intro }}</p>
+      <p class="max-w-prose type-aside">{{ words.panel.intro }}</p>
 
       <StatementFolderCard />
 
       <AppCard :title="words.panel.file" :subtitle="words.panel.fileSubtitle">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="import-file">
           <FileDrop v-model="pickedFile" accept=".xml,.xlsx,.xls,.ods,.csv,.txt" :label="words.panel.drop" :description="words.panel.orChoose" />
-          <div v-if="offersSamples" class="flex flex-wrap items-center gap-2 text-sm text-muted">
+          <div v-if="offersSamples" class="flex flex-wrap items-center gap-2 type-aside">
             <span>{{ words.panel.samples }}</span>
             <UButton :label="words.panel.sampleCamt" icon="i-lucide-file-code" color="neutral" variant="link" size="sm" data-testid="sample-camt" @click="loadSample('camt')" />
             <UButton :label="words.panel.sampleTable" icon="i-lucide-file-spreadsheet" color="neutral" variant="link" size="sm" data-testid="sample-table" @click="loadSample('table')" />
           </div>
-          <p v-if="loading" class="flex items-center gap-2 text-sm text-muted">
+          <p v-if="loading" class="flex items-center gap-2 type-aside">
             <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
             {{ words.panel.reading }}
           </p>
           <UAlert v-if="loadFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="loadFailure" data-testid="import-failure" />
-          <p v-if="loaded" class="flex items-center gap-2 text-sm text-toned" data-testid="import-loaded">
+          <p v-if="loaded" class="flex items-center gap-2 type-body" data-testid="import-loaded">
             <UIcon :name="loaded.kind === 'camt' ? 'i-lucide-file-code' : 'i-lucide-file-spreadsheet'" class="size-4 shrink-0" aria-hidden="true" />
             <span class="min-w-0 break-words">{{ words.panel.loaded(loaded.fileName, loaded.kind === 'camt') }}</span>
           </p>
@@ -283,8 +283,8 @@ const summary = computed(() => {
 
         <AppCard :title="words.panel.dryRun" data-testid="dry-run">
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-            <p class="text-sm text-toned" data-testid="dry-run-summary">{{ summary }}</p>
-            <div v-if="importedRows" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-toned" role="status" data-testid="import-waiting">
+            <p class="type-body" data-testid="dry-run-summary">{{ summary }}</p>
+            <div v-if="importedRows" class="flex flex-wrap items-center gap-x-3 gap-y-1 type-body" role="status" data-testid="import-waiting">
               <p class="flex items-start gap-2">
                 <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0" :class="importedRows.waiting > 0 ? 'text-warning' : 'text-muted'" aria-hidden="true" />
                 <span v-if="importedRows.waiting > 0">{{ plural(words.panel.waitingOnReview(importedRows.waiting), importedRows.waiting) }}</span>

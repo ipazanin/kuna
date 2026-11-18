@@ -7,6 +7,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { shownPack } from '../../packs/packContribution'
 import { priorEqualPeriod } from '../../filters/domain/periodComparison'
@@ -103,7 +104,7 @@ const spending = computed(() => {
     />
 
     <AppCard :title="words.breakdown.payees" :subtitle="words.breakdown.payeesSubtitle" collapse-id="analysis.payees" :summary="spending.payeesSummary" start-collapsed data-testid="top-payees">
-      <p v-if="spending.payees.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.breakdown.nothingLeftSentence }}</p>
+      <p v-if="spending.payees.length === 0" class="px-5 py-8 type-aside">{{ words.breakdown.nothingLeftSentence }}</p>
       <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
         <thead>
           <tr>
@@ -116,10 +117,10 @@ const spending = computed(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="payee in spending.payees" :key="payee.key">
+          <RecordRow v-for="payee in spending.payees" :key="payee.key" :to="payee.to">
             <th scope="row" class="cell-wraps w-full text-start font-normal">
               <div class="payee-cell flex flex-col gap-1">
-                <DrillLink :to="payee.to" class="min-w-0 text-highlighted"
+                <DrillLink :to="payee.to" :label="words.breakdown.openRows(payee.label)" class="min-w-0 text-highlighted"
                   ><span class="block break-words">{{ payee.label }}</span></DrillLink
                 >
                 <PayeeCategories :payee="payee.label" :categories="payee.categories">
@@ -129,12 +130,8 @@ const spending = computed(() => {
             </th>
             <td class="hidden @lg:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
             <td class="figure text-end text-muted">{{ payee.count }}</td>
-            <td class="text-end">
-              <DrillLink :to="payee.to" :label="words.breakdown.openRows(payee.label)">
-                <MoneyText :cents="payee.total" />
-              </DrillLink>
-            </td>
-          </tr>
+            <td class="text-end"><MoneyText :cents="payee.total" /></td>
+          </RecordRow>
         </tbody>
       </FigureTable>
     </AppCard>

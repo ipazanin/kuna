@@ -59,21 +59,21 @@ async function write(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" changes :title="title" :description="words.fill.description">
     <div class="flex flex-col gap-3" data-testid="fill-preview">
-      <p v-if="fill.kind === 'refused'" class="text-sm text-toned">
+      <p v-if="fill.kind === 'refused'" class="type-body">
         {{ fill.reason }} {{ words.fill.termsAreOn }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">{{ words.fill.clientsTab }}</DrillLink
         >.
       </p>
-      <p v-else-if="rows.length === 0" class="text-sm text-toned">{{ words.fill.nothingToAdd(clientName) }}</p>
+      <p v-else-if="rows.length === 0" class="type-body">{{ words.fill.nothingToAdd(clientName) }}</p>
       <template v-else>
-        <p class="text-sm text-toned">{{ plural(words.fill.rowsFor(rows.length, clientName), rows.length) }} <MoneyText :cents="total" />{{ words.fill.inAll }}</p>
+        <p class="type-body">{{ plural(words.fill.rowsFor(rows.length, clientName), rows.length) }} <MoneyText :cents="total" />{{ words.fill.inAll }}</p>
         <ul class="flex flex-col">
           <li v-for="row in rows" :key="keyOf(row)" class="fill-row" data-testid="fill-row">
             <span class="swatch" :style="{ background: colours.get(row.item) ?? 'var(--chart-deemphasis)' }" aria-hidden="true" />
             <span class="min-w-0">
-              <CutText class="block text-sm text-highlighted">{{ row.item }}</CutText>
-              <span class="figure block text-xs text-muted">{{ dayLabel(row.date) }}</span>
+              <CutText class="block type-row-title">{{ row.item }}</CutText>
+              <span class="figure block type-caption">{{ dayLabel(row.date) }}</span>
             </span>
-            <MoneyText :cents="row.amount" class="text-sm text-toned" />
+            <MoneyText :cents="row.amount" class="type-body" />
             <UInput
               :model-value="descriptionOf(row)"
               size="sm"

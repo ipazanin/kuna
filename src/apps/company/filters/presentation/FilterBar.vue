@@ -90,7 +90,7 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
         <FilterChipRow v-if="chips.length" :chips="chips" @remove="removeChip" @clear="clearChips" />
       </div>
     </FiltersSheet>
-    <CutText v-if="showPeriod" as="p" class="figure min-w-0 text-sm text-muted" data-testid="period-range">{{ periodInWords(period, window) }}</CutText>
+    <CutText v-if="showPeriod" as="p" class="figure min-w-0 type-aside" data-testid="period-range">{{ periodInWords(period, window) }}</CutText>
   </div>
   <div v-else ref="bar" class="filter-bar" data-testid="filter-bar">
     <PeriodBar v-if="showPeriod" v-model:period="period" :window="window" v-bind="presets === undefined ? {} : { presets }" />

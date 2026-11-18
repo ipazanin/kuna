@@ -15,7 +15,7 @@ defineSlots<{
 <template>
   <ul class="max-h-56 divide-y divide-default overflow-y-auto rounded-control border border-default text-sm">
     <li v-for="(problem, index) in problems" :key="index" class="flex flex-col gap-0.5 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
-      <span class="shrink-0 text-xs text-muted sm:w-28"
+      <span class="shrink-0 type-caption sm:w-28"
         ><slot name="tag" :problem="problem"
           ><span class="identifier">{{ problem.tab }}</span></slot
         ></span

@@ -113,7 +113,7 @@ async function clear(): Promise<void> {
         <UInput v-model="every" inputmode="decimal" :placeholder="words.planDialogs.amountPlaceholder" class="w-full" data-testid="plan-every-month" />
       </UFormField>
       <fieldset class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <legend class="mb-2 text-sm text-toned">{{ words.planDialogs.category.ownMonths }}</legend>
+        <legend class="mb-2 type-body">{{ words.planDialogs.category.ownMonths }}</legend>
         <UFormField v-for="(month, index) in calendar" :key="month.number" :label="month.short" :error="(tried && errors.months[index] && words.planDialogs.category.notAnAmount) || false">
           <UInput
             v-model="months[index]"

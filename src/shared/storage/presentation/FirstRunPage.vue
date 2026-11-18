@@ -42,7 +42,7 @@ const marks = computed(() => {
       <header class="flex flex-col gap-3">
         <HomeLink :label="sharedWords.homeLink" look="quiet" class="self-start" />
         <h1 data-testid="screen-title" tabindex="-1" class="screen-title text-title font-semibold text-highlighted">{{ appName }}</h1>
-        <p class="max-w-[52ch] text-base text-toned">{{ lead }}</p>
+        <p class="max-w-prose text-base text-toned">{{ lead }}</p>
       </header>
       <ol v-if="marks.length" class="first-run-steps" :aria-label="words.firstRun.steps" data-testid="onboarding-stepper">
         <li v-for="(mark, index) in marks" :key="mark.step" class="first-run-step" :data-state="mark.state" :aria-current="mark.state === 'current' ? 'step' : undefined">

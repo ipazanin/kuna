@@ -18,6 +18,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /** The accounts Bank and cash counts, the open ones and a closed one that still holds money, with their balances today, each in its own currency, a foreign one in euros beside it, and what they hold together. */
 const props = defineProps<{
@@ -51,7 +52,7 @@ const notConverted = computed(() => {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in rows" :key="row.account.id" data-testid="spending-account-row">
+        <RecordRow v-for="row in rows" :key="row.account.id" :to="accountLink(row.account)" data-testid="spending-account-row">
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink :to="accountLink(row.account)" class="text-highlighted">{{ row.account.name }}</DrillLink>
             <span v-if="row.euro !== null && row.euro.euros !== ''" class="block type-caption" data-testid="spending-account-rate">{{ row.euro.caption }}</span>
@@ -64,7 +65,7 @@ const notConverted = computed(() => {
               <template v-else>{{ row.euro.euros }}</template>
             </template>
           </td>
-        </tr>
+        </RecordRow>
       </tbody>
       <tfoot v-if="totals.length > 0">
         <tr v-for="part in totals" :key="part.label" data-testid="spending-accounts-total">

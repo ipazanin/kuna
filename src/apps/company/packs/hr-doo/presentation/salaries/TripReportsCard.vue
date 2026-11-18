@@ -13,6 +13,7 @@ import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../../../shared/ui/RecordRow.vue'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { markTripReported } from '../../application/tripRowWrites'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
@@ -57,7 +58,7 @@ async function markReported(trip: Trip, reported: boolean): Promise<void> {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="report in reports" :key="report.trip.id" data-testid="salaries-trip-report">
+        <RecordRow v-for="report in reports" :key="report.trip.id" :to="tripLink(report.trip.id, SETTLEMENT_TAB)" data-testid="salaries-trip-report">
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink
               :to="tripLink(report.trip.id, SETTLEMENT_TAB)"
@@ -83,7 +84,7 @@ async function markReported(trip: Trip, reported: boolean): Promise<void> {
             <MoneyText v-if="report.amount !== null" :cents="report.amount" />
             <span v-else class="type-caption">{{ said.waitsForRate }}</span>
           </td>
-        </tr>
+        </RecordRow>
       </tbody>
       <tfoot v-if="reports.length > 1 && ofMonth.total !== null">
         <tr data-testid="salaries-trip-reports-total">

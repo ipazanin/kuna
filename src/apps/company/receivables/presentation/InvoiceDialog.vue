@@ -267,7 +267,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.workTo">
         <DayField v-model="fields.period_to" class="w-full" />
       </UFormField>
-      <p class="-mt-2 text-xs text-muted">{{ words.dialog.periodHelp }}</p>
+      <p class="-mt-2 type-caption">{{ words.dialog.periodHelp }}</p>
       <UFormField v-if="paymentItems.length > 0" :label="words.dialog.paidBy" :help="words.dialog.paidByHelp" :error="(tried && errors.paidBy) || false" class="sm:col-span-2">
         <PaymentsSelect v-model="paidBy" data-testid="invoice-paid-by" :payments="paymentItems" :none="words.dialog.notPaid" :search="words.dialog.searchPayments" />
       </UFormField>

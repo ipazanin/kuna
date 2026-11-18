@@ -2,7 +2,7 @@ import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDat
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { FAKE_OWNER, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import { transcribedReferences } from '../../domain/importedStatement'
-import { addMoney, moneyFromAmount } from '../../../../../shared/money/money'
+import { addMoney, moneyFromAmount, plainAmount } from '../../../../../shared/money/money'
 import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
 import { amountText } from '../../../../../shared/storage/domain/recordFields'
 import type { RecordFields } from '../../../../../shared/storage/domain/recordFields'
@@ -125,11 +125,10 @@ export function sampleCamtXml(other?: { readonly iban: string; readonly sequence
   const debits = entries.filter((entry) => !entry.credit)
   const sum = (side: readonly SampleEntry[]): number => side.reduce((total, entry) => total + entry.cents, 0)
   const closing = opening + sum(credits) - sum(debits)
-  const money = (cents: number): string => (cents / 100).toFixed(2)
   const entryXml = (entry: SampleEntry): string => `
       <Ntry>
         <NtryRef>${entry.reference}</NtryRef>
-        <Amt Ccy="EUR">${money(entry.cents)}</Amt>
+        <Amt Ccy="EUR">${plainAmount(entry.cents)}</Amt>
         <CdtDbtInd>${entry.credit ? 'CRDT' : 'DBIT'}</CdtDbtInd>
         <RvslInd>${entry.reversal ? 'true' : 'false'}</RvslInd>
         <Sts><Cd>BOOK</Cd></Sts>
@@ -144,7 +143,7 @@ export function sampleCamtXml(other?: { readonly iban: string; readonly sequence
         <NtryDtls>
           <TxDtls>
             <Refs><AcctSvcrRef>${entry.reference}</AcctSvcrRef></Refs>
-            <AmtDtls><TxAmt><Amt Ccy="EUR">${money(entry.cents)}</Amt></TxAmt>${entry.instructedCurrency ? `<InstdAmt><Amt Ccy="${entry.instructedCurrency}">${money(Math.round(entry.cents * 1.08))}</Amt></InstdAmt>` : ''}</AmtDtls>
+            <AmtDtls><TxAmt><Amt Ccy="EUR">${plainAmount(entry.cents)}</Amt></TxAmt>${entry.instructedCurrency ? `<InstdAmt><Amt Ccy="${entry.instructedCurrency}">${plainAmount(Math.round(entry.cents * 1.08))}</Amt></InstdAmt>` : ''}</AmtDtls>
             <RltdPties>${entry.party}</RltdPties>
             <RmtInf><Ustrd>${entry.description}</Ustrd></RmtInf>
           </TxDtls>
@@ -165,11 +164,11 @@ export function sampleCamtXml(other?: { readonly iban: string; readonly sequence
         <Nm>Example Studio d.o.o.</Nm>
         <Svcr><FinInstnId><BICFI>EXMPHR22</BICFI><Nm>Example Bank d.d.</Nm></FinInstnId></Svcr>
       </Acct>
-      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">${money(opening)}</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>${booked}</Dt></Dt></Bal>
-      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">${money(closing)}</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>${booked}</Dt></Dt></Bal>
+      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">${plainAmount(opening)}</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>${booked}</Dt></Dt></Bal>
+      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">${plainAmount(closing)}</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>${booked}</Dt></Dt></Bal>
       <TxsSummry>
-        <TtlCdtNtries><NbOfNtries>${credits.length}</NbOfNtries><Sum>${money(sum(credits))}</Sum></TtlCdtNtries>
-        <TtlDbtNtries><NbOfNtries>${debits.length}</NbOfNtries><Sum>${money(sum(debits))}</Sum></TtlDbtNtries>
+        <TtlCdtNtries><NbOfNtries>${credits.length}</NbOfNtries><Sum>${plainAmount(sum(credits))}</Sum></TtlCdtNtries>
+        <TtlDbtNtries><NbOfNtries>${debits.length}</NbOfNtries><Sum>${plainAmount(sum(debits))}</Sum></TtlDbtNtries>
       </TxsSummry>${entries.map(entryXml).join('')}
     </Stmt>
   </BkToCstmrStmt>
@@ -191,8 +190,7 @@ export function sampleTableGrid(): CellValue[][] {
     { date: day(6), party: 'CODE HOST INC', iban: '', text: 'Card purchase, monthly plan', cents: -1_000 },
   ]
   const comma = (cents: number): string =>
-    (Math.abs(cents) / 100)
-      .toFixed(2)
+    plainAmount(Math.abs(cents))
       .replace('.', ',')
       .replace(/\B(?=(\d{3})+,)/g, '.')
   let balance = Math.round(main.balance * 100)

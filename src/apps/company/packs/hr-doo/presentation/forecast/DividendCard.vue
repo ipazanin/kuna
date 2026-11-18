@@ -42,13 +42,13 @@ const payoutChoices = computed(() => props.payouts.map((entry) => ({ value: entr
     <div class="grid gap-x-8 gap-y-5 px-4 pt-3 pb-4 sm:px-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div class="flex min-w-0 flex-col gap-4">
         <section :aria-label="words.dividend.canBePaidOut">
-          <h3 class="mb-1 text-xs font-medium text-muted">{{ words.dividend.canBePaidOut }}</h3>
+          <h3 class="mb-1 type-label">{{ words.dividend.canBePaidOut }}</h3>
           <BuildUpList :lines="capacity" test-id="dividend-build-up" />
         </section>
         <section :aria-label="words.dividend.prudenceLabel">
-          <h3 class="mb-1 text-xs font-medium text-muted">{{ words.dividend.prudence }}</h3>
+          <h3 class="mb-1 type-label">{{ words.dividend.prudence }}</h3>
           <BuildUpList :lines="prudence" test-id="dividend-prudence" />
-          <p v-for="rule in deterioration" :key="rule.id" class="mt-2 flex items-start gap-2 text-xs text-muted">
+          <p v-for="rule in deterioration" :key="rule.id" class="mt-2 flex items-start gap-2 type-caption">
             <UIcon name="i-lucide-scale" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
             <span>
               {{ words.dividend.deterioration }}
@@ -61,13 +61,13 @@ const payoutChoices = computed(() => props.payouts.map((entry) => ({ value: entr
       <div v-if="option" class="flex min-w-0 flex-col gap-3">
         <ChoiceButtons :model-value="option.id" :options="payoutChoices" :label="words.dividend.howToPay" data-testid="payout-switch" @update:model-value="emit('choose', $event)" />
         <div class="flex flex-col gap-1">
-          <p class="flex flex-wrap items-center gap-2 text-sm text-highlighted">
+          <p class="flex flex-wrap items-center gap-2 type-row-title">
             {{ option.label }}
             <ConfidenceBadge v-if="option.confidence" :confidence="option.confidence" />
           </p>
-          <p class="text-xs text-muted">{{ option.when }}</p>
+          <p class="type-caption">{{ option.when }}</p>
         </div>
-        <p v-if="option.reading" class="text-xs text-muted" data-testid="payout-reading">{{ option.reading }}</p>
+        <p v-if="option.reading" class="type-caption" data-testid="payout-reading">{{ option.reading }}</p>
         <NoteLine v-if="option.warning" tone="error" data-testid="payout-warning">{{ option.warning }}</NoteLine>
         <dl class="payout-cells" data-testid="payout-figures">
           <div v-for="figure in option.figures" :key="figure.key">
@@ -80,13 +80,13 @@ const payoutChoices = computed(() => props.payouts.map((entry) => ({ value: entr
             </dd>
           </div>
         </dl>
-        <p class="flex items-start gap-2 text-xs" :class="option.capitalProtected ? 'text-muted' : 'text-error'">
+        <p class="flex items-start gap-2" :class="option.capitalProtected ? 'type-caption' : 'text-xs text-error'">
           <UIcon :name="option.capitalProtected ? 'i-lucide-shield-check' : 'i-lucide-shield-alert'" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           <span>{{ option.capitalProtected ? words.dividend.capitalCovered : words.dividend.capitalShort }}</span>
         </p>
         <ul v-if="option.rules.length > 0" class="flex flex-wrap gap-x-4 gap-y-1" :aria-label="packWords.figure.rules">
           <li v-for="rule in option.rules" :key="rule.id">
-            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
+            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="type-label">{{ rule.title }}</DrillLink>
           </li>
         </ul>
       </div>

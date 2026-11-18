@@ -131,7 +131,7 @@ const noteLines = computed(() => [...props.statement.notes.map(noteText), ...pro
       <UAlert v-if="statement.refusal" icon="i-lucide-file-x" color="error" variant="subtle" :title="refusalText(statement.refusal)" data-testid="dry-run-refusal" />
 
       <div v-if="statement.newAccount" class="flex flex-col gap-3 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-new-account">
-        <p class="text-sm text-toned">
+        <p class="type-body">
           <span class="identifier">{{ grouped(statement.newAccount.iban) }}</span> ({{ statement.newAccount.currency }})
           {{ words.statement.isNew(statement.newAccount.opening === null ? null : formatMoney(statement.newAccount.opening), statement.newAccount.date ? dayLabel(statement.newAccount.date) : null) }}
         </p>
@@ -141,7 +141,7 @@ const noteLines = computed(() => [...props.statement.notes.map(noteText), ...pro
       </div>
 
       <div v-else-if="statement.start" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="dry-run-start">
-        <p class="text-sm text-toned">{{ words.statement.noRowsYet(names.account(statement.start.account)) }}</p>
+        <p class="type-body">{{ words.statement.noRowsYet(names.account(statement.start.account)) }}</p>
         <UCheckbox
           v-if="statement.start.opening !== null"
           :model-value="started"
@@ -161,7 +161,7 @@ const noteLines = computed(() => [...props.statement.notes.map(noteText), ...pro
         </UFormField>
       </div>
 
-      <ul v-if="statement.notes.length + statement.facts.length" class="flex flex-col gap-1 text-sm text-muted" data-testid="dry-run-notes">
+      <ul v-if="statement.notes.length + statement.facts.length" class="flex flex-col gap-1 type-aside" data-testid="dry-run-notes">
         <li v-for="note in noteLines" :key="note">{{ note }}</li>
       </ul>
 

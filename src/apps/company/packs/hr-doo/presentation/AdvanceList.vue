@@ -62,17 +62,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <p v-if="advances.length === 0" class="py-6 text-sm text-muted" data-testid="advance-list-empty">{{ empty }}</p>
+  <p v-if="advances.length === 0" class="py-6 type-aside" data-testid="advance-list-empty">{{ empty }}</p>
   <ul v-else class="flex flex-col" data-testid="advance-list">
     <li v-for="advance in advances" :key="advance.id" class="advance-row">
       <div class="advance-head">
         <div class="min-w-0">
-          <CutText as="p" class="text-sm text-highlighted">{{ advance.description || advance.category }}</CutText>
-          <CutText as="p" class="text-xs text-muted">{{ advance.paidOn }}, {{ advance.category }}</CutText>
+          <CutText as="p" class="type-row-title">{{ advance.description || advance.category }}</CutText>
+          <CutText as="p" class="type-caption">{{ advance.paidOn }}, {{ advance.category }}</CutText>
           <NoteLine v-if="advance.labels !== ''" tone="muted" icon="i-lucide-tag" data-testid="advance-labels-line">{{ advance.labels }}</NoteLine>
         </div>
         <DrillLink :to="advance.to" :label="words.advanceList.openRow(advance.paidOn)" class="text-end">
-          <MoneyText :cents="advance.amount" class="text-sm font-medium text-highlighted" />
+          <MoneyText :cents="advance.amount" class="type-card-title" />
         </DrillLink>
         <UBadge
           :label="advance.open ? words.advanceList.owedToOwner : words.advanceList.reimbursed"
@@ -81,7 +81,7 @@ const emit = defineEmits<{
           size="sm"
           class="justify-self-start"
         />
-        <p class="advance-remaining text-xs text-muted">
+        <p class="advance-remaining type-caption">
           <template v-if="advance.open"><MoneyText :cents="advance.remaining" class="text-toned" />{{ words.advanceList.stillOwed }}</template>
           <template v-else-if="advance.repaidOn">{{ words.advanceList.reimbursedOn(advance.repaidOn) }}</template>
         </p>

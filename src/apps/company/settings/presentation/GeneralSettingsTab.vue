@@ -113,12 +113,12 @@ function removeKey(key: string): void {
               data-testid="remove-setting"
               @click="removeKey(problem.label)"
             />
-            <p v-else-if="problem.tab === 'settings' && (unreadKeys.get(problem.label) ?? 0) > 1" class="text-xs text-muted sm:max-w-56" data-testid="setting-on-rows">
+            <p v-else-if="problem.tab === 'settings' && (unreadKeys.get(problem.label) ?? 0) > 1" class="type-caption sm:max-w-56" data-testid="setting-on-rows">
               {{ plural(words.problems.onRows(unreadKeys.get(problem.label) ?? 0), unreadKeys.get(problem.label) ?? 0) }}
             </p>
           </template>
         </ProblemList>
-        <p v-else class="text-sm text-muted">{{ words.problems.allRead }}</p>
+        <p v-else class="type-aside">{{ words.problems.allRead }}</p>
       </div>
     </AppCard>
     <AppCard v-if="toSort.length > 0" :title="words.categoriesToSort.title" :subtitle="words.categoriesToSort.help" collapse-id="settings.categories-to-sort" data-testid="categories-to-sort">

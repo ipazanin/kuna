@@ -30,7 +30,7 @@ const phone = usePhoneLayout()
 <template>
   <ul v-if="phone" class="flex flex-col gap-2" data-testid="doubled-rates-changes">
     <li v-for="line in lines" :key="line.year" class="rounded-control border border-default px-3 py-2">
-      <p class="figure text-sm font-medium text-highlighted">{{ line.year }}</p>
+      <p class="figure type-card-title">{{ line.year }}</p>
       <dl class="change-cells">
         <div>
           <dt>{{ words.changes.depreciation }}</dt>
@@ -70,7 +70,7 @@ const phone = usePhoneLayout()
         <td class="text-end">
           <span class="inline-flex flex-wrap items-baseline justify-end gap-x-1.5">
             <MoneyText :cents="line.profitTax" sign="always" class="text-highlighted" />
-            <span class="text-xs text-muted">{{ words.changes.at(line.rate) }}</span>
+            <span class="type-caption">{{ words.changes.at(line.rate) }}</span>
           </span>
         </td>
       </tr>

@@ -57,8 +57,8 @@ async function proceed(withChat = false): Promise<void> {
 <template>
   <StepCard :title="words.home.title">
     <div v-if="!onboarding.place.value.asksHome" class="rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-in-browser">
-      <p class="text-sm font-medium text-highlighted">{{ words.home.browser }}</p>
-      <p class="text-sm text-toned">{{ words.home.browserNote }}</p>
+      <p class="type-card-title">{{ words.home.browser }}</p>
+      <p class="type-body">{{ words.home.browserNote }}</p>
     </div>
     <URadioGroup v-else v-model="chosen" :items="CHOICES" :legend="words.home.title" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" data-testid="onboarding-home" />
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.home.notMade" :description="failure" />

@@ -128,7 +128,7 @@ const shownSections = computed(() => {
 
 <template>
   <div v-if="review" class="flex flex-col gap-6">
-    <p v-if="review.coverage" class="flex items-start gap-2 text-sm text-toned" data-testid="review-coverage">
+    <p v-if="review.coverage" class="flex items-start gap-2 type-body" data-testid="review-coverage">
       <UIcon name="i-lucide-calendar-clock" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>{{ review.coverage }}</span>
     </p>
@@ -173,7 +173,7 @@ const shownSections = computed(() => {
       </AppCard>
 
       <AppCard :title="words.byCategory" :subtitle="words.biggestFirst" collapse-id="analysis.compare-categories" :summary="review.categoriesSummary">
-        <p v-if="review.sections.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.noCategorisedRowsSentence }}</p>
+        <p v-if="review.sections.length === 0" class="px-5 py-8 type-aside">{{ words.noCategorisedRowsSentence }}</p>
         <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
           <template v-for="section in shownSections" :key="section.key">
             <thead>
@@ -213,7 +213,7 @@ const shownSections = computed(() => {
           </template>
         </FigureTable>
         <ShowAllButton v-if="review.categoryCount > FIRST_SHOWN" v-model:expanded="showAllCategories" :total="review.categoryCount" class="px-4 pb-4 sm:px-5" />
-        <p v-if="review.sections.some((section) => section.key === 'outside')" class="px-4 pb-4 text-xs text-muted sm:px-5">
+        <p v-if="review.sections.some((section) => section.key === 'outside')" class="px-4 pb-4 type-caption sm:px-5">
           {{ words.outsideNote }}
         </p>
       </AppCard>

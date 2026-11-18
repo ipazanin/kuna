@@ -10,6 +10,7 @@ import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../../../shared/ui/RecordRow.vue'
 import type { Employee } from '../../domain/employees/employees'
 import type { TripFile } from '../../domain/trips/tripReading'
 import { tripRows, tripYears } from './tripsView'
@@ -57,7 +58,7 @@ const rows = computed(() => (shownYear.value === null ? [] : tripRows(props.file
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.key" data-testid="trip-row" :data-trip="row.number">
+          <RecordRow v-for="row in rows" :key="row.key" :to="row.to" data-testid="trip-row" :data-trip="row.number">
             <th scope="row" class="text-start font-normal">
               <DrillLink :to="row.to" :label="words.trip.title(row.number)" class="font-medium text-highlighted">{{ row.number }}</DrillLink>
             </th>
@@ -79,7 +80,7 @@ const rows = computed(() => (shownYear.value === null ? [] : tripRows(props.file
               </template>
               <span v-else class="text-muted">{{ words.order.none }}</span>
             </td>
-          </tr>
+          </RecordRow>
         </tbody>
       </FigureTable>
     </AppCard>

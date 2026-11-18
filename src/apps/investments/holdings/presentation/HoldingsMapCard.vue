@@ -14,6 +14,7 @@ import type { ChartPointSelection } from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /** Every holding held as a tile sized by its value and tinted by its gain, a tile opening its page, with a table of the same. */
 const props = defineProps<{
@@ -71,14 +72,14 @@ function open(selection: ChartPointSelection): void {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="tile in map.tiles" :key="tile.holding.instrument.id">
+        <RecordRow v-for="tile in map.tiles" :key="tile.holding.instrument.id" :to="holdingLink(tile.holding.instrument)">
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink :to="holdingLink(tile.holding.instrument)" class="text-highlighted">{{ tile.holding.instrument.name }}</DrillLink>
           </th>
           <td class="text-end"><MoneyText :cents="tile.value" /></td>
           <td class="figure text-end">{{ tile.holding.weight === null ? '–' : formatShare(tile.holding.weight) }}</td>
           <td class="figure text-end">{{ tile.gain === null ? '–' : formatPercent(tile.gain, 'always') }}</td>
-        </tr>
+        </RecordRow>
       </tbody>
     </template>
   </ChartCard>

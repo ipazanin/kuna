@@ -163,11 +163,11 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
           <ul class="mt-1.5 flex flex-wrap gap-1.5">
             <li v-for="condition in rule.conditions" :key="condition.column" class="condition">{{ conditionInWords(condition) }}</li>
           </ul>
-          <p v-if="rule.note" class="mt-1.5 text-xs text-muted">{{ rule.note }}</p>
+          <p v-if="rule.note" class="mt-1.5 type-caption">{{ rule.note }}</p>
         </div>
         <div class="rule-outcome">
           <CategoryChip :category="rule.category" :bucket="bucketBySlug.get(rule.category) ?? UNCLASSIFIED" />
-          <p class="figure text-xs text-muted">{{ words.tab.decides(decided.get(rule.id) ?? 0, rule.order) }}</p>
+          <p class="figure type-caption">{{ words.tab.decides(decided.get(rule.id) ?? 0, rule.order) }}</p>
         </div>
         <div class="rule-actions">
           <UButton icon="i-lucide-arrow-up" color="neutral" variant="ghost" size="sm" :aria-label="words.tab.earlier(rule.id)" :disabled="index === 0" @click="moveRule(rule, 'earlier')" />
@@ -184,7 +184,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
         </div>
       </li>
     </ol>
-    <p v-else class="px-4 py-6 text-sm text-muted sm:px-5">{{ words.tab.none }}</p>
+    <p v-else class="px-4 py-6 type-aside sm:px-5">{{ words.tab.none }}</p>
     <div class="h-2" />
 
     <RuleEditor v-model:open="editorOpen" :source="editorSource" />

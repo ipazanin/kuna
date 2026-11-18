@@ -309,12 +309,12 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
               <template #header>
                 <dl class="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
                   <div v-for="sum in view.sums" :key="sum.label" class="min-w-0">
-                    <dt class="text-xs text-muted">{{ sum.label }}</dt>
-                    <dd class="text-sm font-medium text-highlighted"><MoneyText :cents="sum.amount" /></dd>
+                    <dt class="type-caption">{{ sum.label }}</dt>
+                    <dd class="type-card-title"><MoneyText :cents="sum.amount" /></dd>
                   </div>
                 </dl>
               </template>
-              <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.panel.noneInPeriod }}</p>
+              <p v-if="view.invoices.length === 0" class="px-5 py-8 type-aside">{{ words.panel.noneInPeriod }}</p>
               <template v-else>
                 <div class="px-4 pt-1 pb-2 sm:px-5">
                   <InvoiceList :invoices="shownInvoices" :show-client="view.showClient" @edit="openInvoice" />
@@ -376,7 +376,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                 start-collapsed
                 :reveal="route.hash === '#invoices-days'"
               >
-                <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.panel.noClientInvoices }}</p>
+                <p v-if="view.daysRows.length === 0" class="px-5 py-8 type-aside">{{ words.panel.noClientInvoices }}</p>
                 <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
                   <DaysToPaidStrip :rows="view.daysRows" />
                 </div>
@@ -393,8 +393,8 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
               >
                 <ul class="flex flex-col px-4 pt-1 pb-2 sm:px-5">
                   <li v-for="credit in view.unattributed" :key="credit.key" class="credit-row">
-                    <span class="figure text-xs text-muted">{{ credit.date }}</span>
-                    <CutText class="min-w-0 text-sm text-toned">{{ credit.counterparty }}</CutText>
+                    <span class="figure type-caption">{{ credit.date }}</span>
+                    <CutText class="min-w-0 type-body">{{ credit.counterparty }}</CutText>
                     <DrillLink :to="credit.to" :label="words.panel.openCredit(credit.date, credit.counterparty)" class="justify-self-end">
                       <MoneyText :cents="credit.amount" tone="flow" class="text-sm font-medium" />
                     </DrillLink>

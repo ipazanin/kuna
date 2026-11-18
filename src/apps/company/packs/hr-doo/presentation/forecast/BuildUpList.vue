@@ -59,17 +59,17 @@ function domId(key: string): string {
         <button v-if="opens(line)" type="button" class="line-toggle" :aria-expanded="open.has(line.key)" :aria-controls="domId(line.key)" data-testid="build-up-toggle" @click="toggle(line.key)">
           <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(line.key) }" aria-hidden="true" />
           <span class="min-w-0">
-            <span class="block text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'">{{ line.label }}</span>
-            <span v-if="line.caption" class="block text-xs text-muted">{{ line.caption }}</span>
+            <span class="block" :class="line.total ? 'type-card-title' : 'type-body'">{{ line.label }}</span>
+            <span v-if="line.caption" class="block type-caption">{{ line.caption }}</span>
           </span>
         </button>
         <div v-else class="line-plain">
-          <span class="block text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'">{{ line.label }}</span>
-          <span v-if="line.caption" class="block text-xs text-muted">{{ line.caption }}</span>
+          <span class="block" :class="line.total ? 'type-card-title' : 'type-body'">{{ line.label }}</span>
+          <span v-if="line.caption" class="block type-caption">{{ line.caption }}</span>
         </div>
         <DrillLink :to="line.to" :label="packWords.figure.openRows(line.label)" class="line-amount">
-          <MoneyText v-if="'cents' in line.value" :cents="line.value.cents" class="text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'" />
-          <span v-else class="figure text-sm text-toned">{{ line.value.text }}</span>
+          <MoneyText v-if="'cents' in line.value" :cents="line.value.cents" :class="line.total ? 'type-card-title' : 'type-body'" />
+          <span v-else class="figure type-body">{{ line.value.text }}</span>
         </DrillLink>
       </div>
       <div v-if="open.has(line.key)" :id="domId(line.key)" class="line-detail" data-testid="build-up-detail">
@@ -81,7 +81,7 @@ function domId(key: string): string {
         </ul>
         <ul v-if="line.rules.length > 0" class="flex flex-wrap gap-x-4 gap-y-1" :aria-label="packWords.figure.rules">
           <li v-for="rule in line.rules" :key="rule.id">
-            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
+            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="type-label">{{ rule.title }}</DrillLink>
           </li>
         </ul>
       </div>

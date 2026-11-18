@@ -211,19 +211,19 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
         />
 
         <div v-if="missingRoles.length > 0 || noVat || unregistered || watched.length > 0" class="flex flex-col gap-3">
-          <p v-for="group in watched" :key="group.confidence" class="flex items-start gap-2 text-sm text-toned" data-testid="year-watched">
+          <p v-for="group in watched" :key="group.confidence" class="flex items-start gap-2 type-body" data-testid="year-watched">
             <ConfidenceBadge :confidence="group.confidence" />
             <span class="min-w-0">{{ words.watchedFor(WATCHED_WORDING[group.confidence], shown.year, group.rules.map((rule) => rule.title).join(', ')) }}</span>
           </p>
           <MissingRoles :missing="missingRoles" />
-          <div v-if="noVat" class="flex items-start gap-2 text-sm text-toned">
+          <div v-if="noVat" class="flex items-start gap-2 type-body">
             <UIcon name="i-lucide-receipt" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               {{ words.noVatBefore }}<span class="identifier">vat</span>{{ words.noVatAfter }}
               <DrillLink to="/company/settings?tab=categories" class="inline-target text-highlighted">{{ words.setOnCategories }}</DrillLink>
             </p>
           </div>
-          <div v-if="unregistered" class="flex items-start gap-2 text-sm text-toned">
+          <div v-if="unregistered" class="flex items-start gap-2 type-body">
             <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               {{ words.unregistered(shown.year) }}

@@ -62,6 +62,11 @@ export function tripsFlowIn(language) {
     await shoot('trips-new-order')
     await closeDialog(page)
 
+    await pressSelector(page, press, '[data-testid="trip-row"][data-trip="3/2026"] td:last-child')
+    await shows(page, '[data-testid="trip-order"]', 'a press on the payout of travel order 3/2026 did not open its order')
+    await page.goBack()
+    await shows(page, '[data-testid="trip-row"][data-trip="3/2026"]', 'Back from travel order 3/2026 did not return to the list')
+
     await pressSelector(page, press, '[data-testid="trip-row"][data-trip="1/2026"] a')
     await shows(page, '[data-testid="trip-order"]', 'travel order 1/2026 did not open on its order')
     await inspect?.('the order of a trip')

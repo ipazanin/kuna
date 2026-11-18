@@ -80,8 +80,8 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
     <li v-for="row in rows" :key="row.key" class="flex min-w-0 flex-col rounded-control border border-default px-3 py-2.5" :data-status="row.status">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <p class="text-sm font-medium text-highlighted">{{ row.label }}</p>
-          <CutText as="p" class="text-xs text-muted">{{ row.printed }}</CutText>
+          <p class="type-card-title">{{ row.label }}</p>
+          <CutText as="p" class="type-caption">{{ row.printed }}</CutText>
         </div>
         <StatusBadge :status="row.status" />
       </div>
@@ -122,7 +122,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
           </dd>
         </div>
       </dl>
-      <p v-if="row.explainedBy.length > 0" class="mt-2 text-xs text-muted">
+      <p v-if="row.explainedBy.length > 0" class="mt-2 type-caption">
         {{ words.comparison.explainedBy }}
         {{
           row.explainedBy
@@ -173,7 +173,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
                 <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
                 <span class="min-w-0">
                   <span class="block text-highlighted">{{ row.label }}</span>
-                  <CutText class="block text-xs text-muted">{{ row.printed }}</CutText>
+                  <CutText class="block type-caption">{{ row.printed }}</CutText>
                 </span>
               </button>
             </th>
@@ -198,7 +198,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
                 <li v-for="step in row.explainedBy.slice(0, NAMED)" :key="step.key">
                   <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="text-toned">{{ step.label }}</DrillLink>
                 </li>
-                <li v-if="row.explainedBy.length > NAMED" class="text-xs text-muted">{{ words.comparison.more(row.explainedBy.length - NAMED) }}</li>
+                <li v-if="row.explainedBy.length > NAMED" class="type-caption">{{ words.comparison.more(row.explainedBy.length - NAMED) }}</li>
               </ul>
               <span v-else class="text-muted">–</span>
             </td>

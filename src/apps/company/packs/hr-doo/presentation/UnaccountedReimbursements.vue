@@ -34,14 +34,14 @@ function addCost(line: UnaccountedReimbursement): void {
   <ul class="flex flex-col" data-testid="unaccounted-reimbursements">
     <li v-for="line in [...props.payments].reverse()" :key="listedRowKey(line.payment)" class="payment-row" data-testid="unaccounted-reimbursement">
       <div class="min-w-0">
-        <CutText as="p" class="text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || words.unaccounted.reimbursement }}</CutText>
-        <CutText as="p" class="text-xs text-muted">
+        <CutText as="p" class="type-row-title">{{ line.payment.description || line.payment.counterparty || words.unaccounted.reimbursement }}</CutText>
+        <CutText as="p" class="type-caption">
           {{ words.unaccounted.paid(dayLabel(line.payment.date))
           }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> {{ words.unaccounted.partOf }} <MoneyText :cents="negateMoney(line.payment.amount)" /></template>
         </CutText>
       </div>
       <DrillLink :to="drillLocation(line.drill)" :label="words.unaccounted.openRow(dayLabel(line.payment.date))" class="text-end">
-        <MoneyText :cents="line.amount" class="text-sm font-medium text-highlighted" />
+        <MoneyText :cents="line.amount" class="type-card-title" />
       </DrillLink>
       <UButton
         :label="words.unaccounted.addCost"

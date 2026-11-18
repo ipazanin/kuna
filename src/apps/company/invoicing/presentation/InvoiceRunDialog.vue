@@ -155,7 +155,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
             :disabled="!editable"
             data-testid="invoice-run-draft"
           />
-          <p v-if="run.mail.value" class="min-w-0 break-words text-xs text-muted">{{ words.run.mailTo(run.mail.value.to, run.mail.value.subject) }}</p>
+          <p v-if="run.mail.value" class="min-w-0 break-words type-caption">{{ words.run.mailTo(run.mail.value.to, run.mail.value.subject) }}</p>
         </div>
       </template>
       <dl v-else class="summary" data-testid="invoice-run-summary">
@@ -195,7 +195,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           />
           <span class="min-w-0">
             <span class="block text-highlighted">{{ words.run.steps[step.kind] }}</span>
-            <span v-if="step.note" class="block break-words text-xs" :class="step.status === 'failed' ? 'text-error' : 'text-muted'">{{ step.note }}</span>
+            <span v-if="step.note" class="block break-words" :class="step.status === 'failed' ? 'text-xs text-error' : 'type-caption'">{{ step.note }}</span>
           </span>
         </li>
       </ol>

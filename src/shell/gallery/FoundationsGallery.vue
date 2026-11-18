@@ -196,6 +196,8 @@ const TYPE_ROLES = [
   { role: 'type-card-title', use: 'A card or section title', sample: 'Income and costs by month' },
   { role: 'type-figure', use: 'The figure a tile or card leads with', sample: '€148,210' },
   { role: 'type-body', use: 'Running text in a card', sample: 'Net taxes are taxes paid minus refunds, so a refund never flatters the rate.' },
+  { role: 'type-row-title', use: 'The line a row or a summary leads with', sample: 'Office rent, March' },
+  { role: 'type-aside', use: 'A quiet sentence beside content, such as an empty list or an intro', sample: 'No invoices yet this year.' },
   { role: 'type-label', use: 'A small heading over a group of figures or a column', sample: 'What can be paid out' },
   { role: 'type-caption', use: 'Subtitles, captions and the line under a figure', sample: 'Last 12 months against the 12 before' },
 ] as const

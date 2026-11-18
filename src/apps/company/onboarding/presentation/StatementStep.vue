@@ -82,7 +82,7 @@ async function importNow(): Promise<void> {
 
 <template>
   <StepCard :title="words.statement.title" :subtitle="words.statement.subtitle">
-    <p v-if="inBrowser" class="text-sm text-muted" data-testid="onboarding-statements-by-hand">{{ words.statement.byHand }}</p>
+    <p v-if="inBrowser" class="type-aside" data-testid="onboarding-statements-by-hand">{{ words.statement.byHand }}</p>
 
     <UFileUpload
       v-model="picked"
@@ -99,7 +99,7 @@ async function importNow(): Promise<void> {
     />
     <UButton v-if="offersSample" :label="words.statement.sample" icon="i-lucide-file-code" color="neutral" variant="link" size="sm" class="self-start" data-testid="sample-camt" @click="loadSample" />
     <UAlert v-if="loadFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="loadFailure" />
-    <p v-if="loaded" class="flex items-center gap-2 text-sm text-toned">
+    <p v-if="loaded" class="flex items-center gap-2 type-body">
       <UIcon :name="loaded.kind === 'camt' ? 'i-lucide-file-code' : 'i-lucide-file-spreadsheet'" class="size-4 shrink-0" aria-hidden="true" />
       <span class="min-w-0 break-words">{{ loaded.fileName }}</span>
     </p>

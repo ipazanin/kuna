@@ -40,22 +40,22 @@ defineProps<{
 </script>
 
 <template>
-  <p v-if="loans.length === 0" class="py-6 text-sm text-muted" data-testid="loan-list-empty">{{ empty }}</p>
+  <p v-if="loans.length === 0" class="py-6 type-aside" data-testid="loan-list-empty">{{ empty }}</p>
   <ul v-else class="flex flex-col" data-testid="loan-list">
     <li v-for="loan in loans" :key="loan.key" class="loan-row">
       <div class="loan-head">
         <DrillLink :to="loan.to" :label="words.loanList.openRow(loan.lentOn)" class="text-highlighted">
           <span class="text-sm">{{ loan.lentOn }}</span>
         </DrillLink>
-        <MoneyText :cents="loan.amount" class="text-sm font-medium text-highlighted" />
+        <MoneyText :cents="loan.amount" class="type-card-title" />
         <UBadge :label="loan.open ? words.loanList.open : words.loanList.repaid" :color="loan.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
-        <p class="loan-remaining text-xs text-muted">
+        <p class="loan-remaining type-caption">
           <template v-if="loan.open"> <MoneyText :cents="loan.remaining" class="text-toned" />{{ words.loanList.stillOwed }}</template>
           <template v-else-if="loan.repaidOn">{{ words.loanList.closedOn(loan.repaidOn) }}</template>
           <template v-else>{{ words.loanList.nothingLent }}</template>
         </p>
       </div>
-      <CutText v-if="loan.part !== null" as="p" class="text-xs text-muted">{{ loan.part }}</CutText>
+      <CutText v-if="loan.part !== null" as="p" class="type-caption">{{ loan.part }}</CutText>
       <ol v-if="loan.repayments.length > 0" class="loan-trail" :aria-label="words.loanList.matched(loan.lentOn)">
         <li v-for="repayment in loan.repayments" :key="repayment.key">
           <DrillLink :to="repayment.to" :label="words.loanList.repaymentRow(repayment.date)" class="loan-share">

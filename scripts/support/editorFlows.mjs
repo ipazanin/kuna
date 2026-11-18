@@ -4514,6 +4514,9 @@ export function salariesFlowIn(language) {
     await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'a name on the People tab did not open that employee’s month')
     await inspect?.('one employee’s month')
     await shoot('salaries-employee')
+    await pressButton(page, press, SALARIES_TABS, salaries.screen.tabs.people)
+    await pressSelector(page, press, '[data-testid="salaries-people"] [data-person="mia"] :is(td:last-child, dd:last-of-type)')
+    await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'a press on a figure of a person’s row on the People tab did not open that employee’s month')
 
     await pressButton(page, press, SALARIES_TABS, salaries.screen.tabs.overTime)
     await page.waitForSelector('[data-testid="salaries-over-time"] canvas', { visible: true, timeout: 10_000 })

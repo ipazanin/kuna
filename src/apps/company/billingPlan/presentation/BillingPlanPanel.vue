@@ -134,7 +134,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
     <LedgerGate>
       <EmptyState v-if="tabState === 'empty'" icon="i-lucide-calendar-clock" :title="words.panel.emptyTitle" data-testid="billing-empty">
         <template #description>
-          <span class="block max-w-[60ch]">
+          <span class="block max-w-prose">
             {{ words.panel.emptyLead }} <span class="identifier">outgoing-plan</span> {{ words.panel.emptyColumns }} <span class="identifier">{{ columns }}</span
             >{{ words.panel.emptyAfter }}
           </span>
@@ -164,7 +164,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               <dd><MoneyText :cents="view.yearLine.notInvoiced" /></dd>
             </div>
           </dl>
-          <p class="mt-1 text-xs text-muted">
+          <p class="mt-1 type-caption">
             {{ plural(words.panel.planRows(view.yearLine.rowCount), view.yearLine.rowCount) }}, {{ plural(words.panel.stillOpen(view.yearLine.openRowCount), view.yearLine.openRowCount) }}.
             {{ plural(words.panel.issuedInYear(view.yearLine.issuedInYear), view.yearLine.issuedInYear) }}
           </p>
@@ -179,9 +179,9 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             </template>
             <NoteLine v-if="problems.length > 0" as="div" size="body" tone="error" class="px-4 pt-3 sm:px-5" data-testid="billing-problems">
               <span class="block">{{ plural(words.panel.leftOut(problems.length), problems.length) }}</span>
-              <span v-for="(problem, index) in problems" :key="index" class="block text-xs text-muted">{{ problem.label }}: {{ problem.reason }}</span>
+              <span v-for="(problem, index) in problems" :key="index" class="block type-caption">{{ problem.label }}: {{ problem.reason }}</span>
             </NoteLine>
-            <p v-if="view.rows.length === 0" class="px-5 py-8 text-sm text-muted">
+            <p v-if="view.rows.length === 0" class="px-5 py-8 type-aside">
               {{ words.panel.noRowsInYear(year) }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted">{{ words.panel.setTerms }}</DrillLink> {{ words.panel.fillOrAdd }}
             </p>
             <div v-else class="px-4 pt-2 pb-3 sm:px-5">
@@ -200,7 +200,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               start-collapsed
               :reveal="selectedMonth !== null || route.hash === '#billing-months-card'"
             >
-              <p v-if="view.months.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.panel.noMonthRows(year) }}</p>
+              <p v-if="view.months.length === 0" class="px-5 py-8 type-aside">{{ words.panel.noMonthRows(year) }}</p>
               <div v-else class="px-4 pt-1 pb-2 sm:px-5">
                 <BillingMonthList :months="view.months" :selected="selectedMonth" :show-client="showClient" />
               </div>
@@ -218,23 +218,23 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               data-testid="billing-items"
             >
               <template #legend>
-                <p class="text-xs font-medium text-muted">{{ year }}</p>
-                <p v-if="view.items.length === 0" class="py-2 text-sm text-muted">{{ words.panel.noRowsInYear(year) }}</p>
+                <p class="type-label">{{ year }}</p>
+                <p v-if="view.items.length === 0" class="py-2 type-aside">{{ words.panel.noRowsInYear(year) }}</p>
                 <ul v-else class="flex flex-col pb-2">
                   <li v-for="entry in view.items" :key="entry.item" class="item-line">
                     <span class="swatch" :style="{ background: entry.colour }" aria-hidden="true" />
-                    <CutText class="min-w-0 text-sm text-toned">{{ entry.item }}</CutText>
-                    <span class="figure text-xs text-muted">{{ formatPercent(entry.share) }}</span>
-                    <MoneyText :cents="entry.amount" class="text-sm text-highlighted" />
+                    <CutText class="min-w-0 type-body">{{ entry.item }}</CutText>
+                    <span class="figure type-caption">{{ formatPercent(entry.share) }}</span>
+                    <MoneyText :cents="entry.amount" class="type-row-title" />
                     <span class="share-bar" aria-hidden="true"><span :style="{ width: `${pointsOfShare(entry.share)}%`, background: entry.colour }" /></span>
                   </li>
                 </ul>
                 <div v-if="references.length > 0" class="border-t border-default py-3">
-                  <p class="text-xs font-medium text-muted">
+                  <p class="type-label">
                     {{ words.panel.termsOn }} <DrillLink :to="TERMS_LINK" in-prose class="text-toned">{{ words.panel.clientsTab }}</DrillLink>
                   </p>
                   <ul class="mt-1 flex flex-col gap-0.5">
-                    <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
+                    <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 type-caption">
                       <CutText class="min-w-0"
                         >{{ entry.label }} {{ words.panel.as }} <span class="text-toned">{{ entry.item }}</span
                         >, {{ entry.note }}</CutText
@@ -243,7 +243,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
                     </li>
                   </ul>
                 </div>
-                <p class="border-t border-default pt-3 text-xs font-medium text-muted">{{ words.panel.everyYear }}</p>
+                <p class="border-t border-default pt-3 type-label">{{ words.panel.everyYear }}</p>
                 <ChartLegend :entries="view.itemsChart.legend" class="mt-2" />
               </template>
             </ChartCard>

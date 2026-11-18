@@ -228,20 +228,20 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
         {{ words.corporate.subtitle }}
         <template v-if="corporateTax.state === 'ready'">{{ words.corporate.seenOn(dayLabel(asOf)) }}</template>
       </template>
-      <div v-if="corporateTax.state === 'unregistered'" class="flex items-start gap-2 px-4 py-4 text-sm text-toned sm:px-5">
+      <div v-if="corporateTax.state === 'unregistered'" class="flex items-start gap-2 px-4 py-4 type-body sm:px-5">
         <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
         <p>
           {{ words.corporate.unregistered }}
           <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.corporate.setOnSettings }}</DrillLink>
         </p>
       </div>
-      <p v-else-if="corporateTax.state === 'failed'" class="px-4 py-4 text-sm text-toned sm:px-5">{{ corporateTax.failure }}</p>
+      <p v-else-if="corporateTax.state === 'failed'" class="px-4 py-4 type-body sm:px-5">{{ corporateTax.failure }}</p>
       <template v-else>
         <div v-if="corporateTax.overdue.count > 0 || corporateTax.unmatched.length > 0" class="flex flex-col gap-3 px-4 pt-3 sm:px-5" data-testid="corporate-tax-callouts">
           <NoteLine v-if="corporateTax.overdue.count > 0" size="body" tone="error" data-testid="corporate-tax-overdue">
             {{ plural(words.corporate.overdueBefore(corporateTax.overdue.count), corporateTax.overdue.count) }}<MoneyText :cents="corporateTax.overdue.outstanding" />{{ words.corporate.overdueAfter }}
           </NoteLine>
-          <div v-if="corporateTax.unmatched.length > 0" class="flex items-start gap-2 text-sm text-toned" data-testid="unmatched-payments">
+          <div v-if="corporateTax.unmatched.length > 0" class="flex items-start gap-2 type-body" data-testid="unmatched-payments">
             <UIcon name="i-lucide-circle-question-mark" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <p>{{ words.corporate.unmatched }}</p>
@@ -256,10 +256,10 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
             </div>
           </div>
         </div>
-        <p v-if="corporateTax.years.length === 0" class="px-4 py-4 text-sm text-muted sm:px-5">{{ words.corporate.noYears }}</p>
+        <p v-if="corporateTax.years.length === 0" class="px-4 py-4 type-aside sm:px-5">{{ words.corporate.noYears }}</p>
         <div v-else class="flex flex-col gap-5 px-4 pt-3 pb-4 sm:px-3">
           <section v-for="entry in corporateTax.years" :key="entry.taxYear" :aria-label="words.corporate.forYear(entry.taxYear)" class="flex flex-col gap-2">
-            <h3 class="text-sm font-medium text-highlighted sm:px-2">
+            <h3 class="type-card-title sm:px-2">
               {{ words.corporate.forYear(entry.taxYear)
               }}<span class="font-normal text-muted">, <MoneyText :cents="entry.paid" /> {{ words.corporate.paidOf }} <MoneyText :cents="entry.expected" /></span>
             </h3>
@@ -283,26 +283,26 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
         <DrillLink to="/company/salaries" in-prose class="text-highlighted" data-testid="payroll-cadence-salaries">{{ words.cadence.salaries }}</DrillLink
         >{{ words.cadence.salariesChecks }}
       </template>
-      <p v-if="taxes.cadences.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.cadence.none }}</p>
+      <p v-if="taxes.cadences.length === 0" class="px-5 py-8 type-aside">{{ words.cadence.none }}</p>
       <div v-else class="flex flex-col gap-6 px-4 pt-3 pb-4 sm:px-5">
         <section v-for="cadence in taxes.cadences" :key="cadence.category" :aria-label="cadence.name" class="flex flex-col gap-3">
-          <h3 class="text-sm font-medium text-highlighted">{{ words.cadence.since(cadence.name, cadence.since) }}</h3>
+          <h3 class="type-card-title">{{ words.cadence.since(cadence.name, cadence.since) }}</h3>
           <dl class="grid grid-cols-3 gap-3">
             <div class="min-w-0">
-              <dt class="text-xs text-muted">{{ words.cadence.monthsPaid }}</dt>
-              <dd class="text-sm font-medium text-highlighted">
+              <dt class="type-caption">{{ words.cadence.monthsPaid }}</dt>
+              <dd class="type-card-title">
                 <DrillLink :to="cadence.allRows" :label="words.cadence.paidOfRows(cadence.name, cadence.paid, cadence.elapsed)">
                   <span class="figure">{{ words.cadence.paidOf(cadence.paid, cadence.elapsed) }}</span>
                 </DrillLink>
               </dd>
             </div>
             <div class="min-w-0">
-              <dt class="text-xs text-muted">{{ words.cadence.missed }}</dt>
-              <dd class="figure text-sm font-medium" :class="cadence.missed === 0 ? 'text-highlighted' : 'text-error'">{{ cadence.missed === 0 ? words.cadence.none2 : cadence.missed }}</dd>
+              <dt class="type-caption">{{ words.cadence.missed }}</dt>
+              <dd class="figure" :class="cadence.missed === 0 ? 'type-card-title' : 'text-sm font-medium text-error'">{{ cadence.missed === 0 ? words.cadence.none2 : cadence.missed }}</dd>
             </div>
             <div class="min-w-0">
-              <dt class="text-xs text-muted">{{ words.cadence.typical }}</dt>
-              <dd class="text-sm font-medium text-highlighted">
+              <dt class="type-caption">{{ words.cadence.typical }}</dt>
+              <dd class="type-card-title">
                 <DrillLink v-if="cadence.typical !== null" :to="cadence.allRows" :label="words.cadence.typicalRows(cadence.name)">
                   <MoneyText :cents="cadence.typical" />
                 </DrillLink>
@@ -316,7 +316,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
     </AppCard>
 
     <AppCard v-if="taxes.ring.parts.length === 0" :title="words.byType.title" :subtitle="taxes.period">
-      <p class="px-5 py-8 text-sm text-muted">{{ words.byType.noneIn(year) }}</p>
+      <p class="px-5 py-8 type-aside">{{ words.byType.noneIn(year) }}</p>
     </AppCard>
     <DonutCard
       v-else

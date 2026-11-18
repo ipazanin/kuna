@@ -126,7 +126,7 @@ const sheetOpen = ref(false)
         </span>
       </template>
     </div>
-    <p class="flex flex-wrap items-center gap-x-3 text-xs text-muted">
+    <p class="flex flex-wrap items-center gap-x-3 type-caption">
       <span class="figure" aria-live="polite" data-testid="category-count">{{ count }}</span>
       <span v-if="kept > 0" data-testid="category-kept">{{ plural(words.categories.kept(kept), kept) }}</span>
       <UButton

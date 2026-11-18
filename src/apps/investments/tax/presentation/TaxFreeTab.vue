@@ -17,6 +17,7 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
 /** The lots that turn tax-free in the next 24 months, by month, each with its value now and its gain, the ones at a loss marked. */
@@ -61,7 +62,7 @@ const shown = computed(() => {
         <tr class="group-row">
           <th scope="rowgroup" colspan="6" class="text-start">{{ monthLabel(month.month) }}</th>
         </tr>
-        <tr v-for="entry in month.lots" :key="`${entry.holding.instrument.id}|${entry.place}`" data-testid="tax-free-lot">
+        <RecordRow v-for="entry in month.lots" :key="`${entry.holding.instrument.id}|${entry.place}`" :to="holdingLink(entry.holding.instrument)" data-testid="tax-free-lot">
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink :to="holdingLink(entry.holding.instrument)">{{ entry.holding.instrument.name }}</DrillLink>
             <span class="block type-caption">{{ text.from(dayLabel(entry.lot.taxFreeFrom)) }}</span>
@@ -82,7 +83,7 @@ const shown = computed(() => {
               {{ text.atALoss }}
             </span>
           </td>
-        </tr>
+        </RecordRow>
       </tbody>
     </FigureTable>
     <div v-if="total > FIRST_SHOWN" class="px-4 pb-4 sm:px-5">

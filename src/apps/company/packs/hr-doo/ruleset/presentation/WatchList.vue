@@ -31,9 +31,9 @@ const shown = computed(() => (folds.value && !expanded.value ? props.items.slice
       {{ words.watch.title }} <span class="figure font-normal text-muted">{{ items.length === total ? total : words.watch.shownOf(items.length, total) }}</span>
     </template>
     <template #subtitle>
-      <span class="block max-w-[75ch]">{{ words.watch.about(checkedOn) }}</span>
+      <span class="block max-w-prose">{{ words.watch.about(checkedOn) }}</span>
     </template>
-    <p v-if="items.length === 0" class="px-5 py-6 text-sm text-muted">{{ words.watch.nothing }}</p>
+    <p v-if="items.length === 0" class="px-5 py-6 type-aside">{{ words.watch.nothing }}</p>
     <ul v-else class="watch-items px-4 pt-2 pb-3 sm:px-5">
       <li v-for="item in shown" :key="item.key" class="watch-item" data-testid="watch-item">
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -42,11 +42,11 @@ const shown = computed(() => (folds.value && !expanded.value ? props.items.slice
               >{{ item.title }}<span v-if="item.period" class="figure font-normal text-muted">, {{ item.period }}</span></span
             >
           </RouterLink>
-          <span v-else class="text-sm font-medium text-highlighted">{{ item.title }}</span>
+          <span v-else class="type-card-title">{{ item.title }}</span>
           <ConfidenceBadge :confidence="item.confidence" />
         </div>
-        <p class="mt-1 text-xs leading-relaxed text-toned">{{ item.note }}</p>
-        <p class="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+        <p class="mt-1 type-caption leading-relaxed">{{ item.note }}</p>
+        <p class="mt-1 flex flex-wrap items-center gap-x-3 type-caption">
           <span>{{ words.areas[item.area].label }}</span>
           <a v-if="item.url !== null" :href="item.url" target="_blank" rel="noopener noreferrer" class="watch-source">
             <span>{{ words.watch.openSource }}</span>

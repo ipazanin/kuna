@@ -58,8 +58,8 @@ async function startNewBooks(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-hard-drive" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">{{ current === 'drive' ? words.drive.titleAgain : words.drive.title }}</h3>
-        <p class="mt-1 text-sm text-muted">{{ words.drive.description }}</p>
+        <h3 class="type-card-title">{{ current === 'drive' ? words.drive.titleAgain : words.drive.title }}</h3>
+        <p class="mt-1 type-aside">{{ words.drive.description }}</p>
       </div>
       <div class="choice-action">
         <div class="flex flex-col items-start gap-2 sm:items-stretch">
@@ -82,15 +82,15 @@ async function startNewBooks(): Promise<void> {
             @click="openFromDrive('pick')"
           />
         </div>
-        <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">{{ words.drive.cookies }}</p>
+        <p v-if="signInByRedirect" class="mt-2 max-w-56 type-caption" data-testid="redirect-sign-in-note">{{ words.drive.cookies }}</p>
       </div>
     </li>
 
     <li class="choice">
       <UIcon name="i-lucide-file-spreadsheet" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">{{ words.file.title }}</h3>
-        <p class="mt-1 text-sm text-muted">{{ words.file.description }}</p>
+        <h3 class="type-card-title">{{ words.file.title }}</h3>
+        <p class="mt-1 type-aside">{{ words.file.description }}</p>
         <UFileUpload
           v-model="pickedFile"
           :accept="WORKBOOK_FILE_TYPES"
@@ -110,8 +110,8 @@ async function startNewBooks(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-file-plus" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">{{ words.newBooks.title }}</h3>
-        <p class="mt-1 text-sm text-muted">{{ words.newBooks.description }}</p>
+        <h3 class="type-card-title">{{ words.newBooks.title }}</h3>
+        <p class="mt-1 type-aside">{{ words.newBooks.description }}</p>
       </div>
       <div class="choice-action">
         <UButton :label="words.newBooks.start" icon="i-lucide-file-plus" color="neutral" variant="outline" data-testid="start-new-books" @click="startNewBooks" />

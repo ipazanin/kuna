@@ -82,7 +82,7 @@ const status = computed(() =>
 
 <template>
   <section class="flex min-w-0 flex-col gap-1.5" :aria-label="table.label">
-    <h4 class="text-xs font-medium text-muted">{{ table.label }}</h4>
+    <h4 class="type-label">{{ table.label }}</h4>
 
     <div v-if="table.long" class="flex flex-col gap-2" data-testid="long-table-controls">
       <div class="flex flex-wrap items-center gap-2">
@@ -100,24 +100,24 @@ const status = computed(() =>
           </template>
         </UInput>
         <UButton :label="showAll ? words.table.showFewer : words.table.showAll" color="neutral" variant="outline" data-testid="table-show-all" @click="toggleShowAll" />
-        <p class="figure text-xs text-muted" aria-live="polite" data-testid="table-count">{{ status }}</p>
+        <p class="figure type-caption" aria-live="polite" data-testid="table-count">{{ status }}</p>
       </div>
-      <p v-if="rowsShown.length === 0" class="text-sm text-muted">
+      <p v-if="rowsShown.length === 0" class="type-aside">
         {{ search === '' ? (focus?.hint ?? words.table.searchOrShowAll(table.rows.length)) : words.table.noMatch(search) }}
       </p>
     </div>
 
     <ul v-if="phone && rowsShown.length > 0" class="flex flex-col gap-2">
       <li v-for="row in rowsShown" :key="row.key" class="flex flex-col gap-1.5">
-        <p v-if="row.period !== null" class="figure pt-1 text-xs font-medium text-highlighted">{{ row.period }}</p>
+        <p v-if="row.period !== null" class="figure pt-1 type-label">{{ row.period }}</p>
         <div class="rounded-control border border-default px-3 py-2" :class="{ 'is-focus': focusMarked && isFocused(row) }">
-          <p v-if="titleColumn >= 0" class="text-sm text-highlighted" :class="{ 'is-changed': row.cells[titleColumn]?.changed }">
+          <p v-if="titleColumn >= 0" class="type-row-title" :class="{ 'is-changed': row.cells[titleColumn]?.changed }">
             {{ row.cells[titleColumn]?.wording }}
           </p>
           <dl class="phone-cells">
             <div v-for="(cell, index) in row.cells" v-show="index !== titleColumn" :key="index" class="flex items-baseline justify-between gap-3">
-              <dt class="text-xs text-muted">{{ table.headers[index] }}</dt>
-              <dd class="figure text-end text-sm" :class="cell.changed ? 'is-changed' : 'text-default'">{{ cell.wording }}</dd>
+              <dt class="type-caption">{{ table.headers[index] }}</dt>
+              <dd class="figure text-end" :class="cell.changed ? 'is-changed text-sm' : 'type-body'">{{ cell.wording }}</dd>
             </div>
           </dl>
         </div>

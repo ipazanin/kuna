@@ -56,7 +56,7 @@ function barStyle(change: number): Record<string, string> {
       <tr v-for="row in rows" :key="row.label" :class="{ emphasised: row.emphasised }">
         <th scope="row" class="cell-wraps text-start font-normal text-toned">
           {{ row.label }}
-          <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden">
+          <span v-if="row.recentChange !== null" class="figure block type-caption font-normal @md:hidden">
             {{ words.typicalMonth.changeAgainst12(formatPercent(row.recentChange, 'always')) }}
           </span>
         </th>

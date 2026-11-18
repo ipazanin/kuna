@@ -9,6 +9,7 @@ import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../../../shared/ui/RecordRow.vue'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
 import { salaryMonthsChart } from './salaryCharts'
 import type { SalaryMonthRow } from '../../domain/salaries/salaryFigures'
@@ -51,7 +52,7 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.payday" :data-payday="row.payday">
+          <RecordRow v-for="row in rows" :key="row.payday" :to="monthLink(row.payday)" :data-payday="row.payday">
             <th scope="row" class="text-start font-normal">
               <DrillLink :to="monthLink(row.payday)" :label="words.overTime.openMonth(monthLabel(row.payday))" class="text-highlighted">{{ monthLabel(row.payday) }}</DrillLink>
             </th>
@@ -60,7 +61,7 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
             <td class="hidden text-end @2xl:table-cell"><MoneyText :cents="row.parts.pensionSavings" /></td>
             <td class="hidden text-end @md:table-cell"><MoneyText :cents="row.toState" /></td>
             <td class="figure text-end" :class="row.problems === 0 ? 'text-muted' : 'text-error'">{{ row.problems }}</td>
-          </tr>
+          </RecordRow>
         </tbody>
       </FigureTable>
     </AppCard>

@@ -198,9 +198,7 @@ async function fileRows(): Promise<void> {
             {{ said.paidMore(line.link, formatMoney(paidMore.get(line.link)!)) }}
             <DrillLink :to="rowLink(line.linked)">{{ said.fileOnTransactions }}</DrillLink>
           </NoteLine>
-          <span v-else-if="line.found" class="break-words type-caption text-toned" data-testid="trip-bank-row-found">{{
-            said.found(shortDayLabel(line.found.date), line.found.counterparty || name)
-          }}</span>
+          <span v-else-if="line.found" class="break-words type-caption" data-testid="trip-bank-row-found">{{ said.found(shortDayLabel(line.found.date), line.found.counterparty || name) }}</span>
         </template>
         <template v-if="line.linked || line.found || line.amount !== null" #amount>
           <MoneyText v-if="line.linked" :cents="line.linked.amount" tone="flow" />
@@ -247,10 +245,10 @@ async function fileRows(): Promise<void> {
     </ul>
 
     <div v-if="refusal || splitRows.length > 0" class="border-t border-default py-3" data-testid="trip-bank-split">
-      <p v-if="refusal" class="px-4 text-sm text-toned sm:px-5" data-testid="trip-bank-split-refusal">{{ refusal }}</p>
+      <p v-if="refusal" class="px-4 type-body sm:px-5" data-testid="trip-bank-split-refusal">{{ refusal }}</p>
       <template v-else>
         <div class="flex flex-col gap-0.5 px-4 sm:px-5">
-          <span class="text-sm font-medium text-highlighted">{{ said.splitTitle }}</span>
+          <span class="type-card-title">{{ said.splitTitle }}</span>
           <span class="type-caption">{{ allFiled ? (splitRows.length > 1 ? said.filed : said.filedOne) : said.splitIntro }}</span>
           <UButton v-if="!allFiled" class="mt-1 self-start" :label="said.file" icon="i-lucide-split" size="sm" :loading="writes.saving('file-rows')" data-testid="trip-bank-file" @click="fileRows" />
         </div>

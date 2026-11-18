@@ -167,7 +167,7 @@ function save(): void {
                 @update:model-value="update(index, column.name, String($event ?? ''))"
               >
                 <template v-if="kindOf(column, draft) === 'percent'" #trailing>
-                  <span class="text-xs text-muted">%</span>
+                  <span class="type-caption">%</span>
                 </template>
               </UInput>
             </td>

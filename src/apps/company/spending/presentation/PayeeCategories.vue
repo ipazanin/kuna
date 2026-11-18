@@ -66,15 +66,15 @@ const spokenBreakdown = computed(() =>
     <UPopover mode="hover" enable-touch :open-delay="120" :close-delay="120" :reference="anchor" :content="{ side: 'bottom', align: 'start', collisionPadding: 12 }">
       <button ref="trigger" type="button" class="payee-categories" :aria-label="spokenBreakdown" data-testid="payee-categories">
         <CategoryChip :category="largest.category" :bucket="largest.bucket" class="min-w-0" />
-        <span v-if="categories.length > 1" class="figure shrink-0 text-xs text-muted">+{{ categories.length - 1 }}</span>
+        <span v-if="categories.length > 1" class="figure shrink-0 type-caption">+{{ categories.length - 1 }}</span>
       </button>
       <template #content>
         <ul class="breakdown" data-testid="payee-breakdown">
           <li v-for="line in categories" :key="line.category">
             <DrillLink :to="line.to" class="breakdown-line">
               <CategoryChip :category="line.category" :bucket="line.bucket" class="min-w-0" />
-              <span class="figure shrink-0 text-xs text-muted">{{ plural(words.payee.rows(line.count), line.count) }}</span>
-              <MoneyText :cents="line.amount" class="shrink-0 text-sm text-highlighted" />
+              <span class="figure shrink-0 type-caption">{{ plural(words.payee.rows(line.count), line.count) }}</span>
+              <MoneyText :cents="line.amount" class="shrink-0 type-row-title" />
             </DrillLink>
           </li>
         </ul>

@@ -86,10 +86,10 @@ function choosePreset(preset: PeriodPreset): void {
 
     <div v-if="customRange" class="flex flex-wrap items-center gap-2">
       <DayField size="sm" :aria-label="words.from" :model-value="customRange.from" class="w-40" @change="setCustomEnd('from', $event)" />
-      <span class="text-xs text-muted">{{ words.until }}</span>
+      <span class="type-caption">{{ words.until }}</span>
       <DayField size="sm" :aria-label="words.to" :model-value="customRange.to" class="w-40" @change="setCustomEnd('to', $event)" />
     </div>
 
-    <p v-if="!customRange" class="figure text-sm text-toned" data-testid="period-range">{{ rangeText }}</p>
+    <p v-if="!customRange" class="figure type-body" data-testid="period-range">{{ rangeText }}</p>
   </div>
 </template>

@@ -50,15 +50,15 @@ defineProps<{
 </script>
 
 <template>
-  <p v-if="grants.length === 0" class="text-sm text-muted">{{ words.grants.none }}</p>
+  <p v-if="grants.length === 0" class="type-aside">{{ words.grants.none }}</p>
   <div v-else class="grid gap-x-8 gap-y-5 @2xl:grid-cols-2" data-testid="grant-panel">
     <section v-for="grant in grants" :key="grant.key" :aria-label="grant.name" class="flex min-w-0 flex-col gap-3">
       <div>
-        <h3 class="text-sm font-medium text-highlighted">
+        <h3 class="type-card-title">
           <span class="identifier">{{ grant.name }}</span
           >, <MoneyText :cents="grant.amount" />
         </h3>
-        <p class="text-xs text-muted">
+        <p class="type-caption">
           {{ words.grants.received }}<DrillLink :to="grant.receipt" in-prose :label="words.grants.receivedRow(grant.received)">{{ grant.received }}</DrillLink
           >{{ words.grants.receivedEnd }} {{ grant.policy }}
         </p>
@@ -68,13 +68,13 @@ defineProps<{
         <div>
           <dt>{{ words.grants.employmentUntil }}</dt>
           <dd class="text-highlighted">{{ grant.employmentUntil ?? words.grants.notOnTab }}</dd>
-          <dd v-if="grant.employmentState" class="text-xs text-muted">{{ grant.employmentState }}</dd>
+          <dd v-if="grant.employmentState" class="type-caption">{{ grant.employmentState }}</dd>
         </div>
         <div data-testid="grant-clawback">
           <dt>{{ words.grants.repaidToday }}</dt>
           <dd v-if="grant.clawback" class="text-highlighted"><MoneyText :cents="grant.clawback.amount" /></dd>
           <dd v-else class="text-highlighted">{{ words.grants.notOnTab }}</dd>
-          <dd v-if="grant.clawback?.until" class="text-xs text-muted">{{ words.grants.holdsUntil(grant.clawback.until) }}</dd>
+          <dd v-if="grant.clawback?.until" class="type-caption">{{ words.grants.holdsUntil(grant.clawback.until) }}</dd>
         </div>
       </dl>
 
@@ -89,21 +89,21 @@ defineProps<{
         <tbody>
           <tr v-for="year in grant.years" :key="year.year">
             <th scope="row" class="figure text-start font-normal text-toned">
-              {{ year.year }}<span v-if="year.when === 'ahead'" class="block text-xs text-muted sm:ms-1.5 sm:inline">{{ words.grants.toCome }}</span>
+              {{ year.year }}<span v-if="year.when === 'ahead'" class="block type-caption sm:ms-1.5 sm:inline">{{ words.grants.toCome }}</span>
             </th>
             <td class="text-end"><MoneyText :cents="year.released" /></td>
             <td class="text-end"><MoneyText :cents="year.deferred" /></td>
           </tr>
         </tbody>
       </table>
-      <p v-if="grant.neverReleased > 0" class="text-xs text-muted"><MoneyText :cents="grant.neverReleased" class="text-toned" />{{ words.grants.neverReleased }}</p>
+      <p v-if="grant.neverReleased > 0" class="type-caption"><MoneyText :cents="grant.neverReleased" class="text-toned" />{{ words.grants.neverReleased }}</p>
     </section>
 
     <section v-if="comparisons.length > 0" :aria-label="words.grants.againstAccountant" class="flex min-w-0 flex-col gap-2" data-testid="grant-residuals">
-      <h3 class="text-xs font-medium text-muted">{{ words.grants.againstAccountantTitle }}</h3>
+      <h3 class="type-label">{{ words.grants.againstAccountantTitle }}</h3>
       <ul class="flex flex-col gap-2">
         <li v-for="line in comparisons" :key="line.key" class="comparison-row">
-          <p class="text-sm text-toned">{{ line.label }}</p>
+          <p class="type-body">{{ line.label }}</p>
           <dl class="comparison-figures">
             <div>
               <dt>{{ words.grants.accountant }}</dt>
@@ -122,7 +122,7 @@ defineProps<{
           </dl>
         </li>
       </ul>
-      <p class="text-xs text-muted">{{ words.grants.residualNote }}</p>
+      <p class="type-caption">{{ words.grants.residualNote }}</p>
     </section>
   </div>
 </template>

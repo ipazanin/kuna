@@ -29,7 +29,6 @@
     "src/apps/company/packs/hr-doo/presentation/forecast/PlanEditor.vue",
     "src/apps/company/packs/hr-doo/presentation/payScenarios/PayPanel.vue",
     "src/apps/company/packs/hr-doo/presentation/payScenarios/ScenarioEditor.vue",
-    "src/apps/company/packs/hr-doo/presentation/salaries/SalaryPeoplePanel.vue",
     "src/apps/company/packs/hr-doo/presentation/salaries/SalaryProblemList.vue",
     "src/apps/company/packs/hr-doo/presentation/salaries/SalaryReconciliationCard.vue",
     "src/apps/company/packs/hr-doo/presentation/taxes/CadenceCalendar.vue",
@@ -93,7 +92,6 @@
   ],
   "formatting": [
     "src/apps/company/billingPlan/domain/fillRestOfYear.ts",
-    "src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts",
     "src/apps/company/invoicing/domain/invoiceMail.ts",
     "src/apps/company/invoicing/infrastructure/invoicePdf.ts",
     "src/apps/company/packs/hr-doo/presentation/TakenPanel.vue",

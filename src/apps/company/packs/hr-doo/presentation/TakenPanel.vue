@@ -231,11 +231,11 @@ const taken = computed(() => {
               <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
             </span>
           </template>
-          <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
+          <p v-if="net.unregistered" class="mt-1.5 type-caption" data-testid="owner-net-unregistered">
             {{ words.taken.profitNeeds }}
             <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.taken.setOnSettings }}</DrillLink>
           </p>
-          <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">{{ words.taken.profitFollowsPeriod }}</p>
+          <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 type-caption" data-testid="owner-net-period-only">{{ words.taken.profitFollowsPeriod }}</p>
         </KpiTile>
       </FigureAsk>
     </DashboardGrid>
@@ -254,7 +254,7 @@ const taken = computed(() => {
       >
         <template v-if="taken.loanBalance" #beside>
           <div class="flex flex-col gap-1" data-testid="owner-loan-balance">
-            <p class="text-xs text-muted">{{ words.taken.ring.loanBalance }}</p>
+            <p class="type-caption">{{ words.taken.ring.loanBalance }}</p>
             <DrillChartPlot :chart="taken.loanBalance" :height="168" :phone-height="180" />
           </div>
         </template>
@@ -271,11 +271,11 @@ const taken = computed(() => {
               </DrillLink>
             </li>
           </ul>
-          <p class="mt-3 text-xs text-muted" data-testid="owner-salaries">
+          <p class="mt-3 type-caption" data-testid="owner-salaries">
             <DrillLink to="/company/salaries" in-prose class="text-toned">{{ words.taken.ring.salariesLink }}</DrillLink
             >{{ words.taken.ring.salariesSplit }}
           </p>
-          <p v-if="taken.reimbursements.length > 0" class="mt-3 text-xs text-muted" data-testid="owner-reimbursements">
+          <p v-if="taken.reimbursements.length > 0" class="mt-3 type-caption" data-testid="owner-reimbursements">
             {{ words.taken.ring.reimbursementsOutside }}
             <template v-for="(line, index) in taken.reimbursements" :key="line.key">
               <DrillLink :to="line.to" in-prose class="text-toned">{{ line.name }}</DrillLink> <MoneyText :cents="line.amount" />{{ index < taken.reimbursements.length - 1 ? ', ' : '.' }}

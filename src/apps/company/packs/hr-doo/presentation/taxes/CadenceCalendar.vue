@@ -74,7 +74,7 @@ function spoken(cell: CadenceCell): string {
 
 <template>
   <div class="flex flex-col gap-3">
-    <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-toned" :aria-label="words.calendar.key(name)">
+    <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 type-caption" :aria-label="words.calendar.key(name)">
       <li v-for="(meaning, state) in STATES" :key="state" class="inline-flex items-center gap-1.5">
         <span class="cadence-swatch" :class="`is-${state}`" aria-hidden="true"><UIcon :name="meaning.icon" class="size-2.5" /></span>
         {{ meaning.label }}
@@ -92,12 +92,12 @@ function spoken(cell: CadenceCell): string {
             <th scope="col">
               <span class="sr-only">{{ phone ? words.calendar.month : words.calendar.year }}</span>
             </th>
-            <th v-for="column in grid.columns" :key="column" scope="col" class="text-center text-xs font-medium text-muted">{{ column }}</th>
+            <th v-for="column in grid.columns" :key="column" scope="col" class="text-center type-label">{{ column }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in grid.rows" :key="row.label">
-            <th scope="row" class="pe-2 text-start text-xs font-medium text-muted">{{ row.label }}</th>
+            <th scope="row" class="pe-2 text-start type-label">{{ row.label }}</th>
             <td v-for="(cell, index) in row.cells" :key="index">
               <DrillLink v-if="cell" :to="cell.to" :label="spoken(cell)" class="cadence-cell" :class="`is-${cell.state}`" :data-testid="`cadence-${cell.state}`">
                 <UIcon :name="STATES[cell.state].icon" class="size-3.5 shrink-0" aria-hidden="true" />

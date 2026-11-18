@@ -132,14 +132,14 @@ async function change(): Promise<void> {
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <span class="flex min-w-0 flex-wrap items-center gap-2">
           <CategoryChip :category="row.category" :bucket="row.bucket" />
-          <span v-if="isHumanConfirmed(row)" class="text-xs text-muted"
+          <span v-if="isHumanConfirmed(row)" class="type-caption"
             >{{ words.changeDialog.confirmedBy }} <span class="identifier">{{ row.flaggedBy }}</span></span
           >
-          <span v-else class="text-xs text-muted">{{ words.changeDialog.filedByRule }}</span>
+          <span v-else class="type-caption">{{ words.changeDialog.filedByRule }}</span>
         </span>
         <MoneyText :cents="row.amount" tone="flow" class="font-medium" />
       </div>
-      <p v-if="row.description" class="text-sm text-toned">{{ row.description }}</p>
+      <p v-if="row.description" class="type-body">{{ row.description }}</p>
       <UFormField :label="words.changeDialog.category">
         <CategoryPicker v-model="picked" :categories="categories" :placeholder="words.changeDialog.newCategory" class="w-full" data-testid="change-category-picker" />
       </UFormField>
@@ -150,9 +150,7 @@ async function change(): Promise<void> {
         {{ words.changeDialog.ruleAgainst.before }} <span class="identifier">{{ against.ruleId }}</span>
         {{ words.changeDialog.ruleAgainst.after(names.category(against.category), names.category(picked ?? '')) }}
       </NoteLine>
-      <p v-if="changed || !relabelled" class="text-xs text-muted">
-        {{ words.changeDialog.writes.before }} <span class="identifier">flagged_by</span> {{ words.changeDialog.writes.after(reviewLabel) }}
-      </p>
+      <p v-if="changed || !relabelled" class="type-caption">{{ words.changeDialog.writes.before }} <span class="identifier">flagged_by</span> {{ words.changeDialog.writes.after(reviewLabel) }}</p>
     </div>
     <template #end>
       <UButton :label="words.changeDialog.cancel" color="neutral" variant="ghost" @click="open = false" />

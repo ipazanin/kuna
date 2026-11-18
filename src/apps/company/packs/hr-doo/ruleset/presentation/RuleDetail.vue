@@ -23,13 +23,13 @@ withDefaults(
       <template v-if="phone">
         <section v-for="(column, columnIndex) in rule.columns" :key="column.period" class="flex flex-col gap-2" :aria-label="column.period">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h4 class="figure text-sm font-medium text-highlighted">{{ column.period }}</h4>
+            <h4 class="figure type-card-title">{{ column.period }}</h4>
             <ConfidenceBadge :confidence="column.confidence" />
           </div>
           <dl v-if="rule.rows.length > 0" class="flex flex-col">
             <div v-for="row in rule.rows" :key="row.key" class="phone-term">
-              <dt class="text-xs text-muted">{{ row.label }}</dt>
-              <dd class="figure text-sm" :class="row.cells[columnIndex]?.changed ? 'is-changed' : 'text-default'">
+              <dt class="type-caption">{{ row.label }}</dt>
+              <dd class="figure" :class="row.cells[columnIndex]?.changed ? 'is-changed text-sm' : 'type-body'">
                 {{ row.cells[columnIndex]?.wording }}<span v-if="row.cells[columnIndex]?.changed" class="sr-only">{{ words.detail.changed }}</span>
               </dd>
             </div>
@@ -38,7 +38,7 @@ withDefaults(
       </template>
       <ul v-else-if="rule.rows.length === 0" class="flex flex-wrap gap-x-6 gap-y-2" :aria-label="words.detail.versions">
         <li v-for="column in rule.columns" :key="column.period" class="flex items-center gap-2">
-          <span class="figure text-sm font-medium text-highlighted">{{ column.period }}</span>
+          <span class="figure type-card-title">{{ column.period }}</span>
           <ConfidenceBadge :confidence="column.confidence" />
         </li>
       </ul>
@@ -51,7 +51,7 @@ withDefaults(
               </th>
               <th v-for="column in rule.columns" :key="column.period" scope="col" class="text-start">
                 <span class="flex flex-wrap items-center gap-2">
-                  <span class="figure text-sm font-medium text-highlighted">{{ column.period }}</span>
+                  <span class="figure type-card-title">{{ column.period }}</span>
                   <ConfidenceBadge :confidence="column.confidence" />
                 </span>
               </th>
@@ -71,7 +71,7 @@ withDefaults(
       <RuleTable v-for="table in rule.tables" :key="table.key" :table="table" :phone="phone" :focus="tableFocus" />
 
       <div v-if="rule.notes.length > 0" class="flex flex-col gap-1.5">
-        <p v-for="note in rule.notes" :key="note.period ?? 'all'" class="max-w-[75ch] text-xs leading-relaxed text-toned">
+        <p v-for="note in rule.notes" :key="note.period ?? 'all'" class="max-w-prose type-caption leading-relaxed">
           <span v-if="note.period !== null" class="figure font-medium text-highlighted">{{ note.period }}. </span>{{ note.note }}
         </p>
       </div>

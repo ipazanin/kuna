@@ -864,6 +864,37 @@ async function checkWidth(browser, width) {
     await shoot('loans-completed-loan')
   })
 
+  // A table row that stands for a record opens it from a tap on a figure of the row, where the room shows the table: one of Company's newest rows, a holding and an account.
+  await step('record-rows', async () => {
+    const tapLastCell = async (row) => {
+      await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await (await row.$('td:last-child')).tap()
+    }
+    const linkName = (row) => row.evaluate((element) => element.querySelector('th a')?.textContent?.trim() ?? '')
+    await page.setViewport({ width: 1024, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+    try {
+      await open(page, `&load=${Date.now()}#/company`, 'Overview')
+      await tapLastCell(await page.waitForSelector('[data-testid="company-latest"] tr[data-record-row]', { visible: true }))
+      await waitForTitle(page, 'Transactions')
+
+      await open(page, `&investments=sample&load=${Date.now()}#/investments/holdings`, 'Holdings')
+      const holding = await page.waitForSelector('tr[data-testid="holding-line"][data-record-row]', { visible: true })
+      const holdingName = await linkName(holding)
+      await tapLastCell(holding)
+      await waitForTitle(page, holdingName)
+
+      await open(page, `&spending=sample&load=${Date.now()}#/spending/accounts`, 'Accounts')
+      const account = await page.waitForSelector('tr[data-testid="spending-account-row"][data-record-row]', { visible: true })
+      const accountName = await linkName(account)
+      await tapLastCell(account)
+      await waitForTitle(page, accountName)
+      await shoot('record-row-opened')
+    } finally {
+      await page.setViewport({ width, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+    }
+  })
+
   // The company kept in this browser beside the sample Loans, Investments, Assets and Spending files.
   await step('kuna-overview', async () => {
     await openFreshBrowser(page, '#/', homeEnglish.title, '&loans=sample&investments=sample&assets=sample&spending=sample')

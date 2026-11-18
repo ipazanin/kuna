@@ -54,7 +54,7 @@ defineProps<{
         </div>
       </dl>
       <p class="konto-difference">
-        <span class="text-xs text-muted sm:hidden">{{ words.konto.differenceLabel }}</span
+        <span class="type-caption sm:hidden">{{ words.konto.differenceLabel }}</span
         ><NoteLine as="span" size="inherit" inline :tone="group.difference === 0 ? 'success' : 'warning'"><MoneyText :cents="group.difference" sign="always" /></NoteLine>
       </p>
     </li>
@@ -67,7 +67,7 @@ defineProps<{
           <dd><MoneyText :cents="konto.cents" /></dd>
         </div>
       </dl>
-      <p class="text-sm text-muted">{{ words.konto.unnamedBefore }}<span class="identifier">categories</span>{{ words.konto.unnamedAfter }}</p>
+      <p class="type-aside">{{ words.konto.unnamedBefore }}<span class="identifier">categories</span>{{ words.konto.unnamedAfter }}</p>
     </li>
   </ul>
 </template>

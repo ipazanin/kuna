@@ -169,7 +169,7 @@ function save(): void {
             <td colspan="5" class="cell-wraps">
               <div class="sources sticky left-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <div class="flex items-center gap-2">
-                  <span class="text-xs font-medium text-muted" aria-hidden="true">{{ words.accounts.columns.rowsFrom }}</span>
+                  <span class="type-label" aria-hidden="true">{{ words.accounts.columns.rowsFrom }}</span>
                   <USelect
                     :model-value="draft.rowsFrom"
                     :items="ROWS_FROM_ITEMS"
@@ -182,7 +182,7 @@ function save(): void {
                 </div>
                 <template v-if="draft.rowsFrom === 'mail'">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium text-muted" aria-hidden="true">{{ words.accounts.columns.startsOn }}</span>
+                    <span class="type-label" aria-hidden="true">{{ words.accounts.columns.startsOn }}</span>
                     <DayField
                       :model-value="draft.startsOn"
                       size="sm"

@@ -5,11 +5,13 @@ import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
+import ListRow from '../../../../../../shared/ui/ListRow.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import RecordRow from '../../../../../../shared/ui/RecordRow.vue'
 import type { PersonRow } from './salariesView'
 import { words } from './words'
 
-/** Everyone paid on the payday with their total: a table on a wide screen, a card per person on a phone. A name opens that person's month. */
+/** Everyone paid on the payday with their total: a table on a wide screen, a card per person on a phone. A person's row opens their month. */
 defineProps<{
   rows: { readonly people: readonly PersonRow[]; readonly total: PersonRow }
   /** The payday, such as "Sep 2026". */
@@ -24,39 +26,39 @@ const phone = usePhoneLayout()
 
 <template>
   <AppCard :title="words.people.title(label)" :subtitle="words.people.subtitle" data-testid="salaries-people">
-    <p v-if="rows.people.length === 0" class="px-4 py-6 text-sm text-muted sm:px-5">{{ words.people.noOne(label) }}</p>
-    <ul v-else-if="phone" class="flex flex-col gap-2 px-4 pt-3 pb-4">
-      <li v-for="person in [...rows.people, rows.total]" :key="person.slug" class="person-card" :data-person="person.slug">
-        <p class="text-sm font-medium text-highlighted">
-          <DrillLink v-if="person.slug !== 'total'" :to="monthLink(payday, person.slug)" :label="words.people.openMonth(person.name)">{{ person.name }}</DrillLink>
-          <span v-else>{{ person.name }}</span>
-        </p>
-        <dl class="person-cells">
-          <div>
-            <dt>{{ words.people.gross }}</dt>
-            <dd><MoneyText :cents="person.gross" /></dd>
-          </div>
-          <div>
-            <dt>{{ words.people.net }}</dt>
-            <dd><MoneyText :cents="person.net" /></dd>
-          </div>
-          <div>
-            <dt>{{ words.people.pensionSavings }}</dt>
-            <dd><MoneyText :cents="person.pensionSavings" /></dd>
-          </div>
-          <div>
-            <dt>{{ words.people.toState }}</dt>
-            <dd><MoneyText :cents="person.toState" /></dd>
-          </div>
-          <div>
-            <dt>{{ words.people.cost }}</dt>
-            <dd><MoneyText :cents="person.cost" /></dd>
-          </div>
-          <div>
-            <dt>{{ words.people.problems }}</dt>
-            <dd class="figure" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</dd>
-          </div>
-        </dl>
+    <p v-if="rows.people.length === 0" class="px-4 py-6 type-aside sm:px-5">{{ words.people.noOne(label) }}</p>
+    <ul v-else-if="phone" class="row-list flex flex-col py-2">
+      <li v-for="person in [...rows.people, rows.total]" :key="person.slug" class="border-t border-default first:border-t-0" :data-person="person.slug">
+        <ListRow v-bind="person.slug === 'total' ? { as: 'div' } : { to: monthLink(payday, person.slug) }" :title="person.name" :class="{ 'font-medium': person.slug === 'total' }">
+          <template #details>
+            <dl class="grid grid-cols-3 gap-2">
+              <div>
+                <dt class="type-caption">{{ words.people.gross }}</dt>
+                <dd class="text-sm"><MoneyText :cents="person.gross" /></dd>
+              </div>
+              <div>
+                <dt class="type-caption">{{ words.people.net }}</dt>
+                <dd class="text-sm"><MoneyText :cents="person.net" /></dd>
+              </div>
+              <div>
+                <dt class="type-caption">{{ words.people.pensionSavings }}</dt>
+                <dd class="text-sm"><MoneyText :cents="person.pensionSavings" /></dd>
+              </div>
+              <div>
+                <dt class="type-caption">{{ words.people.toState }}</dt>
+                <dd class="text-sm"><MoneyText :cents="person.toState" /></dd>
+              </div>
+              <div>
+                <dt class="type-caption">{{ words.people.cost }}</dt>
+                <dd class="text-sm"><MoneyText :cents="person.cost" /></dd>
+              </div>
+              <div>
+                <dt class="type-caption">{{ words.people.problems }}</dt>
+                <dd class="figure text-sm" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</dd>
+              </div>
+            </dl>
+          </template>
+        </ListRow>
       </li>
     </ul>
     <FigureTable v-else class="px-1 pb-2 sm:px-2">
@@ -72,7 +74,13 @@ const phone = usePhoneLayout()
         </tr>
       </thead>
       <tbody>
-        <tr v-for="person in [...rows.people, rows.total]" :key="person.slug" :data-person="person.slug" :class="{ 'font-medium': person.slug === 'total' }">
+        <RecordRow
+          v-for="person in [...rows.people, rows.total]"
+          :key="person.slug"
+          :to="person.slug === 'total' ? null : monthLink(payday, person.slug)"
+          :data-person="person.slug"
+          :class="{ 'font-medium': person.slug === 'total' }"
+        >
           <th scope="row" class="text-start font-normal">
             <DrillLink v-if="person.slug !== 'total'" :to="monthLink(payday, person.slug)" :label="words.people.openMonth(person.name)" class="text-highlighted">{{ person.name }}</DrillLink>
             <span v-else class="font-medium text-highlighted">{{ person.name }}</span>
@@ -83,33 +91,8 @@ const phone = usePhoneLayout()
           <td class="hidden text-end @xl:table-cell"><MoneyText :cents="person.toState" /></td>
           <td class="text-end"><MoneyText :cents="person.cost" /></td>
           <td class="figure text-end" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</td>
-        </tr>
+        </RecordRow>
       </tbody>
     </FigureTable>
   </AppCard>
 </template>
-
-<style scoped>
-.person-card {
-  padding: 0.75rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-card);
-}
-
-.person-cells {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.person-cells dt {
-  font-size: 0.75rem;
-  color: var(--ink-muted);
-}
-
-.person-cells dd {
-  font-size: 0.875rem;
-  color: var(--ink);
-}
-</style>

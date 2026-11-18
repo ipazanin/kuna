@@ -75,7 +75,7 @@ async function keepOnGoogleDrive(): Promise<void> {
   <AppDialog v-model:open="open" changes width="xl" :title="file ? words.dialog.title(file.name) : words.dialog.titleWithoutFile" :description="words.dialog.description" :dismissible="!importing">
     <ImportSummary :preview="preview" :failure="failure ?? keepFailure" :failure-detail="failure === null ? '' : failureDetail">
       <UAlert v-if="replacesLocal" icon="i-lucide-replace" color="warning" variant="subtle" :title="words.dialog.replaces" :description="words.dialog.replacesDescription" />
-      <p v-if="signInByRedirect" class="text-xs text-muted" data-testid="redirect-sign-in-note">
+      <p v-if="signInByRedirect" class="type-caption" data-testid="redirect-sign-in-note">
         {{ words.dialog.redirectNote }}
       </p>
     </ImportSummary>

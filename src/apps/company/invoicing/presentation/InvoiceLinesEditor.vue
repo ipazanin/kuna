@@ -43,7 +43,7 @@ function amountError(text: string): boolean {
 <template>
   <section class="@container flex min-w-0 flex-col gap-2" aria-labelledby="invoice-lines-title" data-testid="invoice-lines">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <h3 id="invoice-lines-title" class="text-sm font-medium text-highlighted">{{ words.lines.title }}</h3>
+      <h3 id="invoice-lines-title" class="type-card-title">{{ words.lines.title }}</h3>
       <div class="flex flex-wrap gap-1">
         <UButton :label="words.lines.fromPlan" icon="i-lucide-list-restart" size="sm" color="neutral" variant="ghost" :disabled="disabled" @click="emit('plan')" />
         <UButton
@@ -58,7 +58,7 @@ function amountError(text: string): boolean {
         />
       </div>
     </div>
-    <p class="-mt-1 text-xs text-muted">{{ words.lines.intro }}</p>
+    <p class="-mt-1 type-caption">{{ words.lines.intro }}</p>
     <ul class="flex flex-col gap-2">
       <li v-for="(line, index) in lines" :key="index" class="line-row" data-testid="invoice-line">
         <UInput
@@ -92,7 +92,7 @@ function amountError(text: string): boolean {
     </ul>
     <div class="flex flex-wrap items-center justify-between gap-2">
       <UButton :label="words.lines.add" icon="i-lucide-plus" size="sm" color="neutral" variant="outline" :disabled="disabled" data-testid="invoice-line-add" @click="add" />
-      <p class="text-sm text-toned">{{ words.lines.total }} <MoneyText :cents="total" class="font-medium text-highlighted" /></p>
+      <p class="type-body">{{ words.lines.total }} <MoneyText :cents="total" class="font-medium text-highlighted" /></p>
     </div>
   </section>
 </template>

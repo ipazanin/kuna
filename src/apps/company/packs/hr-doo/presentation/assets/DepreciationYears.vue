@@ -49,19 +49,19 @@ const WHEN = { past: '', current: words.years.thisYear, ahead: words.years.toCom
     <li v-for="line in years" :key="line.year" class="year-row">
       <button type="button" class="year-toggle" :aria-expanded="open.has(line.year)" :aria-controls="`depreciation-${line.year}`" data-testid="depreciation-year-toggle" @click="toggle(line.year)">
         <UIcon name="i-lucide-chevron-right" class="year-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(line.year) }" aria-hidden="true" />
-        <span class="figure text-sm font-medium text-highlighted">{{ line.year }}</span>
-        <span v-if="WHEN[line.when]" class="text-xs text-muted">{{ WHEN[line.when] }}</span>
-        <MoneyText :cents="line.total" class="ms-auto text-sm font-medium text-highlighted" />
+        <span class="figure type-card-title">{{ line.year }}</span>
+        <span v-if="WHEN[line.when]" class="type-caption">{{ WHEN[line.when] }}</span>
+        <MoneyText :cents="line.total" class="ms-auto type-card-title" />
       </button>
       <ul v-if="open.has(line.year)" :id="`depreciation-${line.year}`" class="charge-list">
         <li v-for="charge in line.charges" :key="charge.key" class="charge-row">
           <div class="min-w-0">
-            <CutText as="p" class="text-sm text-toned">{{ charge.asset }}</CutText>
-            <p class="text-xs text-muted">
+            <CutText as="p" class="type-body">{{ charge.asset }}</CutText>
+            <p class="type-caption">
               {{ charge.basis }}<template v-if="charge.deductible !== null">{{ words.years.deductible }}<MoneyText :cents="charge.deductible" /></template>
             </p>
           </div>
-          <MoneyText :cents="charge.amount" class="text-sm text-toned" />
+          <MoneyText :cents="charge.amount" class="type-body" />
         </li>
       </ul>
     </li>

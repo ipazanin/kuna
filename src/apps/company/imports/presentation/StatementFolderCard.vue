@@ -68,8 +68,8 @@ async function confirm(): Promise<void> {
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
         <UAlert v-if="outcome?.problem" icon="i-lucide-folder-x" color="error" variant="subtle" :title="outcome.problem" data-testid="statement-folder-problem" />
         <div v-if="filed.length" class="flex flex-col gap-1" data-testid="statement-folder-filed">
-          <p class="text-sm font-medium text-highlighted">{{ words.folder.filedByLastSync }}</p>
-          <ul class="flex flex-col gap-1 text-sm text-toned">
+          <p class="type-card-title">{{ words.folder.filedByLastSync }}</p>
+          <ul class="flex flex-col gap-1 type-body">
             <li v-for="statement in filed" :key="`${statement.account}-${statement.label}`" class="flex items-start gap-2">
               <UIcon name="i-lucide-check" class="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
               <span class="min-w-0 flex-1 break-words">
@@ -77,9 +77,9 @@ async function confirm(): Promise<void> {
               </span>
             </li>
           </ul>
-          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" :to="REVIEW_LINK" class="text-sm font-medium text-highlighted">{{ words.folder.openReview }}</DrillLink>
+          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" :to="REVIEW_LINK" class="type-card-title">{{ words.folder.openReview }}</DrillLink>
         </div>
-        <p v-if="summary" class="text-sm text-toned" data-testid="statement-folder-summary">{{ summary }}</p>
+        <p v-if="summary" class="type-body" data-testid="statement-folder-summary">{{ summary }}</p>
       </div>
     </AppCard>
 

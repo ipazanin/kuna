@@ -18,6 +18,7 @@
  * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
  * a DrillLink wears the colour of the text class it is given, a row that opens a page has its arrow on its title's first line, and
  * a list where only some rows open a page ends every amount at one edge.
+ * A table row that opens its record shows the pointer, and a press on any of its cells without a control of its own reaches the row.
  * On Company's, Spending's and Investments' Overview and Spending's Accounts up to 1440 px, every list row's figure starts within 40rem of its name,
  * and a row of a table under a column heading passes. At 1024, 1440 and 1920 px no row of a dashboard grid leaves more than 16 px empty.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
@@ -5530,7 +5531,9 @@ function readPage(page) {
       wideLoneCards: wideLoneCards(),
       drillLinksOffColour: drillLinksOffColour(),
       misplacedRowArrows: misplacedRowArrows(),
+      recordRowsMissed: recordRowsMissed(),
       raggedRowAmounts: raggedRowAmounts(),
+      raggedRowDetails: raggedRowDetails(),
       farRowFigures: farRowFigures(),
     }
 
@@ -5607,6 +5610,51 @@ function readPage(page) {
       return found
     }
 
+    /**
+     * A table row that opens its record takes a press anywhere on it: the centre of each of its cells with no control of
+     * its own reaches the row and shows the pointer. A cell under a sticky or fixed bar is not measured.
+     */
+    function recordRowsMissed() {
+      const found = []
+      const recordRowControls =
+        'a, button, input, select, textarea, label, summary, [contenteditable], [role="button"], [role="checkbox"], [role="combobox"], [role="link"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="radio"], [role="slider"], [role="spinbutton"], [role="switch"], [role="tab"], [role="textbox"]'
+      const pinned = (element) => {
+        for (let at = element; at !== null; at = at.parentElement) if (['sticky', 'fixed'].includes(getComputedStyle(at).position)) return true
+        return false
+      }
+      for (const row of document.querySelectorAll('tr[data-record-row]')) {
+        if (row.getClientRects().length === 0) continue
+        const name = (row.querySelector('th')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 32)
+        if (getComputedStyle(row).cursor !== 'pointer') found.push(`the row "${name}" opens its record but shows no pointer`)
+        for (const cell of row.querySelectorAll(':scope > td')) {
+          const box = cell.getBoundingClientRect()
+          if (box.width === 0 || cell.querySelector(recordRowControls) !== null) continue
+          const x = box.left + box.width / 2
+          const y = box.top + box.height / 2
+          if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue
+          const hit = document.elementFromPoint(x, y)
+          if (hit === null || row.contains(hit) || pinned(hit)) continue
+          found.push(`a press on a cell of the row "${name}" lands on ${hit.tagName.toLowerCase()} outside the row`)
+        }
+      }
+      return found
+    }
+
+    /** In a row-list where a row opens a page, the figures under each row end at one edge, whether or not the row opens a page, as on the Salaries People tab on a phone. */
+    function raggedRowDetails() {
+      const found = []
+      for (const list of document.querySelectorAll('.row-list')) {
+        if (list.querySelector('[data-row-arrow]') === null) continue
+        const rows = [...list.querySelectorAll('.list-row-details')]
+          .filter((details) => details.getClientRects().length > 0)
+          .map((details) => ({ title: details.closest('.list-row-lines')?.querySelector('.list-row-title')?.textContent.trim().slice(0, 32) ?? '', end: details.getBoundingClientRect().right }))
+        const edge = rows[0]?.end
+        for (const other of rows.filter((row) => Math.abs(row.end - edge) > 1))
+          found.push(`the figures under the row "${other.title}" end ${Math.round(other.end - edge)} px from the other rows of its list`)
+      }
+      return found
+    }
+
     /** A ListRow that opens a page has its arrow on its title's first line, whatever the number of lines under it. */
     function misplacedRowArrows() {
       const found = []
@@ -5648,7 +5696,7 @@ function readPage(page) {
     function raggedRowAmounts() {
       const found = []
       const shown = (element) => element !== null && element !== undefined && element.getClientRects().length > 0
-      const opens = (lines) => lines.parentElement.querySelector(':scope > [data-row-arrow]') !== null
+      const opens = (lines) => lines.closest('a')?.querySelector(':scope > [data-row-arrow]') != null
       const titleOf = (lines) => lines.querySelector('.list-row-title')?.textContent.trim().slice(0, 32) ?? ''
       for (const list of document.querySelectorAll('ul')) {
         const rows = [...list.children].flatMap((item) => {
@@ -10265,6 +10313,8 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
       for (const donut of report.crowdedDonuts) fail(scope, donut)
       for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
         fail(scope, problem)
+      for (const problem of report.recordRowsMissed) fail(scope, problem)
+      for (const problem of report.raggedRowDetails) fail(scope, problem)
       if (NEAR_FIGURE_SCREENS.includes(visit.name) && viewport.width <= NEAR_FIGURE_WIDEST) for (const far of report.farRowFigures) fail(scope, far)
       if (GRID_ROW_WIDTHS.includes(viewport.width)) for (const row of report.emptyGridRows) fail(scope, row)
       if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
@@ -10372,6 +10422,8 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
               ...report.drillLinksOffColour,
               ...report.misplacedRowArrows,
               ...report.raggedRowAmounts,
+              ...report.recordRowsMissed,
+              ...report.raggedRowDetails,
             ]
             for (const problem of lingering.filter((text) => !toldOnce.has(text))) {
               toldOnce.add(problem)

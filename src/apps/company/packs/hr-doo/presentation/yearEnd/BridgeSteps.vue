@@ -36,18 +36,18 @@ const NAMED = 2
   <ol class="bridge-list" :style="{ '--bridge-rows': Math.ceil(steps.length / 2) }" data-testid="bridge-steps">
     <li v-for="step in steps" :key="step.key" class="bridge-row" :class="{ 'is-total': step.kind === null }">
       <div class="flex items-baseline justify-between gap-3">
-        <p class="min-w-0 text-sm" :class="step.kind === null ? 'font-medium text-highlighted' : 'text-toned'">{{ step.label }}</p>
+        <p class="min-w-0" :class="step.kind === null ? 'type-card-title' : 'type-body'">{{ step.label }}</p>
         <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="shrink-0">
-          <MoneyText :cents="step.cents" :sign="step.kind === null ? 'negative' : 'always'" class="text-sm" :class="step.kind === null ? 'font-medium text-highlighted' : ''" />
+          <MoneyText :cents="step.cents" :sign="step.kind === null ? 'negative' : 'always'" :class="step.kind === null ? 'type-card-title' : 'text-sm'" />
         </DrillLink>
       </div>
       <div v-if="step.kind !== null" class="mt-1 flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
         <StatusBadge :status="step.kind" />
         <ul v-if="step.rules.length > 0" class="flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-3">
           <li v-for="rule in step.rules.slice(0, NAMED)" :key="rule.id">
-            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
+            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="type-label">{{ rule.title }}</DrillLink>
           </li>
-          <li v-if="step.rules.length > NAMED" class="text-xs text-muted">{{ words.steps.moreRules(step.rules.length - NAMED) }}</li>
+          <li v-if="step.rules.length > NAMED" class="type-caption">{{ words.steps.moreRules(step.rules.length - NAMED) }}</li>
         </ul>
       </div>
     </li>

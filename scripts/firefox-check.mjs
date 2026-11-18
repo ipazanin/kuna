@@ -3,7 +3,8 @@
  * dialog with classic scrollbars taking room, focus shown by a call and by the keyboard, the chat, the chat's prompt keeping a new line in view past six rows, a
  * photo and a sheet picked through the chat's file input, a streamed answer read through the app's
  * own reader, Cmd+K or Ctrl+K taken from Firefox's search bar, the chat's edge by drag and keyboard, the theme and language menu from the
- * sidebar and the drawer, its rows inside the window, with Light and Hrvatski picked and Browser language back, and the warning on leaving during a save.
+ * sidebar and the drawer, its rows inside the window, with Light and Hrvatski picked and Browser language back, a travel order opening from a click on its row
+ * but not from a Ctrl click or a drag that selects its text, and the warning on leaving during a save.
  *
  *   npm run build:fake && npm run check:firefox -- --serve fake
  * or against a preview already running:
@@ -341,6 +342,36 @@ await withBrowser(launchFirefox, async (browser) => {
     } finally {
       await page.evaluate(() => localStorage.clear()).catch(() => {})
     }
+  })
+
+  await step('record-rows', async (page) => {
+    const row = '[data-testid="trip-row"][data-trip="3/2026"]'
+    const destination = `${row} td:nth-child(2) span`
+    await open(page, 'fake=one-employee', '/company/trips')
+    await page.waitForSelector(destination, VISIBLE)
+    const listHash = await page.evaluate(() => window.location.hash)
+    const stays = async (what) => {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      if ((await page.evaluate(() => window.location.hash)) !== listHash) throw new Error(`${what} opened the travel order`)
+    }
+
+    await page.keyboard.down('Control')
+    await (await page.$(destination)).click()
+    await page.keyboard.up('Control')
+    await stays('a Ctrl click on the destination')
+
+    const box = await (await page.$(destination)).boundingBox()
+    await page.mouse.move(box.x + 1, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width - 1, box.y + box.height / 2, { steps: 5 })
+    await page.mouse.up()
+    await stays('selecting the destination by dragging')
+    await page.evaluate(() => window.getSelection()?.removeAllRanges())
+
+    await (await page.$(destination)).click()
+    await page.waitForSelector('[data-testid="trip-order"]', VISIBLE).catch(() => {
+      throw new Error('a click on the destination of travel order 3/2026 did not open it')
+    })
   })
 
   await step('save-warning', async (page) => {

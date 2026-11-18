@@ -48,8 +48,8 @@ function toggle(month: MonthKey): void {
         data-testid="billing-month-toggle"
         @click="toggle(month.month)"
       >
-        <span class="month-label text-sm font-medium text-highlighted">{{ month.label }}</span>
-        <span class="month-figures text-xs text-muted">
+        <span class="month-label type-card-title">{{ month.label }}</span>
+        <span class="month-figures type-caption">
           <span><MoneyText :cents="month.planned" class="text-toned" /> {{ words.months.planned }}</span>
           <span><MoneyText :cents="month.invoiced" class="text-toned" /> {{ words.months.invoiced }}</span>
         </span>
@@ -69,10 +69,10 @@ function toggle(month: MonthKey): void {
           <li v-for="row in month.rows" :key="row.id" class="plan-line" data-testid="billing-month-row">
             <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
             <span class="min-w-0">
-              <CutText class="block text-sm text-toned"
+              <CutText class="block type-body"
                 >{{ row.item }}<span v-if="row.description" class="text-muted">, {{ row.description }}</span></CutText
               >
-              <span class="figure block text-xs text-muted"
+              <span class="figure block type-caption"
                 >{{ shortDayLabel(row.date) }}<template v-if="showClient">, {{ row.clientName }}</template></span
               >
               <span v-if="row.invoices.length > 0 || row.open > 0" class="mt-1 flex flex-wrap gap-1">
@@ -86,7 +86,7 @@ function toggle(month: MonthKey): void {
                 </span>
               </span>
             </span>
-            <MoneyText :cents="row.amount" class="text-sm text-highlighted" />
+            <MoneyText :cents="row.amount" class="type-row-title" />
           </li>
         </ul>
         <div v-if="month.withoutPlanLines.length > 0" class="flex flex-col gap-1" data-testid="billing-without-plan">
@@ -98,10 +98,10 @@ function toggle(month: MonthKey): void {
             <li v-for="line in month.withoutPlanLines" :key="line.key" class="plan-line">
               <span class="swatch hollow" aria-hidden="true" />
               <span class="min-w-0">
-                <CutText class="block text-sm text-toned">{{ words.months.invoice(line.number) }}</CutText>
-                <span class="figure block text-xs text-muted">{{ words.months.issued(shortDayLabel(line.issued), line.clientName) }}</span>
+                <CutText class="block type-body">{{ words.months.invoice(line.number) }}</CutText>
+                <span class="figure block type-caption">{{ words.months.issued(shortDayLabel(line.issued), line.clientName) }}</span>
               </span>
-              <MoneyText :cents="line.amount" class="text-sm text-highlighted" />
+              <MoneyText :cents="line.amount" class="type-row-title" />
             </li>
           </ul>
         </div>

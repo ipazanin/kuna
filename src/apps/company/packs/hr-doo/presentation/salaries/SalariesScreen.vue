@@ -163,7 +163,7 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
             <SalaryPeoplePanel v-if="people" :rows="people" :label="month.label" :payday="month.payday" :month-link="monthLink" />
           </template>
         </PageTabs>
-        <p v-else-if="employees.length > 0" class="text-sm text-toned" data-testid="salaries-no-payday">
+        <p v-else-if="employees.length > 0" class="type-body" data-testid="salaries-no-payday">
           {{ words.screen.noPaydayBefore }}<span class="identifier">salary</span>{{ words.screen.noPaydayAfter }}
         </p>
 

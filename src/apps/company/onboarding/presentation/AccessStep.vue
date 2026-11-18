@@ -68,8 +68,8 @@ async function ask(): Promise<void> {
   <StepCard :title="words.access.title" :subtitle="words.access.subtitle">
     <div class="flex items-start gap-3" data-scope="drive.file">
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium text-highlighted">{{ words.access.always }}</p>
-        <p class="text-sm text-muted">{{ words.access.alwaysNote }}</p>
+        <p class="type-card-title">{{ words.access.always }}</p>
+        <p class="type-aside">{{ words.access.alwaysNote }}</p>
       </div>
       <UBadge
         v-if="answered"
@@ -82,8 +82,8 @@ async function ask(): Promise<void> {
 
     <div v-for="need in movedNeeds" :key="need.scope" class="flex items-start gap-3" :data-scope="need.scope">
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium text-highlighted">{{ need.label }}</p>
-        <p class="text-sm text-muted">{{ need.description }}</p>
+        <p class="type-card-title">{{ need.label }}</p>
+        <p class="type-aside">{{ need.description }}</p>
       </div>
       <template v-if="answered">
         <UBadge :label="allowed(need.scope) ? words.access.allowed : words.access.notAllowed" :color="allowed(need.scope) ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
@@ -113,7 +113,7 @@ async function ask(): Promise<void> {
     </template>
 
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.access.noAnswer" :description="failure" />
-    <div class="flex flex-col gap-1 text-xs text-muted">
+    <div class="flex flex-col gap-1 type-caption">
       <p v-if="restricted && !answered">{{ words.access.unverified }}</p>
       <p v-if="signInByRedirect" data-testid="redirect-sign-in-note">{{ words.access.cookies }}</p>
     </div>
