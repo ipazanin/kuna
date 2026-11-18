@@ -7,6 +7,9 @@ export const en = {
   purpose: 'Every buy and sale at your brokers, with what it is worth and what it earned.',
   value: 'Value',
   totalGain: 'Total gain',
+  /** The day's change while a quote of Fetch today counts. */
+  today: 'Today',
+  lastDay: 'Last day',
   /** The newest close is three weekdays old or more. */
   pricesFrom: (day: string) => `Prices from ${day}`,
   inoDohBy: (day: string) => `INO-DOH by ${day}`,
@@ -20,6 +23,8 @@ export const hr: Translation<typeof en> = {
   purpose: 'Svaka kupnja i prodaja kod vaših brokera, s vrijednošću i zaradom.',
   value: 'Vrijednost',
   totalGain: 'Ukupna dobit',
+  today: 'Danas',
+  lastDay: 'Zadnji dan',
   pricesFrom: (day) => `Cijene od ${day}`,
   inoDohBy: (day) => `INO-DOH do ${day}`,
   joppdBy: (day) => `JOPPD do ${day}`,

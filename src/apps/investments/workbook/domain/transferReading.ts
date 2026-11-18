@@ -1,4 +1,4 @@
-import { decimalField, importKeyOf, namedAccount, namedInstrument, positiveDecimal, requiredCurrency } from './investmentFields'
+import { decimalField, importKeysOf, importKeysText, namedAccount, namedInstrument, positiveDecimal, requiredCurrency } from './investmentFields'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS, TRANSFER_RECORDS } from './investmentKinds'
 import type { Transfer } from './transfer'
 import { words } from './words'
@@ -23,7 +23,7 @@ export function transferOf(fields: StoredFields, id: RecordId | null): Transfer 
   const from = namedAccount(fields, 'from')
   const to = namedAccount(fields, 'to')
   if (from === to) refuse(words.sameAccounts)
-  return { id: ownId(id), from, to, date: requiredDate(fields, 'date'), moved: movedOf(fields), importKey: importKeyOf(fields), note: textOf(fields.note) }
+  return { id: ownId(id), from, to, date: requiredDate(fields, 'date'), moved: movedOf(fields), importKeys: importKeysOf(fields), note: textOf(fields.note) }
 }
 
 export const TRANSFER_CODEC: RecordCodec<Transfer> = withIdField(TRANSFER_RECORDS, words.labels.transfer, transferOf, (transfer) =>
@@ -35,7 +35,7 @@ export const TRANSFER_CODEC: RecordCodec<Transfer> = withIdField(TRANSFER_RECORD
     quantity: transfer.moved.kind === 'units' ? decimalField(transfer.moved.quantity) : null,
     currency: transfer.moved.kind === 'cash' ? transfer.moved.currency : null,
     amount: transfer.moved.kind === 'cash' ? decimalField(transfer.moved.amount) : null,
-    import_key: transfer.importKey,
+    import_key: importKeysText(transfer.importKeys),
     note: transfer.note,
   }),
 )

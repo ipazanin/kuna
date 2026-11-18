@@ -122,12 +122,15 @@ export const en = {
     intro: 'What the rows cannot say by themselves. A row without its answer waits and is asked about again next time.',
     asked: 'Rows Kuna has not seen before',
     askedIntro:
-      'Kuna does not guess at these, so none of them goes in. Book one by hand in Transactions if it matters, then leave it out so it stops asking. A row you hold back asks again with the next report.',
+      'Kuna does not guess at these, so none of them goes in. Book fills a form from the row for you to check, and the row stops asking once it is saved. Leave out stops asking too. A row you hold back asks again with the next report.',
     askedChoice: 'What to do with this row',
+    askedBook: 'Book',
     askedHold: 'Hold back',
     askedLeaveOut: 'Leave out for good',
     lookAlikesIntro:
       "No record in Kuna holds the report's id for these rows, but each has the account, day and amounts of a record Kuna has, perhaps one you typed or imported from the workbook. Say whether it is that record.",
+    workbookLookAlikesIntro:
+      "No record in Kuna holds the workbook's id for these rows, but each has the account, day and amounts of a record from IBKR's report or the chat. Say whether it is that record, so it keeps both ids.",
     lookAlikeChoice: 'Is this row that record',
     lookAlikeLater: 'Decide later',
     lookAlikeSame: 'Same record',
@@ -395,12 +398,15 @@ export const hr: Translation<typeof en> = {
     intro: 'Ono što retci sami ne mogu reći. Redak bez odgovora čeka i sljedeći put se pita ponovno.',
     asked: 'Retci kakve Kuna još nije vidjela',
     askedIntro:
-      'Kuna ih ne nagađa, pa nijedan od njih ne ulazi. Ako je važan, upišite ga ručno u Transakcijama, a zatim ga izostavite da više ne pita. Redak koji zadržite pita ponovno uz sljedeće izvješće.',
+      'Kuna ih ne nagađa, pa nijedan od njih ne ulazi. Proknjiži popunjava obrazac iz retka da ga provjerite, a redak više ne pita kad ga spremite. Ni izostavljeni redak više ne pita. Redak koji zadržite pita ponovno uz sljedeće izvješće.',
     askedChoice: 'Što s ovim retkom',
+    askedBook: 'Proknjiži',
     askedHold: 'Zadrži',
     askedLeaveOut: 'Izostavi zauvijek',
     lookAlikesIntro:
       'Nijedan zapis u Kuni nema oznaku izvješća za ove retke, ali svaki ima račun, dan i iznose zapisa koji Kuna ima, možda onog koji ste upisali ručno ili uvezli iz radne knjige. Recite je li to taj zapis.',
+    workbookLookAlikesIntro:
+      'Nijedan zapis u Kuni nema oznaku radne knjige za ove retke, ali svaki ima račun, dan i iznose zapisa iz IBKR-ova izvješća ili razgovora. Recite je li to taj zapis, pa će imati obje oznake.',
     lookAlikeChoice: 'Je li ovaj redak taj zapis',
     lookAlikeLater: 'Odluči poslije',
     lookAlikeSame: 'Isti zapis',

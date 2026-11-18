@@ -83,10 +83,17 @@ export function namedInstrument(fields: StoredFields, field: string): RecordId {
   return namedId(fields, field, INSTRUMENT_RECORDS)
 }
 
-/** The key of the imported rows a record came from, or null for one typed in. */
-export function importKeyOf(fields: StoredFields): string | null {
-  const key = textOf(fields.import_key)
-  return key === '' ? null : key
+/** The keys of the imported rows a record came from, kept in one cell as `a | b`, or none for one typed in. An older file holds one key. */
+export function importKeysOf(fields: StoredFields): string[] {
+  return textOf(fields.import_key)
+    .split('|')
+    .map((key) => key.trim())
+    .filter((key) => key !== '')
+}
+
+/** The keys of a record as its cell keeps them, which `importKeysOf` reads back. */
+export function importKeysText(keys: readonly string[]): string {
+  return keys.join(' | ')
 }
 
 /** A country by its code or a region, or null for a blank field. */

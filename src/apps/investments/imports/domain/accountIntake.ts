@@ -1,4 +1,4 @@
-import { isReportKey } from './reportKey'
+import { holdsReportKey, isAskedKey, isReportKey } from './reportKey'
 import { BY_HAND, proposedStartDay, startDayRefusal, takesRowFrom } from '../../../../shared/app/accountSource'
 import type { StartDayRefusal } from '../../../../shared/app/accountSource'
 import { firstUnfiledDay } from '../../tax/domain/taxDeadlines'
@@ -7,20 +7,20 @@ import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A record that lands on accounts on a day, with the import key that says where it came from. */
+/** A record that lands on accounts on a day, with the import keys that say where it came from. */
 export interface LandingRecord {
   readonly accounts: readonly RecordId[]
   readonly date: CivilDate
-  readonly importKey: string | null
+  readonly importKeys: readonly string[]
 }
 
 type LandingBook = Pick<InvestmentBook, 'accounts' | 'trades' | 'income' | 'cashMovements' | 'exchanges' | 'transfers' | 'mailReaders'>
 
 /** A record that lands on an account, as the kinds that move money or units hold it. */
-export type LandingKind = { readonly date: CivilDate; readonly importKey: string | null } & ({ readonly account: RecordId } | { readonly from: RecordId; readonly to: RecordId })
+export type LandingKind = { readonly date: CivilDate; readonly importKeys: readonly string[] } & ({ readonly account: RecordId } | { readonly from: RecordId; readonly to: RecordId })
 
 export function landingOf(record: LandingKind): LandingRecord {
-  return { accounts: 'account' in record ? [record.account] : [record.from, record.to], date: record.date, importKey: record.importKey }
+  return { accounts: 'account' in record ? [record.account] : [record.from, record.to], date: record.date, importKeys: record.importKeys }
 }
 
 /** Every record of the book that lands on an account. */
@@ -48,7 +48,8 @@ export function accountIntakes(book: LandingBook): ReadonlyMap<RecordId, Investm
   const readerStart = new Map(book.mailReaders.flatMap((reader) => (reader.since === null ? [] : [[reader.recipe, reader.since] as const])))
   const derived = new Map<RecordId, InvestmentIntake>()
   for (const record of landingRecords(book)) {
-    const startsOn = record.importKey !== null && isReportKey(record.importKey) ? readerStart.get(recipeOfKey(record.importKey)) : undefined
+    // A booked question's key reads as a report's, but a question uploaded by hand says nothing of where an account's rows come from.
+    const startsOn = record.importKeys.flatMap((key) => (isReportKey(key) && !isAskedKey(key) ? (readerStart.get(recipeOfKey(key)) ?? []) : []))[0]
     if (startsOn === undefined) continue
     record.accounts.forEach((account) => derived.set(account, derived.get(account) ?? { rowsFrom: 'mail', startsOn, alsoFrom: [] }))
   }
@@ -72,9 +73,9 @@ export function landsAnew(before: LandingRecord | null, after: LandingRecord): b
   return before === null || before.date !== after.date || before.accounts.join(' ') !== after.accounts.join(' ')
 }
 
-/** Whether the record came from IBKR's report, mailed or uploaded, which only the report's own import may bring. Any other is by hand. */
+/** Whether the record came from IBKR's report, mailed or uploaded, which only the report's own import may bring: it holds any report key. Any other is by hand. */
 function fromReport(record: LandingRecord): boolean {
-  return record.importKey !== null && isReportKey(record.importKey)
+  return holdsReportKey(record.importKeys)
 }
 
 /**

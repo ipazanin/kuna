@@ -5,6 +5,9 @@ import type { InvestmentsReading } from '../src/apps/investments/assistant/inves
 import { HOLDING_ROUTE } from '../src/apps/investments/holdings/presentation/holdingLinks'
 import type { PortfolioSources } from '../src/apps/investments/holdings/domain/holding'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
+import { seriesKey } from '../src/apps/investments/prices/domain/pricesFile'
+import { quotedPriceBook } from '../src/apps/investments/prices/domain/todaysQuotes'
+import type { TodaysQuote } from '../src/apps/investments/prices/domain/todaysQuotes'
 import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistory'
 import { capitalGainsYear } from '../src/apps/investments/tax/domain/taxYear'
 import * as investmentKinds from '../src/apps/investments/workbook/domain/investmentKinds'
@@ -15,7 +18,7 @@ import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import type { ReportFigure } from '../src/shared/app/assistantReader'
 import { decimalOfText } from '../src/shared/money/decimal'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
-import { WORKED_PRICES, WORKED_RATES, workedPortfolio } from './fixtures/investments'
+import { STOCK_B, WORKED_PRICES, WORKED_RATES, decimal, workedPortfolio } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
 
 const SOURCES: PortfolioSources = { book: workedPortfolio(), prices: WORKED_PRICES, rates: WORKED_RATES, today: civil('2026-10-29') }
@@ -86,7 +89,7 @@ describe('the Investments reader', () => {
     const fields = Object.fromEntries(trade.fields.map((field) => [field.name, 'value' in field ? field.value : 'id' in field ? field.id : null]))
     expect(fields).toMatchObject({ quantity: '20', price: '50 USD', fees: '1 USD', rate: '1.05 USD per EUR' })
     expect(trade.fields.find((field) => field.name === 'price')).toMatchObject({ decimal: decimalOfText('50') })
-    expect(trade.fields.map((field) => field.name)).not.toContain('importKey')
+    expect(trade.fields.map((field) => field.name)).not.toContain('importKeys')
   })
 
   it('ranges and sorts a trade by its decimal price in its own currency, and sends the price as the same text', () => {
@@ -129,6 +132,28 @@ describe('the Investments reader', () => {
     expect(centsOf(figure(report.figures('2025-01-02'), 'put in, deposits less withdrawals'))).toBe(300000)
     expect(report.figures('2026-11-30')).toEqual([])
     expect(() => report.figures('soon')).toThrow(RangeError)
+  })
+
+  it("reports the day's change as the Last day tile shows it, with no quotes before Fetch today", () => {
+    // From the close of 28 Oct to that of 29 Oct, +€16.82, as portfolioFigures.spec works it out.
+    const portfolio = reader.reports.find((report) => report.id === 'portfolio')!.figures(null)
+    expect(centsOf(figure(portfolio, "day's change, 2026-10-28 to 2026-10-29"))).toBe(1682)
+    expect(figure(portfolio, "holdings counted at today's quote")).toBeUndefined()
+    const holdings = reader.reports.find((report) => report.id === 'holdings')!.figures(null)
+    expect(centsOf(figure(holdings, "World ETF: day's change"))).toBe(1500)
+  })
+
+  it("reports the day's change at today's quotes once Fetch today brought one, saying how many holdings it counts", () => {
+    // Stock B 15 × $59.00 at 1.12 (790.18) − 15 × $58.00 at 1.12 (776.79) = +13.39, and the World ETF stays at its last close.
+    const quote: TodaysQuote = { series: seriesKey(STOCK_B.prices, STOCK_B.sourceSymbol), day: civil('2026-10-30'), price: decimal('59'), at: '2026-10-30T15:40:00.000Z', marketOpen: true }
+    const live = investmentsReader(readingOf(true, { ...SOURCES, prices: quotedPriceBook(WORKED_PRICES, [quote]), today: civil('2026-10-30') }))
+    const portfolio = live.reports.find((report) => report.id === 'portfolio')!.figures(null)
+    expect(centsOf(figure(portfolio, "day's change, 2026-10-29 to 2026-10-30, today's quotes"))).toBe(1339)
+    expect(figure(portfolio, "holdings counted at today's quote")).toEqual({ label: "holdings counted at today's quote", count: 1 })
+    expect(figure(portfolio, 'holdings still at their last close')).toEqual({ label: 'holdings still at their last close', count: 1 })
+    const holdings = live.reports.find((report) => report.id === 'holdings')!.figures(null)
+    expect(centsOf(figure(holdings, "Stock B: day's change, at today's quote"))).toBe(1339)
+    expect(figure(live.reports.find((report) => report.id === 'portfolio')!.figures('2026-10-29'), "holdings counted at today's quote")).toBeUndefined()
   })
 
   it("reports a year's income as the Income tab adds it up", () => {

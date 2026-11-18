@@ -1,4 +1,4 @@
-import { importableRecords } from './importDryRun'
+import { importableRecords } from './importedRecords'
 import type { WorkbookRows } from './importDryRun'
 import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { WORKBOOK_COLUMNS, readPortfolioWorkbook } from './portfolioWorkbook'
@@ -234,7 +234,7 @@ export function transcribedRows(file: TranscribedFile, lookAlikes: LookAlikes): 
 export function daysPartlyOnCard(rows: WorkbookRows, book: InvestmentBook, fileName: string): CivilDate[] {
   if (fileName === '') return []
   const cardKeys = new Set(workbookEntries(rows.rows).map((entry) => entry.key))
-  const scopesHeld = importableRecords(book).flatMap(({ record: { importKey } }) => (importKey === null || cardKeys.has(importKey) ? [] : [accountScopeOf(importKey)]))
+  const scopesHeld = importableRecords(book).flatMap(({ record: { importKeys } }) => (importKeys.some((key) => cardKeys.has(key)) ? [] : importKeys.map(accountScopeOf)))
   const dayOf = new Map(rows.rows.map((row) => [accountScopeOf(row.key), row.date]))
   const refusal = cardDaysRefusal(scopesHeld, [...dayOf.keys()], null)
   return refusal?.kind === 'split' ? refusal.days.map((scope) => dayOf.get(scope)!).sort() : []

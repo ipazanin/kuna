@@ -113,9 +113,9 @@ await withBrowser(launchFirefox, async (browser) => {
     await open(page, 'fake=drive', '/')
     await page.waitForSelector('[data-testid="home-card"][data-state="set-up"]', VISIBLE)
     const shown = await page.evaluate(() => {
-      const card = document.querySelector('[data-testid="home-card"][data-state="set-up"]')
-      card.focus({ focusVisible: true })
-      return document.activeElement === card && card.matches(':focus-visible')
+      const link = document.querySelector('[data-testid="home-card"][data-state="set-up"] [data-testid="home-card-link"]')
+      link.focus({ focusVisible: true })
+      return document.activeElement === link && link.matches(':focus-visible')
     })
     if (!shown) throw new Error('focus({ focusVisible: true }) does not show on the home card')
     await page.keyboard.press('Tab')

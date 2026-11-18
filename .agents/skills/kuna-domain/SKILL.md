@@ -82,6 +82,7 @@ A file on `FIGURES_IN_PRESENTATION` computes a figure in presentation, and the d
 | No `words` import in domain code    | `kuna/domain-words`              | `domainWords`, only shrinks                         |
 | Formatters take a brand             | `npm run typecheck`              | None                                                |
 | No class in domain code             | `kuna/domain-classes`            | None                                                |
+| A domain file under 600 lines       | `max-lines`                      | `longFiles`, only shrinks                           |
 | Brands declared by their owners     | `tests/importBoundaries.spec.ts` | `BRAND_OWNERS`                                      |
 | Digest reads no presentation module | `tests/importBoundaries.spec.ts` | `FIGURES_IN_PRESENTATION`, only shrinks             |
 

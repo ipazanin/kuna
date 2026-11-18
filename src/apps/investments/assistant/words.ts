@@ -68,11 +68,12 @@ export const en = {
   reports: {
     portfolio: {
       title: 'the portfolio',
-      about: 'The value, what was put in, cost, gains, income, fees and the yearly return on a day, as the Overview shows them. Null is today. A past day counts the records up to it.',
+      about:
+        "The value, what was put in, cost, gains, income, fees, the yearly return and the day's change on a day, as the Overview shows them. Null is today, with Fetch today's quotes once pressed. A past day counts the records up to it.",
     },
     holdings: {
       title: 'the holdings',
-      about: "Each held instrument's value, cost, gains, income and weight, and each account's cash in euros, on a day, as the Holdings screen shows them. Null is today.",
+      about: "Each held instrument's value, cost, gains, income, weight and day's change, and each account's cash in euros, on a day, as the Holdings screen shows them. Null is today.",
     },
     income: { title: "a year's income", about: 'Dividends, interest and other income of a year, gross, withheld and received, in euros. Any month of the year names it.' },
     tax: {
@@ -176,6 +177,8 @@ export const en = {
     historyComplete: 'The file holds every buy and sale since the first, so tax shows',
     everyHolding: "The day's closes and ECB rates of every holding",
     vendorsOutside: 'Kuna asks the price vendors with the keys of this browser and writes what they send to the prices file beside the books.',
+    todaysQuotes: "Today's prices of the holdings held",
+    quotesOutside: 'Kuna asks the price vendors with the keys of this browser and keeps what they send in this page alone, for today.',
     failuresListed: 'Each is listed there with what to do.',
     requestsToday: 'Requests today',
     countChanged: 'Nothing was changed. Kuna asked the vendor again since the card was made.',
@@ -237,11 +240,12 @@ export const hr: Translation<typeof en> = {
   reports: {
     portfolio: {
       title: 'portfelj',
-      about: 'Vrijednost, uloženo, trošak, dobit, prihod, naknade i godišnji prinos na dan, kako ih prikazuje Pregled. Null je danas. Raniji dan broji zapise do njega.',
+      about:
+        'Vrijednost, uloženo, trošak, dobit, prihod, naknade, godišnji prinos i promjenu dana na dan, kako ih prikazuje Pregled. Null je danas, s cijenama gumba Dohvati danas kad je pritisnut. Raniji dan broji zapise do njega.',
     },
     holdings: {
       title: 'pozicije',
-      about: 'Vrijednost, trošak, dobit, prihod i udio svakog instrumenta koji se drži te novac svakog računa u eurima na dan, kako ih prikazuje zaslon Pozicije. Null je danas.',
+      about: 'Vrijednost, trošak, dobit, prihod, udio i promjenu dana svakog instrumenta koji se drži te novac svakog računa u eurima na dan, kako ih prikazuje zaslon Pozicije. Null je danas.',
     },
     income: { title: 'prihod godine', about: 'Dividende, kamate i drugi prihod godine, bruto, obustavljeno i primljeno, u eurima. Bilo koji mjesec godine je imenuje.' },
     tax: {
@@ -354,6 +358,8 @@ export const hr: Translation<typeof en> = {
     historyComplete: 'Datoteka ima svaku kupnju i prodaju od prve, pa se porez prikazuje',
     everyHolding: 'Današnje zaključne cijene i tečajevi ESB-a svih pozicija',
     vendorsOutside: 'Kuna pita izvore cijena ključevima ovog preglednika i ono što pošalju zapisuje u datoteku cijena pokraj knjiga.',
+    todaysQuotes: 'Današnje cijene pozicija koje držite',
+    quotesOutside: 'Kuna pita izvore cijena ključevima ovog preglednika i ono što pošalju čuva samo na ovoj stranici, za danas.',
     failuresListed: 'Ondje je svaki niz naveden sa savjetom što učiniti.',
     requestsToday: 'Današnji zahtjevi',
     countChanged: 'Ništa nije promijenjeno. Kuna je ponovno pitala izvor nakon što je kartica napravljena.',

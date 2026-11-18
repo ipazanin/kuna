@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { words as mailWords } from '../src/apps/investments/mail/presentation/words'
 import { words as pricesWords } from '../src/apps/investments/prices/presentation/words'
+import { words as settingsWords } from '../src/apps/investments/settings/presentation/words'
 import { words } from '../src/apps/investments/assistant/words'
 import { emptyPricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import { INVESTMENTS_PRICES_ROUTE } from '../src/apps/investments/overview/presentation/investmentLinks'
@@ -98,6 +99,33 @@ describe('prices', () => {
     desk.runs.answer = { kind: 'refused', reason: 'not-prices' }
     await desk.propose([{ op: 'fetch-prices', input: {} }])
     expect(await desk.accept()).toEqual({ kind: 'refused', reason: pricesWords.refused['not-prices'] })
+  })
+
+  it("fetches today's prices on a card with no Undo, saying the page keeps them and no file does", async () => {
+    const desk = await investmentsDesk(used)
+    await desk.propose([{ op: 'fetch-today', input: {} }])
+    const card = desk.cards[0]!
+    expect(card.undoable).toBe(false)
+    expect(card.outside).toEqual([words.cards.quotesOutside])
+    expect(await desk.accept()).toEqual({ kind: 'done', undo: null })
+    expect(desk.runs.asked).toEqual(['quotes'])
+  })
+
+  it('refuses Fetch today without a key, naming Settings, Prices, and asks nothing', async () => {
+    const desk = await investmentsDesk(used)
+    desk.runs.quotesOff = { kind: 'no-key' }
+    const answer = await desk.propose([{ op: 'fetch-today', input: {} }])
+    expect(answer.text).toContain(`${settingsWords.title}, ${settingsWords.tabs.prices}`)
+    expect(desk.cards).toEqual([])
+    expect(desk.runs.asked).toEqual([])
+  })
+
+  it('warns of the holdings Fetch today got no price for, as the Overview does', async () => {
+    const desk = await investmentsDesk(used)
+    desk.runs.quotes = { ...desk.runs.quotes, asked: 2, failed: 1 }
+    await desk.propose([{ op: 'fetch-today', input: {} }])
+    const result = await desk.accept()
+    expect(result.kind === 'done' && result.warning?.text).toBe(plural(pricesWords.today.failed(1), 1))
   })
 
   it('asks again only for a holding whose page warns of a missing fact', async () => {

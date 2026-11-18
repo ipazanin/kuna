@@ -1,3 +1,4 @@
+import { en as homeEnglish, hr as homeCroatian } from '../../src/apps/investments/home/presentation/words.ts'
 import { en as holdingsEnglish, hr as holdingsCroatian } from '../../src/apps/investments/holdings/presentation/words.ts'
 import { en as overviewEnglish, hr as overviewCroatian } from '../../src/apps/investments/overview/presentation/words.ts'
 import { en as pricesEnglish, hr as pricesCroatian } from '../../src/apps/investments/prices/presentation/words.ts'
@@ -49,5 +50,40 @@ export function fetchTodayFlowIn(language) {
       throw new Error('the holdings list names neither Today nor a holding at an earlier close')
     }
     await shoot(`fetch-today-live-${language}`)
+  }
+}
+
+/**
+ * Fetch today on the Investments home card: no button while no key is kept, then with a made-up Twelve Data key a press
+ * on it stays on the home, and the day's change comes in between Value and Total gain. On a weekday it reads Today, and
+ * the Overview's day tile then shows the same figure. On a weekend the quote is Friday's close, so it reads Last day.
+ */
+export function homeFetchTodayFlowIn(language) {
+  const words = language === 'hr' ? { home: homeCroatian, overview: overviewCroatian } : { home: homeEnglish, overview: overviewEnglish }
+  return async (page, { press, shoot }) => {
+    const card = '[data-testid="home-card"][data-app="investments"]'
+    const button = `${card} [data-testid="home-card-action"]`
+    await page.waitForSelector(`${card} dl`, VISIBLE)
+    if ((await page.$(button)) !== null) throw new Error('the home card offers Fetch today without a key kept')
+    await shoot(`home-fetch-today-no-key-${language}`)
+
+    await page.evaluate((key) => localStorage.setItem('kuna.secret.twelvedata', key), MADE_UP_KEY)
+    await page.reload({ waitUntil: 'networkidle0' })
+    await press(await page.waitForSelector(button, VISIBLE))
+    const label = isWeekend() ? words.home.lastDay : words.home.today
+    await page.waitForFunction((selector, wanted) => [...document.querySelectorAll(`${selector} dt`)].some((term) => term.textContent?.trim() === wanted), { timeout: 15_000 }, card, label)
+    if (!(await page.evaluate(() => window.location.hash === '#/' || window.location.hash === ''))) throw new Error('the press on Fetch today left the home')
+    const terms = await page.$$eval(`${card} dt`, (elements) => elements.map((element) => element.textContent?.trim()))
+    if (JSON.stringify(terms) !== JSON.stringify([words.home.value, label, words.home.totalGain])) throw new Error(`the home card reads ${JSON.stringify(terms)} after the click`)
+    const figure = await page.$eval(`${card} dl > div:nth-child(2) > dd`, (element) => element.textContent?.trim() ?? '')
+    await shoot(`home-fetch-today-${isWeekend() ? 'weekend' : 'live'}-${language}`)
+
+    await press(await page.$(`${card} [data-testid="home-card-link"]`))
+    await page.waitForFunction(
+      (wanted, shown) => [...document.querySelectorAll('[data-testid="investments-day"]')].some((tile) => tile.textContent?.includes(wanted) && tile.textContent?.includes(shown)),
+      { timeout: 15_000 },
+      isWeekend() ? words.overview.tiles.lastDay : words.overview.tiles.today,
+      figure,
+    )
   }
 }

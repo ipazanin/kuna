@@ -9,6 +9,7 @@ import { MAIL_READER_WRITES } from '../../src/apps/investments/mail/application/
 import { reportRowKey } from '../../src/apps/investments/imports/domain/reportKey'
 import { IBKR_FLEX_RECIPE } from '../../src/apps/investments/mail/domain/ibkrFlexRecipe'
 import type { PricesFetchRun } from '../../src/apps/investments/prices/application/pricesUpdate'
+import type { QuotesFetched, QuotesOff } from '../../src/apps/investments/prices/application/quoteFetch'
 import { NO_FETCHED_FACTS, emptyPricesFile } from '../../src/apps/investments/prices/domain/pricesFile'
 import type { PricesFile } from '../../src/apps/investments/prices/domain/pricesFile'
 import { writeTransaction } from '../../src/apps/investments/transactions/application/transactionWrites'
@@ -81,7 +82,7 @@ export function mailedReport(): WorkbookRows {
   if (read.kind !== 'read') throw new Error('The mailed report was refused.')
   const asked: AskedRow = { key: 'asked-1', section: 'Trades', shown: [['Symbol', 'XYZ']], dates: {}, why: { kind: 'no-kind' } }
   const rows = read.rows.map((row) => ({ ...row, key: reportRowKey(IBKR_FLEX_RECIPE.id, row.account, `tx-${row.fileRow}`) }))
-  return { ...read, rows, report: { mailed: true, asked: [asked], beforeStart: 0, byHand: 0 } }
+  return { ...read, rows, report: { recipe: IBKR_FLEX_RECIPE.id, mailed: true, asked: [asked], beforeStart: 0, byHand: 0 } }
 }
 
 /** The prices file with a profile vendor's refusal for the share, so its page asks again. */
@@ -128,6 +129,9 @@ export interface PricesRuns {
   readonly asked: string[]
   /** What each run answers. */
   answer: PricesFetchRun
+  /** What a Fetch today click answers, and why one would ask nothing, or null while it would ask a vendor. */
+  quotes: QuotesFetched
+  quotesOff: QuotesOff | null
 }
 
 /** An Investments file where every operation's example has what it needs, with the chat's refs, the cards it was shown, the fetches Accept started, the prices runs, and the history answer and request counts of this device. */
@@ -167,7 +171,12 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
   })
   const typed = store as unknown as WorkbookStore<InvestmentsBooks>
   const fetches = { count: 0 }
-  const runs: PricesRuns = { asked: [], answer: { kind: 'written', file: PRICES_FILE } }
+  const runs: PricesRuns = {
+    asked: [],
+    answer: { kind: 'written', file: PRICES_FILE },
+    quotes: { quoted: { day: civil('2026-10-30'), quotes: [], askedOnce: [] }, asked: 1, failed: 0 },
+    quotesOff: null,
+  }
   const history = { complete: false, file: 'investments-file' as string | null }
   const requests = new Map([['twelvedata', 7]])
   const run = (asked: string) => {
@@ -181,7 +190,13 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
     prices: {
       fetchNow: () => run('now'),
       askFactsAgain: (instrument) => run(`facts of ${instrument}`),
+      fetchQuotes: () => {
+        runs.asked.push('quotes')
+        return Promise.resolve(runs.quotes)
+      },
+      quotesOff: () => runs.quotesOff,
     },
+    now: () => '2026-10-30T15:00:00.000Z',
     mailReport: () => mailedReport(),
     history: { file: () => history.file, given: () => history.complete, give: () => (history.complete = true), takeBack: () => (history.complete = false) },
     requestCounts: { today: (vendorId) => requests.get(vendorId) ?? 0, set: (vendorId, count) => requests.set(vendorId, count) },

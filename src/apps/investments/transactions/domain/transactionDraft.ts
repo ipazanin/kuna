@@ -75,9 +75,9 @@ export function keyOf(entry: TransactionRecord): string {
   return keyOfRecordId(RECORDS_OF[entry.kind], entry.record.id)
 }
 
-/** The import key of the record changed, null for a new one or a hand price, which has none. */
-export function importKeyOf(entry: TransactionRecord | null): string | null {
-  return entry === null || entry.kind === 'price' ? null : entry.record.importKey
+/** The import keys of the record changed, none for a new one or a hand price, which has none. */
+export function importKeysOf(entry: TransactionRecord | null): readonly string[] {
+  return entry === null || entry.kind === 'price' ? [] : entry.record.importKeys
 }
 
 export function happeningOf(entry: TransactionRecord): Happening {
@@ -150,6 +150,8 @@ export interface TransactionStart {
   readonly happened: Happening
   readonly instrument: RecordId | null
   readonly today: CivilDate
+  /** Fields a row of a report fills, such as the units and price of a trade it asked about. */
+  readonly texts?: Partial<TransactionTexts>
 }
 
 /** A stored amount as a money field shows it, so the field and what `typedAmount` reads agree. */
@@ -189,7 +191,7 @@ export function textsOf(entry: TransactionRecord | null, start: TransactionStart
     note: '',
     reverses: false,
   }
-  if (entry === null) return blank
+  if (entry === null) return { ...blank, ...start.texts }
   const base = { ...blank, happened: happeningOf(entry), date: entry.record.date, note: entry.record.note }
   switch (entry.kind) {
     case 'trade': {
@@ -313,19 +315,19 @@ function wholeNumber(text: string): number | null {
  * The account the mail fills that the record by hand would land on anew, added or moved there, or null. A fix that keeps the
  * record's account and day is allowed, and a record of a report keeps its key, so it stays the mail's own.
  */
-function mailOwnedFault(record: TransactionRecord, book: InvestmentBook, importKey: string | null): TransactionFault | null {
+function mailOwnedFault(record: TransactionRecord, book: InvestmentBook, importKeys: readonly string[]): TransactionFault | null {
   if (record.kind === 'split' || record.kind === 'spin-off' || record.kind === 'price') return null
   const before = landingRecordOf(book, record.record.id)
-  const landing = { accounts: record.kind === 'transfer' ? [record.record.from, record.record.to] : [record.record.account], date: record.record.date, importKey }
+  const landing = { accounts: record.kind === 'transfer' ? [record.record.from, record.record.to] : [record.record.account], date: record.record.date, importKeys }
   const owned = landsAnew(before, landing) ? mailOwned(accountIntakes(book), landing) : null
   return owned === null ? null : { kind: 'mailOwns', account: book.accounts.find((account) => account.id === owned)?.name ?? '' }
 }
 
 /**
- * Reads the texts of the happening into its record, keyed by `key`, or says what is wrong with each field. `importKey`
- * is the key of the record changed, which the dialog keeps on it.
+ * Reads the texts of the happening into its record, keyed by `key`, or says what is wrong with each field. `importKeys`
+ * are the keys of the record changed, or of the question of a report a new record books, which the record keeps.
  */
-export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, key: string, importKey: string | null = null): TransactionDraft {
+export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, key: string, importKeys: readonly string[] = []): TransactionDraft {
   const faults: TransactionFaults = {}
   const fail = <T>(field: keyof TransactionTexts, fault: PlainFault | TransactionFault): T | null => {
     faults[field] = typeof fault === 'string' ? { kind: fault } : fault
@@ -337,8 +339,10 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
   const currencyOf = (field: 'currency' | 'boughtCurrency' | 'feeCurrency'): CurrencyCode | null => currencyCodeOf(texts[field]) ?? fail<CurrencyCode>(field, 'currency')
   const rateFor = (currency: CurrencyCode | null): Decimal | null => (currency === null || currency === EURO ? null : (positiveDecimal(texts.rate) ?? fail<Decimal>('rate', 'rate')))
   const note = texts.note.trim()
-  const done = (record: TransactionRecord): TransactionDraft => {
-    const owned = mailOwnedFault(record, book, importKey)
+  const done = (drafted: TransactionRecord): TransactionDraft => {
+    // A record keeps the keys it is drafted with, such as a booked question's, so the question it answers goes.
+    const record = drafted.kind === 'price' ? drafted : ({ kind: drafted.kind, record: { ...drafted.record, importKeys } } as TransactionRecord)
+    const owned = mailOwnedFault(record, book, importKeys)
     if (owned !== null) faults.account = owned
     return { faults, record: Object.keys(faults).length === 0 ? record : null }
   }
@@ -355,7 +359,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
       if (account === null || instrument === null || date === null || quantity === null || price === null) return { faults, record: null }
       return done({
         kind: 'trade',
-        record: { id: recordIdOf(TRADE_RECORDS, key), account, instrument: instrument.id, side: texts.happened, date, quantity, price, fees, rate, accrued: null, importKey: null, note },
+        record: { id: recordIdOf(TRADE_RECORDS, key), account, instrument: instrument.id, side: texts.happened, date, quantity, price, fees, rate, accrued: null, importKeys: [], note },
       })
     }
     case 'income': {
@@ -382,7 +386,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
           gross: texts.reverses ? negateDecimal(gross) : gross,
           withheld: texts.reverses ? negateDecimal(withheld) : withheld,
           rate,
-          importKey: null,
+          importKeys: [],
           note,
         },
       })
@@ -397,7 +401,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
       const rate = rateFor(currency)
       if (account === null || date === null || currency === null || amount === null) return { faults, record: null }
       const kind: CashMovementKind = texts.happened
-      return done({ kind: 'cash-movement', record: { id: recordIdOf(CASH_MOVEMENT_RECORDS, key), account, kind, date, currency, amount, rate, importKey: null, note } })
+      return done({ kind: 'cash-movement', record: { id: recordIdOf(CASH_MOVEMENT_RECORDS, key), account, kind, date, currency, amount, rate, importKeys: [], note } })
     }
     case 'exchange': {
       const account = accountOf('account')
@@ -420,7 +424,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
           bought,
           boughtCurrency,
           fees: feeAmount === null || feeCurrency === null ? null : { amount: feeAmount, currency: feeCurrency },
-          importKey: null,
+          importKeys: [],
           note,
         },
       })
@@ -440,7 +444,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
           : currency !== null && amount !== null
             ? { kind: 'cash' as const, currency, amount }
             : null
-      return moved === null ? { faults, record: null } : done({ kind: 'transfer', record: { id: recordIdOf(TRANSFER_RECORDS, key), from, to, date, moved, importKey: null, note } })
+      return moved === null ? { faults, record: null } : done({ kind: 'transfer', record: { id: recordIdOf(TRANSFER_RECORDS, key), from, to, date, moved, importKeys: [], note } })
     }
     case 'split': {
       const instrument = instrumentOf('instrument')
@@ -448,7 +452,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
       const oldUnits = wholeNumber(texts.oldUnits) ?? fail<number>('oldUnits', 'wholeNumber')
       if (newUnits !== null && newUnits === oldUnits) fail('oldUnits', 'sameUnits')
       if (instrument === null || date === null || newUnits === null || oldUnits === null) return { faults, record: null }
-      return done({ kind: 'split', record: { id: recordIdOf(SPLIT_RECORDS, key), instrument: instrument.id, date, newUnits, oldUnits, importKey: null, note } })
+      return done({ kind: 'split', record: { id: recordIdOf(SPLIT_RECORDS, key), instrument: instrument.id, date, newUnits, oldUnits, importKeys: [], note } })
     }
     case 'spin-off': {
       const parent = instrumentOf('instrument')
@@ -459,7 +463,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
       const percent = typedDecimal(texts.costShare)
       const costShare = percent === null || percent > PERCENT_DECIMAL ? fail<Decimal>('costShare', 'share') : scaledDecimal(percent, 1n, PERCENT)
       if (parent === null || received === null || date === null || quantity === null || costShare === null) return { faults, record: null }
-      return done({ kind: 'spin-off', record: { id: recordIdOf(SPIN_OFF_RECORDS, key), instrument: parent.id, received: received.id, date, quantity, costShare, importKey: null, note } })
+      return done({ kind: 'spin-off', record: { id: recordIdOf(SPIN_OFF_RECORDS, key), instrument: parent.id, received: received.id, date, quantity, costShare, importKeys: [], note } })
     }
     case 'price': {
       const instrument = instrumentOf('instrument')

@@ -210,7 +210,7 @@ describe('Investments records', () => {
   // whether the account allows the uploaded report, and the write rule takes both.
   it("takes an IBKR report's record on an account the mail fills", async () => {
     const store = await storeOf()
-    const reported = { ...trade('buy', IBKR, FUND, '2026-07-01', '1', '10', null), importKey: reportRowKey('trades', 'U1234567', 'T-1') }
+    const reported = { ...trade('buy', IBKR, FUND, '2026-07-01', '1', '10', null), importKeys: [reportRowKey('trades', 'U1234567', 'T-1')] }
     await store.write('Imported', (unit) => writeTransaction(unit, null, { kind: 'trade', record: reported }))
     expect(store.state.workbook!.book.trades).toHaveLength(1)
   })

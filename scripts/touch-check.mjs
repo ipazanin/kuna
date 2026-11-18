@@ -3597,6 +3597,7 @@ async function checkWidth(browser, width) {
     ['investments-closes-import', 'drive&investments=sample', investmentsClosesImportFlowIn('en', CLOSES_SAMPLES), '#/investments/settings?tab=prices', 'Settings'],
     ['investments-import', 'drive&investments=drive&prices=sample', investmentsImportFlowIn('en', WORKBOOK_SAMPLES, { undoing: true }), '#/investments', 'Overview'],
     ['investments-mail-typed', 'drive&investments=mail-typed&prices=sample', investmentsMailFlowIn('en', 'typed'), '#/investments', 'Overview'],
+    ['investments-mail-unseen', 'flex-unseen&investments=mail&prices=sample', investmentsMailFlowIn('en', 'unseen'), '#/investments', 'Overview'],
     ['loans-scenarios', 'drive&loans=sample', loansScenariosFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-scenario-editor', 'drive&loans=sample', loansScenarioEditorFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-saved-tries', 'drive&loans=sample', loansSavedTriesFlow, `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, 'Home loan'],

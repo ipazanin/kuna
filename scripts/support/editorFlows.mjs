@@ -4225,7 +4225,7 @@ export function kunaWelcomeFlowIn(language) {
     if ((await page.evaluate(homeMenu)) !== null) {
       if ((await page.evaluate(menuShown)).apps.length !== 0) throw new Error('the sidebar lists an app with no file')
       await pressSelector(page, press, '[data-testid="nav-add-app"]')
-      const focused = await page.evaluate(() => document.activeElement?.dataset.app)
+      const focused = await page.evaluate(() => document.activeElement?.closest('[data-testid="home-card"]')?.dataset.app)
       if (focused !== 'loans') throw new Error(`Add an app moved focus to ${focused}, not the first picked app in Set up`)
     }
     await inspect?.('the home after the welcome')
@@ -5701,7 +5701,7 @@ function homeCards() {
     figure: card.querySelector('dd')?.textContent?.trim() ?? null,
     tone: ['text-success', 'text-error'].find((tone) => card.querySelector('dd .figure')?.classList.contains(tone)) ?? null,
     colour: card.querySelector('[data-testid="app-mark"]') === null ? null : getComputedStyle(card.querySelector('[data-testid="app-mark"]')).color,
-    href: card.getAttribute('href'),
+    href: card.querySelector('[data-testid="home-card-link"]')?.getAttribute('href') ?? null,
   }))
 }
 
@@ -10188,6 +10188,32 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
       if (rows.length !== 12) throw new Error(`the questions step asks about ${rows.length} rows, not 12`)
       await inspect?.('the rows not seen yet')
       await shoot('investments-mail-asked')
+      const cancelledBooks = await page.$$eval(
+        '[data-testid="import-asked"] [data-testid="question"]',
+        (questions) => questions.filter((row) => row.textContent?.includes('BUY (Ca.)') && row.querySelector('[data-testid="import-asked-book"]') !== null).length,
+      )
+      if (cancelledBooks !== 0) throw new Error('a cancelled buy offers Book, which would book it as a new buy')
+      for (const section of ['Trades', 'Transfers', 'Corporate Actions']) {
+        const book = await page.evaluateHandle(
+          (wanted) =>
+            [...document.querySelectorAll('[data-testid="import-asked"] [data-testid="question"]')]
+              .filter((row) => row.textContent?.includes(wanted))
+              .map((row) => row.querySelector('[data-testid="import-asked-book"]'))
+              .find((button) => button !== null) ?? null,
+          section,
+        )
+        if (book.asElement() === null) throw new Error(`a row of ${section} not seen yet offers no Book`)
+        await press(book.asElement())
+        await page.waitForSelector('[data-testid="transaction-form"]', { visible: true, timeout: 10_000 }).catch(() => {
+          throw new Error(`Book on a row of ${section} opens no form`)
+        })
+        // The form fades in over the import dialog, so the picture waits for it to finish.
+        await delay(500)
+        await inspect?.(`the form a row of ${section} starts`)
+        await shoot(`investments-mail-book-${section.toLowerCase().replace(' ', '-')}`)
+        await page.keyboard.press('Escape')
+        await page.waitForSelector('[data-testid="transaction-form"]', { hidden: true, timeout: 10_000 })
+      }
       const leaveOut = await page.$('[data-testid="import-asked"] [data-testid="question-choice"] button:last-child')
       if (leaveOut === null) throw new Error('a row not seen yet offers no way to leave it out')
       await press(leaveOut)

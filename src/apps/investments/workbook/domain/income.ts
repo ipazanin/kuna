@@ -32,8 +32,8 @@ export interface Income {
   readonly withheld: Decimal
   /** Units of the currency per euro, null for income in euros. */
   readonly rate: Decimal | null
-  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
-  readonly importKey: string | null
+  /** The keys of the imported rows it came from, one for each source such as the workbook or a report, so importing them again adds nothing. None for a record typed in. */
+  readonly importKeys: readonly string[]
   readonly note: string
   /** Only a dividend read from a broker's report has these. */
   readonly dividend?: DividendFacts

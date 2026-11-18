@@ -1,4 +1,4 @@
-import { decimalField, importKeyOf, namedAccount, namedInstrument, optionalUnsigned, positiveDecimal, requiredDecimal } from './investmentFields'
+import { decimalField, importKeysOf, importKeysText, namedAccount, namedInstrument, optionalUnsigned, positiveDecimal, requiredDecimal } from './investmentFields'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS, TRADE_RECORDS } from './investmentKinds'
 import { TRADE_SIDES } from './trade'
 import type { Trade } from './trade'
@@ -36,7 +36,7 @@ export function tradeOf(fields: StoredFields, id: RecordId | null): Trade {
     fees: optionalUnsigned(fields, 'fees'),
     rate: fields.rate === undefined ? null : positiveDecimal(fields, 'rate'),
     accrued: optionalUnsigned(fields, 'accrued'),
-    importKey: importKeyOf(fields),
+    importKeys: importKeysOf(fields),
     note: textOf(fields.note),
     ...settlesOf(fields),
   }
@@ -53,7 +53,7 @@ export const TRADE_CODEC: RecordCodec<Trade> = withIdField(TRADE_RECORDS, words.
     fees: decimalField(trade.fees),
     rate: decimalField(trade.rate),
     accrued: decimalField(trade.accrued),
-    import_key: trade.importKey,
+    import_key: importKeysText(trade.importKeys),
     note: trade.note,
     settles: trade.settles,
   }),

@@ -1,4 +1,4 @@
-import { decimalField, importKeyOf, namedInstrument, positiveDecimal, requiredDecimal } from './investmentFields'
+import { decimalField, importKeysOf, importKeysText, namedInstrument, positiveDecimal, requiredDecimal } from './investmentFields'
 import { INSTRUMENT_RECORDS, SPIN_OFF_RECORDS } from './investmentKinds'
 import type { SpinOff } from './spinOff'
 import { words } from './words'
@@ -26,7 +26,7 @@ export function spinOffOf(fields: StoredFields, id: RecordId | null): SpinOff {
     date: requiredDate(fields, 'date'),
     quantity: positiveDecimal(fields, 'quantity'),
     costShare,
-    importKey: importKeyOf(fields),
+    importKeys: importKeysOf(fields),
     note: textOf(fields.note),
   }
 }
@@ -38,7 +38,7 @@ export const SPIN_OFF_CODEC: RecordCodec<SpinOff> = withIdField(SPIN_OFF_RECORDS
     date: spinOff.date,
     quantity: decimalField(spinOff.quantity),
     cost_share: decimalField(spinOff.costShare),
-    import_key: spinOff.importKey,
+    import_key: importKeysText(spinOff.importKeys),
     note: spinOff.note,
   }),
 )

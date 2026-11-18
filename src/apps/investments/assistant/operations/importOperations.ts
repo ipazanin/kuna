@@ -1,6 +1,6 @@
 import { writeWorkbookImport } from '../../imports/application/workbookImport'
 import { accountIntakes, sourcesSaid } from '../../imports/domain/accountIntake'
-import { importableRecords } from '../../imports/domain/importDryRun'
+import { importableRecords } from '../../imports/domain/importedRecords'
 import { LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
 import type { WorkbookDryRun, WorkbookRows } from '../../imports/domain/importDryRun'
 import { WORKBOOK_TYPES } from '../../imports/domain/portfolioWorkbook'
@@ -218,7 +218,7 @@ function importedRows(
   writeWorkbookImport(unit, dryRun.added, dryRun.matched, [])
   const waiting = copied ? waits.filter((reason) => reason.kind !== 'looks-in-kuna') : waits
   const reasons = [...new Set(waiting.map(waitText))].join('. ')
-  const held = asked === 'hold' ? (rows.report?.asked.length ?? 0) : 0
+  const held = asked === 'hold' ? (dryRun.report?.asked.length ?? 0) : 0
   const place = where.place
   const inKuna = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'in-kuna' ? entry.rows : [])).length
   const noun = firstNounOf(dryRun.added)

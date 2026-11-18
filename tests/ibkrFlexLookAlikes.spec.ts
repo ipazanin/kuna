@@ -3,8 +3,9 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { writeWorkbookImport } from '../src/apps/investments/imports/application/workbookImport'
-import { importableRecords } from '../src/apps/investments/imports/domain/importDryRun'
-import type { ImportedRecord, WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
+import type { WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
+import { importableRecords } from '../src/apps/investments/imports/domain/importedRecords'
+import type { ImportedRecord } from '../src/apps/investments/imports/domain/importedRecords'
 import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/domain/importChoices'
 import type { ImportChoices } from '../src/apps/investments/imports/domain/importChoices'
 import { INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
@@ -57,7 +58,7 @@ async function accept(desk: InvestmentsDesk, choices: ImportChoices = NO_CHOICES
 function reportRecords(desk: InvestmentsDesk): ImportedRecord[] {
   return importableRecords(bookOf(desk)).filter(
     (imported) =>
-      imported.record.importKey?.startsWith(`${IBKR_FLEX_RECIPE.id}:`) &&
+      imported.record.importKeys.some((key) => key.startsWith(`${IBKR_FLEX_RECIPE.id}:`)) &&
       (imported.kind === 'trade' || imported.kind === 'income' || imported.kind === 'cash-movement' || imported.kind === 'exchange'),
   )
 }
@@ -66,7 +67,7 @@ function reportRecords(desk: InvestmentsDesk): ImportedRecord[] {
 async function unlink(desk: InvestmentsDesk, keyOf: (key: string) => string | null): Promise<void> {
   const records = reportRecords(desk)
   await desk.store.write('Unlinked', (unit) =>
-    records.forEach((kept) => writeTransaction(unit, kept, { kind: kept.kind, record: { ...kept.record, importKey: keyOf(kept.record.importKey!) } } as ImportedRecord)),
+    records.forEach((kept) => writeTransaction(unit, kept, { kind: kept.kind, record: { ...kept.record, importKeys: kept.record.importKeys.flatMap((key) => keyOf(key) ?? []) } } as ImportedRecord)),
   )
 }
 
@@ -124,7 +125,7 @@ describe('an uploaded Flex report against records Kuna has without its keys', ()
 
     const answered = settledOf(desk, { ...NO_CHOICES, lookAlikes })
     expect(answered.dryRun.matched).toHaveLength(dryRun.questions.lookAlikes.length)
-    expect(answered.dryRun.matched.every(({ kept, keyed }) => kept.record.importKey === null && keyed.record.importKey !== null)).toBe(true)
+    expect(answered.dryRun.matched.every(({ kept, keyed }) => kept.record.importKeys.length === 0 && keyed.record.importKeys.length === 1)).toBe(true)
     await accept(desk, { ...NO_CHOICES, lookAlikes })
     expect(counts(bookOf(desk))).toEqual(before)
     expect(reportRecords(desk)).toHaveLength(dryRun.questions.lookAlikes.length)
@@ -136,6 +137,23 @@ describe('an uploaded Flex report against records Kuna has without its keys', ()
 
     await desk.store.undo(desk.store.state.writes[0]!)
     expect(reportRecords(desk)).toEqual([])
+  })
+
+  it('keeps the workbook key beside the report key of a record the person calls the same, and Undo leaves the workbook key alone', async () => {
+    const desk = await linkedDesk()
+    await unlink(desk, (key) => key.replaceAll(':', ''))
+    const { dryRun } = settledOf(desk)
+    const lookAlikes = Object.fromEntries(dryRun.questions.lookAlikes.map((question) => [question.key, { like: question.like.record.id, same: true }]))
+    await accept(desk, { ...NO_CHOICES, lookAlikes })
+
+    const keys = importableRecords(bookOf(desk)).flatMap((imported) => (imported.record.importKeys.length > 0 ? [imported.record.importKeys] : []))
+    const both = keys.filter((held) => held.length === 2)
+    expect(both).toHaveLength(dryRun.questions.lookAlikes.length)
+    expect(both.every(([workbook, report]) => !workbook!.includes(':') && report!.startsWith(`${IBKR_FLEX_RECIPE.id}:`))).toBe(true)
+
+    await desk.store.undo(desk.store.state.writes[0]!)
+    expect(reportRecords(desk)).toEqual([])
+    expect(importableRecords(bookOf(desk)).filter((imported) => imported.record.importKeys.length === 1)).toHaveLength(dryRun.questions.lookAlikes.length)
   })
 
   it('adds a row the person calls another record', async () => {

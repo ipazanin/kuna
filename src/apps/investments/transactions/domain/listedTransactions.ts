@@ -42,7 +42,7 @@ export function withImportFacts(before: TransactionRecord, after: TransactionRec
   const dividend = before.kind === 'income' && before.record.dividend !== undefined && after.kind === 'income' ? { dividend: before.record.dividend } : {}
   const accrued = before.kind === 'trade' && after.kind === 'trade' && after.record.instrument === before.record.instrument ? { accrued: before.record.accrued } : {}
   const settles = before.kind === 'trade' && before.record.settles !== undefined && after.kind === 'trade' && after.record.date === before.record.date ? { settles: before.record.settles } : {}
-  return { ...after, record: { ...after.record, importKey: before.record.importKey, ...dividend, ...accrued, ...settles } } as TransactionRecord
+  return { ...after, record: { ...after.record, importKeys: before.record.importKeys, ...dividend, ...accrued, ...settles } } as TransactionRecord
 }
 
 /** Every record of what happened and every hand price, newest first. Records of one day keep the order the latest records give them, with prices last. */

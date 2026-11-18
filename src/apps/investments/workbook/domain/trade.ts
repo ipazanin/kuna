@@ -22,8 +22,8 @@ export interface Trade {
   readonly rate: Decimal | null
   /** A bond's accrued interest as the broker's note gives it, paid with a buy and received with a sale. Null for anything else. */
   readonly accrued: Decimal | null
-  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
-  readonly importKey: string | null
+  /** The keys of the imported rows it came from, one for each source such as the workbook or a report, so importing them again adds nothing. None for a record typed in. */
+  readonly importKeys: readonly string[]
   readonly note: string
   /** The day the broker's report says the trade settles. Only a trade read from a report that gives one has it. */
   readonly settles?: CivilDate

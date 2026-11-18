@@ -8,7 +8,7 @@ export interface Split {
   readonly date: CivilDate
   readonly newUnits: number
   readonly oldUnits: number
-  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
-  readonly importKey: string | null
+  /** The keys of the imported rows it came from, one for each source such as the workbook or a report, so importing them again adds nothing. None for a record typed in. */
+  readonly importKeys: readonly string[]
   readonly note: string
 }

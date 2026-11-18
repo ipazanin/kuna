@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
@@ -19,6 +20,9 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { askedRowStart } from '../../mail/domain/askedRowStart'
+import type { AskedRowStart } from '../../mail/domain/askedRowStart'
+import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 
 /**
  * What the rows cannot say: whether a row like a record Kuna has is that record, the ratio of each split no vendor
@@ -65,8 +69,6 @@ const asked = computed(() => ({
   spinOffs: props.settled.spinOffs.filter((step) => !step.answeredByRow),
 }))
 
-const askedRows = computed(() => (props.settled.dryRun.report?.asked ?? []).map(askedLine))
-
 const lookAlikes = computed(() => {
   const book = props.workbookImport.book.value
   return book === null ? [] : lookAlikesOf(props.settled.dryRun, book, props.workbookImport.rates.value, accountNamer(props.settled, book.accounts))
@@ -109,10 +111,30 @@ const askedItems: { value: AskedChoice; label: string }[] = [
   { value: 'leave-out', label: words.questions.askedLeaveOut },
 ]
 
-/** Each row the report's recipe asks about, its columns as the file writes them. */
-const askedQuestions = computed(() =>
-  askedRows.value.map((row) => ({ key: row.key, row: row.title, caption: '', columns: row.caption, note: row.note, choice: props.workbookImport.choices.value.asked[row.key] ?? 'hold' })),
-)
+/** The form Book opens for a question, which the saved record answers, or null where Book is not offered. */
+interface AskedBooking {
+  readonly start: AskedRowStart
+  readonly booking: { readonly importKey: string; readonly row: string }
+}
+
+/** Each row the report's recipe asks about, its columns as the file writes them, with the form Book opens for it. */
+const askedQuestions = computed(() => {
+  const book = props.workbookImport.book.value
+  return (props.settled.dryRun.report?.asked ?? []).map((question) => {
+    const line = askedLine(question)
+    const start = book === null || question.booking === null ? null : askedRowStart(question, book)
+    const booking: AskedBooking | null = start === null || question.booking === null ? null : { start, booking: { importKey: question.booking, row: line.caption } }
+    return { key: line.key, row: line.title, caption: '', columns: line.caption, note: line.note, choice: props.workbookImport.choices.value.asked[line.key] ?? 'hold', booking }
+  })
+})
+
+const booking = ref<AskedBooking | null>(null)
+const bookingOpen = computed({
+  get: () => booking.value !== null,
+  set: (opened: boolean) => {
+    if (!opened) booking.value = null
+  },
+})
 
 function unlistedLine(step: SplitStep): string {
   return step.unlisted === null ? '' : words.questions.unlisted[step.unlisted](props.workbookImport.splitVendor)
@@ -169,7 +191,7 @@ function shareHelp(step: SpinOffStep): string {
       :options="lookAlikeItems"
       :label="words.questions.lookAlikeChoice"
       :heading="twinWords.title"
-      :intro="words.questions.lookAlikesIntro"
+      :intro="settled.dryRun.report === null ? words.questions.workbookLookAlikesIntro : words.questions.lookAlikesIntro"
       data-testid="import-look-alikes"
       @answer="answerLookAlike"
     >
@@ -192,7 +214,21 @@ function shareHelp(step: SpinOffStep): string {
         <span v-if="item.columns !== ''" class="break-words type-caption identifier">{{ item.columns }}</span>
         <span class="break-words type-caption">{{ item.note }}</span>
       </template>
+      <template v-if="workbookImport.book.value !== null" #action="{ item }">
+        <UButton
+          v-if="item.booking !== null"
+          :label="words.questions.askedBook"
+          icon="i-lucide-notebook-pen"
+          color="neutral"
+          variant="link"
+          size="sm"
+          class="px-0"
+          data-testid="import-asked-book"
+          @click="booking = item.booking"
+        />
+      </template>
     </QuestionList>
+    <TransactionDialog v-if="workbookImport.book.value !== null" v-model:open="bookingOpen" :book="workbookImport.book.value" :editing="null" v-bind="booking ?? {}" />
 
     <section v-if="asked.splits.length > 0" class="flex flex-col gap-1" data-testid="import-splits">
       <h3 class="type-card-title">{{ words.questions.splits }}</h3>

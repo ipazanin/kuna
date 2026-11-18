@@ -60,9 +60,9 @@ const deltaPresentation = computed(() => {
 </script>
 
 <template>
-  <AppCard as="article" class="kpi-tile group relative gap-3 p-4 transition-colors hover:border-accented">
+  <AppCard as="article" class="kpi-tile stretched-card group gap-3 p-4 transition-colors hover:border-accented">
     <div class="flex items-start justify-between gap-2">
-      <RouterLink v-if="to !== null" :to="to" class="kpi-link min-w-0 text-sm text-muted transition-colors group-hover:text-toned">
+      <RouterLink v-if="to !== null" :to="to" class="kpi-link stretched-link min-w-0 text-sm text-muted transition-colors group-hover:text-toned">
         <span class="flex min-w-0 items-start gap-1.5">
           <UIcon v-if="icon" :name="icon" class="mt-0.5 size-4 shrink-0" :class="iconClass" aria-hidden="true" />
           <CutText class="block min-w-0">{{ label }}</CutText>
@@ -112,31 +112,7 @@ const deltaPresentation = computed(() => {
   }
 }
 
-/* The label is the link, and its hit area stretches over the whole tile. */
-.kpi-link::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-card);
-}
-
-.kpi-tile:has(.kpi-link:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.kpi-link:focus-visible {
-  outline: none;
-}
-
-/* The tile is the target, but the label is the element, so it takes the tap height without moving the text. */
 @media (max-width: 639px) {
-  .kpi-link {
-    display: flex;
-    align-items: center;
-    margin-block: -0.75rem;
-  }
-
   /* Two tiles share a phone's row, so they drop the sparkline and set the figure smaller. */
   .kpi-tile {
     gap: 0.5rem;

@@ -194,12 +194,12 @@ function startRecords(start: PortfolioFigures, day: CivilDate, sources: Portfoli
       fees: foreignValue,
       rate,
       accrued: null,
-      importKey: null,
+      importKeys: [],
       note: '',
     })
-    cashMovements.push({ id: recordIdOf(CASH_MOVEMENT_RECORDS, `start-${id}`), account, kind: 'deposit', date: day, currency, amount: foreignValue, rate, importKey: null, note: '' })
+    cashMovements.push({ id: recordIdOf(CASH_MOVEMENT_RECORDS, `start-${id}`), account, kind: 'deposit', date: day, currency, amount: foreignValue, rate, importKeys: [], note: '' })
     held.slice(1).forEach(([to, quantity]) => {
-      transfers.push({ id: recordIdOf(TRANSFER_RECORDS, `start-${id}-${to}`), from: account, to, date: day, moved: { kind: 'units', instrument: id, quantity }, importKey: null, note: '' })
+      transfers.push({ id: recordIdOf(TRANSFER_RECORDS, `start-${id}-${to}`), from: account, to, date: day, moved: { kind: 'units', instrument: id, quantity }, importKeys: [], note: '' })
     })
   }
   for (const balance of start.cash) {
@@ -214,7 +214,7 @@ function startRecords(start: PortfolioFigures, day: CivilDate, sources: Portfoli
       currency: balance.currency,
       amount: magnitude(balance.balance),
       rate: balance.currency === EURO ? null : sources.rates.unitsPerEuroOnOrBefore(balance.currency, day),
-      importKey: null,
+      importKeys: [],
       note: '',
     })
   }

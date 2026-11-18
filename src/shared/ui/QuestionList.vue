@@ -18,7 +18,8 @@ import ListRow from './ListRow.vue'
 
 /**
  * A list of rows that each ask for one of a few choices, under an optional heading and an intro, with an optional figure in a column beside each row's words.
- * The details slot draws the lines under a row's caption its own way, in place of its note.
+ * The details slot draws the lines under a row's caption its own way, in place of its note, and the action slot puts a
+ * link button on a line of its own under a row's choices, such as one that answers the row another way.
  */
 defineProps<{
   items: readonly Item[]
@@ -32,7 +33,7 @@ defineProps<{
   saving?: { readonly key: string; readonly choice: Value } | null
 }>()
 const emit = defineEmits<{ answer: [key: string, choice: Value] }>()
-defineSlots<{ amount?: (props: { item: Item }) => unknown; details?: (props: { item: Item }) => unknown }>()
+defineSlots<{ amount?: (props: { item: Item }) => unknown; details?: (props: { item: Item }) => unknown; action?: (props: { item: Item }) => unknown }>()
 </script>
 
 <template>
@@ -49,14 +50,17 @@ defineSlots<{ amount?: (props: { item: Item }) => unknown; details?: (props: { i
         <template v-if="$slots.amount" #amount>
           <slot name="amount" :item="item" />
         </template>
-        <ChoiceButtons
-          :model-value="saving?.key === item.key ? saving.choice : item.choice"
-          :options="item.options ?? options"
-          :label="label"
-          :busy="saving?.key === item.key ? saving.choice : null"
-          data-testid="question-choice"
-          @update:model-value="emit('answer', item.key, $event)"
-        />
+        <div :class="$slots.action ? 'flex flex-col items-start gap-1' : 'contents'">
+          <ChoiceButtons
+            :model-value="saving?.key === item.key ? saving.choice : item.choice"
+            :options="item.options ?? options"
+            :label="label"
+            :busy="saving?.key === item.key ? saving.choice : null"
+            data-testid="question-choice"
+            @update:model-value="emit('answer', item.key, $event)"
+          />
+          <slot name="action" :item="item" />
+        </div>
       </ListRow>
     </ul>
   </section>

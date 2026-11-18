@@ -78,7 +78,7 @@ export function notedSplits(instrument: Instrument, notes: readonly SplitNote[])
       date: parseCivilDate(note.date)!,
       newUnits: Number(note.newUnits),
       oldUnits: Number(note.oldUnits),
-      importKey: null,
+      importKeys: [],
       note: '',
     }))
 }

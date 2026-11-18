@@ -217,7 +217,7 @@ export const hr: Translation<typeof en> = {
     fetch: 'Dohvati danas',
     noKey: 'Današnje cijene trebaju besplatni ključ za cijene.',
     nothingQuoted: 'Nijedna pozicija nema cijenu tijekom dana uz besplatni ključ.',
-    beforeClose: (hour) => `Današnja zatvaranja stižu nakon ${hour}:00. Tada dohvati ponovno.`,
+    beforeClose: (hour) => `Današnja zatvaranja stižu nakon ${hour}:00. Tada dohvatite ponovno.`,
     allIn: 'Današnja zatvaranja su tu. Ostalo stiže sa sutrašnjim dohvatom.',
     failed: (count) => ({
       one: `${count} pozicija nije dobila današnju cijenu.`,

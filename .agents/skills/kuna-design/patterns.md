@@ -18,6 +18,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Tiles and rows of figures
 
+- A card whose name or label is its one link puts `stretched-card` on the card and `stretched-link` on the link, both in `app.css`. The link's hit area covers the card, the card shows the focus ring, and anything else to press on it sits above at `z-control`. `KpiTile` and the home card use it, and a table row that opens its record takes the same pair. Text under the overlay outside the link, such as the home card's subtitle, gets no hover, so it is read in full on the screen the card opens.
 - A row of `KpiTile` goes in `DashboardGrid layout="tiles"`. Each tile has a label, a figure, an optional change against a comparison, an optional trend and a caption. The tile itself opens the rows behind it.
 - A cost where a rise is bad news sets `higher-is-better` to false. The arrow and colour follow.
 - A figure that opens rows is a `DrillLink`. With no rows behind it, `to` is null and it shows as plain text. It wears the colour of the text class its caller gives it, such as `text-highlighted`, and inherits the text's colour without one. A hover underlines it in the accent and keeps its colour. The visual check fails a link that ignores its class.

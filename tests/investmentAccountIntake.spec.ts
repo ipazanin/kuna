@@ -148,12 +148,12 @@ describe('a record by hand on an account the mail fills', () => {
     ['from the report', '2026-06-02', REPORT_KEY, null],
     ['imported from the workbook', '2026-06-02', 'row-17', IBKR.id],
   ])('%s', (_label, date, importKey, owner) => {
-    expect(mailOwned(intakes, { accounts: [IBKR.id], date: day(date), importKey })).toBe(owner)
+    expect(mailOwned(intakes, { accounts: [IBKR.id], date: day(date), importKeys: importKey === null ? [] : [importKey] })).toBe(owner)
   })
 
   it('lands on an account kept by hand on any day, and a transfer is held to both of its accounts', () => {
-    expect(mailOwned(intakes, { accounts: [OTHER.id], date: day('2026-07-01'), importKey: null })).toBeNull()
-    expect(mailOwned(intakes, { accounts: [OTHER.id, IBKR.id], date: day('2026-07-01'), importKey: null })).toBe(IBKR.id)
+    expect(mailOwned(intakes, { accounts: [OTHER.id], date: day('2026-07-01'), importKeys: [] })).toBeNull()
+    expect(mailOwned(intakes, { accounts: [OTHER.id, IBKR.id], date: day('2026-07-01'), importKeys: [] })).toBe(IBKR.id)
   })
 
   it("marks the dialog's account field with the account, and lets a record already on it keep its account and day", () => {
@@ -162,7 +162,7 @@ describe('a record by hand on an account the mail fills', () => {
     const draft = transactionDraft(texts, book({ accounts: [IBKR] }), 'new')
     expect(draft.record).toBeNull()
     expect(transactionErrors(draft.faults).account).toContain('IBKR')
-    expect(transactionDraft(texts, book({ accounts: [IBKR] }), 'new', REPORT_KEY).record).not.toBeNull()
+    expect(transactionDraft(texts, book({ accounts: [IBKR] }), 'new', [REPORT_KEY]).record).not.toBeNull()
     const kept = book({ accounts: [IBKR], cashMovements: [deposit] })
     const fixed = textsOf({ kind: 'cash-movement', record: deposit }, { happened: 'deposit', instrument: null, today: START }, kept)
     expect(transactionDraft({ ...fixed, note: 'Fixed note' }, kept, keyOf({ kind: 'cash-movement', record: deposit })).record).not.toBeNull()
@@ -171,7 +171,7 @@ describe('a record by hand on an account the mail fills', () => {
 
 describe('a start day that gives the mail more days', () => {
   const TODAY = day('2026-11-13')
-  const typed = [{ accounts: [IBKR.id], date: day('2026-07-01'), importKey: null }]
+  const typed = [{ accounts: [IBKR.id], date: day('2026-07-01'), importKeys: [] }]
 
   it('is refused in a tax year already filed, and taken in the first one not filed', () => {
     expect(intakeRefusal(IBKR.id, null, { ...MAILED, startsOn: day('2025-12-31') }, [], TODAY)).toEqual({ kind: 'filed', startsOn: '2025-12-31', firstOpen: '2026-01-01' })
@@ -192,7 +192,7 @@ describe('a start day that gives the mail more days', () => {
 
 describe('the start day proposed when an account comes to take the report', () => {
   const TODAY = day('2026-11-13')
-  const typedOn = (date: string, importKey: string | null = null) => ({ accounts: [IBKR.id], date: day(date), importKey })
+  const typedOn = (date: string, importKey: string | null = null) => ({ accounts: [IBKR.id], date: day(date), importKeys: importKey === null ? [] : [importKey] })
 
   it.each([
     ['today with no row by hand', [], '2026-11-13'],
@@ -230,7 +230,7 @@ describe('the writes', () => {
         new WorkbookWriteRefused(holdingWords.mailOwnsAccount('IBKR')),
       )
     }
-    await store.write('Report', (unit) => writeTransaction(unit, null, { kind: 'trade', record: { ...trade('buy', IBKR, FUND, '2026-06-02', '1', '10', null), importKey: REPORT_KEY } }))
+    await store.write('Report', (unit) => writeTransaction(unit, null, { kind: 'trade', record: { ...trade('buy', IBKR, FUND, '2026-06-02', '1', '10', null), importKeys: [REPORT_KEY] } }))
     expect(store.state.workbook!.book.cashMovements).toEqual([])
     expect(store.state.workbook!.book.trades).toHaveLength(1)
   })

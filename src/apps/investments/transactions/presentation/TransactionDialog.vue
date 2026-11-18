@@ -23,7 +23,7 @@ import TradeFields from './TradeFields.vue'
 import TradeSummary from './TradeSummary.vue'
 import TransferFields from './TransferFields.vue'
 import { withImportFacts } from '../domain/listedTransactions'
-import { HAPPENINGS, ecbRateText, happeningsOfKind, importKeyOf, kindOfHappening, keyOf, rateCurrency, textsOf, transactionDraft } from '../domain/transactionDraft'
+import { HAPPENINGS, ecbRateText, happeningsOfKind, importKeysOf, kindOfHappening, keyOf, rateCurrency, textsOf, transactionDraft } from '../domain/transactionDraft'
 import type { Happening, TransactionStart, TransactionTexts } from '../domain/transactionDraft'
 import { transactionErrors, words } from './words'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -48,6 +48,8 @@ const props = defineProps<{
   start?: Partial<Omit<TransactionStart, 'today'>>
   /** A buy of something already held: only buys are offered, and each is written with the deposit that paid for it, so one Undo takes both. */
   alreadyHeld?: boolean
+  /** A question of IBKR's report the new record books: the key the record keeps, so the question goes, and the row as the note names it. */
+  booking?: { readonly importKey: string; readonly row: string }
 }>()
 
 const store = useInvestmentsBooks()
@@ -72,7 +74,14 @@ const ecbRate = computed(() => ecbRateText(rates.value, currencyOfRate.value, te
 watch(open, (opened) => {
   if (!opened) return
   const editing = props.editing
-  Object.assign(texts, textsOf(editing, { happened: props.start?.happened ?? 'buy', instrument: props.start?.instrument ?? null, today: today() }, book.value))
+  Object.assign(
+    texts,
+    textsOf(
+      editing,
+      { happened: props.start?.happened ?? 'buy', instrument: props.start?.instrument ?? null, today: today(), ...(props.start?.texts === undefined ? {} : { texts: props.start.texts }) },
+      book.value,
+    ),
+  )
   key.value = editing === null ? newRecordId() : keyOf(editing)
   tried.value = false
   rateTyped.value = editing !== null
@@ -91,7 +100,8 @@ watch(
   },
 )
 
-const draft = computed(() => transactionDraft(texts, book.value, key.value, importKeyOf(props.editing)))
+const importKeys = computed(() => (props.editing !== null ? importKeysOf(props.editing) : props.booking === undefined ? [] : [props.booking.importKey]))
+const draft = computed(() => transactionDraft(texts, book.value, key.value, importKeys.value))
 const errors = computed(() => transactionErrors(draft.value.faults))
 const kind = computed(() => kindOfHappening(texts.happened))
 
@@ -144,10 +154,11 @@ async function remove(): Promise<void> {
   <AppDialog
     v-model:open="open"
     changes
-    :title="alreadyHeld ? words.dialog.alreadyHeldTitle : editing === null ? words.dialog.addTitle : words.dialog.changeTitle"
-    :description="alreadyHeld ? words.dialog.alreadyHeld : words.dialog.description"
+    :title="alreadyHeld ? words.dialog.alreadyHeldTitle : booking !== undefined ? words.dialog.bookTitle : editing === null ? words.dialog.addTitle : words.dialog.changeTitle"
+    :description="alreadyHeld ? words.dialog.alreadyHeld : booking !== undefined ? words.dialog.bookNote : words.dialog.description"
     width="2xl"
   >
+    <p v-if="booking !== undefined" class="mb-5 break-words type-caption identifier" data-testid="transaction-booked-row">{{ booking.row }}</p>
     <div v-if="happenings.length > 1" class="mb-5">
       <p class="mb-2 type-label">{{ words.dialog.happened }}</p>
       <ChoiceButtons v-model="texts.happened" :options="happeningOptions" :label="words.dialog.happened" data-testid="transaction-happened" />

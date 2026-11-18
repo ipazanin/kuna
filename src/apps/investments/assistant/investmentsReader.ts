@@ -3,6 +3,7 @@ import { HOLDING_ROUTE } from '../holdings/presentation/holdingLinks'
 import { accountIntakes } from '../imports/domain/accountIntake'
 import type { PortfolioSources } from '../holdings/domain/holding'
 import { portfolioFigures } from '../holdings/domain/portfolioFigures'
+import type { LastDay } from '../holdings/domain/portfolioFigures'
 import { incomeByYear } from '../income/domain/incomeHistory'
 import { recordsOn } from '../performance/domain/portfolioPerformance'
 import { foreignIncomeYear } from '../tax/domain/foreignIncome'
@@ -130,6 +131,9 @@ function quotingText(quoted: Quoting): string {
   }
 }
 
+/** The import keys every imported kind holds, which name the rows it came from and which the chat never sees. */
+const IMPORT_KEYS = { importKeys: { exposure: 'never', meaning: 'What names the imported rows it came from, one for each source.' } } as const
+
 /** The fields of every kind, which read an instrument's currency and an account's name from the book on screen. */
 function fieldsOf(book: () => InvestmentBook | null) {
   const currencyOf = (instrument: string | null): string => book()?.instruments.find((candidate) => candidate.id === instrument)?.currency ?? EURO
@@ -195,7 +199,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
       meaning: "A bond's accrued interest paid or received, or null.",
       decimal: (record) => (record.accrued === null ? null : { amount: record.accrued, currency: currencyOf(record.instrument) }),
     },
-    importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
+    ...IMPORT_KEYS,
     note: { exposure: 'free-text', meaning: "The owner's note." },
     settles: {
       exposure: 'plain',
@@ -213,7 +217,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
     gross: { exposure: 'plain', sign: 'either', meaning: 'Before the tax withheld. Below zero for a reversal.', decimal: (record) => ({ amount: record.gross, currency: record.currency }) },
     withheld: { exposure: 'plain', sign: 'either', meaning: 'The tax withheld at source.', decimal: (record) => ({ amount: record.withheld, currency: record.currency }) },
     rate: { exposure: 'plain', meaning: 'The rate it converts to euros at, or null for euros.', read: (record) => rateIn(record.rate, record.currency) },
-    importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
+    ...IMPORT_KEYS,
     note: { exposure: 'free-text', meaning: "The owner's note, or the broker's words for an imported one." },
     dividend: {
       exposure: 'plain',
@@ -229,7 +233,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
     currency: { exposure: 'plain', meaning: 'Its currency.' },
     amount: { exposure: 'plain', sign: 'zero-or-more', meaning: 'Above zero. The kind gives its direction.', decimal: (record) => ({ amount: record.amount, currency: record.currency }) },
     rate: { exposure: 'plain', meaning: 'The rate it converts to euros at, or null for euros.', read: (record) => rateIn(record.rate, record.currency) },
-    importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
+    ...IMPORT_KEYS,
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
   const exchange: FieldDocs<Exchange> = {
@@ -246,7 +250,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
       meaning: 'What the exchange charged, already inside the amounts, or null.',
       decimal: (record) => (record.fees === null ? null : { amount: record.fees.amount, currency: record.fees.currency }),
     },
-    importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
+    ...IMPORT_KEYS,
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
   const transfer: FieldDocs<Transfer> = {
@@ -262,7 +266,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
           ? `${decimalText(moved.quantity)} units of ${book()?.instruments.find((candidate) => candidate.id === moved.instrument)?.name ?? ''}`
           : `${decimalText(moved.amount)} ${moved.currency}`,
     },
-    importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
+    ...IMPORT_KEYS,
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
   const split: FieldDocs<Split> = {
@@ -271,7 +275,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
     date: { exposure: 'plain', meaning: 'The day.' },
     newUnits: { exposure: 'plain', meaning: 'The units after, for every oldUnits before.' },
     oldUnits: { exposure: 'plain', meaning: 'The units before.' },
-    importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
+    ...IMPORT_KEYS,
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
   const spinOff: FieldDocs<SpinOff> = {
@@ -281,7 +285,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
     date: { exposure: 'plain', meaning: 'The day.' },
     quantity: { exposure: 'plain', meaning: 'The units received.', read: (record) => decimalText(record.quantity) },
     costShare: { exposure: 'plain', meaning: "The fraction of the parent's cost that moves to them, from 0 to 1.", read: (record) => decimalText(record.costShare) },
-    importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
+    ...IMPORT_KEYS,
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
   const price: FieldDocs<HandPrice> = {
@@ -340,6 +344,23 @@ function yearOfPeriod(period: string | null, today: CivilDate): number {
   return yearOfMonth(month)
 }
 
+/** The day's change from the close before to the newest, or to today's quotes once Fetch today brought some that count. */
+function lastDayReport(lastDay: LastDay | null): readonly ReportFigure[] {
+  if (lastDay === null) return []
+  const { quoted } = lastDay
+  const span = `${lastDay.from} to ${quoted === undefined ? lastDay.to : `${lastDay.to}, today's quotes`}`
+  return [
+    euros(`day's change, ${span}`, lastDay.change),
+    ...basisPoints(`day's change over the value at ${lastDay.from}`, lastDay.share),
+    ...(quoted === undefined
+      ? []
+      : [
+          { label: "holdings counted at today's quote", count: quoted.holdings },
+          { label: 'holdings still at their last close', count: quoted.atLastClose },
+        ]),
+  ]
+}
+
 function portfolioReport(sources: PortfolioSources, period: string | null): readonly ReportFigure[] {
   const day = sourcesOn(sources, period)
   if (day === null) return []
@@ -360,6 +381,7 @@ function portfolioReport(sources: PortfolioSources, period: string | null): read
     euros('trading and exchange fees, already inside costs and proceeds', figures.feesPaid),
     { label: 'holdings left out of the value for having no price or no rate', count: figures.unpriced.length },
     { label: 'cash balances left out of the value for having no rate', count: figures.unratedCash.length },
+    ...lastDayReport(figures.lastDay),
   ]
 }
 
@@ -368,7 +390,7 @@ function holdingsReport(sources: PortfolioSources, period: string | null): reado
   if (day === null) return []
   const figures = portfolioFigures(day)
   const accounts = new Map(day.book.accounts.map((account) => [account.id, account.name]))
-  const held = figures.holdings.flatMap(({ instrument: { name }, valuation, cost, unrealised, realised, income, weight, quantity }) =>
+  const held = figures.holdings.flatMap(({ instrument: { name }, valuation, cost, unrealised, realised, income, weight, quantity, lastDay }) =>
     quantity <= DECIMAL_ZERO
       ? []
       : [
@@ -378,6 +400,7 @@ function holdingsReport(sources: PortfolioSources, period: string | null): reado
           euros(`${name}: realised gain`, realised),
           euros(`${name}: income received`, income),
           ...basisPoints(`${name}: weight in the value`, weight),
+          ...(lastDay === null ? [] : [euros(`${name}: day's change${valuation?.close.quote === undefined ? '' : ", at today's quote"}`, lastDay.change)]),
         ],
   )
   const cash = figures.cash.flatMap((balance) => (balance.value === null ? [] : [euros(`${accounts.get(balance.account) ?? ''}: cash in ${balance.currency}`, balance.value)]))

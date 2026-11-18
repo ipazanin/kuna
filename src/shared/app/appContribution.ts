@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { Ref } from 'vue'
 import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
@@ -62,6 +63,17 @@ export interface SetUpLine {
   readonly link?: { readonly label: string; readonly to: RouteLocationRaw }
 }
 
+/** A button on the app's card on the Kuna home, such as Fetch today, which does its work without leaving the home. */
+export interface HomeCardAction {
+  readonly label: string
+  /** A Lucide icon name such as `i-lucide-refresh-cw`. */
+  readonly icon: string
+  readonly busy: boolean
+  /** What the last click left to say, such as "2 holdings got no price for today.", shown as a warning under the button, or null. */
+  readonly note: string | null
+  run(): Promise<void>
+}
+
 /** The app's card on the Kuna home. */
 export interface AppHomeCard {
   /** A Lucide icon name such as `i-lucide-landmark`. */
@@ -70,6 +82,8 @@ export interface AppHomeCard {
   readonly purpose: string
   /** Null while the app has nothing to show yet, `opening` while its books are being read, and `failed` when reading them failed. */
   figures(): HomeFigures | 'opening' | 'failed' | null
+  /** The card's button. The card calls this once in its setup, so what it starts lives as long as the card. Null hides the button. */
+  useAction?(): Readonly<Ref<HomeCardAction | null>>
 }
 
 /** A figure of the app on Net worth, which opens the screen it comes from. */

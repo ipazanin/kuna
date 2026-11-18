@@ -603,6 +603,7 @@ import { cutSidebarFlowIn, cutTextFlow, transactionGroupsFlowIn } from './suppor
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { fetchTodayFlowIn } from './support/fetchTodayFlows.mjs'
+import { homeFetchTodayFlowIn } from './support/fetchTodayFlows.mjs'
 import { runSelection } from './support/runSelection.mjs'
 import { servePreview } from './support/servePreview.mjs'
 import { shotIndex } from './support/shotIndex.mjs'
@@ -9550,6 +9551,24 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     modes: ['drive'],
     queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'home-fetch-today',
+    hash: '#/',
+    title: homeEnglish.title,
+    run: homeFetchTodayFlowIn('en'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'home-fetch-today-croatian',
+    hash: '#/',
+    title: homeCroatian.title,
+    run: homeFetchTodayFlowIn('hr'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample&lang=hr' },
   },
   {
     name: 'investments-fetch-today-croatian',

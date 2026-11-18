@@ -1,4 +1,4 @@
-import { importKeyOf, namedInstrument } from './investmentFields'
+import { importKeysOf, importKeysText, namedInstrument } from './investmentFields'
 import { INSTRUMENT_RECORDS, SPLIT_RECORDS } from './investmentKinds'
 import type { Split } from './split'
 import { words } from './words'
@@ -30,7 +30,7 @@ export function splitOf(fields: StoredFields, id: RecordId | null): Split {
     date: requiredDate(fields, 'date'),
     newUnits,
     oldUnits,
-    importKey: importKeyOf(fields),
+    importKeys: importKeysOf(fields),
     note: textOf(fields.note),
   }
 }
@@ -41,7 +41,7 @@ export const SPLIT_CODEC: RecordCodec<Split> = withIdField(SPLIT_RECORDS, words.
     date: split.date,
     new: String(split.newUnits),
     old: String(split.oldUnits),
-    import_key: split.importKey,
+    import_key: importKeysText(split.importKeys),
     note: split.note,
   }),
 )

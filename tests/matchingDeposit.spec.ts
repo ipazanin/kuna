@@ -23,7 +23,7 @@ describe('the deposit that pays for a holding', () => {
   })
 
   it('is a deposit into the account of the buy, on its day, of what the buy cost with its fees', () => {
-    expect(deposit).toMatchObject({ account: BROKER.id, kind: 'deposit', date: DAY, amount: decimal('1002.00'), rate: null, importKey: null })
+    expect(deposit).toMatchObject({ account: BROKER.id, kind: 'deposit', date: DAY, amount: decimal('1002.00'), rate: null, importKeys: [] })
   })
 
   it('takes the currency and the rate of a foreign buy', () => {

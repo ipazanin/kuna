@@ -2,6 +2,7 @@ import { holdingsWithFactProblems } from '../../holdings/domain/factProblems'
 import { words as holdingsWords } from '../../holdings/presentation/words'
 import { INVESTMENTS_PRICES_ROUTE } from '../../overview/presentation/investmentLinks'
 import type { PricesFetchRun, PricesUpdate } from '../../prices/application/pricesUpdate'
+import type { QuotesOff } from '../../prices/application/quoteFetch'
 import { fetchedFactsBook } from '../../prices/domain/factsBook'
 import type { PricesFile } from '../../prices/domain/pricesFile'
 import { runProblem } from '../../prices/presentation/runProblem'
@@ -18,10 +19,12 @@ import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { plural } from '../../../../shared/text/translation'
 import type { SideCards } from './investmentSteps'
 
-/** What the prices cards reach, which `app.ts` hands in: the page's one prices update and this browser's copy of the prices file. */
+/** What the prices cards reach, which `app.ts` hands in: the page's one prices update, this browser's copy of the prices file and the clock. */
 export interface PricesPorts {
-  readonly prices: Pick<PricesUpdate, 'fetchNow' | 'askFactsAgain'>
+  readonly prices: Pick<PricesUpdate, 'fetchNow' | 'askFactsAgain' | 'fetchQuotes' | 'quotesOff'>
   pricesFile(): PricesFile | null
+  /** ISO timestamp, since which vendors Fetch today asks depends on the hour. */
+  now(): string
 }
 
 /** The prices file beside the books, as a card counts what it changes there. */
@@ -30,13 +33,30 @@ const PRICES_NOUN: RecordNoun = {
   hr: { one: 'promjena datoteke cijena', of: 'promjene datoteke cijena', few: 'promjene datoteke cijena', other: 'promjena datoteke cijena', gender: 'feminine' },
 }
 
+/** Today's quotes, which the page keeps and no file does, as a card counts them. */
+const QUOTES_NOUN: RecordNoun = {
+  en: { one: "today's price", many: "today's prices", article: 'a' },
+  hr: { one: 'današnja cijena', of: 'današnje cijene', few: 'današnje cijene', other: 'današnjih cijena', gender: 'feminine' },
+}
+
 const FETCH_PRICES = 'fetch-prices'
+const FETCH_TODAY = 'fetch-today'
 
 export const PRICES_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: FETCH_PRICES,
     about:
       "Fetches the day's closes and ECB rates now, as Fetch now on Settings, Prices does, with the vendor keys of this browser. It writes the prices file and not the books, so it has no Undo. A CSV of a holding's daily closes is imported on Settings, Prices, so for one link that screen.",
+    input: inputOf({}),
+    refs: {},
+    creates: null,
+    alone: true,
+    example: {},
+  },
+  {
+    name: FETCH_TODAY,
+    about:
+      "Asks the vendors for today's prices of the holdings held, as Fetch today on the Overview does, so the portfolio report counts them. The page keeps them for today and no file does, so it has no Undo.",
     input: inputOf({}),
     refs: {},
     creates: null,
@@ -56,7 +76,7 @@ export const PRICES_OPERATIONS: readonly AssistantOperation[] = [
 ]
 
 /** What Accept of a prices card runs, which only this file reads. */
-type HeldRun = { readonly pricesRun: 'fetch' } | { readonly pricesRun: 'facts'; readonly instrument: Instrument }
+type HeldRun = { readonly pricesRun: 'fetch' | 'quotes' } | { readonly pricesRun: 'facts'; readonly instrument: Instrument }
 
 function isHeldRun(held: object): held is HeldRun {
   return 'pricesRun' in held
@@ -65,7 +85,22 @@ function isHeldRun(held: object): held is HeldRun {
 type Checked = CheckedProposal | { readonly refused: readonly string[] }
 
 function cardOf(title: string, line: ProposalLine, outside: string, held: HeldRun): Checked {
-  return { title, count: 1, groups: [{ verb: 'change', noun: PRICES_NOUN, notes: [], lines: [line] }], outside: [outside], undoable: false, heldBack: null, held }
+  const noun = held.pricesRun === 'quotes' ? QUOTES_NOUN : PRICES_NOUN
+  return { title, count: 1, groups: [{ verb: 'change', noun, notes: [], lines: [line] }], outside: [outside], undoable: false, heldBack: null, held }
+}
+
+/** Why Fetch today would ask nothing now, in the model's words, naming Settings, Prices where a key is missing. */
+function quotesOffReason(off: QuotesOff): string {
+  switch (off.kind) {
+    case 'nothing-quoted':
+      return 'No holding held has a vendor that quotes it during the day with a free key, so Fetch today would ask nothing.'
+    case 'no-key':
+      return `Today's prices need a price vendor's key, which the person adds on ${settingsWords.title}, ${settingsWords.tabs.prices}.`
+    case 'before-close':
+      return `The European closes come after ${off.fromHour}:00 in Zagreb, and nothing else is left to ask before then.`
+    case 'all-in':
+      return "Today's prices are all in. The rest come with tomorrow's fetch."
+  }
 }
 
 /** What the card says of a run that wrote nothing, as the Prices tab's toast says it. */
@@ -85,7 +120,7 @@ function fetched(file: PricesFile): AcceptResult {
   return { kind: 'done', undo: null, warning: { text: `${plural(pricesWords.failures.title(missed), missed)}. ${words.cards.failuresListed}`, link } }
 }
 
-/** Fetch now and Ask again, each a card with no Undo, since each writes the prices file beside the books. */
+/** Fetch now, Fetch today and Ask again, each a card with no Undo, since none writes the books. */
 export function pricesCards(appName: string, ports: PricesPorts): SideCards {
   return {
     operations: PRICES_OPERATIONS,
@@ -93,6 +128,11 @@ export function pricesCards(appName: string, ports: PricesPorts): SideCards {
       if (book === null) return Promise.resolve({ refused: fileNotOpen(appName) })
       if (step.operation === FETCH_PRICES) {
         return Promise.resolve(cardOf(title, { label: words.cards.everyHolding, fields: [], warning: null }, words.cards.vendorsOutside, { pricesRun: 'fetch' }))
+      }
+      if (step.operation === FETCH_TODAY) {
+        const off = ports.prices.quotesOff(book, ports.now())
+        if (off !== null) return Promise.resolve({ refused: [quotesOffReason(off)] })
+        return Promise.resolve(cardOf(title, { label: words.cards.todaysQuotes, fields: [], warning: null }, words.cards.quotesOutside, { pricesRun: 'quotes' }))
       }
       const instrument = book.instruments.find((candidate) => candidate.id === step.input['instrument'])
       if (instrument === undefined) return Promise.resolve({ refused: ['That instrument is no longer in the file.'] })
@@ -111,6 +151,12 @@ export function pricesCards(appName: string, ports: PricesPorts): SideCards {
             if (run === 'running' || run === 'no-books') return notRun(run, appName)
             if (run.kind === 'written') return fetched(run.file)
             return run.kind === 'current' || run.kind === 'busy' ? DONE : notRun(run, appName)
+          }
+          case 'quotes': {
+            const quoted = await ports.prices.fetchQuotes()
+            if (quoted === 'running') return { kind: 'refused', reason: pricesWords.run.running }
+            if (quoted === 'no-books') return notRun(quoted, appName)
+            return quoted.failed === 0 ? DONE : { kind: 'done', undo: null, warning: { text: plural(pricesWords.today.failed(quoted.failed), quoted.failed), link: null } }
           }
           case 'facts': {
             const run = await ports.prices.askFactsAgain(held.instrument.id)

@@ -1,6 +1,7 @@
-import { NO_ANSWERS, importableRecords, workbookDryRun } from '../../imports/domain/importDryRun'
+import { NO_ANSWERS, workbookDryRun } from '../../imports/domain/importDryRun'
+import { importableRecords } from '../../imports/domain/importedRecords'
 import type { DryRunEntry, WorkbookRows } from '../../imports/domain/importDryRun'
-import { isReportKey } from '../../imports/domain/reportKey'
+import { holdsReportKey, isAskedKey } from '../../imports/domain/reportKey'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { RateBook } from '../../../../shared/money/rateBook'
 
@@ -20,13 +21,13 @@ function changedInReport(entry: DryRunEntry): boolean {
 
 /** Read off the dry run before any answer, at the ECB rates of the prices file, since a foreign record's figures need them to compare. */
 export function reportNews(reading: WorkbookRows, book: InvestmentBook, rates: RateBook): ReportNews {
-  const entries = workbookDryRun(reading, { book, rates, answers: NO_ANSWERS }).entries
+  const { entries, report } = workbookDryRun(reading, { book, rates, answers: NO_ANSWERS })
   const changed = entries.filter(changedInReport).length
-  return { fresh: entries.filter((entry) => entry.outcome.kind !== 'in-kuna').length - changed, changed, asked: reading.report?.asked.length ?? 0 }
+  return { fresh: entries.filter((entry) => entry.outcome.kind !== 'in-kuna').length - changed, changed, asked: report?.asked.length ?? 0 }
 }
 
-/** The newest day of a record a report made, in the file, or null while none has. */
+/** The newest day of a record a report made, in the file, or null while none has. A record booked from a question is not one the report made, so an old row booked does not move it. */
 export function newestReportDay(book: InvestmentBook): string | null {
-  const days = importableRecords(book).flatMap((imported) => (imported.record.importKey !== null && isReportKey(imported.record.importKey) ? [imported.record.date] : []))
+  const days = importableRecords(book).flatMap((imported) => (holdsReportKey(imported.record.importKeys.filter((key) => !isAskedKey(key))) ? [imported.record.date] : []))
   return days.length === 0 ? null : days.reduce((newest, day) => (day > newest ? day : newest))
 }

@@ -11,5 +11,6 @@ paths:
 - `Math.round` stays out of domain code (`kuna/domain-rounding`). Use `src/shared/money`.
 - Domain code builds no screen sentences. It returns facts and presentation words them (`kuna/domain-words`, whose list of exceptions only shrinks).
 - An invariant has one function, called from the reader and from the write. The file is the transaction.
+- A domain `.ts` file stays under 600 lines. Split it by concern. `longFiles` in `scripts/lint-baseline.json` lists those over it today and only shrinks.
 - Name it in the business's language. A published type is not the internal type.
 - Read the `kuna-domain` skill before adding a type, a brand or a shared module.

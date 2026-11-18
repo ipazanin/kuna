@@ -1,4 +1,5 @@
-import type { ImportedRecord, WorkbookDryRun } from './importDryRun'
+import type { WorkbookDryRun } from './importDryRun'
+import type { ImportedRecord } from './importedRecords'
 
 /** A record an earlier import wrote whose row the workbook changed, beside the record the changed row makes now. */
 export interface EditedRecord {

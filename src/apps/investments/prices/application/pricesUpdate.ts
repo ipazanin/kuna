@@ -126,7 +126,10 @@ export interface PricesUpdateState {
   readonly fetching: PricesFetching | null
   /** What this page's last fetch ended in, or null before one. A fetch that found the day's prices already written leaves it as it was. */
   readonly lastRun: PricesFetchRun | null
-  /** The quotes Fetch today brought for the file on screen, which no file keeps. Null before a click and once another file comes on screen. */
+  /**
+   * The quotes Fetch today brought for the file on screen, which no file keeps. Null before a click and once another file
+   * comes on screen, until this browser's closes of the day are read back.
+   */
   readonly quoted: QuotedDay | null
   /** Fetch today is asking the vendors. */
   readonly quoting: boolean
@@ -147,9 +150,15 @@ export interface PricesUpdatePorts {
   now(): string
   /** A new revision for a copy this browser alone keeps. */
   newRevision(): string
-  /** The series this browser asked a once-a-day quote of on the Zagreb day, kept so a reload asks them no more. */
-  askedOnce(day: CivilDate): readonly string[]
-  rememberAskedOnce(day: CivilDate, series: readonly string[]): void
+  /** The series this browser asked a once-a-day quote of on the Zagreb day, with the closes they brought, kept so a reload asks them no more and still shows them. */
+  keptQuotes(day: CivilDate): KeptQuotes
+  keepQuotes(kept: KeptQuotes): void
+}
+
+/** The day's once-a-day asks and the closes they brought, with the Investments file the click was on, or null for an entry kept before the file was. */
+export interface KeptQuotes {
+  readonly quoted: QuotedDay
+  readonly investmentsFileId: string | null
 }
 
 export interface PricesUpdate {
@@ -261,9 +270,9 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
     return keys.length === 0 ? null : { kind: 'series', keys }
   }
 
-  /** The quotes of `day` this page holds, else none, with the listings this browser asked once that day. */
+  /** The quotes of `day` this page holds, else the closes this browser kept of that day with the listings it asked once. */
   function quotedSoFar(day: CivilDate): QuotedDay {
-    return state.quoted !== null && state.quoted.day === day ? state.quoted : { day, quotes: [], askedOnce: ports.askedOnce(day) }
+    return state.quoted !== null && state.quoted.day === day ? state.quoted : ports.keptQuotes(day).quoted
   }
 
   function pauseOf(pause: FetchPause | null): PricesPause | null {
@@ -398,6 +407,11 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
         try {
           const copy = await place.cache.read()
           if (copy !== null) await show(place, copy)
+          const kept = ports.keptQuotes(pricesDay(ports.now()))
+          // A reload on the day of a click brings back the closes it asked for, so the screens show them without asking again. Another file was never clicked for.
+          if (kept.investmentsFileId === place.investmentsFileId && kept.quoted.askedOnce.length > 0 && (await ports.place())?.investmentsFileId === place.investmentsFileId) {
+            state.quoted = kept.quoted
+          }
         } finally {
           // The screens wait for this read, so one that failed still shows the file, with no prices but those entered by hand.
           if ((await ports.place())?.investmentsFileId === place.investmentsFileId) state.investmentsFileId = place.investmentsFileId
@@ -520,7 +534,7 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
         const at = ports.now()
         const day = pricesDay(at)
         const fetched = await fetchQuotes(ports, ports.vendors, found.book, { at, day }, quotedSoFar(day))
-        ports.rememberAskedOnce(day, fetched.quoted.askedOnce)
+        ports.keepQuotes({ quoted: fetched.quoted, investmentsFileId: found.place.investmentsFileId })
         if ((await ports.place())?.investmentsFileId === found.place.investmentsFileId) {
           state.quoted = fetched.quoted
         }

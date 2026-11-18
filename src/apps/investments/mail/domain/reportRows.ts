@@ -175,6 +175,7 @@ export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader:
     skipped: [],
     rounded: [],
     report: {
+      recipe: recipe.id,
       mailed: source.kind === 'mailed',
       asked: [...askedInPeriod, ...changedRows].filter((row) => !reader.leftOut.includes(row.key)),
       beforeStart: asked.size - askedInPeriod.length,

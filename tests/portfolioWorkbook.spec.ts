@@ -7,7 +7,8 @@ import { readPortfolioWorkbookFile } from '../src/apps/investments/imports/appli
 import { writeWorkbookImport } from '../src/apps/investments/imports/application/workbookImport'
 import { goneFromWorkbook } from '../src/apps/investments/imports/domain/editedRecords'
 import { NO_ANSWERS, proposedCostShare, workbookDryRun } from '../src/apps/investments/imports/domain/importDryRun'
-import type { DryRunEntry, ImportedRecord, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
+import type { DryRunEntry, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
+import type { ImportedRecord } from '../src/apps/investments/imports/domain/importedRecords'
 import { WORKBOOK_TYPES, readPortfolioWorkbook } from '../src/apps/investments/imports/domain/portfolioWorkbook'
 import { dryRunGroups } from '../src/apps/investments/imports/presentation/dryRunLines'
 import { words } from '../src/apps/investments/imports/domain/words'
@@ -455,7 +456,7 @@ describe('the dry run with every answer', () => {
       ['referral', '10'],
       ['referral', '10'],
     ])
-    expect(new Set(credits.map((payment) => payment.importKey)).size).toBe(2)
+    expect(new Set(credits.flatMap((payment) => payment.importKeys)).size).toBe(2)
   })
 
   it('maps deposits, withdrawals, fees, refunds and exchanges, a Revolut top-up at the rate Revolut changed it at', async () => {
@@ -546,6 +547,48 @@ describe('importing the workbook again', () => {
       ['U0000002', IBKR_SECOND.id],
       ['RVL-1', REVOLUT_ACCOUNT.id],
     ])
+  })
+
+  it('adds nothing and lists nothing gone from the same file once its records also hold a report key', async () => {
+    const before = await afterFirstImport()
+    const withReportKey = <Kept extends { readonly importKeys: readonly string[] }>(records: readonly Kept[]): Kept[] =>
+      records.map((record, index) => ({ ...record, importKeys: [...record.importKeys, `ibkr-flex:made-up:${index}`] }))
+    const keyed = {
+      ...before,
+      trades: withReportKey(before.trades),
+      income: withReportKey(before.income),
+      cashMovements: withReportKey(before.cashMovements),
+      exchanges: withReportKey(before.exchanges),
+    }
+    const again = workbookDryRun(await readRows(), { book: keyed, rates: RATES, answers: NO_ANSWERS })
+    expect(again.entries.filter((entry) => entry.outcome.kind === 'in-kuna')).toHaveLength(23)
+    expect(again.added).toEqual(book({}))
+    expect(again.gone).toEqual([])
+  })
+
+  it('asks of a record whose workbook key a report took, and gives the key back on Same record', async () => {
+    const before = await afterFirstImport()
+    // As a report's Same record left it before a record kept one key per source: the report's key in place of the workbook's.
+    const reportKeyed = { ...before, trades: before.trades.map((trade, index) => ({ ...trade, importKeys: [`ibkr-flex:made-up:${index}`] })) }
+    const asked = workbookDryRun(await readRows(), { book: reportKeyed, rates: RATES, answers: NO_ANSWERS })
+    const questions = asked.questions.lookAlikes
+    expect(questions.length).toBeGreaterThan(0)
+    expect(questions.every((question) => question.like.kind === 'trade')).toBe(true)
+    expect(asked.gone).toEqual([])
+
+    const lookAlikes = new Map(questions.map((question) => [question.key, { like: question.like.record.id, same: true }]))
+    const answered = workbookDryRun(await readRows(), { book: reportKeyed, rates: RATES, answers: { ...NO_ANSWERS, lookAlikes } })
+    expect(answered.matched).toHaveLength(questions.length)
+    expect(answered.matched.every(({ keyed }) => keyed.record.importKeys.length === 2 && keyed.record.importKeys[0]!.startsWith('ibkr-flex:'))).toBe(true)
+    expect(answered.planned.trades.filter((trade) => trade.importKeys.length === 2)).toHaveLength(questions.length)
+    expect(answered.added.trades).toHaveLength(asked.added.trades.length)
+  })
+
+  it('asks nothing of a record typed by hand, which holds no key', async () => {
+    const before = await afterFirstImport()
+    const typed = { ...before, trades: before.trades.map((trade) => ({ ...trade, importKeys: [] })) }
+    const again = workbookDryRun(await readRows(), { book: typed, rates: RATES, answers: NO_ANSWERS })
+    expect(again.questions.lookAlikes).toEqual([])
   })
 
   it('shows a row edited in the workbook once as new and once as gone', async () => {

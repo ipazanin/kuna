@@ -145,8 +145,8 @@ async function worldOf(options: { readonly onDrive?: boolean; readonly records?:
       exclusively: async (run) => (self.locked ? 'busy' : run()),
       now: () => NOW,
       newRevision: () => `browser-${worlds}`,
-      askedOnce: () => [],
-      rememberAskedOnce: () => {},
+      keptQuotes: (day) => ({ quoted: { day, quotes: [], askedOnce: [] }, investmentsFileId: null }),
+      keepQuotes: () => {},
     }),
   }
   return self

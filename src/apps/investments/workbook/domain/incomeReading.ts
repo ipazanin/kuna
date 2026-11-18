@@ -1,6 +1,6 @@
 import { INCOME_KINDS } from './income'
 import type { DividendFacts, Income } from './income'
-import { decimalField, importKeyOf, namedAccount, namedInstrument, optionalDecimal, rateFor, requiredCurrency, requiredDecimal } from './investmentFields'
+import { decimalField, importKeysOf, importKeysText, namedAccount, namedInstrument, optionalDecimal, rateFor, requiredCurrency, requiredDecimal } from './investmentFields'
 import { INCOME_RECORDS, INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from './investmentKinds'
 import { words } from './words'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
@@ -52,7 +52,7 @@ export function incomeOf(fields: StoredFields, id: RecordId | null): Income {
     gross,
     withheld,
     rate: rateFor(fields, currency),
-    importKey: importKeyOf(fields),
+    importKeys: importKeysOf(fields),
     note: textOf(fields.note),
     ...dividendFactsOf(fields),
   }
@@ -68,7 +68,7 @@ export const INCOME_CODEC: RecordCodec<Income> = withIdField(INCOME_RECORDS, wor
     gross: decimalField(income.gross),
     withheld: income.withheld === DECIMAL_ZERO ? null : decimalField(income.withheld),
     rate: decimalField(income.rate),
-    import_key: income.importKey,
+    import_key: importKeysText(income.importKeys),
     note: income.note,
     ex_date: income.dividend?.exDate,
     pay_date: income.dividend?.payDate,

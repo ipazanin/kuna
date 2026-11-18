@@ -206,13 +206,13 @@ function trade(side: TradeSide, held: InvestmentAccount, what: Instrument, date:
     fees: decimal(fees),
     rate: rate === null ? null : decimal(rate),
     accrued: null,
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
 
 function cash(kind: CashMovement['kind'], held: InvestmentAccount, date: string, amount: string, note = ''): CashMovement {
-  return { id: nextId(CASH_MOVEMENT_RECORDS), account: held.id, kind, date: day(date), currency: EURO, amount: decimal(amount), rate: null, importKey: null, note }
+  return { id: nextId(CASH_MOVEMENT_RECORDS), account: held.id, kind, date: day(date), currency: EURO, amount: decimal(amount), rate: null, importKeys: [], note }
 }
 
 function dividend(date: string, gross: string, withheld: string, rate: string, payer: Instrument = SHARE_B): Income {
@@ -226,7 +226,7 @@ function dividend(date: string, gross: string, withheld: string, rate: string, p
     gross: decimal(gross),
     withheld: decimal(withheld),
     rate: decimal(rate),
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
@@ -242,7 +242,7 @@ function interest(held: InvestmentAccount, date: string, gross: string): Income 
     gross: decimal(gross),
     withheld: DECIMAL_ZERO,
     rate: null,
-    importKey: null,
+    importKeys: [],
     note: 'Interest on cash',
   }
 }
@@ -282,7 +282,7 @@ const EXCHANGES: readonly Exchange[] = [
     bought: decimal('5410.00'),
     boughtCurrency: USD,
     fees: { amount: decimal('4.00'), currency: EURO },
-    importKey: null,
+    importKeys: [],
     note: '',
   },
 ]
@@ -294,17 +294,17 @@ const TRANSFERS: readonly Transfer[] = [
     to: BROKER_TWO.id,
     date: day('2024-06-03'),
     moved: { kind: 'units', instrument: WORLD_ETF.id, quantity: decimal('10') },
-    importKey: null,
+    importKeys: [],
     note: '',
   },
-  { id: nextId(TRANSFER_RECORDS), from: BROKER_ONE.id, to: BROKER_TWO.id, date: day('2026-03-02'), moved: { kind: 'cash', currency: EURO, amount: decimal('200.00') }, importKey: null, note: '' },
+  { id: nextId(TRANSFER_RECORDS), from: BROKER_ONE.id, to: BROKER_TWO.id, date: day('2026-03-02'), moved: { kind: 'cash', currency: EURO, amount: decimal('200.00') }, importKeys: [], note: '' },
 ]
 
 const SPIN_OFFS: readonly SpinOff[] = [
-  { id: nextId(SPIN_OFF_RECORDS), instrument: SHARE_B.id, received: SPIN_CO.id, date: day('2024-09-20'), quantity: decimal('8'), costShare: decimal('0.08'), importKey: null, note: '' },
+  { id: nextId(SPIN_OFF_RECORDS), instrument: SHARE_B.id, received: SPIN_CO.id, date: day('2024-09-20'), quantity: decimal('8'), costShare: decimal('0.08'), importKeys: [], note: '' },
 ]
 
-const SPLITS: readonly Split[] = [{ id: nextId(SPLIT_RECORDS), instrument: SPIN_CO.id, date: day('2025-06-02'), newUnits: 2, oldUnits: 1, importKey: null, note: '' }]
+const SPLITS: readonly Split[] = [{ id: nextId(SPLIT_RECORDS), instrument: SPIN_CO.id, date: day('2025-06-02'), newUnits: 2, oldUnits: 1, importKeys: [], note: '' }]
 
 function handPrice(what: Instrument, date: string, price: string, note = ''): HandPrice {
   return { id: nextId(PRICE_RECORDS), instrument: what.id, date: day(date), price: decimal(price), note }
@@ -348,7 +348,7 @@ const LATER_INCOME: readonly Income[] = [
     gross: decimal('21.00'),
     withheld: DECIMAL_ZERO,
     rate: null,
-    importKey: null,
+    importKeys: [],
     note: '',
   },
 ]
@@ -450,7 +450,7 @@ const TAX_INCOME: readonly Income[] = [
     gross: decimal('21.40'),
     withheld: DECIMAL_ZERO,
     rate: null,
-    importKey: null,
+    importKeys: [],
     note: '',
   },
   { ...interest(BROKER_ONE, '2026-10-05', '1.20'), kind: 'lending', currency: USD, rate: decimal(fakeDollarRate('2026-10-05')), note: '' },

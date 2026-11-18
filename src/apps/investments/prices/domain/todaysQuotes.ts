@@ -23,6 +23,14 @@ export interface QuotedDay {
   readonly askedOnce: readonly string[]
 }
 
+/**
+ * What a reload keeps of the day's quotes: the series asked once a day, with the closes those asks brought. A close does
+ * not change after its session, so it stays true after a reload, where a live quote would read as now when it is not.
+ */
+export function keptOverReload(quoted: QuotedDay): QuotedDay {
+  return { day: quoted.day, quotes: quoted.quotes.filter((quote) => quoted.askedOnce.includes(quote.series)), askedOnce: quoted.askedOnce }
+}
+
 function quoteOf(quotes: readonly TodaysQuote[], instrument: Instrument): TodaysQuote | undefined {
   if (instrument.prices === 'manual') {
     return undefined

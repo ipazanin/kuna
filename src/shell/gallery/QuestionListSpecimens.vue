@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import { moneyFromCents } from '../../shared/money/money'
 import AppCard from '../../shared/ui/AppCard.vue'
@@ -28,7 +29,7 @@ const galleryQuestions = computed(() =>
   <GallerySection
     id="question-list"
     title="QuestionList"
-    description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy. The amount slot puts a figure in a column beside each row's words."
+    description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy. The amount slot puts a figure in a column beside each row's words, and the action slot a link button on a line of its own under the choices."
   >
     <DashboardGrid>
       <AppCard title="With its heading and amounts">
@@ -57,6 +58,21 @@ const galleryQuestions = computed(() =>
             intro="Each looks like a row you have, with the same amount and at most 3 days apart."
             @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
           />
+        </div>
+      </AppCard>
+      <AppCard title="With an action under the choices">
+        <div class="px-4 pt-3 pb-4 sm:px-5">
+          <QuestionList
+            :items="galleryQuestions"
+            :options="GALLERY_ANSWERS"
+            label="Which to keep"
+            intro="Each looks like a row you have. A row Kuna can fill a form from also offers Book."
+            @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
+          >
+            <template #action="{ item }">
+              <UButton v-if="item.key !== 'pharmacy'" label="Book" icon="i-lucide-notebook-pen" color="neutral" variant="link" size="sm" class="px-0" />
+            </template>
+          </QuestionList>
         </div>
       </AppCard>
     </DashboardGrid>

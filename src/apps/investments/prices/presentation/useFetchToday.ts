@@ -1,7 +1,7 @@
 import { computed, onScopeDispose, ref } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 
-import type { QuotesOff } from '../application/quoteFetch'
+import type { QuotesFetched, QuotesOff } from '../application/quoteFetch'
 import { usePrices } from './usePrices'
 import { words } from './words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -21,8 +21,9 @@ export interface FetchToday {
   /** Why the click would ask nothing, or null while it would ask a vendor. */
   readonly blocked: ComputedRef<FetchTodayOff | null>
   readonly busy: ComputedRef<boolean>
-  /** What the last click left to say, such as holdings that got no price, or null. */
+  /** What the last click left to say, such as holdings that got no price or a fetch that failed, or null. */
   readonly outcome: Readonly<Ref<string | null>>
+  /** Never rejects. A fetch that fails is said in `outcome`. */
   run(): Promise<void>
 }
 
@@ -36,6 +37,16 @@ function offLine(off: QuotesOff): string {
       return words.today.beforeClose(off.fromHour)
     case 'all-in':
       return words.today.allIn
+  }
+}
+
+/** What a Fetch today click leaves to say: how many holdings got no price, that the fetch failed, or null when it all came in. */
+export async function fetchTodayOutcome(fetch: () => Promise<QuotesFetched | 'running' | 'no-books'>): Promise<string | null> {
+  try {
+    const fetched = await fetch()
+    return typeof fetched !== 'string' && fetched.failed > 0 ? plural(words.today.failed(fetched.failed), fetched.failed) : null
+  } catch {
+    return words.run.failed
   }
 }
 
@@ -65,10 +76,7 @@ export function useFetchToday(): FetchToday {
     outcome,
     async run() {
       outcome.value = null
-      const fetched = await prices.fetchQuotes()
-      if (typeof fetched !== 'string' && fetched.failed > 0) {
-        outcome.value = plural(words.today.failed(fetched.failed), fetched.failed)
-      }
+      outcome.value = await fetchTodayOutcome(() => prices.fetchQuotes())
     },
   }
 }

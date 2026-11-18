@@ -104,6 +104,7 @@ export const investmentsApp: AppContribution = {
       fetchAddedPrices: () => fetchAddedInBackground(prices),
       prices,
       pricesFile: () => prices.state.copy?.file ?? null,
+      now: () => new Date().toISOString(),
       mailReport: () => reading.value,
       history: { file: () => state.choice?.id ?? null, given: () => taxShown.value, give: confirmHistoryComplete, takeBack: forgetHistoryComplete },
       requestCounts: pageRequestCounts,

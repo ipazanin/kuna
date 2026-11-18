@@ -1,5 +1,5 @@
 import type { Exchange, ExchangeFees } from './exchange'
-import { decimalField, importKeyOf, namedAccount, optionalUnsigned, positiveDecimal, requiredCurrency } from './investmentFields'
+import { decimalField, importKeysOf, importKeysText, namedAccount, optionalUnsigned, positiveDecimal, requiredCurrency } from './investmentFields'
 import { EXCHANGE_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from './investmentKinds'
 import { words } from './words'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
@@ -31,7 +31,7 @@ export function exchangeOf(fields: StoredFields, id: RecordId | null): Exchange 
     bought: positiveDecimal(fields, 'bought'),
     boughtCurrency,
     fees: feesOf(fields),
-    importKey: importKeyOf(fields),
+    importKeys: importKeysOf(fields),
     note: textOf(fields.note),
   }
 }
@@ -46,7 +46,7 @@ export const EXCHANGE_CODEC: RecordCodec<Exchange> = withIdField(EXCHANGE_RECORD
     bought_currency: exchange.boughtCurrency,
     fees: decimalField(exchange.fees?.amount ?? null),
     fee_currency: exchange.fees?.currency,
-    import_key: exchange.importKey,
+    import_key: importKeysText(exchange.importKeys),
     note: exchange.note,
   }),
 )

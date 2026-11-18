@@ -85,7 +85,7 @@ export function trade(side: TradeSide, held: InvestmentAccount, what: Instrument
     fees: fees === null ? null : decimal(fees),
     rate: rateOf(rate),
     accrued: null,
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
@@ -99,7 +99,7 @@ export function cashMovement(kind: CashMovementKind, held: InvestmentAccount, da
     currency,
     amount: decimal(amount),
     rate: rateOf(rate),
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
@@ -115,7 +115,7 @@ export function dividend(held: InvestmentAccount, what: Instrument, date: string
     gross: decimal(gross),
     withheld: decimal(withheld),
     rate: rateOf(rate),
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
@@ -130,7 +130,7 @@ export function exchange(held: InvestmentAccount, date: string, sold: string, so
     bought: decimal(bought),
     boughtCurrency,
     fees,
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
@@ -142,7 +142,7 @@ export function unitTransfer(from: InvestmentAccount, to: InvestmentAccount, dat
     to: to.id,
     date: civil(date),
     moved: { kind: 'units', instrument: what.id, quantity: decimal(quantity) },
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
@@ -154,13 +154,13 @@ export function cashTransfer(from: InvestmentAccount, to: InvestmentAccount, dat
     to: to.id,
     date: civil(date),
     moved: { kind: 'cash', currency, amount: decimal(amount) },
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }
 
 export function split(what: Instrument, date: string, newUnits: number, oldUnits: number): Split {
-  return { id: recordIdOf(SPLIT_RECORDS, `split-${what.symbol}-${date}`), instrument: what.id, date: civil(date), newUnits, oldUnits, importKey: null, note: '' }
+  return { id: recordIdOf(SPLIT_RECORDS, `split-${what.symbol}-${date}`), instrument: what.id, date: civil(date), newUnits, oldUnits, importKeys: [], note: '' }
 }
 
 export function spinOff(parent: Instrument, received: Instrument, date: string, quantity: string, costShare: string): SpinOff {
@@ -171,7 +171,7 @@ export function spinOff(parent: Instrument, received: Instrument, date: string, 
     date: civil(date),
     quantity: decimal(quantity),
     costShare: decimal(costShare),
-    importKey: null,
+    importKeys: [],
     note: '',
   }
 }

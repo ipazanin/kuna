@@ -463,7 +463,7 @@ const baselineRules = {
     rules: { 'kuna/money-scale': 'error' },
   },
   longFiles: {
-    files: ['src/**/*.vue'],
+    files: ['src/**/*.vue', 'src/**/domain/**/*.ts'],
     ignores: [],
     rules: { 'max-lines': ['error', { max: 600, skipBlankLines: false, skipComments: false }] },
   },

@@ -256,5 +256,5 @@
     "src/shared/storage/domain/recordsRead.ts",
     "src/shared/storage/domain/storedFields.ts"
   ],
-  "longFiles": []
+  "longFiles": ["src/apps/company/packs/hr-doo/domain/forecast/forecastYear.ts", "src/apps/company/settings/domain/settings.ts", "src/apps/investments/imports/domain/importDryRun.ts"]
 }

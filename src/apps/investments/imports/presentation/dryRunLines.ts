@@ -1,5 +1,6 @@
 import { goneFromWorkbook } from '../domain/editedRecords'
-import type { ImportedRecord, WaitReason, WorkbookDryRun } from '../domain/importDryRun'
+import type { WaitReason, WorkbookDryRun } from '../domain/importDryRun'
+import type { ImportedRecord } from '../domain/importedRecords'
 import { WORKBOOK_COLUMNS } from '../domain/portfolioWorkbook'
 import type { RoundedCell, SkipReason, WorkbookRow } from '../domain/portfolioWorkbook'
 import { words } from './words'

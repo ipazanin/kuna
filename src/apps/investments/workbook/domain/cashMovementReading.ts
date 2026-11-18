@@ -1,6 +1,6 @@
 import { CASH_MOVEMENT_KINDS } from './cashMovement'
 import type { CashMovement } from './cashMovement'
-import { decimalField, importKeyOf, namedAccount, positiveDecimal, rateFor, requiredCurrency } from './investmentFields'
+import { decimalField, importKeysOf, importKeysText, namedAccount, positiveDecimal, rateFor, requiredCurrency } from './investmentFields'
 import { CASH_MOVEMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from './investmentKinds'
 import { words } from './words'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
@@ -21,7 +21,7 @@ export function cashMovementOf(fields: StoredFields, id: RecordId | null): CashM
     currency,
     amount: positiveDecimal(fields, 'amount'),
     rate: rateFor(fields, currency),
-    importKey: importKeyOf(fields),
+    importKeys: importKeysOf(fields),
     note: textOf(fields.note),
   }
 }
@@ -34,7 +34,7 @@ export const CASH_MOVEMENT_CODEC: RecordCodec<CashMovement> = withIdField(CASH_M
     currency: movement.currency,
     amount: decimalField(movement.amount),
     rate: decimalField(movement.rate),
-    import_key: movement.importKey,
+    import_key: importKeysText(movement.importKeys),
     note: movement.note,
   }),
 )

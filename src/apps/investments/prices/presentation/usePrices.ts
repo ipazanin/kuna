@@ -98,8 +98,8 @@ const prices: PricesUpdate = createPricesUpdate({
   exclusively: exclusivelyInBrowser,
   now: () => new Date().toISOString(),
   newRevision: () => `browser-${crypto.randomUUID()}`,
-  askedOnce: quoteAsksOn,
-  rememberAskedOnce: rememberQuoteAsks,
+  keptQuotes: quoteAsksOn,
+  keepQuotes: rememberQuoteAsks,
 })
 
 /** The page's one prices update, over the Investments file on screen. */

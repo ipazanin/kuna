@@ -42,7 +42,7 @@ const list = useTemplateRef<HTMLElement>('list')
  * Elsewhere the home is not drawn yet and the link does the work.
  */
 function showWhereToAddApp(): void {
-  document.querySelector<HTMLElement>('[data-testid="home-card"][data-state="set-up"]')?.focus({ focusVisible: true })
+  document.querySelector<HTMLElement>('[data-testid="home-card"][data-state="set-up"] [data-testid="home-card-link"]')?.focus({ focusVisible: true })
 }
 
 function currentPage(): Element | null {
