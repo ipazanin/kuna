@@ -40,6 +40,10 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     paths: ['src/apps/spending/bankSync/application/heldRowWrites.ts#answerHeldRow'],
   },
   {
+    reason: 'A note that the bank dropped a payment you had filed. Only the person reads it and presses OK on To review, and the chat does not read these notes.',
+    paths: ['src/apps/spending/statements/application/ruleRecords.ts#DROPPED_ROW_WRITES.remove'],
+  },
+  {
     reason: 'Secrets and key-holding settings. AI keys, price vendor keys and the bank sync deployment are typed by the person and never pass through the chat.',
     paths: [
       'shared: src/shared/secrets/infrastructure/browserSecrets.ts#storeSecret',

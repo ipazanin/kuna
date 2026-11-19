@@ -69,6 +69,7 @@ function statementRow(date: string, amount: number): StatementRow {
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
   }
 }
 

@@ -17,6 +17,8 @@ export const en = {
   allFromBank: 'Your accounts all take their rows from the bank. Add a cash account to type entries.',
   noMatch: 'No entries match these filters.',
   waitsOnReview: 'Waits on review',
+  /** The mark on a row the bank has not booked yet. */
+  notBookedYet: 'Not booked yet',
   filters: {
     month: 'Month',
     account: 'Account',
@@ -70,6 +72,7 @@ export const en = {
     arrivedAboveSent: 'Not more than was sent',
     fee: { description: 'Fee on a transfer', bankNames: accountWords.banks },
     bookedByBank: 'The bank booked this entry, so its kind, amount, date and account stay.',
+    pending: 'The bank has not booked this yet, so its amount and day may still change.',
     bankAccountsHidden: 'Accounts the bank fills are not listed',
     anAmount: 'An amount above zero with at most two decimals',
     category: 'Category',
@@ -141,6 +144,7 @@ export const hr: Translation<typeof en> = {
   allFromBank: 'Svi vaši računi dobivaju retke iz banke. Dodajte gotovinski račun da biste upisivali unose.',
   noMatch: 'Nijedan unos ne odgovara ovim filtrima.',
   waitsOnReview: 'Čeka pregled',
+  notBookedYet: 'Još nije proknjiženo',
   filters: {
     month: 'Mjesec',
     account: 'Račun',
@@ -194,6 +198,7 @@ export const hr: Translation<typeof en> = {
     arrivedAboveSent: 'Ne više od poslanog iznosa',
     fee: { description: 'Naknada za prijenos', bankNames: accountCroatian.banks },
     bookedByBank: 'Proknjižila ga je banka, pa vrsta, iznos, datum i račun ostaju.',
+    pending: 'Banka ovo još nije proknjižila, pa se iznos i datum još mogu promijeniti.',
     bankAccountsHidden: 'Računi koje puni banka nisu na popisu',
     anAmount: 'Iznos veći od nule s najviše dvije decimale',
     category: 'Kategorija',

@@ -37,12 +37,7 @@ export const en = {
   balanceDiffers: (account: string, stated: string, worked: string) => `${account}: the bank says ${stated} and Kuna works out ${worked}, so a row may be missing or the opening balance may be wrong.`,
   setOpening: (amount: string) => `Set the opening to ${amount}`,
   setOpeningCaption: "That makes the bank's balance and Kuna's agree from the day the account opened. A row missing in the middle looks the same, so check the rows first.",
-  pendingPayments: (account: string, amount: string) => `${account}: ${amount} of payments are still pending. They come once they are booked.`,
-  pendingIncoming: (account: string, amount: string) => `${account}: ${amount} coming in is still pending. It comes once it is booked.`,
-  pendingPaymentsCaption: (amount: string, rest: string) =>
-    `The bank still has ${amount} of payments pending, which its balance may count, so wait until they are booked before changing the opening. That leaves ${rest} they do not explain.`,
-  pendingIncomingCaption: (amount: string, rest: string) =>
-    `The bank still has ${amount} coming in pending, which its balance may count, so wait until it is booked before changing the opening. That leaves ${rest} it does not explain.`,
+  unlistedPending: (account: string, amount: string) => `${account}: the bank holds ${amount} as not booked yet and does not list it. It comes once it books.`,
   openingSet: 'Opening set',
   notSet: 'Not set',
   olderRows: (bank: string, account: string, reached: string) =>
@@ -61,7 +56,6 @@ export const en = {
     openingBalance: "No row falls on or after that day, so it opens at the bank's balance at the fetch.",
     openingWorked: (count: number): EnglishForms => ({ one: "Worked out from the bank's balance and 1 row.", other: `Worked out from the bank's balance and ${count} rows.` }),
     openingGuess: 'The bank gave no balance, so the opening is a guess. Check it once the account is added.',
-    openingPending: 'The bank also holds pending rows its balance may count, so check the opening once they book.',
     rowsHeld: 'Its rows wait on this page until you add it.',
     addBeforeReload: 'Add it before you reload.',
     notFetched: 'Sync now to fetch its rows and work out its opening.',
@@ -132,12 +126,7 @@ export const hr: Translation<typeof en> = {
   balanceDiffers: (account, stated, worked) => `${account}: banka navodi ${stated}, a Kuna računa ${worked}, pa možda neki redak nedostaje ili početno stanje nije točno.`,
   setOpening: (amount) => `Postavi početno stanje na ${amount}`,
   setOpeningCaption: 'Tako se stanje u banci i stanje u Kuni slažu od dana otvaranja računa. Redak koji nedostaje u sredini izgleda isto, pa najprije provjerite retke.',
-  pendingPayments: (account, amount) => `${account}: plaćanja od ${amount} još su na čekanju. Stižu kad se proknjiže.`,
-  pendingIncoming: (account, amount) => `${account}: uplate od ${amount} još su na čekanju. Stižu kad se proknjiže.`,
-  pendingPaymentsCaption: (amount, rest) =>
-    `Banka još ima plaćanja od ${amount} na čekanju koja njezino stanje možda broji, pa pričekajte da se proknjiže prije nego promijenite početno stanje. Neobjašnjeno ostaje ${rest}.`,
-  pendingIncomingCaption: (amount, rest) =>
-    `Banka još ima uplate od ${amount} na čekanju koje njezino stanje možda broji, pa pričekajte da se proknjiže prije nego promijenite početno stanje. Neobjašnjeno ostaje ${rest}.`,
+  unlistedPending: (account, amount) => `${account}: banka drži ${amount} kao još neproknjiženo i ne navodi to kao transakciju. Stiže kad se proknjiži.`,
   openingSet: 'Početno stanje postavljeno',
   notSet: 'Nije postavljeno',
   olderRows: (bank, account, reached) =>
@@ -160,7 +149,6 @@ export const hr: Translation<typeof en> = {
       other: `Izračunato iz stanja u banci i ${count} redaka.`,
     }),
     openingGuess: 'Banka nije dala stanje, pa je početno stanje procjena. Provjerite ga kad dodate račun.',
-    openingPending: 'Banka ima i transakcije na čekanju koje njezino stanje možda broji, pa provjerite početno stanje kad se proknjiže.',
     rowsHeld: 'Retci čekaju na ovoj stranici dok ne dodate račun.',
     addBeforeReload: 'Dodajte ga prije ponovnog učitavanja.',
     notFetched: 'Sinkronizirajte da dohvatite retke i izračunate početno stanje.',

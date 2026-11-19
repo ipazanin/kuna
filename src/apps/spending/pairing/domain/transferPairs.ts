@@ -43,10 +43,16 @@ export function namesNoStranger(row: Pick<Transaction, 'counterpartyIban'>, ownI
 
 /**
  * Finds the transfers between two of your accounts among rows `isPairable` lets through. A friend paid the same amount on
- * the same day names an IBAN that is not yours, so that payment is neither paired nor offered. A row whose items have a category
- * is not offered either.
+ * the same day names an IBAN that is not yours, so that payment is neither paired nor offered. A pair is offered only where a leg
+ * waits on review and the other waits too or is filed as a transfer as `isTransfer` reads it, so a row filed under any other
+ * category is not offered.
  */
-export function transferPairs(rows: readonly Transaction[], accounts: readonly Account[], itemsOf: (row: Transaction) => readonly TransactionItem[]): TransferPairs {
+export function transferPairs(
+  rows: readonly Transaction[],
+  accounts: readonly Account[],
+  itemsOf: (row: Transaction) => readonly TransactionItem[],
+  isTransfer: (items: readonly TransactionItem[]) => boolean = () => false,
+): TransferPairs {
   const accountById = new Map<RecordId, Account>(accounts.map((account) => [account.id, account]))
   const ownIbans = ownIbansOf(accounts)
   const inDateOrder = [...rows].sort((earlier, later) => earlier.date.localeCompare(later.date))
@@ -89,8 +95,15 @@ export function transferPairs(rows: readonly Transaction[], accounts: readonly A
   const pairs = [...pairWhere(movedTogether), ...pairWhere((debit, credit) => sameMoneyMoved(debit, credit) && namesTheOther(debit, credit))]
   const waiting = inDateOrder.filter((row) => !paired.has(row) && (row.movedAt !== '' || (row.amount < 0 && ownIbans.has(row.counterpartyIban)) || namesOwnCard(row)))
   waiting.forEach((row) => paired.add(row))
+  const waitsOrMoves = (row: Transaction): boolean => waitsOnReview(itemsOf(row)) || isTransfer(itemsOf(row))
   const offered = pairWhere(
-    (debit, credit) => waitsOnReview(itemsOf(debit)) && waitsOnReview(itemsOf(credit)) && sameMoneyMoved(debit, credit) && namesNoStranger(debit, ownIbans) && namesNoStranger(credit, ownIbans),
+    (debit, credit) =>
+      (waitsOnReview(itemsOf(debit)) || waitsOnReview(itemsOf(credit))) &&
+      waitsOrMoves(debit) &&
+      waitsOrMoves(credit) &&
+      sameMoneyMoved(debit, credit) &&
+      namesNoStranger(debit, ownIbans) &&
+      namesNoStranger(credit, ownIbans),
   )
   return { pairs, waiting, offered }
 }

@@ -48,6 +48,7 @@ const ROW_WRITES = {
 /** Kinds whose record names an account, or a from and a to, but lands no row on an account, with why. */
 const NOT_ROWS: Readonly<Record<string, string>> = {
   'src/apps/spending/statements/application/ruleRecords.ts#HELD_ROW_WRITES': 'A bank row on hold comes from the bank sync alone and lands as a row through TRANSACTION_WRITES once answered.',
+  'src/apps/spending/statements/application/ruleRecords.ts#DROPPED_ROW_WRITES': 'A note of a payment the bank dropped names the account the row was on, and lands no row.',
   'src/apps/spending/receipts/application/receiptRecords.ts#RECEIPT_WRITES': 'A receipt for an account the bank fills writes no row and waits for the bank to bring it.',
   'src/apps/spending/shortcuts/application/shortcutWrites.ts#SHORTCUT_WRITES': 'A quick add names the account its rows go on, and each row it adds goes through TRANSACTION_WRITES.',
   'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#EMPLOYEE_WRITES': "An employee's from and to are the days of the employment, not accounts.",

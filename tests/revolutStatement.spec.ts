@@ -73,7 +73,7 @@ describe("Revolut's export", () => {
     }
   })
 
-  it('leaves out pending, reverted and declined rows and counts them in a note', () => {
+  it('brings a pending row in marked as pending and leaves out reverted and declined rows, counting them in a note', () => {
     const { rows, notes } = read([
       line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Kept', '-1.00'),
       line('CARD_PAYMENT', '2026-10-01 10:01:00', 'Pending', '-2.00', '0.00', 'EUR', 'PENDING'),
@@ -81,8 +81,11 @@ describe("Revolut's export", () => {
       line('CARD_PAYMENT', '2026-10-01 10:03:00', 'Declined', '-4.00', '0.00', 'EUR', 'DECLINED'),
     ])
 
-    expect(rows.map((row) => row.payee)).toEqual(['Kept'])
-    expect(notes).toEqual(['1 pending row left out. It comes with the next export.', '2 reverted or declined rows left out.'])
+    expect(rows.map((row) => [row.payee, row.pending])).toEqual([
+      ['Kept', false],
+      ['Pending', true],
+    ])
+    expect(notes).toEqual(['2 reverted or declined rows left out.'])
   })
 
   it('makes a fee a row of its own in Bank fees, with a key of its own', () => {
@@ -413,7 +416,7 @@ describe("Revolut's export", () => {
     it('leaves out rows with no balance or that never completed, as a pending one is not in the sum', () => {
       const pending = line('CARD_PAYMENT', '2026-10-02 12:00:00', 'Pending', '-3.00', '0.00', 'EUR', 'PENDING')
 
-      expect(read([...whole, pending, line('CARD_PAYMENT', '2026-10-03 12:00:00', 'No balance', '-7.00')]).notes).toEqual(['1 pending row left out. It comes with the next export.'])
+      expect(read([...whole, pending, line('CARD_PAYMENT', '2026-10-03 12:00:00', 'No balance', '-7.00')]).notes).toEqual([])
     })
   })
 

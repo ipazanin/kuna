@@ -143,3 +143,14 @@ export function differenceItem(
         splitByLink: false,
       }
 }
+
+/**
+ * An entry's items once the bank booked it at another amount. An entry of one item has it follow the amount, and a split entry
+ * gains a Difference part in its first part's category for what the amount adds, so its parts keep adding up.
+ */
+export function itemsAtBankAmount(parts: readonly TransactionItem[], amount: AccountMoney, note: string, newKey: () => string = newRecordId): readonly TransactionItem[] {
+  const [first] = parts
+  if (first === undefined || !isSplit(parts)) return parts.map((item) => ({ ...item, amount }))
+  const difference = differenceItem(amount, parts, first, note, newKey)
+  return difference === null ? parts : [...parts, difference]
+}

@@ -6,7 +6,7 @@ import { bankImporter, BankScriptFailure, finishBankLink } from '../src/apps/spe
 import type { BankImportPorts, BankSyncPort, PendingLinks } from '../src/apps/spending/bankSync/application/bankSync'
 import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import type { PendingLink } from '../src/apps/spending/bankSync/domain/bankReturn'
-import { bankHeldResult, bankStepResult, pendingCaption, pendingLine } from '../src/apps/spending/bankSync/presentation/bankStepResult'
+import { bankHeldResult, bankStepResult } from '../src/apps/spending/bankSync/presentation/bankStepResult'
 import { hr } from '../src/apps/spending/bankSync/presentation/words'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
@@ -142,66 +142,53 @@ describe('a fetch', () => {
       const fake = storeOver(bookOf([]))
       const outcome = await importerOver(portOf({ balances: stated('1.00') }), fake.store).run(false)
       // The bank says 1.00 where Kuna works out the opening less 6.50, so the opening moves by 1.00 − (opening − 6.50).
-      expect(outcome.differences).toEqual([{ account: OTP, stated: 100, worked: OTP.opening - 650, pending: null, explained: false, fixedOpening: 750 }])
+      expect(outcome.differences).toEqual([{ account: OTP, stated: 100, worked: OTP.opening - 650, fixedOpening: 750 }])
       expect(fake.added.filter((record) => 'importKey' in record)).toHaveLength(1)
       const line = bankStepResult(outcome, null, null, 0)
       expect('line' in line && line.line).toMatch(/OTP current: the bank says .*1\.00 and Kuna works out .*, so a row may be missing or the opening balance may be wrong\./)
     })
 
-    it('offers no opening while the bank holds pending rows its balance may count', async () => {
+    it('brings a pending row in marked as pending, and reads an available balance against every row', async () => {
       const pending: BankTransaction = { ...BANK, reference: 'ref-2', status: 'PDNG' }
-      const { differences } = await importerOver(portOf({ balances: stated('1.00', 'ITAV'), transactions: async () => [BANK, pending] }), storeOver(bookOf([])).store).run(false)
-      expect(differences.map((difference) => difference.fixedOpening)).toEqual([null])
+      // The available balance counts the pending 6.50 on top of the opening less the booked 6.50.
+      const available = ((OTP.opening - 1300) / 100).toFixed(2)
+      const fake = storeOver(bookOf([]))
+      const { differences, dryRun } = await importerOver(portOf({ balances: stated(available, 'ITAV'), transactions: async () => [BANK, pending] }), fake.store).run(false)
+      expect(differences).toEqual([])
+      expect(dryRun.added.map((entry) => entry.pending)).toEqual([false, true])
+      expect(dryRun.notes).toEqual([])
     })
 
-    it('notes the pending rows it left out, by account', async () => {
+    it('reads a booked balance against the booked rows alone, so a pending row makes no difference', async () => {
       const pending: BankTransaction = { ...BANK, reference: 'ref-2', status: 'PDNG' }
-      const { dryRun } = await importerOver(portOf({ balances: stated('1.00', 'ITAV'), transactions: async () => [BANK, pending] }), storeOver(bookOf([])).store).run(false)
-      expect(dryRun.notes).toContain('1 pending row of OTP current left out. It comes once it is booked.')
+      const { differences } = await importerOver(portOf({ balances: stated(afterImport), transactions: async () => [BANK, pending] }), storeOver(bookOf([])).store).run(false)
+      expect(differences).toEqual([])
     })
 
-    describe('with a pending card payment', () => {
-      const card: BankTransaction = { ...BANK, reference: null, amount: '0.80', status: 'PDNG' }
-      // The available balance counts the pending 0.80 on top of the opening less the booked 6.50.
-      const available = ((OTP.opening - 650 - 80) / 100).toFixed(2)
+    describe('with money the bank holds and does not list', () => {
+      // OTP's available balance counts a transfer out of 45.00 it has not booked, and its booked balance does not, while no row shows it.
+      const both = async () => [
+        { amount: ((OTP.opening - 650 - 4500) / 100).toFixed(2), currency: 'EUR', type: 'ITAV' },
+        { amount: afterImport, currency: 'EUR', type: 'CLBD' },
+      ]
 
-      it('says the pending payments explain the difference as information, and the step stays done without a warning', async () => {
-        const outcome = await importerOver(portOf({ balances: stated(available, 'ITAV'), transactions: async () => [BANK, card] }), storeOver(bookOf([])).store).run(false)
-        expect(outcome.differences).toMatchObject([{ pending: -80, explained: true, fixedOpening: null }])
-        expect(pendingLine(outcome.differences[0]!)).toBe('OTP current: €0.80 of payments are still pending. They come once they are booked.')
+      it('says the bank holds it as not booked and does not list it, and the step stays done', async () => {
+        const outcome = await importerOver(portOf({ balances: both }), storeOver(bookOf([])).store).run(false)
+        expect(outcome.differences).toEqual([])
+        expect(outcome.stated.map((balance) => [balance.kind, balance.unlisted])).toEqual([['booked', -4500]])
         const result = bankStepResult(outcome, null, null, 0)
         expect(result.kind).toBe('done')
-        expect('line' in result && result.line).not.toContain('the bank says')
+        expect('line' in result && result.line).toContain('OTP current: the bank holds €45.00 as not booked yet and does not list it. It comes once it books.')
       })
 
-      it('says pending money coming in, not payments, when it lifts the balance', () => {
-        const incoming = {
-          account: OTP,
-          stated: accountMoneyFromCents(1500),
-          worked: accountMoneyFromCents(1000),
-          pending: accountMoneyFromCents(500),
-          explained: true,
-          fixedOpening: null,
-        }
-        expect(pendingLine(incoming)).toBe('OTP current: €5.00 coming in is still pending. It comes once it is booked.')
+      it('counts the pending rows the bank listed toward it', async () => {
+        const card: BankTransaction = { ...BANK, reference: null, amount: '45.00', status: 'PDNG' }
+        const outcome = await importerOver(portOf({ balances: both, transactions: async () => [BANK, card] }), storeOver(bookOf([])).store).run(false)
+        expect(outcome.stated.map((balance) => balance.unlisted)).toEqual([null])
       })
 
-      it('keeps the warning when the pending payments explain only part of the difference, and says how much is pending and how much is not explained', async () => {
-        // 2.10 below what the pending 0.80 explains.
-        const short = ((OTP.opening - 650 - 80 - 210) / 100).toFixed(2)
-        const outcome = await importerOver(portOf({ balances: stated(short, 'ITAV'), transactions: async () => [BANK, card] }), storeOver(bookOf([])).store).run(false)
-        const [difference] = outcome.differences
-        expect(difference).toMatchObject({ pending: -80, explained: false, fixedOpening: null })
-        const result = bankStepResult(outcome, null, null, 0)
-        expect('line' in result && result.line).toMatch(/OTP current: the bank says .* and Kuna works out .*, so a row may be missing or the opening balance may be wrong\./)
-        expect(pendingCaption({ ...difference!, pending: difference!.pending! })).toBe(
-          'The bank still has €0.80 of payments pending, which its balance may count, so wait until they are booked before changing the opening. That leaves €2.10 they do not explain.',
-        )
-      })
-
-      it('says the same in Croatian, with the account first and money in in the plural', () => {
-        expect(hr.pendingPayments('Revolut EUR', '0,80 €')).toBe('Revolut EUR: plaćanja od 0,80 € još su na čekanju. Stižu kad se proknjiže.')
-        expect(hr.pendingIncoming('Revolut EUR', '5,00 €')).toBe('Revolut EUR: uplate od 5,00 € još su na čekanju. Stižu kad se proknjiže.')
+      it('says the same in Croatian', () => {
+        expect(hr.unlistedPending('OTP tekući', '45,00 €')).toBe('OTP tekući: banka drži 45,00 € kao još neproknjiženo i ne navodi to kao transakciju. Stiže kad se proknjiži.')
       })
     })
 
@@ -350,7 +337,7 @@ describe('finishing a link', () => {
 
 describe('what the step says', () => {
   const dryRun = { newRows: 2, alreadyIn: 1, filled: 0, notes: [] } as never
-  const noWrite = { dryRun, problems: [], linked: [], proposals: [], differences: [], olderRows: [], receipt: null }
+  const noWrite = { dryRun, problems: [], linked: [], proposals: [], differences: [], stated: [], olderRows: [], receipt: null }
   const bookNow = () => bookOf([])
   const other = { bank: 'otp' as const, account: linked('u', 'HR0000000000000000077', 'EUR') }
 
@@ -375,7 +362,7 @@ describe('what the step says', () => {
   })
 
   it('waits on a balance that differs, which you act on', () => {
-    const difference = { account: OTP, stated: accountMoneyFromCents(100), worked: accountMoneyFromCents(50), pending: null, explained: false, fixedOpening: null }
+    const difference = { account: OTP, stated: accountMoneyFromCents(100), worked: accountMoneyFromCents(50), fixedOpening: accountMoneyFromCents(OTP.opening + 50) }
     expect(bankStepResult({ ...noWrite, differences: [difference] }, bookNow(), null, 0)).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
   })
 

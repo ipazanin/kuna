@@ -747,8 +747,8 @@ async function spendingGroups(addGroup, loansBook) {
   add('spending.read.records', { accounts, categories, budgets, transactions })
   add('spending.read.statements', {
     rules,
-    // A row the bank marks as a withdrawal adds the mark, so a file with none keeps this digest.
-    bankFields: transactions.records.map(({ record: { description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal } }) => [
+    // A row the bank marks as a withdrawal or as not booked yet adds the mark, so a file with none keeps this digest.
+    bankFields: transactions.records.map(({ record: { description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, pending } }) => [
       description,
       counterpartyIban,
       importKey,
@@ -757,6 +757,7 @@ async function spendingGroups(addGroup, loansBook) {
       movedAt,
       pocket,
       ...(cashWithdrawal ? [cashWithdrawal] : []),
+      ...(pending ? ['pending'] : []),
     ]),
   })
   add(
@@ -858,6 +859,17 @@ async function spendingGroups(addGroup, loansBook) {
     let row = 0
     const offByRun = statementDryRun(linked, offBy.statement, today, null, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)
     add('spending.import.bank-sync.opening-off', () => balanceDifferences(offBy.stated, rowsAfterDryRun(linked.transactions, offByRun), today))
+    // OTP's balances count a transfer to Revolut it holds as not booked and does not list, which Revolut has booked and brings alone.
+    const unlistedRead = await readBanks(fakeBankSync('unlisted-pending', today), linked, today)
+    add('spending.import.bank-sync.unlisted-pending', () => {
+      let place = 0
+      const run = statementDryRun(linked, unlistedRead.statement, today, null, () => `fa4e3500-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
+      return {
+        run,
+        stated: unlistedRead.stated.map(({ kind, balance, unlisted }) => [kind, balance, unlisted]),
+        differences: balanceDifferences(unlistedRead.stated, rowsAfterDryRun(linked.transactions, run), today),
+      }
+    })
   }
   if (options['fake-spending'] === 'cash') {
     // Each cash account's place, balance and euros on the day once To review's proposed withdrawals have their cash legs, as Move to cash writes them.

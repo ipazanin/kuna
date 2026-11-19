@@ -157,17 +157,18 @@ describe('the pages a read asks for', () => {
 })
 
 describe('statement files the import screens read', () => {
-  it("reads the Revolut sheet through Spending's reader, leaving the pending row out", async () => {
+  it("reads the Revolut sheet through Spending's reader, with the pending row marked pending", async () => {
     const grid = await readFirstSheet(new Uint8Array(fixture('revolut.xlsx')).buffer)
     const reading = revolutStatement(grid, 'revolut.xlsx', { accounts: ACCOUNTS, categories: CATEGORIES })
     if (!('statement' in reading)) throw new Error(reading.refusal)
 
-    expect(reading.statement.rows.map((row) => [row.account, row.date, row.amount, row.payee])).toEqual([
+    expect(reading.statement.rows.filter((row) => !row.pending).map((row) => [row.account, row.date, row.amount, row.payee])).toEqual([
       [REVOLUT_EUR.id, '2026-10-02', accountMoneyFromAmount(-12.4), 'Corner market'],
       [REVOLUT_EUR.id, '2026-10-04', accountMoneyFromAmount(200), 'Top-up by *1234'],
       [REVOLUT_EUR.id, '2026-10-06', accountMoneyFromAmount(-38.6), 'Harbour bistro'],
     ])
-    expect(reading.statement.notes).toEqual(['1 pending row left out. It comes with the next export.'])
+    expect(reading.statement.rows.filter((row) => row.pending).map((row) => row.payee)).toEqual(['Fuel station'])
+    expect(reading.statement.notes).toEqual([])
   })
 
   it("reads the camt file through Company's reader, and its entries tie to its printed balances", () => {

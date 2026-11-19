@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
-import { bankSyncRows, pendingMoney, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
+import { bankSyncRows, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import { fakeBankTransactions } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
@@ -34,7 +34,7 @@ describe('bankSyncRows', () => {
   it('leaves out a row with no direction and counts it among the rows it cannot read, since it might be money in or out', () => {
     const { rows, leftOut } = statementOf([{ ...TRANSACTION, direction: '' }])
     expect(rows).toEqual([])
-    expect(leftOut).toEqual({ pending: 0, zero: 0, unreadable: 1 })
+    expect(leftOut).toEqual({ zero: 0, unreadable: 1 })
   })
 
   it('turns a debit into money out, dated on the day of the transaction and keyed by the bank reference', () => {
@@ -52,6 +52,7 @@ describe('bankSyncRows', () => {
         movedAt: '',
         pocket: false,
         cashWithdrawal: false,
+        pending: false,
         importKey: only?.importKey,
       },
     ])
@@ -67,27 +68,24 @@ describe('bankSyncRows', () => {
     expect(statementOf([{ ...TRANSACTION, madeOn: null, bookedOn: null, valueOn: '2026-10-27' }]).rows[0]?.date).toBe(civil('2026-10-27'))
   })
 
-  it('leaves a pending row out with a note', () => {
-    const { rows, leftOut } = statementOf([TRANSACTION, { ...TRANSACTION, reference: null, status: 'PDNG' }])
-    expect(rows).toHaveLength(1)
-    expect(leftOut).toEqual({ pending: 1, zero: 0, unreadable: 0 })
+  it('brings a pending or held row in marked as pending, and leaves a cancelled one out unmentioned', () => {
+    const { rows, leftOut } = statementOf([TRANSACTION, { ...TRANSACTION, reference: null, status: 'PDNG' }, { ...TRANSACTION, reference: 'H', status: 'HOLD' }, { ...TRANSACTION, status: 'CNCL' }])
+    expect(rows.map((row) => row.pending)).toEqual([false, true, true])
+    expect(leftOut).toEqual({ zero: 0, unreadable: 0 })
   })
 
-  it('adds up the pending rows in the currency in cents, money out below zero', () => {
-    const pending = (amount: string, direction: 'CRDT' | 'DBIT', currency = 'EUR') => ({ ...TRANSACTION, reference: null, amount, direction, currency, status: 'PDNG' })
-    // 0.10 and 0.20 go out and 0.05 comes in, so −0.25, never a float's −0.25000000000000006.
-    const answer = [TRANSACTION, pending('0.10', 'DBIT'), { ...pending('0.20', 'DBIT'), status: 'HOLD' }, pending('0.05', 'CRDT'), pending('9.00', 'DBIT', 'USD')]
-    expect(pendingMoney(answer, 'EUR')).toBe(-25)
-  })
-
-  it('gives no pending money when the answer holds no pending rows in the currency', () => {
-    expect(pendingMoney([TRANSACTION, { ...TRANSACTION, status: 'PDNG', currency: 'USD' }], 'EUR')).toBeNull()
+  it('keys a pending row apart from booked ones, so a booked row keeps its key and never takes a pending one', () => {
+    const [bookedKey] = statementOf([TRANSACTION]).rows.map((row) => row.importKey)
+    const keys = statementOf([{ ...TRANSACTION, status: 'PDNG' }, TRANSACTION]).rows.map((row) => row.importKey)
+    expect(keys[1]).toBe(bookedKey)
+    expect(keys[0]).not.toBe(bookedKey)
+    expect(keys[0]).toMatch(/^bank-/)
   })
 
   it('leaves a row of no amount out, since an entry is never zero', () => {
     const { rows, leftOut } = statementOf([{ ...TRANSACTION, amount: '0.00' }])
     expect(rows).toEqual([])
-    expect(leftOut).toEqual({ pending: 0, zero: 1, unreadable: 0 })
+    expect(leftOut).toEqual({ zero: 1, unreadable: 0 })
   })
 
   it('takes only the rows in the currency of the account', () => {
@@ -132,7 +130,7 @@ describe('bankSyncRows', () => {
   it('leaves out a row whose day or amount it cannot read, with a note, and keeps the rest', () => {
     const { rows, leftOut } = statementOf([TRANSACTION, { ...TRANSACTION, madeOn: 'soon' }, { ...TRANSACTION, amount: 'a lot' }])
     expect(rows).toHaveLength(1)
-    expect(leftOut).toEqual({ pending: 0, zero: 0, unreadable: 2 })
+    expect(leftOut).toEqual({ zero: 0, unreadable: 2 })
   })
 
   it.each([

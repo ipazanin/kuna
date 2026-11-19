@@ -7,7 +7,8 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { writeDryRun } from '../application/statementWrites'
 import { addRevolutAccounts, revolutStatement } from '../domain/revolutStatement'
-import { statementDryRun, syncGapOf } from '../domain/statementDryRun'
+import { syncGapOf } from '../domain/sourceDays'
+import { statementDryRun } from '../domain/statementDryRun'
 import DryRunLines from './DryRunLines.vue'
 import { rowCaption, rowTitle, twinCaption } from './rowParts'
 import type { RowQuestion } from './rowParts'
@@ -143,7 +144,7 @@ function answerTwin(key: string, choice: TwinChoice): void {
   const { [key]: _answered, ...others } = twinAnswers.value
   twinAnswers.value = choice === 'later' ? others : { ...others, [key]: { booked: question.booked.id, keep: choice } }
 }
-const changes = computed(() => (dryRun.value === null ? 0 : dryRun.value.added.length + dryRun.value.changed.length))
+const changes = computed(() => (dryRun.value === null ? 0 : dryRun.value.added.length + dryRun.value.changed.length + (dryRun.value.pending?.gone.length ?? 0)))
 
 async function confirm(): Promise<void> {
   const run = dryRun.value

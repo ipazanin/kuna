@@ -57,6 +57,7 @@ function statementRow(on: typeof OTP, amount: number, payee: string, fields: Par
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
     ...fields,
   }
 }

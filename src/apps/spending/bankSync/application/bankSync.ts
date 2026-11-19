@@ -3,7 +3,7 @@ import type { BankRead, OlderRowsMissing } from './bankRead'
 import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
 import type { BankBalance, BankSession, BankTransaction } from '../domain/bankAnswer'
 import { balanceDifferences } from '../domain/bankBalance'
-import type { BalanceDifference } from '../domain/bankBalance'
+import type { BalanceDifference, StatedBalance } from '../domain/bankBalance'
 import { heldBanks } from '../domain/bankLinks'
 import type { PendingLink } from '../domain/bankReturn'
 import { words } from '../domain/words'
@@ -64,13 +64,15 @@ export interface BankSyncOutcome {
   /** The drafts with their rows, held only while the page is open. */
   readonly proposals: readonly AccountProposal[]
   readonly differences: readonly BalanceDifference[]
+  /** What the banks say the accounts they answered for hold. */
+  readonly stated: readonly StatedBalance[]
   readonly olderRows: readonly OlderRowsMissing[]
   /** The write it made, which Undo puts back, or null when nothing was new. */
   readonly receipt: WriteReceipt | null
 }
 
 /** What the set-up list of bank accounts works from. */
-export type BankSetup = Pick<BankSyncOutcome, 'linked' | 'proposals' | 'differences' | 'olderRows'>
+export type BankSetup = Pick<BankSyncOutcome, 'linked' | 'proposals' | 'differences' | 'stated' | 'olderRows'>
 
 export interface BankImportPorts {
   /** The script, told when a person started the fetch, which lifts the banks' limit on unattended reads. */
@@ -123,7 +125,7 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
     const book = openBook(store)
     const dryRun = statementDryRun(book, read.statement, day, ports.links())
     const differences = balanceDifferences(read.stated, rowsAfterDryRun(book.transactions, dryRun), day)
-    const changes = dryRun.added.length + dryRun.changed.length
+    const changes = dryRun.added.length + dryRun.changed.length + (dryRun.pending?.gone.length ?? 0)
     const stamp = (unit: UnitOfWork): void => read.fetched.forEach((bank) => saveFetched(unit, book, bank, answeredAt))
     const receipt =
       changes === 0
@@ -134,7 +136,7 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
           })
     if (changes === 0 && read.fetched.length > 0) await store.write(words.fetched, stamp)
     const { linked, proposals, problems, olderRows } = read
-    return { dryRun, problems, linked, proposals, differences, olderRows, receipt }
+    return { dryRun, problems, linked, proposals, differences, stated: read.stated, olderRows, receipt }
   }
 
   return {

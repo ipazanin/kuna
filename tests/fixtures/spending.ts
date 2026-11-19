@@ -185,7 +185,7 @@ function storedWithItems(rows: readonly Transaction[], items: readonly Transacti
 }
 
 /** The parts of a Spending book a test may give, with its setting rows in place of the settings they make. */
-type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'stored'> & {
+type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'dropped' | 'stored'> & {
   readonly settingRows: readonly SettingRow[]
 }
 
@@ -208,6 +208,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     receipts: [],
     items: wholeItems(transactions),
     held: [],
+    dropped: [],
     stored: given.items === undefined ? storedBeforeItems(transactions) : storedWithItems(transactions, given.items),
     ...given,
   }
@@ -231,6 +232,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
       lines: counting(storedOf(book.stored.lines)),
       items: counting(storedOf(book.stored.items)),
       held: counting(book.held),
+      dropped: counting(book.dropped),
       settings: counting(settingRows),
     },
     problems: [],

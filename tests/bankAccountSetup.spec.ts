@@ -169,9 +169,19 @@ describe('a draft held from an earlier fetch', () => {
     expect(withOlderHistory([long], [short])).toEqual([long])
   })
 
-  it('opens as worked out, never as an empty start, while the bank holds pending rows', () => {
-    const proposal = draftFrom([bankRow({}), bankRow({ reference: 'p', status: 'PDNG', amount: '3.00', direction: 'DBIT' })])
-    expect(startedAccount({ proposal, startsOn: startDays(proposal).earliest }).opening).toMatchObject({ source: 'pending', opening: 0 })
+  it('works its opening from a booked balance and the booked rows, so a pending row comes in on top', () => {
+    const balances = [{ amount: '10.00', currency: 'USD', type: 'ITBD' }]
+    const proposal = proposeAccount(
+      { ...usd, uid: 'held' },
+      'revolut',
+      USD,
+      [bankRow({}), bankRow({ reference: 'p', status: 'PDNG', amount: '3.00', direction: 'DBIT' })],
+      balances,
+      recordIdOf(ACCOUNT_RECORDS, 'held'),
+      DAY,
+      [],
+    )
+    expect(startedAccount({ proposal, startsOn: startDays(proposal).earliest }).opening).toMatchObject({ source: 'start', opening: 0 })
   })
 })
 

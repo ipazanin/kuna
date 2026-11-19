@@ -19,6 +19,7 @@ import {
   LABEL_RECORDS,
   LINE_RECORDS,
   RECEIPT_RECORDS,
+  DROPPED_ROW_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SHORTCUT_PART_RECORDS,
@@ -32,6 +33,7 @@ import type { SpendingRule } from '../../domain/spendingRule'
 import type { Shortcut, ShortcutPart } from '../../domain/shortcut'
 import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../domain/transaction'
+import type { DroppedRow } from '../../domain/droppedRow'
 import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
 import type { Transaction } from '../../domain/transaction'
 import type { RowLink } from '../../domain/rowLink'
@@ -355,7 +357,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
     statementRow(1708, OTP, back(8), -60, 'Card top-up'),
     statementRow(1709, REVOLUT_EUR, back(7), 60, 'Top-up by card'),
     statementRow(1710, REVOLUT_EUR, back(5), -26.5, 'Old Town Bookshop'),
-    statementRow(1711, OTP, back(4), -18.9, 'City pharmacy', { counterpartyIban: PHARMACY_IBAN }),
+    statementRow(1711, OTP, back(4), -18.9, 'City pharmacy', { counterpartyIban: PHARMACY_IBAN, pending: true }),
     statementRow(1713, REVOLUT_EUR, back(3), -15, 'Pocket Winter coat', { category: between, movedAt: `${back(3)} 09:30:00`, pocket: true }),
     statementRow(1712, OTP, back(2), -75, 'Transfer to Revolut', { category: between, counterpartyIban: REVOLUT_IBAN }),
     ...homeLoanRows(day, idOf),
@@ -466,6 +468,29 @@ function copiedRow(day: CivilDate, idOf: (path: string) => RecordId): FakeRow {
 /** A row the bank sync brought a day after the export's Corner market, booked a day later and named in full. */
 function syncedRow(day: CivilDate): FakeRow {
   return statementRow(1716, REVOLUT_EUR, day, -12.3, 'CORNER MARKET D.O.O.', { importKey: `${BANK_SYNC_KEY_PREFIX}fake-corner-market`, statement: BANK_SYNC_LABEL })
+}
+
+/** The bakery payment the bank sync brought before the bank booked it, which you filed, and which `pending-books` books. */
+function pendingBakeryRow(day: CivilDate, idOf: (path: string) => RecordId): FakeRow {
+  return statementRow(1717, OTP, day, -3.1, 'Waiting bakery', {
+    category: idOf('Food/Groceries'),
+    categorisedBy: 'person',
+    importKey: `${BANK_SYNC_KEY_PREFIX}fake-waiting-bakery`,
+    statement: BANK_SYNC_LABEL,
+    pending: true,
+  })
+}
+
+/** A hotel hold the bank dropped before it booked it, which you had filed, as To review keeps it once a sync removed the row. */
+function droppedHotel(day: CivilDate): DroppedRow {
+  return {
+    id: fixedId(DROPPED_ROW_RECORDS, 1718),
+    account: OTP,
+    date: addDays(day, -6),
+    amount: accountMoneyFromAmount(-64.2),
+    payee: 'Hotel on the coast',
+    filing: language === 'hr' ? 'Smještaj, dvije noći' : 'Accommodation, two nights',
+  }
 }
 
 const SPLIT_ROW_PLACE = 1906
@@ -579,13 +604,13 @@ const LINKED_VARIANTS: readonly string[] = [
   'ended',
   'balance-differs',
   'opening-off',
-  'card-pending',
+  'unlisted-pending',
+  'pending-books',
   'exchange',
   'pocket',
   'withdrawal',
   'multi-currency',
   'new-accounts',
-  'new-pending',
   'not-in-kuna',
   'iban-blank',
   'by-hand',
@@ -725,6 +750,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
   if (set === 'cash') transactions.push(...withdrawalRows(day, idOf))
   if (set === 'copied') transactions.push(copiedRow(day, idOf))
   if (set === 'synced') transactions.push(syncedRow(day))
+  if (bankSync === 'pending-books') transactions.push(pendingBakeryRow(day, idOf))
   if (set === 'receipts') transactions.push(...receiptRows(day, idOf), ...(bankSync === null ? [] : kioskRows(day, idOf)))
   if (set === 'people') transactions.push(...peopleRows(day, idOf))
   if (set === 'company' || set === 'company-before-roles') transactions.push(...companyRows(day, idOf))
@@ -797,6 +823,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...stored(SHORTCUT_PART_RECORDS, set === 'foreign' ? [] : fakeShortcutParts(transactions, idOf)),
       ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
       ...stored(RECEIPT_RECORDS, receipts.receipts),
+      ...stored(DROPPED_ROW_RECORDS, bankSync === 'pending-books' ? [droppedHotel(day)] : []),
       ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
     },
     rows: transactions,

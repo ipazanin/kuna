@@ -1,3 +1,4 @@
+import { PENDING_KEY_FACT } from './statementRows'
 import type { DraftedAccount, StatementReading, StatementRow } from './statementRows'
 import { words } from './words'
 import { draftedAccount, revolutIban } from '../../accounts/domain/accountDraft'
@@ -7,12 +8,14 @@ import { categoryWithRole } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { civilDateFromSerial, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { absAccountMoney, accountMoneyFromAmount, addAccountMoney, negateAccountMoney, subtractAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { decimalOf } from '../../../../shared/storage/domain/storedFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -65,7 +68,7 @@ function moneyOf(cell: SheetCell): AccountMoney | null {
 
 class Refused extends Error {}
 
-/** A row the file completed, on a product Kuna reads. */
+/** A row the file completed or still holds as pending, on a product Kuna reads. A pending row has no balance and no completed time. */
 interface CompletedRow {
   readonly started: Started
   readonly amount: AccountMoney
@@ -79,6 +82,7 @@ interface CompletedRow {
   /** Empty or null where the file leaves them out. */
   readonly completedAt: string
   readonly balance: AccountMoney | null
+  readonly pending: boolean
 }
 
 /**
@@ -124,8 +128,8 @@ function pocketMoves(rows: readonly CompletedRow[]): ReadonlyMap<CompletedRow, s
 }
 
 /**
- * Reads a Revolut export, its columns found by the header's names. Only completed rows count, and what it leaves out is
- * counted in a note. A row goes to the open Revolut account of its currency, or a closed one when no other fits, or a
+ * Reads a Revolut export, its columns found by the header's names. Completed rows count, and pending ones come marked as
+ * pending, keyed apart so a completed row keeps its key. What it leaves out is counted in a note. A row goes to the open Revolut account of its currency, or a closed one when no other fits, or a
  * `Savings` row to the Revolut savings account of that currency, left out with a note when there is none. A row of any other
  * product is left out with a note naming it. A current row and a savings row of the opposite amount in the same second are
  * a pocket move, whose legs share a time, as an exchange's do. A current row of type `ATM` is cash taken out. A current row of a currency no Revolut account keeps refuses
@@ -150,13 +154,13 @@ function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Accoun
   const first = chain[0]!
   const currency = currencyCodeOf(first.currency)
   if (currency === null) return null
-  const rows = chain.map((row) => ({ date: row.started.date, amount: subtractAccountMoney(row.amount, absAccountMoney(row.fee)) }))
+  const rows = chain.filter((row) => !row.pending).map((row) => ({ date: row.started.date, amount: subtractAccountMoney(row.amount, absAccountMoney(row.fee)) }))
   const stated =
     chain
       .filter((row) => row.balance !== null && row.completedAt !== '')
       .sort((earlier, next) => earlier.completedAt.localeCompare(next.completedAt))
       .at(-1)?.balance ?? null
-  const evidence = { rows, stated, pending: false }
+  const evidence = { rows, stated }
   const { opening, openedOn } = openingOn(evidence, earliestStart(evidence) ?? first.started.date)
   const kind = first.onSavings ? 'savings' : 'bank'
   return { account: draftedAccount({ kind, bank: 'revolut', currency, iban: revolutIban(kind, accounts), opening, openedOn }, accounts, 'provider-file'), evidence }
@@ -182,7 +186,6 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
   const revolut = book.accounts.filter((account) => account.bank === 'revolut')
   const feeCategory = categoryWithRole(book.categories, 'bank-fees')?.id ?? null
 
-  let pending = 0
   let otherStates = 0
   const savingsLeftOut: string[] = []
   const otherProducts = new Map<string, number>()
@@ -191,9 +194,11 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
   grid.slice(headerAt + 1).forEach((row, offset) => {
     if (isBlank(row)) return
     const state = cellText(cellOf(row, 'State')).toUpperCase()
-    if (state === 'PENDING') pending += 1
-    else if (state !== 'COMPLETED') otherStates += 1
-    if (state !== 'COMPLETED') return
+    const pending = state === 'PENDING'
+    if (!pending && state !== 'COMPLETED') {
+      otherStates += 1
+      return
+    }
     const fileRow = headerAt + offset + 2
     const started = startedOf(cellOf(row, 'Started Date')) ?? refuseRow(words.notADay(fileRow, cellText(cellOf(row, 'Started Date'))))
     const amount = moneyOf(cellOf(row, 'Amount')) ?? refuseRow(words.notAnAmount(fileRow, cellText(cellOf(row, 'Amount'))))
@@ -213,8 +218,9 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
       cashWithdrawal: cellText(cellOf(row, 'Type')).toUpperCase() === 'ATM',
       currency: cellText(cellOf(row, 'Currency')).toUpperCase(),
       description: cellText(cellOf(row, 'Description')),
-      completedAt: startedOf(cellOf(row, 'Completed Date'))?.at ?? '',
-      balance: moneyOf(cellOf(row, 'Balance')),
+      completedAt: pending ? '' : (startedOf(cellOf(row, 'Completed Date'))?.at ?? ''),
+      balance: pending ? null : moneyOf(cellOf(row, 'Balance')),
+      pending,
     })
   })
 
@@ -248,8 +254,10 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
       movedAt: pocketAt ?? (row.exchange ? row.started.at : ''),
       pocket: pocketAt !== undefined,
       cashWithdrawal: row.cashWithdrawal && !row.onSavings,
+      pending: row.pending,
     })
-    facts.push([account.id, row.started.at, amountText(row.amount), amountText(row.fee), row.description])
+    const rowFacts = [account.id, row.started.at, amountText(row.amount), amountText(row.fee), row.description]
+    facts.push(row.pending ? [PENDING_KEY_FACT, ...rowFacts] : rowFacts)
     fees.push(row.fee)
   }
 
@@ -282,14 +290,28 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
   const draftedSavings = new Set<string>(missing.filter(({ account }) => account.kind === 'savings').map(({ account }) => account.currency))
   const undraftedSavings = savingsLeftOut.filter((currency) => !draftedSavings.has(currency))
   const notes = [
-    ...(pending === 0 ? [] : [plural(words.pendingLeftOut(pending), pending)]),
     ...(otherStates === 0 ? [] : [plural(words.otherStatesLeftOut(otherStates), otherStates)]),
     ...(undraftedSavings.length === 0 ? [] : [plural(words.savingsLeftOut(undraftedSavings.length, [...new Set(undraftedSavings)].join(', ')), undraftedSavings.length)]),
   ]
   return {
-    statement: { label: fileName, rows, notes: [...notes, ...balanceNotes(completed), ...[...otherProducts].map(([product, count]) => plural(words.otherProductLeftOut(count, product), count))] },
+    statement: {
+      label: fileName,
+      rows,
+      covers: daysCovered(rows),
+      notes: [...notes, ...balanceNotes(completed), ...[...otherProducts].map(([product, count]) => plural(words.otherProductLeftOut(count, product), count))],
+    },
     missing,
   }
+}
+
+/** The days a file holds whole for each account, from its first row's day to its last. */
+function daysCovered(rows: readonly StatementRow[]): ReadonlyMap<RecordId, DateRange> {
+  const covers = new Map<RecordId, DateRange>()
+  for (const { account, date } of rows) {
+    const held = covers.get(account)
+    covers.set(account, held === undefined ? { from: date, to: date } : { from: date < held.from ? date : held.from, to: date > held.to ? date : held.to })
+  }
+  return covers
 }
 
 function refuseRow(reason: string): never {

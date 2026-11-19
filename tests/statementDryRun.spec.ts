@@ -29,6 +29,7 @@ function statementRow(on: typeof OTP, date: string, amount: number, payee: strin
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
     ...fields,
   }
 }
@@ -520,6 +521,15 @@ describe('To review', () => {
       { debit, credit },
     ])
     expect(reviewQueue(spendingBook([{ ...debit, categorisedBy: 'person' }, credit]), DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([null, null])
+  })
+
+  it('offers a waiting row with a lone leg a rule filed as a transfer a day later, and not with one filed under another category', () => {
+    const debit = onFile(OTP, '2026-10-20', -60, { payee: 'Card payment' })
+    const topUp = onFile(REVOLUT_EUR, '2026-10-21', 60, { payee: 'Top-up', category: category('Between my accounts').id, categorisedBy: 'rule' })
+    const shop = onFile(REVOLUT_EUR, '2026-10-21', 60, { payee: 'Refund', category: category('Food/Groceries').id, categorisedBy: 'rule' })
+
+    expect(reviewQueue(spendingBook([debit, topUp]), DAY).waiting.map((waiting) => [waiting.row, waiting.maybeTransfer])).toEqual([[debit, { debit, credit: topUp }]])
+    expect(reviewQueue(spendingBook([debit, shop]), DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([null])
   })
 
   it('lists a pair of the last 30 days once, the typed kind and older ones left out, and a lone leg apart', () => {

@@ -12,7 +12,7 @@ import type { BankSession, BankTransaction, LinkedAccount } from '../src/apps/sp
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
-import { syncGapOf } from '../src/apps/spending/statements/domain/statementDryRun'
+import { syncGapOf } from '../src/apps/spending/statements/domain/sourceDays'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
@@ -75,6 +75,7 @@ function fileStatement(rows: readonly Partial<StatementRow>[]): StatementRows {
       movedAt: '',
       pocket: false,
       cashWithdrawal: false,
+      pending: false,
       ...fields,
     })),
   }
@@ -574,29 +575,34 @@ describe('readBanks', () => {
 })
 
 describe('fetchFrom', () => {
-  const synced = (date: string) => [{ account: OTP.id, date: civil(date), importKey: 'bank-x-1' }]
+  const synced = (date: string, pending = false) => [{ account: OTP.id, date: civil(date), importKey: 'bank-x-1', pending }]
 
   it('asks for what the bank has once the newest row is past a period a bank may refuse', () => {
     expect(fetchFrom(OTP, synced('2026-03-01'), DAY)).toEqual({ from: civil('2026-02-15'), longest: true })
   })
 
   it('starts a little back of the last day a file covers and asks plainly, so a file holding every row never repeats the longest fetch', () => {
-    const fromFile = [{ account: OTP.id, date: civil('2026-10-20'), importKey: '0123456789abcdef-1' }]
+    const fromFile = [{ account: OTP.id, date: civil('2026-10-20'), importKey: '0123456789abcdef-1', pending: false }]
     expect(fetchFrom(OTP, fromFile, DAY)).toEqual({ from: civil('2026-10-06'), longest: false })
   })
 
   it('asks for what the bank has when a file ended longer ago than a bank may allow', () => {
-    const fromFile = [{ account: OTP.id, date: civil('2026-05-01'), importKey: '0123456789abcdef-1' }]
+    const fromFile = [{ account: OTP.id, date: civil('2026-05-01'), importKey: '0123456789abcdef-1', pending: false }]
     expect(fetchFrom(OTP, fromFile, DAY)).toEqual({ from: civil('2026-04-17'), longest: true })
   })
 
   it('leaves typed rows out of it, since they say nothing of what a bank has given', () => {
-    expect(fetchFrom(OTP, [{ account: OTP.id, date: civil('2026-10-20'), importKey: '' }], DAY)).toEqual({ from: OTP.openedOn, longest: true })
+    expect(fetchFrom(OTP, [{ account: OTP.id, date: civil('2026-10-20'), importKey: '', pending: false }], DAY)).toEqual({ from: OTP.openedOn, longest: true })
   })
 
   it('stays plain within it', () => {
     expect(fetchFrom(OTP, synced('2026-08-16'), DAY).longest).toBe(false)
     expect(fetchFrom(OTP, synced('2026-08-14'), DAY).longest).toBe(true)
+  })
+
+  it('starts back of the newest booked row and no later than the oldest row the bank has not booked yet', () => {
+    expect(fetchFrom(OTP, [...synced('2026-10-20'), ...synced('2026-10-29', true)], DAY).from).toBe(civil('2026-10-06'))
+    expect(fetchFrom(OTP, [...synced('2026-10-20'), ...synced('2026-09-30', true)], DAY).from).toBe(civil('2026-09-30'))
   })
 
   it('never starts past yesterday, since the API reads the day in UTC and refuses a future one', () => {

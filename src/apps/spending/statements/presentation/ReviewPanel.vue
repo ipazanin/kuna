@@ -8,6 +8,7 @@ import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
 import CashWithdrawalsCard from './CashWithdrawalsCard.vue'
+import DroppedRowsCard from './DroppedRowsCard.vue'
 import TransfersCard from './TransfersCard.vue'
 import WaitingReceiptsCard from '../../receipts/presentation/WaitingReceiptsCard.vue'
 import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
@@ -220,7 +221,7 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
 
 <template>
   <div v-if="queue !== null" class="flex flex-col gap-6">
-    <p v-if="queue.wantingSavings > 0" class="text-sm text-muted" data-testid="spending-wants-savings">{{ plural(words.review.pocketsWaiting(queue.wantingSavings), queue.wantingSavings) }}</p>
+    <p v-if="queue.wantingSavings > 0" class="type-aside" data-testid="spending-wants-savings">{{ plural(words.review.pocketsWaiting(queue.wantingSavings), queue.wantingSavings) }}</p>
     <AppCard v-if="held.items.value.length > 0" :title="words.review.held" data-testid="spending-review-held">
       <div class="px-4 pt-3 pb-4 sm:px-5">
         <QuestionList :items="held.items.value" :options="held.options" :label="twinWords.choice" :intro="twinWords.intro.sync" :saving="held.saving.value" @answer="held.answer">
@@ -230,6 +231,7 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
         </QuestionList>
       </div>
     </AppCard>
+    <DroppedRowsCard v-if="book !== null && book.dropped.length > 0" :dropped="book.dropped" />
     <CashWithdrawalsCard v-if="queue.withdrawals.length > 0" :withdrawals="queue.withdrawals" />
     <WaitingReceiptsCard v-if="receiptsAsk" :waiting="receipts" />
     <CompanyRolesCard v-if="company.roles !== null" :ask="company.roles" />
@@ -237,6 +239,7 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
       v-if="
         queue.waiting.length === 0 &&
         held.items.value.length === 0 &&
+        (book?.dropped.length ?? 0) === 0 &&
         queue.withdrawals.length === 0 &&
         receipts.length === 0 &&
         instalments.past.length === 0 &&

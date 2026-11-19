@@ -1,6 +1,7 @@
 import { optionalReference, requiredReference } from './recordReference'
 import type { HeldBankRow } from './heldBankRow'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import type { DroppedRow } from './droppedRow'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, DROPPED_ROW_RECORDS, HELD_ROW_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import { ibanKey } from './accountReading'
 import { flagOf, requiredAccountMoney } from './fieldReading'
 import { rowLinkText } from './rowLink'
@@ -43,6 +44,7 @@ export function transactionOf(fields: StoredFields, id: RecordId | null): Stored
     movedAt: textOf(fields.moved_at),
     pocket: flagOf(fields, 'pocket'),
     cashWithdrawal: flagOf(fields, 'cash_withdrawal'),
+    pending: flagOf(fields, 'pending'),
     link: linkOf(fields),
   }
 }
@@ -65,6 +67,7 @@ export const TRANSACTION_CODEC: RecordCodec<StoredRow> = withIdField(TRANSACTION
     moved_at: transaction.movedAt,
     pocket: transaction.pocket ? true : null,
     cash_withdrawal: transaction.cashWithdrawal ? true : null,
+    pending: transaction.pending ? true : null,
     link: transaction.link === null ? null : rowLinkText(transaction.link),
   }),
 )
@@ -94,5 +97,27 @@ export const HELD_ROW_CODEC: RecordCodec<HeldBankRow> = withIdField(HELD_ROW_REC
     counterparty_iban: held.counterpartyIban,
     import_key: held.importKey,
     like: keyOfRecordId(TRANSACTION_RECORDS, held.like),
+  }),
+)
+
+function droppedRowFields(fields: StoredFields, id: RecordId | null): DroppedRow {
+  return {
+    id: ownId(id),
+    account: requiredReference(fields, 'account', ACCOUNT_RECORDS),
+    date: requiredDate(fields, 'date'),
+    amount: amountOf(fields),
+    payee: textOf(fields.payee),
+    filing: textOf(fields.filing),
+  }
+}
+
+/** A payment the bank dropped, stored with the row it was and how it was filed. */
+export const DROPPED_ROW_CODEC: RecordCodec<DroppedRow> = withIdField(DROPPED_ROW_RECORDS, words.entryLabel, droppedRowFields, (dropped) =>
+  filledFields({
+    account: keyOfRecordId(ACCOUNT_RECORDS, dropped.account),
+    date: dropped.date,
+    amount: amountText(dropped.amount),
+    payee: dropped.payee,
+    filing: dropped.filing,
   }),
 )

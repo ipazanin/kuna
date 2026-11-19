@@ -48,6 +48,7 @@ export const KEPT_BY_KUNA: ReadonlySet<string> = new Set([
   'movedAt',
   'pocket',
   'cashWithdrawal',
+  'pending',
   'pair',
   'description',
   'transaction',

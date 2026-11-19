@@ -1,10 +1,11 @@
 import { NO_SINGLE_CURRENCY } from './bankAnswer'
 import type { BankBalance, BankTransaction, LinkedAccount } from './bankAnswer'
-import { statedBalance } from './bankBalance'
+import { rowsCountedBy, statedBalance } from './bankBalance'
+import type { BankStated } from './bankBalance'
 import { accountsOfLinked } from './bankLinks'
 import { openingOn, startDays as startDaysOf, startsWithin } from '../../accounts/domain/bankOpening'
 import type { BankOpening, OpeningEvidence } from '../../accounts/domain/bankOpening'
-import { bankSyncRows, pendingMoney } from './bankSyncRows'
+import { bankSyncRows } from './bankSyncRows'
 import type { SyncedRows } from './bankSyncRows'
 import { draftedAccount } from '../../accounts/domain/accountDraft'
 import type { Account, AccountKind } from '../../workbook/domain/account'
@@ -13,7 +14,6 @@ import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spend
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
-import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -39,9 +39,7 @@ export interface AccountProposal {
   /** Every row the fetch gave for it, on the draft, held until it is added. */
   readonly rows: SyncedRows
   /** The bank's balance at the fetch, or null when it gave none. */
-  readonly stated: AccountMoney | null
-  /** Whether the bank held pending rows its balance may count. */
-  readonly pending: boolean
+  readonly stated: BankStated | null
   /** The day of the fetch, the latest day the account can start on, since the bank's balance knows nothing after it. */
   readonly fetchedOn: CivilDate
 }
@@ -58,8 +56,10 @@ export interface StartedAccount {
   readonly opening: BankOpening
 }
 
-function evidenceOf(proposal: Pick<AccountProposal, 'rows' | 'stated' | 'pending'>): OpeningEvidence {
-  return { rows: proposal.rows.rows, stated: proposal.stated, pending: proposal.pending }
+/** The rows and balance an opening is worked out from: a booked balance against the booked rows, any other against every row. */
+function evidenceOf(proposal: Pick<AccountProposal, 'rows' | 'stated'>): OpeningEvidence {
+  const { stated } = proposal
+  return { rows: stated === null ? proposal.rows.rows : rowsCountedBy(stated.kind, proposal.rows.rows), stated: stated?.balance ?? null }
 }
 
 /** The days a proposed account can start on, from the first day its rows reach to the day of the fetch. */
@@ -125,7 +125,7 @@ export function proposeAccount(
   accounts: readonly Pick<Account, 'name'>[],
 ): AccountProposal {
   const draft = draftAccount(linked, bank, currency, id, day, accounts)
-  const held = { bank, linked, account: draft, rows: bankSyncRows(answer, draft), stated: statedBalance(balances, currency), pending: pendingMoney(answer, currency) !== null, fetchedOn: day }
+  const held = { bank, linked, account: draft, rows: bankSyncRows(answer, draft), stated: statedBalance(balances, currency), fetchedOn: day }
   return { ...held, account: startedAccount({ proposal: held, startsOn: day }).account }
 }
 

@@ -3,10 +3,10 @@ import { leftOutOfKuna, linkedAccountEnding, proposeAccount } from '../domain/ba
 import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
 import { NO_SINGLE_CURRENCY, namesEndedSession, sessionEnded } from '../domain/bankAnswer'
 import type { BankBalance, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
-import { statedBalance } from '../domain/bankBalance'
+import { statedBalance, unlistedPending } from '../domain/bankBalance'
 import type { StatedBalance } from '../domain/bankBalance'
 import { accountsOfLinked, fetchFrom, linkableBankNamed, olderRowsMissing } from '../domain/bankLinks'
-import { BANK_SYNC_LABEL, bankSyncRows, pendingMoney, rowsWithMoves } from '../domain/bankSyncRows'
+import { BANK_SYNC_LABEL, bankSyncRows, rowsWithMoves } from '../domain/bankSyncRows'
 import { words } from '../domain/words'
 import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
@@ -15,6 +15,7 @@ import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
@@ -105,6 +106,7 @@ export async function readBanks(
   const fetched = new Set<LinkableBank>()
   const stated: StatedBalance[] = []
   const olderRows: OlderRowsMissing[] = []
+  const covers = new Map<RecordId, DateRange>()
   const endedAt = (bank: LinkableBank, name: string): void => {
     ended.add(bank)
     problems.push(words.sessionEnded(name))
@@ -132,9 +134,10 @@ export async function readBanks(
       const starts = accounts.map((account) => fetchFrom(account, book.transactions, day))
       const latest = addDays(day, -1)
       const from = starts.map((start) => start.from).reduce((earliest, date) => (date < earliest ? date : earliest), addDays(day, accounts.length === 0 ? -NEW_ACCOUNT_HISTORY_DAYS : 0))
+      const askedFrom = from < latest ? from : latest
       let answer: readonly BankTransaction[]
       try {
-        answer = await port.transactions(linked.uid, from < latest ? from : latest, accounts.length === 0 || starts.some((start) => start.longest))
+        answer = await port.transactions(linked.uid, askedFrom, accounts.length === 0 || starts.some((start) => start.longest))
       } catch (failure) {
         if (isUnauthorized(failure)) throw failure
         const reason = reasonOf(failure)
@@ -146,12 +149,14 @@ export async function readBanks(
         continue
       }
       fetched.add(bank)
+      const listed = new Map<RecordId, readonly StatementRow[]>()
       accounts.forEach((account, place) => {
         const statement = bankSyncRows(answer, account)
         rows.push(...statement.rows)
+        listed.set(account.id, statement.rows)
+        covers.set(account.id, { from: askedFrom, to: latest })
         statement.exchangeRates.forEach((rate, row) => exchangeRates.set(row, rate))
-        const { pending, zero, unreadable } = statement.leftOut
-        if (pending > 0) notes.push(plural(words.pendingLeftOut(pending, account.name), pending))
+        const { zero, unreadable } = statement.leftOut
         if (zero > 0) notes.push(plural(words.zeroLeftOut(zero, account.name), zero))
         if (unreadable > 0) notes.push(plural(words.unreadableLeftOut(unreadable, account.name), unreadable))
         const missing = freshLinks.includes(bank) ? null : olderRowsMissing(account, starts[place]!, statement.rows, book.transactions, day)
@@ -170,7 +175,8 @@ export async function readBanks(
       }
       for (const account of accounts) {
         const balance = statedBalance(balances, account.currency)
-        if (balance !== null) stated.push({ account, balance, pending: pendingMoney(answer, account.currency) })
+        const pendingRows = (listed.get(account.id) ?? []).filter((row) => row.pending).map((row) => row.amount)
+        if (balance !== null) stated.push({ account, ...balance, unlisted: unlistedPending(balances, account.currency, pendingRows) })
       }
       for (const currency of currenciesLeft(linked, kept, answer, balances)) {
         const code = currencyCodeOf(currency)
@@ -189,7 +195,7 @@ export async function readBanks(
   const moved = rowsWithMoves([...rows, ...held], exchangeRates, [...book.accounts, ...proposals.map((proposal) => proposal.account)])
   const movedOf = new Map(held.map((row, place) => [row, moved[rows.length + place]!]))
   return {
-    statement: { label: BANK_SYNC_LABEL, rows: moved.slice(0, rows.length), notes },
+    statement: { label: BANK_SYNC_LABEL, rows: moved.slice(0, rows.length), notes, covers },
     linked: linkedAll,
     proposals: proposals.map((proposal) => ({ ...proposal, rows: { ...proposal.rows, rows: proposal.rows.rows.map((row) => movedOf.get(row) ?? row) } })),
     problems,

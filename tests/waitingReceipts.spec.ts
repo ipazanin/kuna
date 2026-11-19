@@ -86,6 +86,7 @@ function bankRow(importKey: string, date: string, amount: number, payee: string)
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
   }
 }
 

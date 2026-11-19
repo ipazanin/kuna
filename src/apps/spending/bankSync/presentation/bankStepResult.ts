@@ -2,13 +2,12 @@ import type { BankSyncOutcome } from '../application/bankSync'
 import type { OlderRowsMissing } from '../application/bankRead'
 import { linkedAccountEnding, setupLines } from '../domain/bankAccountSetup'
 import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
-import type { BalanceDifference } from '../domain/bankBalance'
+import type { BalanceDifference, StatedBalance } from '../domain/bankBalance'
 import { words } from './words'
 import { SPENDING_BANK_SYNC_LINK, SPENDING_REVIEW_LINK } from '../../overview/presentation/spendingLinks'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { absAccountMoney, subtractAccountMoney } from '../../../../shared/money/accountMoney'
-import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { absAccountMoney } from '../../../../shared/money/accountMoney'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import type { StepResult } from '../../../../shared/sync/application/syncRun'
 import { plural } from '../../../../shared/text/translation'
@@ -40,18 +39,9 @@ export function differenceLine({ account, stated, worked }: BalanceDifference): 
   return words.balanceDiffers(account.name, formatAccountMoney(stated, account.currency), formatAccountMoney(worked, account.currency))
 }
 
-/** The plain line for a difference the bank's pending rows make up in full. */
-export function pendingLine({ account, stated, worked }: BalanceDifference): string {
-  const difference = subtractAccountMoney(stated, worked)
-  const amount = formatAccountMoney(absAccountMoney(difference), account.currency)
-  return difference < 0 ? words.pendingPayments(account.name, amount) : words.pendingIncoming(account.name, amount)
-}
-
-/** What the warning adds while the bank holds pending rows that do not make up the difference: how much is pending and how much is left unexplained. */
-export function pendingCaption({ account, stated, worked, pending }: BalanceDifference & { readonly pending: AccountMoney }): string {
-  const amount = formatAccountMoney(absAccountMoney(pending), account.currency)
-  const rest = formatAccountMoney(absAccountMoney(subtractAccountMoney(subtractAccountMoney(stated, worked), pending)), account.currency)
-  return pending < 0 ? words.pendingPaymentsCaption(amount, rest) : words.pendingIncomingCaption(amount, rest)
+/** A line for each account whose bank holds money as not booked yet without listing it as a row, as a bank may for a transfer out that has not booked. */
+export function unlistedLines(stated: readonly StatedBalance[]): readonly string[] {
+  return stated.flatMap(({ account, unlisted }) => (unlisted === null ? [] : [words.unlistedPending(account.name, formatAccountMoney(absAccountMoney(unlisted), account.currency))]))
 }
 
 /** What a fetch left for you to act on: each bank that gave no rows, and each kept account whose older rows only a new link brings. */
@@ -70,13 +60,13 @@ export function bankHeldResult(problems: readonly string[], linked: readonly Lin
   return { kind: 'done', line, writeId: null, link: accounts.notes.length === 0 ? null : SETTINGS_LINK }
 }
 
-/** What the step says of a fetch: the summary and notes, then what it left for you, each balance that differs first, then the accounts Kuna does not keep. A difference pending rows make up is in the notes already. */
+/** What the step says of a fetch: the summary and notes with the money each bank holds unlisted, then what it left for you, each balance that differs first, then the accounts Kuna does not keep. */
 export function bankStepResult(outcome: BankSyncOutcome, book: BookNow | null, writeId: number | null, toReview: number): StepResult {
   const accounts = accountLines(outcome.linked, outcome.proposals, book)
-  const differences = outcome.differences.filter((difference) => !difference.explained).map(differenceLine)
+  const differences = outcome.differences.map(differenceLine)
   const left = [...differences, ...bankProblemLines(outcome), ...accounts.waiting]
   const { newRows, alreadyIn, filled, notes } = outcome.dryRun
-  const line = [words.summary(newRows, alreadyIn, filled), ...notes, ...left, ...accounts.notes].join(' ')
+  const line = [words.summary(newRows, alreadyIn, filled), ...notes, ...unlistedLines(outcome.stated), ...left, ...accounts.notes].join(' ')
   if (left.length > 0) return { kind: 'waits', line, writeId, link: SETTINGS_LINK }
   if (toReview > 0) return { kind: 'done', line, writeId, link: { label: plural(words.step.review(toReview), toReview), to: SPENDING_REVIEW_LINK } }
   return { kind: 'done', line, writeId, link: accounts.notes.length === 0 ? null : SETTINGS_LINK }

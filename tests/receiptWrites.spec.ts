@@ -160,6 +160,7 @@ describe('a confirmed receipt', () => {
           movedAt: '',
           pocket: false,
           cashWithdrawal: false,
+          pending: false,
         },
       ],
       notes: [],
@@ -350,6 +351,7 @@ describe('a row a receipt split', () => {
           movedAt: '',
           pocket: false,
           cashWithdrawal: false,
+          pending: false,
         },
       ],
       notes: [],
@@ -491,6 +493,7 @@ describe('reading receipts and lines', () => {
       lines: read(lines.map(plainLineOf)),
       items: read([]),
       held: read([]),
+      dropped: read([]),
       settings: read([]),
     })
 

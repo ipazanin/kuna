@@ -12,7 +12,7 @@ import { payeeAmount, payeeTotals, payeesRanked } from '../payees/domain/payeeTo
 import type { PayeeSide } from '../payees/domain/payeeTotals'
 import { usualCategories } from '../payees/domain/usualCategory'
 import { reviewCount } from '../statements/domain/reviewQueue'
-import { bookingOf } from '../statements/domain/statementDryRun'
+import { bookingOf } from '../statements/domain/twinRows'
 import type { BankSetup } from '../bankSync/application/bankSync'
 import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setupLines, startDays } from '../bankSync/domain/bankAccountSetup'
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
@@ -40,6 +40,7 @@ import {
   BUDGET_RECORDS,
   CATEGORY_RECORDS,
   HELD_ROW_RECORDS,
+  DROPPED_ROW_RECORDS,
   ITEM_RECORDS,
   EVENT_RECORDS,
   LABEL_RECORDS,
@@ -125,14 +126,15 @@ interface BankAccountLine {
   readonly takesRowsFrom: string | null
   readonly bankBalance: AccountMoney | null
   readonly fixedOpening: AccountMoney | null
+  readonly unlistedPending: AccountMoney | null
 }
 
 /**
  * The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the
- * catalogue already says what each setting means. A bank row on hold is answered on To review, which the chat has no action for.
+ * catalogue already says what each setting means. A bank row on hold and a payment the bank dropped are answered on To review, which the chat has no action for.
  * A line of a file from before items is read as the item it makes.
  */
-export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, LINE_RECORDS.name]
+export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, DROPPED_ROW_RECORDS.name, LINE_RECORDS.name]
 
 const ACCOUNT_FIELDS: FieldDocs<Account> = {
   id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },
@@ -227,6 +229,7 @@ const TRANSACTION_FIELDS: FieldDocs<Transaction> = {
   movedAt: { exposure: 'plain', meaning: 'When a move between own accounts started.' },
   pocket: { exposure: 'plain', meaning: 'A move to or from a savings pocket.' },
   cashWithdrawal: { exposure: 'plain', meaning: "Cash taken out, as the bank's row type says." },
+  pending: { exposure: 'plain', meaning: 'The bank has not booked it yet. Its day and amount may still change.' },
 }
 
 const BUDGET_FIELDS: FieldDocs<Budget> = {
@@ -540,7 +543,13 @@ const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
     exposure: 'plain',
     amount: 'account',
     sign: 'either',
-    meaning: "The opening fix-opening sets so Kuna's balance agrees with the bank's, or none when pending rows may explain the difference.",
+    meaning: "The opening fix-opening sets so Kuna's balance agrees with the bank's, when they differ.",
+  },
+  unlistedPending: {
+    exposure: 'plain',
+    amount: 'account',
+    sign: 'either',
+    meaning: 'What the bank holds as not booked yet without listing it as a row, at the fetch. It comes in once it books. None when the bank lists everything it holds.',
   },
 }
 
@@ -595,6 +604,7 @@ function bankAccountLines(setup: BankSetup, book: SpendingBook): readonly BankAc
       takesRowsFrom: differs('rowsFrom'),
       bankBalance: difference?.stated ?? null,
       fixedOpening: difference?.fixedOpening ?? null,
+      unlistedPending: account === null ? null : (setup.stated.find((stated) => stated.account.id === account.id)?.unlisted ?? null),
     }
   })
 }

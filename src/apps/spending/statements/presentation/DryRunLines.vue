@@ -78,9 +78,12 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
     case 'other-source':
       return { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.coveredByFile : words.import.outcome.coveredBySync, color: 'neutral' }
     case 'look-alike':
+      if (line.row.pending) return { label: words.import.outcome.waitsToBook, color: 'neutral' }
       return { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.lookAlikeSynced : words.import.outcome.lookAlike, color: 'info' }
     case 'filled':
       return { label: words.import.outcome.filled, color: 'info' }
+    case 'booked':
+      return { label: words.import.outcome.booked, color: 'info' }
     case 'replaced':
       return { label: isBankSyncKey(line.like.importKey) ? words.import.outcome.replacedSynced : words.import.outcome.replaced, color: 'info' }
     case 'outside-days':

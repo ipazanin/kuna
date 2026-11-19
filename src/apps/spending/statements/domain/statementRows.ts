@@ -10,9 +10,9 @@ import { occurrenceKeys } from '../../../../shared/text/factKey'
 /**
  * One row of a statement as a reader hands it to the dry run, on the account the reader found for it, with its import key
  * unique on that account across exports. A reader may file the row itself, as Revolut's does a fee, and leaves `category`
- * null otherwise. It marks a withdrawal where the bank's row type says one.
+ * null otherwise. It marks a withdrawal where the bank's row type says one, and a row the bank has not booked yet.
  */
-export type StatementRow = Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket' | 'cashWithdrawal'> & {
+export type StatementRow = Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket' | 'cashWithdrawal' | 'pending'> & {
   readonly category: RecordId | null
 }
 
@@ -22,6 +22,9 @@ export const BANK_SYNC_KEY_PREFIX = 'bank-'
 export function isBankSyncKey(importKey: string): boolean {
   return importKey.startsWith(BANK_SYNC_KEY_PREFIX)
 }
+
+/** The first fact of the key of a row the bank has not booked yet, so its key never equals a booked row's and the booked rows keep theirs. */
+export const PENDING_KEY_FACT = 'pending'
 
 /** What starts the import key of a row read off a printed statement, so it is never taken for a file's or the bank sync's key. */
 const TRANSCRIBED_KEY_PREFIX = 'read-'
@@ -60,6 +63,11 @@ export interface StatementRows {
    * on these days are matched row by row against the rows of the other sources, whichever days the sync covers.
    */
   readonly days?: DateRange | undefined
+  /**
+   * The days the reader saw whole on each account, such as the days a bank sync asked for. A row the bank has not booked yet
+   * that is on the file for one of these days, and that the statement neither brings again nor books, is gone. Left out, nothing goes.
+   */
+  readonly covers?: ReadonlyMap<RecordId, DateRange>
 }
 
 /** An account a file needs that Kuna does not keep, drafted to start on the earliest day its rows allow, with what its opening is worked out from on a later day. */

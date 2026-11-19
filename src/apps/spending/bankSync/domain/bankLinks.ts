@@ -82,20 +82,24 @@ export interface FetchStart {
 }
 
 /**
- * Its opening day while no file or sync has brought a row, then a little back of the newest such row. Past 89 days a bank
+ * Its opening day while no file or sync has brought a row, then a little back of the newest booked such row, and no later than
+ * the oldest row the bank has not booked yet, so a fetch always sees the days of what is still pending. Past 89 days a bank
  * may refuse the period itself, so such a fetch asks for what the bank has. Never past yesterday here, since the API reads
  * the day in UTC, which at most lags a day behind this device's, and refuses a day in the future.
  */
-export function fetchFrom(account: Account, rows: readonly Pick<Transaction, 'account' | 'date' | 'importKey'>[], day: CivilDate): FetchStart {
+export function fetchFrom(account: Account, rows: readonly Pick<Transaction, 'account' | 'date' | 'importKey' | 'pending'>[], day: CivilDate): FetchStart {
   const latest = addDays(day, -1)
-  const brought = rows.filter((row) => row.account === account.id && row.importKey !== '').map((row) => row.date)
-  const wanted =
+  const ofAccount = rows.filter((row) => row.account === account.id && row.importKey !== '')
+  const brought = ofAccount.filter((row) => !row.pending).map((row) => row.date)
+  const pending = ofAccount.filter((row) => row.pending).map((row) => row.date)
+  const sinceBooked =
     brought.length === 0
       ? account.openedOn
       : addDays(
           brought.reduce((newest, date) => (date > newest ? date : newest)),
           -OVERLAP_DAYS,
         )
+  const wanted = pending.reduce((oldest, date) => (date < oldest ? date : oldest), sinceBooked)
   const from = wanted < latest ? wanted : latest
   return { from, longest: brought.length === 0 || daysBetween(from, day) > PERIOD_A_BANK_GIVES_DAYS }
 }

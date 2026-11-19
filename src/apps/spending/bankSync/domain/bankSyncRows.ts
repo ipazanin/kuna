@@ -1,11 +1,11 @@
 import type { BankTransaction } from './bankAnswer'
 import { syncMoves } from '../../pairing/domain/syncMoves'
-import { BANK_SYNC_KEY_PREFIX } from '../../statements/domain/statementRows'
+import { BANK_SYNC_KEY_PREFIX, PENDING_KEY_FACT } from '../../statements/domain/statementRows'
 import type { StatementRow } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { accountMoneyFromAmount, negateAccountMoney, sumAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
+import { accountMoneyFromAmount, negateAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { decimalOfText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
@@ -15,7 +15,7 @@ import { occurrenceKeys } from '../../../../shared/text/factKey'
 /** The label each row the sync brings carries. */
 export const BANK_SYNC_LABEL = 'Enable Banking'
 
-/** The statuses of money that may still book. Any other status but `BOOK`, such as a cancelled row, is no money at all and goes unmentioned. */
+/** The statuses of money that may still book or change, which come in marked as pending. */
 const PENDING_STATUSES: readonly string[] = ['PDNG', 'HOLD']
 
 /** A row with any other direction might be money in or out, so it is not read as either. */
@@ -31,8 +31,6 @@ export interface SyncedRows {
 
 /** How many rows of the answer a sync did not read, by why. */
 export interface LeftOutRows {
-  /** Rows that may still book or change, which come with a later sync. */
-  readonly pending: number
   /** Rows of no amount, since an entry is never zero. */
   readonly zero: number
   /** Rows whose day or amount cannot be read. */
@@ -67,6 +65,7 @@ function rowOf(transaction: BankTransaction, account: Account): KeylessRow | nul
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
   }
 }
 
@@ -80,24 +79,27 @@ function keyFacts(transaction: BankTransaction, row: KeylessRow): readonly strin
 }
 
 /**
- * The booked transactions in the account's currency as statement rows on the account. A pending one may still change or go
- * away, so it is left out and counted, as in Revolut's files, and comes with a later sync once booked. One of no amount is
- * left out too, since an entry is never zero, and so is one whose day or amount cannot be read, so that one row the bank
- * keeps sending never stops the rest.
+ * The transactions in the account's currency as statement rows on the account, booked ones and those that may still book,
+ * which come marked as pending. The two are keyed apart, a pending row's facts starting with `pending`, so a booked row keeps
+ * the key it always had and a pending row never takes a booked row's key. One of no amount is left out, since an entry is
+ * never zero, and so is one whose day or amount cannot be read, so that one row the bank keeps sending never stops the rest.
+ * Any other status, such as a cancelled row, is no money at all and goes unmentioned.
  */
 export function bankSyncRows(answer: readonly BankTransaction[], account: Account): SyncedRows {
   const inCurrency = answer.filter((transaction) => transaction.currency === account.currency)
-  const booked = inCurrency.filter((transaction) => transaction.status === 'BOOK')
-  const pending = inCurrency.filter((transaction) => PENDING_STATUSES.includes(transaction.status)).length
-  const read = booked.flatMap((transaction) => {
+  const kept = inCurrency.filter((transaction) => transaction.status === 'BOOK' || PENDING_STATUSES.includes(transaction.status))
+  const read = kept.flatMap((transaction) => {
     const row = rowOf(transaction, account)
-    return row === null ? [] : [{ transaction, row }]
+    return row === null ? [] : [{ transaction, row: { ...row, pending: transaction.status !== 'BOOK' } }]
   })
   const withMoney = read.filter(({ row }) => row.amount !== ZERO_ACCOUNT_MONEY)
-  const keys = occurrenceKeys(withMoney.map(({ transaction, row }) => keyFacts(transaction, row)))
-  const unreadable = booked.length - read.length
-  const zero = read.length - withMoney.length
-  const keyed = withMoney.map(({ transaction, row }, place) => ({ transaction, row: { ...row, importKey: `${BANK_SYNC_KEY_PREFIX}${keys[place]!}` } }))
+  const keyedOf = (pending: boolean) => {
+    const ofKind = withMoney.filter(({ row }) => row.pending === pending)
+    const keys = occurrenceKeys(ofKind.map(({ transaction, row }) => (pending ? [PENDING_KEY_FACT, ...keyFacts(transaction, row)] : keyFacts(transaction, row))))
+    return new Map(ofKind.map((entry, place) => [entry, keys[place]!]))
+  }
+  const keys = new Map([...keyedOf(false), ...keyedOf(true)])
+  const keyed = withMoney.map((entry) => ({ transaction: entry.transaction, row: { ...entry.row, importKey: `${BANK_SYNC_KEY_PREFIX}${keys.get(entry)!}` } }))
   return {
     label: BANK_SYNC_LABEL,
     rows: keyed.map(({ row }) => row),
@@ -107,18 +109,8 @@ export function bankSyncRows(answer: readonly BankTransaction[], account: Accoun
         return rate === null ? [] : [[row, rate] as const]
       }),
     ),
-    leftOut: { pending, zero, unreadable },
+    leftOut: { zero: read.length - withMoney.length, unreadable: kept.length - read.length },
   }
-}
-
-/**
- * What the answer's rows in the currency that may still book add up to, which a bank's balance may already count. Null when
- * it holds none. A row whose amount cannot be read adds nothing.
- */
-export function pendingMoney(answer: readonly BankTransaction[], currency: string): AccountMoney | null {
-  const pending = answer.filter((transaction) => transaction.currency === currency && PENDING_STATUSES.includes(transaction.status))
-  if (pending.length === 0) return null
-  return sumAccountMoney(pending.flatMap((transaction) => signedAmountOf(transaction) ?? []))
 }
 
 /** The bank's exchange rate as a plain multiplier, so `0.8` is 0.8. Null when it gives none, or one that is not above zero. */

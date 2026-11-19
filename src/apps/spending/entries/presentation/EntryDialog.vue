@@ -241,11 +241,10 @@ const fromBooked = computed(() => bookedByBank(rowOnFrom.value))
 const toBooked = computed(() => bookedByBank(rowOnTo.value))
 const { twoCurrencies, feeOn, draft, fee, arrivedError } = useTransferTyping({ kind, from, to, rowOnFrom, rowOnTo, sent: amount, arrived: toAmount, lessArrived })
 
-/** Where the entry came from, said once under its kind: what the bank fixed on it, and that a statement brings it back once deleted. */
+const bankNote = computed(() => (rowOnFrom.value?.pending === true || rowOnTo.value?.pending === true ? words.dialog.pending : fromBooked.value || toBooked.value ? words.dialog.bookedByBank : null))
+/** Where the entry came from, said once under its kind: what the bank fixed on it or that it has not booked it yet, and that a statement brings it back once deleted. */
 const sourceNote = computed(() =>
-  [fromBooked.value || toBooked.value ? words.dialog.bookedByBank : null, deleteComesBack(legs.value ?? (props.entry === null ? [] : [props.entry])) ? words.dialog.comesBack : null]
-    .filter((sentence): sentence is string => sentence !== null)
-    .join(' '),
+  [bankNote.value, deleteComesBack(legs.value ?? (props.entry === null ? [] : [props.entry])) ? words.dialog.comesBack : null].filter((sentence): sentence is string => sentence !== null).join(' '),
 )
 
 /** Whether the account can be picked while an open account is left off the list because the bank fills it. */

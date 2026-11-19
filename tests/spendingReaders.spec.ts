@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, DROPPED_ROW_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { SPENDING_APP } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { DocumentRecord } from '../src/shared/storage/infrastructure/documentFormat'
@@ -376,6 +376,21 @@ describe('problems in the Spending file, listed by kind', () => {
 
     expect(roundTrip(TRANSACTION_RECORDS, fields)).toMatchObject(fields)
     expect(Object.keys(roundTrip(TRANSACTION_RECORDS, entry(41, {})))).not.toContain('categorised_by')
+  })
+
+  it('reads and writes back a payment the bank dropped with how it was filed', () => {
+    const dropped = { id: uuid(45), account: OTP, date: '2026-10-12', amount: '-64.20', payee: 'Hotel', filing: 'Groceries, Vienna, two nights' }
+
+    expect(roundTrip(DROPPED_ROW_RECORDS, dropped)).toMatchObject(dropped)
+  })
+
+  it('reads and writes back an entry the bank has not booked yet, and reads one of a file from before the mark as booked', () => {
+    const waiting = entry(42, { import_key: 'bank-pending abc', pending: true })
+
+    expect(roundTrip(TRANSACTION_RECORDS, waiting)).toMatchObject(waiting)
+    expect(Object.keys(roundTrip(TRANSACTION_RECORDS, entry(43, {})))).not.toContain('pending')
+    const book = bookOf({ account: ACCOUNTS, category: CATEGORIES, transaction: [entry(44, {}), { ...waiting, date: '2026-10-13' }] })
+    expect(book.transactions.map((row) => row.pending)).toEqual([false, true])
   })
 
   it('refuses a categorised_by it does not know, and two entries of one account with one import key, while the key may repeat on another account', () => {

@@ -24,7 +24,7 @@ export interface HeldBankRow {
 /** The held row's own facts as a row of the sync, for the dry run that books it. */
 export function rowOfHeld(held: HeldBankRow): Pick<
   Transaction,
-  'account' | 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket' | 'cashWithdrawal'
+  'account' | 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket' | 'cashWithdrawal' | 'pending'
 > & {
   readonly category: null
 } {
@@ -40,5 +40,6 @@ export function rowOfHeld(held: HeldBankRow): Pick<
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
   }
 }

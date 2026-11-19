@@ -11,7 +11,7 @@ import type { AccountProposal, BankAccountStart, SetupLine, StartedAccount } fro
 import type { LinkedAccount } from '../domain/bankAnswer'
 import { currentDifferences } from '../domain/bankBalance'
 import type { BalanceDifference } from '../domain/bankBalance'
-import { differenceLine, olderRowsLine, pendingCaption, pendingLine } from './bankStepResult'
+import { differenceLine, olderRowsLine, unlistedLines } from './bankStepResult'
 import { useBankSync } from './useBankSync'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
@@ -41,8 +41,7 @@ const shown = computed(() => lines.value.filter((line) => line.kind !== 'not-in-
 const kept = computed(() => lines.value.flatMap((line) => (line.kind === 'kept' && line.update === null ? [line] : [])))
 const leftOut = computed(() => lines.value.flatMap((line) => (line.kind === 'not-in-kuna' ? [line] : [])))
 const differences = computed(() => currentDifferences(props.outcome.differences, book.value?.accounts ?? []))
-const explained = computed(() => differences.value.filter((difference) => difference.explained))
-const unexplained = computed(() => differences.value.filter((difference) => !difference.explained))
+const unlisted = computed(() => unlistedLines(props.outcome.stated))
 /** Each account to add, by its line's key. */
 const addable = computed(() => lines.value.flatMap((line) => (line.kind === 'missing' && line.proposal !== null ? [{ key: setupLineKey(line), proposal: line.proposal }] : [])))
 
@@ -96,11 +95,10 @@ function draftLine({ account }: StartedAccount): string {
   return words.setup.draft(account.name, named ? null : kind, formatAccountMoney(account.opening, account.currency), dayLabel(account.openedOn))
 }
 
-/** How the opening was worked out. Null while the bank holds pending rows, since only the warning about them is worth saying then. */
-function openingLine({ opening }: StartedAccount): string | null {
+/** How the opening was worked out. */
+function openingLine({ opening }: StartedAccount): string {
   if (opening.source === 'start') return words.setup.openingStart
   if (opening.source === 'guess') return words.setup.openingGuess
-  if (opening.source === 'pending') return null
   if (opening.rows === 0) return words.setup.openingBalance
   return plural(words.setup.openingWorked(opening.rows), opening.rows)
 }
@@ -199,9 +197,9 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
       <ul v-if="shown.length > 0" class="divide-y divide-default rounded-control border border-default">
         <li v-for="line in shown" :key="setupLineKey(line)" class="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="spending-bank-account" :data-kind="line.kind">
           <span class="flex min-w-0 flex-1 basis-60 flex-col gap-0.5">
-            <span class="text-sm text-highlighted">{{ title(line.bank, setupLineCurrency(line)) }}</span>
+            <span class="type-row-title">{{ title(line.bank, setupLineCurrency(line)) }}</span>
             <span class="type-caption break-words" data-testid="spending-bank-account-about">{{ about(line.linked) }}</span>
-            <span class="text-sm text-muted" data-testid="spending-bank-account-state">{{ stateLine(line) }}</span>
+            <span class="type-aside" data-testid="spending-bank-account-state">{{ stateLine(line) }}</span>
             <template v-if="line.kind === 'missing'">
               <template v-if="line.proposal !== null">
                 <UFormField
@@ -221,9 +219,8 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
                   />
                 </UFormField>
                 <template v-if="started.has(setupLineKey(line))">
-                  <span class="text-sm text-muted" data-testid="spending-bank-account-draft">{{ draftLine(started.get(setupLineKey(line))!) }}</span>
+                  <span class="type-aside" data-testid="spending-bank-account-draft">{{ draftLine(started.get(setupLineKey(line))!) }}</span>
                   <span class="type-caption">{{ heldLine(started.get(setupLineKey(line))!) }}</span>
-                  <span v-if="started.get(setupLineKey(line))!.opening.source === 'pending'" class="type-caption" data-testid="spending-bank-account-pending">{{ words.setup.openingPending }}</span>
                 </template>
                 <span class="type-caption">{{ words.setup.addBeforeReload }}</span>
               </template>
@@ -275,32 +272,25 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
           </span>
         </li>
       </ul>
-      <p v-else-if="unexplained.length === 0 && outcome.olderRows.length === 0" class="text-sm text-muted" data-testid="spending-bank-sync-nothing-to-set">{{ words.setup.nothingToSet }}</p>
+      <p v-else-if="differences.length === 0 && outcome.olderRows.length === 0" class="type-aside" data-testid="spending-bank-sync-nothing-to-set">{{ words.setup.nothingToSet }}</p>
+      <UAlert v-for="line in unlisted" :key="line" icon="i-lucide-info" color="neutral" variant="subtle" :title="line" data-testid="spending-bank-sync-unlisted" />
       <UAlert
-        v-for="difference in explained"
-        :key="difference.account.id"
-        icon="i-lucide-info"
-        color="neutral"
-        variant="subtle"
-        :title="pendingLine(difference)"
-        data-testid="spending-bank-sync-pending"
-      />
-      <UAlert
-        v-for="difference in unexplained"
+        v-for="difference in differences"
         :key="difference.account.id"
         icon="i-lucide-triangle-alert"
         color="warning"
         variant="subtle"
         :title="differenceLine(difference)"
-        :description="difference.pending === null ? words.setOpeningCaption : pendingCaption({ ...difference, pending: difference.pending })"
+        :description="words.setOpeningCaption"
         data-testid="spending-bank-sync-difference"
       >
-        <template v-if="difference.fixedOpening !== null" #actions>
+        <template #actions>
           <UButton
             :label="words.setOpening(formatAccountMoney(difference.fixedOpening, difference.account.currency))"
             color="neutral"
             variant="outline"
             size="sm"
+            :ui="{ label: 'whitespace-normal text-start' }"
             :loading="writes.saving(`opening-${difference.account.id}`)"
             data-testid="spending-bank-sync-set-opening"
             @click="setOpening(difference, `opening-${difference.account.id}`)"
@@ -334,9 +324,9 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
     <ul class="divide-y divide-default border-t border-default">
       <li v-for="line in kept" :key="setupLineKey(line)" class="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-5" data-testid="spending-bank-account" data-kind="kept">
         <span class="flex min-w-0 flex-1 basis-60 flex-col gap-0.5">
-          <span class="text-sm text-highlighted">{{ title(line.bank, setupLineCurrency(line)) }}</span>
+          <span class="type-row-title">{{ title(line.bank, setupLineCurrency(line)) }}</span>
           <span class="type-caption break-words" data-testid="spending-bank-account-about">{{ about(line.linked) }}</span>
-          <span class="text-sm text-muted" data-testid="spending-bank-account-state">{{ stateLine(line) }}</span>
+          <span class="type-aside" data-testid="spending-bank-account-state">{{ stateLine(line) }}</span>
         </span>
         <UButton
           v-if="setupActions(line).includes('bring-back-mine')"
@@ -360,7 +350,7 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
     <ul class="divide-y divide-default border-t border-default">
       <li v-for="line in leftOut" :key="setupLineKey(line)" class="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-5" data-testid="spending-bank-account" data-kind="not-in-kuna">
         <span class="flex min-w-0 flex-1 basis-60 flex-col gap-0.5">
-          <span class="text-sm text-highlighted">{{ title(line.bank, setupLineCurrency(line)) }}</span>
+          <span class="type-row-title">{{ title(line.bank, setupLineCurrency(line)) }}</span>
           <span class="type-caption break-words" data-testid="spending-bank-account-about">{{ about(line.linked) }}</span>
         </span>
         <UButton

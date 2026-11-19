@@ -6,10 +6,9 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 
 /**
  * Where an opening drafted from a bank or its file comes from: `start` when every row from the day reaches back to an empty account,
- * `worked` when it is the bank's balance less the rows, `pending` when it is worked out the same way but the bank's balance may count
- * rows that have not booked, and `guess` when the bank gave no balance, so it is zero until you check it.
+ * `worked` when it is the bank's balance less the rows, and `guess` when the bank gave no balance, so it is zero until you check it.
  */
-export type OpeningSource = 'start' | 'worked' | 'pending' | 'guess'
+export type OpeningSource = 'start' | 'worked' | 'guess'
 
 export interface BankOpening {
   readonly openedOn: CivilDate
@@ -19,11 +18,10 @@ export interface BankOpening {
   readonly rows: number
 }
 
-/** What an opening drafted from a bank or its file is worked out from: the rows it gave, its last balance, and whether that balance may count rows not booked yet. */
+/** What an opening drafted from a bank or its file is worked out from: the rows its balance counts and its last balance. */
 export interface OpeningEvidence {
   readonly rows: readonly Pick<Transaction, 'date' | 'amount'>[]
   readonly stated: AccountMoney | null
-  readonly pending: boolean
 }
 
 function firstRowDay(rows: readonly Pick<Transaction, 'date'>[]): CivilDate | null {
@@ -32,16 +30,15 @@ function firstRowDay(rows: readonly Pick<Transaction, 'date'>[]): CivilDate | nu
 
 /**
  * What the account held at the start of the day it starts on, which is the bank's balance less every row from that day on. Rows
- * before it stay out of Kuna. A zero from a day no later than the first row means the rows reach back to an empty account. While
- * the bank holds pending rows a zero proves nothing, since its balance may count them.
+ * before it stay out of Kuna. A zero from a day no later than the first row means the rows reach back to an empty account.
  */
 export function openingOn(evidence: OpeningEvidence, startsOn: CivilDate): BankOpening {
   const counted = evidence.rows.filter((row) => row.date >= startsOn)
   if (evidence.stated === null) return { openedOn: startsOn, opening: ZERO_ACCOUNT_MONEY, source: 'guess', rows: counted.length }
   const opening = subtractAccountMoney(evidence.stated, sumAccountMoney(counted.map((row) => row.amount)))
   const firstDay = firstRowDay(evidence.rows)
-  const fromEmpty = opening === ZERO_ACCOUNT_MONEY && !evidence.pending && firstDay !== null && startsOn <= firstDay
-  return { openedOn: startsOn, opening, source: evidence.pending ? 'pending' : fromEmpty ? 'start' : 'worked', rows: counted.length }
+  const fromEmpty = opening === ZERO_ACCOUNT_MONEY && firstDay !== null && startsOn <= firstDay
+  return { openedOn: startsOn, opening, source: fromEmpty ? 'start' : 'worked', rows: counted.length }
 }
 
 /**

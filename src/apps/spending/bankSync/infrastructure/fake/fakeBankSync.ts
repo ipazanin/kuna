@@ -54,8 +54,8 @@ function revolutEuroRows(day: CivilDate, variant: string | null): readonly BankT
     // The euro leg of an exchange carries the rate on the money out.
     ...(variant === 'exchange' ? [{ ...transaction(day, 1, 'rev-2101', '50.00', 'DBIT', 'Exchanged to USD'), exchangeRate: '1.0850' }] : []),
     ...(variant === 'pocket' ? [transaction(day, 1, 'rev-2201', '20.00', 'DBIT', 'To pocket Summer trip')] : []),
-    ...(variant === 'card-pending' ? [transaction(day, 0, null, '0.80', 'DBIT', 'Newspaper kiosk', 'PDNG')] : []),
     ...(variant === 'look-alike' ? [transaction(day, 2, 'rev-2401', '26.50', 'DBIT', 'OLD TOWN BOOKSHOP D.O.O.')] : []),
+    ...(variant === 'unlisted-pending' ? [transaction(day, 1, 'rev-2501', '45.00', 'CRDT', 'OTP banka')] : []),
   ]
 }
 
@@ -82,7 +82,7 @@ export function fakeBankTransactions(accountUid: string, day: CivilDate, variant
       transaction(day, 1, 'otp-1002', '6.50', 'DBIT', 'Corner bakery'),
       transaction(day, 1, 'otp-1003', '6.50', 'DBIT', 'Corner bakery'),
       transaction(day, 1, null, '11.20', 'DBIT', 'Newspaper kiosk'),
-      transaction(day, 0, null, '3.10', 'DBIT', 'Waiting bakery', 'PDNG'),
+      variant === 'pending-books' ? transaction(day, 0, 'otp-1005', '3.10', 'DBIT', 'Waiting bakery') : transaction(day, 0, null, '3.10', 'DBIT', 'Waiting bakery', 'PDNG'),
       ...(variant === 'withdrawal' ? [transaction(day, 1, 'otp-1004', '50.00', 'DBIT', 'Bankomat Ilica')] : []),
     ]
   }
@@ -90,11 +90,7 @@ export function fakeBankTransactions(accountUid: string, day: CivilDate, variant
   if (accountUid === REVOLUT_USD_UID) return revolutDollarRows(day, variant)
   if (accountUid === POCKET_UID) return [transaction(day, 1, 'pocket-3001', '20.00', 'CRDT', 'From current')]
   if (accountUid === NEW_USD_UID) {
-    return [
-      transaction(day, 120, 'rev-4001', '40.00', 'CRDT', 'Top-up', 'BOOK', 'USD'),
-      transaction(day, 6, 'rev-4002', '12.50', 'DBIT', 'Bookshop in Boston', 'BOOK', 'USD'),
-      ...(variant === 'new-pending' ? [transaction(day, 0, null, '3.00', 'DBIT', 'Waiting bookshop', 'PDNG', 'USD')] : []),
-    ]
+    return [transaction(day, 120, 'rev-4001', '40.00', 'CRDT', 'Top-up', 'BOOK', 'USD'), transaction(day, 6, 'rev-4002', '12.50', 'DBIT', 'Bookshop in Boston', 'BOOK', 'USD')]
   }
   if (accountUid === NEW_SAVINGS_UID) return [transaction(day, 30, 'rev-5001', '100.00', 'CRDT', 'Savings deposit')]
   return []
@@ -102,11 +98,15 @@ export function fakeBankTransactions(accountUid: string, day: CivilDate, variant
 
 /** What the fake script's banks say an account holds. Any account a variant does not name gives no balance, so nothing is checked. */
 function fakeBalances(accountUid: string, variant: string | null): readonly BankBalance[] {
-  // OTP holds a pending row, which an available balance may count.
+  // OTP states an available balance Kuna does not reach with every row, its pending bakery among them.
   if (variant === 'balance-differs' && accountUid === OTP_UID) return [{ amount: '1.00', currency: 'EUR', type: 'ITAV' }]
   if (variant === 'opening-off' && accountUid === REVOLUT_UID) return [{ amount: '1.00', currency: 'EUR', type: 'ITBD' }]
-  // Kuna works out 306.20 on the euro account once the rows are in, and the available balance counts the pending 0.80 card payment.
-  if (variant === 'card-pending' && accountUid === REVOLUT_UID) return [{ amount: '305.40', currency: 'EUR', type: 'ITAV' }]
+  // OTP's available balance counts a transfer of 45.00 to Revolut it has not booked and does not list, on top of the pending bakery.
+  if (variant === 'unlisted-pending' && accountUid === OTP_UID)
+    return [
+      { amount: '1796.60', currency: 'EUR', type: 'ITAV' },
+      { amount: '1844.70', currency: 'EUR', type: 'CLBD' },
+    ]
   // The dollar account's rows add up to its balance, so it opened empty. The savings account held 250.00 before its one row.
   if (accountUid === NEW_USD_UID) return [{ amount: '27.50', currency: 'USD', type: 'ITAV' }]
   if (accountUid === NEW_SAVINGS_UID) return [{ amount: '350.00', currency: 'EUR', type: 'ITAV' }]
@@ -116,7 +116,7 @@ function fakeBalances(accountUid: string, variant: string | null): readonly Bank
 /**
  * The sessions the fake script holds, with Revolut as one account per currency under one IBAN, as the first real run gave
  * it. `multi-currency` has Revolut as one account in `XXX`, `unknown-account` has one more account at OTP, `new-accounts`
- * `not-in-kuna` and `new-pending` a dollar account and a savings account more at Revolut, `otp-failed` has OTP not answering, `ended` has
+ * `not-in-kuna` a dollar account and a savings account more at Revolut, `otp-failed` has OTP not answering, `ended` has
  * OTP's approval over early, `pocket` has a Revolut pocket as an account of its own, and `kind-differs` and `by-hand-savings` have Revolut call
  * the dollar account savings, and `settled` does too with older rows given, so keeping the file's kind leaves nothing to set up.
  */
@@ -130,7 +130,7 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
           linkedAccount(REVOLUT_USD_UID, revolutIban, 'USD', { cashAccountType: variant === 'kind-differs' || variant === 'settled' || variant === 'by-hand-savings' ? 'SVGS' : 'CACC' }),
         ]
   const added =
-    variant === 'new-accounts' || variant === 'not-in-kuna' || variant === 'new-pending'
+    variant === 'new-accounts' || variant === 'not-in-kuna'
       ? [
           linkedAccount(NEW_USD_UID, FAKE_NEW_USD_IBAN, 'USD', { cashAccountType: 'CACC', product: 'Standard' }),
           linkedAccount(NEW_SAVINGS_UID, 'LT000000000000000004', 'EUR', { cashAccountType: 'SVGS', product: 'Savings vault' }),
@@ -155,8 +155,9 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
 
 /**
  * The fake build's script as `?banksync=` names it, which answers from the page and sends nothing away. `failed` answers an
- * error, `balance-differs` has OTP state a balance Kuna does not reach while it holds a pending row, `opening-off` has
- * Revolut's euro account do so with none, `card-pending` has it state an available balance its one pending card payment explains, `iban-blank` reaches the dollar account the fake file keeps without an IBAN,
+ * error, `balance-differs` has OTP state a balance Kuna does not reach, `opening-off` has
+ * Revolut's euro account do so with none, `pending-books` has OTP book
+ * the bakery payment that was pending, `unlisted-pending` has OTP hold a transfer to Revolut it does not list while Revolut has booked it, `iban-blank` reaches the dollar account the fake file keeps without an IBAN,
  * `exchange` and `pocket` bring a move between your accounts, `look-alike` books the file's Old Town Bookshop three days later
  * under a longer name, and a link's trip comes straight back to this address.
  */

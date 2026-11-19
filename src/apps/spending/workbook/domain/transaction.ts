@@ -41,6 +41,8 @@ export interface Transaction {
   readonly pocket: boolean
   /** Cash taken out, as the bank's own row type says, whose other leg is a cash account's. */
   readonly cashWithdrawal: boolean
+  /** The bank has not booked it yet, so its day and amount may still change. */
+  readonly pending: boolean
 }
 
 /**
@@ -61,9 +63,9 @@ export const BLANK_CELLS: RowCells = { category: null, note: '', link: null }
 
 /** The row with these cells, as the file stores it. */
 export function storedRowOf(row: Transaction, cells: RowCells): StoredRow {
-  const { id, account, date, amount, payee, source, pair, description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal } = row
+  const { id, account, date, amount, payee, source, pair, description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, pending } = row
   const { category, note, link } = cells
-  return { id, account, date, amount, payee, category, note, source, pair, description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, link }
+  return { id, account, date, amount, payee, category, note, source, pair, description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, pending, link }
 }
 
 /** What tells a row from every other on the file: its account and its import key. */
@@ -72,7 +74,7 @@ export function rowKey(row: Pick<Transaction, 'account' | 'importKey'>): string 
 }
 
 /** What only a bank statement tells about a row. */
-export type BankFacts = Pick<Transaction, 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket' | 'cashWithdrawal'>
+export type BankFacts = Pick<Transaction, 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket' | 'cashWithdrawal' | 'pending'>
 
 /** The bank facts of a row no statement brought. */
-export const NO_BANK_FACTS: BankFacts = { description: '', counterpartyIban: '', importKey: '', statement: '', movedAt: '', pocket: false, cashWithdrawal: false }
+export const NO_BANK_FACTS: BankFacts = { description: '', counterpartyIban: '', importKey: '', statement: '', movedAt: '', pocket: false, cashWithdrawal: false, pending: false }

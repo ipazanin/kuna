@@ -15,7 +15,6 @@ export const en = {
   notAnAmount: (fileRow: number, text: string) => `Row ${fileRow} of the file holds "${text}", which is not an amount`,
   revolut: 'Revolut',
   feeOn: (description: string) => `Fee on ${description}`,
-  pendingLeftOut: (count: number): EnglishForms => ({ one: '1 pending row left out. It comes with the next export.', other: `${count} pending rows left out. They come with the next export.` }),
   otherStatesLeftOut: (count: number): EnglishForms => ({ one: '1 reverted or declined row left out.', other: `${count} reverted or declined rows left out.` }),
   savingsLeftOut: (count: number, currencies: string): EnglishForms => ({
     one: `1 savings row left out, since no Revolut savings account keeps ${currencies}.`,
@@ -48,6 +47,18 @@ export const en = {
     one: `1 row of ${account} left out, since the bank sync covers the days from ${day}.`,
     other: `${count} rows of ${account} left out, since the bank sync covers the days from ${day}.`,
   }),
+  pendingBooked: (count: number): EnglishForms => ({
+    one: '1 payment the bank had not booked is booked now and keeps how you filed it.',
+    other: `${count} payments the bank had not booked are booked now and keep how you filed them.`,
+  }),
+  pendingGone: (count: number): EnglishForms => ({
+    one: '1 payment the bank had not booked is gone, since the bank no longer lists it.',
+    other: `${count} payments the bank had not booked are gone, since the bank no longer lists them.`,
+  }),
+  pendingLookAlikesWait: (count: number): EnglishForms => ({
+    one: '1 payment the bank has not booked yet looks like a row Kuna has, so it is left out until it books.',
+    other: `${count} payments the bank has not booked yet look like rows Kuna has, so they are left out until they book.`,
+  }),
   doesNotTie: (opening: string, rows: string, reached: string, closing: string, gap: string) =>
     `The statement does not add up: the opening balance ${opening} and its rows ${rows} reach ${reached}, but the printed closing balance is ${closing}, ${gap} apart.`,
 }
@@ -72,11 +83,6 @@ export const hr: Translation<typeof en> = {
   notAnAmount: (fileRow, text) => `Redak ${fileRow} datoteke sadrži „${text}”, što nije iznos`,
   revolut: 'Revolut',
   feeOn: (description) => `Naknada za ${description}`,
-  pendingLeftOut: (count): CroatianForms => ({
-    one: `Izostavljeno transakcija na čekanju: ${count}. Stiže sa sljedećim izvozom.`,
-    few: `Izostavljeno transakcija na čekanju: ${count}. Stižu sa sljedećim izvozom.`,
-    other: `Izostavljeno transakcija na čekanju: ${count}. Stižu sa sljedećim izvozom.`,
-  }),
   otherStatesLeftOut: (count): CroatianForms => ({
     one: `Izostavljeno poništenih ili odbijenih transakcija: ${count}.`,
     few: `Izostavljeno poništenih ili odbijenih transakcija: ${count}.`,
@@ -127,6 +133,21 @@ export const hr: Translation<typeof en> = {
     one: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
     few: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
     other: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
+  }),
+  pendingBooked: (count): CroatianForms => ({
+    one: `${count} plaćanje koje banka još nije bila proknjižila sada je proknjiženo i ostaje razvrstano kako ste ga razvrstali.`,
+    few: `${count} plaćanja koja banka još nije bila proknjižila sada su proknjižena i ostaju razvrstana kako ste ih razvrstali.`,
+    other: `${count} plaćanja koja banka još nije bila proknjižila sada su proknjižena i ostaju razvrstana kako ste ih razvrstali.`,
+  }),
+  pendingGone: (count): CroatianForms => ({
+    one: `${count} plaćanje koje banka još nije bila proknjižila uklonjeno je, jer ga banka više ne navodi.`,
+    few: `${count} plaćanja koja banka još nije bila proknjižila uklonjena su, jer ih banka više ne navodi.`,
+    other: `${count} plaćanja koja banka još nije bila proknjižila uklonjena su, jer ih banka više ne navodi.`,
+  }),
+  pendingLookAlikesWait: (count): CroatianForms => ({
+    one: `${count} plaćanje koje banka još nije proknjižila nalikuje retku koji Kuna ima, pa je izostavljeno dok se ne proknjiži.`,
+    few: `${count} plaćanja koja banka još nije proknjižila nalikuju recima koje Kuna ima, pa su izostavljena dok se ne proknjiže.`,
+    other: `${count} plaćanja koja banka još nije proknjižila nalikuju recima koje Kuna ima, pa su izostavljena dok se ne proknjiže.`,
   }),
   doesNotTie: (opening, rows, reached, closing, gap) =>
     `Izvod se ne slaže: početno stanje ${opening} i njegovi retci ${rows} daju ${reached}, a ispisano završno stanje je ${closing}, razlika ${gap}.`,

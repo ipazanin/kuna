@@ -44,6 +44,8 @@ export const en = {
       coveredByFile: 'A file covers this day',
       coveredBySync: 'The bank sync covers this day',
       filled: 'Paired with what you typed',
+      booked: 'Booked by the bank',
+      waitsToBook: 'Left out until it books',
       beforeOpening: 'Before the account opened',
       notTaken: 'Its bank link brings it',
       outsideDays: 'Outside the days this file brings',
@@ -60,6 +62,13 @@ export const en = {
   review: {
     title: 'Rows to review',
     held: 'Bank rows on hold',
+    dropped: {
+      title: 'Payments the bank dropped',
+      subtitle: 'The bank stopped listing these payments before it booked them, so Kuna took them out with how you had filed them.',
+      filedAs: (filing: string) => `You had it as ${filing}.`,
+      ok: 'OK',
+      seen: 'Noted',
+    },
     suggestCategories: 'Suggest categories',
     /** What Suggest categories sends the chat by itself. */
     suggestCategoriesTask: 'Sort the rows waiting on To review. Propose the changes that file them, with a new category or a rule where one is needed.',
@@ -258,6 +267,8 @@ export const hr: Translation<typeof en> = {
       coveredByFile: 'Ovaj dan pokriva datoteka',
       coveredBySync: 'Ovaj dan pokriva sinkronizacija s bankom',
       filled: 'Spojeno s vašim unosom',
+      booked: 'Banka ga je proknjižila',
+      waitsToBook: 'Izostavljeno dok se ne proknjiži',
       beforeOpening: 'Prije otvaranja računa',
       notTaken: 'Donosi ga veza s bankom',
       outsideDays: 'Izvan dana koje datoteka donosi',
@@ -274,6 +285,13 @@ export const hr: Translation<typeof en> = {
   review: {
     title: 'Stavke za pregled',
     held: 'Retci iz banke na čekanju',
+    dropped: {
+      title: 'Plaćanja koja je banka odbacila',
+      subtitle: 'Banka je prestala navoditi ova plaćanja prije nego što ih je proknjižila, pa ih je Kuna uklonila zajedno s time kako ste ih razvrstali.',
+      filedAs: (filing) => `Imali ste ga kao ${filing}.`,
+      ok: 'U redu',
+      seen: 'Zabilježeno',
+    },
     suggestCategories: 'Predloži kategorije',
     suggestCategoriesTask: 'Razvrstaj retke koji čekaju na kartici Za pregled. Predloži promjene koje ih razvrstavaju, s novom kategorijom ili pravilom gdje treba.',
     subtitle: 'Svakoj odaberite kategoriju i od tada se broji.',

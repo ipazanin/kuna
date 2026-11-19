@@ -323,7 +323,8 @@ export function deskBankSetup(): BankSetup {
         [],
       ),
     ],
-    differences: [{ account: CURRENT, stated: accountMoneyFromAmount(900), worked: accountMoneyFromAmount(1000), pending: null, explained: false, fixedOpening: accountMoneyFromAmount(900) }],
+    differences: [{ account: CURRENT, stated: accountMoneyFromAmount(900), worked: accountMoneyFromAmount(1000), fixedOpening: accountMoneyFromAmount(900) }],
+    stated: [],
     olderRows: [],
   }
 }

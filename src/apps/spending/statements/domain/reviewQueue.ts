@@ -49,15 +49,16 @@ export interface ReviewQueue {
 }
 
 /**
- * How many things wait on To review for the person: rows for a category, the bank rows on hold, the withdrawals filed with no
- * cash leg, the waiting receipts that ask which payment they are, and what the caller found To review asks about records in Loans and Company.
+ * How many things wait on To review for the person: rows for a category, the bank rows on hold, the payments the bank dropped
+ * that you had filed, the withdrawals filed with no cash leg, the waiting receipts that ask which payment they are, and what the
+ * caller found To review asks about records in Loans and Company.
  */
 export function reviewCount(book: SpendingBook, linkAsks = 0): number {
   const itemsOf = rowItemsOf(book)
   const isWaiting = (row: Transaction): boolean => waitsOnReview(itemsOf(row))
   const filedWithoutCash = withdrawalsWithoutCash(book, filedAsTransfer(book.categories), itemsOf).filter(({ row }) => !isWaiting(row)).length
   const receiptsAsking = waitingReceipts(book).filter(asksForPayment).length
-  return book.transactions.filter(isWaiting).length + book.held.length + filedWithoutCash + receiptsAsking + linkAsks
+  return book.transactions.filter(isWaiting).length + book.held.length + book.dropped.length + filedWithoutCash + receiptsAsking + linkAsks
 }
 
 /**
@@ -94,8 +95,10 @@ export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
     waitingRows.filter((row) => row.source === 'statement'),
   )
   const maybeTyped = new Map<Transaction, NearMatch<Transaction, Transaction>>([...matches.map((match) => ({ ...match, difference: ZERO_ACCOUNT_MONEY })), ...near].map((match) => [match.bank, match]))
-  // Two waiting rows that would pair by themselves, such as a top-up naming a card typed in after it came in, are offered too.
-  const { pairs: pairing, offered } = transferPairs(waitingRows.filter(isPairable), book.accounts, itemsOf)
+  // Two waiting rows that would pair by themselves, such as a top-up naming a card typed in after it came in, are offered too, and so
+  // is a waiting row with a lone leg a rule filed under a transfer category, such as a top-up the card payment that funded it pairs.
+  const loneFiled = book.transactions.filter((row) => row.date >= since && row.pair === null && isPairable(row) && isTransfer(itemsOf(row)) && !wantingCash.has(row))
+  const { pairs: pairing, offered } = transferPairs([...waitingRows.filter(isPairable), ...loneFiled], book.accounts, itemsOf, isTransfer)
   const maybeTransfer = new Map<Transaction, TransferPair>([...pairing, ...offered].flatMap((pair) => [[pair.debit, pair] as const, [pair.credit, pair] as const]))
 
   const byId = new Map(book.transactions.map((row) => [row.id, row]))

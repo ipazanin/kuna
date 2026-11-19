@@ -55,7 +55,7 @@ export async function fetchAndImport(personHere: boolean, freshLink?: LinkableBa
 export function heldBankSetup(): BankSetup | null {
   if (lastOutcome.value !== null) return lastOutcome.value
   const last = loadLastFetch()
-  return last === null ? null : { linked: last.linked, proposals: [], differences: [], olderRows: [] }
+  return last === null ? null : { linked: last.linked, proposals: [], differences: [], stated: [], olderRows: [] }
 }
 
 /** The bank sync as Settings shows and starts it, shared with the sync step through this module. */

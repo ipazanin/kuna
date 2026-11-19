@@ -5,6 +5,7 @@ import type { Category } from './category'
 import type { SpendingEvent } from './event'
 import type { TransactionItem } from './transactionItem'
 import type { HeldBankRow } from './heldBankRow'
+import type { DroppedRow } from './droppedRow'
 import type { Receipt } from './receipt'
 import type { SpendingRule } from './spendingRule'
 import type { Shortcut, ShortcutPart } from './shortcut'
@@ -70,6 +71,10 @@ export const LINE_RECORDS = recordKind<StoredLine>('line', ITEM_RECORDS.noun, { 
 export const HELD_ROW_RECORDS = recordKind<HeldBankRow>('held-row', {
   en: { one: 'bank row on hold', many: 'bank rows on hold', article: 'a' },
   hr: { one: 'redak iz banke na čekanju', of: 'retka iz banke na čekanju', few: 'retka iz banke na čekanju', other: 'redaka iz banke na čekanju', gender: 'masculine' },
+})
+export const DROPPED_ROW_RECORDS = recordKind<DroppedRow>('dropped-row', {
+  en: { one: 'payment the bank dropped', many: 'payments the bank dropped', article: 'a' },
+  hr: { one: 'plaćanje koje je banka odbacila', of: 'plaćanja koje je banka odbacila', few: 'plaćanja koja je banka odbacila', other: 'plaćanja koja je banka odbacila', gender: 'neuter' },
 })
 export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
   en: { one: 'setting', many: 'settings', article: 'a' },

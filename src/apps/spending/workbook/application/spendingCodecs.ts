@@ -23,7 +23,7 @@ import {
 import { words } from '../domain/words'
 import { words as accountWords } from '../../accounts/domain/words'
 import { settingCodec } from '../../../../shared/storage/domain/settingRows'
-import { HELD_ROW_CODEC, TRANSACTION_CODEC } from '../domain/transactionReading'
+import { DROPPED_ROW_CODEC, HELD_ROW_CODEC, TRANSACTION_CODEC } from '../domain/transactionReading'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
@@ -64,6 +64,7 @@ const SPENDING_CODECS = [
   LINE_CODEC,
   ITEM_CODEC,
   HELD_ROW_CODEC,
+  DROPPED_ROW_CODEC,
   SETTING_CODEC,
 ] as readonly RecordCodec<unknown>[]
 

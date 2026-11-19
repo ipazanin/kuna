@@ -1,8 +1,9 @@
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
 import { heldItemsOf, writeRows } from '../../entries/application/rowRecords'
 import type { RowWrite } from '../../entries/application/rowRecords'
-import { differenceItem } from '../../entries/domain/entrySplit'
-import { filledByBank, statementDryRun } from '../domain/statementDryRun'
+import { itemsAtBankAmount } from '../../entries/domain/entrySplit'
+import { filledByBank } from '../domain/bankBooking'
+import { statementDryRun } from '../domain/statementDryRun'
 import type { StatementDryRun } from '../domain/statementDryRun'
 import type { InstalmentLinks } from '../../links/domain/instalmentSplit'
 import { rulesRerun } from '../domain/spendingCategorisation'
@@ -11,14 +12,14 @@ import type { StatementRows } from '../domain/statementRows'
 import { isMadeCashLeg, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { legsOfPair } from '../../pairing/domain/transferPairs'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
-import { HELD_ROW_WRITES, RULE_WRITES } from './ruleRecords'
+import { DROPPED_ROW_WRITES, HELD_ROW_WRITES, RULE_WRITES } from './ruleRecords'
 import { words as receiptWords } from '../../receipts/domain/words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import type { Account } from '../../workbook/domain/account'
 import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
-import { isSplit, refiledItems, rowItemsOf } from '../../workbook/domain/rowItems'
+import { refiledItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { ruleWithConditions, withDraftAdded } from '../../workbook/domain/spendingRule'
@@ -33,11 +34,21 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 /** The rows and items a statement write reads of the file. */
 type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
 
-/** Everything the import does in one write, with the waiting receipts that go on its rows and the categories its links need, so one Undo takes it all back. */
-export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<StatementDryRun, 'added' | 'items' | 'changed' | 'held' | 'receipts' | 'categories'>): void {
+/**
+ * Everything the import does in one write, with the waiting receipts that go on its rows and the categories its links need, so one
+ * Undo takes it all back. A row the bank no longer lists goes with its items and its receipts, as deleting the entry does, and
+ * leaves a note on To review when you had filed it.
+ */
+export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<StatementDryRun, 'added' | 'items' | 'changed' | 'pending' | 'held' | 'receipts' | 'categories'>): void {
   const itemsOf = rowItemsOf(run)
   run.categories?.forEach((category) => unit.of(CATEGORY_WRITES).add(category))
-  writeRows(unit, records, [...run.added.map((row): RowWrite => ({ before: null, after: row, items: itemsOf(row) })), ...run.changed])
+  writeRows(unit, records, [
+    ...run.added.map((row): RowWrite => ({ before: null, after: row, items: itemsOf(row) })),
+    ...run.changed,
+    ...(run.pending?.gone ?? []).map((row): RowWrite => ({ before: row, after: null })),
+  ])
+  run.pending?.goneReceipts.forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
+  run.pending?.dropped.forEach((dropped) => unit.of(DROPPED_ROW_WRITES).add(dropped))
   run.held.forEach((held) => unit.of(HELD_ROW_WRITES).add(held))
   run.receipts.forEach(({ receipt }) => unit.of(RECEIPT_WRITES).change(receipt.before, receipt.after))
 }
@@ -98,19 +109,11 @@ export function pairRows(unit: UnitOfWork, records: EntryRecords, { debit, credi
   writeRows(unit, records, [changedTo(debit, debitLeg), changedTo(credit, creditLeg)])
 }
 
-/**
- * A near match joined by your word: the typed row takes the bank's facts and the bank's own row goes. A row of one item has it
- * follow the bank's amount, and a split row gains a Difference part in its first part's category for what the bank's amount
- * adds, so its parts keep adding up.
- */
+/** A near match joined by your word: the typed row takes the bank's facts and the bank's own row goes, with its items at the bank's amount as `itemsAtBankAmount` says. */
 export function joinWithTyped(unit: UnitOfWork, records: EntryRecords, typed: Transaction, bank: Transaction): void {
-  const parts = heldItemsOf(records)(typed)
-  const [first] = parts
-  const difference = first === undefined || !isSplit(parts) ? null : differenceItem(bank.amount, parts, first, receiptWords.difference)
-  const items = !isSplit(parts) ? parts.map((item) => ({ ...item, amount: bank.amount })) : difference === null ? parts : [...parts, difference]
   writeRows(unit, records, [
     { before: bank, after: null },
-    { before: typed, after: filledByBank(typed, bank), items },
+    { before: typed, after: filledByBank(typed, bank), items: itemsAtBankAmount(heldItemsOf(records)(typed), bank.amount, receiptWords.difference) },
   ])
 }
 

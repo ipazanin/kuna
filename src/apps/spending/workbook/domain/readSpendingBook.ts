@@ -10,6 +10,7 @@ import type { TransactionItem } from './transactionItem'
 import { isBeforeItems, itemOfWaitingLine, itemsOfStoredRow } from './beforeItems'
 import type { StoredLine } from './beforeItems'
 import type { HeldBankRow } from './heldBankRow'
+import type { DroppedRow } from './droppedRow'
 import { eventPutIn } from './event'
 import type { SpendingEvent } from './event'
 import type { Receipt } from './receipt'
@@ -19,6 +20,7 @@ import {
   CATEGORY_RECORDS,
   EVENT_RECORDS,
   HELD_ROW_RECORDS,
+  DROPPED_ROW_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
   LINE_RECORDS,
@@ -108,6 +110,7 @@ export interface SpendingRecords {
   /** The items of transactions, every row's in a file moved to items. */
   readonly items: RecordsRead<TransactionItem>
   readonly held: RecordsRead<HeldBankRow>
+  readonly dropped: RecordsRead<DroppedRow>
   readonly settings: RecordsRead<SettingRow>
 }
 
@@ -126,6 +129,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   lines: LINE_RECORDS,
   items: ITEM_RECORDS,
   held: HELD_ROW_RECORDS,
+  dropped: DROPPED_ROW_RECORDS,
   settings: SETTING_RECORDS,
 }
 
@@ -145,6 +149,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     lines: of(SPENDING_PARTS.lines),
     items: of(SPENDING_PARTS.items),
     held: of(SPENDING_PARTS.held),
+    dropped: of(SPENDING_PARTS.dropped),
     settings: of(SPENDING_PARTS.settings),
   }
 }
@@ -180,6 +185,8 @@ export interface SpendingBook {
   readonly items: readonly TransactionItem[]
   /** The bank rows the sync left out, waiting on To review, in the order of the file. */
   readonly held: readonly HeldBankRow[]
+  /** The payments the bank dropped that you had filed, waiting on To review until you press OK, in the order of the file. */
+  readonly dropped: readonly DroppedRow[]
   readonly settings: SpendingSettings
   /** The rows, lines and items as the file stores them, which a write of rows starts from. */
   readonly stored: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
@@ -517,8 +524,12 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   )
   const transactions = beforeItems ? rows : withItems(rows, records.transactions, items, records.items)
   const held = readHeld(records.held, accountsById, transactions.facts)
+  const dropped = readEach(records.dropped, ({ record }) => {
+    const onAccount = accountReason(accountsById, record)
+    return onAccount === null ? [] : [onAccount]
+  })
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, settings }
+  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, dropped, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -532,6 +543,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     receipts: receipts.facts,
     items: beforeItems ? itemsBeforeItems(records.transactions, transactions.facts, lines.facts) : items.facts,
     held: held.facts,
+    dropped: dropped.facts,
     settings: spendingSettingsOf(settings.facts),
     stored: { transactions: records.transactions, lines: records.lines, items: records.items },
     readings,

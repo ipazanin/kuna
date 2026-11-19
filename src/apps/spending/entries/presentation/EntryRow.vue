@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import { entryAsked } from './entryAsked'
+import { words } from './words'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { rowTone } from '../../categories/presentation/amountTone'
@@ -55,8 +56,9 @@ const { marked } = useChatElement(asked, 'row')
       <PickBox v-if="picked !== null" :picked="picked" />
       <span class="size-2.5 shrink-0 rounded-full" :style="{ background: colour }" aria-hidden="true" />
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span class="break-words text-sm text-highlighted">{{ title }}</span>
+        <span class="break-words type-row-title">{{ title }}</span>
         <span v-if="details !== ''" class="break-words type-caption">{{ details }}</span>
+        <NoteLine v-if="row.transaction.pending" as="span" tone="muted" icon="i-lucide-clock" data-testid="spending-row-pending">{{ words.notBookedYet }}</NoteLine>
         <NoteLine v-if="link !== null" as="span" :tone="LINK_TONE[link.look]" :icon="link.icon" data-testid="spending-row-link">{{ link.text }}</NoteLine>
         <NoteLine v-if="labels !== ''" as="span" tone="muted" icon="i-lucide-tag" data-testid="spending-row-labels">{{ labels }}</NoteLine>
         <RowLines v-if="hasParts(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" />

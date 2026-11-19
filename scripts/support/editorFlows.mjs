@@ -7154,7 +7154,7 @@ export function spendingImportLookAlikeFlowIn(language, paths) {
   return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.revolut)
-    await spendingDryRunSays(page, panel.summary(8, 1, 1))
+    await spendingDryRunSays(page, panel.summary(9, 1, 1))
     await elementSays(page, '[data-testid="question"]', ['UNKNOWN SHOP ZAGREB'], 'the question does not name the copied row the file row looks like')
     if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.lookAlike], 'the look-alike does not say it waits for an answer')
@@ -7164,7 +7164,7 @@ export function spendingImportLookAlikeFlowIn(language, paths) {
     await shootAt(page, shoot, '[data-testid="questions"]', 'spending-import-lookalike-replaced')
     await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
     await toast(page, panel.imported)
-    await spendingDryRunSays(page, panel.summary(0, 11, 0))
+    await spendingDryRunSays(page, panel.summary(0, 12, 0))
     await undoIn(page, press, words)
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replaced], 'Undo did not bring the replacement back to the dry run')
     await dismissToasts(page)
@@ -7199,8 +7199,8 @@ export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
 }
 
 /**
- * On Spending's Import with the statements set: the sample Revolut export read as a dry run of 9 new rows, 1 already in and
- * 1 paired with a typed row, its cash withdrawal going to Cash, with nothing written. Imported, nothing is new, and one Undo
+ * On Spending's Import with the statements set: the sample Revolut export read as a dry run of 10 new rows, its payment the bank
+ * has not booked yet among them, 1 already in and 1 paired with a typed row, its cash withdrawal going to Cash, with nothing written. Imported, nothing is new, and one Undo
  * brings the dry run back.
  */
 export function spendingImportFlowIn(language, paths) {
@@ -7208,7 +7208,7 @@ export function spendingImportFlowIn(language, paths) {
   const panel = words.spendingStatements.import
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const before = panel.summary(9, 1, 1)
+    const before = panel.summary(10, 1, 1)
     await dropSpendingFile(page, paths.revolut)
     await spendingDryRunSays(page, before)
     await centreOn(page, '[data-testid="spending-dry-run-outcome"]', aroundAmount(words.spendingStatements.review.cash.toCash('\u0000', 'Cash')))
@@ -7217,7 +7217,7 @@ export function spendingImportFlowIn(language, paths) {
     await shoot('spending-import-revolut')
     await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
     await toast(page, panel.imported)
-    await spendingDryRunSays(page, panel.summary(0, 11, 0))
+    await spendingDryRunSays(page, panel.summary(0, 12, 0))
     await page.waitForSelector('[data-testid="spending-import-nothing"]', { visible: true, timeout: 10_000 })
     await undoIn(page, press, words)
     await spendingDryRunSays(page, before)
@@ -7705,14 +7705,17 @@ export function spendingBankSyncHeldNoteFlowIn(language) {
   }
 }
 
-/** On Settings, Bank sync when OTP states a balance Kuna does not reach while it holds a pending row: the note, with no opening offered. */
+/** On Settings, Bank sync when OTP states an available balance Kuna does not reach with every row, its pending one among them: the warning, with the opening that makes them agree. */
 export function spendingBankSyncBalanceFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-difference"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-difference"]', aroundAmount(words.spendingBankSync.pendingPaymentsCaption('\u0000', '\u0000')))
-    if ((await page.$('[data-testid="spending-bank-sync-set-opening"]')) !== null) throw new Error('the opening is offered while pending rows may explain the difference')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-difference"]', words.spendingBankSync.setOpeningCaption)
+    if ((await page.$('[data-testid="spending-bank-sync-set-opening"]')) === null) throw new Error('no opening is offered for a balance that differs')
+    await dismissToasts(page)
+    // Below the top bar and the tabs, which stay on screen.
+    await page.$eval('[data-testid="spending-bank-sync-setup"]', (card) => window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - 140 }))
     await delay(300)
     await inspect?.('the bank sync when a balance differs')
     await shoot('spending-bank-sync-balance')
@@ -7824,21 +7827,23 @@ function aroundAmount(line) {
   return line.split('\u0000').reduce((longest, part) => (part.trim().length > longest.length ? part.trim() : longest), '')
 }
 
-/** On Settings, Bank sync when pending card payments make up the whole difference: a plain line, with no warning and no opening offered. */
-export function spendingBankSyncPendingFlowIn(language) {
+/**
+ * On Settings, Bank sync when OTP's balances count a transfer it holds as not booked and does not list: a plain line that says so,
+ * with no warning, since the booked balance agrees with the booked rows.
+ */
+export function spendingBankSyncUnlistedFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-pending"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-pending"]', aroundAmount(words.spendingBankSync.pendingPayments('Revolut EUR', '\u0000')))
-    if ((await page.$('[data-testid="spending-bank-sync-difference"]')) !== null) throw new Error('a difference pending rows explain shows as a warning')
-    if ((await page.$('[data-testid="spending-bank-sync-set-opening"]')) !== null) throw new Error('the opening is offered while pending rows explain the difference')
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-unlisted"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-unlisted"]', aroundAmount(words.spendingBankSync.unlistedPending('\u0000', '\u0000')))
+    if ((await page.$('[data-testid="spending-bank-sync-difference"]')) !== null) throw new Error('a booked balance that agrees shows as a warning')
     await dismissToasts(page)
     // Below the top bar and the tabs, which stay on screen.
     await page.$eval('[data-testid="spending-bank-sync-setup"]', (card) => window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - 140 }))
     await delay(300)
-    await inspect?.('the bank sync when pending rows explain a balance')
-    await shoot('spending-bank-sync-pending')
+    await inspect?.('the bank sync when a bank holds money it does not list')
+    await shoot('spending-bank-sync-unlisted')
   }
 }
 
@@ -8030,7 +8035,7 @@ export function spendingImportMissingSavingsFlowIn(language, paths) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const offer = '[data-testid="spending-dry-run"] [data-testid="spending-import-missing-accounts"]'
     await dropSpendingFile(page, paths.revolut)
-    await spendingDryRunSays(page, words.spendingStatements.import.summary(9, 1, 1))
+    await spendingDryRunSays(page, words.spendingStatements.import.summary(10, 1, 1))
     await page.waitForSelector(offer, { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('the dry run offers no savings account')
     })
@@ -13669,5 +13674,67 @@ export function companySelectLabelFlowIn(language) {
     await undoIn(page, press, words)
     if ((await carrying()) !== 0) throw new Error(`Undo left ${office} on rows`)
     await dismissToasts(page)
+  }
+}
+
+/**
+ * On Entries with the statements set: the City pharmacy payment the bank has not booked yet carries the Not booked yet mark under
+ * its details, and its dialog says its amount and day may still change.
+ */
+export function spendingPendingRowFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const entries = words.spendingEntries
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await waitForTextIn(page, '[data-testid="spending-row-pending"]', entries.notBookedYet)
+    await centreOn(page, SPENDING_ROW, 'City pharmacy')
+    await delay(300)
+    await inspect?.('a row the bank has not booked yet')
+    await shoot('spending-entry-pending-row')
+    await openSpendingRow(page, press, 'City pharmacy', -1890)
+    await waitForTextIn(page, '[data-testid="spending-entry-source-note"]', entries.dialog.pending)
+    await inspect?.('the dialog of a row the bank has not booked yet')
+    await shoot('spending-entry-pending')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/**
+ * On To review with the bakery payment the bank booked since: the card of payments the bank dropped names the hotel hold with how
+ * it was filed, the City pharmacy row waiting for a category carries the Not booked yet mark, and OK takes the note away, which
+ * Undo brings back.
+ */
+export function spendingReviewPendingFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dropped } = words.spendingStatements.review
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await waitForTextIn(page, '[data-testid="spending-review-dropped-filing"]', dropped.filedAs('\u0000').split('\u0000')[0] ?? '')
+    await shootAt(page, shoot, '[data-testid="spending-review-dropped"]', 'spending-review-dropped')
+    await waitForTextIn(page, '[data-testid="spending-review-row-pending"]', words.spendingEntries.notBookedYet)
+    await centreOn(page, '[data-testid="spending-review-row"]', 'City pharmacy')
+    await delay(300)
+    await inspect?.('a row to review the bank has not booked yet')
+    await shoot('spending-review-pending')
+    await pressSelector(page, press, '[data-testid="spending-review-dropped-ok"]')
+    await toast(page, dropped.seen)
+    await page.waitForFunction(() => document.querySelector('[data-testid="spending-review-dropped"]') === null, { timeout: 10_000 })
+    await undoIn(page, press, words)
+    await page.waitForSelector('[data-testid="spending-review-dropped"]', { visible: true, timeout: 10_000 })
+    await dismissToasts(page)
+  }
+}
+
+/** On Settings, Bank sync when OTP books the bakery payment it had not booked: the step says the payment is booked now and keeps how you filed it. */
+export function spendingBankSyncBookedFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingStatementReading.pendingBooked(1).one)
+    await delay(300)
+    await inspect?.('the bank sync once a pending payment books')
+    await shootAt(page, shoot, '[data-testid="spending-bank-sync-result"]', 'spending-bank-sync-booked')
   }
 }

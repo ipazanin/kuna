@@ -5,8 +5,8 @@
  * with its start day, which investments.read.sources hashes. A Company ledger row's are the bank's words and marks and who flagged it, which read.workbook hashes, and a Company account's are how its rows come in, which read.sources hashes.
  */
 export const SPENDING_ROW = {
-  record: new Set(['description', 'counterpartyIban', 'importKey', 'statement', 'categorisedBy', 'movedAt', 'pocket', 'cashWithdrawal', 'link']),
-  cells: new Set(['description', 'counterparty_iban', 'import_key', 'statement', 'categorised_by', 'moved_at', 'pocket', 'cash_withdrawal', 'link']),
+  record: new Set(['description', 'counterpartyIban', 'importKey', 'statement', 'categorisedBy', 'movedAt', 'pocket', 'cashWithdrawal', 'pending', 'link']),
+  cells: new Set(['description', 'counterparty_iban', 'import_key', 'statement', 'categorised_by', 'moved_at', 'pocket', 'cash_withdrawal', 'pending', 'link']),
 }
 export const SPENDING_ITEM = { record: new Set(['link', 'labels', 'ruleLabels', 'event', 'splitByLink']), cells: new Set(['link', 'labels', 'rule_labels', 'event', 'split_by_link']) }
 export const SPENDING_ACCOUNT = { record: new Set(['rowsFrom', 'alsoFrom', 'cards']), cells: new Set(['rows_from', 'also_from', 'cards']) }

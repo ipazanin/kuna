@@ -251,6 +251,7 @@ function paying(date: string, amount: number, payee: string, fields: Partial<Sta
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
     ...fields,
   }
 }

@@ -143,6 +143,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Transaction.movedAt',
       'spending: Transaction.pocket',
       'spending: Transaction.cashWithdrawal',
+      'spending: Transaction.pending',
       'spending: Receipt.readBy',
       'spending: Receipt.latitude',
       'spending: Receipt.longitude',

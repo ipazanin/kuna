@@ -186,6 +186,7 @@ describe('a statement in the Spending file', () => {
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
   })
 
   it('is one write: a new row, a filled typed row and a pair, and one Undo takes it all back', async () => {
@@ -433,6 +434,7 @@ describe('a bank row on hold', () => {
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
   }
   const SYNCED = { ...FILE_ROW, date: civil('2026-10-28'), payee: 'CORNER BAKERY D.O.O.', importKey: 'bank-ref-1' }
 
@@ -483,6 +485,7 @@ describe('a bank row on hold whose look-alike is gone', () => {
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
   }
   const SYNCED = { ...FILE_ROW, date: civil('2026-10-28'), payee: 'CORNER BAKERY D.O.O.', importKey: 'bank-ref-1' }
 

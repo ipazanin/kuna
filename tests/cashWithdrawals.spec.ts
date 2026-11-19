@@ -64,6 +64,7 @@ function statementRow(on: Account, amount: number, payee: string, fields: Partia
     movedAt: '',
     pocket: false,
     cashWithdrawal: false,
+    pending: false,
     ...fields,
   }
 }

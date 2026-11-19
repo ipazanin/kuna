@@ -16,6 +16,7 @@ import { words } from './words'
 import { rowCaption, rowTitle } from './rowParts'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { entryAsked } from '../../entries/presentation/entryAsked'
+import { words as entryWords } from '../../entries/presentation/words'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
@@ -26,6 +27,7 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
 import ListRow from '../../../../shared/ui/ListRow.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 
 /** One row waiting for a category: picking one files it, or a tap picks the row while rows are being selected, the chat can be asked about it or given its receipt beside the picker, and what the file offers for it sits underneath. */
@@ -102,6 +104,9 @@ function chose(id: string | undefined): void {
     <template #amount>
       <AccountMoneyText :cents="waiting.row.amount" :currency="currency" tone="flow" />
     </template>
+    <template v-if="waiting.row.pending" #details>
+      <NoteLine as="span" tone="muted" icon="i-lucide-clock" data-testid="spending-review-row-pending">{{ entryWords.notBookedYet }}</NoteLine>
+    </template>
     <div class="flex items-center gap-2">
       <USelectMenu
         :items="items"
@@ -116,19 +121,19 @@ function chose(id: string | undefined): void {
       <ReceiptCameraButton :label="asked.label" :available="takesReceipt" testid="spending-review-row-receipt" class="shrink-0" @take="emit('receipt', asked)" />
     </div>
     <div v-if="typedLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-typed">{{ typedLine }}</span>
+      <span class="min-w-0 flex-1 basis-48 type-aside" data-testid="spending-review-maybe-typed">{{ typedLine }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.join" :loading="saving('join')" data-testid="spending-review-join" @click="emit('join')" />
     </div>
     <div v-if="ruleCategory !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-rule-says">{{ words.review.ruleSays(ruleCategory.name) }}</span>
+      <span class="min-w-0 flex-1 basis-48 type-aside" data-testid="spending-review-rule-says">{{ words.review.ruleSays(ruleCategory.name) }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.fileAsRule" :loading="saving('file')" data-testid="spending-review-file-as-rule" @click="emit('file', ruleCategory!)" />
     </div>
     <div v-if="offerLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-offer">{{ offerLine }}</span>
+      <span class="min-w-0 flex-1 basis-48 type-aside" data-testid="spending-review-offer">{{ offerLine }}</span>
       <UButton color="neutral" variant="outline" icon="i-lucide-link" :label="linkWords.link" :loading="saving('link')" data-testid="spending-review-link" @click="emit('link')" />
     </div>
     <div v-if="transferLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>
+      <span class="min-w-0 flex-1 basis-48 type-aside" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.pair" :loading="saving('pair')" data-testid="spending-review-pair" @click="emit('pair')" />
     </div>
   </ListRow>

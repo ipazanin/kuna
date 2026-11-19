@@ -14,7 +14,7 @@ describe('the opening a bank gives', () => {
     { date: civil('2026-09-03'), amount: money(40) },
     { date: civil('2026-10-01'), amount: money(-12.5) },
   ]
-  const evidence = (stated: number | null, pending = false, from = rows) => ({ rows: from, stated: stated === null ? null : money(stated), pending })
+  const evidence = (stated: number | null, from = rows) => ({ rows: from, stated: stated === null ? null : money(stated) })
 
   it('opens at zero on a day no later than the first row when the rows add up to the balance', () => {
     expect(openingOn(evidence(27.5), civil('2026-09-02'))).toEqual({ openedOn: civil('2026-09-02'), opening: 0, source: 'start', rows: 2 })
@@ -34,16 +34,11 @@ describe('the opening a bank gives', () => {
   })
 
   it('opens on the day at the balance when the bank gave no rows', () => {
-    expect(openingOn(evidence(15, false, []), DAY)).toEqual({ openedOn: DAY, opening: money(15), source: 'worked', rows: 0 })
+    expect(openingOn(evidence(15, []), DAY)).toEqual({ openedOn: DAY, opening: money(15), source: 'worked', rows: 0 })
   })
 
   it('opens at zero on the day as a guess when the bank gave no balance', () => {
     expect(openingOn(evidence(null), civil('2026-09-03'))).toEqual({ openedOn: civil('2026-09-03'), opening: 0, source: 'guess', rows: 2 })
-  })
-
-  it('never claims the account started empty while the bank holds pending rows, since its balance may count them', () => {
-    expect(openingOn(evidence(27.5, true), civil('2026-09-03'))).toEqual({ openedOn: civil('2026-09-03'), opening: 0, source: 'pending', rows: 2 })
-    expect(openingOn(evidence(15, true, []), DAY).source).toBe('pending')
   })
 
   it('adds cents, never floats, so 0.10 and 0.20 make 0.30', () => {
@@ -51,44 +46,41 @@ describe('the opening a bank gives', () => {
       { date: civil('2026-10-01'), amount: money(0.1) },
       { date: civil('2026-10-02'), amount: money(0.2) },
     ]
-    expect(openingOn(evidence(0.3, false, cents), civil('2026-10-01')).source).toBe('start')
+    expect(openingOn(evidence(0.3, cents), civil('2026-10-01')).source).toBe('start')
   })
 
   it('starts no earlier than the first row, or the day before it when the rows reach back to an empty account', () => {
     expect(earliestStart(evidence(100))).toBe(civil('2026-09-03'))
     expect(earliestStart(evidence(27.5))).toBe(civil('2026-09-02'))
-    expect(earliestStart(evidence(27.5, true))).toBe(civil('2026-09-03'))
-    expect(earliestStart(evidence(15, false, []))).toBeNull()
+    expect(earliestStart(evidence(15, []))).toBeNull()
   })
 
   it('starts from the earliest day to the latest its balance knows, and only on the latest with no rows', () => {
     expect(startDays(evidence(100), DAY)).toEqual({ earliest: civil('2026-09-03'), latest: DAY })
-    expect(startDays(evidence(15, false, []), DAY)).toEqual({ earliest: DAY, latest: DAY })
+    expect(startDays(evidence(15, []), DAY)).toEqual({ earliest: DAY, latest: DAY })
     expect([civil('2026-09-02'), civil('2026-09-03'), DAY, civil('2026-10-31')].map((day) => startsWithin(evidence(100), day, DAY))).toEqual([false, true, true, false])
   })
 })
 
 describe('a balance that differs', () => {
   const coffee = row(OTP, '2026-10-20', -6.5, 'Food/Eating out')
+  const card = row(OTP, '2026-10-29', -0.8, null, { pending: true })
   // Kuna works out the opening less 6.50.
   const worked = accountMoneyFromCents(OTP.opening - 650)
-  const stated = (balance: number, pending: number | null) => [{ account: OTP, balance: accountMoneyFromCents(balance), pending: pending === null ? null : accountMoneyFromCents(pending) }]
+  const stated = (balance: number, kind: 'booked' | 'available') => [{ account: OTP, balance: accountMoneyFromCents(balance), kind, unlisted: null }]
 
-  it('offers the opening that makes the bank and Kuna agree when the bank holds no pending rows', () => {
+  it('offers the opening that makes the bank and Kuna agree', () => {
     // The opening moves by what the bank says above what Kuna works out.
-    expect(balanceDifferences(stated(100, null), [coffee], DAY)).toEqual([{ account: OTP, stated: 100, worked, pending: null, explained: false, fixedOpening: OTP.opening + 100 - worked }])
+    expect(balanceDifferences(stated(100, 'booked'), [coffee], DAY)).toEqual([{ account: OTP, stated: 100, worked, fixedOpening: OTP.opening + 100 - worked }])
   })
 
-  it('reads a difference the pending rows make up in full as explained, with no opening to change', () => {
-    // An available balance 0.80 below Kuna's, with a pending 0.80 card payment.
-    expect(balanceDifferences(stated(worked - 80, -80), [coffee], DAY)).toEqual([{ account: OTP, stated: worked - 80, worked, pending: -80, explained: true, fixedOpening: null }])
-  })
-
-  it('keeps a difference the pending rows do not make up unexplained, still with no opening while they may count', () => {
-    expect(balanceDifferences(stated(worked - 100, -80), [coffee], DAY)).toEqual([{ account: OTP, stated: worked - 100, worked, pending: -80, explained: false, fixedOpening: null }])
+  it('reads a booked balance against the booked rows and an available one against every row', () => {
+    expect(balanceDifferences(stated(worked, 'booked'), [coffee, card], DAY)).toEqual([])
+    expect(balanceDifferences(stated(worked - 80, 'available'), [coffee, card], DAY)).toEqual([])
+    expect(balanceDifferences(stated(worked, 'available'), [coffee, card], DAY)).toEqual([{ account: OTP, stated: worked, worked: worked - 80, fixedOpening: OTP.opening + 80 }])
   })
 
   it('says nothing when they agree', () => {
-    expect(balanceDifferences(stated(worked, -80), [coffee], DAY)).toEqual([])
+    expect(balanceDifferences(stated(worked, 'booked'), [coffee], DAY)).toEqual([])
   })
 })

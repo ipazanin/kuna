@@ -6,10 +6,6 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 
 export const en = {
   banks: accountsEn.banks,
-  pendingLeftOut: (count: number, account: string): EnglishForms => ({
-    one: `1 pending row of ${account} left out. It comes once it is booked.`,
-    other: `${count} pending rows of ${account} left out. They come once they are booked.`,
-  }),
   zeroLeftOut: (count: number, account: string): EnglishForms => ({ one: `1 row of ${account} without an amount left out.`, other: `${count} rows of ${account} without an amount left out.` }),
   otherCurrencyLeftOut: (count: number, currency: string): EnglishForms => ({
     one: `1 row in ${currency} left out, since no account keeps ${currency}.`,
@@ -35,11 +31,6 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   banks: accountsHr.banks,
-  pendingLeftOut: (count, account): CroatianForms => ({
-    one: `Izostavljeno transakcija na čekanju računa ${account}: ${count}. Stiže kad se proknjiži.`,
-    few: `Izostavljeno transakcija na čekanju računa ${account}: ${count}. Stižu kad se proknjiže.`,
-    other: `Izostavljeno transakcija na čekanju računa ${account}: ${count}. Stižu kad se proknjiže.`,
-  }),
   zeroLeftOut: (count, account): CroatianForms => ({
     one: `Izostavljeno redaka računa ${account} bez iznosa: ${count}.`,
     few: `Izostavljeno redaka računa ${account} bez iznosa: ${count}.`,
