@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { labelCalled, labelNameProblem } from '../../../../shared/categorising/domain/labels'
-import type { Label } from '../../../../shared/categorising/domain/labels'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -15,15 +13,11 @@ import { words } from './words'
 import { newTransfer } from '../domain/transfer'
 import TransferToFields from './TransferToFields.vue'
 import { positiveAmount, useTransferTyping } from './useTransferTyping'
+import { useLabelsAndEvents } from './useLabelsAndEvents'
 import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
-import { addLabel } from '../../labels/application/labelWrites'
-import { newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
 import { sourceOf } from '../../links/application/linkTargets'
 import type { ShownTarget } from '../../links/application/linkTargets'
-import { sideOf } from '../../categories/domain/rowSide'
-import { eventMembership } from '../../events/domain/eventMembership'
-import { eventsNewestFirst } from '../../events/domain/events'
 import type { InformalLoanTarget } from '../../links/domain/linkTarget'
 import AddToLoansForm from '../../links/presentation/AddToLoansForm.vue'
 import EntryLinkField from '../../links/presentation/EntryLinkField.vue'
@@ -42,16 +36,14 @@ import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { fixedByBank } from '../domain/bankRows'
 import { beforeStartDay, takesNewRowsByHand } from '../../workbook/domain/account'
-import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { Account } from '../../workbook/domain/account'
-import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
+import { BY_DAYS } from '../../workbook/domain/event'
 import type { EventChoice } from '../../workbook/domain/event'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { isSplit, itemizedRow, rowItemsOf } from '../../workbook/domain/rowItems'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
-import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
@@ -98,19 +90,16 @@ const toAccount = ref('')
 const date = ref('')
 const payee = ref('')
 const note = ref('')
-/** The labels of an entry not split, and of each part of a split one by the part's id. */
+/** The labels and event choice of an entry not split. A split one's parts keep theirs by the part's id. */
 const labels = ref<readonly RecordId[]>([])
-const partLabels = ref<Readonly<Record<string, readonly RecordId[]>>>({})
-/** The event choice of an entry not split, and of each part of a split one by the part's id. */
 const event = ref<EventChoice>(BY_DAYS)
-const partEvents = ref<Record<string, EventChoice>>({})
+const day = computed(() => parseCivilDate(date.value))
+const { labelChoices, labelling: keepsLabels, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventItems, start, addCarried } = useLabelsAndEvents(() => day.value)
 /** The category and note of each receipt line by its id, which its heading follows and Save files the line under. */
 const lineFilings = ref<Record<string, LineFiling>>({})
 const lineRefiles = computed(() => lineRefilesOf(categories.value, entryLines.value, lineFilings.value))
 /** Why Save cannot file a changed receipt line under its category, by the line's id. */
 const lineRefusals = computed(() => new Map([...lineRefiles.value.refused].map(([line, refusal]) => [line, words.split.refusals[refusal]])))
-/** Labels typed into a labels field, which Save adds with the entry while a part carries them. */
-const created = ref<readonly Label[]>([])
 const tried = ref(false)
 
 /** The form's fields as one text, to tell whether the person changed any since the dialog opened. */
@@ -214,12 +203,9 @@ watch(open, (opened) => {
   payee.value = entry?.payee ?? ''
   note.value = wholeItem.value?.note ?? ''
   labels.value = wholeItem.value?.labels ?? []
-  partLabels.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.labels]))
   event.value = wholeItem.value?.event ?? BY_DAYS
-  partEvents.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.event]))
+  start(entryLines.value.map((line) => ({ part: line.id, labels: line.labels, event: line.event })))
   lineFilings.value = Object.fromEntries(entryLines.value.flatMap((line) => (line.receipt === null ? [] : [[line.id, { category: line.category ?? '', note: line.note }]])))
-  created.value = []
-  labelRefused.value = null
   tried.value = false
   loansToAddTo.value = null
   memory.filled.value = false
@@ -265,48 +251,8 @@ const sourceNote = computed(() =>
 /** Whether the account can be picked while an open account is left off the list because the bank fills it. */
 const bankAccountsHidden = computed(() => !fromFixed.value && !split.value && accounts.value.some((candidate) => !candidate.closed && !choosable.value.includes(candidate)))
 
-const labelChoices = computed(() => [...(store.state.workbook?.labels ?? []), ...created.value])
 /** Labels go on the parts of a file moved to items, and not on a transfer here, whose legs are labelled by selecting them on Entries. */
-const labelling = computed(() => store.state.workbook !== null && !isBeforeItems(store.state.workbook.stored) && kind.value !== 'transfer')
-
-/** Why the last name typed into a labels field made no label, and the part it was typed for, null for the entry's own field. */
-const labelRefused = ref<{ readonly part: RecordId | null; readonly text: string } | null>(null)
-
-/** The labels with the one a typed name names: a label the file or the dialog has under it, or a new one. A name that cannot be a label's adds none and says why. */
-function withTyped(picked: readonly RecordId[], name: string, part: RecordId | null = null): readonly RecordId[] {
-  const held = labelCalled(name, labelChoices.value)
-  const problem = held === null ? labelNameProblem(name, labelChoices.value, null) : null
-  labelRefused.value = problem === null ? null : { part, text: uiWords.labelName[problem] }
-  if (held !== null) return picked.includes(held.id) ? picked : [...picked, held.id]
-  if (problem !== null) return picked
-  const label = newLabel(name)
-  created.value = [...created.value, label]
-  return [...picked, label.id]
-}
-
-function labelPart(part: RecordId, picked: readonly RecordId[]): void {
-  partLabels.value = { ...partLabels.value, [part]: picked }
-}
-
-const events = computed(() => eventsNewestFirst(store.state.workbook?.events ?? []))
-/**
- * The choices of a part's event under its category: first the event its day gives it, which follows the date typed above, then
- * each event, newest first, and no event. Two events of one name read apart by their days.
- */
-function eventItems(filedUnder: string | null): { label: string; value: EventChoice }[] {
-  const on = day.value
-  const side = sideOf(categories.value.find((candidate) => candidate.id === filedUnder) ?? null)
-  const byDays = on === null ? null : eventMembership(events.value)({ event: BY_DAYS }, on, side)
-  const named = events.value.find((candidate) => candidate.id === byDays)
-  const twin = (name: string): boolean => events.value.filter((candidate) => candidate.name === name).length > 1
-  return [
-    { label: named === undefined ? words.dialog.byDaysNone : words.dialog.byDays(named.name), value: BY_DAYS },
-    ...events.value.map((candidate) => ({ label: twin(candidate.name) ? `${candidate.name} · ${dayRangeLabel(candidate.days)}` : candidate.name, value: candidate.id })),
-    { label: words.dialog.noEvent, value: OUT_OF_EVENTS },
-  ]
-}
-
-const day = computed(() => parseCivilDate(date.value))
+const labelling = computed(() => keepsLabels.value && kind.value !== 'transfer')
 
 function openedAfter(on: CivilDate, onAccount: Account | null): string | null {
   return onAccount !== null && beforeStartDay(onAccount, on) ? words.dialog.beforeOpened(onAccount.openedOn) : null
@@ -352,9 +298,8 @@ function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): 
   const before = props.entry === null ? null : { row: props.entry, items: entryLines.value }
   const other = legs.value?.find((leg) => leg.id !== before?.row.id) ?? null
   const carried = new Set(parts.flatMap((part) => part.labels))
-  const added = created.value.filter((label) => carried.has(label.id))
   return (unit) => {
-    added.forEach((label) => addLabel(unit, label))
+    addCarried(unit, carried)
     writeEntry(unit, records, before, { row: entry.row, items: parts }, other)
   }
 }

@@ -72,6 +72,8 @@ export interface RowWrite {
   readonly before: Transaction | null
   readonly after: Transaction | null
   readonly items?: readonly TransactionItem[]
+  /** The items whose labels and event choice a person set, which the write keeps as they are rather than carrying those of the items they replace. */
+  readonly chosen?: ReadonlySet<RecordId>
 }
 
 /** Every line a receipt that waits for the bank's row then has, none once it is gone. */
@@ -156,7 +158,7 @@ function writeParts<P extends Part>(records: Repository<P>, stored: StoredParts<
 
 /**
  * Writes rows with their items in the shape the file holds them, the one place that knows both. A file moved to items gets
- * item records and rows without a category, note or link, and an item that takes money from others takes their labels and event choice too. A file from before items keeps those on a row not split and lines
+ * item records and rows without a category, note or link, and an item that takes money from others takes their labels and event choice too, unless a person set its own. A file from before items keeps those on a row not split and lines
  * for a split one, as `storedBeforeItems` says, and stays in that shape until the person moves it.
  */
 export function writeRows(unit: UnitOfWork, records: StoredEntries, rows: readonly RowWrite[], waiting: readonly WaitingLines[] = []): void {
@@ -183,7 +185,7 @@ export function writeRows(unit: UnitOfWork, records: StoredEntries, rows: readon
   }
   const found: TransactionItem[] = waiting.flatMap(({ receipt }) => index.items.ofWaiting(receipt))
   const left: TransactionItem[] = waiting.flatMap(({ receipt, lines }) => carriedChoices(index.items.ofWaiting(receipt), lines))
-  for (const { before, after, items } of rows) {
+  for (const { before, after, items, chosen } of rows) {
     const held = before === null ? [] : index.items.ofRow(before.id)
     if (before !== null && (after === null || items !== undefined)) found.push(...held)
     if (after === null) {
@@ -192,7 +194,8 @@ export function writeRows(unit: UnitOfWork, records: StoredEntries, rows: readon
     }
     if (before === null) entries.add(storedRowOf(after, BLANK_CELLS))
     else entries.change(storedRowFor(before), storedRowOf(after, BLANK_CELLS))
-    left.push(...carriedChoices(held, items ?? []))
+    const given = items ?? []
+    left.push(...carriedChoices(held, given).map((item, place) => (chosen?.has(item.id) === true ? given[place]! : item)))
   }
   writeParts(unit.of(ITEM_WRITES), index.items, found, left)
 }

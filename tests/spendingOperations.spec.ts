@@ -1095,7 +1095,7 @@ describe('events through the chat', () => {
     expect([choiceOn(desk, RENT_PART), choiceOn(desk, GROCERIES_PART)]).toEqual([OUT_OF_EVENTS, EXAMPLE_RECORDS['event']])
 
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'back-on-days', { entries: [{ entry: split, part: desk.ref('item', RENT_PART) }] })])
-    expect(eventFieldsOn(desk)).toEqual([{ before: 'In no event', after: 'By its days: Trip' }])
+    expect(eventFieldsOn(desk)).toEqual([{ before: 'Kept out of events', after: 'By date: Trip' }])
     await desk.accept()
     expect(choiceOn(desk, RENT_PART)).toBe(BY_DAYS)
 
@@ -1104,7 +1104,7 @@ describe('events through the chat', () => {
     expect(bookOf(desk).events.map((held) => held.name)).toEqual(['Autumn trip'])
 
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'delete-event', { event })])
-    expect(eventFieldsOn(desk)).toEqual([{ before: 'Autumn trip', after: 'By its days' }])
+    expect(eventFieldsOn(desk)).toEqual([{ before: 'Autumn trip', after: 'By date' }])
     await desk.accept()
     expect(bookOf(desk).events).toEqual([])
     expect(choiceOn(desk, GROCERIES_PART)).toBe(BY_DAYS)

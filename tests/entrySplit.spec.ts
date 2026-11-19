@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import type { Label } from '../src/shared/categorising/domain/labels'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -8,17 +9,17 @@ import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
-import { differenceItem, entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
+import { differenceItem, entrySplit, newPartChoices } from '../src/apps/spending/entries/domain/entrySplit'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { mainCategoryOf } from '../src/shared/categorising/domain/mainCategory'
-import type { EntrySplit, ItemDraft } from '../src/apps/spending/entries/domain/entrySplit'
+import type { EntrySplit, ItemDraft, PartChoices } from '../src/apps/spending/entries/domain/entrySplit'
 import { splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
 import { rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
@@ -52,11 +53,12 @@ function keys(): () => string {
   return () => `5e5e0000-0000-4000-8000-${String((keyPlace += 1)).padStart(12, '0')}`
 }
 
-const part = (amount: number | 'rest', on: { readonly id: ItemDraft['category'] }, note = '', id: ItemDraft['id'] = null): ItemDraft => ({
+const part = (amount: number | 'rest', on: { readonly id: ItemDraft['category'] }, note = '', id: ItemDraft['id'] = null, choices?: PartChoices): ItemDraft => ({
   id,
   amount: amount === 'rest' ? 'rest' : accountMoneyFromAmount(amount),
   category: on.id,
   note,
+  ...(choices === undefined ? {} : { choices }),
 })
 
 function splitOf(row: StoredRow | Transaction, drafts: readonly ItemDraft[], book: Pick<SpendingBooks['workbook'], 'categories' | 'receipts' | 'items'> = bookOf(row as StoredRow)): EntrySplit {
@@ -97,6 +99,48 @@ describe('an entry split by hand', () => {
     expect(splitOf(spend, drafts, { ...BOOK, items: oneLink }).parts.map((piece) => piece.link)).toEqual([movement, movement, movement])
   })
 
+  it('gives each part the labels and event choice it was given', () => {
+    const treat = recordIdOf(LABEL_RECORDS, 'treat')
+    const trip = recordIdOf(EVENT_RECORDS, 'trip')
+    const split = splitOf(spend, [part(-30, RESTAURANTS, '', null, { labels: [treat], event: trip }), part('rest', GROCERIES), part(-10, COMPANY, '', null, { labels: [], event: OUT_OF_EVENTS })])
+
+    expect(split.parts.map((held) => [held.labels, held.ruleLabels, held.event])).toEqual([
+      [[treat], [], trip],
+      [[], [], BY_DAYS],
+      [[], [], OUT_OF_EVENTS],
+    ])
+    expect([...split.chosen]).toEqual([split.parts[0]!.id, split.parts[2]!.id])
+  })
+
+  it('keeps on a part only those of its rule labels it still carries', () => {
+    const [rule, kept, byHand] = ['rule', 'kept', 'by-hand'].map((key) => recordIdOf(LABEL_RECORDS, key))
+    const [whole] = wholeItems([spend])
+    const held = { ...whole!, labels: [rule!, kept!, byHand!], ruleLabels: [rule!, kept!] }
+
+    const split = splitOf(spend, [part(-30, RESTAURANTS, '', held.id, { labels: [kept!, byHand!], event: BY_DAYS }), part('rest', GROCERIES, '', null, { labels: [rule!], event: BY_DAYS })], {
+      ...BOOK,
+      items: [held],
+    })
+
+    expect(split.parts.map((piece) => [piece.labels, piece.ruleLabels])).toEqual([
+      [[kept, byHand], [kept]],
+      [[rule], []],
+    ])
+  })
+
+  it('starts a part added to a split with the labels every part carries and the event choice of the largest, so a label on one half stays there', () => {
+    const [first, second] = ['first', 'second'].map((key) => recordIdOf(LABEL_RECORDS, key))
+    const trip = recordIdOf(EVENT_RECORDS, 'trip')
+    const [whole] = wholeItems([spend])
+    const held: TransactionItem[] = [
+      { ...whole!, amount: accountMoneyFromAmount(-30), labels: [first!], event: OUT_OF_EVENTS },
+      { ...whole!, amount: accountMoneyFromAmount(-70), labels: [second!, first!], event: trip },
+    ]
+
+    expect(newPartChoices(held)).toEqual({ labels: [first], event: trip })
+    expect(newPartChoices([])).toEqual({ labels: [], event: BY_DAYS })
+  })
+
   it('splits money in as money in', () => {
     const refund = row(OTP, '2026-11-04', 50, 'Income/Salary')
     expect(splitOf(refund, [part(10, GROCERIES), part('rest', SALARY)]).parts.map((held) => held.amount)).toEqual([accountMoneyFromAmount(10), accountMoneyFromAmount(40)])
@@ -110,7 +154,7 @@ describe('an entry split by hand', () => {
     ['over', [part(-100, GROCERIES), part('rest', RESTAURANTS)]],
     ['group-with-children', [part(-20, FOOD), part('rest', RESTAURANTS)]],
     ['between-accounts', [part(-20, TRANSFER), part('rest', RESTAURANTS)]],
-    ['unknown-category', [{ id: null, amount: accountMoneyFromAmount(-20), category: recordIdOf(CATEGORY_RECORDS, 'gone'), note: '' }, part('rest', RESTAURANTS)]],
+    ['unknown-category', [{ ...part(-20, GROCERIES), category: recordIdOf(CATEGORY_RECORDS, 'gone') }, part('rest', RESTAURANTS)]],
   ] as const)('refuses as %s', (reason, drafts) => {
     expect(entrySplit(bookOf(spend), spend, drafts)).toEqual({ refused: reason })
   })
@@ -340,7 +384,7 @@ describe('the labels of a split', () => {
     expect(book().problems).toEqual([])
   })
 
-  it('lets a part that kept its id and did not grow keep its own labels, and a part that grew take the labels of the parts it replaces', async () => {
+  it('lets a part nobody set labels on keep its own when it kept its id and did not grow, and take the labels of the parts it replaces when it grew', async () => {
     const { store, records, book, write, trip, flat } = await labelledOnFile()
     await write([part(-50, RESTAURANTS), part(-30, COMPANY), part('rest', GROCERIES)])
     const [restaurant, company, groceries] = book().items
@@ -355,6 +399,31 @@ describe('the labels of a split', () => {
       [groceries!.id, []],
       [expect.any(String), [trip.id, flat.id]],
     ])
+  })
+
+  it('writes the labels and event set on each part as they are, so a label taken off stays off and a new part takes nothing of the part it took money from', async () => {
+    const { book, write, flat } = await labelledOnFile()
+    const [whole] = book().items
+
+    await write([part(-60, RESTAURANTS, '', whole!.id, { labels: [], event: BY_DAYS }), part('rest', GROCERIES, '', null, { labels: [flat.id], event: OUT_OF_EVENTS })])
+
+    expect(book().items.map((held) => [held.labels, held.event])).toEqual([
+      [[], BY_DAYS],
+      [[flat.id], OUT_OF_EVENTS],
+    ])
+  })
+
+  it('keeps the labels set on a part that grew, where a part that grew with none set takes those of the parts it replaces', async () => {
+    const { store, records, book, write, trip, flat } = await labelledOnFile()
+    await write([part(-50, RESTAURANTS), part(-30, COMPANY), part('rest', GROCERIES)])
+    const [restaurant, company] = book().items
+    await store.write('Relabelled', (unit) =>
+      writeRows(unit, records(), [{ before: book().transactions[0]!, after: book().transactions[0]!, items: [restaurant!, { ...company!, labels: [flat.id] }, book().items[2]!] }]),
+    )
+
+    await write([part(-70, RESTAURANTS, '', restaurant!.id, { labels: restaurant!.labels, event: restaurant!.event }), part('rest', GROCERIES, '', book().items[2]!.id)])
+
+    expect(labelsOf(book().items)).toEqual([[trip.id], [trip.id, flat.id]])
   })
 
   it('gives the one part left when the split comes off every label of its parts', async () => {

@@ -56,7 +56,7 @@ function eventChoiceText(choice: EventChoice): string | null {
 }
 
 /** Of an item's rule labels, those it still carries, since a label taken off by hand is no longer the rule's. */
-function heldRuleLabels(item: Pick<TransactionItem, 'labels' | 'ruleLabels'>): readonly RecordId[] {
+export function heldRuleLabels(item: Pick<TransactionItem, 'labels' | 'ruleLabels'>): readonly RecordId[] {
   return item.ruleLabels.filter((label) => item.labels.includes(label))
 }
 

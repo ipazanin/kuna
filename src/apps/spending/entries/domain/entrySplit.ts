@@ -1,3 +1,4 @@
+import { eventOfLargest } from '../../workbook/domain/carriedChoices'
 import { isTransferCategory } from '../../workbook/domain/category'
 import { BY_DAYS } from '../../workbook/domain/event'
 import type { Category } from '../../workbook/domain/category'
@@ -7,19 +8,32 @@ import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import { filedAsTransfer, isSplit, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { heldRuleLabels } from '../../workbook/domain/transactionItemReading'
+import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { partsOfWhole, restOfWhole } from '../../../../shared/money/partsOfWhole'
 import type { PartsRefusal } from '../../../../shared/money/partsOfWhole'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A part of an entry as you give it: an amount signed as the entry is, or the rest, with its category and optional words. */
+/** The labels and event choice of a part. */
+export type PartChoices = Pick<TransactionItem, 'labels' | 'event'>
+
+/** A part of an entry as you give it: an amount signed as the entry is, or the rest, with its category, optional words and, when you set them, its labels and event choice. */
 export interface ItemDraft {
   /** The entry's part it was opened from, which keeps its id, or null for a new part. */
   readonly id: RecordId | null
   readonly amount: AccountMoney | 'rest'
   readonly category: RecordId
   readonly note: string
+  /** The labels and event choice you set on the part, which the write keeps as they are. Left out, the part keeps its own and the write carries those of the parts it took money from. */
+  readonly choices?: PartChoices
+}
+
+/** The labels and event choice a part added to a split starts with: the labels every part of the entry carries and the event choice of the largest. */
+export function newPartChoices(held: readonly Pick<TransactionItem, 'amount' | 'labels' | 'event'>[]): PartChoices {
+  const shared = labelsOf(held).filter((label) => held.every((part) => part.labels.includes(label)))
+  return { labels: shared, event: eventOfLargest(held) }
 }
 
 /**
@@ -33,6 +47,8 @@ export interface EntrySplit {
   readonly before: ItemizedRow
   readonly row: Transaction
   readonly parts: readonly TransactionItem[]
+  /** The parts whose labels and event choice you set, which the write keeps as they are. */
+  readonly chosen: ReadonlySet<RecordId>
 }
 
 /** Why a part cannot go under a category: it is not in the file, it is Between my accounts, or it is a group with children. */
@@ -48,7 +64,8 @@ export function partCategoryRefusal(category: Category | undefined, categories: 
  * The entry in the parts you gave, one of them the rest, each signed as the entry is so they add up to it, filed by your word.
  * Any part may go under a category a row can take, For the company too, but never under a group with children or Between my
  * accounts. A part opened from one of the entry's parts keeps its id, the first part of an entry not yet split keeps the id of
- * its one item. A part the entry holds keeps its own link, and a new part takes the entry's link when it has one.
+ * its one item. A part the entry holds keeps its own link, and a new part takes the entry's link when it has one. A part takes
+ * the labels and event choice you set on it, or else keeps its own, and keeps only those of its rule labels it still carries.
  */
 export function entrySplit(
   book: Pick<SpendingBook, 'categories' | 'receipts' | 'items'>,
@@ -74,6 +91,7 @@ export function entrySplit(
   const parts = drafts.map((draft, place): TransactionItem => {
     const id = draft.id ?? (whole !== null && place === 0 ? whole.id : recordIdOf(ITEM_RECORDS, newKey()))
     const kept = heldById.get(id)
+    const labels = draft.choices?.labels ?? kept?.labels ?? []
     return {
       id,
       transaction: row.id,
@@ -83,13 +101,14 @@ export function entrySplit(
       amount: placed.parts[place]!,
       category: draft.category,
       link: kept === undefined ? link : kept.link,
-      labels: kept?.labels ?? [],
-      ruleLabels: kept?.ruleLabels ?? [],
-      event: kept?.event ?? BY_DAYS,
+      labels,
+      ruleLabels: heldRuleLabels({ labels, ruleLabels: kept?.ruleLabels ?? [] }),
+      event: draft.choices?.event ?? kept?.event ?? BY_DAYS,
       splitByLink: false,
     }
   })
-  return { before: { row, items: held }, row: { ...row, categorisedBy: 'person' }, parts }
+  const chosen = new Set(drafts.flatMap((draft, place) => (draft.choices === undefined ? [] : [parts[place]!.id])))
+  return { before: { row, items: held }, row: { ...row, categorisedBy: 'person' }, parts, chosen }
 }
 
 /**

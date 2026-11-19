@@ -362,7 +362,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntrySplit',
     type: 'src/apps/spending/entries/domain/entrySplit.ts#ItemDraft',
-    operations: [{ name: 'split-entry', prefix: 'parts.', renames: { id: 'parts.part' } }],
+    operations: [{ name: 'split-entry', prefix: 'parts.', renames: { id: 'parts.part', 'choices.labels': 'label-entries:label', 'choices.event': 'put-in-event:event' } }],
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry',

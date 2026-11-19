@@ -44,7 +44,7 @@ const shown = computed(() => props.labels.filter((label) => picked.value.include
   >
     <template #default>
       <span v-if="shown.length === 0" class="text-muted">{{ words.labels.none }}</span>
-      <span v-else class="flex min-w-0 flex-wrap gap-1">
+      <span v-else class="flex min-h-lh min-w-0 flex-wrap items-center gap-1">
         <UBadge v-for="label in shown" :key="label.id" :label="label.name" color="neutral" variant="subtle" size="xs" class="max-w-full" data-testid="labels-pick" />
       </span>
     </template>

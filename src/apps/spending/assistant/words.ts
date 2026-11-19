@@ -34,8 +34,8 @@ export const en = {
   proposals: {
     withdrawalTo: (account: string) => `Cash taken out, into ${account}`,
     withdrawalByCurrency: 'Cash taken out, into the cash account in the same currency',
-    byDays: (event: string | null) => (event === null ? 'By its days' : `By its days: ${event}`),
-    noEvent: 'In no event',
+    byDays: (event: string | null) => (event === null ? 'By date' : `By date: ${event}`),
+    noEvent: 'Kept out of events',
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row of the statement is left out.', other: `${count} rows of the statement are left out.` }),
     fields: {
       name: 'Name',
@@ -241,8 +241,8 @@ export const hr: Translation<typeof en> = {
   proposals: {
     withdrawalTo: (account) => `Podignuta gotovina, na račun ${account}`,
     withdrawalByCurrency: 'Podignuta gotovina, na račun gotovine u istoj valuti',
-    byDays: (event) => (event === null ? 'Po danima' : `Po danima: ${event}`),
-    noEvent: 'Ni u jednom događaju',
+    byDays: (event) => (event === null ? 'Po datumu' : `Po datumu: ${event}`),
+    noEvent: 'Izvan događaja',
     rowsLeftOut: (count): CroatianForms => ({
       one: `Izostavljen je ${count} redak izvoda.`,
       few: `Izostavljena su ${count} retka izvoda.`,

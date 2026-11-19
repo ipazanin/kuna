@@ -6519,13 +6519,14 @@ async function choosePartCategory(page, press, place, name) {
 
 /**
  * On the sample Spending file's Transactions: the Corner market row of this month split by hand into three parts, one of
- * them For the company and one the rest, lands as three parts on the row. Its dialog then shows the parts, and Remove the
- * split takes them off until Undo brings them back.
+ * them For the company, one the rest and one given a label typed in the Split dialog, lands as three parts on the row with
+ * that label. Its dialog then shows the parts, and Remove the split takes them off until Undo brings them back.
  */
 export function spendingSplitFlowIn(language) {
   const words = SCREEN_WORDS[language]
   const { split } = words.spendingEntries
   const starter = words.spendingStarter
+  const treat = language === 'en' ? 'Birthday treat' : 'Rođendanska čast'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await openSpendingRow(page, press, 'Corner market', -4530)
@@ -6534,6 +6535,12 @@ export function spendingSplitFlowIn(language) {
     await page.waitForSelector(SPENDING_SPLIT_DIALOG, { visible: true, timeout: 10_000 })
     await typePartAmount(page, press, 0, '20')
     await choosePartCategory(page, press, 1, starter['Eating out'])
+    const labels = await (await splitPart(page, 1)).$('[data-testid="split-part-labels"]')
+    if (labels === null) throw new Error('part 2 of the split has no labels field')
+    await pickLabel(page, press, labels, treat, true)
+    await page.waitForSelector(SPENDING_SPLIT_DIALOG, { visible: true, timeout: 2_000 }).catch(() => {
+      throw new Error('Escape on the labels list closed the Split dialog')
+    })
     await pressSelector(page, press, '[data-testid="split-add-part"]')
     await typePartAmount(page, press, 2, '15.3')
     await choosePartCategory(page, press, 2, starter['For the company'])
@@ -6552,6 +6559,7 @@ export function spendingSplitFlowIn(language) {
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
     await dismissToasts(page)
     await rowLinesAre(page, 'Corner market', -4530, 3)
+    if (!(await rowLabels(page, 'Corner market', -4530)).includes(treat)) throw new Error(`the split row does not name ${treat}, the label typed on its part`)
     await inspect?.('Transactions with the entry split by hand')
     await shoot('spending-split-done')
 
@@ -12888,7 +12896,7 @@ export function spendingSelectEventFlowIn(language) {
 
 /**
  * On the sample Spending file's Entries: the streaming subscription, taken out of every event by hand, opens with its Event
- * field on In no event, and By its days, which names Prague, puts it back on its days with Save, which one Undo takes back.
+ * field on Kept out of events, and By date, which names Prague, puts it back on its days with Save, which one Undo takes back.
  */
 export function spendingEntryEventFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -12917,7 +12925,7 @@ export function spendingEntryEventFlowIn(language) {
 export function chatBackOnDaysFlowIn(language) {
   const words = ASSIST_WORDS[language]
   const request = language === 'en' ? 'Put the streaming subscription back on its days' : 'Vrati pretplatu na streaming na njezine dane'
-  const byDays = language === 'en' ? 'By its days: Prague' : 'Po danima: Prag'
+  const byDays = language === 'en' ? 'By date: Prague' : 'Po datumu: Prag'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {

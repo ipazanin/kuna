@@ -174,10 +174,10 @@ export function removeEntry(unit: UnitOfWork, records: EntryRecords, entry: Tran
 
 /**
  * The entry with the parts you split it into, in one write. A part with the id of one the entry holds changes in place, the
- * others are added, and a held part no new part names goes.
+ * others are added, and a held part no new part names goes. A part whose labels and event choice you set keeps them as set.
  */
-export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { row, before, parts }: EntrySplit): void {
-  writeRows(unit, records, [{ before: before.row, after: row, items: parts }])
+export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { row, before, parts, chosen }: EntrySplit): void {
+  writeRows(unit, records, [{ before: before.row, after: row, items: parts, chosen }])
 }
 
 /** The one item a split row stands for again: all of its money under the category most of it was in, with the note and event choice of its largest part, its link and every label of its parts, a rule's still its. */
