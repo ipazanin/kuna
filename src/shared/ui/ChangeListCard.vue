@@ -6,6 +6,8 @@ export interface ChangeLine {
   readonly title: string
   /** When it applies and anything else worth a glance, such as "From 20 Sep 2025". */
   readonly detail: string
+  /** What the line's buttons name it by where the title alone does not say which record it is, such as a valuation's date. The title otherwise. */
+  readonly label?: string
   /** Set where the record is only removed, so it has Delete in place of Change. */
   readonly removable?: true
 }
@@ -50,12 +52,12 @@ const emit = defineEmits<{
     <template v-if="canAdd" #actions>
       <UButton :label="addLabel" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="change-add" @click="emit('add')" />
     </template>
-    <p v-if="lines.length === 0" class="px-4 pb-4 text-sm text-muted sm:px-5">{{ empty }}</p>
+    <p v-if="lines.length === 0" class="px-4 pt-3 pb-4 type-aside sm:px-5">{{ empty }}</p>
     <ul v-else class="flex flex-col pb-2">
       <li v-for="line in lines" :key="line.key" class="flex items-center justify-between gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5" data-testid="change-line">
         <div class="min-w-0">
-          <p class="text-sm text-highlighted">{{ line.title }}</p>
-          <p class="text-xs text-muted">{{ line.detail }}</p>
+          <p class="type-row-title">{{ line.title }}</p>
+          <p class="type-caption">{{ line.detail }}</p>
         </div>
         <UButton
           v-if="line.removable"
@@ -65,7 +67,7 @@ const emit = defineEmits<{
           variant="ghost"
           size="sm"
           class="shrink-0"
-          :aria-label="words.changeList.deleteLine(line.title)"
+          :aria-label="words.changeList.deleteLine(line.label ?? line.title)"
           :loading="removing === line.key"
           data-testid="change-delete"
           @click="emit('remove', line.key)"
@@ -78,7 +80,7 @@ const emit = defineEmits<{
           variant="ghost"
           size="sm"
           class="shrink-0"
-          :aria-label="words.changeList.changeLine(line.title)"
+          :aria-label="words.changeList.changeLine(line.label ?? line.title)"
           data-testid="change-edit"
           @click="emit('change', line.key)"
         />

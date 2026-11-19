@@ -26,7 +26,7 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ProgressMeter from '../../../../shared/ui/ProgressMeter.vue'
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
 
-/** A bank loan on the Overview: owed today with your part of it when you share the loan, the plan as a sparkline, what is paid back, and its next payment, the subsidy's end and the payoff, opening the loan's page. */
+/** A bank loan on the Overview: owed today with your part of it when you share the loan, the plan as a sparkline, what is paid back, and its next payment with your part of it, the subsidy's end and the payoff, opening the loan's page. */
 const props = defineProps<{
   book: BankLoanBook
   /** Null while the plan cannot be worked out. */
@@ -42,6 +42,14 @@ const months = computed(() => bankLoanMonths(props.book))
 const today = computed(() => months.value.findIndex((entry) => entry.month === monthOf(props.day)))
 const part = computed(() => partOnDay(props.book.loan.share, props.book.shares, props.day))
 
+/** When the next payment falls due and the instalment it is part of, marked as paid for the whole loan on a loan you took out with others. */
+function nextCaption(next: NonNullable<BankLoanFigures['next']>): string {
+  const day = shortDayLabel(next.date)
+  const tiles = loanWords.value.tiles
+  if (next.yours === undefined) return next.youPay === next.payment ? day : words.card.nextOf(day, formatMoney(next.payment))
+  return next.youPay === next.payment ? tiles.wholeOn(day) : tiles.wholeOnOf(day, formatMoney(next.payment))
+}
+
 const facts = computed((): Fact[] => {
   const { figures } = props
   if (figures === null) return []
@@ -53,7 +61,8 @@ const facts = computed((): Fact[] => {
           {
             label: loanWords.value.tiles.nextPayment,
             amount: { cents: negateMoney(next.youPay), tone: 'flow' as const },
-            caption: next.youPay === next.payment ? shortDayLabel(next.date) : words.card.nextOf(shortDayLabel(next.date), formatMoney(next.payment)),
+            caption: nextCaption(next),
+            ...(next.yours === undefined ? {} : { note: `${loanWords.value.tiles.yourPart} ${formatMoney(next.yours)}` }),
           },
         ]),
     ...(subsidy === null || subsidy.ended

@@ -80,7 +80,7 @@
  * flat and undo it, and add a valuation to the car and delete it and undo that, in English and Croatian.
  * Beside the co-owned Loans file (`?assets=co-owned&loans=co-owned`) it renders the Overview with your part of each shared asset, the flat with your part over time,
  * and the flat on the coast with your part of it and of its loan, and again beside a loan that counts whole (`&loans=one-loan`). The co-owned Loans file's Overview
- * and home loan show the bank's balance with your part, and the next payment and the plan's You pay as the whole instalment with your part under it (`?loans=co-owned`).
+ * and home loan show the bank's balance with your part, and the next payment and the plan's You pay as paid for the whole loan with your part under it (`?loans=co-owned`).
  * Without a shared part the asset and loan pages show no Your part card.
  *
  * The Spending app renders its first run, its empty Overview and its Settings (`?spending=drive`), its Settings for a
@@ -2952,7 +2952,7 @@ const SOURCE_SCREENS = [
       '6M EURIBOR',
       'days late',
     ],
-    lacks: ['Your part', 'Whole instalment'],
+    lacks: ['Your part', 'For the whole loan', 'for the whole loan'],
   },
   {
     name: 'loans-bank-loan-croatian',
@@ -2983,7 +2983,7 @@ const SOURCE_SCREENS = [
     hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     charts: 2,
-    shows: ['Owed today', 'Your part', 'joint debtors', 'Owed over time', 'From the payout', '50%', 'Whole instalment, on', 'whole instalment', 'your part'],
+    shows: ['Owed today', 'Your part', 'joint debtors', 'Owed over time', 'From the payout', '50%', 'For the whole loan, on', 'for the whole loan', 'your part'],
   },
   {
     name: 'loans-bank-loan-co-owned-croatian',
@@ -2991,10 +2991,26 @@ const SOURCE_SCREENS = [
     hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     charts: 2,
-    shows: ['Dug danas', 'Vaš dio', 'solidarnim dužnicima', 'Dug kroz vrijeme', 'Od isplate', 'Cijeli anuitet, dana', 'cijeli anuitet', 'vaš dio'],
+    shows: ['Dug danas', 'Vaš dio', 'solidarnim dužnicima', 'Dug kroz vrijeme', 'Od isplate', 'Za cijeli kredit, dana', 'za cijeli kredit', 'vaš dio'],
   },
-  { name: 'loans-co-owned', query: 'loans=co-owned', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'owed today', 'your part'], cards: false },
-  { name: 'loans-co-owned-croatian', query: 'loans=co-owned&lang=hr', hash: '#/loans', title: 'Pregled', charts: 0, shows: ['Home loan', 'dug danas', 'vaš dio'], cards: false },
+  {
+    name: 'loans-co-owned',
+    query: 'loans=co-owned',
+    hash: '#/loans',
+    title: 'Overview',
+    charts: 0,
+    shows: ['Home loan', 'owed today', 'your part', 'For the whole loan, on', 'Your part'],
+    cards: false,
+  },
+  {
+    name: 'loans-co-owned-croatian',
+    query: 'loans=co-owned&lang=hr',
+    hash: '#/loans',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Home loan', 'dug danas', 'vaš dio', 'Za cijeli kredit, dana', 'Vaš dio'],
+    cards: false,
+  },
   {
     name: 'loans-bank-loan-statements',
     query: 'loans=sample&spending=sample',

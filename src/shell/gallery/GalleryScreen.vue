@@ -110,7 +110,7 @@ const KEY_FACTS: Fact[] = [
 
 /** Facts that are one amount each: money out and in through an account in the soft depth, and a debt forgiven in ink with its sign. */
 const AMOUNT_FACTS: readonly Fact[] = [
-  { label: 'Next payment', amount: { cents: moneyFromCents(-81_240), tone: 'flow' }, caption: '20 Nov' },
+  { label: 'Next payment', amount: { cents: moneyFromCents(-81_240), tone: 'flow' }, caption: 'For the whole loan, 20 Nov', note: 'Your part 406.20' },
   { label: 'Last movement', amount: { cents: moneyFromCents(50_000), tone: 'flow' }, caption: 'Repaid on 3 Oct' },
   { label: 'Forgiven', amount: { cents: moneyFromCents(-100_000), sign: 'always' }, caption: '24 Dec' },
 ]

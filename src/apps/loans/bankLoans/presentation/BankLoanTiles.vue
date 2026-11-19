@@ -19,7 +19,7 @@ const props = defineProps<{
 }>()
 const loanWords = useLoanWords()
 
-/** When the next payment falls due and the instalment it is part of, marked as the whole instalment on a loan you took out with others. */
+/** When the next payment falls due and the instalment it is part of, marked as paid for the whole loan on a loan you took out with others. */
 const nextCaption = computed(() => {
   const { next } = props.figures
   if (next === null) return loanWords.value.tiles.planPaid

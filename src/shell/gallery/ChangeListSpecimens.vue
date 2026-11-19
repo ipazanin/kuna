@@ -30,6 +30,14 @@ import GallerySection from './GallerySection.vue'
         :can-add="false"
         collapse-id="gallery.change-list-removable"
       />
+      <ChangeListCard
+        title="Valuations"
+        subtitle="With no records yet, the card says so under its subtitle."
+        :lines="[]"
+        empty="No valuation yet. The price paid counts until one is added."
+        add-label="Add a valuation"
+        collapse-id="gallery.change-list-empty"
+      />
     </DashboardGrid>
   </GallerySection>
 </template>

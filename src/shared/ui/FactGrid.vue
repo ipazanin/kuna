@@ -5,6 +5,8 @@ import type { SwatchMark } from './ChartLegend.vue'
 export type Fact = {
   readonly label: string
   readonly caption?: string
+  /** A second line under the caption, such as your part of a figure you share. */
+  readonly note?: string
   /** The label's language when it is not the screen's, such as `hr` for a Croatian form's field name. */
   readonly lang?: string
   /** A key beside the label, in any CSS colour, when the fact names a part of a chart or a meter. */
@@ -38,6 +40,7 @@ const columns = computed(() => (props.facts.length >= 4 ? '@lg:grid-cols-4' : pr
         <dd v-else-if="fact.amount" class="mt-0.5 type-figure-secondary"><MoneyText v-bind="fact.amount" /></dd>
         <dd v-else class="mt-0.5 type-figure-secondary">{{ fact.value }}</dd>
         <dd v-if="fact.caption" class="mt-0.5 type-caption">{{ fact.caption }}</dd>
+        <dd v-if="fact.note" class="type-caption">{{ fact.note }}</dd>
       </div>
     </dl>
   </div>

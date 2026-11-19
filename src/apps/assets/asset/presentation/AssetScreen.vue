@@ -77,9 +77,12 @@ const facts = computed((): Fact[] => {
 
 /** Each valuation, newest first. */
 const valuationLines = computed((): ChangeLine[] =>
-  [...(entry.value?.valuations ?? [])]
-    .reverse()
-    .map((valuation) => ({ key: valuation.id, title: formatMoney(valuation.value), detail: [dayLabel(valuation.date), valuation.note].filter((part) => part !== '').join(', ') })),
+  [...(entry.value?.valuations ?? [])].reverse().map((valuation) => ({
+    key: valuation.id,
+    title: formatMoney(valuation.value),
+    label: dayLabel(valuation.date),
+    detail: [dayLabel(valuation.date), valuation.note].filter((part) => part !== '').join(', '),
+  })),
 )
 
 /** An asset you own with others at any time, which shows its Your part card. Until then the part is set in the asset dialog. */
