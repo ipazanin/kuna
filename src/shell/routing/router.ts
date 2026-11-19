@@ -46,6 +46,7 @@ export function createAppRouter(): Router {
     ...apps.flatMap((app) =>
       app.screens.map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true, title: screen.title, app: app.name, under: screen.under } })),
     ),
+    ...apps.flatMap((app) => (app.moved ?? []).filter((moved) => moved.tab === undefined).map((moved): RouteRecordRaw => ({ path: moved.path, redirect: (to) => moved.to(to.query) }))),
     ...[NET_WORTH_SCREEN, KUNA_SETTINGS_SCREEN].map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: false, title: screen.title } })),
     // Written inline so the production build folds it to false and drops the gallery chunk entirely.
     // The fake build keeps it, because the visual check screenshots the gallery from that build.
@@ -85,6 +86,10 @@ export function createAppRouter(): Router {
     }
   })
 
+  /** A moved tab of a screen that stays, such as an old Rules tab, opens where it went. A moved screen is a redirect record above. */
+  const movedTabs = apps.flatMap((app) => (app.moved ?? []).filter((moved) => moved.tab !== undefined))
+  router.beforeEach((to) => movedTabs.find((moved) => moved.path === to.path && moved.tab === to.query.tab)?.to(to.query) ?? true)
+
   router.beforeEach((to, from) => {
     if (to.path !== from.path) {
       clearTimeout(showPlaceholder)
@@ -100,7 +105,7 @@ export function createAppRouter(): Router {
 
 /** An app's routes stay under its id, so two apps never claim one address. */
 function refuseScreensOutside(app: AppContribution): void {
-  const outside = [...app.screens.map((screen) => screen.path), app.startPath].find((path) => !ownsPath(app, path))
+  const outside = [...app.screens.map((screen) => screen.path), ...(app.moved ?? []).map((moved) => moved.path), app.startPath].find((path) => !ownsPath(app, path))
   if (outside !== undefined) {
     throw new Error(`The ${app.id} app's route ${outside} is not under /${app.id}.`)
   }

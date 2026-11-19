@@ -80,7 +80,16 @@ const APPS: readonly CatalogueApp[] = [
     '/investments/settings',
   ]),
   appOf('assets', ASSETS_ASSISTANT, ['/assets', '/assets/asset', '/assets/settings']),
-  appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/payees', '/spending/accounts', '/spending/account', '/spending/settings']),
+  appOf('spending', SPENDING_ASSISTANT, [
+    '/spending',
+    '/spending/transactions',
+    '/spending/budgets',
+    '/spending/sorting',
+    '/spending/payees',
+    '/spending/accounts',
+    '/spending/account',
+    '/spending/settings',
+  ]),
 ]
 const KUNA: CatalogueApp = { ...KUNA_CHAT, assistant: kunaAssistant() }
 
@@ -350,7 +359,7 @@ describe('the catalogue', () => {
   it('calls things in a guide what the screen calls them, in both languages', () => {
     const guide = catalogue.pages.get('spending/guide/first-rules')!
     expect(guide).toContain(statementWords.review.always)
-    const labels = { entries: 'E', review: 'R', import: 'I', always: 'A', settings: 'S', rules: 'U', bankSync: 'B', limits: 'L', general: 'G', deployment: 'D', addReceipt: 'R1' }
+    const labels = { entries: 'E', review: 'R', import: 'I', always: 'A', settings: 'S', sorting: 'U', bankSync: 'B', limits: 'L', deployment: 'D', addReceipt: 'R1' }
     for (const words of [spendingWords, spendingCroatian]) {
       expect(words.guides.rules.body(labels)).toContain('A')
       expect(Object.keys(words.guides)).toEqual(['setUp', 'rules', 'import', 'bankSync', 'limits', 'categories', 'receipts'])

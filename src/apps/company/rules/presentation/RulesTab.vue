@@ -7,6 +7,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
 import ProblemList from '../../workbook-files/presentation/ProblemList.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -170,17 +171,15 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
           <p class="figure type-caption">{{ words.tab.decides(decided.get(rule.id) ?? 0, rule.order) }}</p>
         </div>
         <div class="rule-actions">
-          <UButton icon="i-lucide-arrow-up" color="neutral" variant="ghost" size="sm" :aria-label="words.tab.earlier(rule.id)" :disabled="index === 0" @click="moveRule(rule, 'earlier')" />
-          <UButton
-            icon="i-lucide-arrow-down"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :aria-label="words.tab.later(rule.id)"
-            :disabled="index === ordered.length - 1"
-            @click="moveRule(rule, 'later')"
+          <MoveButtons
+            :up-label="words.tab.earlier(rule.id)"
+            :down-label="words.tab.later(rule.id)"
+            :first="index === 0"
+            :last="index === ordered.length - 1"
+            @up="moveRule(rule, 'earlier')"
+            @down="moveRule(rule, 'later')"
           />
-          <UButton :label="words.tab.edit" icon="i-lucide-pencil" color="neutral" variant="outline" size="sm" data-testid="edit-rule" @click="editRule(rule)" />
+          <UButton :label="words.tab.edit" icon="i-lucide-pencil" color="neutral" variant="outline" size="sm" class="self-center" data-testid="edit-rule" @click="editRule(rule)" />
         </div>
       </li>
     </ol>

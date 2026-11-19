@@ -416,7 +416,7 @@ function balancesReport(book: SpendingBook, rates: RateBook, period: string | nu
   ]
 }
 
-/** What each label counts over its entries up to the day, as the Labels screen counts it, which is as Spending counts its months. */
+/** What each label counts over its entries up to the day, as Entries filtered to the label counts it, which is as Spending counts its months. */
 function labelsReport(book: SpendingBook, rates: RateBook, period: string | null): readonly ReportFigure[] {
   const day = period === null ? today() : parseCivilDate(period)
   if (day === null) throw new RangeError('Not a day.')

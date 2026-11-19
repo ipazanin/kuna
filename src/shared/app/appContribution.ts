@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 import type { Ref } from 'vue'
-import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
+import type { LocationQuery, RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyLook } from '../money/moneyFormat'
@@ -29,6 +29,15 @@ export interface AppScreen {
   readonly needsRecord?: true
   /** The menu's screen this one opens from, such as an account's list, which the menu lights while this one shows. */
   readonly under?: `/${string}`
+}
+
+/** An old address of the app, which opens the screen and the part of it that now hold what it showed. */
+export interface MovedScreen {
+  readonly path: `/${string}`
+  /** The `?tab=` that moved, when only that tab of a screen moved and the screen with its other tabs stays. */
+  readonly tab?: string
+  /** Where the old address opens, from the query it came with. */
+  readonly to: (query: LocationQuery) => RouteLocationRaw
 }
 
 /** What waits on a screen, shown beside its menu item. */
@@ -211,6 +220,8 @@ export interface AppContribution {
   install(shell: ShellReads): Promise<void>
   /** Every route of the app, whatever its settings switch on, its Settings included. The first one is where the app opens. */
   readonly screens: readonly AppScreen[]
+  /** Old addresses that open where their screens moved, so a link kept from before still lands. */
+  readonly moved?: readonly MovedScreen[]
   /** The menu items, in order, without Settings. */
   menu(): readonly AppScreen[]
   /** The app's Settings, one of its screens, last among its pages in the menu. */

@@ -399,6 +399,13 @@ const kunaPlugin = {
     ),
     'note-lines': noteLines,
     'all-links': allLinks,
+    'move-buttons': refusedSyntax(
+      [
+        "VElement[rawName=/^(?:UButton|u-button)$/] > VStartTag > VAttribute[directive=false][key.name='icon'][value.value=/^i-lucide-arrow-(?:up|down)$/]",
+        "VElement[rawName=/^(?:UButton|u-button)$/] > VStartTag > VAttribute[directive=true][key.argument.name='icon'] > VExpressionContainer Literal[value=/^i-lucide-arrow-(?:up|down)$/]",
+      ],
+      'A pair of buttons that moves a row up or down is a MoveButtons, which keeps both at 44 px and alike in every list.',
+    ),
     'link-rows': refusedSyntax(
       [
         `${linkIcon} > VStartTag > VAttribute[directive=false][key.name='name'][value.value='i-lucide-chevron-right']`,
@@ -550,6 +557,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     { name: 'kuna/link-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/link-rows': 'error' } },
     { name: 'kuna/record-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/record-rows': 'error' } },
+    { name: 'kuna/move-buttons', files: ['src/**/*.vue'], ignores: ['src/shared/ui/MoveButtons.vue'], rules: { 'kuna/move-buttons': 'error' } },
     { name: 'kuna/all-links', files: ['src/**/*.vue'], rules: { 'kuna/all-links': 'error' } },
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },

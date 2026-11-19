@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { labelFigure } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
@@ -21,7 +22,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { storesItems } from '../../workbook/domain/rowItems'
 import ItemsMoveNotice from '../../workbook/presentation/ItemsMoveNotice.vue'
-import { labelFigure, labelTotals } from '../domain/labelTotals'
+import { labelTotals } from '../domain/labelTotals'
 import LabelDialog from './LabelDialog.vue'
 import { words } from './words'
 
@@ -40,7 +41,7 @@ const lines = computed(() => {
   const cash = countedLedger(workbook, DEFAULT_FILTERS, installedPack().vatOnPrivateShare)?.workbook
   return labelTotals(cash?.transactions ?? [], cash?.ownerAdvances ?? [], workbook.itemLabels, workbook.labels).map((totals) => ({
     totals,
-    figure: labelFigure(totals.profitAndLoss),
+    figure: labelFigure(totals.profitAndLoss.income, totals.profitAndLoss.cost),
     caption: totals.latest === null ? words.noParts : `${plural(words.parts(totals.parts), totals.parts)} · ${words.newest(dayLabel(totals.latest))}`,
     lines: LINES.filter((line) => lineShown(settings.value, line) && totals.profitAndLoss[line] !== 0).map((line) => ({
       line,

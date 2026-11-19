@@ -11,10 +11,9 @@ export interface GuideLabels {
   readonly import: string
   readonly always: string
   readonly settings: string
-  readonly rules: string
+  readonly sorting: string
   readonly bankSync: string
   readonly limits: string
-  readonly general: string
   readonly deployment: string
   readonly addReceipt: string
 }
@@ -178,7 +177,7 @@ export const en = {
           'A rule files a statement row by itself. It looks at the payee, or at the IBAN on the other side, so it works the same for every bank that brings rows into Kuna.',
           `1. Bring in some rows, through ${labels.entries}, ${labels.import} or ${labels.settings}, ${labels.bankSync}. Rows no rule files wait on ${labels.entries}, ${labels.review}.`,
           `2. On ${labels.review}, pick a category for a row and choose ${labels.always}. Kuna shows how many rows the rule files before you save it.`,
-          `3. Every rule is listed on ${labels.settings}, ${labels.rules}, where you can delete one.`,
+          `3. Every rule is listed on ${labels.sorting}, under the categories and labels it files by, where you can delete one.`,
           'A row you filed yourself stays as it is, whatever a rule says.',
         ].join('\n'),
     },
@@ -209,7 +208,7 @@ export const en = {
     },
     categories: {
       title: 'Change your categories',
-      body: (labels: GuideLabels) => `Groups and categories are on ${labels.settings}, ${labels.general}. A hidden category keeps its entries.`,
+      body: (labels: GuideLabels) => `Groups and categories are on ${labels.sorting}, with the labels and the rules that file under them. A hidden category keeps its entries.`,
     },
     receipts: {
       title: 'Add a receipt with the chat',
@@ -388,7 +387,7 @@ export const hr: Translation<typeof en> = {
           'Pravilo automatski razvrstava redak izvoda. Gleda primatelja ili IBAN druge strane, pa jednako radi za svaku banku čiji retci dolaze u Kunu.',
           `1. Uvezite retke na zaslonu ${labels.entries}, na kartici ${labels.import}, ili ih donesite sinkronizacijom na zaslonu ${labels.settings}, na kartici ${labels.bankSync}. Retci koje nijedno pravilo ne razvrsta čekaju na zaslonu ${labels.entries}, na kartici ${labels.review}.`,
           `2. Na kartici ${labels.review} odaberite kategoriju za redak i zatim ${labels.always}. Prije spremanja Kuna pokaže koliko redaka pravilo razvrstava.`,
-          `3. Sva pravila navedena su na zaslonu ${labels.settings}, na kartici ${labels.rules}, gdje ih možete i obrisati.`,
+          `3. Sva pravila navedena su na zaslonu ${labels.sorting}, ispod kategorija i oznaka po kojima razvrstavaju, gdje ih možete i obrisati.`,
           'Redak koji ste sami razvrstali ostaje kakav jest, što god pravilo kaže.',
         ].join('\n'),
     },
@@ -419,7 +418,7 @@ export const hr: Translation<typeof en> = {
     },
     categories: {
       title: 'Promijeni kategorije',
-      body: (labels) => `Skupine i kategorije nalaze se na zaslonu ${labels.settings}, na kartici ${labels.general}. Skrivena kategorija zadržava svoje unose.`,
+      body: (labels) => `Skupine i kategorije nalaze se na zaslonu ${labels.sorting}, s oznakama i pravilima koja po njima razvrstavaju. Skrivena kategorija zadržava svoje unose.`,
     },
     receipts: {
       title: 'Dodaj fiskalni račun kroz razgovor',

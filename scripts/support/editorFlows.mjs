@@ -8179,12 +8179,12 @@ export function spendingRuleFlowIn(language) {
     await inspect?.('To review after a rule')
     await dismissToasts(page)
     await page.evaluate(() => {
-      window.location.hash = '#/spending/settings?tab=rules'
+      window.location.hash = '#/spending/sorting#rules'
     })
     await page.waitForSelector('[data-testid="spending-rule"]', { visible: true, timeout: 10_000 })
-    await countOf(page, '[data-testid="spending-rule"]', 5, 'Settings, Rules should list the five rules')
+    await countOf(page, '[data-testid="spending-rule"]', 5, 'Sorting should list the five rules')
     await delay(300)
-    await inspect?.('Settings, Rules with the new rule')
+    await inspect?.('Sorting with the new rule')
     await shoot('spending-rule-made')
     const buttons = await page.$$('[data-testid="spending-rule-delete"]')
     await press(buttons.at(-1))
@@ -10778,7 +10778,7 @@ export function chatPanelFlowIn(language) {
         throw new Error('the link showed before its answer was whole, so the text landing above it moves it from under a tap')
       await pressSelector(page, press, '[data-testid="chat-chip"]')
       await page
-        .waitForFunction(() => window.location.hash.startsWith('#/spending/settings?tab=rules'), { timeout: 10_000 })
+        .waitForFunction(() => window.location.hash.startsWith('#/spending/sorting'), { timeout: 10_000 })
         .catch(async () => {
           throw new Error(`the link did not lead to the rules but to ${await page.evaluate(() => window.location.hash)}`)
         })
@@ -13700,6 +13700,34 @@ export function spendingPendingRowFlowIn(language) {
   }
 }
 
+/** An old address of Spending's labels or of Settings' Rules tab, kept from before Sorting held them, opens Sorting with that card in view. */
+export function spendingOldAddressFlowIn(language, card) {
+  return async (page, { shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page
+      .waitForFunction((wanted) => window.location.hash.startsWith('#/spending/sorting') && window.location.hash.endsWith(`#${wanted}`), { timeout: 10_000 }, card)
+      .catch(async () => {
+        throw new Error(`the old address did not land on Sorting's ${card} card but on ${await page.evaluate(() => window.location.hash)}`)
+      })
+    await page.waitForSelector(`[id="${card}"]`, { visible: true, timeout: 10_000 })
+    await page
+      .waitForFunction(
+        (wanted) => {
+          const top = document.getElementById(wanted)?.getBoundingClientRect().top
+          return top !== undefined && top >= 0 && top < window.innerHeight - 80
+        },
+        { timeout: 5_000 },
+        card,
+      )
+      .catch(() => {
+        throw new Error(`Sorting's ${card} card is not in view after the old address`)
+      })
+    await delay(300)
+    await inspect?.(`Sorting from the old ${card} address`)
+    await shoot(`spending-old-${card}-address`)
+  }
+}
+
 /**
  * On To review with the bakery payment the bank booked since: the card of payments the bank dropped names the hotel hold with how
  * it was filed, the City pharmacy row waiting for a category carries the Not booked yet mark, and OK takes the note away, which
@@ -13736,5 +13764,41 @@ export function spendingBankSyncBookedFlowIn(language) {
     await delay(300)
     await inspect?.('the bank sync once a pending payment books')
     await shootAt(page, shoot, '[data-testid="spending-bank-sync-result"]', 'spending-bank-sync-booked')
+  }
+}
+
+/**
+ * On Sorting with the statements set: the Categories card starts folded on a first visit, and once opened, Groceries' rule count
+ * opens the Rules card with only its rule and a chip, and the chip shows every rule again.
+ */
+export function spendingRulesForFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { rules } = words.spendingStatements
+  const groceries = words.spendingStarter.Groceries
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const RULE = '[data-testid="spending-rule"]'
+    await countOf(page, RULE, 4, 'the set should start with four rules')
+    const categories = await page.waitForSelector('[data-testid="spending-categories"]', { timeout: 10_000 })
+    if ((await categories.evaluate((card) => card.dataset.collapsed)) !== 'true') throw new Error('the Categories card should start folded on a first visit')
+    await openCard(page, press, 'spending-categories')
+    const link = await page.waitForSelector(`[data-testid="spending-rules-link"][aria-label="${rules.countOf(rules.count(1).one, groceries)}"]`, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error(`${groceries} does not say 1 rule`)
+    })
+    await press(link)
+    await page
+      .waitForFunction(() => window.location.hash.includes('category=') && window.location.hash.endsWith('#rules'), { timeout: 10_000 })
+      .catch(async () => {
+        throw new Error(`the count did not open the rules of ${groceries} but ${await page.evaluate(() => window.location.hash)}`)
+      })
+    await countOf(page, RULE, 1, `only the rule for ${groceries} should show`)
+    await page.waitForSelector('[data-testid="spending-rules-shown-for"]', { visible: true, timeout: 5_000 })
+    await countOf(page, '[data-testid="spending-rule-up"], [data-testid="spending-rule-down"]', 0, 'a filtered list should offer no moves')
+    await delay(300)
+    await inspect?.('the rules for one category')
+    await shoot('spending-rules-for')
+    await pressSelector(page, press, `[aria-label="${rules.showAll(groceries)}"]`)
+    await countOf(page, RULE, 4, 'the chip should show every rule again')
+    if (await page.evaluate(() => window.location.hash.includes('category='))) throw new Error('the chip left the category in the address')
   }
 }

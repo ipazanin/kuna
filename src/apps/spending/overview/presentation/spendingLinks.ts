@@ -23,7 +23,10 @@ export const SPENDING_REVIEW_TAB = 'review'
 /** The rows that wait for you, on the To review tab of Entries. */
 export const SPENDING_REVIEW_LINK = `${SPENDING_TRANSACTIONS_ROUTE}?tab=${SPENDING_REVIEW_TAB}`
 export const SPENDING_BUDGETS_ROUTE = '/spending/budgets'
-export const SPENDING_LABELS_ROUTE = '/spending/labels'
+/** Categories, labels and rules on one screen, each card with its anchor. */
+export const SPENDING_SORTING_ROUTE = '/spending/sorting'
+/** The anchors of the Sorting screen's cards. */
+export const SORTING_CARDS = { categories: 'categories', labels: 'labels', rules: 'rules' } as const
 export const SPENDING_EVENTS_ROUTE = '/spending/events'
 export const SPENDING_PAYEES_ROUTE = '/spending/payees'
 /** The value of `?month=` that shows every month at once, as a label's and an event's entries do. */
@@ -70,6 +73,16 @@ export function categoryIdNamed(key: unknown): RecordId | null {
 /** Entries of every month that carry the label, named by its bare UUID in `?label=`. */
 export function labelLink(label: Label): RouteLocationRaw {
   return { path: SPENDING_TRANSACTIONS_ROUTE, query: { month: ALL_MONTHS, label: keyOfRecordId(LABEL_RECORDS, label.id) } }
+}
+
+/** The Rules card of the Sorting screen with only the rules that file under the category, named by its bare UUID in `?category=`. */
+export function rulesIntoCategoryLink(category: Category): RouteLocationRaw {
+  return { path: SPENDING_SORTING_ROUTE, query: { category: keyOfRecordId(CATEGORY_RECORDS, category.id) }, hash: `#${SORTING_CARDS.rules}` }
+}
+
+/** The Rules card of the Sorting screen with only the rules that put the label on, named by its bare UUID in `?label=`. */
+export function rulesOfLabelLink(label: Label): RouteLocationRaw {
+  return { path: SPENDING_SORTING_ROUTE, query: { label: keyOfRecordId(LABEL_RECORDS, label.id) }, hash: `#${SORTING_CARDS.rules}` }
 }
 
 /** The label the page's `?label=` names, or null when the file has none by that id. */

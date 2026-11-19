@@ -9,6 +9,7 @@ import {
   SPENDING_PAYEES_ROUTE,
   SPENDING_REVIEW_LINK,
   SPENDING_SETTINGS_ROUTE,
+  SPENDING_SORTING_ROUTE,
   SPENDING_TRANSACTIONS_ROUTE,
 } from '../overview/presentation/spendingLinks'
 import { words as receiptWords } from '../receipts/presentation/words'
@@ -26,14 +27,12 @@ import { words } from './words'
 import type { GuideLabels } from './words'
 
 const IMPORT_LINK = `${SPENDING_TRANSACTIONS_ROUTE}?tab=import`
-const RULES_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=rules`
 const RECEIPTS_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=receipts`
 
 /** Every Spending screen and tab, the tabs first, since a person on a tab is on that tab and not on its screen. */
 const PLACES: readonly AssistantPlace[] = [
   { route: SPENDING_REVIEW_LINK, title: statementWords.tabs.review },
   { route: IMPORT_LINK, title: statementWords.tabs.import },
-  { route: RULES_LINK, title: settingsWords.tabs.rules },
   { route: SPENDING_BANK_SYNC_LINK, title: settingsWords.tabs.bankSync },
   { route: RECEIPTS_LINK, title: settingsWords.tabs.receipts },
   { route: SPENDING_ASSISTANT_LINK, title: settingsWords.tabs.assistant },
@@ -44,6 +43,7 @@ const PLACES: readonly AssistantPlace[] = [
     params: { month: 'month', account: { kind: ACCOUNT_RECORDS.name }, category: { kind: CATEGORY_RECORDS.name }, payee: { kind: PAYEE_LINES.name } },
   },
   { route: SPENDING_BUDGETS_ROUTE, title: screenWords.limits, params: { month: 'month' } },
+  { route: SPENDING_SORTING_ROUTE, title: screenWords.sorting },
   { route: SPENDING_PAYEES_ROUTE, title: screenWords.payees },
   { route: SPENDING_ACCOUNTS_ROUTE, title: screenWords.accounts },
   { route: SPENDING_ACCOUNT_ROUTE, title: screenWords.account, params: { account: { kind: ACCOUNT_RECORDS.name } } },
@@ -56,10 +56,9 @@ const LABELS: GuideLabels = {
   import: statementWords.tabs.import,
   always: statementWords.review.always,
   settings: screenWords.settings,
-  rules: settingsWords.tabs.rules,
+  sorting: screenWords.sorting,
   bankSync: settingsWords.tabs.bankSync,
   limits: screenWords.limits,
-  general: settingsWords.tabs.general,
   deployment: bankSyncWords.deployment,
   addReceipt: receiptWords.add,
 }
@@ -75,11 +74,11 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
   ],
   guides: [
     { id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [SPENDING_OVERVIEW_ROUTE, SPENDING_ACCOUNTS_ROUTE, IMPORT_LINK] },
-    { id: 'first-rules', title: words.guides.rules.title, body: words.guides.rules.body(LABELS), places: [SPENDING_REVIEW_LINK, IMPORT_LINK, RULES_LINK] },
+    { id: 'first-rules', title: words.guides.rules.title, body: words.guides.rules.body(LABELS), places: [SPENDING_REVIEW_LINK, IMPORT_LINK, SPENDING_SORTING_ROUTE] },
     { id: 'first-import', title: words.guides.import.title, body: words.guides.import.body(LABELS), places: [IMPORT_LINK, SPENDING_REVIEW_LINK] },
     { id: 'link-a-bank', title: words.guides.bankSync.title, body: words.guides.bankSync.body(LABELS), places: [SPENDING_BANK_SYNC_LINK] },
     { id: 'first-limit', title: words.guides.limits.title, body: words.guides.limits.body(LABELS), places: [SPENDING_BUDGETS_ROUTE] },
-    { id: 'categories', title: words.guides.categories.title, body: words.guides.categories.body(LABELS), places: [SPENDING_SETTINGS_ROUTE] },
+    { id: 'categories', title: words.guides.categories.title, body: words.guides.categories.body(LABELS), places: [SPENDING_SORTING_ROUTE] },
     { id: 'receipts', title: words.guides.receipts.title, body: words.guides.receipts.body(LABELS), places: [SPENDING_TRANSACTIONS_ROUTE] },
   ],
   setUp: [

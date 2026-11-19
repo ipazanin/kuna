@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { LABEL_WRITES, addLabel, deleteLabel, labelPackRecords, labelRows, relabelItem, renameLabel } from '../src/apps/company/labels/application/labelWrites'
 import { newLabel } from '../src/apps/company/labels/domain/labels'
-import { labelFigure, labelTotals } from '../src/apps/company/labels/domain/labelTotals'
+import { labelTotals } from '../src/apps/company/labels/domain/labelTotals'
+import { labelFigure } from '../src/shared/categorising/domain/labels'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
 import { installedPack } from '../src/apps/company/packs/packContribution'
@@ -276,7 +277,7 @@ describe("a label's leading figure", () => {
       { bucket: 'operating', amount: euros(-120) },
       { bucket: 'owner-pay', amount: euros(-30) },
     ])
-    expect(labelFigure(costsOnly)).toEqual({ counts: 'costs', amount: euros(150) })
+    expect(labelFigure(costsOnly.income, costsOnly.cost)).toEqual({ counts: 'costs', amount: euros(150) })
   })
 
   it('is its result, income less costs, once it has income', () => {
@@ -284,6 +285,6 @@ describe("a label's leading figure", () => {
       { bucket: 'income', amount: euros(100) },
       { bucket: 'operating', amount: euros(-150) },
     ])
-    expect(labelFigure(withIncome)).toEqual({ counts: 'result', amount: euros(-50) })
+    expect(labelFigure(withIncome.income, withIncome.cost)).toEqual({ counts: 'result', amount: euros(-50) })
   })
 })

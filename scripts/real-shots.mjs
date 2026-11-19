@@ -62,6 +62,7 @@ const SCREENS = [
   { name: 'spending-transactions', hash: '#/spending/transactions' },
   { name: 'spending-budgets', hash: '#/spending/budgets' },
   { name: 'spending-accounts', hash: '#/spending/accounts' },
+  { name: 'spending-sorting', hash: '#/spending/sorting' },
   { name: 'spending-settings', hash: '#/spending/settings' },
 ]
 

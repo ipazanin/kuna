@@ -16,6 +16,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
+import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
 
 /** Settings' quick adds in the order their buttons show on Entries, each opening its dialog and moving up or down, with Add. */
 const store = useSpendingBooks()
@@ -46,6 +47,11 @@ const editing = ref<ShortcutWithParts | null>(null)
 function openDialog(held: ShortcutWithParts | null): void {
   editing.value = held
   dialogOpen.value = true
+}
+
+/** The move of the quick add whose write runs, which its button shows. */
+function movingOf(shortcut: Shortcut): 'up' | 'down' | null {
+  return writes.saving(`up-${shortcut.id}`) ? 'up' : writes.saving(`down-${shortcut.id}`) ? 'down' : null
 }
 
 async function move(shortcut: Shortcut, step: -1 | 1): Promise<void> {
@@ -85,27 +91,16 @@ async function move(shortcut: Shortcut, step: -1 | 1): Promise<void> {
           </template>
         </ListRow>
         <div class="flex shrink-0 items-center">
-          <UButton
-            icon="i-lucide-arrow-up"
-            color="neutral"
-            variant="ghost"
-            class="size-11 justify-center"
-            :aria-label="words.card.up(name)"
-            :disabled="index === 0 || writes.refused.value"
-            :loading="writes.saving(`up-${held.shortcut.id}`)"
-            data-testid="spending-shortcut-up"
-            @click="move(held.shortcut, -1)"
-          />
-          <UButton
-            icon="i-lucide-arrow-down"
-            color="neutral"
-            variant="ghost"
-            class="size-11 justify-center"
-            :aria-label="words.card.down(name)"
-            :disabled="index === rows.length - 1 || writes.refused.value"
-            :loading="writes.saving(`down-${held.shortcut.id}`)"
-            data-testid="spending-shortcut-down"
-            @click="move(held.shortcut, 1)"
+          <MoveButtons
+            :up-label="words.card.up(name)"
+            :down-label="words.card.down(name)"
+            :first="index === 0"
+            :last="index === rows.length - 1"
+            :disabled="writes.refused.value"
+            :saving="movingOf(held.shortcut)"
+            test-id="spending-shortcut"
+            @up="move(held.shortcut, -1)"
+            @down="move(held.shortcut, 1)"
           />
           <UButton
             icon="i-lucide-pencil"

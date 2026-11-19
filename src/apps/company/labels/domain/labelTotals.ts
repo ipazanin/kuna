@@ -1,7 +1,6 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { labelOrder } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
-import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { bucketTotals } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLoss } from '../../workbook/domain/bucketTotals'
@@ -17,17 +16,6 @@ export interface LabelTotals {
   readonly parts: number
   /** The day of the newest part that carries it, or null for a label nothing carries. */
   readonly latest: CivilDate | null
-}
-
-/** The one figure a label leads with: its result, income less costs, or only its costs when it has no income, since a result would read a plain cost as a loss. */
-export interface LabelFigure {
-  readonly counts: 'result' | 'costs'
-  readonly amount: Money
-}
-
-export function labelFigure(profitAndLoss: ProfitAndLoss): LabelFigure {
-  if (profitAndLoss.income === 0) return { counts: 'costs', amount: profitAndLoss.cost }
-  return { counts: 'result', amount: profitAndLoss.net }
 }
 
 /**

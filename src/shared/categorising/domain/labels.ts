@@ -1,4 +1,6 @@
 import type { CivilDate } from '../../calendar/civilDate'
+import { subtractMoney, ZERO } from '../../money/money'
+import type { Money } from '../../money/money'
 import type { RecordId } from '../../storage/domain/recordId'
 import { fold } from '../../text/fold'
 import { partReplacements } from './partReplacements'
@@ -70,4 +72,16 @@ export function labelOrder(one: { readonly label: Label; readonly latest: CivilD
     return one.latest > other.latest ? -1 : 1
   }
   return one.label.name.localeCompare(other.label.name)
+}
+
+/** The one figure a label leads with: its result, income less costs, or only its costs when it has no income, since a result would read a plain cost as a loss. */
+export interface LabelFigure {
+  readonly counts: 'result' | 'costs'
+  readonly amount: Money
+}
+
+/** The figure a label leads with from what it took in and what it cost, both counted as its app counts them. */
+export function labelFigure(income: Money, cost: Money): LabelFigure {
+  if (income === ZERO) return { counts: 'costs', amount: cost }
+  return { counts: 'result', amount: subtractMoney(income, cost) }
 }

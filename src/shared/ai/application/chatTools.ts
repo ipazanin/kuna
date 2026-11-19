@@ -45,7 +45,7 @@ export const CHAT_TOOLS: readonly ModelTool[] = [
     input: {
       type: 'object',
       properties: {
-        route: { type: 'string', description: 'An address a page lists, such as "/spending/settings?tab=rules", a record\'s ref, or "issues".' },
+        route: { type: 'string', description: 'An address a page lists, such as "/spending/settings?tab=bank-sync", a record\'s ref, or "issues".' },
         params: {
           type: 'array',
           description: 'The parameters the address takes, as its page lists them, such as a month or a ref. Empty for none.',

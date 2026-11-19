@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -9,6 +10,9 @@ import { categoryColours } from './categoryColours'
 import CategoryDialog from './CategoryDialog.vue'
 import type { CategoryEditing } from './CategoryDialog.vue'
 import { swappedPlaces } from '../domain/categoryPlaces'
+import { rulesIntoCategoryLink, SORTING_CARDS } from '../../overview/presentation/spendingLinks'
+import { ruleCounts } from '../../statements/domain/rulesFiling'
+import RulesLink from '../../statements/presentation/RulesLink.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isFixedKind } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
@@ -17,8 +21,10 @@ import { words } from './words'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** The spending groups with their children, then Income, then the three fixed categories apart, each to edit, move, hide or delete. */
+/** The spending groups with their children, then Income, then the fixed categories apart, each to edit, move, hide or delete, with a link to the rules that file under it. */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
@@ -34,6 +40,14 @@ const sections = computed(() =>
   }),
 )
 const fixed = computed(() => fixedCategories(categories.value).flatMap((category) => (isFixedKind(category.kind) ? [{ category, kind: category.kind }] : [])))
+const rulesInto = computed(() => ruleCounts(store.state.workbook?.rules ?? []))
+const route = useRoute()
+
+/** The move of the category whose write runs, which its button shows. */
+function movingOf(id: RecordId): 'up' | 'down' | null {
+  return writes.saving(`up-${id}`) ? 'up' : writes.saving(`down-${id}`) ? 'down' : null
+}
+
 const summary = computed(() => plural(words.count(categories.value.length), categories.value.length))
 
 const editing = ref<CategoryEditing>({ mode: 'add-group' })
@@ -57,7 +71,17 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
 </script>
 
 <template>
-  <AppCard v-if="store.state.workbook !== null" :title="words.title" :subtitle="words.subtitle" collapse-id="spending-settings.categories" :summary="summary" data-testid="spending-categories">
+  <AppCard
+    v-if="store.state.workbook !== null"
+    :id="SORTING_CARDS.categories"
+    :title="words.title"
+    :subtitle="words.subtitle"
+    collapse-id="spending-sorting.categories"
+    :summary="summary"
+    start-collapsed
+    :reveal="route.hash === `#${SORTING_CARDS.categories}`"
+    data-testid="spending-categories"
+  >
     <template #actions>
       <UButton :label="words.addGroup" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="spending-add-group" @click="openDialog({ mode: 'add-group' })" />
     </template>
@@ -65,30 +89,21 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
       <section v-for="section in sections" :key="section.group.id">
         <div class="group-row flex items-center gap-2 px-4 sm:px-5" data-testid="spending-category-row">
           <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(${colourOf(section.group)})` }" aria-hidden="true" />
-          <span class="min-w-0 flex-1 py-2 break-words" :class="{ 'text-muted': section.group.hidden }">{{ section.group.name }}</span>
+          <span class="flex min-w-0 flex-1 flex-col items-start py-2">
+            <span class="break-words" :class="{ 'text-muted': section.group.hidden }">{{ section.group.name }}</span>
+            <RulesLink :count="rulesInto.get(section.group.id) ?? 0" :name="section.group.name" :to="rulesIntoCategoryLink(section.group)" />
+          </span>
           <UBadge v-if="section.group.hidden" :label="words.hidden" icon="i-lucide-eye-off" color="neutral" variant="subtle" size="sm" />
           <div class="flex shrink-0 items-center">
-            <UButton
-              icon="i-lucide-arrow-up"
-              color="neutral"
-              variant="ghost"
-              class="size-11 justify-center"
-              :aria-label="words.moveUp(section.group.name)"
-              :disabled="section.place === 0"
-              :loading="writes.saving(`up-${section.group.id}`)"
-              data-testid="spending-category-up"
-              @click="move(section.groups, section.place, -1)"
-            />
-            <UButton
-              icon="i-lucide-arrow-down"
-              color="neutral"
-              variant="ghost"
-              class="size-11 justify-center"
-              :aria-label="words.moveDown(section.group.name)"
-              :disabled="section.place === section.groups.length - 1"
-              :loading="writes.saving(`down-${section.group.id}`)"
-              data-testid="spending-category-down"
-              @click="move(section.groups, section.place, 1)"
+            <MoveButtons
+              :up-label="words.moveUp(section.group.name)"
+              :down-label="words.moveDown(section.group.name)"
+              :first="section.place === 0"
+              :last="section.place === section.groups.length - 1"
+              :saving="movingOf(section.group.id)"
+              test-id="spending-category"
+              @up="move(section.groups, section.place, -1)"
+              @down="move(section.groups, section.place, 1)"
             />
             <UButton
               icon="i-lucide-pencil"
@@ -104,30 +119,21 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
         <ul class="flex flex-col">
           <li v-for="(child, place) in section.children" :key="child.id" class="flex items-center gap-2 border-b border-default ps-8 pe-4 sm:ps-9 sm:pe-5" data-testid="spending-category-row">
             <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(${colourOf(child)})` }" aria-hidden="true" />
-            <span class="min-w-0 flex-1 py-2 text-sm break-words" :class="{ 'text-muted': child.hidden }">{{ child.name }}</span>
+            <span class="flex min-w-0 flex-1 flex-col items-start py-2">
+              <span class="break-words" :class="child.hidden ? 'type-aside' : 'type-row-title'">{{ child.name }}</span>
+              <RulesLink :count="rulesInto.get(child.id) ?? 0" :name="child.name" :to="rulesIntoCategoryLink(child)" />
+            </span>
             <UBadge v-if="child.hidden" :label="words.hidden" icon="i-lucide-eye-off" color="neutral" variant="subtle" size="sm" />
             <div class="flex shrink-0 items-center">
-              <UButton
-                icon="i-lucide-arrow-up"
-                color="neutral"
-                variant="ghost"
-                class="size-11 justify-center"
-                :aria-label="words.moveUp(child.name)"
-                :disabled="place === 0"
-                :loading="writes.saving(`up-${child.id}`)"
-                data-testid="spending-category-up"
-                @click="move(section.children, place, -1)"
-              />
-              <UButton
-                icon="i-lucide-arrow-down"
-                color="neutral"
-                variant="ghost"
-                class="size-11 justify-center"
-                :aria-label="words.moveDown(child.name)"
-                :disabled="place === section.children.length - 1"
-                :loading="writes.saving(`down-${child.id}`)"
-                data-testid="spending-category-down"
-                @click="move(section.children, place, 1)"
+              <MoveButtons
+                :up-label="words.moveUp(child.name)"
+                :down-label="words.moveDown(child.name)"
+                :first="place === 0"
+                :last="place === section.children.length - 1"
+                :saving="movingOf(child.id)"
+                test-id="spending-category"
+                @up="move(section.children, place, -1)"
+                @down="move(section.children, place, 1)"
               />
               <UButton
                 icon="i-lucide-pencil"
@@ -159,9 +165,10 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
         <ul class="flex flex-col">
           <li v-for="{ category, kind } in fixed" :key="category.id" class="flex items-center gap-2 border-b border-default px-4 last:border-b-0 sm:px-5" data-testid="spending-category-row">
             <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(${colourOf(category)})` }" aria-hidden="true" />
-            <div class="flex min-w-0 flex-1 flex-col py-2">
-              <span class="text-sm break-words">{{ category.name }}</span>
-              <span class="text-xs text-muted">{{ words.fixedCounts[kind] }}</span>
+            <div class="flex min-w-0 flex-1 flex-col items-start py-2">
+              <span class="break-words type-row-title">{{ category.name }}</span>
+              <span class="type-caption">{{ words.fixedCounts[kind] }}</span>
+              <RulesLink :count="rulesInto.get(category.id) ?? 0" :name="category.name" :to="rulesIntoCategoryLink(category)" />
             </div>
             <UButton
               icon="i-lucide-pencil"
