@@ -893,6 +893,8 @@ async function checkWidth(browser, width) {
       await shoot('record-row-opened')
     } finally {
       await page.setViewport({ width, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+      // Phone emulation narrows the layout viewport over a few frames, and the toast list sized to it reaches past the phone's edge until then.
+      await page.waitForFunction((phoneWidth) => window.innerWidth === phoneWidth, { timeout: 5_000 }, width)
     }
   })
 
