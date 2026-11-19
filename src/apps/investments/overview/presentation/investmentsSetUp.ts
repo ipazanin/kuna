@@ -1,6 +1,6 @@
 import type { SetUpLine } from '../../../../shared/app/appContribution'
-import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
 import { plural } from '../../../../shared/text/translation'
+import { isCashShort } from '../../holdings/domain/accountCash'
 import { heldHoldings } from '../../holdings/domain/holdingsList'
 import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
 import { TAX_ROUTE } from '../../tax/presentation/taxLinks'
@@ -16,7 +16,7 @@ import { words } from './words'
  */
 export function investmentsSetUp(book: InvestmentBook, figures: PortfolioFigures | null, historyComplete: boolean): SetUpLine[] {
   if (!hasTransactions(book)) return [{ key: 'first-holdings', text: words.setUp.firstHoldings, whileEmpty: true }]
-  const cashBelowZero = figures !== null && figures.cash.some((held) => held.balance < DECIMAL_ZERO)
+  const cashBelowZero = figures !== null && figures.cash.some((held) => isCashShort(held))
   const unpriced = figures === null ? 0 : heldHoldings(figures).filter((holding) => holding.valuation === null).length
   return [
     ...(cashBelowZero ? [{ key: 'cash-below-zero', text: words.setUp.cashBelowZero, link: { label: words.setUp.transactionsLink, to: TRANSACTIONS_ROUTE } }] : []),

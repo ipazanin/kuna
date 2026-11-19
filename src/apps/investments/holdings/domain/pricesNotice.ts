@@ -1,6 +1,7 @@
 import type { HoldingFigures } from './holding'
 import type { CashFigures, PortfolioFigures } from './portfolioFigures'
 import type { Instrument } from '../../workbook/domain/instrument'
+import { isCashShort } from './accountCash'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
 
 /** What the Overview's notice names, each list in the file's order. */
@@ -11,7 +12,7 @@ export interface PricesNotice {
   readonly byHand: readonly HoldingFigures[]
   /** Held with no price or no rate, which the value leaves out. */
   readonly unpriced: readonly Instrument[]
-  /** Cash in a currency below zero, which usually means a deposit or an exchange is missing. */
+  /** Cash in a currency short by half a cent or more, which usually means a deposit or an exchange is missing. */
   readonly cashBelowZero: readonly CashFigures[]
 }
 
@@ -21,7 +22,7 @@ export function pricesNotice(figures: PortfolioFigures): PricesNotice {
     late: held.filter((holding) => holding.late),
     byHand: held.filter((holding) => !holding.late && holding.valuation?.close.byHand === true),
     unpriced: figures.unpriced,
-    cashBelowZero: figures.cash.filter((balance) => balance.balance < DECIMAL_ZERO),
+    cashBelowZero: figures.cash.filter((balance) => isCashShort(balance)),
   }
 }
 

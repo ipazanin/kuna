@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { accountCash } from '../src/apps/investments/holdings/domain/accountCash'
+import { accountCash, isCashShort } from '../src/apps/investments/holdings/domain/accountCash'
 import type { AccountCash } from '../src/apps/investments/holdings/domain/accountCash'
 import { EURO } from '../src/shared/money/currencyCode'
 import { decimalText } from '../src/shared/money/decimal'
@@ -143,5 +143,18 @@ describe("an account's cash", () => {
     })
 
     expect(accountCash(records, NO_RATES, NONE_REFUSED).balances).toEqual([])
+  })
+})
+
+describe('cash that is short', () => {
+  it.each([
+    ['0', false],
+    ['12.5', false],
+    ['-0.0049', false],
+    ['-0.005', true],
+    ['-0.0093', true],
+    ['-201', true],
+  ])('takes %s as short: %s, so a leftover under half a cent from a conversion asks for no deposit', (balance, short) => {
+    expect(isCashShort({ balance: decimal(balance) })).toBe(short)
   })
 })

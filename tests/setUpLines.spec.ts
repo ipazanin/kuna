@@ -7,12 +7,13 @@ import { hr as croatianWords } from '../src/apps/company/onboarding/presentation
 import { payeesWaiting } from '../src/apps/company/rules/domain/ruleCoverage'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { investmentsSetUp } from '../src/apps/investments/overview/presentation/investmentsSetUp'
+import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import { loansSetUp } from '../src/apps/loans/overview/presentation/loansSetUp'
 import { spendingSetUp } from '../src/apps/spending/overview/presentation/spendingSetUp'
-import { account, book, cashMovement } from './fixtures/investments'
+import { BROKER, WORKED_PRICES, WORKED_RATES, WORLD_ETF, account, book, cashMovement, trade } from './fixtures/investments'
 import { emptyCompany } from './fixtures/emptyCompany'
-import { ledger } from './fixtures/ledger'
+import { civil, ledger } from './fixtures/ledger'
 
 function fakeRule(id: string, confidence: Rule['confidence']): Rule {
   return { id, order: 10, enabled: true, conditions: [], category: 'ai-services', confidence, note: '' }
@@ -57,9 +58,20 @@ describe('set-up lines', () => {
   })
 
   it('lead Investments with the deposit a buy without one leaves missing, which is what makes the value wrong', () => {
-    const started = book({ cashMovements: [cashMovement('deposit', account('one'), '2026-01-05', '100.00')] })
-    const below = { holdings: [], cash: [{ balance: -100000n }] } as unknown as PortfolioFigures
-    expect(keysOf(investmentsSetUp(started, below, false))).toEqual(['cash-below-zero', 'history'])
+    const bought = book({ accounts: [BROKER], instruments: [WORLD_ETF], trades: [trade('buy', BROKER, WORLD_ETF, '2026-01-05', '1', '100', null)] })
+    const figures = portfolioFigures({ book: bought, prices: WORKED_PRICES, rates: WORKED_RATES, today: civil('2026-10-29') })
+    expect(keysOf(investmentsSetUp(bought, figures, false))).toEqual(['cash-below-zero', 'history'])
+  })
+
+  it('ask Investments for no deposit over a leftover under half a cent from a conversion', () => {
+    const bought = book({
+      accounts: [BROKER],
+      instruments: [WORLD_ETF],
+      trades: [trade('buy', BROKER, WORLD_ETF, '2026-01-05', '1', '100', null)],
+      cashMovements: [cashMovement('deposit', BROKER, '2026-01-04', '99.9961')],
+    })
+    const figures = portfolioFigures({ book: bought, prices: WORKED_PRICES, rates: WORKED_RATES, today: civil('2026-10-29') })
+    expect(keysOf(investmentsSetUp(bought, figures, false))).toEqual(['history'])
   })
 
   it('leave out the link of a line only the home card shows', () => {

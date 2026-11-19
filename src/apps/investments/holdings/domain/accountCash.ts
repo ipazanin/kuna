@@ -5,7 +5,7 @@ import { addsCash } from '../../workbook/domain/cashMovement'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, addDecimal, inEuros, negateDecimal, subtractDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, addDecimal, inEuros, negateDecimal, roundedDecimal, subtractDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, addMoney, negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -19,6 +19,11 @@ export interface CashBalance {
   readonly balance: Decimal
   /** What the balance came in at: every movement in euros at its own rate. */
   readonly eurosIn: Money
+}
+
+/** Whether the balance is short by half a cent or more, which points at a missing deposit or exchange. A smaller gap is a broker's leftover from a conversion. */
+export function isCashShort(cash: Pick<CashBalance, 'balance'>): boolean {
+  return roundedDecimal(cash.balance, 2) < DECIMAL_ZERO
 }
 
 export interface AccountCash {
