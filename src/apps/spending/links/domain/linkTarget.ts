@@ -22,7 +22,7 @@ export interface InstalmentTarget {
   /** How many instalments the plan has. */
   readonly count: number
   readonly due: CivilDate
-  readonly yourShare: Money
+  readonly youPay: Money
   readonly interest: Money
   readonly principal: Money
 }

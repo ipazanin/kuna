@@ -33,7 +33,7 @@ const LOAN = '3f6c1e2a-0000-4000-8000-000000000001'
 const OTHER_LOAN = '3f6c1e2a-0000-4000-8000-000000000002'
 const DAY = civil('2026-11-25')
 
-/** A made-up instalment of Car loan from Example Bank, 612.20 of your share, due on the day given. */
+/** A made-up instalment of Car loan from Example Bank, 612.20 you pay, due on the day given. */
 function due(date: string, fields: Partial<InstalmentTarget> = {}): InstalmentTarget {
   return {
     kind: 'instalment',
@@ -44,7 +44,7 @@ function due(date: string, fields: Partial<InstalmentTarget> = {}): InstalmentTa
     number: 14,
     count: 84,
     due: civil(date),
-    yourShare: moneyFromAmount(612.2),
+    youPay: moneyFromAmount(612.2),
     interest: moneyFromAmount(110),
     principal: moneyFromAmount(502.2),
     ...fields,
@@ -189,7 +189,7 @@ describe('the fake books', () => {
     expect(offers.map(({ row, instalment }) => [row.payee, row.amount, instalment.loanName])).toEqual([['Example Bank', accountMoneyFromAmount(-5000), 'Home loan']])
   })
 
-  it("give Spending's fake rows your share of the home loan's plan in every month", () => {
+  it("give Spending's fake rows what you pay of the home loan's plan in every month", () => {
     const meta = { id: 'shares', source: 'browser' as const, title: 'shares', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
     const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
     const instalments = loanTargetsOf(loans).instalments.filter(
@@ -197,7 +197,7 @@ describe('the fake books', () => {
     )
 
     expect(instalments).toHaveLength(67)
-    for (const { due, yourShare } of instalments) expect([due, moneyFromAmount(fakeHomeLoanShare(monthOf(due)))]).toEqual([due, yourShare])
+    for (const { due, youPay } of instalments) expect([due, moneyFromAmount(fakeHomeLoanShare(monthOf(due)))]).toEqual([due, youPay])
   })
 
   it.each(['2026-11-04', '2026-11-25', '2027-06-01', '2028-06-01'])("bring the sample loan export in on %s linked to the home loan's latest instalment and split by it", async (date) => {

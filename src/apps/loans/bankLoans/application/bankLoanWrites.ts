@@ -91,3 +91,7 @@ export function newExtraPayment(payment: Omit<ExtraPayment, 'id'>): ExtraPayment
 export function newLateInstalment(late: Omit<LateInstalment, 'id'>): LateInstalment {
   return { ...late, id: recordIdOf(LATE_INSTALMENT_RECORDS, newRecordId()) }
 }
+
+export function newLoanShare(change: Omit<LoanShare, 'id'>): LoanShare {
+  return { ...change, note: change.note.trim(), id: recordIdOf(LOAN_SHARE_RECORDS, newRecordId()) }
+}

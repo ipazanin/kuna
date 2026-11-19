@@ -92,10 +92,12 @@ export function loansOverview(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
   }
 }
 
-/** How many loans a direction's tile adds up, and who is behind on an expected plan among the open loans that run that way. */
+/** How many loans a direction's tile adds up, that it counts your part of the bank loans you share, and who is behind on an expected plan among the open loans that run that way. */
 export function directionCaption(overview: LoansOverview, direction: LoanDirection): string {
   const count = direction === 'you-owe' ? overview.totals.loansYouOwe : overview.totals.loansOwedToYou
-  const loans = count === 0 ? (direction === 'you-owe' ? words.tiles.youOweNothing : words.tiles.nobodyOwesYou) : plural(words.tiles.onLoans(count), count)
+  const counted = count === 0 ? (direction === 'you-owe' ? words.tiles.youOweNothing : words.tiles.nobodyOwesYou) : plural(words.tiles.onLoans(count), count)
+  const shared = direction === 'you-owe' && overview.openBank.some((entry) => entry.figures?.yours !== undefined)
+  const loans = shared ? [counted, words.tiles.yourPartCounted].join(', ') : counted
   const behind = overview.openInformal.flatMap((entry) =>
     entry.book.loan.direction === direction && entry.standing !== null && entry.standing.ahead < 0 ? [{ loan: entry.book.loan, standing: entry.standing }] : [],
   )

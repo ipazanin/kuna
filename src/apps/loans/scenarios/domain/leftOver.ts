@@ -9,7 +9,7 @@ import type { Money } from '../../../../shared/money/money'
 
 /** Everything the scenario has cost you by the horizon, each payment grown monthly at the savings rate from its day, plus what it still owes then, in fractional cents. */
 function costByHorizon(plan: ScenarioPlan, horizon: CivilDate, monthlyGrowth: number): number {
-  const paid = [...plan.rows.map((row) => ({ date: row.date, amount: row.yourShare })), ...plan.costs].filter((flow) => flow.date <= horizon)
+  const paid = [...plan.rows.map((row) => ({ date: row.date, amount: row.youPay })), ...plan.costs].filter((flow) => flow.date <= horizon)
   const grown = paid.reduce((total, flow) => total + flow.amount * (1 + monthlyGrowth) ** wholeMonthsBetween(flow.date, horizon), 0)
   const owed = plan.rows.filter((row) => row.date <= horizon).at(-1)?.balance ?? plan.loan.principal
   return grown + owed

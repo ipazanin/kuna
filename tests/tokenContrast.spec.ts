@@ -193,6 +193,7 @@ function distancesOf(one: string, other: string): { readonly normal: number; rea
 const DOTTED_CHARTS = [
   { chart: 'a price chart', dots: ['--invest-buy', '--invest-sale'], lines: ['--invest-portfolio', '--invest-reference'] },
   { chart: 'a bank loan', dots: ['--loan-lowers', '--loan-interest'], lines: ['--loan-you-owe', '--loan-ahead'] },
+  { chart: 'a bank loan you share', dots: ['--loan-lowers', '--loan-interest'], lines: ['--loan-you-owe', '--loan-ahead', '--loan-your-part'] },
   { chart: 'an informal loan you owe', dots: ['--loan-lowers', '--loan-raises'], lines: ['--loan-you-owe', '--loan-ahead'] },
   { chart: 'an informal loan owed to you', dots: ['--loan-lowers', '--loan-raises'], lines: ['--loan-owed-to-you', '--loan-ahead'] },
 ] as const

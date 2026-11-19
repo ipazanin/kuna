@@ -5,7 +5,8 @@ import { assetsOnDay, assetsTotal } from '../values/domain/assetsOnDay'
 import type { LoansOnScreen } from '../loans/application/assetLoans'
 import type { HouseIndexState } from '../houseIndex/domain/houseIndex'
 import type { Asset } from '../workbook/domain/asset'
-import { ASSET_RECORDS, VALUATION_RECORDS } from '../workbook/domain/assetKinds'
+import { ASSET_RECORDS, ASSET_SHARE_RECORDS, VALUATION_RECORDS } from '../workbook/domain/assetKinds'
+import type { AssetShare } from '../workbook/domain/assetShare'
 import type { AssetBook } from '../workbook/domain/readAssetBook'
 import type { Valuation } from '../workbook/domain/valuation'
 import { readableKind } from '../../../shared/app/assistantReader'
@@ -76,6 +77,14 @@ const VALUATION_FIELDS: FieldDocs<Valuation> = {
   note: { exposure: 'free-text', meaning: "The owner's note, such as the bank's appraisal or a guess." },
 }
 
+const ASSET_SHARE_FIELDS: FieldDocs<AssetShare> = {
+  id: { exposure: 'ref', to: ASSET_SHARE_RECORDS.name, meaning: 'The change of your part.' },
+  asset: { exposure: 'ref', to: ASSET_RECORDS.name, meaning: 'The asset it is your part of.' },
+  from: { exposure: 'plain', meaning: 'The day your part changed. It holds until the next change.' },
+  share: { exposure: 'plain', meaning: 'Your part from that day on, as a percent such as 50. 100% is all of it.', read: (change) => `${writtenPercent(change.share)}%` },
+  note: { exposure: 'free-text', meaning: "The owner's note, such as who bought whose part." },
+}
+
 const KIND_NAMES = { home: 'home', car: 'car', other: 'other asset' } as const
 
 /** How a value was reached, as a label says it, with the days and quarters but no amount. */
@@ -105,11 +114,14 @@ function worthReport(book: AssetBook, period: string | null, index: HouseIndexSt
   if (total === 'opening') return [{ label: 'assets worth together: waiting for the house price index, so there is no figure yet', count: 1 }]
   const onDay = assetsOnDay(book, day, index, loans(day))
   const names = distinctNames(onDay.map(({ asset }) => `${KIND_NAMES[asset.kind]}${asset.bought === null ? '' : ` bought ${asset.bought}`}`))
-  const each = onDay.flatMap(({ value, link, equity }, at): ReportFigure[] => {
+  const each = onDay.flatMap(({ value, share, link, equity }, at): ReportFigure[] => {
     const named = names[at]!
     return [
       value === null ? { label: `${named}: has no value, with no valuation and no price`, count: 1 } : amount(`${named}: worth, ${basisText(value.basis)}`, value.cents),
-      ...(link.kind === 'linked' && equity.owed !== null ? [amount(`${named}: owed on its bank loan`, equity.owed)] : []),
+      ...(share === null || equity.value === null ? [] : [amount(`${named}: your part of it, ${writtenPercent(share)}% on the day, which the totals count`, equity.value)]),
+      ...(link.kind === 'linked' && equity.owed !== null
+        ? [amount(link.loan.whole === undefined ? `${named}: owed on its bank loan` : `${named}: your part of what is owed on its bank loan`, equity.owed)]
+        : []),
       ...(equity.yours === null ? [] : [amount(`${named}: yours after its bank loan`, equity.yours)]),
     ]
   })
@@ -122,7 +134,7 @@ function worthReport(book: AssetBook, period: string | null, index: HouseIndexSt
   ]
 }
 
-/** What the chat can read of Assets: its two kinds, with every field classified, and the worth the screens show, from the same functions. Nothing here writes. */
+/** What the chat can read of Assets: its three kinds, with every field classified, and the worth the screens show, from the same functions. Nothing here writes. */
 export function assetsReader(reading: AssetsReading): AppReader {
   const loansToday = () => reading.loans(today())
   return {
@@ -143,6 +155,14 @@ export function assetsReader(reading: AssetsReading): AppReader {
         fields: VALUATION_FIELDS,
         dated: 'date',
         rows: () => reading.book()?.readings.valuations.facts ?? [],
+        currencyOf: () => EURO,
+      }),
+      readableKind({
+        kind: ASSET_SHARE_RECORDS,
+        about: words.reads.assetShare,
+        fields: ASSET_SHARE_FIELDS,
+        dated: 'from',
+        rows: () => reading.book()?.readings.assetShares.facts ?? [],
         currencyOf: () => EURO,
       }),
     ],

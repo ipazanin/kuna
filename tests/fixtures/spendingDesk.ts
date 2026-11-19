@@ -111,7 +111,7 @@ export const DESK_LOAN_TARGETS: readonly LinkTarget[] = [
     number: 14 + place,
     count: 300,
     due: on(due),
-    yourShare: moneyFromAmount(650),
+    youPay: moneyFromAmount(650),
     interest: moneyFromAmount(250),
     principal: moneyFromAmount(400),
   })),

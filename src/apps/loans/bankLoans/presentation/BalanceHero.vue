@@ -7,6 +7,8 @@ import PaymentSplitFigures from './PaymentSplitFigures.vue'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../shared/money/percent'
+import type { Percent } from '../../../../shared/money/percent'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
@@ -15,10 +17,15 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ProgressMeter from '../../../../shared/ui/ProgressMeter.vue'
 import { useLoanWords } from './useLoanWords'
 
-/** What the bank loan's page leads with: owed today and how much is paid back, beside everything still to pay and who pays it. */
+/**
+ * What the bank loan's page leads with: what the bank is owed today and how much is paid back, with your part of it for a loan you took out with
+ * others, beside everything still to pay and who pays it.
+ */
 const props = defineProps<{
   loan: BankLoan
   figures: BankLoanFigures
+  /** Your part on the day, null when it is all yours. */
+  part: Percent | null
 }>()
 const loanWords = useLoanWords()
 
@@ -50,6 +57,12 @@ const paidOff = computed(() => props.figures.owed === 0 && props.figures.next ==
           { label: loanWords.hero.stillOwedPart, colour: 'var(--loan-ahead)' },
         ]"
       />
+      <div v-if="figures.yours !== undefined && part !== null" class="mt-2 flex flex-col gap-1 border-t border-default pt-4" data-testid="bank-loan-your-part">
+        <p class="flex items-center gap-1.5 text-sm text-muted"><span class="swatch swatch-line" style="--swatch: var(--loan-your-part)" aria-hidden="true" />{{ loanWords.hero.yourPart }}</p>
+        <MoneyText :cents="figures.yours" class="block text-figure-lg font-semibold text-highlighted" />
+        <p class="type-caption">{{ loanWords.hero.yourPartCaption(percentText(part)) }}</p>
+        <p class="type-caption" data-testid="bank-loan-joint-debtors">{{ loanWords.hero.jointDebtors }}</p>
+      </div>
     </div>
     <div class="flex min-w-0 flex-col gap-2 border-t border-default pt-5 sm:flex-1 sm:border-t-0 sm:border-s sm:ps-6 sm:pt-0">
       <div class="flex items-start justify-between gap-2">

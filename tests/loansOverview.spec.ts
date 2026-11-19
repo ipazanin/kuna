@@ -101,7 +101,7 @@ describe('the loans of the Overview', () => {
 describe('the next payment tile', () => {
   it('names the bank loan, or whom an informal plan repays and that it is overdue', () => {
     const fromDora = informalLoan({ name: 'From Dora', counterparty: 'Dora' })
-    const amounts = { payment: euros(500), yourShare: euros(500) }
+    const amounts = { payment: euros(500), youPay: euros(500) }
 
     expect(nextPaymentCaption({ kind: 'bank', loan: bankLoan({ name: 'Home loan' }), date: civil('2026-11-20'), ...amounts })).toBe('On 20 Nov, Home loan')
     expect(nextPaymentCaption({ kind: 'informal', loan: fromDora, date: civil('2026-12-01'), overdue: false, ...amounts })).toBe('On 1 Dec, repaying Dora')

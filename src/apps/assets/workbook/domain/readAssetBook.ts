@@ -6,6 +6,7 @@ import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/r
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
+import { partChangeDoubt } from '../../../../shared/money/yourPart'
 import { words } from './words'
 
 /** What the Assets file holds of each kind. */
@@ -80,8 +81,9 @@ export function readAssetBook(records: AssetsRecords): AssetBook {
   const assetShares = readEach(records.assetShares, ({ record: change }) => {
     const asset = assets.get(change.asset)
     if (asset === undefined) return [words.noAsset]
-    if (asset.bought !== null && change.from < asset.bought) return [words.shareBeforeBought(change.from, asset.name, asset.bought)]
-    return changingDay.has(`${change.asset} ${change.from}`) ? [words.shareChangesSameDay(asset.name, change.from)] : []
+    const doubt = partChangeDoubt(change.from, asset.bought, changingDay.has(`${change.asset} ${change.from}`))
+    if (doubt === 'before-start' && asset.bought !== null) return [words.shareBeforeBought(change.from, asset.name, asset.bought)]
+    return doubt === 'same-day' ? [words.shareChangesSameDay(asset.name, change.from)] : []
   })
   const readings: AssetReadings = { assets: assetReading, valuations, assetShares }
   return {

@@ -79,7 +79,7 @@ const links = computed((): LoanLink[] => [
               </span>
             </span>
           </td>
-          <td class="text-end"><MoneyText :cents="payment.yourShare" /></td>
+          <td class="text-end"><MoneyText :cents="payment.youPay" /></td>
           <td class="hidden text-end @md:table-cell"><MoneyText :cents="payment.payment" /></td>
         </tr>
       </tbody>

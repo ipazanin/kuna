@@ -60,9 +60,19 @@ function figureOf(figures: readonly ReportFigure[], label: string): ReportFigure
 }
 
 describe('what the chat reads of Loans', () => {
-  it('reads the eight kinds, with each rate as a percent and each amount in euros', async () => {
+  it('reads the nine kinds, with each rate as a percent and each amount in euros', async () => {
     const { reader } = await readerOfDesk()
-    expect(reader.kinds.map((kind) => kind.name)).toEqual(['bank-loan', 'rate-period', 'extra-payment', 'late-instalment', 'informal-loan', 'movement', 'loan-scenario', 'scenario-change'])
+    expect(reader.kinds.map((kind) => kind.name)).toEqual([
+      'bank-loan',
+      'rate-period',
+      'extra-payment',
+      'late-instalment',
+      'loan-share',
+      'informal-loan',
+      'movement',
+      'loan-scenario',
+      'scenario-change',
+    ])
     expect(fieldsOf(reader, 'rate-period', EXAMPLE_RECORDS['rate-period-later']!)['rate']).toMatchObject({ exposure: 'plain', value: '4%' })
     expect(fieldsOf(reader, 'bank-loan', EXAMPLE_RECORDS['bank-loan']!)['principal']).toMatchObject({ of: 'app', cents: 120000, currency: 'EUR' })
     expect(fieldsOf(reader, 'informal-loan', EXAMPLE_RECORDS['informal-loan']!)['counterparty']).toMatchObject({ exposure: 'party', value: 'Ana' })
@@ -152,10 +162,10 @@ describe("Loans' reports", () => {
     const figures = reader.reports.find((report) => report.id === 'statements')!.figures('2026-07-01')
 
     expect(figures.map((figure) => figure.label)).toEqual([
-      `${named}: instalment due 2026-03-05, your share, paid 2026-03-11 as your statement shows, which overrules the late-instalment record of 2026-03-09`,
-      `${named}: instalment due 2026-04-05, your share, paid 2026-04-03 as your statement shows`,
-      `${named}: instalment due 2026-05-05, your share, not seen in your statement`,
-      `${named}: instalment due 2026-06-05, your share, not seen in your statement`,
+      `${named}: instalment due 2026-03-05, what you pay, paid 2026-03-11 as your statement shows, which overrules the late-instalment record of 2026-03-09`,
+      `${named}: instalment due 2026-04-05, what you pay, paid 2026-04-03 as your statement shows`,
+      `${named}: instalment due 2026-05-05, what you pay, not seen in your statement`,
+      `${named}: instalment due 2026-06-05, what you pay, not seen in your statement`,
     ])
     const unchecked = loansReader({ status: () => 'open', book: () => desk.store.state.workbook, statementPayments: () => 'unchecked' })
     expect(unchecked.reports.find((report) => report.id === 'statements')!.figures(null)).toEqual([{ label: 'instalments checked against your statements, as Spending did not open', count: 0 }])

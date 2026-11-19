@@ -142,7 +142,7 @@ describe("a Spending row's link", () => {
           number: null,
           count: 300,
           due: on('2026-10-31'),
-          yourShare: moneyFromAmount(80),
+          youPay: moneyFromAmount(80),
           interest: moneyFromAmount(80),
           principal: moneyFromAmount(0),
           link: linkTo('bank-loan', LOAN, '2026-10-31'),
@@ -156,7 +156,7 @@ describe("a Spending row's link", () => {
           number: 1,
           count: 300,
           due: on('2026-11-20'),
-          yourShare: moneyFromAmount(650),
+          youPay: moneyFromAmount(650),
           interest: moneyFromAmount(250),
           principal: moneyFromAmount(400),
           link: linkTo('bank-loan', LOAN, '2026-11-20'),
@@ -203,7 +203,7 @@ const GROCERIES = category('Food/Groceries')
 const PRINCIPAL = CATEGORIES.find((held) => held.kind === 'repayment')!
 const NOTES = { interest: 'Interest', difference: 'Difference from the plan' }
 
-/** A made-up instalment due on 20 November: 650.00 of your share, 250.00 of it interest and 400.00 principal. */
+/** A made-up instalment due on 20 November: 650.00 you pay, 250.00 of it interest and 400.00 principal. */
 const INSTALMENT: InstalmentTarget = {
   kind: 'instalment',
   interim: false,
@@ -213,7 +213,7 @@ const INSTALMENT: InstalmentTarget = {
   number: 14,
   count: 300,
   due: on('2026-11-20'),
-  yourShare: moneyFromAmount(650),
+  youPay: moneyFromAmount(650),
   interest: moneyFromAmount(250),
   principal: moneyFromAmount(400),
 }
@@ -293,7 +293,7 @@ describe('a row linked to a loan instalment', () => {
 
     expect([
       why(INFORMAL),
-      why({ ...INSTALMENT, interim: true, interest: INSTALMENT.yourShare, principal: moneyFromAmount(0) }),
+      why({ ...INSTALMENT, interim: true, interest: INSTALMENT.youPay, principal: moneyFromAmount(0) }),
       why(INSTALMENT, row(OTP, '2026-11-20', 650, 'Money and fees/Loan interest')),
       why(INSTALMENT, row(REVOLUT_USD, '2026-11-20', -650, 'Money and fees/Loan interest'), { ...ON_OTP, currency: REVOLUT_USD.currency }),
       why(INSTALMENT, { ...paid, pair: row(OTP, '2026-11-20', 650, null).id }),

@@ -1,9 +1,10 @@
 import { assetsAcceptance, assetsProposer } from '../../src/apps/assets/assistant/operations/assetsOperations'
 import { FILE_OPEN } from './browserFile'
-import { ASSET_WRITES, VALUATION_WRITES } from '../../src/apps/assets/asset/application/assetWrites'
+import { ASSET_SHARE_WRITES, ASSET_WRITES, VALUATION_WRITES } from '../../src/apps/assets/asset/application/assetWrites'
 import type { AssetLoan } from '../../src/apps/assets/loans/application/assetLoans'
 import type { Asset } from '../../src/apps/assets/workbook/domain/asset'
-import { ASSET_RECORDS, VALUATION_RECORDS } from '../../src/apps/assets/workbook/domain/assetKinds'
+import { ASSET_RECORDS, ASSET_SHARE_RECORDS, VALUATION_RECORDS } from '../../src/apps/assets/workbook/domain/assetKinds'
+import type { AssetShare } from '../../src/apps/assets/workbook/domain/assetShare'
 import type { AssetsBooks } from '../../src/apps/assets/workbook/domain/assetsBooks'
 import type { Valuation } from '../../src/apps/assets/workbook/domain/valuation'
 import { emptyAssetsDocument } from '../../src/apps/assets/workbook/infrastructure/assetsDocument'
@@ -13,6 +14,7 @@ import { chatRefs } from '../../src/shared/ai/domain/chatRefs'
 import type { CheckedProposal } from '../../src/shared/app/assistantOperations'
 import { newPseudonyms } from '../../src/shared/privacy/domain/pseudonyms'
 import type { WorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
+import { percentFromBasisPoints } from '../../src/shared/money/percent'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 import { civil, euros } from './ledger'
 import { ASSETS, browserHarness } from './writeBack'
@@ -55,11 +57,15 @@ const BOAT: Asset = {
 /** The marina's guess of the boat on 2026-05-01. */
 const VALUATION: Valuation = { id: recordIdOf(VALUATION_RECORDS, 'valuation'), asset: BOAT.id, date: civil('2026-05-01'), value: euros(15_500), note: '' }
 
+/** Half the boat from 2024-01-01, once a friend bought into it. */
+const BOAT_SHARE: AssetShare = { id: recordIdOf(ASSET_SHARE_RECORDS, 'asset-share'), asset: BOAT.id, from: civil('2024-01-01'), share: percentFromBasisPoints(5000), note: '' }
+
 /** The record each operation's example names, by the name it gives it. */
 export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'asset-home': FLAT.id,
   'asset-boat': BOAT.id,
   valuation: VALUATION.id,
+  'asset-share': BOAT_SHARE.id,
 }
 
 /** An Assets file where every operation's example has what it needs, with the chat's refs and the cards it was shown. */
@@ -78,6 +84,7 @@ export async function assetsDesk(used: Set<string>, loans: () => AssetLoan[] | '
     unit.of(ASSET_WRITES).add(FLAT)
     unit.of(ASSET_WRITES).add(BOAT)
     unit.of(VALUATION_WRITES).add(VALUATION)
+    unit.of(ASSET_SHARE_WRITES).add(BOAT_SHARE)
   })
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []

@@ -4,6 +4,7 @@ import type { BankLoan } from '../../workbook/domain/bankLoan'
 import { MOST_INSTALMENTS } from '../../workbook/domain/bankLoanReading'
 import { words as loansWords } from '../../words'
 import { civilDate } from '../../../../shared/calendar/civilDate'
+import type { PartChangeFaults } from '../../../../shared/money/yourPart'
 import { language } from '../../../../shared/text/language'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -49,6 +50,9 @@ export const en = {
       other: `Principal and interest of the ${count} instalments left, to ${day}`,
     }),
     totalOwedDefinition: 'Everything still to pay: the principal left and the interest of every instalment to come. Interest at a variable rate is an estimate until the bank sets it.',
+    yourPart: 'Your part',
+    yourPartCaption: (part: string) => `${part} of what is owed today, which your totals and Net worth count`,
+    jointDebtors: 'If your contract makes you joint debtors, the bank can ask either of you for all of it.',
   },
   split: {
     principal: 'Principal',
@@ -63,6 +67,9 @@ export const en = {
     planPaid: 'The plan is paid.',
     on: (day: string) => `On ${day}`,
     onOf: (day: string, payment: string) => `On ${day}, of ${payment}`,
+    wholeOn: (day: string) => `Whole instalment, on ${day}`,
+    wholeOnOf: (day: string, payment: string) => `Whole instalment, on ${day}, of ${payment}`,
+    yourPart: 'Your part',
     subsidyEnds: 'Subsidy ends',
     subsidyEnded: 'Subsidy ended',
     subsidyThen: (count: number, after: string): EnglishForms => ({ one: `then ${after} a month, 1 instalment to go`, other: `then ${after} a month, ${count} instalments to go` }),
@@ -110,6 +117,8 @@ export const en = {
     status: 'Status',
     showRest: (date: string) => `${date}, show interest, principal and status`,
     estimateMark: 'est.',
+    wholeMark: 'whole instalment',
+    yourPartMark: 'your part',
     lateMark: 'late',
     notSeenMark: 'not seen',
     unchecked: 'Not checked against your statements, as Spending did not open.',
@@ -137,11 +146,6 @@ export const en = {
     newRate: (rate: string) => `New rate ${rate}`,
   },
   changes: {
-    onFile: (count: number): EnglishForms => ({ one: `${count} on file`, other: `${count} on file` }),
-    change: 'Change',
-    changeLine: (title: string) => `Change ${title}`,
-    delete: 'Delete',
-    deleteLine: (title: string) => `Delete ${title}`,
     ratePeriods: 'Rate periods',
     ratePeriodsSubtitle: 'The rate from each due date on. A new rate works the instalment out again.',
     noRatePeriod: 'No rate period yet.',
@@ -168,12 +172,18 @@ export const en = {
     due: (day: string) => `Due ${day}`,
     /** A late instalment whose linked statement row went out on another day, which the plan goes by. */
     statementDay: (detail: string, day: string) => `${detail}. Kuna goes by your statement, ${day}`,
+    shares: 'Your part',
+    sharesSubtitle: 'Your part of what is owed from the payout, and each change after it.',
+    allOfIt: 'All of it',
+    fromPayout: (day: string) => `From the payout, ${day}`,
+    shareDetail: (day: string, note: string) => [`From ${day}`, note].filter((part) => part !== '').join('. '),
+    addShare: 'Add a change',
   },
   loanDialog: {
     addTitle: 'Add a bank loan',
     changeTitle: 'Change the bank loan',
     addDescription: 'Its terms as the contract gives them. Kuna works out the plan from them.',
-    changeDescription: "Its terms. Rate periods, the subsidy and extra payments change on the loan's page.",
+    changeDescription: "Its terms. Rate periods, the subsidy, extra payments and later changes of your part change on the loan's page.",
     name: 'Name',
     namePlaceholder: 'Home loan',
     nameError: 'A name, such as Home loan',
@@ -200,11 +210,13 @@ export const en = {
     firstRate: 'The rate from the first instalment',
     rateNote: 'About the rate',
     more: 'More details',
-    moreHelp: 'Lender, interest before the first instalment, a subsidy and a note. Leave them for now if you like.',
-    moreHelpChange: 'Lender, interest before the first instalment and a note.',
+    moreHelp: 'Lender, interest before the first instalment, a subsidy, your part and a note. Leave them for now if you like.',
+    moreHelpChange: 'Lender, interest before the first instalment, your part and a note.',
     moreWrong: 'Something in here needs fixing',
     subsidised: 'A subsidy pays part of each instalment',
     subsidisedHelp: "Such as APN's, for a set number of instalments.",
+    share: 'Your part',
+    shareHelp: 'In percent, when you took it out with others, such as 50. Blank when it is all yours. A later change goes on its page.',
     subsidyError: 'Fill in the subsidy',
     delete: 'Delete loan',
     add: 'Add loan',
@@ -344,6 +356,23 @@ export const en = {
     saved: 'Rate period saved',
     deleted: 'Rate period deleted',
   },
+  shareDialog: {
+    addTitle: 'Add a change of your part',
+    changeTitle: 'Edit the change of your part',
+    description: 'Your part of what is owed from a day on, such as all of it once the other borrower leaves the loan.',
+    from: 'From',
+    notBeforePayout: 'Not before the day it was paid out',
+    sharesDay: 'Another change is from this day',
+    share: 'Your part',
+    shareHelp: 'In percent. 100 is all of it.',
+    noteHelp: 'Such as the annex that took my partner off the loan',
+    add: 'Add',
+    save: 'Save',
+    delete: 'Delete',
+    added: 'Change of your part added',
+    saved: 'Change of your part saved',
+    deleted: 'Change of your part deleted',
+  },
   rateFields: {
     rate: 'Yearly rate, %',
     rateHelp: 'The rate the bank applies, such as 2.99. Not the EKS, which also counts fees.',
@@ -382,6 +411,9 @@ export const hr: Translation<typeof en> = {
       other: `Glavnica i kamata ${count} preostalih anuiteta, do ${day}`,
     }),
     totalOwedDefinition: 'Sve što još treba platiti: preostala glavnica i kamata svih budućih anuiteta. Kamata po promjenjivoj kamatnoj stopi procjena je dok je banka ne odredi.',
+    yourPart: 'Vaš dio',
+    yourPartCaption: (part) => `${part} današnjeg duga, koliko računaju vaši ukupni iznosi i neto vrijednost`,
+    jointDebtors: 'Ako vas ugovor čini solidarnim dužnicima, banka od svakoga od vas može tražiti cijeli dug.',
   },
   split: {
     principal: 'Glavnica',
@@ -395,6 +427,9 @@ export const hr: Translation<typeof en> = {
     planPaid: 'Kredit je otplaćen.',
     on: (day) => `Dana ${day}`,
     onOf: (day, payment) => `Dana ${day}, od ukupno ${payment}`,
+    wholeOn: (day) => `Cijeli anuitet, dana ${day}`,
+    wholeOnOf: (day, payment) => `Cijeli anuitet, dana ${day}, od ukupno ${payment}`,
+    yourPart: 'Vaš dio',
     subsidyEnds: 'Subvencija završava',
     subsidyEnded: 'Subvencija je završila',
     subsidyThen: (count, after) => ({
@@ -447,6 +482,8 @@ export const hr: Translation<typeof en> = {
     status: 'Status',
     showRest: (date) => `${date}, prikaži kamatu, glavnicu i status`,
     estimateMark: 'procjena',
+    wholeMark: 'cijeli anuitet',
+    yourPartMark: 'vaš dio',
     lateMark: 'zakašnjeli',
     notSeenMark: 'nije na izvodu',
     unchecked: 'Nije provjereno prema vašim izvodima jer se Potrošnja nije otvorila.',
@@ -476,11 +513,6 @@ export const hr: Translation<typeof en> = {
     newRate: (rate) => `Nova kamatna stopa ${rate}`,
   },
   changes: {
-    onFile: (count) => ({ one: `${count} zapis`, few: `${count} zapisa`, other: `${count} zapisa` }),
-    change: 'Uredi',
-    changeLine: (title) => `Uredi: ${title}`,
-    delete: 'Obriši',
-    deleteLine: (title) => `Obriši: ${title}`,
     ratePeriods: 'Razdoblja kamatne stope',
     ratePeriodsSubtitle: 'Kamatna stopa od svakog dospijeća nadalje. Nova stopa iznova izračunava anuitet.',
     noRatePeriod: 'Još nema razdoblja kamatne stope.',
@@ -505,12 +537,18 @@ export const hr: Translation<typeof en> = {
     markLate: 'Označi kašnjenje',
     due: (day) => `Dospijeće ${day}`,
     statementDay: (detail, day) => `${detail}. Kuna uzima dan s vašeg izvoda, ${day}`,
+    shares: 'Vaš dio',
+    sharesSubtitle: 'Vaš dio duga od isplate i svaka promjena nakon toga.',
+    allOfIt: 'Sve',
+    fromPayout: (day) => `Od isplate, ${day}`,
+    shareDetail: (day, note) => (note === '' ? `Od ${day}` : `Od ${day} ${note}`),
+    addShare: 'Dodaj promjenu',
   },
   loanDialog: {
     addTitle: 'Novi kredit',
     changeTitle: 'Uredi kredit',
     addDescription: 'Uvjeti kako ih navodi ugovor. Kuna iz njih izračunava otplatni plan.',
-    changeDescription: 'Uvjeti kredita. Razdoblja kamatne stope, subvencija i prijevremene otplate uređuju se na stranici kredita.',
+    changeDescription: 'Uvjeti kredita. Razdoblja kamatne stope, subvencija, prijevremene otplate i kasnije promjene vašeg dijela uređuju se na stranici kredita.',
     name: 'Naziv',
     namePlaceholder: 'Stambeni kredit',
     nameError: 'Naziv, na primjer Stambeni kredit',
@@ -537,11 +575,13 @@ export const hr: Translation<typeof en> = {
     firstRate: 'Kamatna stopa od prvog anuiteta',
     rateNote: 'O kamatnoj stopi',
     more: 'Više podataka',
-    moreHelp: 'Banka, interkalarna kamata, subvencija i bilješka. Možete ih ostaviti za poslije.',
-    moreHelpChange: 'Banka, interkalarna kamata i bilješka.',
+    moreHelp: 'Banka, interkalarna kamata, subvencija, vaš dio i bilješka. Možete ih ostaviti za poslije.',
+    moreHelpChange: 'Banka, interkalarna kamata, vaš dio i bilješka.',
     moreWrong: 'Ovdje nešto treba ispraviti',
     subsidised: 'Subvencija plaća dio svakog anuiteta',
     subsidisedHelp: 'Na primjer APN-ova, za određen broj anuiteta.',
+    share: 'Vaš dio',
+    shareHelp: 'U postotku, kad ste ga podigli s drugima, na primjer 50. Prazno ako je sve vaše. Kasnija promjena unosi se na njegovoj stranici.',
     subsidyError: 'Ispuni subvenciju',
     delete: 'Obriši kredit',
     add: 'Dodaj kredit',
@@ -682,6 +722,23 @@ export const hr: Translation<typeof en> = {
     saved: 'Razdoblje kamatne stope je spremljeno',
     deleted: 'Razdoblje kamatne stope je obrisano',
   },
+  shareDialog: {
+    addTitle: 'Nova promjena vašeg dijela',
+    changeTitle: 'Uredi promjenu vašeg dijela',
+    description: 'Vaš dio duga od nekog dana nadalje, na primjer sve nakon što drugi korisnik izađe iz kredita.',
+    from: 'Od',
+    notBeforePayout: 'Ne prije dana isplate',
+    sharesDay: 'Od tog dana već postoji promjena',
+    share: 'Vaš dio',
+    shareHelp: 'U postotku. 100 je sve.',
+    noteHelp: 'Na primjer aneks kojim je partner izašao iz kredita',
+    add: 'Dodaj',
+    save: 'Spremi',
+    delete: 'Obriši',
+    added: 'Promjena vašeg dijela je dodana',
+    saved: 'Promjena vašeg dijela je spremljena',
+    deleted: 'Promjena vašeg dijela je obrisana',
+  },
   rateFields: {
     rate: 'Godišnja kamatna stopa, %',
     rateHelp: 'Stopa koju banka primjenjuje, na primjer 2,99. Nije EKS, koji uračunava i naknade.',
@@ -740,6 +797,8 @@ export const hrEqualPrincipal: Translation<typeof en> = {
   tiles: {
     ...hr.tiles,
     nextPayment: 'Sljedeća rata',
+    wholeOn: (day) => `Cijela rata, dana ${day}`,
+    wholeOnOf: (day, payment) => `Cijela rata, dana ${day}, od ukupno ${payment}`,
     subsidyThen: (count, after) => ({
       one: `zatim od ${after} mjesečno i sve manje, još ${count} rata`,
       few: `zatim od ${after} mjesečno i sve manje, još ${count} rate`,
@@ -762,6 +821,7 @@ export const hrEqualPrincipal: Translation<typeof en> = {
     instalments: (count) => ({ one: `${count} rata`, few: `${count} rate`, other: `${count} rata` }),
     instalment: 'Rata',
     lateMark: 'zakašnjela',
+    wholeMark: 'cijela rata',
   },
   status: {
     ...hr.status,
@@ -852,6 +912,12 @@ const equalPrincipalWords = language === 'hr' ? hrEqualPrincipal : enEqualPrinci
 /** The words of one loan's own page and dialogs, which follow how its instalments are set. */
 export function wordsFor(repayment: BankLoan['repayment']): typeof words {
   return repayment === 'equal-principal' ? equalPrincipalWords : words
+}
+
+/** What each field of a change of your part says is wrong with it, null for a field that is fine. */
+export function shareChangeErrors(faults: PartChangeFaults): Readonly<Record<keyof PartChangeFaults, string | null>> {
+  const from = { 'no-date': loansWords.form.aDate(civilDate(2026, 3, 1)), 'before-start': words.shareDialog.notBeforePayout, 'same-day': words.shareDialog.sharesDay } as const
+  return { from: faults.from === null ? null : from[faults.from], share: faults.share === null ? null : loansWords.form.aPart }
 }
 
 /** The sentence under each field of a loan's terms that is wrong, or null. */

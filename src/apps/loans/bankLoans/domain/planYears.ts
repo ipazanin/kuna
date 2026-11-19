@@ -1,5 +1,6 @@
 import { lateOn } from './instalmentPayments'
 import type { InstalmentStanding } from './instalmentPayments'
+import { yoursOf } from './bankLoanFigures'
 import { isEstimate } from './loanFigures'
 import type { PlanRow } from './loanPlan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
@@ -15,7 +16,9 @@ export interface PlanLine {
   readonly date: CivilDate
   readonly number: number | null
   readonly payment: Money
-  readonly yourShare: Money
+  readonly youPay: Money
+  /** Your part of what you pay, only for a loan you took out with others. */
+  readonly yours?: Money
   readonly interest: Money
   readonly principal: Money
   readonly subsidy: Money
@@ -26,7 +29,7 @@ export interface PlanLine {
   readonly late: boolean
 }
 
-export type PlanTotals = Pick<PlanLine, 'payment' | 'yourShare' | 'interest' | 'principal' | 'subsidy'>
+export type PlanTotals = Pick<PlanLine, 'payment' | 'youPay' | 'yours' | 'interest' | 'principal' | 'subsidy'>
 
 export interface PlanYear {
   readonly year: number
@@ -37,7 +40,7 @@ export interface PlanYear {
   readonly estimate: boolean
 }
 
-const NO_TOTALS: PlanTotals = { payment: ZERO, yourShare: ZERO, interest: ZERO, principal: ZERO, subsidy: ZERO }
+const NO_TOTALS: PlanTotals = { payment: ZERO, youPay: ZERO, interest: ZERO, principal: ZERO, subsidy: ZERO }
 
 /** The plan grouped by the calendar year its rows fall due in, with each year's totals, oldest first. Each instalment stands as `standings` gives it. */
 export function planYears(book: BankLoanBook, day: CivilDate, standings: ReadonlyMap<CivilDate, InstalmentStanding>): PlanYear[] {
@@ -45,6 +48,7 @@ export function planYears(book: BankLoanBook, day: CivilDate, standings: Readonl
   for (const [index, row] of (book.plan ?? []).entries()) {
     const line: PlanLine = {
       ...row,
+      ...yoursOf(book, row),
       key: `${row.kind}-${row.date}-${index}`,
       estimate: isEstimate(row, book.ratePeriods, day),
       late: row.kind === 'instalment' && lateOn(row.date, standings.get(row.date)) !== null,
@@ -58,7 +62,8 @@ export function planYears(book: BankLoanBook, day: CivilDate, standings: Readonl
     totals: lines.reduce(
       (sum, line) => ({
         payment: addMoney(sum.payment, line.payment),
-        yourShare: addMoney(sum.yourShare, line.yourShare),
+        youPay: addMoney(sum.youPay, line.youPay),
+        ...(line.yours === undefined ? {} : { yours: addMoney(sum.yours ?? ZERO, line.yours) }),
         interest: addMoney(sum.interest, line.interest),
         principal: addMoney(sum.principal, line.principal),
         subsidy: addMoney(sum.subsidy, line.subsidy),

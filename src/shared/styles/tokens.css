@@ -292,6 +292,13 @@
   --loan-owed-to-you: var(--tone-positive);
 
   /*
+   * Your part of a bank loan you took out with others, as a thinner line beside the bank's balance on the loan's
+   * Owed over time and as its swatch in the loan's hero. Teal stays clear of the balance line's tone, the brass plan
+   * and the violet of a new rate for every kind of colour vision.
+   */
+  --loan-your-part: var(--series-9);
+
+  /*
    * A month's movements on a loan's Owed over time, one filled dot of one size each, as --invest-buy and
    * --invest-sale are. What lowers what is owed wears --chart-dot, as a buy does. What raises it is blue, which stays
    * clear of the balance line and the plan. Orange would not, since it and brass cannot be told apart. Blue sits

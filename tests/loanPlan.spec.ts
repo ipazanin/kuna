@@ -13,7 +13,7 @@ import {
   splitOf,
   subsidyShareOf,
   yourPrincipalOf,
-  yourShareOf,
+  youPayOf,
 } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import type { PlanRow } from '../src/apps/loans/bankLoans/domain/loanPlan'
@@ -189,13 +189,13 @@ describe("a bank loan's plan", () => {
     expect(plan.map((row) => row.date)).toEqual(['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30'])
   })
 
-  it('splits a covered instalment into your share and a subsidy larger than its interest, leaving principal, interest and balance alone', () => {
+  it('splits a covered instalment into what you pay and a subsidy larger than its interest, leaving principal, interest and balance alone', () => {
     const loan = bankLoan({ subsidy: { monthly: euros(50), firstInstalment: 2, instalments: 3, payer: '' } })
     const plain = loanPlan(bankLoan(), [ratePeriod(loan, '2026-02-05', '12')], [])
     const plan = loanPlan(loan, [ratePeriod(loan, '2026-02-05', '12')], [])
 
     // Instalment 2 is 106.62 with 11.05 interest. The subsidy pays 50.00 of it and you 56.62.
-    expect(plan[1]).toMatchObject({ number: 2, payment: euros(106.62), interest: euros(11.05), subsidy: euros(50), yourShare: euros(56.62) })
+    expect(plan[1]).toMatchObject({ number: 2, payment: euros(106.62), interest: euros(11.05), subsidy: euros(50), youPay: euros(56.62) })
     expect(plan.map((row) => row.subsidy / 100)).toEqual([0, 50, 50, 50, 0, 0, 0, 0, 0, 0, 0, 0])
     expect(table(plan)).toEqual(table(plain))
   })
@@ -272,10 +272,10 @@ describe('an equal principal plan beside an annuity', () => {
     // 100.00 of principal plus 12.00 of interest, then a cent less of interest each month.
     expect(rows[0]!.payment).toBe(euros(112))
     expect(rows[0]!.subsidy).toBe(euros(105))
-    expect(rows[0]!.yourShare).toBe(euros(7))
+    expect(rows[0]!.youPay).toBe(euros(7))
     expect(rows[11]!.payment).toBe(euros(101))
     expect(rows[11]!.subsidy).toBe(euros(101))
-    expect(rows[11]!.yourShare).toBe(0)
+    expect(rows[11]!.youPay).toBe(0)
   })
 
   it('pays the share alone at 0%', () => {
@@ -302,9 +302,9 @@ describe('the figures beside the plan', () => {
     expect(balanceOn(loan, plan, civil('2027-06-01'))).toBe(0)
   })
 
-  it('names the next payment after a day with the full instalment and your share, and the payoff date', () => {
-    expect(nextPayment(plan, civil('2026-01-01'))).toMatchObject({ kind: 'interim-interest', date: '2026-01-05', payment: euros(6), yourShare: euros(6) })
-    expect(nextPayment(plan, civil('2026-02-05'))).toMatchObject({ date: '2026-03-05', payment: euros(106.62), yourShare: euros(86.62) })
+  it('names the next payment after a day with the full instalment and what you pay, and the payoff date', () => {
+    expect(nextPayment(plan, civil('2026-01-01'))).toMatchObject({ kind: 'interim-interest', date: '2026-01-05', payment: euros(6), youPay: euros(6) })
+    expect(nextPayment(plan, civil('2026-02-05'))).toMatchObject({ date: '2026-03-05', payment: euros(106.62), youPay: euros(86.62) })
     expect(nextPayment(plan, civil('2027-01-05'))).toBeNull()
     expect(payoffDate(plan)).toBe('2027-01-05')
   })
@@ -322,7 +322,7 @@ describe('the figures beside the plan', () => {
     // After instalment 10 on 2026-11-05: instalments 11 and 12, 3.16 interest and 210.06 principal, 40.00 of them the subsidy's.
     const left = paymentsAfter(plan, civil('2026-11-05'))
     expect(left).toEqual({ principal: euros(173.22), interest: 0, subsidyPrincipal: euros(36.84), subsidyInterest: euros(3.16), extra: 0 })
-    expect([paymentOf(left), principalOf(left), interestOf(left), subsidyShareOf(left), yourShareOf(left)]).toEqual([euros(213.22), euros(210.06), euros(3.16), euros(40), euros(173.22)])
+    expect([paymentOf(left), principalOf(left), interestOf(left), subsidyShareOf(left), youPayOf(left)]).toEqual([euros(213.22), euros(210.06), euros(3.16), euros(40), euros(173.22)])
     expect(yourPrincipalOf(left)).toBe(euros(173.22))
   })
 
@@ -336,7 +336,7 @@ describe('the figures beside the plan', () => {
       principal: euros(423.66),
       interest: euros(398.54),
       subsidy: euros(210),
-      yourShare: euros(612.2),
+      youPay: euros(612.2),
       balance: euros(0),
     } as const
 
@@ -358,7 +358,7 @@ describe('the figures beside the plan', () => {
 
     // By 2026-03-10 the interim interest and instalment 1 count: 6.00 + 106.62 = 112.62, of which
     // you paid 6.00 + 86.62 = 92.62. Instalment 2 counts once it was paid on 2026-03-23.
-    expect(paidSoFar(plan, [late], civil('2026-03-10'))).toEqual({ payment: euros(112.62), principal: euros(94.62), interest: euros(18), subsidy: euros(20), yourShare: euros(92.62) })
+    expect(paidSoFar(plan, [late], civil('2026-03-10'))).toEqual({ payment: euros(112.62), principal: euros(94.62), interest: euros(18), subsidy: euros(20), youPay: euros(92.62) })
     expect(paidSoFar(plan, [], civil('2026-03-10')).payment).toBe(euros(219.24))
     expect(paidSoFar(plan, [late], civil('2026-03-23')).payment).toBe(euros(219.24))
     expect(balanceOn(loan, plan, civil('2026-03-10'))).toBe(euros(1009.81))

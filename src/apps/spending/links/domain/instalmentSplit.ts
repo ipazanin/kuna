@@ -75,7 +75,7 @@ export function paidOut(euros: Money): AccountMoney {
 
 /** The instalment's share as the money out of a euro account that pays it, on its due date. */
 export function expectedOf(target: InstalmentTarget): DatedMoney {
-  return { date: target.due, amount: paidOut(target.yourShare) }
+  return { date: target.due, amount: paidOut(target.youPay) }
 }
 
 /** The instalment's interest and principal as money out of the entry, and what the entry pays besides them, signed as the entry is. */

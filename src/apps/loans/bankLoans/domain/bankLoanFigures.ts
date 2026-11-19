@@ -9,7 +9,7 @@ import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/mont
 import { ZERO, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { wholePercentOf } from '../../../../shared/money/percent'
-import { partOnDay, yourPartOf } from '../../../../shared/money/yourPart'
+import { isShared, partOnDay, yourPartOf } from '../../../../shared/money/yourPart'
 
 /** The figures a bank loan's card and page lead with, on a day. */
 export interface BankLoanFigures {
@@ -20,8 +20,8 @@ export interface BankLoanFigures {
   /** The principal repaid by the day, and its whole percent of the principal borrowed. */
   readonly paidBack: Money
   readonly paidBackPercent: number
-  /** The next payment, with the full instalment and your share, or null once the plan is paid. */
-  readonly next: Pick<PlanRow, 'date' | 'payment' | 'yourShare'> | null
+  /** The next payment, with the full instalment and what you pay of it, or null once the plan is paid. Your part of what you pay is only there for a loan you took out with others. */
+  readonly next: (Pick<PlanRow, 'date' | 'payment' | 'youPay'> & { readonly yours?: Money }) | null
   /** When the subsidy's last covered instalment falls due, its instalments still to come, and the first instalment after it. Null for a loan without a subsidy. */
   readonly subsidy: { readonly lastCovered: CivilDate; readonly ended: boolean; readonly instalmentsLeft: number; readonly after: Money | null } | null
   readonly payoff: CivilDate | null
@@ -49,7 +49,7 @@ export function bankLoanFigures(book: BankLoanBook, day: CivilDate): BankLoanFig
     ...balance,
     paidBack,
     paidBackPercent: wholePercentOf(paidBack, loan.principal),
-    next: next === null ? null : { date: next.date, payment: next.payment, yourShare: next.yourShare },
+    next: next === null ? null : { date: next.date, payment: next.payment, youPay: next.youPay, ...yoursOf(book, next) },
     subsidy:
       subsidy === null || lastCovered === null
         ? null
@@ -71,6 +71,11 @@ export function balanceWithYoursOn(book: Pick<BankLoanBook, 'loan' | 'shares'>, 
   const owed = balanceOn(book.loan, plan, day)
   const share = partOnDay(book.loan.share, book.shares, day)
   return share === null ? { owed } : { owed, yours: yourPartOf(owed, share) }
+}
+
+/** Your part of what you pay on a row, at the part of its day, only for a loan you took out with others at any time. */
+export function yoursOf(book: Pick<BankLoanBook, 'loan' | 'shares'>, row: Pick<PlanRow, 'date' | 'youPay'>): { readonly yours?: Money } {
+  return isShared(book.loan.share, book.shares) ? { yours: yourPartOf(row.youPay, partOnDay(book.loan.share, book.shares, row.date)) } : {}
 }
 
 /** What you owe of the loan: your part of it, or all of it when you took it out alone. */

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { interestOf, principalOf, subsidyShareOf, yourPrincipalOf, yourShareOf } from '../domain/loanFigures'
+import { interestOf, principalOf, subsidyShareOf, yourPrincipalOf, youPayOf } from '../domain/loanFigures'
 import type { PaymentSplit } from '../domain/loanFigures'
 import { subsidyColourOf } from './subsidyColour'
 import { words } from './words'
@@ -25,7 +25,7 @@ const facts = computed((): Fact[] => [
   ...(subsidy.value > 0
     ? [
         { label: words.subsidyPays(props.payer), value: formatMoney(subsidy.value), swatch: { colour: subsidyColourOf(props.split), mark: 'hatched' as const } },
-        { label: words.split.youPay, value: formatMoney(yourShareOf(props.split)) },
+        { label: words.split.youPay, value: formatMoney(youPayOf(props.split)) },
       ]
     : []),
 ])

@@ -50,3 +50,7 @@ export function newAsset(asset: Omit<Asset, 'id'>): Asset {
 export function newValuation(valuation: Omit<Valuation, 'id'>): Valuation {
   return { ...valuation, note: valuation.note.trim(), id: recordIdOf(VALUATION_RECORDS, newRecordId()) }
 }
+
+export function newAssetShare(change: Omit<AssetShare, 'id'>): AssetShare {
+  return { ...change, note: change.note.trim(), id: recordIdOf(ASSET_SHARE_RECORDS, newRecordId()) }
+}

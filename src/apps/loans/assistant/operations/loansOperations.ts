@@ -7,10 +7,12 @@ import {
   BANK_LOAN_WRITES,
   EXTRA_PAYMENT_WRITES,
   LATE_INSTALMENT_WRITES,
+  LOAN_SHARE_WRITES,
   RATE_PERIOD_WRITES,
   newBankLoan,
   newExtraPayment,
   newLateInstalment,
+  newLoanShare,
   newRatePeriod,
   removeBankLoan,
 } from '../../bankLoans/application/bankLoanWrites'
@@ -23,7 +25,7 @@ import type { TriedChange } from '../../bankLoans/domain/whatIf'
 import { typedRate } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import { tryName } from '../../bankLoans/presentation/savedTries'
-import { loanTermsErrors, subsidyErrors, words as bankWords, wordsFor } from '../../bankLoans/presentation/words'
+import { loanTermsErrors, shareChangeErrors, subsidyErrors, words as bankWords, wordsFor } from '../../bankLoans/presentation/words'
 import { checkedExpectedPlan } from '../../informalLoans/domain/expectedPlan'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES, newInformalLoan, newMovement, removeInformalLoan } from '../../informalLoans/application/informalLoanWrites'
 import { copyScenario, newLoanScenario, removeScenario, saveScenario } from '../../scenarios/application/scenarioWrites'
@@ -34,7 +36,17 @@ import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 import { LOAN_DIRECTIONS } from '../../workbook/domain/informalLoan'
 import type { ExpectedPlan, InformalLoan } from '../../workbook/domain/informalLoan'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LATE_INSTALMENT_RECORDS, LOAN_SCENARIO_RECORDS, MOVEMENT_RECORDS, RATE_PERIOD_RECORDS } from '../../workbook/domain/loanKinds'
+import {
+  BANK_LOAN_RECORDS,
+  EXTRA_PAYMENT_RECORDS,
+  INFORMAL_LOAN_RECORDS,
+  LATE_INSTALMENT_RECORDS,
+  LOAN_SCENARIO_RECORDS,
+  LOAN_SHARE_RECORDS,
+  MOVEMENT_RECORDS,
+  RATE_PERIOD_RECORDS,
+} from '../../workbook/domain/loanKinds'
+import type { LoanShare } from '../../workbook/domain/loanShare'
 import type { LoansBooks } from '../../workbook/domain/loansBooks'
 import { MOVEMENT_KINDS } from '../../workbook/domain/movement'
 import { RATE_TYPES } from '../../workbook/domain/ratePeriod'
@@ -48,6 +60,10 @@ import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWri
 import { dayOfMonth, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
+import { writtenPercent } from '../../../../shared/money/percent'
+import type { Percent } from '../../../../shared/money/percent'
+import { isWhole, typedPart, typedPartChange } from '../../../../shared/money/yourPart'
+import type { PartChange, PartChangeTexts } from '../../../../shared/money/yourPart'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 
@@ -62,7 +78,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-bank-loan',
     about:
-      "A bank loan you have, with its first rate from the first instalment, as the contract gives it. principal is in euros. instalments counts every monthly payment. interimAmount and interimDate are the interest charged before repayment, both or neither. subsidyMonthly and the next two fields add a subsidy, or are null for none. bankInstalment is the first instalment the contract or repayment plan prints, which the card sets beside Kuna's own and the file does not keep. Later rates go as add-rate-period.",
+      "A bank loan you have, with its first rate from the first instalment, as the contract gives it. principal is in euros. instalments counts every monthly payment. interimAmount and interimDate are the interest charged before repayment, both or neither. subsidyMonthly and the next two fields add a subsidy, or are null for none. share is your part of what it owes in percent when you took it out with others, such as 50, or null when it is all yours. bankInstalment is the first instalment the contract or repayment plan prints, which the card sets beside Kuna's own and the file does not keep. Later rates go as add-rate-period, and a later change of your part as add-loan-share.",
     input: inputOf({
       name: TEXT,
       lender: TEXT,
@@ -77,6 +93,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       rateType: RATE_TYPE,
       rateNote: TEXT,
       ...SUBSIDY_FIELDS,
+      share: NUMBER_OR_NULL,
       note: TEXT,
       bankInstalment: BANK_INSTALMENT,
     }),
@@ -100,6 +117,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       subsidyPayer: '',
       subsidyFirstInstalment: null,
       subsidyInstalments: null,
+      share: null,
       note: '',
       bankInstalment: 279.65,
     },
@@ -107,7 +125,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'change-bank-loan',
     about:
-      "Fixes a bank loan's terms. A new first instalment moves the first rate period with it. interimAmount 0 removes the interim interest. Rates, the subsidy and extra payments have their own operations. Null leaves a field as it is. bankInstalment is the first instalment the corrected contract or plan prints, which the card sets beside Kuna's first instalment at the new terms and the file does not keep.",
+      "Fixes a bank loan's terms. A new first instalment moves the first rate period with it. interimAmount 0 removes the interim interest. share is your part from the payout in percent, and 100 makes it all yours. Rates, the subsidy, extra payments and later changes of your part have their own operations. Null leaves a field as it is. bankInstalment is the first instalment the corrected contract or plan prints, which the card sets beside Kuna's first instalment at the new terms and the file does not keep.",
     input: inputOf({
       loan: TEXT,
       name: TEXT_OR_NULL,
@@ -119,6 +137,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       interimAmount: NUMBER_OR_NULL,
       interimDate: TEXT_OR_NULL,
       repayment: choiceOrNull(REPAYMENTS),
+      share: NUMBER_OR_NULL,
       note: TEXT_OR_NULL,
       bankInstalment: BANK_INSTALMENT,
     }),
@@ -136,13 +155,14 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       interimAmount: null,
       interimDate: null,
       repayment: null,
+      share: 50,
       note: 'Checked',
       bankInstalment: null,
     },
   },
   {
     name: 'delete-bank-loan',
-    about: 'Deletes a bank loan with its rate periods, extra payments, late instalments and the tries saved on it.',
+    about: 'Deletes a bank loan with its rate periods, extra payments, late instalments, changes of your part and the tries saved on it.',
     input: inputOf({ loan: TEXT }),
     refs: { loan: BANK_LOAN_RECORDS.name },
     creates: null,
@@ -241,6 +261,34 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
     creates: null,
     alone: false,
     example: { late: 'late-instalment' },
+  },
+  {
+    name: 'add-loan-share',
+    about:
+      'Your part of what a bank loan you took out with others owes from a day on, in percent above 0 and at most 100, such as 100 once the other borrower leaves the loan. The day is not before the payout, and no other change of it is from that day. Your part from the payout is the share of change-bank-loan. Instalments stay whole.',
+    input: inputOf({ loan: TEXT, from: TEXT, share: NUMBER, note: TEXT }),
+    refs: { loan: BANK_LOAN_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { loan: 'bank-loan', from: '2026-09-01', share: 100, note: 'Annex took my partner off the loan' },
+  },
+  {
+    name: 'change-loan-share',
+    about: 'Fixes a change of your part of a bank loan. Null leaves a field as it is.',
+    input: inputOf({ shareChange: TEXT, from: TEXT_OR_NULL, share: NUMBER_OR_NULL, note: TEXT_OR_NULL }),
+    refs: { shareChange: LOAN_SHARE_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { shareChange: 'loan-share', from: null, share: 60, note: null },
+  },
+  {
+    name: 'delete-loan-share',
+    about: 'Deletes a change of your part of a bank loan, so the part before it holds on.',
+    input: inputOf({ shareChange: TEXT }),
+    refs: { shareChange: LOAN_SHARE_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { shareChange: 'loan-share' },
   },
   {
     name: 'save-try',
@@ -380,12 +428,32 @@ function subsidyOf(monthly: number | null, payer: string, firstInstalment: numbe
   return typed.subsidy
 }
 
-/** The loan's terms the texts give, through the loan dialog's own check, with its name, subsidy and note. */
-function loanOf(texts: LoanTermsTexts, name: string, subsidy: LoanSubsidy | null, note: string): Omit<BankLoan, 'id'> {
+/** A part a step names in percent, as the loan dialog reads its field, kept as it is for null. A part of 100 is all of it, which the loan keeps as no part. */
+function partOf(named: number | null, kept: Percent | undefined): Percent | undefined {
+  if (named === null) return kept
+  const part = typedPart(String(named))
+  if (part === null) throw new StepRefused('share is a percent above 0 and at most 100, such as 50.')
+  return isWhole(part) ? undefined : part
+}
+
+/** A part a step names in percent as the share dialog's field holds it, or the part it has for null. */
+function partText(named: number | null, kept: Percent): string {
+  return String(named ?? writtenPercent(kept))
+}
+
+/** The loan's terms the texts give, through the loan dialog's own check, with its name, subsidy, your part and note. */
+function loanOf(texts: LoanTermsTexts, name: string, subsidy: LoanSubsidy | null, share: Percent | undefined, note: string): Omit<BankLoan, 'id'> {
   if (name.trim() === '') throw new StepRefused('A bank loan needs a name, such as Home loan.')
   const typed = typedLoanTerms(texts)
   refuseOnErrors(loanTermsErrors(typed.faults))
-  return { ...typed.terms!, name, subsidy, note }
+  return { ...typed.terms!, name, subsidy, ...(share === undefined ? {} : { share }), note }
+}
+
+/** The day and part the fields give for a change of the loan's part, through the share dialog's own check. */
+function shareTermsOf(texts: PartChangeTexts, loanBook: Pick<BankLoanBook, 'loan' | 'shares'>, editing: LoanShare | null): PartChange {
+  const typed = typedPartChange(texts, loanBook.loan.drawdown, loanBook.shares, editing?.id ?? null)
+  refuseOnErrors(shareChangeErrors(typed.faults))
+  return typed.change!
 }
 
 /** The expected plan the fields give over what the loan had, through the informal loan dialog's own check, or null for none. */
@@ -441,6 +509,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
   const printed = new Map<string, Money>()
   const addedLoans: BankLoan[] = []
   const addedInformal: InformalLoan[] = []
+  const addedShares: LoanShare[] = []
   const idOf = (value: unknown): string => {
     const text = String(value)
     return made.get(text) ?? text
@@ -482,7 +551,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
           repayment: field['repayment'],
         }
         const subsidy = subsidyOf(field['subsidyMonthly'], field['subsidyPayer'], field['subsidyFirstInstalment'], field['subsidyInstalments'], field['instalments'])
-        const loan = newBankLoan(loanOf(texts, field['name'], subsidy, field['note']))
+        const loan = newBankLoan(loanOf(texts, field['name'], subsidy, partOf(field['share'], undefined), field['note']))
         unit.of(BANK_LOAN_WRITES).add(loan)
         unit.of(RATE_PERIOD_WRITES).add(newRatePeriod({ loan: loan.id, from: loan.firstInstalment, rate: rateOf(field['rate']), rateType: field['rateType'], note: field['rateNote'] }))
         addedLoans.push(loan)
@@ -505,7 +574,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
           interimDate: interimGone ? '' : (field['interimDate'] ?? kept.interimDate),
           repayment: choiceOf(REPAYMENTS, field['repayment'], 'repayment') ?? kept.repayment,
         }
-        const after: BankLoan = { ...before, ...newBankLoan(loanOf(texts, field['name'] ?? before.name, before.subsidy, field['note'] ?? before.note)), id: before.id }
+        const after: BankLoan = { ...newBankLoan(loanOf(texts, field['name'] ?? before.name, before.subsidy, partOf(field['share'], before.share), field['note'] ?? before.note)), id: before.id }
         unit.of(BANK_LOAN_WRITES).change(before, after)
         printedBy(after.id, field['bankInstalment'])
         const firstPeriod = loanBook.ratePeriods.find((period) => period.from === before.firstInstalment) ?? null
@@ -581,6 +650,25 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
         else unit.of(LATE_INSTALMENT_WRITES).change(before, { ...before, due, paid })
         break
       }
+      case 'add-loan-share': {
+        const loan = bankLoanOf(field['loan'])
+        const shares = [...(book.bankLoans.find((candidate) => candidate.loan.id === loan.id)?.shares ?? []), ...addedShares.filter((change) => change.loan === loan.id)]
+        const terms = shareTermsOf({ from: field['from'], share: String(field['share']) }, { loan, shares }, null)
+        const change = newLoanShare({ loan: loan.id, ...terms, note: field['note'] })
+        unit.of(LOAN_SHARE_WRITES).add(change)
+        addedShares.push(change)
+        break
+      }
+      case 'change-loan-share': {
+        const before = found(book.readings.loanShares.facts, idOf(field['shareChange']), 'change of your part')
+        const texts = { from: (field['from'] as string | null) ?? before.from, share: partText(field['share'], before.share) }
+        const terms = shareTermsOf(texts, bankBookOf(before.loan), before)
+        unit.of(LOAN_SHARE_WRITES).change(before, { ...before, ...terms, note: ((field['note'] as string | null) ?? before.note).trim() })
+        break
+      }
+      case 'delete-loan-share':
+        unit.of(LOAN_SHARE_WRITES).remove(found(book.readings.loanShares.facts, idOf(field['shareChange']), 'change of your part'))
+        break
       case 'delete-late-instalment':
         unit.of(LATE_INSTALMENT_WRITES).remove(found(book.readings.lateInstalments.facts, idOf(field['late']), 'late instalment'))
         break

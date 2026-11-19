@@ -98,7 +98,7 @@ describe('adding a movement in Loans from a row', () => {
       number: 14,
       count: 84,
       due: on('2026-11-15'),
-      yourShare: moneyFromAmount(250),
+      youPay: moneyFromAmount(250),
       interest: moneyFromAmount(50),
       principal: moneyFromAmount(200),
       to: { path: '/loans/bank-loan' },

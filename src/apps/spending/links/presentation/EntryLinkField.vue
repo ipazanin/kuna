@@ -83,7 +83,7 @@ const informalLoans = computed(() => openTargets.value.filter((target): target i
 
 /** What the picker says under each record: an instalment's share, or a movement's or extra payment's amount. */
 function choiceDetail(target: (typeof linkTargets.value)[number]): string {
-  if (target.kind === 'instalment') return target.interim ? words.interimShare(formatMoney(target.yourShare)) : formatMoney(target.yourShare)
+  if (target.kind === 'instalment') return target.interim ? words.interimShare(formatMoney(target.youPay)) : formatMoney(target.youPay)
   return target.kind === 'informal-loan' ? target.counterparty : formatMoney(target.amount)
 }
 

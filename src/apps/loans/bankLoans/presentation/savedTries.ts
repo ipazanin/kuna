@@ -1,4 +1,4 @@
-import type { ChangeLine } from './ChangeListCard.vue'
+import type { ChangeLine } from '../../../../shared/ui/ChangeListCard.vue'
 import { wordsFor } from './words'
 import type { words } from './words'
 import { NO_COSTS } from '../../scenarios/domain/loanScenario'

@@ -6,12 +6,14 @@ import type { LoansOnDay } from '../../values/domain/assetsOnDay'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 
-/** A bank loan as Assets shows it beside an asset: its bare UUID, its name, what you owe on it on the day, and its page in Loans. */
+/** A bank loan as Assets shows it beside an asset: its bare UUID, its name, what you owe on it on the day and what the bank is owed when you share it, and its page in Loans. */
 export interface AssetLoan {
   readonly key: string
   readonly name: string
   /** Null while Loans cannot work out its plan. */
   readonly owed: Money | null
+  /** What the bank is owed in all, only for a loan you took out with others. */
+  readonly whole?: Money
   readonly to: RouteLocationRaw
 }
 
@@ -20,7 +22,7 @@ export type LoansOnScreen = LoansOnDay<AssetLoan>
 
 /** The bank loans Loans publishes, as Assets reads them. */
 export function assetLoansOf(published: readonly PublishedBankLoan[]): readonly AssetLoan[] {
-  return published.map(({ key, name, owed, to }) => ({ key, name, owed, to }))
+  return published.map(({ key, name, owed, whole, to }) => ({ key, name, owed, ...(whole === undefined ? {} : { whole }), to }))
 }
 
 /** The bank loans of the Loans file on screen, a wait while it opens, a failure, or null while Loans is not set up. */

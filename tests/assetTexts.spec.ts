@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { NO_REGION, typedAssetTerms } from '../src/apps/assets/asset/presentation/assetTexts'
 import type { AssetTexts } from '../src/apps/assets/asset/presentation/assetTexts'
 import { typedValuationTerms } from '../src/apps/assets/asset/presentation/valuationTexts'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import { civil } from './fixtures/ledger'
 
-const car: AssetTexts = { name: 'Car', kind: 'car', bought: '2024-05-10', price: '20000', region: NO_REGION, firstRegistration: '2024-05-10' }
+const car: AssetTexts = { name: 'Car', kind: 'car', bought: '2024-05-10', price: '20000', region: NO_REGION, firstRegistration: '2024-05-10', share: '' }
 
 describe('typedAssetTerms', () => {
   it('reports a price that is not an amount', () => {
@@ -19,6 +20,16 @@ describe('typedAssetTerms', () => {
     expect(typed.errors.firstRegistration).toBeNull()
     expect(typed.terms).not.toBeNull()
     expect(typed.terms!.firstRegistration).toBeNull()
+  })
+
+  it('keeps your part, and keeps a part of 100% as all of it', () => {
+    expect(typedAssetTerms({ ...car, share: '50' }).terms).toMatchObject({ share: percentFromBasisPoints(5000) })
+    expect(typedAssetTerms({ ...car, share: '100' }).terms).not.toHaveProperty('share')
+    expect(typedAssetTerms(car).terms).not.toHaveProperty('share')
+  })
+
+  it('reports a part that is no part of the whole', () => {
+    for (const share of ['0', '120', 'half']) expect(typedAssetTerms({ ...car, share }).errors.share).not.toBeNull()
   })
 
   it('needs the day it was bought for a price', () => {

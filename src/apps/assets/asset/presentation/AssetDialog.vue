@@ -20,6 +20,7 @@ import { typedAssetTerms, NO_REGION } from './assetTexts'
 import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
+import { partShown } from '../../../../shared/money/yourPart'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
@@ -27,7 +28,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
-/** Something you own: what it is, when it was bought and for how much, a flat's region or a car's first registration, and the bank loan on it, picked from Loans. */
+/** Something you own: what it is, when it was bought and for how much, a flat's region or a car's first registration, your part of it, and the bank loan on it, picked from Loans. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -53,6 +54,7 @@ const price = ref('')
 const region = ref<HouseRegion | typeof NO_REGION>(NO_REGION)
 const firstRegistration = ref('')
 const loan = ref(NO_LOAN)
+const share = ref('')
 const note = ref('')
 const tried = ref(false)
 
@@ -66,11 +68,14 @@ watch(open, (opened) => {
   region.value = asset?.region ?? NO_REGION
   firstRegistration.value = asset?.firstRegistration ?? ''
   loan.value = asset?.loan ?? NO_LOAN
+  share.value = partShown(asset?.share)
   note.value = asset?.note ?? ''
   tried.value = false
 })
 
-const typed = computed(() => typedAssetTerms({ name: name.value, kind: kind.value, bought: bought.value, price: price.value, region: region.value, firstRegistration: firstRegistration.value }))
+const typed = computed(() =>
+  typedAssetTerms({ name: name.value, kind: kind.value, bought: bought.value, price: price.value, region: region.value, firstRegistration: firstRegistration.value, share: share.value }),
+)
 const errors = computed(() => typed.value.errors)
 
 async function save(): Promise<void> {
@@ -86,8 +91,7 @@ async function save(): Promise<void> {
     }
     return
   }
-  if (await writes.write(words.assetDialog.saved, (unit) => unit.of(ASSET_WRITES).change(before, { ...before, ...asset, id: before.id }), { failedTitle: assetsWords.form.notSaved }))
-    open.value = false
+  if (await writes.write(words.assetDialog.saved, (unit) => unit.of(ASSET_WRITES).change(before, { ...asset, id: before.id }), { failedTitle: assetsWords.form.notSaved })) open.value = false
 }
 
 async function remove(): Promise<void> {
@@ -127,6 +131,9 @@ async function remove(): Promise<void> {
         class="sm:col-span-2"
       >
         <DayField v-model="firstRegistration" class="w-full" data-testid="asset-first-registration" />
+      </UFormField>
+      <UFormField :label="words.assetDialog.share" :help="words.assetDialog.shareHelp" :error="(tried && errors.share) || false">
+        <UInput v-model="share" inputmode="decimal" placeholder="100" class="w-full" data-testid="asset-share" />
       </UFormField>
       <UFormField :label="words.assetDialog.loan" :help="loanReason" class="sm:col-span-2">
         <USelect v-model="loan" :items="loanItems" :disabled="loanReason !== ''" class="w-full" data-testid="asset-loan" />

@@ -71,8 +71,22 @@ const PLOT: Asset = { id: fixedId(ASSET_RECORDS, 4), name: 'Plot by the sea', ki
 
 const BOAT_VALUATION: Valuation = { id: fixedId(VALUATION_RECORDS, 10), asset: BOAT.id, date: day('2026-05-01'), value: moneyFromAmount(15_500), note: "The marina broker's guess" }
 
-/** The flat bought at a half with a brother, who was bought out on 1 March 2026. */
-const FLAT_AT_HALF: Asset = { ...FLAT, share: percentFromWhole(50), note: 'Bought with my brother.' }
+/** The flat bought at a half with a brother, who was bought out on 1 March 2026, with no loan on it. */
+const FLAT_AT_HALF: Asset = { ...FLAT, share: percentFromWhole(50), loan: null, note: 'Bought with my brother.' }
+
+/** A made-up flat on the coast still owned at a half with a sister, on the fake Home loan. */
+const SEASIDE_FLAT: Asset = {
+  id: fixedId(ASSET_RECORDS, 5),
+  name: 'Flat on the coast',
+  kind: 'home',
+  bought: day('2025-06-01'),
+  price: moneyFromAmount(160_000),
+  region: 'adriatic',
+  firstRegistration: null,
+  loan: FAKE_HOME_LOAN,
+  share: percentFromWhole(50),
+  note: 'Bought with my sister.',
+}
 
 const BUYOUT: AssetShare = { id: fixedId(ASSET_SHARE_RECORDS, 20), asset: FLAT.id, from: day('2026-03-01'), share: percentFromWhole(100), note: 'Bought out my brother.' }
 
@@ -85,13 +99,13 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
  * The fake build's Assets sets: `sample` the flat linked to the fake Home loan, the car with no loan, a boat with one
  * valuation and a plot with no value, `house-and-car` the flat and the car linked to the fake Car loan, and `loan-gone`
  * the sample with the flat naming a loan no fake Loans file holds, and `co-owned` the flat at a half from the day it was
- * bought and all yours from 1 March 2026, linked to the fake Home loan, with the car all yours.
+ * bought and all yours from 1 March 2026, a flat on the coast still at a half and linked to the fake Home loan, and the car all yours.
  */
 export type FakeAssetsSet = 'sample' | 'house-and-car' | 'loan-gone' | 'co-owned'
 
 export function fakeAssetsDocument(savedAt: string, set: FakeAssetsSet = 'sample'): WorkbookDocument {
   if (set === 'co-owned') {
-    return { ...emptyAssetsDocument(savedAt), records: { ...stored(ASSET_RECORDS, [FLAT_AT_HALF, CAR]), ...stored(ASSET_SHARE_RECORDS, [BUYOUT]) } }
+    return { ...emptyAssetsDocument(savedAt), records: { ...stored(ASSET_RECORDS, [FLAT_AT_HALF, SEASIDE_FLAT, CAR]), ...stored(ASSET_SHARE_RECORDS, [BUYOUT]) } }
   }
   const assets = set === 'house-and-car' ? [FLAT, { ...CAR, loan: FAKE_CAR_LOAN }] : set === 'loan-gone' ? [{ ...FLAT, loan: GONE_LOAN }, CAR, BOAT, PLOT] : [FLAT, CAR, BOAT, PLOT]
   return { ...emptyAssetsDocument(savedAt), records: { ...stored(ASSET_RECORDS, assets), ...stored(VALUATION_RECORDS, set === 'house-and-car' ? [] : [BOAT_VALUATION]) } }

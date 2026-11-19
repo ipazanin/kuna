@@ -15,6 +15,7 @@ export const en = {
   form: {
     aDate: (example: CivilDate) => `A date, such as ${example}`,
     amountPlaceholder: '0.00',
+    aPart: 'A percent above 0 and at most 100, such as 50',
     note: 'Note',
     cancel: 'Cancel',
     notAdded: 'Not added',
@@ -31,6 +32,7 @@ export const hr: Translation<typeof en> = {
   form: {
     aDate: (example) => `Datum, na primjer ${dayLabel(example)}`,
     amountPlaceholder: '0,00',
+    aPart: 'Postotak veći od 0 i najviše 100, na primjer 50',
     note: 'Napomena',
     cancel: 'Odustani',
     notAdded: 'Nije dodano',

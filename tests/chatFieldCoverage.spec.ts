@@ -87,7 +87,7 @@ const OFFER_RENAMES = {
 
 /** The chat names the record in Loans an entry links to by its loan's name and its due date, and Kuna finds the rest of it. */
 const LINK_TARGET_RENAMES = Object.fromEntries(
-  ['kind', 'interim', 'link.app', 'link.kind', 'link.key', 'loanName', 'lender', 'number', 'count', 'yourShare', 'interest', 'principal', 'name', 'counterparty', 'direction']
+  ['kind', 'interim', 'link.app', 'link.kind', 'link.key', 'loanName', 'lender', 'number', 'count', 'youPay', 'interest', 'principal', 'name', 'counterparty', 'direction']
     .map((field) => [field, 'loan'])
     .concat([['link.due', 'due']]),
 )
@@ -106,6 +106,8 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/assets/asset/application/assetWrites.ts#ASSET_WRITES.change', operations: ['change-asset'] },
   { path: 'src/apps/assets/asset/application/assetWrites.ts#VALUATION_WRITES.add', operations: ['add-valuation'] },
   { path: 'src/apps/assets/asset/application/assetWrites.ts#VALUATION_WRITES.change', operations: ['change-valuation'] },
+  { path: 'src/apps/assets/asset/application/assetWrites.ts#ASSET_SHARE_WRITES.add', operations: ['add-asset-share'] },
+  { path: 'src/apps/assets/asset/application/assetWrites.ts#ASSET_SHARE_WRITES.change', operations: ['change-asset-share'] },
   { path: 'src/apps/company/billingPlan/application/billingWrites.ts#BILLING_WRITES.add', operations: ['add-billing-item'] },
   { path: 'src/apps/company/billingPlan/application/billingWrites.ts#BILLING_WRITES.change', operations: ['change-billing-item'] },
   { path: 'src/apps/company/settings/application/settingWrites.ts#setSettings', from: ['values'], operations: ['set-setting'] },
@@ -289,6 +291,8 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/loans/bankLoans/application/bankLoanWrites.ts#EXTRA_PAYMENT_WRITES.change', operations: ['change-extra-payment'] },
   { path: 'src/apps/loans/bankLoans/application/bankLoanWrites.ts#LATE_INSTALMENT_WRITES.add', operations: ['add-late-instalment'] },
   { path: 'src/apps/loans/bankLoans/application/bankLoanWrites.ts#LATE_INSTALMENT_WRITES.change', operations: ['change-late-instalment'] },
+  { path: 'src/apps/loans/bankLoans/application/bankLoanWrites.ts#LOAN_SHARE_WRITES.add', operations: ['add-loan-share'] },
+  { path: 'src/apps/loans/bankLoans/application/bankLoanWrites.ts#LOAN_SHARE_WRITES.change', operations: ['change-loan-share'] },
   { path: 'src/apps/loans/scenarios/application/scenarioWrites.ts#saveScenario', from: ['scenario'], anyOperation: true, operations: ['save-try', 'add-offer', 'change-offer'] },
   {
     path: 'src/apps/loans/scenarios/application/scenarioWrites.ts#saveScenario',

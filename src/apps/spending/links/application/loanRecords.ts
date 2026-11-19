@@ -5,7 +5,7 @@ import type { ShownTarget } from './linkTargets'
 /** The instalments, extra payments, movements and informal loans a loans app publishes, as Spending reads them, each with the link the app gives it. */
 export function loanTargetsFrom(published: PublishedLoanTargets): readonly ShownTarget[] {
   return [
-    ...published.instalments.map(({ kind, link, loanName, lender, number, count, due, yourShare, interest, principal, to }): ShownTarget => ({
+    ...published.instalments.map(({ kind, link, loanName, lender, number, count, due, youPay, interest, principal, to }): ShownTarget => ({
       kind: 'instalment',
       interim: kind === 'interim-interest',
       link,
@@ -14,7 +14,7 @@ export function loanTargetsFrom(published: PublishedLoanTargets): readonly Shown
       number,
       count,
       due,
-      yourShare,
+      youPay,
       interest,
       principal,
       to,

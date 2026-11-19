@@ -1,3 +1,6 @@
+import { civilDate } from '../../../../shared/calendar/civilDate'
+import type { PartChangeFaults } from '../../../../shared/money/yourPart'
+import { words as assetsWords } from '../../words'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 
@@ -14,6 +17,9 @@ export const en = {
     value: 'Value',
     owedOn: (loan: string) => `Owed on the ${loan}`,
     yours: 'Yours after the loan',
+    yourPart: 'Your part',
+    partOfValue: (part: string) => `${part} of the value`,
+    partOfOwed: (whole: string) => `Your part of ${whole} owed`,
   },
   loan: {
     gone: 'Its loan is no longer in Loans',
@@ -21,6 +27,15 @@ export const en = {
     opening: 'Waiting for Loans to open',
     failed: 'Loans did not open, so what is yours is not shown',
     noPlan: "Loans cannot work out this loan's plan yet, so what you owe and what is yours are not shown.",
+    countsWhole: 'You own part of it, but its loan counts whole until you give the loan your part in Loans.',
+  },
+  shares: {
+    title: 'Your part',
+    subtitle: 'Your part from the day it was bought, and each change after it.',
+    all: 'All of it',
+    fromStart: (bought: string | null) => (bought === null ? 'From the start' : `From the start, ${bought}`),
+    from: (day: string, note: string) => [`From ${day}`, note].filter((part) => part !== '').join('. '),
+    add: 'Add a change',
   },
   facts: {
     bought: 'Bought on',
@@ -37,7 +52,6 @@ export const en = {
       price: 'No valuation yet. The price paid counts until you add one.',
       nothing: 'No valuation and no price yet, so it has no value.',
     },
-    change: (date: string) => `Change the valuation of ${date}`,
   },
   assetDialog: {
     addTitle: 'Add an asset',
@@ -62,6 +76,8 @@ export const en = {
     loansNotSetUp: 'Set up Loans to pick a loan',
     loansOpening: 'Loans is still opening',
     loansFailed: 'Loans did not open, so no loan can be picked',
+    share: 'Your part',
+    shareHelp: 'In percent, blank when it is all yours. A later change, such as buying out the other owner, goes on its page.',
     add: 'Add',
     save: 'Save',
     delete: 'Delete',
@@ -86,6 +102,23 @@ export const en = {
     saved: 'Valuation saved',
     deleted: 'Valuation deleted',
   },
+  shareDialog: {
+    addTitle: 'Add a change of your part',
+    changeTitle: 'Edit the change of your part',
+    description: (asset: string) => `Your part of ${asset} from a day on, such as all of it once you buy out the other owner.`,
+    from: 'From',
+    notBeforeBought: 'Not before the day it was bought',
+    sharesDay: 'Another change is from this day',
+    share: 'Your part',
+    shareHelp: 'In percent. 100 is all of it.',
+    noteHelp: 'Such as bought out my brother',
+    add: 'Add',
+    save: 'Save',
+    delete: 'Delete',
+    added: 'Change of your part added',
+    saved: 'Change of your part saved',
+    deleted: 'Change of your part deleted',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -98,13 +131,25 @@ export const hr: Translation<typeof en> = {
     value: 'Vrijednost',
     owedOn: (loan) => `Dug po kreditu „${loan}”`,
     yours: 'Vaše nakon kredita',
+    yourPart: 'Vaš dio',
+    partOfValue: (part) => `${part} vrijednosti`,
+    partOfOwed: (whole) => `Vaš dio duga od ${whole}`,
   },
   loan: {
     gone: 'Kredit ove imovine više nije u Kreditima',
-    shared: 'I druga stavka imovine navodi ovaj kredit, pa se vaš dio ne prikazuje. Kredit ide uz jednu stavku imovine.',
+    shared: 'I druga stavka imovine navodi ovaj kredit, pa se ne prikazuje što je vaše nakon njega. Kredit ide uz jednu stavku imovine.',
     opening: 'Čeka se otvaranje Kredita',
-    failed: 'Krediti se nisu otvorili, pa se vaš dio ne prikazuje',
-    noPlan: 'Krediti još ne mogu izračunati otplatni plan ovog kredita, pa se dug i vaš dio ne prikazuju.',
+    failed: 'Krediti se nisu otvorili, pa se ne prikazuje što je vaše',
+    noPlan: 'Krediti još ne mogu izračunati otplatni plan ovog kredita, pa se dug i ono što je vaše ne prikazuju.',
+    countsWhole: 'Imate dio ove imovine, ali se njezin kredit računa u cijelosti dok mu u Kreditima ne upišete svoj dio.',
+  },
+  shares: {
+    title: 'Vaš dio',
+    subtitle: 'Vaš dio od dana kupnje i svaka promjena nakon toga.',
+    all: 'Sve',
+    fromStart: (bought) => (bought === null ? 'Od početka' : `Od početka, ${bought}`),
+    from: (day, note) => (note === '' ? `Od ${day}` : `Od ${day} ${note}`),
+    add: 'Dodaj promjenu',
   },
   facts: {
     bought: 'Datum kupnje',
@@ -121,7 +166,6 @@ export const hr: Translation<typeof en> = {
       price: 'Još nema procjene. Dok je ne dodate, vrijedi plaćena cijena.',
       nothing: 'Još nema ni procjene ni cijene, pa nema vrijednosti.',
     },
-    change: (date) => `Promijeni procjenu od ${date}`,
   },
   assetDialog: {
     addTitle: 'Dodaj imovinu',
@@ -146,6 +190,8 @@ export const hr: Translation<typeof en> = {
     loansNotSetUp: 'Postavi Kredite za odabir kredita',
     loansOpening: 'Krediti se još otvaraju',
     loansFailed: 'Krediti se nisu otvorili, pa se kredit ne može odabrati',
+    share: 'Vaš dio',
+    shareHelp: 'U postotku, prazno ako je sve vaše. Kasnija promjena, na primjer otkup dijela drugog vlasnika, unosi se na njezinoj stranici.',
     add: 'Dodaj',
     save: 'Spremi',
     delete: 'Obriši',
@@ -170,6 +216,29 @@ export const hr: Translation<typeof en> = {
     saved: 'Procjena je spremljena',
     deleted: 'Procjena je obrisana',
   },
+  shareDialog: {
+    addTitle: 'Dodaj promjenu vašeg dijela',
+    changeTitle: 'Uredi promjenu vašeg dijela',
+    description: (asset) => `Vaš dio „${asset}” od nekog dana nadalje, na primjer sve nakon otkupa dijela drugog vlasnika.`,
+    from: 'Od',
+    notBeforeBought: 'Ne prije datuma kupnje',
+    sharesDay: 'Od tog dana već postoji promjena',
+    share: 'Vaš dio',
+    shareHelp: 'U postotku. 100 je sve.',
+    noteHelp: 'Na primjer otkup bratova dijela',
+    add: 'Dodaj',
+    save: 'Spremi',
+    delete: 'Obriši',
+    added: 'Promjena vašeg dijela je dodana',
+    saved: 'Promjena vašeg dijela je spremljena',
+    deleted: 'Promjena vašeg dijela je obrisana',
+  },
 }
 
 export const words = language === 'hr' ? hr : en
+
+/** What each field of a change of your part says is wrong with it, null for a field that is fine. */
+export function shareChangeErrors(faults: PartChangeFaults): Readonly<Record<keyof PartChangeFaults, string | null>> {
+  const from = { 'no-date': assetsWords.form.aDate(civilDate(2026, 3, 1)), 'before-start': words.shareDialog.notBeforeBought, 'same-day': words.shareDialog.sharesDay } as const
+  return { from: faults.from === null ? null : from[faults.from], share: faults.share === null ? null : assetsWords.form.aPart }
+}

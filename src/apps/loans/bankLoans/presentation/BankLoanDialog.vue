@@ -16,6 +16,7 @@ import { bankLoanLink, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
+import { isWhole, partShown, typedPart } from '../../../../shared/money/yourPart'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -30,7 +31,7 @@ import { provideLoanWords } from './useLoanWords'
 import { loanTermsErrors } from './words'
 
 /**
- * Adds a bank loan with its first rate period and its subsidy in one write, or changes its terms.
+ * Adds a bank loan with its first rate period and its subsidy in one write, or changes its terms and your part from the payout.
  * A changed first instalment moves the first rate period along, since a loan's rate starts there.
  */
 const open = defineModel<boolean>('open', { required: true })
@@ -48,6 +49,7 @@ const name = ref('')
 const terms = ref<LoanTermsTexts>(loanTermsTexts(null))
 const loanWords = provideLoanWords(() => terms.value.repayment)
 const note = ref('')
+const share = ref('')
 const rate = ref<RateTexts>({ rate: '', rateType: 'fixed', note: '' })
 const subsidised = ref(false)
 const subsidy = ref<SubsidyTexts>(subsidyTexts(null))
@@ -60,6 +62,7 @@ watch(open, (opened) => {
   name.value = loan?.name ?? ''
   terms.value = loanTermsTexts(loan)
   note.value = loan?.note ?? ''
+  share.value = partShown(loan?.share)
   rate.value = { rate: '', rateType: 'fixed', note: '' }
   subsidised.value = false
   subsidy.value = subsidyTexts(null)
@@ -68,15 +71,17 @@ watch(open, (opened) => {
 })
 
 const typed = computed(() => typedLoanTerms(terms.value))
+const part = computed(() => (share.value.trim() === '' ? null : typedPart(share.value)))
 
 const errors = computed(() => ({
   name: name.value.trim() === '' ? loanWords.value.loanDialog.nameError : null,
   ...loanTermsErrors(typed.value.faults),
   rate: props.book === null ? rateError(rate.value) : null,
+  share: share.value.trim() !== '' && part.value === null ? loansWords.form.aPart : null,
   subsidy: props.book === null && subsidised.value && typedSubsidy(subsidy.value, typed.value.instalments).subsidy === null ? loanWords.value.loanDialog.subsidyError : null,
 }))
 
-const moreWrong = computed(() => tried.value && (errors.value.interim !== null || errors.value.subsidy !== null))
+const moreWrong = computed(() => tried.value && (errors.value.interim !== null || errors.value.subsidy !== null || errors.value.share !== null))
 
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
@@ -88,6 +93,7 @@ function typedTerms(): Omit<BankLoan, 'id'> | null {
     ...fields,
     name: name.value,
     subsidy: props.book === null ? (subsidised.value ? typedSubsidy(subsidy.value, fields.instalments).subsidy : null) : props.book.loan.subsidy,
+    ...(part.value === null || isWhole(part.value) ? {} : { share: part.value }),
     note: note.value,
   }
 }
@@ -117,7 +123,7 @@ async function save(): Promise<void> {
     }
     return
   }
-  const after: BankLoan = { ...book.loan, ...newBankLoan(terms), id: book.loan.id }
+  const after: BankLoan = { ...newBankLoan(terms), id: book.loan.id }
   const firstPeriod = book.ratePeriods.find((period) => period.from === book.loan.firstInstalment) ?? null
   const saved = await writes.write(
     loanWords.value.loanDialog.saved,
@@ -176,6 +182,9 @@ async function remove(): Promise<void> {
             <USwitch v-model="subsidised" :label="loanWords.loanDialog.subsidised" :description="loanWords.loanDialog.subsidisedHelp" class="sm:col-span-2" data-testid="bank-loan-subsidised" />
             <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
           </template>
+          <UFormField :label="loanWords.loanDialog.share" :help="loanWords.loanDialog.shareHelp" :error="(tried && errors.share) || false">
+            <UInput v-model="share" inputmode="decimal" placeholder="100" class="w-full" data-testid="bank-loan-share" />
+          </UFormField>
           <UFormField :label="loansWords.form.note" class="sm:col-span-2">
             <UInput v-model="note" class="w-full" />
           </UFormField>

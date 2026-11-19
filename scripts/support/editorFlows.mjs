@@ -6242,10 +6242,10 @@ export function assetsValuationFlowIn(language) {
   const { valuationDialog } = words.assetPage
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const lines = () => page.evaluate(() => document.querySelectorAll('[data-testid="valuation-line"]').length)
+    const lines = () => page.evaluate(() => document.querySelectorAll('[data-testid="valuation-list"] [data-testid="change-line"]').length)
     const linesAre = (count, failure) =>
       page
-        .waitForFunction((wanted) => document.querySelectorAll('[data-testid="valuation-line"]').length === wanted, { timeout: 10_000 }, count)
+        .waitForFunction((wanted) => document.querySelectorAll('[data-testid="valuation-list"] [data-testid="change-line"]').length === wanted, { timeout: 10_000 }, count)
         .catch(() => {
           throw new Error(failure)
         })
@@ -6267,7 +6267,7 @@ export function assetsValuationFlowIn(language) {
     if (await page.$eval('[data-testid="asset-value"]', (tile, said) => tile.textContent?.includes(said) ?? false, estimate)) throw new Error('the car still shows the estimate by the customs table')
     await shoot('assets-valuation-added')
 
-    await pressSelector(page, press, '[data-testid="valuation-edit"]')
+    await pressSelector(page, press, '[data-testid="valuation-list"] [data-testid="change-edit"]')
     await page.waitForSelector('[data-testid="valuation-form"]', { visible: true })
     await pressSelector(page, press, '[data-testid="valuation-delete"]')
     await toast(page, valuationDialog.deleted)
@@ -9512,6 +9512,32 @@ async function goTo(page, hash, title) {
   }, hash)
   await screenTitled(page, title)
   await delay(300)
+}
+
+/**
+ * The flat you own with others and the home loan you took out with others on the co-owned books, their dialogs opened and closed again:
+ * the asset's own with your part from the day it was bought, a new change of its part, the change that bought out the other owner,
+ * the loan's own with your part from the payout, its first line of the Your part card opening that dialog, and a new change of the loan's part.
+ */
+export function sharesDialogsFlowIn(language) {
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await goToRoute(page, '#/assets/asset?asset=fa4e2000-0000-4000-8000-000000000001', '[data-testid="asset-shares"]')
+    await lookAtDialog(page, press, shoot, '[data-testid="asset-edit"]', '[data-testid="asset-form"]', 'dialog-asset-with-part')
+    await lookAtDialog(page, press, shoot, '[data-testid="asset-shares"] [data-testid="change-add"]', '[data-testid="asset-share-form"]', 'dialog-add-asset-share')
+    await lookAtDialog(
+      page,
+      press,
+      shoot,
+      '[data-testid="asset-shares"] [data-testid="change-line"]:nth-child(2) [data-testid="change-edit"]',
+      '[data-testid="asset-share-form"]',
+      'dialog-asset-share',
+    )
+    await goToRoute(page, '#/loans/bank-loan?loan=fa4e0000-0000-4000-8000-000000000001', '[data-testid="loan-shares"]')
+    await lookAtDialog(page, press, shoot, '[data-testid="bank-loan-edit"]', '[data-testid="bank-loan-form"]', 'dialog-bank-loan-with-part')
+    await lookAtDialog(page, press, shoot, '[data-testid="loan-shares"] [data-testid="change-edit"]', '[data-testid="bank-loan-form"]', 'dialog-bank-loan-from-part')
+    await lookAtDialog(page, press, shoot, '[data-testid="loan-shares"] [data-testid="change-add"]', '[data-testid="loan-share-form"]', 'dialog-add-loan-share')
+  }
 }
 
 /**

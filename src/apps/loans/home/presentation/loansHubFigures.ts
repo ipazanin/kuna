@@ -13,7 +13,7 @@ import { words } from './words'
 
 /** Your next payment on a loan as one line under its name: its amount and day, and whom an informal loan's plan repays, as soon as you are behind. */
 function nextPaymentLine(payment: UpcomingPayment): string {
-  const amount = formatMoney(payment.yourShare)
+  const amount = formatMoney(payment.youPay)
   if (payment.kind === 'bank') return words.nextPayment[payment.loan.repayment](amount, shortDayLabel(payment.date))
   const payee = payment.loan.counterparty || payment.loan.name
   return payment.overdue ? words.overduePayment(amount, payee) : words.nextPayment.informal(amount, shortDayLabel(payment.date), payee)

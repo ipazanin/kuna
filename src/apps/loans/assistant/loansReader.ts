@@ -19,12 +19,14 @@ import {
   EXTRA_PAYMENT_RECORDS,
   INFORMAL_LOAN_RECORDS,
   LATE_INSTALMENT_RECORDS,
+  LOAN_SHARE_RECORDS,
   LOAN_SCENARIO_RECORDS,
   MOVEMENT_RECORDS,
   RATE_PERIOD_RECORDS,
   SCENARIO_CHANGE_RECORDS,
 } from '../workbook/domain/loanKinds'
 import type { LateInstalment } from '../workbook/domain/lateInstalment'
+import type { LoanShare } from '../workbook/domain/loanShare'
 import type { Movement } from '../workbook/domain/movement'
 import type { RatePeriod } from '../workbook/domain/ratePeriod'
 import type { LoanBook } from '../workbook/domain/readLoanBook'
@@ -121,6 +123,14 @@ const LATE_INSTALMENT_FIELDS: FieldDocs<LateInstalment> = {
   loan: { exposure: 'ref', to: BANK_LOAN_RECORDS.name, meaning: 'The bank loan.' },
   due: { exposure: 'plain', meaning: 'The due date of the instalment.' },
   paid: { exposure: 'plain', meaning: 'The day it went out.' },
+}
+
+const LOAN_SHARE_FIELDS: FieldDocs<LoanShare> = {
+  id: { exposure: 'ref', to: LOAN_SHARE_RECORDS.name, meaning: 'The change of your part.' },
+  loan: { exposure: 'ref', to: BANK_LOAN_RECORDS.name, meaning: 'The bank loan.' },
+  from: { exposure: 'plain', meaning: 'The day your part changed. It holds until the next change.' },
+  share: { exposure: 'plain', meaning: 'Your part of what is owed from that day on, as a percent such as 50. 100% is all of it.', read: (change) => `${writtenPercent(change.share)}%` },
+  note: { exposure: 'free-text', meaning: "The owner's note, such as the annex that changed the borrowers." },
 }
 
 const INFORMAL_LOAN_FIELDS: FieldDocs<InformalLoan> = {
@@ -232,7 +242,7 @@ function balancesReport(book: LoanBook, period: string | null): readonly ReportF
       ...(figures.yours === undefined ? [] : [amount(`${named}: your part of what is owed, which the totals count`, figures.yours)]),
       ...(figures.next === null
         ? []
-        : [amount(`${named}: next instalment, due ${figures.next.date}`, figures.next.payment), amount(`${named}: your share of it after the subsidy`, figures.next.yourShare)]),
+        : [amount(`${named}: next instalment, due ${figures.next.date}`, figures.next.payment), amount(`${named}: what you pay of it after the subsidy`, figures.next.youPay)]),
       { label: `${named}: instalments left${figures.payoff === null ? '' : `, paid off ${figures.payoff}`}`, count: figures.instalmentsLeft },
       amount(`${named}: interest in ${figures.interestThisYear.year}`, figures.interestThisYear.interest),
     ]
@@ -270,10 +280,10 @@ function statementsReport(book: LoanBook, payments: StatementPayments, period: s
     const standings = instalmentStandings(loanBook, payments, day)
     return (loanBook.plan ?? []).flatMap((row): ReportFigure[] => {
       const standing = row.kind === 'instalment' ? standings.get(row.date) : undefined
-      if (standing?.standing === 'not-seen') return [amount(`${named}: instalment due ${row.date}, your share, not seen in your statement`, row.yourShare)]
+      if (standing?.standing === 'not-seen') return [amount(`${named}: instalment due ${row.date}, what you pay, not seen in your statement`, row.youPay)]
       if (standing?.standing !== 'seen') return []
       const overruled = standing.overruled === null ? '' : `, which overrules the late-instalment record of ${standing.overruled.paid}`
-      return [amount(`${named}: instalment due ${row.date}, your share, paid ${standing.paid} as your statement shows${overruled}`, row.yourShare)]
+      return [amount(`${named}: instalment due ${row.date}, what you pay, paid ${standing.paid} as your statement shows${overruled}`, row.youPay)]
     })
   })
 }
@@ -354,6 +364,14 @@ export function loansReader(reading: LoansReading): AppReader {
         fields: LATE_INSTALMENT_FIELDS,
         dated: 'due',
         rows: () => rows((book) => book.readings.lateInstalments.facts),
+        currencyOf: inEuros,
+      }),
+      readableKind({
+        kind: LOAN_SHARE_RECORDS,
+        about: words.reads.loanShare,
+        fields: LOAN_SHARE_FIELDS,
+        dated: 'from',
+        rows: () => rows((book) => book.readings.loanShares.facts),
         currencyOf: inEuros,
       }),
       readableKind({

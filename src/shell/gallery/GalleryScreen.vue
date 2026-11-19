@@ -36,6 +36,7 @@ import SortableHeader from '../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../shared/ui/SortableHeader.vue'
 import SparkLine from '../../shared/ui/SparkLine.vue'
 import { installedApps } from '../routing/appRegistry'
+import ChangeListSpecimens from './ChangeListSpecimens.vue'
 import ChartSpecimens from './ChartSpecimens.vue'
 import ChatElementSpecimens from './ChatElementSpecimens.vue'
 import CutTextSpecimens from './CutTextSpecimens.vue'
@@ -69,6 +70,7 @@ const CONTENTS = [
   ['type', 'Type roles'],
   ['formatting', 'Formatting'],
   ['app-card', 'AppCard'],
+  ['change-list-card', 'ChangeListCard'],
   ['kpi-tile', 'KpiTile'],
   ['progress-meter', 'ProgressMeter'],
   ['dashboard-grid', 'DashboardGrid'],
@@ -234,6 +236,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
         </AppCard>
       </DashboardGrid>
     </GallerySection>
+    <ChangeListSpecimens />
 
     <GallerySection id="kpi-tile" title="KpiTile and SparkLine" description="A label that opens the rows, a figure, a change against a comparison or a caption, and a trend.">
       <DashboardGrid layout="tiles">

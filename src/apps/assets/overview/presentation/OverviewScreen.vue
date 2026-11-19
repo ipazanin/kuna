@@ -42,7 +42,11 @@ const total = computed(() => (state.workbook === null ? null : assetsTotal(state
 const lines = computed(() => {
   const counted = total.value
   if (counted === null || counted === 'opening') return []
-  return [...(counted.unvalued === 0 ? [] : [plural(homeWords.withoutValue(counted.unvalued), counted.unvalued)]), ...(counted.indexFailed ? [valueWords.indexFailed] : [])]
+  return [
+    ...(assets.value.some((entry) => entry.share !== null) ? [words.sharedCounted] : []),
+    ...(counted.unvalued === 0 ? [] : [plural(homeWords.withoutValue(counted.unvalued), counted.unvalued)]),
+    ...(counted.indexFailed ? [valueWords.indexFailed] : []),
+  ]
 })
 
 const adding = ref(false)

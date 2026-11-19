@@ -11,23 +11,29 @@ import { assetsOnDay } from '../../values/domain/assetsOnDay'
 import { valueCaption } from '../../values/presentation/valueCaption'
 import { words as valueWords } from '../../values/presentation/words'
 import { useAssetsBooks } from '../../workbook/application/assetsStore'
+import type { AssetShare } from '../../workbook/domain/assetShare'
 import type { Valuation } from '../../workbook/domain/valuation'
 import AssetDialog from './AssetDialog.vue'
+import AssetShareDialog from './AssetShareDialog.vue'
 import ValuationDialog from './ValuationDialog.vue'
 import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../shared/money/percent'
+import type { Percent } from '../../../../shared/money/percent'
+import { isShared, isWhole } from '../../../../shared/money/yourPart'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import ChangeListCard from '../../../../shared/ui/ChangeListCard.vue'
+import type { ChangeLine } from '../../../../shared/ui/ChangeListCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** One asset: what it is worth today and how that was reached, the bank loan on it with what you owe and what is yours after it, and its valuations newest first. */
+/** One asset: what it is worth today and how that was reached, your part of it, the bank loan on it with what you owe and what is yours after it, its valuations newest first, and your part over time. */
 const { state } = useAssetsBooks()
 const index = useHouseIndex()
 const route = useRoute()
@@ -46,7 +52,8 @@ const lines = computed(() => {
   const loanLine = { none: null, shared: words.loan.shared, opening: words.loan.opening, failed: words.loan.failed, gone: words.loan.gone, linked: equity.owed === null ? words.loan.noPlan : null }[
     link.kind
   ]
-  return [...(loanLine === null ? [] : [loanLine]), ...(index.value === 'failed' && carriedByIndex(asset) ? [valueWords.indexFailed] : [])]
+  const loanWhole = shown.value.share !== null && link.kind === 'linked' && equity.owed !== null && link.loan.whole === undefined
+  return [...(loanLine === null ? [] : [loanLine]), ...(loanWhole ? [words.loan.countsWhole] : []), ...(index.value === 'failed' && carriedByIndex(asset) ? [valueWords.indexFailed] : [])]
 })
 
 /** What counts while the asset has no valuation: the price paid, carried by the index or estimated by the customs table, or nothing. */
@@ -68,14 +75,51 @@ const facts = computed((): Fact[] => {
   ]
 })
 
-const newestFirst = computed(() => [...(entry.value?.valuations ?? [])].reverse())
+/** Each valuation, newest first. */
+const valuationLines = computed((): ChangeLine[] =>
+  [...(entry.value?.valuations ?? [])]
+    .reverse()
+    .map((valuation) => ({ key: valuation.id, title: formatMoney(valuation.value), detail: [dayLabel(valuation.date), valuation.note].filter((part) => part !== '').join(', ') })),
+)
+
+/** An asset you own with others at any time, which shows its Your part card. Until then the part is set in the asset dialog. */
+const shared = computed(() => entry.value !== null && isShared(entry.value.asset.share, entry.value.shares))
+
+/** The line of the part the asset dialog sets, from the day it was bought. */
+const START = 'start'
+
+function partTitle(share: Percent): string {
+  return isWhole(share) ? words.shares.all : percentText(share)
+}
+
+/** Your part from the day it was bought, which the asset dialog sets, then each dated change, oldest first. */
+const shareLines = computed((): ChangeLine[] => {
+  if (entry.value === null) return []
+  const { asset, shares } = entry.value
+  return [
+    { key: START, title: asset.share === undefined ? words.shares.all : partTitle(asset.share), detail: words.shares.fromStart(asset.bought === null ? null : dayLabel(asset.bought)) },
+    ...shares.map((change) => ({ key: change.id, title: partTitle(change.share), detail: words.shares.from(dayLabel(change.from), change.note) })),
+  ]
+})
 
 const editing = ref(false)
 const valuationOpen = ref(false)
 const editingValuation = ref<Valuation | null>(null)
 
-function openValuation(valuation: Valuation | null): void {
-  editingValuation.value = valuation
+const shareOpen = ref(false)
+const editingShare = ref<AssetShare | null>(null)
+
+function openShare(key: string | null): void {
+  if (key === START) {
+    editing.value = true
+    return
+  }
+  editingShare.value = entry.value?.shares.find((change) => change.id === key) ?? null
+  shareOpen.value = true
+}
+
+function openValuation(key: string | null): void {
+  editingValuation.value = entry.value?.valuations.find((valuation) => valuation.id === key) ?? null
   valuationOpen.value = true
 }
 </script>
@@ -103,40 +147,57 @@ function openValuation(valuation: Valuation | null): void {
             <span class="block type-body font-normal" data-testid="asset-value-waiting">{{ valueWords.waitingForIndex }}</span>
           </template>
         </KpiTile>
+        <KpiTile
+          v-if="shown.share !== null && shown.equity.value !== null"
+          :label="words.tiles.yourPart"
+          :value="formatMoney(shown.equity.value)"
+          :caption="words.tiles.partOfValue(percentText(shown.share))"
+          :to="null"
+          data-testid="asset-your-part"
+        />
         <template v-if="shown.link.kind === 'linked' && shown.equity.owed !== null">
-          <KpiTile :label="words.tiles.owedOn(shown.link.loan.name)" :value="formatMoney(shown.equity.owed)" :to="shown.link.loan.to" data-testid="asset-owed" />
+          <KpiTile
+            :label="words.tiles.owedOn(shown.link.loan.name)"
+            :value="formatMoney(shown.equity.owed)"
+            :caption="shown.link.loan.whole === undefined ? '' : words.tiles.partOfOwed(formatMoney(shown.link.loan.whole))"
+            :to="shown.link.loan.to"
+            data-testid="asset-owed"
+          />
           <KpiTile v-if="shown.equity.yours !== null" :label="words.tiles.yours" :value="formatMoney(shown.equity.yours)" :to="null" data-testid="asset-yours" />
         </template>
       </DashboardGrid>
       <div v-if="lines.length > 0" class="flex flex-col gap-1" data-testid="asset-notes">
         <p v-for="line in lines" :key="line" class="type-caption">{{ line }}</p>
       </div>
-      <DashboardGrid layout="pair">
+      <DashboardGrid :layout="shared ? 'cards' : 'pair'">
         <AppCard v-if="facts.length > 0" as="article" class="p-4 sm:p-5" data-testid="asset-facts">
           <FactGrid :facts="facts" />
         </AppCard>
-        <AppCard :title="words.valuations.title" :subtitle="words.valuations.subtitle" data-testid="valuation-list">
-          <p v-if="newestFirst.length === 0" class="px-4 pb-4 text-sm text-muted sm:px-5">{{ noValuation }}</p>
-          <ul v-else class="flex flex-col pb-2">
-            <li v-for="valuation in newestFirst" :key="valuation.id" class="flex items-center gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5" data-testid="valuation-line">
-              <div class="min-w-0 flex-1">
-                <MoneyText :cents="valuation.value" class="text-sm text-highlighted" />
-                <p class="text-xs text-muted">{{ [dayLabel(valuation.date), valuation.note].filter((part) => part !== '').join(', ') }}</p>
-              </div>
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                :aria-label="words.valuations.change(dayLabel(valuation.date))"
-                data-testid="valuation-edit"
-                @click="openValuation(valuation)"
-              />
-            </li>
-          </ul>
-        </AppCard>
+        <ChangeListCard
+          :title="words.valuations.title"
+          :subtitle="words.valuations.subtitle"
+          :lines="valuationLines"
+          :empty="noValuation"
+          :can-add="false"
+          collapse-id="assets.valuations"
+          data-testid="valuation-list"
+          @change="openValuation"
+        />
+        <ChangeListCard
+          v-if="shared"
+          :title="words.shares.title"
+          :subtitle="words.shares.subtitle"
+          :lines="shareLines"
+          :empty="words.shares.all"
+          :add-label="words.shares.add"
+          collapse-id="assets.shares"
+          data-testid="asset-shares"
+          @add="openShare(null)"
+          @change="openShare"
+        />
       </DashboardGrid>
       <AssetDialog v-model:open="editing" :entry="entry" />
+      <AssetShareDialog v-model:open="shareOpen" :entry="entry" :editing="editingShare" :today="day" />
       <ValuationDialog v-model:open="valuationOpen" :entry="entry" :editing="editingValuation" :today="day" />
     </template>
     <ScreenSkeleton v-else-if="state.workbook === null && state.status !== 'error'" />

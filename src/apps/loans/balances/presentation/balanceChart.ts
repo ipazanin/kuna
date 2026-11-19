@@ -64,7 +64,8 @@ export interface BalanceMarks {
  * has its dot there. Each month's moves are a dot on
  * its balance, one size whatever their amount: one colour for what lowers what is owed and another for what
  * raises it, side by side in a month with both, and a violet ring for a new rate. The tooltip names the moves
- * of the month's dots. The axis names years, not months.
+ * of the month's dots. A bank loan you took out with others adds your part of each month end as a thinner line,
+ * over every month it shows. The axis names years, not months.
  */
 export function balanceChart(months: readonly MonthBalance[], current: MonthKey, tokens: ChartTokens, phone: boolean, marks: BalanceMarks): BalanceChart {
   const categories: string[] = months.map((entry) => entry.month)
@@ -133,6 +134,17 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
             data: [[{ xAxis: estimateFrom }, { xAxis: last.month }]],
           },
         }),
+  }
+  const shared = months.some((entry) => entry.yours !== undefined)
+  const yourPartLine: LineSeries = {
+    ...line(
+      words.yourPart,
+      tokenColour('--loan-your-part'),
+      months.map((entry) => entry.yours ?? entry.owed),
+      false,
+      null,
+    ),
+    lineStyle: { width: 1.5 },
   }
   const plannedBy = new Map((expected ?? []).map((entry) => [entry.month, entry.owed]))
   const planned = months.flatMap((entry) => {
@@ -215,19 +227,21 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
         ),
       },
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
-      series: [owedSoFar, ...(hasPlan ? [stillToCome] : []), ...(planned.length > 0 ? [expectedLine] : []), ...dots('lowers'), ...dots('raises'), ...dots('rate')],
+      series: [owedSoFar, ...(hasPlan ? [stillToCome] : []), ...(shared ? [yourPartLine] : []), ...(planned.length > 0 ? [expectedLine] : []), ...dots('lowers'), ...dots('raises'), ...dots('rate')],
     },
     description:
       first === undefined || last === undefined || now === undefined
         ? words.noMonths
         : words.description(monthLabel(first.month), monthLabel(last.month), monthLabel(now.month), formatMoney(now.owed)) +
           (hasPlan ? words.planDescription(formatMoney(last.owed), monthLabel(last.month)) : '') +
+          (shared ? words.yourPartDescription(formatMoney(now.yours ?? now.owed), monthLabel(now.month)) : '') +
           expectedWords(planned, expected ?? [], current) +
           (moves.length === 0 ? '' : plural(words.movesDescription(moves.length, listInWords(markWords)), moves.length)) +
           (effects.has('lowers') || effects.has('raises') ? words.oneDotAMonth : ''),
     legend: [
       { label: words.owedSoFar, colour: `var(${marks.token})`, mark: 'line' },
       ...(hasPlan ? [{ label: words.stillToCome, colour: 'var(--loan-ahead)', mark: 'dashed' as const }] : []),
+      ...(shared ? [{ label: words.yourPart, colour: 'var(--loan-your-part)', mark: 'line' as const }] : []),
       ...(planned.length > 0 ? [{ label: words.expected, colour: 'var(--loan-ahead)', mark: 'dashed' as const }] : []),
       ...(effects.has('lowers') ? [{ label: words.lowers, colour: 'var(--loan-lowers)', mark: 'dot' as const }] : []),
       ...(effects.has('raises') ? [{ label: words.raises, colour: 'var(--loan-raises)', mark: 'dot' as const }] : []),

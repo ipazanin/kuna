@@ -78,6 +78,10 @@
  * the index failed (`?index=failed`), and its Overview while its file opens and once its read fails, in Croatian where
  * a screen has words of its own. Its flows add a flat with its region and the Home loan, clear the loan, delete the
  * flat and undo it, and add a valuation to the car and delete it and undo that, in English and Croatian.
+ * Beside the co-owned Loans file (`?assets=co-owned&loans=co-owned`) it renders the Overview with your part of each shared asset, the flat with your part over time,
+ * and the flat on the coast with your part of it and of its loan, and again beside a loan that counts whole (`&loans=one-loan`). The co-owned Loans file's Overview
+ * and home loan show the bank's balance with your part, and the next payment and the plan's You pay as the whole instalment with your part under it (`?loans=co-owned`).
+ * Without a shared part the asset and loan pages show no Your part card.
  *
  * The Spending app renders its first run, its empty Overview and its Settings (`?spending=drive`), its Settings for a
  * file kept in this browser, the sample's Overview with the event that runs, Transactions, Limits, Events, Accounts, the dollar account with its ECB rate
@@ -307,6 +311,7 @@ import {
   setUpInOtherTabFlow,
   firstRunOnDriveFlowIn,
   assetsEditorFlowIn,
+  sharesDialogsFlowIn,
   assetsValuationFlow,
   assetsValuationFlowIn,
   spendingFirstAccountFlow,
@@ -725,6 +730,8 @@ function fakePortfolio(variant, pricesVariant) {
 /** The ids of the sample Assets file's flat, linked to the sample Home loan, and its car, `?assets=sample`. */
 const SAMPLE_FLAT = 'fa4e2000-0000-4000-8000-000000000001'
 const SAMPLE_CAR = 'fa4e2000-0000-4000-8000-000000000002'
+/** The flat on the coast of the co-owned Assets set, still yours at a half. */
+const SEASIDE_FLAT = 'fa4e2000-0000-4000-8000-000000000005'
 const FAKE_HOUSE_INDEX = houseIndexOfAnswer(FAKE_HOUSE_INDEX_ANSWER)
 
 /** The sample Assets file and the sample Loans file's bank loans as Assets reads them, on the check's day. */
@@ -2945,6 +2952,7 @@ const SOURCE_SCREENS = [
       '6M EURIBOR',
       'days late',
     ],
+    lacks: ['Your part', 'Whole instalment'],
   },
   {
     name: 'loans-bank-loan-croatian',
@@ -2969,6 +2977,24 @@ const SOURCE_SCREENS = [
       'Razdoblja kamatne stope',
     ],
   },
+  {
+    name: 'loans-bank-loan-co-owned',
+    query: 'loans=co-owned',
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
+    title: 'Home loan',
+    charts: 2,
+    shows: ['Owed today', 'Your part', 'joint debtors', 'Owed over time', 'From the payout', '50%', 'Whole instalment, on', 'whole instalment', 'your part'],
+  },
+  {
+    name: 'loans-bank-loan-co-owned-croatian',
+    query: 'loans=co-owned&lang=hr',
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
+    title: 'Home loan',
+    charts: 2,
+    shows: ['Dug danas', 'Vaš dio', 'solidarnim dužnicima', 'Dug kroz vrijeme', 'Od isplate', 'Cijeli anuitet, dana', 'cijeli anuitet', 'vaš dio'],
+  },
+  { name: 'loans-co-owned', query: 'loans=co-owned', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'owed today', 'your part'], cards: false },
+  { name: 'loans-co-owned-croatian', query: 'loans=co-owned&lang=hr', hash: '#/loans', title: 'Pregled', charts: 0, shows: ['Home loan', 'dug danas', 'vaš dio'], cards: false },
   {
     name: 'loans-bank-loan-statements',
     query: 'loans=sample&spending=sample',
@@ -3210,7 +3236,7 @@ const SOURCE_SCREENS = [
     title: 'Flat in Zagreb',
     charts: 0,
     shows: [ASSETS.flat.value.english, ASSETS.flat.caption, 'Owed on the Home loan', ASSETS.flat.owed.english, 'Yours after the loan', ASSETS.flat.yours.english, 'Valuations'],
-    cards: false,
+    lacks: ['Your part'],
   },
   {
     name: 'assets-flat-croatian',
@@ -3219,7 +3245,6 @@ const SOURCE_SCREENS = [
     title: 'Flat in Zagreb',
     charts: 0,
     shows: [ASSETS.flat.value.croatian, 'preračunato na', 'Dug po kreditu „Home loan”', ASSETS.flat.owed.croatian, 'Vaše nakon kredita', ASSETS.flat.yours.croatian, 'Procjene'],
-    cards: false,
   },
   {
     name: 'assets-flat-no-loans',
@@ -3228,7 +3253,6 @@ const SOURCE_SCREENS = [
     title: 'Flat in Zagreb',
     charts: 0,
     shows: [ASSETS.flat.value.english, ASSETS.flat.caption],
-    cards: false,
   },
   {
     name: 'assets-flat-loan-gone',
@@ -3237,7 +3261,6 @@ const SOURCE_SCREENS = [
     title: 'Flat in Zagreb',
     charts: 0,
     shows: [ASSETS.flat.value.english, 'Its loan is no longer in Loans'],
-    cards: false,
   },
   {
     name: 'assets-flat-index-failed',
@@ -3246,7 +3269,6 @@ const SOURCE_SCREENS = [
     title: 'Flat in Zagreb',
     charts: 0,
     shows: [ASSETS.flat.price.english, 'Price paid on 15 Mar 2025', 'The DZS index did not load, so flats show their valuation or the price paid.'],
-    cards: false,
   },
   {
     name: 'assets-flat-loans-opening',
@@ -3255,7 +3277,6 @@ const SOURCE_SCREENS = [
     title: 'Flat in Zagreb',
     charts: 0,
     shows: [ASSETS.flat.value.english, 'Waiting for Loans to open'],
-    cards: false,
   },
   {
     name: 'assets-flat-index-opening',
@@ -3264,7 +3285,6 @@ const SOURCE_SCREENS = [
     title: 'Flat in Zagreb',
     charts: 0,
     ready: '[data-testid="asset-value-waiting"]',
-    cards: false,
   },
   {
     name: 'assets-overview-index-opening-croatian',
@@ -3283,7 +3303,6 @@ const SOURCE_SCREENS = [
     title: 'Family car',
     charts: 0,
     shows: [ASSETS.car.value.english, ASSETS.car.caption, 'First registration'],
-    cards: false,
   },
   {
     name: 'assets-car-croatian',
@@ -3292,6 +3311,71 @@ const SOURCE_SCREENS = [
     title: 'Family car',
     charts: 0,
     shows: [ASSETS.car.value.croatian, 'Procjena prema carinskoj tablici', 'Prva registracija'],
+  },
+  {
+    name: 'assets-flat-co-owned',
+    query: 'assets=co-owned&loans=co-owned',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: ['Your part', 'From the start', '50%', 'All of it', 'Bought out my brother'],
+  },
+  {
+    name: 'assets-flat-co-owned-croatian',
+    query: 'assets=co-owned&loans=co-owned&lang=hr',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: ['Vaš dio', 'Od početka', 'Sve'],
+  },
+  {
+    name: 'assets-seaside-co-owned',
+    query: 'assets=co-owned&loans=co-owned',
+    hash: `#/assets/asset?asset=${SEASIDE_FLAT}`,
+    title: 'Flat on the coast',
+    charts: 0,
+    shows: ['Your part', '50% of the value', 'Owed on the Home loan', 'Your part of', 'Yours after the loan', 'From the start'],
+  },
+  {
+    name: 'assets-seaside-co-owned-croatian',
+    query: 'assets=co-owned&loans=co-owned&lang=hr',
+    hash: `#/assets/asset?asset=${SEASIDE_FLAT}`,
+    title: 'Flat on the coast',
+    charts: 0,
+    shows: ['Vaš dio', 'vrijednosti', 'Dug po kreditu „Home loan”', 'Vaš dio duga od', 'Vaše nakon kredita', 'Od početka'],
+  },
+  {
+    name: 'assets-seaside-co-owned-loan-whole',
+    query: 'assets=co-owned&loans=one-loan',
+    hash: `#/assets/asset?asset=${SEASIDE_FLAT}`,
+    title: 'Flat on the coast',
+    charts: 0,
+    shows: ['Your part', 'Owed on the Home loan', 'its loan counts whole until you give the loan your part in Loans'],
+  },
+  {
+    name: 'assets-seaside-co-owned-loan-whole-croatian',
+    query: 'assets=co-owned&loans=one-loan&lang=hr',
+    hash: `#/assets/asset?asset=${SEASIDE_FLAT}`,
+    title: 'Flat on the coast',
+    charts: 0,
+    shows: ['Vaš dio', 'Dug po kreditu „Home loan”', 'računa u cijelosti dok mu u Kreditima ne upišete svoj dio'],
+  },
+  {
+    name: 'assets-overview-co-owned',
+    query: 'assets=co-owned&loans=co-owned',
+    hash: '#/assets',
+    title: 'Overview',
+    charts: 0,
+    shows: ['Assets value', 'Flat in Zagreb', 'Flat on the coast', 'Family car', 'Your 50% of', 'Assets you own with others count at your part.'],
+    cards: false,
+  },
+  {
+    name: 'assets-overview-co-owned-croatian',
+    query: 'assets=co-owned&loans=co-owned&lang=hr',
+    hash: '#/assets',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Vrijednost imovine', 'Flat in Zagreb', 'Flat on the coast', 'Family car', 'Vaš dio 50', 'Imovina koju posjedujete s drugima računa se po vašem dijelu.'],
     cards: false,
   },
   { name: 'assets-opening', query: 'assets=opening', hash: '#/assets', title: 'Overview', charts: 0, ready: '[data-testid="assets-loading"]', cards: false },
@@ -9670,6 +9754,24 @@ const FLOWS = [
   },
   { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   { name: 'dialogs-loans-croatian', hash: '#/loans', title: 'Pregled', run: loansDialogsFlowIn('hr'), viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
+  {
+    name: 'dialogs-shares',
+    hash: '#/assets',
+    title: 'Overview',
+    run: sharesDialogsFlowIn('en'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&assets=co-owned&loans=co-owned' },
+  },
+  {
+    name: 'dialogs-shares-croatian',
+    hash: '#/assets',
+    title: 'Pregled',
+    run: sharesDialogsFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&assets=co-owned&loans=co-owned&lang=hr' },
+  },
   { name: 'investments-editor', hash: '#/investments/transactions', title: 'Transactions', run: investmentsEditorFlow, modes: ['drive'], queries: { drive: '&investments=partial-history' } },
   {
     name: 'investments-fetch-today',

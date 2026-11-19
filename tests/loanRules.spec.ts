@@ -24,7 +24,7 @@ const CAR_LOAN: RowLink = { app: 'loans', kind: 'bank-loan', key: '3f6c1e2a-0000
 const IBAN = 'HR1210010051863000160'
 const NOTES = { interest: 'Interest', difference: 'Difference from the plan' }
 
-/** A made-up instalment of Car loan, 612.20 of your share of which 110.00 is interest, due on the day given. */
+/** A made-up instalment of Car loan, 612.20 you pay, of which 110.00 is interest, due on the day given. */
 function due(date: string): InstalmentTarget {
   return {
     kind: 'instalment',
@@ -35,7 +35,7 @@ function due(date: string): InstalmentTarget {
     number: 14,
     count: 84,
     due: civil(date),
-    yourShare: moneyFromAmount(612.2),
+    youPay: moneyFromAmount(612.2),
     interest: moneyFromAmount(110),
     principal: moneyFromAmount(502.2),
   }

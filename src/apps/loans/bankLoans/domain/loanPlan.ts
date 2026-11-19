@@ -21,7 +21,7 @@ export interface PlanRow {
   /** The part of the payment the subsidy pays. */
   readonly subsidy: Money
   /** The payment less the subsidy. */
-  readonly yourShare: Money
+  readonly youPay: Money
   /** What is owed once the row is paid. */
   readonly balance: Money
 }
@@ -111,7 +111,7 @@ export function loanPlan(
       if (balance === 0) continue
       const principal = extra.amount < balance ? extra.amount : balance
       balance = subtractMoney(balance, principal)
-      rows.push({ kind: 'extra-payment', date: extra.date, number: null, payment: principal, principal, interest: ZERO, subsidy: ZERO, yourShare: principal, balance })
+      rows.push({ kind: 'extra-payment', date: extra.date, number: null, payment: principal, principal, interest: ZERO, subsidy: ZERO, youPay: principal, balance })
       pending.push(extra.effect)
     }
   }
@@ -119,7 +119,7 @@ export function loanPlan(
   if (loan.interimInterest !== null) {
     const { amount, date } = loan.interimInterest
     payExtrasUpTo((paid) => paid < date)
-    rows.push({ kind: 'interim-interest', date, number: null, payment: amount, principal: ZERO, interest: amount, subsidy: ZERO, yourShare: amount, balance })
+    rows.push({ kind: 'interim-interest', date, number: null, payment: amount, principal: ZERO, interest: amount, subsidy: ZERO, youPay: amount, balance })
   }
 
   for (let number = 1; number <= last; number += 1) {
@@ -156,7 +156,7 @@ export function loanPlan(
     const payment = addMoney(principal, interest)
     const subsidy = subsidyOf(loan.subsidy, number, payment)
     balance = subtractMoney(balance, principal)
-    rows.push({ kind: 'instalment', date: due, number, payment, principal, interest, subsidy, yourShare: subtractMoney(payment, subsidy), balance })
+    rows.push({ kind: 'instalment', date: due, number, payment, principal, interest, subsidy, youPay: subtractMoney(payment, subsidy), balance })
     payExtrasUpTo((date) => date === due)
   }
   return rows

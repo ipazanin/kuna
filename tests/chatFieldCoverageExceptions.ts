@@ -44,6 +44,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: [
       'assets: Asset.id',
       'assets: Valuation.id',
+      'assets: AssetShare.id',
       'company: AccountRecord.id',
       'company: Asset.id',
       'company: BillingItem.id',
@@ -72,6 +73,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'loans: BankLoan.id',
       'loans: ExtraPayment.id',
       'loans: InformalLoan.id',
+      'loans: LoanShare.id',
       'loans: LateInstalment.id',
       'loans: LoanScenario.id',
       'loans: Movement.id',
@@ -164,16 +166,16 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
-    reason: 'Your part of an asset, which an edit on the asset dialog or in the chat keeps as it is. Neither sets it until the asset page shows your part.',
-    fields: ['assets: Asset.share'],
-  },
-  {
-    reason: 'Your part of a bank loan, which an edit on the loan dialog or in the chat keeps as it is. Neither sets it until the loan page shows your part.',
-    fields: ['loans: BankLoan.share'],
-  },
-  {
     reason: 'A record stays under the loan or asset it was added to. The screen edits it there and never moves it to another one.',
-    fields: ['assets: Valuation.asset', 'loans: RatePeriod.loan', 'loans: ExtraPayment.loan', 'loans: LateInstalment.loan', 'loans: Movement.loan'],
+    fields: [
+      'assets: Valuation.asset',
+      'assets: AssetShare.asset',
+      'loans: LoanShare.loan',
+      'loans: RatePeriod.loan',
+      'loans: ExtraPayment.loan',
+      'loans: LateInstalment.loan',
+      'loans: Movement.loan',
+    ],
   },
   {
     reason: "Flagging a payee as a person. The chat flags the payee of a row it names, and only a person takes a flag off, on the row's dialog.",
@@ -253,6 +255,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
     paths: [
       'src/apps/assets/asset/application/assetWrites.ts#removeAsset',
       'src/apps/assets/asset/application/assetWrites.ts#VALUATION_WRITES.remove',
+      'src/apps/assets/asset/application/assetWrites.ts#ASSET_SHARE_WRITES.remove',
       'src/apps/company/billingPlan/application/billingWrites.ts#BILLING_WRITES.remove',
       'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#OWNER_ADVANCE_WRITES.remove',
       'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#SCENARIO_WRITES.remove',
@@ -266,6 +269,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.remove',
       'src/apps/loans/bankLoans/application/bankLoanWrites.ts#EXTRA_PAYMENT_WRITES.remove',
       'src/apps/loans/bankLoans/application/bankLoanWrites.ts#LATE_INSTALMENT_WRITES.remove',
+      'src/apps/loans/bankLoans/application/bankLoanWrites.ts#LOAN_SHARE_WRITES.remove',
       'src/apps/loans/bankLoans/application/bankLoanWrites.ts#RATE_PERIOD_WRITES.remove',
       'src/apps/loans/bankLoans/application/bankLoanWrites.ts#removeBankLoan',
       'src/apps/loans/informalLoans/application/informalLoanWrites.ts#MOVEMENT_WRITES.remove',

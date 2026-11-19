@@ -20,7 +20,7 @@ export function scheduledPayments(plan: readonly PlanRow[]): PlanRow[] {
   return plan.filter((row) => row.kind !== 'extra-payment')
 }
 
-/** The scheduled payments due after the day, with the full payment and your share. */
+/** The scheduled payments due after the day, with the full payment and what you pay of it. */
 export function paymentsDueAfter(plan: readonly PlanRow[], day: CivilDate): PlanRow[] {
   return scheduledPayments(plan).filter((row) => row.date > day)
 }
@@ -83,7 +83,7 @@ export function subsidyShareOf(split: PaymentSplit): Money {
 }
 
 /** What you pay: everything the subsidy does not. */
-export function yourShareOf(split: PaymentSplit): Money {
+export function youPayOf(split: PaymentSplit): Money {
   return addMoney(addMoney(split.principal, split.interest), split.extra)
 }
 
@@ -127,7 +127,7 @@ export function paymentsAfter(plan: readonly PlanRow[], day: CivilDate): Payment
   return splitOfRows(plan.filter((row) => row.date > day))
 }
 
-export type PaidSoFar = Pick<PlanRow, 'payment' | 'principal' | 'interest' | 'subsidy' | 'yourShare'>
+export type PaidSoFar = Pick<PlanRow, 'payment' | 'principal' | 'interest' | 'subsidy' | 'youPay'>
 
 /** What the rows paid by the day add up to. A row counts from its date, and a late instalment from the day it was paid. */
 export function paidSoFar(plan: readonly PlanRow[], lateInstalments: readonly LateInstalment[], day: CivilDate): PaidSoFar {
@@ -140,9 +140,9 @@ export function paidSoFar(plan: readonly PlanRow[], lateInstalments: readonly La
         principal: addMoney(paid.principal, row.principal),
         interest: addMoney(paid.interest, row.interest),
         subsidy: addMoney(paid.subsidy, row.subsidy),
-        yourShare: addMoney(paid.yourShare, row.yourShare),
+        youPay: addMoney(paid.youPay, row.youPay),
       }),
-      { payment: ZERO, principal: ZERO, interest: ZERO, subsidy: ZERO, yourShare: ZERO },
+      { payment: ZERO, principal: ZERO, interest: ZERO, subsidy: ZERO, youPay: ZERO },
     )
 }
 

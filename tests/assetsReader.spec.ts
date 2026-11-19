@@ -42,10 +42,10 @@ function figureOf(figures: readonly ReportFigure[], label: string): ReportFigure
 }
 
 describe('what the chat reads of Assets', () => {
-  it('reads the two kinds, with each amount in euros and the loan by the name Loans lists it under', async () => {
+  it('reads the three kinds, with each amount in euros and the loan by the name Loans lists it under', async () => {
     const desk = await assetsDesk(used)
     const reader = assetsReader(readingOf(desk))
-    expect(reader.kinds.map((kind) => kind.name)).toEqual(['asset', 'valuation'])
+    expect(reader.kinds.map((kind) => kind.name)).toEqual(['asset', 'valuation', 'asset-share'])
     expect(fieldsOf(reader, 'asset', EXAMPLE_RECORDS['asset-home']!)).toMatchObject({
       price: { of: 'app', cents: 20_000_000, currency: 'EUR' },
       loan: { exposure: 'free-text', value: 'Home loan' },

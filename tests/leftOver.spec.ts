@@ -45,13 +45,13 @@ describe('what a scenario leaves you, at what your savings earn', () => {
   })
 
   it('rounds half a cent the same way whichever scenario is ahead', () => {
-    const planOf = (rows: readonly { date: string; yourShare: number }[]) =>
-      ({ loan: { principal: 0 }, costs: [], rows: rows.map((row) => ({ date: civil(row.date), yourShare: row.yourShare, balance: 0 })) }) as unknown as ScenarioPlan
+    const planOf = (rows: readonly { date: string; youPay: number }[]) =>
+      ({ loan: { principal: 0 }, costs: [], rows: rows.map((row) => ({ date: civil(row.date), youPay: row.youPay, balance: 0 })) }) as unknown as ScenarioPlan
     const paysEarly = planOf([
-      { date: '2026-01-01', yourShare: 8 },
-      { date: '2026-02-01', yourShare: 0 },
+      { date: '2026-01-01', youPay: 8 },
+      { date: '2026-02-01', youPay: 0 },
     ])
-    const paysNothing = planOf([{ date: '2026-02-01', yourShare: 0 }])
+    const paysNothing = planOf([{ date: '2026-02-01', youPay: 0 }])
     // At 75% a year a month grows by exactly 6.25%, so 8 cents paid a month before the horizon cost 8.5 cents.
     expect(leftOver([paysEarly, paysNothing], paysEarly, percent('75'))).toEqual([0, 9])
     expect(leftOver([paysEarly, paysNothing], paysNothing, percent('75'))).toEqual([-9, 0])

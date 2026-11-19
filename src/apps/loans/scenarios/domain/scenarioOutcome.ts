@@ -1,5 +1,5 @@
 import type { ScenarioPlan } from './scenarioPlan'
-import { payoffDate, ratePeriodOn, splitOfRows, subsidyRepaidUntil, subsidyShareOf, yourShareOf } from '../../bankLoans/domain/loanFigures'
+import { payoffDate, ratePeriodOn, splitOfRows, subsidyRepaidUntil, subsidyShareOf, youPayOf } from '../../bankLoans/domain/loanFigures'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
@@ -50,15 +50,15 @@ export function scenarioOutcome(plan: ScenarioPlan, from: CivilDate | null): Sce
     extra: split.extra,
     costs,
     subsidy: subsidyShareOf(split),
-    total: addMoney(yourShareOf(split), costs),
+    total: addMoney(youPayOf(split), costs),
     variableFrom: instalments.find((row) => variable(row.date))?.date ?? null,
     subsidyPayback: until === null || early === null || early > until ? null : { until, paidByChange: sumMoney(plan.rows.filter((row) => row.date <= early).map((row) => row.subsidy)) },
   }
 }
 
-/** What you have paid by the end of each month, your share of each row and the costs. */
+/** What you have paid by the end of each month, what you pay of each row and the costs. */
 function paidByMonthEnds(plan: ScenarioPlan, months: readonly MonthKey[]): Money[] {
-  const flows = [...plan.rows.map((row) => ({ date: row.date, amount: row.yourShare })), ...plan.costs].sort((earlier, later) => earlier.date.localeCompare(later.date))
+  const flows = [...plan.rows.map((row) => ({ date: row.date, amount: row.youPay })), ...plan.costs].sort((earlier, later) => earlier.date.localeCompare(later.date))
   let paid = ZERO
   let next = 0
   return months.map((month) => {

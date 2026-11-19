@@ -54,7 +54,7 @@ export function outgoingByMonth(loans: readonly PlannedLoan[]): LoansMonth[] {
   const byMonth = new Map(
     loans.map((loan) => {
       const months = new Map<MonthKey, Money>()
-      for (const row of scheduledPayments(loan.plan)) months.set(monthOf(row.date), addMoney(months.get(monthOf(row.date)) ?? ZERO, row.yourShare))
+      for (const row of scheduledPayments(loan.plan)) months.set(monthOf(row.date), addMoney(months.get(monthOf(row.date)) ?? ZERO, row.youPay))
       return [loan, months] as const
     }),
   )
@@ -71,7 +71,7 @@ export type UpcomingPayment = {
   /** The whole instalment, or what the plan asks. */
   readonly payment: Money
   /** What you pay of it once a subsidy has paid its part. */
-  readonly yourShare: Money
+  readonly youPay: Money
 } & ({ readonly kind: 'bank'; readonly loan: BankLoan } | { readonly kind: 'informal'; readonly loan: InformalLoan; readonly overdue: boolean })
 
 /**
@@ -83,7 +83,7 @@ export function upcomingPayments(bank: readonly PlannedLoan[], informal: readonl
   const banks = bank.flatMap((loan) =>
     paymentsDueAfter(loan.plan, day)
       .slice(0, count)
-      .map((row): UpcomingPayment => ({ kind: 'bank', loan: loan.loan, date: row.date, payment: row.payment, yourShare: row.yourShare })),
+      .map((row): UpcomingPayment => ({ kind: 'bank', loan: loan.loan, date: row.date, payment: row.payment, youPay: row.youPay })),
   )
   const plans = informal.flatMap((book) =>
     book.loan.direction === 'you-owe'
@@ -92,7 +92,7 @@ export function upcomingPayments(bank: readonly PlannedLoan[], informal: readonl
           loan: book.loan,
           date: due.date,
           payment: due.amount,
-          yourShare: due.amount,
+          youPay: due.amount,
           overdue: due.overdue,
         }))
       : [],

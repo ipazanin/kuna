@@ -23,7 +23,9 @@ export const en = {
   card: {
     addValuation: 'Add a valuation on its page',
     yours: 'Yours after the loan',
+    yourPart: (part: string, whole: string) => `Your ${part} of ${whole}`,
   },
+  sharedCounted: 'Assets you own with others count at your part.',
 }
 
 export const hr: Translation<typeof en> = {
@@ -50,7 +52,9 @@ export const hr: Translation<typeof en> = {
   card: {
     addValuation: 'Dodaj procjenu na njezinoj stranici',
     yours: 'Vaše nakon kredita',
+    yourPart: (part, whole) => `Vaš dio ${part} od ${whole}`,
   },
+  sharedCounted: 'Imovina koju posjedujete s drugima računa se po vašem dijelu.',
 }
 
 export const words = language === 'hr' ? hr : en

@@ -13,6 +13,8 @@ export const en = {
   noMonths: 'No months to show.',
   description: (first: string, last: string, now: string, owed: string) => `What the loan owes at each month end from ${first} to ${last}. At the end of ${now} it is ${owed}.`,
   planDescription: (owed: string, month: string) => ` The plan reaches ${owed} by ${month}.`,
+  yourPart: 'Your part',
+  yourPartDescription: (owed: string, now: string) => ` The thinner line is your part of what is owed, ${owed} at the end of ${now}.`,
   expected: 'Expected by the plan',
   expectedDescription: (owed: string, now: string) => ` The dashed line is what would be owed at each month end had every instalment of the expected plan been paid, ${owed} at the end of ${now}.`,
   expectedPaidOff: (month: string) => ` By the plan nothing is owed from ${month}.`,
@@ -41,6 +43,8 @@ export const hr: Translation<typeof en> = {
   noMonths: 'Nema mjeseci za prikaz.',
   description: (first, last, now, owed) => `Dug na kraju svakog mjeseca, razdoblje ${first} – ${last} Na kraju ${monthCase(now, 'genitive')} dug iznosi ${owed}.`,
   planDescription: (owed, month) => ` Prema otplatnom planu do kraja razdoblja ${month} pada na ${owed}.`,
+  yourPart: 'Vaš dio',
+  yourPartDescription: (owed, now) => ` Tanja linija je vaš dio duga, ${owed} na kraju ${monthCase(now, 'genitive')}.`,
   expected: 'Očekivano prema planu',
   expectedDescription: (owed, now) =>
     ` Isprekidana linija prikazuje koliko bi se dugovalo na kraju svakog mjeseca da je plaćena svaka rata očekivanog plana. Na kraju ${monthCase(now, 'genitive')} to je ${owed}.`,

@@ -16,6 +16,7 @@ import { words as scenarioWords } from '../../scenarios/presentation/words'
 import type { BankLoan, InterimInterest, LoanSubsidy } from '../../workbook/domain/bankLoan'
 import type { ExpectedPlan } from '../../workbook/domain/informalLoan'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LOAN_SCENARIO_RECORDS, MOVEMENT_RECORDS, RATE_PERIOD_RECORDS, SCENARIO_CHANGE_RECORDS } from '../../workbook/domain/loanKinds'
+import type { LoanShare } from '../../workbook/domain/loanShare'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { LoanBook } from '../../workbook/domain/readLoanBook'
 import { words } from '../words'
@@ -25,6 +26,7 @@ import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/p
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../shared/money/percent'
 import type { Money } from '../../../../shared/money/money'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -78,6 +80,8 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (kind.name === INFORMAL_LOAN_RECORDS.name && field === 'direction') return value === 'you-owe' ? informalWords.loanDialog.youOweThem : informalWords.loanDialog.theyOweYou
   if (kind.name === MOVEMENT_RECORDS.name && field === 'kind') return MOVEMENT_KIND_NAMES[value as keyof typeof MOVEMENT_KIND_NAMES]
   if (kind.name === SCENARIO_CHANGE_RECORDS.name && field === 'kind') return scenarioWords.editor.kinds[value as ScenarioChange['kind']]
+  const share = field === 'share' ? (record as Partial<Pick<LoanShare, 'share'>>).share : undefined
+  if (share !== undefined) return percentText(share)
   const money = moneyIn(kind, field, record)
   if (money !== null) return formatMoney(money)
   if (DAY_FIELDS.has(field)) return dayLabel(value as CivilDate)

@@ -1,11 +1,12 @@
 import { loansAcceptance, loansProposer } from '../../src/apps/loans/assistant/operations/loansOperations'
 import { FILE_OPEN } from './browserFile'
-import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES } from '../../src/apps/loans/bankLoans/application/bankLoanWrites'
+import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, LOAN_SHARE_WRITES, RATE_PERIOD_WRITES } from '../../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { saveScenario } from '../../src/apps/loans/scenarios/application/scenarioWrites'
 import { NO_COSTS } from '../../src/apps/loans/scenarios/domain/loanScenario'
 import type { LoanScenario } from '../../src/apps/loans/scenarios/domain/loanScenario'
-import { LOAN_SCENARIO_RECORDS } from '../../src/apps/loans/workbook/domain/loanKinds'
+import { LOAN_SCENARIO_RECORDS, LOAN_SHARE_RECORDS } from '../../src/apps/loans/workbook/domain/loanKinds'
+import type { LoanShare } from '../../src/apps/loans/workbook/domain/loanShare'
 import type { LoansBooks } from '../../src/apps/loans/workbook/domain/loansBooks'
 import { emptyLoansDocument } from '../../src/apps/loans/workbook/infrastructure/loansDocument'
 import type { ChatReads } from '../../src/shared/ai/application/chatReads'
@@ -14,6 +15,7 @@ import { chatRefs } from '../../src/shared/ai/domain/chatRefs'
 import type { CheckedProposal } from '../../src/shared/app/assistantOperations'
 import { newPseudonyms } from '../../src/shared/privacy/domain/pseudonyms'
 import type { WorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
+import { percentFromBasisPoints } from '../../src/shared/money/percent'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 import { civil, euros } from './ledger'
 import { bankLoan, extraPayment, informalLoan, lateInstalment, movement, percent, ratePeriod } from './loans'
@@ -26,6 +28,8 @@ const EXTRA = extraPayment(LOAN, '2026-06-01', 100, 'shorter-term')
 const LATE = lateInstalment(LOAN, '2026-03-05', '2026-03-09')
 const ANA = informalLoan()
 const REPAID = movement(ANA, '2026-04-01', 'repaid', 500)
+/** Half the bank loan from 2026-05-01, once a partner joined it. */
+const HALF: LoanShare = { id: recordIdOf(LOAN_SHARE_RECORDS, 'loan-share'), loan: LOAN.id, from: civil('2026-05-01'), share: percentFromBasisPoints(5000), note: '' }
 
 /** An offer of 100,000.00 over 20 years, paid out on 2026-12-01, at a fixed 3.5% from its first instalment. */
 const OFFER: LoanScenario = {
@@ -58,6 +62,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'rate-period-later': LATER_RATE.id,
   'extra-payment': EXTRA.id,
   'late-instalment': LATE.id,
+  'loan-share': HALF.id,
   'informal-loan': ANA.id,
   movement: REPAID.id,
   'loan-scenario': OFFER.id,
@@ -82,6 +87,7 @@ export async function loansDesk(used: Set<string>): Promise<LoansDesk> {
     unit.of(RATE_PERIOD_WRITES).add(LATER_RATE)
     unit.of(EXTRA_PAYMENT_WRITES).add(EXTRA)
     unit.of(LATE_INSTALMENT_WRITES).add(LATE)
+    unit.of(LOAN_SHARE_WRITES).add(HALF)
     unit.of(INFORMAL_LOAN_WRITES).add(ANA)
     unit.of(MOVEMENT_WRITES).add(REPAID)
     saveScenario(unit, store.state.records!, OFFER, [{ kind: 'rate-change', from: civil('2027-01-01'), rate: percent('3.5'), rateType: 'fixed' }], null)

@@ -4,6 +4,7 @@ import { words } from './words'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import { isWhole, typedPart } from '../../../../shared/money/yourPart'
 
 /** What the region select holds for no region, since a select's value cannot be empty. */
 export const NO_REGION = 'none'
@@ -16,6 +17,8 @@ export interface AssetTexts {
   readonly price: string
   readonly region: HouseRegion | typeof NO_REGION
   readonly firstRegistration: string
+  /** Your part in percent, blank when it is all yours. */
+  readonly share: string
 }
 
 /** What an asset keeps of the dialog's fields: everything but its id, its loan and its note. */
@@ -27,6 +30,7 @@ export type AssetErrors = {
   readonly bought: string | null
   readonly price: string | null
   readonly firstRegistration: string | null
+  readonly share: string | null
 }
 
 /** A typed day, null for a blank field, or undefined for text that is no day. */
@@ -36,18 +40,22 @@ function typedDay(text: string): CivilDate | null | undefined {
 
 /**
  * The asset's terms the dialog's fields give, with what is wrong under each field, as the dialog checks them. The terms
- * are null while any field is wrong. A region is kept only for a home and a first registration only for a car.
+ * are null while any field is wrong. A region is kept only for a home and a first registration only for a car, and a part of
+ * 100% is kept as no part, since it is all yours.
  */
 export function typedAssetTerms(texts: AssetTexts): { readonly errors: AssetErrors; readonly terms: AssetTerms | null } {
   const bought = typedDay(texts.bought)
   const registered = typedDay(texts.firstRegistration)
   const blankPrice = texts.price.trim() === ''
   const price = blankPrice ? null : typedAmount(texts.price)
+  const blankShare = texts.share.trim() === ''
+  const share = blankShare ? null : typedPart(texts.share)
   const errors: AssetErrors = {
     name: texts.name.trim() === '' ? words.assetDialog.nameError : null,
     bought: bought === undefined ? assetsWords.form.aDate(civilDate(2025, 3, 15)) : null,
     price: (!blankPrice && price === null) || (price !== null && price <= 0) ? words.assetDialog.anAmount : price !== null && bought === null ? words.assetDialog.priceNeedsBought : null,
     firstRegistration: texts.kind === 'car' && registered === undefined ? assetsWords.form.aDate(civilDate(2024, 1, 15)) : null,
+    share: !blankShare && share === null ? assetsWords.form.aPart : null,
   }
   if (Object.values(errors).some((error) => error !== null) || bought === undefined) return { errors, terms: null }
   return {
@@ -59,6 +67,7 @@ export function typedAssetTerms(texts: AssetTexts): { readonly errors: AssetErro
       price,
       region: texts.kind === 'home' && texts.region !== NO_REGION ? texts.region : null,
       firstRegistration: texts.kind === 'car' ? (registered ?? null) : null,
+      ...(share === null || isWhole(share) ? {} : { share }),
     },
   }
 }

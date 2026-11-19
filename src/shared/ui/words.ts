@@ -34,6 +34,13 @@ export const en = {
     more: (count: number) => `+${count} more`,
     clear: 'Clear',
   },
+  changeList: {
+    onFile: (count: number): EnglishForms => ({ one: `${count} on file`, other: `${count} on file` }),
+    change: 'Change',
+    changeLine: (title: string) => `Change ${title}`,
+    delete: 'Delete',
+    deleteLine: (title: string) => `Delete ${title}`,
+  },
   warning: 'Warning',
   swatchPicker: {
     otherColour: 'Other colour…',
@@ -112,6 +119,13 @@ export const hr: Translation<typeof en> = {
     remove: (label) => `Ukloni filtar „${label}”`,
     more: (count) => `još ${count}`,
     clear: 'Očisti',
+  },
+  changeList: {
+    onFile: (count) => ({ one: `${count} zapis`, few: `${count} zapisa`, other: `${count} zapisa` }),
+    change: 'Uredi',
+    changeLine: (title) => `Uredi: ${title}`,
+    delete: 'Obriši',
+    deleteLine: (title) => `Obriši: ${title}`,
   },
   warning: 'Upozorenje',
   swatchPicker: {

@@ -26,6 +26,8 @@ export interface PublishedBankLoan {
   readonly name: string
   /** Your part of what the bank is owed, or all of it for a loan you took out alone. Null while its plan cannot be worked out. */
   readonly owed: Money | null
+  /** What the bank is owed in all, only for a loan you took out with others whose plan can be worked out. */
+  readonly whole?: Money
   readonly to: RouteLocationRaw
 }
 
@@ -37,6 +39,7 @@ export function bankLoansOf(book: Pick<LoanBook, 'bankLoans'>, day: CivilDate): 
       key: keyOfRecordId(BANK_LOAN_RECORDS, entry.loan.id),
       name: entry.loan.name,
       owed: figures === null ? null : owedByYou(figures),
+      ...(figures?.yours === undefined ? {} : { whole: figures.owed }),
       to: bankLoanLink(entry.loan),
     }
   })
@@ -71,7 +74,7 @@ export function loanTargetsOf(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
             number: row.number,
             count,
             due: row.date,
-            yourShare: row.yourShare,
+            youPay: row.youPay,
             interest,
             principal,
             link: linkOf(BANK_LOAN_RECORDS, loan.id, row.date),

@@ -73,7 +73,7 @@ describe('what the loans owe together over time', () => {
 describe('what goes out each month over the loans', () => {
   const months = outgoingByMonth(LOANS)
 
-  it('adds your share of each loan, so the car loan ending shows as a drop and the subsidy ending as a rise', () => {
+  it('adds what you pay of each loan, so the car loan ending shows as a drop and the subsidy ending as a rise', () => {
     const totals = new Map(months.map((entry) => [entry.month, entry.total]))
 
     expect(months[0]?.month).toBe('2026-02')
@@ -119,10 +119,10 @@ describe('an equal principal loan beside an annuity', () => {
 })
 
 describe('the payments coming up over the loans', () => {
-  it('lists every scheduled payment after the day by due date, with the full payment and your share', () => {
+  it('lists every scheduled payment after the day by due date, with the full payment and what you pay', () => {
     const upcoming = upcomingPayments(LOANS, [], DAY, Number.POSITIVE_INFINITY)
 
-    expect(upcoming.slice(0, 3).map(({ loan, date, payment, yourShare }) => [loan.name, date, payment, yourShare])).toEqual([
+    expect(upcoming.slice(0, 3).map(({ loan, date, payment, youPay }) => [loan.name, date, payment, youPay])).toEqual([
       ['Car loan', '2026-03-20', euros(100), euros(100)],
       ['House loan', '2026-04-05', euros(112.98), euros(62.98)],
       ['Car loan', '2026-04-20', euros(100), euros(100)],
@@ -164,7 +164,7 @@ describe('the payments coming up over the loans', () => {
       { loan: toPetra, movements: [] },
     ]
 
-    expect(upcomingPayments(LOANS, informal, DAY, 5).map((payment) => [payment.loan.name, payment.date, payment.yourShare, payment.kind === 'informal' && payment.overdue])).toEqual([
+    expect(upcomingPayments(LOANS, informal, DAY, 5).map((payment) => [payment.loan.name, payment.date, payment.youPay, payment.kind === 'informal' && payment.overdue])).toEqual([
       ['From Ana', '2026-03-10', euros(100), true],
       ['From Ana', '2026-03-15', euros(100), false],
       ['Car loan', '2026-03-20', euros(100), false],
@@ -271,7 +271,7 @@ describe('the charts over the loans', () => {
     expect(house?.step).toBe('end')
     expect(ahead?.data.slice(0, 2)).toEqual([null, 0])
     expect(chart.description).toBe(
-      'Your share of the instalments of House loan and Car loan in each month from Feb 2026 to Jan 2028, stacked by loan. In Mar 2026 it is €162.98. Car loan ends in Jul 2026, and the month after €62.98 goes out.',
+      'What you pay of the instalments of House loan and Car loan in each month from Feb 2026 to Jan 2028, stacked by loan. In Mar 2026 it is €162.98. Car loan ends in Jul 2026, and the month after €62.98 goes out.',
     )
   })
 

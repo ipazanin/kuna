@@ -19,7 +19,7 @@ export interface PublishedInstalment {
   readonly count: number
   readonly due: CivilDate
   /** What you pay of it, the subsidy left out, which is your interest and your principal together. */
-  readonly yourShare: Money
+  readonly youPay: Money
   readonly interest: Money
   readonly principal: Money
   /** What a row that pays it names. */

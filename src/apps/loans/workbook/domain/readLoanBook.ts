@@ -26,6 +26,7 @@ import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/r
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
+import { partChangeDoubt } from '../../../../shared/money/yourPart'
 import { words } from './words'
 
 /** What the Loans file holds of each kind. */
@@ -209,8 +210,9 @@ export function readLoanBook(records: LoansRecords): LoanBook {
   const loanShares = readEach(records.loanShares, ({ record: change }) => {
     const loan = bankLoans.get(change.loan)
     if (loan === undefined) return [words.noBankLoan]
-    if (change.from < loan.drawdown) return [words.shareBeforeDrawdown(change.from, loan.name, loan.drawdown)]
-    return sharesChangingDay.has(`${change.loan} ${change.from}`) ? [words.shareChangesSameDay(loan.name, change.from)] : []
+    const doubt = partChangeDoubt(change.from, loan.drawdown, sharesChangingDay.has(`${change.loan} ${change.from}`))
+    if (doubt === 'before-start') return [words.shareBeforeDrawdown(change.from, loan.name, loan.drawdown)]
+    return doubt === 'same-day' ? [words.shareChangesSameDay(loan.name, change.from)] : []
   })
 
   const readings: LoanReadings = {

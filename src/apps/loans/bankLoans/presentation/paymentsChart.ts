@@ -1,4 +1,4 @@
-import { interestOf, subsidyShareOf, yourShareOf } from '../domain/loanFigures'
+import { interestOf, subsidyShareOf, youPayOf } from '../domain/loanFigures'
 import type { YearPayments } from '../domain/loanFigures'
 import { yearStep } from '../../../../shared/charts/monthAxis'
 import type { words } from './words'
@@ -92,7 +92,7 @@ export function paymentsChart(
     if (entry === undefined) return []
     const subsidy = subsidyShareOf(entry)
     return [
-      loanWords.payments.youPayLine(formatMoney(yourShareOf(entry))),
+      loanWords.payments.youPayLine(formatMoney(youPayOf(entry))),
       ...(subsidy > 0 ? [loanWords.payments.subsidyLine(loanWords.subsidyPays(payer), formatMoney(subsidy), entry.subsidyPrincipal > 0 ? formatMoney(entry.subsidyPrincipal) : '')] : []),
       ...(estimateFromYear !== null && entry.year >= estimateFromYear ? [loanWords.payments.estimate] : []),
     ]

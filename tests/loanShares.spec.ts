@@ -4,6 +4,7 @@ import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans'
 import { assetsOnDay } from '../src/apps/assets/values/domain/assetsOnDay'
 import { ASSET_RECORDS } from '../src/apps/assets/workbook/domain/assetKinds'
 import { bankLoanFigures, bankLoanMonths } from '../src/apps/loans/bankLoans/domain/bankLoanFigures'
+import { planYears } from '../src/apps/loans/bankLoans/domain/planYears'
 import { bankLoansOf } from '../src/apps/loans/facts'
 import { loansNetWorthParts } from '../src/apps/loans/home/domain/loansNetWorthParts'
 import { owedByMonth, plannedLoans } from '../src/apps/loans/overview/domain/loansTogether'
@@ -94,6 +95,22 @@ describe('your part of a bank loan you took out with others', () => {
     expect(months[1]).toEqual({ month: '2026-02', owed: euros(1105.38), yours: euros(552.69) })
     expect(months[2]).not.toHaveProperty('yours')
     expect(owedByMonth(plannedLoans(book.bankLoans)).map((month) => month.total)).toEqual(months.map((month) => month.yours ?? month.owed))
+  })
+
+  it('keeps the next payment and each line of the plan whole, with your part of what you pay at the part of its day', () => {
+    const book = booksOf({ 'bank-loan': [{ ...LOAN, share: '50' }], 'loan-share': [{ id: 's1', loan: LOAN_UUID, from: '2026-03-01', share: '100' }] })
+    const figures = bankLoanFigures(book.bankLoans[0]!, civil('2026-01-20'))
+    const [year] = planYears(book.bankLoans[0]!, civil('2026-01-20'), new Map())
+
+    // An instalment of 106.62, half of it 53.31 while the part is 50%, and all of it once the partner left on 1 March.
+    expect(figures?.next).toEqual({ date: '2026-02-05', payment: euros(106.62), youPay: euros(106.62), yours: euros(53.31) })
+    expect(year?.lines.slice(0, 2).map((line) => [line.youPay, line.yours])).toEqual([
+      [euros(106.62), euros(53.31)],
+      [euros(106.62), euros(106.62)],
+    ])
+    expect(year?.totals.yours).toBe(year?.lines.reduce((sum, line) => sum + (line.yours ?? 0), 0))
+    expect(bankLoanFigures(booksOf({ 'bank-loan': [LOAN] }).bankLoans[0]!, civil('2026-01-20'))?.next).not.toHaveProperty('yours')
+    expect(planYears(booksOf({ 'bank-loan': [LOAN] }).bankLoans[0]!, civil('2026-01-20'), new Map())[0]?.totals).not.toHaveProperty('yours')
   })
 
   it('takes your part of the loan off your part of the asset it is on', () => {

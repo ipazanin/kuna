@@ -53,7 +53,7 @@
  * and a row edited while filtered and sorted, saved and undone, a row confirmed while another device files the other one, the notice for a file a
  * newer app saved, the Assets card opening the Assets Overview, the Assets first run finding the file another device made
  * on Drive and keeping a new one in this browser, a flat added by touch with its region and the Home loan, its loan cleared and
- * the flat deleted and brought back with Undo, a valuation added on the car in place of its estimate, deleted and brought back,
+ * the flat deleted and brought back with Undo, a valuation added on the car in place of its estimate, deleted and brought back, the dialogs of your part of a flat and of the home loan you share,
  * the Spending card opening the Spending Overview, Net worth's Bank and cash opening Spending's Accounts and Back,
  * the Spending first run finding the file another device made on Drive and keeping a new one in this browser, money
  * out added by touch with its amount on the number pad and a category and undone, a payee picked from the list two typed letters open, a move between two accounts read in
@@ -185,6 +185,7 @@ import {
   invoiceRunFlowIn,
   assetsEditorFlow,
   assetsValuationFlow,
+  sharesDialogsFlowIn,
   spendingCreditToTransferFlowIn,
   spendingDeleteNoteFlowIn,
   spendingFoodLimitFlow,
@@ -3349,6 +3350,7 @@ async function checkWidth(browser, width) {
     ['set-up-in-other-tab', 'drive', setUpInOtherTabFlow, '#/', homeEnglish.title],
     ['assets-flat', 'drive&assets=drive&loans=sample', assetsEditorFlow, '#/assets', 'Overview'],
     ['assets-car-valuation', 'drive&assets=sample&loans=sample', assetsValuationFlow, `#/assets/asset?asset=${SAMPLE_CAR}`, 'Family car'],
+    ['shares-dialogs', 'drive&assets=co-owned&loans=co-owned', sharesDialogsFlowIn('en'), '#/assets', 'Overview'],
     ['spending-start-on-drive', 'drive&spending=other-device', firstRunOnDriveFlowIn('spending', 'en'), '#/spending/start?step=folder', 'Spending'],
     ['spending-start-browser', 'drive', firstRunBrowserFlowIn('spending', 'en'), '#/spending', 'Spending'],
     ['spending-money-out', 'drive&spending=sample', spendingMoneyOutFlow, '#/spending/transactions', 'Entries'],

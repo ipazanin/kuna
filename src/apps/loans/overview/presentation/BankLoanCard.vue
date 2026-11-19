@@ -16,6 +16,8 @@ import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { negateMoney } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../shared/money/percent'
+import { partOnDay } from '../../../../shared/money/yourPart'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
@@ -24,7 +26,7 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ProgressMeter from '../../../../shared/ui/ProgressMeter.vue'
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
 
-/** A bank loan on the Overview: owed today with the plan as a sparkline, what is paid back, and its next payment, the subsidy's end and the payoff, opening the loan's page. */
+/** A bank loan on the Overview: owed today with your part of it when you share the loan, the plan as a sparkline, what is paid back, and its next payment, the subsidy's end and the payoff, opening the loan's page. */
 const props = defineProps<{
   book: BankLoanBook
   /** Null while the plan cannot be worked out. */
@@ -38,6 +40,7 @@ const look = DIRECTION_LOOKS['you-owe']
 const loanWords = computed(() => wordsFor(props.book.loan.repayment))
 const months = computed(() => bankLoanMonths(props.book))
 const today = computed(() => months.value.findIndex((entry) => entry.month === monthOf(props.day)))
+const part = computed(() => partOnDay(props.book.loan.share, props.book.shares, props.day))
 
 const facts = computed((): Fact[] => {
   const { figures } = props
@@ -49,8 +52,8 @@ const facts = computed((): Fact[] => {
       : [
           {
             label: loanWords.value.tiles.nextPayment,
-            amount: { cents: negateMoney(next.yourShare), tone: 'flow' as const },
-            caption: next.yourShare === next.payment ? shortDayLabel(next.date) : words.card.nextOf(shortDayLabel(next.date), formatMoney(next.payment)),
+            amount: { cents: negateMoney(next.youPay), tone: 'flow' as const },
+            caption: next.youPay === next.payment ? shortDayLabel(next.date) : words.card.nextOf(shortDayLabel(next.date), formatMoney(next.payment)),
           },
         ]),
     ...(subsidy === null || subsidy.ended
@@ -87,6 +90,9 @@ const facts = computed((): Fact[] => {
           <div>
             <MoneyText :cents="figures.owed" class="block font-semibold text-highlighted" :class="hero ? 'text-figure-xl' : 'text-figure-lg'" />
             <p class="type-caption">{{ words.card.owedToday }}</p>
+            <p v-if="figures.yours !== undefined && part !== null" class="type-caption" data-testid="loan-card-your-part">
+              {{ words.card.yourPart(formatMoney(figures.yours), percentText(part)) }}
+            </p>
           </div>
           <SparkLine
             :points="months.map((entry) => entry.owed)"

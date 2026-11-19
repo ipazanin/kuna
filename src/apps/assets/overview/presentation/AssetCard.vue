@@ -11,12 +11,13 @@ import { valueCaption } from '../../values/presentation/valueCaption'
 import { words as valueWords } from '../../values/presentation/words'
 import type { AssetKind } from '../../workbook/domain/asset'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../shared/money/percent'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
-/** An asset on the Overview: its name, what it is worth today and how that was reached, and what is yours after its loan, opening the asset's page. */
+/** An asset on the Overview: its name, what it or your part of it is worth today and how that was reached, and what is yours after its loan, opening the asset's page. */
 const props = defineProps<{
   entry: AssetOnDay<AssetLoan>
   /** The house price index is still loading for this asset. */
@@ -45,7 +46,8 @@ const facts = computed((): Fact[] => {
       <div>
         <p v-if="waiting" class="type-body text-muted">{{ valueWords.waitingForIndex }}</p>
         <template v-else-if="entry.value !== null">
-          <MoneyText :cents="entry.value.cents" class="block text-figure-lg font-semibold text-highlighted" data-testid="asset-card-value" />
+          <MoneyText :cents="entry.equity.value ?? entry.value.cents" class="block text-figure-lg font-semibold text-highlighted" data-testid="asset-card-value" />
+          <p v-if="entry.share !== null" class="type-caption" data-testid="asset-card-part">{{ words.card.yourPart(percentText(entry.share), formatMoney(entry.value.cents)) }}</p>
           <p class="type-caption">{{ valueCaption(entry.value) }}</p>
         </template>
         <template v-else>

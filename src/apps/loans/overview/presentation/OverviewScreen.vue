@@ -138,12 +138,12 @@ const addingInformal = ref(false)
           <KpiTile
             v-if="next"
             :label="words.tiles.nextPayment[paymentKindOf(next)]"
-            :value="formatMoney(negateMoney(next.yourShare), 'always')"
+            :value="formatMoney(negateMoney(next.youPay), 'always')"
             :caption="nextPaymentCaption(next)"
             :to="null"
             data-testid="loans-next-payment"
           >
-            <template #value><MoneyText :cents="negateMoney(next.yourShare)" tone="flow" /></template>
+            <template #value><MoneyText :cents="negateMoney(next.youPay)" tone="flow" /></template>
           </KpiTile>
           <KpiTile
             :label="words.tiles.interestIn(year)"

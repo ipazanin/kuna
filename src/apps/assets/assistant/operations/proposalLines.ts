@@ -2,7 +2,8 @@ import { words as assetWords } from '../../asset/presentation/words'
 import { words as valueWords } from '../../values/presentation/words'
 import type { LoansOnScreen } from '../../loans/application/assetLoans'
 import type { Asset } from '../../workbook/domain/asset'
-import { ASSET_RECORDS, VALUATION_RECORDS } from '../../workbook/domain/assetKinds'
+import type { AssetShare } from '../../workbook/domain/assetShare'
+import { ASSET_RECORDS, ASSET_SHARE_RECORDS, VALUATION_RECORDS } from '../../workbook/domain/assetKinds'
 import type { AssetBook } from '../../workbook/domain/readAssetBook'
 import type { Valuation } from '../../workbook/domain/valuation'
 import { words as assetsWords } from '../../words'
@@ -13,12 +14,16 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
+import { percentText } from '../../../../shared/money/percent'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
 export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id'])
 
-const DAY_FIELDS: ReadonlySet<string> = new Set(['bought', 'firstRegistration', 'date'])
+const DAY_FIELDS: ReadonlySet<string> = new Set(['bought', 'firstRegistration', 'date', 'from'])
+
+/** The kinds a card names by the asset they belong to. */
+const UNDER_ASSET: ReadonlySet<string> = new Set([VALUATION_RECORDS.name, ASSET_SHARE_RECORDS.name])
 
 /** The amount a field holds, for a field that holds one. */
 function moneyIn(field: string, record: ProposedRecord): Money | null {
@@ -36,6 +41,8 @@ export const FIELD_NAMES: Readonly<Record<string, string>> = {
   region: assetWords.assetDialog.region,
   firstRegistration: assetWords.assetDialog.firstRegistration,
   loan: assetWords.assetDialog.loan,
+  share: assetWords.assetDialog.share,
+  from: assetWords.shareDialog.from,
   note: assetsWords.form.note,
   asset: assetWords.asset,
   date: assetWords.valuationDialog.date,
@@ -58,13 +65,15 @@ export function proposalGroupsOf(checked: CheckedWrite, book: AssetBook, loans: 
       if (value === null || value === undefined || value === '') return null
       if (field === 'kind') return valueWords.kinds[value as keyof typeof valueWords.kinds]
       if (field === 'region') return valueWords.regions[value as keyof typeof valueWords.regions]
+      const share = field === 'share' ? (record as Partial<Pick<AssetShare, 'share'>>).share : undefined
+      if (share !== undefined) return percentText(share)
       const money = moneyIn(field, record)
       if (money !== null) return formatMoney(money)
       if (DAY_FIELDS.has(field)) return dayLabel(value as CivilDate)
       return namesOf.get(value) ?? String(value)
     },
     label: (kind, record, fallback) =>
-      kind.name === VALUATION_RECORDS.name ? (namesOf.get(record['asset']) ?? fallback) : typeof record['name'] === 'string' && record['name'] !== '' ? record['name'] : fallback,
+      UNDER_ASSET.has(kind.name) ? (namesOf.get(record['asset']) ?? fallback) : typeof record['name'] === 'string' && record['name'] !== '' ? record['name'] : fallback,
     warns: () => false,
   }
   return proposalGroups(checked, () => describer)

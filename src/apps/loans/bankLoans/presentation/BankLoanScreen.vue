@@ -19,11 +19,12 @@ import BankLoanDialog from './BankLoanDialog.vue'
 import BankLoanTiles from './BankLoanTiles.vue'
 import { bankLoanFigures, bankLoanMonths } from '../domain/bankLoanFigures'
 import { bankLoanMoves, planYearsOnScreen } from './bankLoanView'
-import ChangeListCard from './ChangeListCard.vue'
-import type { ChangeLine } from './ChangeListCard.vue'
+import ChangeListCard from '../../../../shared/ui/ChangeListCard.vue'
+import type { ChangeLine } from '../../../../shared/ui/ChangeListCard.vue'
 import ExtraPaymentDialog from './ExtraPaymentDialog.vue'
 import type { ExtraPaymentStart } from './ExtraPaymentDialog.vue'
 import LateInstalmentDialog from './LateInstalmentDialog.vue'
+import LoanShareDialog from './LoanShareDialog.vue'
 import PaymentsCard from './PaymentsCard.vue'
 import PlanCard from './PlanCard.vue'
 import RatePeriodDialog from './RatePeriodDialog.vue'
@@ -32,6 +33,7 @@ import SubsidyDialog from './SubsidyDialog.vue'
 import WhatIfPanel from './WhatIfPanel.vue'
 import type { InstalmentStanding } from '../domain/instalmentPayments'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
+import type { LoanShare } from '../../workbook/domain/loanShare'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { daysBetween, today, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -44,6 +46,9 @@ import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words as loansWords } from '../../words'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../shared/money/percent'
+import type { Percent } from '../../../../shared/money/percent'
+import { isShared, isWhole, partOnDay } from '../../../../shared/money/yourPart'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
@@ -53,7 +58,7 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import { provideLoanWords } from './useLoanWords'
 
-/** One bank loan: what is owed and paid back, its balance over time, where its payments go, what a change would do and the tries saved, its plan, and what changes it. */
+/** One bank loan: what is owed and paid back with your part of it, its balance over time, where its payments go, what a change would do and the tries saved, its plan, and what changes it. */
 const store = useLoansBooks()
 const { state } = store
 const writes = useRecordWrites(store)
@@ -140,7 +145,40 @@ const lateLines = computed((): ChangeLine[] =>
     }),
 )
 
+const part = computed(() => (book.value === null ? null : partOnDay(book.value.loan.share, book.value.shares, day)))
+/** A loan you took out with others at any time, which shows its Your part card. Until then the part is set in the loan dialog. */
+const shared = computed(() => book.value !== null && isShared(book.value.loan.share, book.value.shares))
+
+function partTitle(share: Percent): string {
+  return isWhole(share) ? loanWords.value.changes.allOfIt : percentText(share)
+}
+
+/** The line of the part the loan dialog sets, from the payout. */
+const START = 'start'
+
+/** Your part from the payout, which the loan dialog sets, then each dated change, oldest first. */
+const shareLines = computed((): ChangeLine[] => {
+  if (book.value === null) return []
+  const { loan, shares } = book.value
+  return [
+    { key: START, title: loan.share === undefined ? loanWords.value.changes.allOfIt : partTitle(loan.share), detail: loanWords.value.changes.fromPayout(dayLabel(loan.drawdown)) },
+    ...shares.map((change) => ({ key: change.id, title: partTitle(change.share), detail: loanWords.value.changes.shareDetail(dayLabel(change.from), change.note) })),
+  ]
+})
+
 const editingLoan = ref(false)
+const shareOpen = ref(false)
+const editingShare = ref<LoanShare | null>(null)
+
+function openShare(key: string | null): void {
+  if (key === START) {
+    editingLoan.value = true
+    return
+  }
+  editingShare.value = book.value?.shares.find((change) => change.id === key) ?? null
+  shareOpen.value = true
+}
+
 const subsidyOpen = ref(false)
 const rateOpen = ref(false)
 const editingRate = ref<RatePeriod | null>(null)
@@ -217,7 +255,7 @@ function openLate(key: string | null): void {
         :description="loanWords.noPlan(dayLabel(book.loan.firstInstalment))"
       />
       <template v-else>
-        <BalanceHero :loan="book.loan" :figures="figures" />
+        <BalanceHero :loan="book.loan" :figures="figures" :part="part" />
         <BankLoanTiles :figures="figures" :payer="payer" />
         <DashboardGrid layout="pair">
           <ChartCard
@@ -288,7 +326,7 @@ function openLate(key: string | null): void {
           @change="subsidyOpen = true"
         />
       </DashboardGrid>
-      <DashboardGrid layout="pair">
+      <DashboardGrid :layout="shared ? 'cards' : 'pair'">
         <ChangeListCard
           :title="loanWords.changes.extraPayments"
           :subtitle="loanWords.changes.extraPaymentsSubtitle"
@@ -313,12 +351,25 @@ function openLate(key: string | null): void {
           @change="openLate"
           @remove="removeLate"
         />
+        <ChangeListCard
+          v-if="shared"
+          :title="loanWords.changes.shares"
+          :subtitle="loanWords.changes.sharesSubtitle"
+          :lines="shareLines"
+          :empty="loanWords.changes.allOfIt"
+          :add-label="loanWords.changes.addShare"
+          collapse-id="loans.shares"
+          data-testid="loan-shares"
+          @add="openShare(null)"
+          @change="openShare"
+        />
       </DashboardGrid>
       <BankLoanDialog v-model:open="editingLoan" :book="book" />
       <RatePeriodDialog v-model:open="rateOpen" :book="book" :editing="editingRate" />
       <SubsidyDialog v-model:open="subsidyOpen" :book="book" />
       <ExtraPaymentDialog v-model:open="extraOpen" :book="book" :start="extraStart" />
       <LateInstalmentDialog v-model:open="lateOpen" :book="book" :editing="editingLate" :today="day" />
+      <LoanShareDialog v-model:open="shareOpen" :book="book" :editing="editingShare" :today="day" />
     </template>
     <ScreenSkeleton v-else-if="state.workbook === null && state.status !== 'error'" />
     <template v-else-if="state.workbook !== null">
