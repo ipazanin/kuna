@@ -81,7 +81,7 @@ describe('your part of a bank loan you took out with others', () => {
     expect(figures).toMatchObject({ owed: euros(1200), yours: euros(600) })
     expect(figures?.next?.payment).toBe(bankLoanFigures(booksOf({ 'bank-loan': [LOAN] }).bankLoans[0]!, day)?.next?.payment)
     expect(owedOnDay(book, day).owed).toBe(euros(600))
-    expect(loansNetWorthParts(book, day)).toEqual([{ side: 'owes', cents: euros(600) }])
+    expect(loansNetWorthParts(book, day)).toEqual([{ side: 'owes', cents: euros(600), loan: { kind: 'bank', at: 0 } }])
     expect(bankLoansOf(book, day)[0]?.owed).toBe(euros(600))
   })
 

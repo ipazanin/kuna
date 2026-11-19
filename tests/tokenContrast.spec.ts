@@ -272,6 +272,39 @@ describe('the cost buckets', () => {
   }
 })
 
+/** The debts on Net worth's What you owe ring, largest first, with the grey the rest folds into. */
+const DEBT_RING = ['--net-debt-1', '--net-debt-2', '--net-debt-3', '--chart-deemphasis']
+/** The colours a debt must not be taken for: the two bars above the rings, and a gain or a loss. */
+const NOT_A_DEBT = ['--net-has', '--net-owes', '--tone-positive', '--tone-negative']
+/** The least OKLab distance, times 100, between a debt and a colour that means something else on Net worth. */
+const DEBT_APART_FROM_MEANING = 8
+
+describe('the debt ring', () => {
+  for (const [theme, tokens] of [
+    ['light', LIGHT_TOKENS],
+    ['dark', DARK_TOKENS],
+  ] as const) {
+    it(`keeps every pair of debts apart, and each debt apart from the bars, a gain and a loss, in the ${theme} theme`, () => {
+      const pairs = DEBT_RING.flatMap((debt, index) => DEBT_RING.slice(index + 1).map((other) => [debt, other] as const))
+      const close = pairs.flatMap(([debt, other]) => {
+        const one = colourOf(tokens, debt)
+        const two = colourOf(tokens, other)
+        const apart = (seen?: readonly (readonly number[])[]): number => 100 * Math.hypot(...oklabOf(one, seen).map((part, place) => part - (oklabOf(two, seen)[place] ?? 0)))
+        const normal = apart()
+        const redGreen = Math.min(apart(COLOUR_BLINDNESS['protanopia']), apart(COLOUR_BLINDNESS['deuteranopia']))
+        return normal >= BUCKETS_APART && redGreen >= BUCKETS_APART_RED_GREEN ? [] : [`${debt} and ${other}: ${normal.toFixed(1)}, red-green ${redGreen.toFixed(1)}`]
+      })
+      const misread = DEBT_RING.slice(0, -1).flatMap((debt) =>
+        NOT_A_DEBT.flatMap((other) => {
+          const { normal } = distancesOf(colourOf(tokens, debt), colourOf(tokens, other))
+          return normal >= DEBT_APART_FROM_MEANING ? [] : [`${debt} and ${other}: ${normal.toFixed(1)}`]
+        }),
+      )
+      expect([...close, ...misread]).toEqual([])
+    })
+  }
+})
+
 /** A colour written as #rrggbb as OKLCH lightness and chroma. */
 function lightnessAndChromaOf(hex: string): { readonly lightness: number; readonly chroma: number } {
   const [lightness = 0, a = 0, b = 0] = oklabOf(hex)

@@ -12,7 +12,7 @@ describe('what Spending adds to Net worth', () => {
   it("is the worked example's €2,390.46 of bank and cash across 4 accounts, the dollars at 4 Nov's 1.0900", () => {
     // 1,850.00 + 320.50 + 155.96 + 64.00, with 170.00 ÷ 1.0900 = 155.963…
     expect(spendingHubFigures({ accounts: ACCOUNTS, transactions: ROWS }, LOADED, DAY)).toEqual({
-      parts: [{ label: 'Bank and cash', cents: euros(2_390.46), side: 'has', caption: 'Across 4 accounts', to: '/spending/accounts' }],
+      parts: [{ key: 'bank and cash', label: 'Bank and cash', cents: euros(2_390.46), side: 'has', caption: 'Across 4 accounts', to: '/spending/accounts' }],
       notes: [],
     })
   })
@@ -23,8 +23,8 @@ describe('what Spending adds to Net worth', () => {
     // Cash 64.00 − 94.00 = −30.00, and the other three 1,850.00 + 320.50 + 155.96.
     expect(spendingHubFigures({ accounts: ACCOUNTS, transactions: overdrawn }, LOADED, DAY)).toEqual({
       parts: [
-        { label: 'Bank and cash', cents: euros(2_326.46), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' },
-        { label: 'Overdrawn', cents: euros(30), side: 'owes', caption: null, to: '/spending/accounts' },
+        { key: 'bank and cash', label: 'Bank and cash', cents: euros(2_326.46), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' },
+        { key: 'overdrawn accounts', label: 'Overdrawn', cents: euros(30), side: 'owes', caption: null, to: '/spending/accounts' },
       ],
       notes: [],
     })
@@ -35,7 +35,7 @@ describe('what Spending adds to Net worth', () => {
 
     // 1,850.00 + 320.50 + 64.00.
     expect(spendingHubFigures({ accounts: ACCOUNTS, transactions: ROWS }, failed, DAY)).toEqual({
-      parts: [{ label: 'Bank and cash', cents: euros(2_234.5), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' }],
+      parts: [{ key: 'bank and cash', label: 'Bank and cash', cents: euros(2_234.5), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' }],
       notes: ['1 account in another currency, since the ECB rates did not load'],
     })
   })
@@ -50,7 +50,7 @@ describe('what Spending adds to Net worth', () => {
 
     for (const book of [euroOnly, dollarsEmptied]) {
       expect(spendingHubFigures(book, 'loading', DAY)).toEqual({
-        parts: [{ label: 'Bank and cash', cents: euros(2_234.5), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' }],
+        parts: [{ key: 'bank and cash', label: 'Bank and cash', cents: euros(2_234.5), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' }],
         notes: [],
       })
     }

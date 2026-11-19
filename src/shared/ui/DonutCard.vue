@@ -8,14 +8,16 @@ export interface DonutPart<Value extends number = Money> {
   /** Above zero. A part of zero is listed and leaves no slice. */
   readonly value: Value
   /**
-   * The colour token of the thing the part stands for, such as `--bucket-taxes`. Only an open list such
-   * as sectors colours by size, its four largest parts `--series-1` to `--series-4` and the rest `--chart-deemphasis`.
+   * The colour token of the thing the part stands for, such as `--bucket-taxes`. Only an open list such as sectors
+   * colours by size, through `foldOpenList`, and the rest is `--chart-deemphasis`.
    */
   readonly colour: string
   /** Where the part's rows open, or null when none are behind it. */
   readonly to: RouteLocationRaw | null
   /** Shown in place of the part's share of the ring, such as the owner share a benefit was counted at. */
   readonly note?: string
+  /** A line under the part's row, such as what its figure includes or when its next payment is due. */
+  readonly caption?: string | null
 }
 </script>
 
@@ -82,6 +84,9 @@ function share(value: number): string {
   return points < 0.5 ? `<${formatPercent(shareFromPercent(1))}` : formatPercent(shareFromPercent(Math.round(points)))
 }
 
+/** The parts that leave a slice, in the ring's order, so a slice's index finds its part even when two share a name. */
+const slices = computed(() => props.parts.filter((part) => part.value > 0))
+
 const option = computed<ChartOption>(() => {
   const tokens = chartTokens()
   return {
@@ -107,16 +112,16 @@ const option = computed<ChartOption>(() => {
         labelLine: { show: false },
         itemStyle: { borderColor: tokens.surface, borderWidth: 2 },
         emphasis: { scale: true, scaleSize: 3 },
-        data: props.parts.filter((part) => part.value > 0).map((part) => ({ name: part.label, value: part.value, itemStyle: { color: tokenColour(part.colour) } })),
+        data: slices.value.map((part) => ({ name: part.label, value: part.value, itemStyle: { color: tokenColour(part.colour) } })),
       },
     ],
   }
 })
 
 /** A click on a slice opens its rows. A phone's tap only shows the tooltip, and the list right below holds the links. */
-function onSliceClick(event: { dataIndex?: number; name?: string }): void {
-  if (phone.value) return
-  const part = props.parts.find((candidate) => candidate.label === event.name)
+function onSliceClick(event: { dataIndex?: number }): void {
+  if (phone.value || event.dataIndex === undefined) return
+  const part = slices.value[event.dataIndex]
   if (part?.to) void router.push(part.to)
 }
 </script>
@@ -148,6 +153,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
               </DrillLink>
               <span class="figure text-end text-highlighted">{{ formatValue(part.value) }}</span>
               <span class="figure text-end text-xs text-muted">{{ part.note ?? share(part.value) }}</span>
+              <span v-if="part.caption" class="col-span-3 col-start-2 pb-2 type-caption" data-testid="donut-caption">{{ part.caption }}</span>
             </li>
           </ul>
           <slot name="below" />
@@ -231,8 +237,11 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
 .legend-row {
   display: grid;
   grid-template-columns: 10px minmax(0, 1fr) auto 3rem;
+  /* A caption takes a second grid row, so the row of the label keeps the height every other legend row has. */
+  grid-template-rows: minmax(2.25rem, auto);
+  grid-auto-rows: auto;
   align-items: center;
-  gap: 0.625rem;
+  column-gap: 0.625rem;
 }
 
 .legend-row:last-child {

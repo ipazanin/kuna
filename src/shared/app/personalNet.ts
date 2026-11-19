@@ -1,6 +1,7 @@
-import { negateMoney, sumMoney } from '../money/money'
+import { subtractMoney } from '../money/money'
 import type { Money } from '../money/money'
 import type { CountedHubPart, HubState } from './appContribution'
+import { netWorthSides } from './netWorthSides'
 
 /** An app whose figures add up into the personal sum, as Net worth reads it. */
 export interface PersonalApp {
@@ -36,7 +37,7 @@ export function personalNet<App extends PersonalApp>(apps: readonly App[]): Pers
   const withFigures = counted.flatMap((app) => (typeof app.figures === 'object' && app.figures !== null ? [{ app, figures: app.figures }] : []))
   const failed = counted.filter((app) => app.figures === 'failed')
   const currencies = new Set(withFigures.map((entry) => entry.app.currency))
-  const parts = withFigures.flatMap((entry) => entry.figures.parts)
+  const { has, owes } = netWorthSides(apps)
   const sum: PersonalSum<App> =
     counted.length === 0
       ? { state: 'nothing' }
@@ -46,6 +47,6 @@ export function personalNet<App extends PersonalApp>(apps: readonly App[]): Pers
           ? { state: 'opening' }
           : currencies.size > 1
             ? { state: 'currencies' }
-            : { state: 'ready', cents: sumMoney(parts.map((part) => (part.side === 'has' ? part.cents : negateMoney(part.cents)))) }
+            : { state: 'ready', cents: subtractMoney(has.total, owes.total) }
   return { sum, notSetUp: apps.filter((app) => app.notSetUp), leavesOut: withFigures.flatMap((entry) => entry.figures.notes) }
 }

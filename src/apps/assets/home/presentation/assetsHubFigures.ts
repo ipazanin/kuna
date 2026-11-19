@@ -33,7 +33,7 @@ export function assetsHubFigures(book: Pick<AssetBook, 'assets'>, day: CivilDate
   const total = assetsTotal(book, day, index, loans)
   if (total === null || total === 'opening') return total
   return {
-    parts: assetsNetWorthParts(total).map((part) => ({ ...part, label: words.value, caption: hubCaption(total), to: ASSETS_OVERVIEW_ROUTE })),
+    parts: assetsNetWorthParts(total).map((part) => ({ ...part, key: 'assets value', label: words.value, caption: hubCaption(total), to: ASSETS_OVERVIEW_ROUTE })),
     notes: [...(total.unvalued === 0 ? [] : [plural(words.withoutValueNote(total.unvalued), total.unvalued)]), ...(total.indexFailed ? [words.indexNote] : [])],
   }
 }

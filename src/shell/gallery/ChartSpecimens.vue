@@ -46,7 +46,7 @@ const EURO_PARTS: readonly DonutPart[] = [
   { key: 'operating', label: 'Operating', value: moneyFromCents(2_908_487), colour: '--bucket-operating', to: galleryLink },
   { key: 'taxes', label: 'Taxes', value: moneyFromCents(1_454_243), colour: '--bucket-taxes', to: galleryLink },
   { key: 'owner-pay', label: 'Owner pay', value: moneyFromCents(2_492_988), colour: '--bucket-owner-pay', to: galleryLink },
-  { key: 'kept', label: 'Kept', value: moneyFromCents(3_531_734), colour: '--chart-deemphasis', to: null },
+  { key: 'kept', label: 'Kept', value: moneyFromCents(3_531_734), colour: '--chart-deemphasis', to: null, caption: 'A caption line under its row, such as what the figure includes' },
 ]
 const TAX_PARTS: readonly DonutPart[] = [
   { key: 'contributions', label: 'Payroll contributions', value: moneyFromCents(486_000), colour: '--series-3', to: galleryLink },
@@ -271,7 +271,7 @@ const galleryRange = ref<ChartRange>('all')
   <GallerySection
     id="donut-card"
     title="DonutCard"
-    description="One snapshot of at most five parts, the list beside the ring as its table, collapsible, with content below, and an open list coloured by size with a select in its header."
+    description="One snapshot of at most five parts, the list beside the ring as its table with a line under a row, collapsible, with content below, and an open list coloured by size with a select in its header."
   >
     <DashboardGrid>
       <DonutCard

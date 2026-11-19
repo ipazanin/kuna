@@ -15,7 +15,7 @@
  *   npm run check:figures -- --fake-spending <sample, foreign, over, statements, cash, receipts or company> [--today yyyy-mm-dd]
  *
  * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
- * company's, in that order. With two or more, a last group adds them up as Net worth does. An Investments file
+ * company's, in that order. With two or more, two last groups add them up as Net worth does and split them into its two sides. An Investments file
  * without its prices file is valued with no closes and no rates, and an Assets file without a saved DZS answer as if
  * the house price index failed. The fake Assets sets take the fake index. An asset's loan is read from the Loans input,
  * and without one Loans counts as not set up. A Company or a Spending file reads its rates from the
@@ -170,7 +170,7 @@ import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fa
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { MIXES } from '../src/apps/investments/workbook/domain/mixGroup.ts'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
-import { investmentsHubFigures } from '../src/apps/investments/home/presentation/investmentsHubFigures.ts'
+import { investmentsNetWorthParts } from '../src/apps/investments/home/domain/investmentsNetWorthParts.ts'
 import { assetsNetWorthParts } from '../src/apps/assets/home/domain/assetsNetWorthParts.ts'
 import { houseIndexOfAnswer } from '../src/apps/assets/houseIndex/infrastructure/dzsHouseIndex.ts'
 import { FAKE_HOUSE_INDEX_ANSWER } from '../src/apps/assets/houseIndex/infrastructure/fake/fakeHouseIndex.ts'
@@ -214,6 +214,7 @@ import { decodeRatesFile, emptyRatesFile } from '../src/shared/rates/domain/rate
 import { everydayBook } from '../src/shared/rates/domain/rateBooks.ts'
 import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRatesState.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
+import { netWorthSides } from '../src/shared/app/netWorthSides.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 import { companyFiguresOf, investmentsFiguresOf, spendingFiguresOf, withoutAdvanceLabels } from './support/figureFields.mjs'
@@ -485,6 +486,11 @@ const personal = [
 ]
 if (personal.length >= 2) {
   group('hub.personal', () => personalNet(personal.map(({ name, figures }) => ({ name, notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: figures() }))))
+  group('hub.sides', () => {
+    const { has, owes } = netWorthSides(personal.map(({ name, figures }) => ({ name, notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: figures() })))
+    const sideOf = (side) => ({ total: side.total, parts: side.parts.map(({ app, part }) => ({ app: app.name, part })) })
+    return { has: sideOf(has), owes: sideOf(owes) }
+  })
 }
 
 /**
@@ -676,7 +682,7 @@ function investmentsGroups(addGroup) {
     add(`investments.tax.${year}`, () => capitalGainsYear(workbook.book, sources.rates, year))
     add(`investments.tax.${year}.foreign`, () => foreignIncomeYear(workbook.book, sources.rates, year))
   }
-  return () => investmentsHubFigures(figures)
+  return () => ({ parts: investmentsNetWorthParts(figures), notes: [] })
 }
 
 /** The house price index of an Assets input: the fake one for a fake set, the saved DZS answer given, or failed without one. */

@@ -914,25 +914,28 @@ async function checkWidth(browser, width) {
     await page.waitForSelector('[data-testid="overview-apart-part"]')
     await expect(
       page.evaluate(() =>
-        [...document.querySelectorAll('[data-testid="overview-part"] a, [data-testid="overview-apart-part"] a, [data-testid="overview-not-set-up"] a')].map((row) =>
-          Math.round(row.getBoundingClientRect().height),
-        ),
+        [
+          ...document.querySelectorAll(
+            '[data-testid="overview-ring"] [data-testid="donut-legend"] a, [data-testid="overview-lone-part"] a, [data-testid="overview-apart-part"] a, [data-testid="overview-not-set-up"] a',
+          ),
+        ].map((row) => Math.round(row.getBoundingClientRect().height)),
       ),
       (heights) => heights.length >= 4 && heights.every((height) => height >= 44),
-      'a row or a Set up button on Net worth is under 44 px tall',
+      'a ring’s part or a Set up button on Net worth is under 44 px tall',
     )
     await screenshotWholePage(page, shots.path(`${width}-kuna-overview.png`))
     for (const [label, path, title] of [
       ['Investments value', '#/investments', 'Overview'],
       ['Assets value', '#/assets', 'Overview'],
       ['Bank and cash', '#/spending/accounts', 'Accounts'],
-      ['You owe in all', '#/loans', 'Overview'],
+      ['Owed to you', '#/loans', 'Overview'],
+      ['Home loan', '#/loans/bank-loan?', 'Home loan'],
     ]) {
-      const tile = await waitForText(page, '[data-testid="overview-part"] a', label)
+      const tile = await waitForText(page, '[data-testid="overview-ring"] [data-testid="donut-legend"] a', label)
       await tile.evaluate((element) => element.scrollIntoView({ block: 'center' }))
       await delay(200)
       await tile.tap()
-      await page.waitForFunction((wanted) => window.location.hash === wanted, { timeout: 10_000 }, path)
+      await page.waitForFunction((wanted) => (wanted.endsWith('?') ? window.location.hash.startsWith(wanted) : window.location.hash === wanted), { timeout: 10_000 }, path)
       await waitForTitle(page, title)
       await page.goBack({ waitUntil: 'networkidle0' })
       await page.waitForFunction(() => window.location.hash === '#/overview', { timeout: 10_000 })

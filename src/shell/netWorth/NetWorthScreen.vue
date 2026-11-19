@@ -1,64 +1,35 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ComputedRef } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import type { AppContribution, CountedHubPart, HubPart, HubState } from '../../shared/app/appContribution'
+import { netWorthSides } from '../../shared/app/netWorthSides'
 import { personalNet } from '../../shared/app/personalNet'
-import { ratioOf, subtractMoney, sumMoney } from '../../shared/money/money'
+import { moneyOfChart, ratioOf, subtractMoney } from '../../shared/money/money'
 import { DEFAULT_MONEY_FORMAT, formatMoney, formatShare } from '../../shared/money/moneyFormat'
 import { ZERO_SHARE } from '../../shared/money/percent'
 import AppCard from '../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
+import DonutCard from '../../shared/ui/DonutCard.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import NoteLine from '../../shared/ui/NoteLine.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
 import ProgressMeter from '../../shared/ui/ProgressMeter.vue'
 import { words as homeWords } from '../home/words'
-import { entryPath, installedApps } from '../routing/appRegistry'
+import { entryPath } from '../routing/appRegistry'
 import OpeningPlaceholder from '../ui/OpeningPlaceholder.vue'
 import { words as uiWords } from '../ui/words'
+import { apartHubApps, countedHubApps } from './hubApps'
 import NetWorthRow from './NetWorthRow.vue'
+import { netWorthRings } from './netWorthRings'
 import { words } from './words'
-
-interface HubApp<Part extends HubPart> {
-  readonly app: AppContribution
-  readonly name: string
-  readonly notSetUp: boolean
-  readonly currency: string
-  readonly figures: HubState<Part>
-}
 
 /**
  * Net worth at `#/overview`: what you have less what you owe over the apps whose figures add up, each part
  * opening its app, and below it the money of an app kept apart, such as the company's. Each app's figures sit in a
  * computed of their own, so the company's forecast runs only while this screen is open and only when its books change.
  */
-function hubApp<Part extends HubPart>(app: AppContribution, figures: () => HubState<Part>): ComputedRef<HubApp<Part>> {
-  return computed(() => {
-    const notSetUp = app.firstRun()
-    return { app, name: app.name, notSetUp, currency: app.moneyFormat().currency, figures: notSetUp ? null : failedOnThrow(figures) }
-  })
-}
-
-/** An app whose figures throw shows as failed, so the other apps' figures still show. */
-function failedOnThrow<Part extends HubPart>(figures: () => HubState<Part>): HubState<Part> {
-  try {
-    return figures()
-  } catch (failure) {
-    console.error(failure)
-    return 'failed'
-  }
-}
-
-const countedApps = installedApps().flatMap((app) => {
-  const { hub } = app
-  return hub?.counts === true ? [hubApp(app, () => hub.figures())] : []
-})
-const apartApps = installedApps().flatMap((app) => {
-  const { hub } = app
-  return hub?.counts === false ? [hubApp(app, () => hub.figures())] : []
-})
+const countedApps = countedHubApps().map((entry) => computed(entry.read))
+const apartApps = apartHubApps().map((entry) => computed(entry.read))
 
 const personal = computed(() => personalNet(countedApps.map((entry) => entry.value)))
 const apart = computed(() => apartApps.map((entry) => entry.value))
@@ -85,31 +56,22 @@ const held = computed(() => {
   }
 })
 
-interface ShownPart extends CountedHubPart {
-  readonly app: AppContribution
-  readonly value: string
-}
-
-const shownParts = computed((): ShownPart[] =>
-  countedApps.flatMap(({ value: entry }) =>
-    typeof entry.figures === 'object' && entry.figures !== null
-      ? entry.figures.parts.map((part) => ({ ...part, app: entry.app, value: formatMoney(part.cents, 'negative', entry.app.moneyFormat()) }))
-      : [],
-  ),
-)
+const counted = computed(() => countedApps.map((entry) => ({ ...entry.value, opens: entryPath(entry.value.app) })))
+const sides = computed(() => netWorthSides(counted.value))
 
 /**
- * What you have, then what you owe, largest part first, each side with its total and its bar. Both bars share one scale, so the room left
+ * What you have, then what you owe, each side with its total and its bar. Both bars share one scale, so the room left
  * on the shorter one is the sum. A screen reader hears the longer bar as its total and the shorter one as its share of it.
  */
 const groups = computed(() => {
-  const sides = (['has', 'owes'] as const).map((side) => {
-    const parts = shownParts.value.filter((part) => part.side === side).sort((left, right) => right.cents - left.cents)
-    return { side, title: side === 'has' ? words.has : words.owes, parts, total: sumMoney(parts.map((part) => part.cents)) }
-  })
-  const longer = sides[0]!.total >= sides[1]!.total ? sides[0]! : sides[1]!
-  const shareWords = longer.side === 'has' ? words.shareOfHas : words.shareOfOwes
-  return sides
+  const { has, owes } = sides.value
+  const longer = has.total >= owes.total ? 'has' : 'owes'
+  const longerTotal = longer === 'has' ? has.total : owes.total
+  const shareWords = longer === 'has' ? words.shareOfHas : words.shareOfOwes
+  return [
+    { side: 'has' as const, title: words.has, ...has },
+    { side: 'owes' as const, title: words.owes, ...owes },
+  ]
     .filter((group) => group.parts.length > 0)
     .map((group) => {
       const totalText = formatMoney(group.total, 'negative', sumFormat.value)
@@ -118,12 +80,20 @@ const groups = computed(() => {
         totalText,
         meter: [
           { value: group.total, colour: group.side === 'has' ? 'var(--net-has)' : 'var(--net-owes)' },
-          { value: subtractMoney(longer.total, group.total), colour: 'var(--chart-ghost)' },
+          { value: subtractMoney(longerTotal, group.total), colour: 'var(--chart-ghost)' },
         ],
-        meterLabel: `${group.title}: ${group === longer ? totalText : shareWords(formatShare(ratioOf(group.total, longer.total) ?? ZERO_SHARE))}`,
+        meterLabel: `${group.title}: ${group.side === longer ? totalText : shareWords(formatShare(ratioOf(group.total, longerTotal) ?? ZERO_SHARE))}`,
       }
     })
 })
+
+/** Each side under the headline, as a ring or as its one part's row, in place of a list of its parts. They show only beside the sum they add up to. */
+const sideCards = computed(() => (personal.value.sum.state === 'ready' ? netWorthRings(sides.value, sumFormat.value) : []))
+
+/** A ring's amounts in the format of the sum, as the bars write their totals. */
+function ringValue(value: number): string {
+  return formatMoney(moneyOfChart(value), 'negative', sumFormat.value)
+}
 
 /** The bars show only while the sum does and both sides have a part, since one bar alone compares nothing. */
 const balanced = computed(() => personal.value.sum.state === 'ready' && groups.value.length === 2)
@@ -170,37 +140,40 @@ const balanced = computed(() => personal.value.sum.state === 'ready' && groups.v
         </div>
       </div>
 
-      <div v-if="groups.length > 0 || personal.notSetUp.length > 0" class="grid gap-5 @2xl:grid-cols-2 @2xl:gap-10">
-        <section v-for="group in groups" :key="group.side" class="flex min-w-0 flex-col" :aria-label="group.title" :data-side="group.side">
-          <h3 class="border-b border-default py-2 type-label" :class="{ 'hidden @2xl:block': balanced }">{{ group.title }}</h3>
-          <ul class="flex flex-col">
-            <NetWorthRow
-              v-for="part in group.parts"
-              :key="part.label"
-              :icon="part.app.homeCard.icon"
-              :colour="part.app.colour"
-              :label="part.label"
-              :caption="part.caption"
-              :figure="part.value"
-              :to="part.to"
-              data-testid="overview-part"
-            />
-          </ul>
-        </section>
-
-        <ul v-if="personal.notSetUp.length > 0" :class="{ '@2xl:col-span-2': balanced }" class="flex flex-col" data-testid="overview-not-set-up">
-          <NetWorthRow
-            v-for="entry in personal.notSetUp"
-            :key="entry.app.id"
-            :icon="entry.app.homeCard.icon"
-            :colour="entry.app.colour"
-            :label="words.notSetUp(entry.name)"
-            :figure="null"
-            :to="entry.app.startPath"
-          />
-        </ul>
-      </div>
+      <ul v-if="personal.notSetUp.length > 0" class="flex flex-col" data-testid="overview-not-set-up">
+        <NetWorthRow
+          v-for="entry in personal.notSetUp"
+          :key="entry.app.id"
+          :icon="entry.app.homeCard.icon"
+          :colour="entry.app.colour"
+          :label="words.notSetUp(entry.name)"
+          :figure="null"
+          :to="entry.app.startPath"
+        />
+      </ul>
     </AppCard>
+
+    <DashboardGrid v-if="sideCards.length > 0" layout="cards">
+      <template v-for="card in sideCards" :key="card.side">
+        <DonutCard
+          v-if="card.kind === 'ring'"
+          :title="card.title"
+          :description="card.description"
+          :parts="card.parts"
+          :total="card.total"
+          :total-label="card.totalLabel"
+          :format-value="ringValue"
+          :opens="words.opensPart"
+          :data-side="card.side"
+          data-testid="overview-ring"
+        />
+        <AppCard v-else :title="card.title" :data-side="card.side" data-testid="overview-lone-part">
+          <ul class="flex flex-col px-4 pb-2 sm:px-5">
+            <NetWorthRow :icon="card.app.homeCard.icon" :colour="card.app.colour" :label="card.part.label" :caption="card.part.caption" :figure="card.figure" :to="card.part.to" />
+          </ul>
+        </AppCard>
+      </template>
+    </DashboardGrid>
 
     <DashboardGrid v-if="apart.length > 0" layout="cards">
       <AppCard v-for="entry in apart" :key="entry.app.id" :title="words.apart" :data-app="entry.app.id" data-testid="overview-apart">
@@ -217,7 +190,7 @@ const balanced = computed(() => personal.value.sum.state === 'ready' && groups.v
             <ul v-if="entry.figures.parts.length > 0" class="flex flex-col">
               <NetWorthRow
                 v-for="part in entry.figures.parts"
-                :key="part.label"
+                :key="part.key"
                 :icon="entry.app.homeCard.icon"
                 :colour="entry.app.colour"
                 :label="part.label"

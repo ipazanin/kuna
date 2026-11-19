@@ -18,6 +18,14 @@ export const en = {
   nothing: 'Nothing to add up until an app is set up.',
   currencies: 'Not added up: the apps keep different currencies.',
   apart: 'The company’s money, kept apart from the sum',
+  /** The grey part of What you owe that holds every debt past the four largest. */
+  otherDebts: 'Other debts',
+  /** What a ring part's link opens, for a screen reader. */
+  opensPart: 'the screen it comes from',
+  /** Under a ring's total. */
+  inAll: 'in all',
+  ringDescription: (title: string, total: string, parts: readonly string[]) => `${title}, ${total} in all: ${parts.join(', ')}.`,
+  ringPart: (label: string, amount: string, share: string) => `${label} ${amount}, ${share}`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -34,6 +42,11 @@ export const hr: Translation<typeof en> = {
   nothing: 'Nema što zbrojiti dok ne postavite neku aplikaciju.',
   currencies: 'Nije zbrojeno: aplikacije vode različite valute.',
   apart: 'Novac tvrtke, izvan zbroja',
+  otherDebts: 'Ostali dugovi',
+  opensPart: 'zaslon iz kojeg dolazi',
+  inAll: 'ukupno',
+  ringDescription: (title, total, parts) => `${title}, ukupno ${total}: ${parts.join(', ')}.`,
+  ringPart: (label, amount, share) => `${label} ${amount}, ${share}`,
 }
 
 export const words = language === 'hr' ? hr : en

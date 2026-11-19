@@ -6,6 +6,7 @@ import type { YearlyRate } from '../bankLoans/domain/yearlyRate'
 import { planStanding } from '../informalLoans/domain/expectedPlan'
 import { informalLoanFigures } from '../informalLoans/domain/informalLoanFigures'
 import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE } from '../overview/presentation/loanLinks'
+import { loanKeys } from '../overview/presentation/loanKeys'
 import { owedOnDay } from '../overview/domain/owedTotals'
 import { changeDate } from '../scenarios/domain/loanScenario'
 import type { LoanScenario, OfferTerms, ScenarioChange } from '../scenarios/domain/loanScenario'
@@ -221,8 +222,7 @@ function rate(label: string, yearly: YearlyRate): ReportFigure {
 function balancesReport(book: LoanBook, period: string | null): readonly ReportFigure[] {
   const day = dayOfPeriod(period)
   const totals = owedOnDay(book, day)
-  const bankNames = distinctNames(book.bankLoans.map(({ loan }) => `bank loan from ${loan.lender} paid out ${loan.drawdown}`))
-  const informalNames = distinctNames(book.informalLoans.map(({ loan }) => `informal loan started ${loan.start}`))
+  const { bank: bankNames, informal: informalNames } = loanKeys(book)
   const bank = book.bankLoans.flatMap((loanBook, at): ReportFigure[] => {
     const figures = bankLoanFigures(loanBook, day)
     const named = bankNames[at]!
@@ -264,7 +264,7 @@ function balancesReport(book: LoanBook, period: string | null): readonly ReportF
 function statementsReport(book: LoanBook, payments: StatementPayments, period: string | null): readonly ReportFigure[] {
   const day = dayOfPeriod(period)
   if (payments === 'unchecked') return [{ label: 'instalments checked against your statements, as Spending did not open', count: 0 }]
-  const names = distinctNames(book.bankLoans.map(({ loan }) => `bank loan from ${loan.lender} paid out ${loan.drawdown}`))
+  const names = loanKeys(book).bank
   return book.bankLoans.flatMap((loanBook, at) => {
     const named = names[at]!
     const standings = instalmentStandings(loanBook, payments, day)

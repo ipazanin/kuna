@@ -31,6 +31,13 @@ export const en = {
     nothingOnDrive: 'No app keeps its file on Google Drive, so there is nothing to sync.',
     chatWidthRange: (least: number, most: number) => `The chat is between ${least} and ${most} px wide.`,
   },
+  reports: {
+    netWorth: {
+      title: 'net worth',
+      about:
+        'Today’s net worth over the apps that add up: the sum, what you have and what you owe, each part by its app, each loan by its lender and payout or start day, and what the sum leaves out.',
+    },
+  },
   settings: {
     theme: 'The look on this device: system, light or dark.',
     language: 'The language on this device: browser, en or hr. Changing it loads Kuna again.',
@@ -77,6 +84,13 @@ export const hr: Translation<typeof en> = {
     syncAlone: 'Sinkronizacija ide na zasebnu karticu. Predložite je samu.',
     nothingOnDrive: 'Nijedna aplikacija ne drži datoteku na Google Driveu, pa nema što sinkronizirati.',
     chatWidthRange: (least, most) => `Razgovor je širok od ${least} do ${most} px.`,
+  },
+  reports: {
+    netWorth: {
+      title: 'neto imovina',
+      about:
+        'Današnja neto imovina preko aplikacija koje se zbrajaju: zbroj, što imate i što dugujete, svaki dio po aplikaciji, svaki kredit po zajmodavcu i danu isplate ili početka te ono što zbroj ne uključuje.',
+    },
   },
   settings: {
     theme: 'Izgled na ovom uređaju: „system”, „light” ili „dark”.',

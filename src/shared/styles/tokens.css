@@ -348,6 +348,15 @@
   --net-has: var(--series-3);
   --net-owes: var(--series-2);
 
+  /*
+   * The three largest debts on Net worth's What you owe ring, largest first, and the rest in --chart-deemphasis. Violet,
+   * brass and plum are no gain or loss colour and stay clear of the blue What you have bar. Each pair, the grey included,
+   * passes the cost buckets' floor in both themes, so any two may sit side by side on the ring.
+   */
+  --net-debt-1: var(--series-7);
+  --net-debt-2: var(--series-4);
+  --net-debt-3: var(--series-10);
+
   /* The edge of a checkbox or a radio, and the edge and thumb of a switch that is off. It passes 3:1 as a mark on the page, a card and a popover in both themes. */
   --control-edge: var(--ink-muted);
 

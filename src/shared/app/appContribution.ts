@@ -97,6 +97,8 @@ export interface AppHomeCard {
 
 /** A figure of the app on Net worth, which opens the screen it comes from. */
 export interface HubPart {
+  /** Names the part in English in both languages and never by a name a person gave, such as `bank loan from Example Bank paid out 2021-03-01`, so a list keys on it and the chat reads it. */
+  readonly key: string
   readonly label: string
   readonly cents: Money
   readonly caption: string | null

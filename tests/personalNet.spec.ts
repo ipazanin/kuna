@@ -9,13 +9,13 @@ const investments: PersonalApp = {
   name: 'Investments',
   notSetUp: false,
   currency: 'EUR',
-  figures: { parts: [{ label: 'Investments value', cents: euros(40000), side: 'has', caption: null, to: '/investments' }], notes: ['1 holding without a price'] },
+  figures: { parts: [{ key: 'investments value', label: 'Investments value', cents: euros(40000), side: 'has', caption: null, to: '/investments' }], notes: ['1 holding without a price'] },
 }
 
 const loansFigures: HubFigures<CountedHubPart> = {
   parts: [
-    { label: 'Owed to you', cents: euros(500), side: 'has', caption: null, to: '/loans' },
-    { label: 'You owe in all', cents: euros(95000), side: 'owes', caption: 'Next €650.00: On 15 Dec, Example house loan', to: '/loans' },
+    { key: 'owed to you', label: 'Owed to you', cents: euros(500), side: 'has', caption: null, to: '/loans' },
+    { key: 'you owe in all', label: 'You owe in all', cents: euros(95000), side: 'owes', caption: 'Next €650.00: On 15 Dec, Example house loan', to: '/loans' },
   ],
   notes: [],
 }
@@ -28,7 +28,7 @@ const assets: PersonalApp = {
   name: 'Assets',
   notSetUp: false,
   currency: 'EUR',
-  figures: { parts: [{ label: 'Assets value', cents: euros(256_254.8), side: 'has', caption: '€88,884.80 yours after the Home loan', to: '/assets' }], notes: [] },
+  figures: { parts: [{ key: 'assets value', label: 'Assets value', cents: euros(256_254.8), side: 'has', caption: '€88,884.80 yours after the Home loan', to: '/assets' }], notes: [] },
 }
 
 const withHomeLoan = loans({ parts: [loansFigures.parts[0]!, { ...loansFigures.parts[1]!, cents: euros(150_000) }], notes: [] })
@@ -49,7 +49,7 @@ describe('Net worth', () => {
       name: 'Spending',
       notSetUp: false,
       currency: 'EUR',
-      figures: { parts: [{ label: 'Bank and cash', cents: euros(2_390.46), side: 'has', caption: 'Across 4 accounts', to: '/spending/accounts' }], notes: [] },
+      figures: { parts: [{ key: 'bank and cash', label: 'Bank and cash', cents: euros(2_390.46), side: 'has', caption: 'Across 4 accounts', to: '/spending/accounts' }], notes: [] },
     }
 
     // 40,000.00 + 500.00 + 256,254.80 + 2,390.46 − 150,000.00.
@@ -63,8 +63,8 @@ describe('Net worth', () => {
       currency: 'EUR',
       figures: {
         parts: [
-          { label: 'Bank and cash', cents: euros(2_234.5), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' },
-          { label: 'Overdrawn', cents: euros(30), side: 'owes', caption: null, to: '/spending/accounts' },
+          { key: 'bank and cash', label: 'Bank and cash', cents: euros(2_234.5), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' },
+          { key: 'overdrawn', label: 'Overdrawn', cents: euros(30), side: 'owes', caption: null, to: '/spending/accounts' },
         ],
         notes: ['1 account in another currency, since the ECB rates did not load'],
       },

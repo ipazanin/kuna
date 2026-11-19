@@ -238,7 +238,7 @@ describe('the catalogue', () => {
   })
 
   it('lets the chat read only an app that offers a reader', () => {
-    expect([...catalogue.readers.keys()]).toEqual(['company', 'loans', 'investments', 'assets', 'spending'])
+    expect([...catalogue.readers.keys()]).toEqual(['kuna', 'company', 'loans', 'investments', 'assets', 'spending'])
   })
 
   it('tells the model what a read holds: data, aliases, and no amount of its own', () => {

@@ -3,8 +3,8 @@ import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 
-function nextBankPayment(amount: string, day: string, loan: string): string {
-  return `Next ${amount}, ${day}, ${loan}`
+function nextBankPayment(amount: string, day: string): string {
+  return `Next ${amount}, ${day}`
 }
 
 export const en = {
@@ -24,8 +24,8 @@ export const hr: Translation<typeof en> = {
   owed: 'Ukupno dugujete',
   owedToYou: 'Duguje vam se',
   nextPayment: {
-    annuity: (amount, day, loan) => `Sljedeći anuitet ${amount}, ${day}, ${loan}`,
-    'equal-principal': (amount, day, loan) => `Sljedeća rata ${amount}, ${day}, ${loan}`,
+    annuity: (amount, day) => `Sljedeći anuitet ${amount}, ${day}`,
+    'equal-principal': (amount, day) => `Sljedeća rata ${amount}, ${day}`,
     informal: (amount, day, payee) => `Sljedeći obrok ${amount}, ${day}, vraćate: ${payee}`,
   },
   overduePayment: (amount, payee) => `Kasnite s obrokom ${amount}: ${payee}`,

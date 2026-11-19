@@ -244,7 +244,6 @@ const BRAND_OWNERS = [
 /** What the figure digest still reads from presentation. A figure belongs in domain, so this list only shrinks. */
 const FIGURES_IN_PRESENTATION = [
   'src/apps/company/overview/presentation/waitingForYou.ts',
-  'src/apps/investments/home/presentation/investmentsHubFigures.ts',
   'src/apps/investments/performance/presentation/performanceLinks.ts',
   'src/apps/loans/bankLoans/presentation/savedTries.ts',
   'src/apps/loans/informalLoans/presentation/informalLoanView.ts',
@@ -549,6 +548,7 @@ describe('import boundaries', () => {
         'src/shell/ui/sidebarLayout.ts',
         'src/shell/ui/switchLanguage.ts',
         'src/shell/assistant/kunaOperations.ts',
+        'src/shell/assistant/kunaReader.ts',
         'src/shell/assistant/words.ts',
       ]
       expect(

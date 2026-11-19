@@ -304,12 +304,12 @@ describe('the next payment of Loans in Croatian', () => {
     return { line: owes?.caption ?? null, caption: nextPaymentCaption(next!) }
   }
 
-  it('names the loan after the amount and the day, and the payment by the loan kind', async () => {
+  it('names the payment by the loan kind, with its amount and day under the loan it is on', async () => {
     const annuity = await nextPaymentOf([bankLoan({ name: 'Home loan' })], [])
     const equalPrincipal = await nextPaymentOf([bankLoan({ name: 'Home loan', repayment: 'equal-principal' })], [])
 
-    expect(annuity.line).toMatch(/^Sljedeći\sanuitet\s[\d.,]+\s€,\s\d+\.\s\d+\.,\sHome\sloan$/)
-    expect(equalPrincipal.line).toMatch(/^Sljedeća\srata\s[\d.,]+\s€,\s\d+\.\s\d+\.,\sHome\sloan$/)
+    expect(annuity.line).toMatch(/^Sljedeći\sanuitet\s[\d.,]+\s€,\s\d+\.\s\d+\.$/)
+    expect(equalPrincipal.line).toMatch(/^Sljedeća\srata\s[\d.,]+\s€,\s\d+\.\s\d+\.$/)
     expect(annuity.caption).toMatch(/^Dana\s\d+\.\s\d+\.,\sHome\sloan$/)
   })
 

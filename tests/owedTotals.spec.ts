@@ -93,16 +93,40 @@ describe('the net of what others owe you and what you owe', () => {
 })
 
 describe('what Loans adds to the sum on Net worth', () => {
+  const day = civil('2026-01-20')
   const toMarko = informalLoan({ id: recordIdOf(INFORMAL_LOAN_RECORDS, 'to-marko'), name: 'To Marko', direction: 'owed-to-you', openingBalance: euros(800), start: civil('2026-01-02') })
+  const fromAna = informalLoan({ start: civil('2026-01-02') })
 
-  it('adds what others owe you when they do, then what you owe', () => {
-    expect(loansNetWorthParts({ bankLoans: [bankBook(bankLoan())], informalLoans: [informalBook(toMarko)] }, civil('2026-01-20'))).toEqual([
+  it('counts one loan you owe on as one part, with the loan it is', () => {
+    expect(loansNetWorthParts({ bankLoans: [bankBook(bankLoan())], informalLoans: [] }, day)).toEqual([{ side: 'owes', cents: euros(1200), loan: { kind: 'bank', at: 0 } }])
+  })
+
+  it('adds what others owe you as one part, then each loan you owe on as a part of its own', () => {
+    const book = { bankLoans: [bankBook(bankLoan())], informalLoans: [informalBook(toMarko), informalBook(fromAna, [movement(fromAna, '2026-01-10', 'repaid', 500)])] }
+
+    expect(loansNetWorthParts(book, day)).toEqual([
       { side: 'has', cents: euros(800) },
-      { side: 'owes', cents: euros(1200) },
+      { side: 'owes', cents: euros(1200), loan: { kind: 'bank', at: 0 } },
+      // 3,000.00 − 500.00.
+      { side: 'owes', cents: euros(2500), loan: { kind: 'informal', at: 1 } },
     ])
   })
 
-  it('leaves out what others owe you when nobody does, and keeps what you owe at zero', () => {
-    expect(loansNetWorthParts({ bankLoans: [], informalLoans: [] }, civil('2026-01-20'))).toEqual([{ side: 'owes', cents: euros(0) }])
+  it('adds each loan you owe on up to what the totals say you owe', () => {
+    const book = { bankLoans: [bankBook(bankLoan()), bankBook(bankLoan({ name: 'Car loan' }))], informalLoans: [informalBook(toMarko), informalBook(fromAna)] }
+    const owes = loansNetWorthParts(book, day).filter((part) => part.side === 'owes')
+
+    expect(owes.reduce((sum, part) => sum + part.cents, 0)).toBe(owedOnDay(book, day).owed)
+    expect(owes).toHaveLength(owedOnDay(book, day).loansYouOwe)
+  })
+
+  it('leaves out a loan paid off and a bank loan whose plan cannot be worked out', () => {
+    const settled = informalBook(fromAna, [movement(fromAna, '2026-01-10', 'repaid', 3000)])
+
+    expect(loansNetWorthParts({ bankLoans: [bankBook(bankLoan(), false)], informalLoans: [settled] }, day)).toEqual([])
+  })
+
+  it('adds nothing when nobody owes anything', () => {
+    expect(loansNetWorthParts({ bankLoans: [], informalLoans: [] }, day)).toEqual([])
   })
 })

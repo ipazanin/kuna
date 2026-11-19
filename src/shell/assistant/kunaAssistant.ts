@@ -9,6 +9,7 @@ import { windowWidthNow } from '../../shared/layout/viewport'
 import { foldedCards, rememberCollapse } from '../../shared/ui/cardCollapse'
 import { installedApps } from '../routing/appRegistry'
 import { kunaAcceptance, kunaProposer } from './kunaOperations'
+import { kunaReader } from './kunaReader'
 import type { KunaDevice } from './kunaOperations'
 import { chooseSidebar, roomEffectOf, sidebarChoice } from '../ui/sidebarLayout'
 import { switchLanguage } from '../ui/switchLanguage'
@@ -72,7 +73,7 @@ export function kunaAssistant(): AppAssistant {
     guides: [],
     automations: [],
     setUp: [],
-    reader: null,
+    reader: kunaReader(),
     proposer: kunaProposer(DEVICE),
     acceptance: kunaAcceptance(DEVICE),
     quickActions: [],

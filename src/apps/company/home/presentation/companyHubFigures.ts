@@ -14,5 +14,5 @@ export function companyHubFigures(workbook: Workbook): HubFigures {
   if (takeOut === null) return { parts: [], notes: [words.ownerPayOff] }
   if (takeOut.kind === 'missing') return { parts: [], notes: [takeOut.reason] }
   const { kind: _kind, ...part } = takeOut
-  return { parts: [part], notes: [] }
+  return { parts: [{ ...part, key: 'owner take out' }], notes: [] }
 }

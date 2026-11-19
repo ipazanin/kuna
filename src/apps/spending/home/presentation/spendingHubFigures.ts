@@ -19,8 +19,8 @@ export function spendingHubFigures(book: Pick<SpendingBook, 'accounts' | 'transa
   const standing = accountStanding(counted)
   return {
     parts: [
-      { label: words.bankAndCash, cents: standing.held, side: 'has', caption: plural(words.across(standing.heldAccounts), standing.heldAccounts), to: SPENDING_ACCOUNTS_ROUTE },
-      ...(standing.owed === null ? [] : [{ label: words.overdrawn, cents: standing.owed, side: 'owes' as const, caption: null, to: SPENDING_ACCOUNTS_ROUTE }]),
+      { key: 'bank and cash', label: words.bankAndCash, cents: standing.held, side: 'has', caption: plural(words.across(standing.heldAccounts), standing.heldAccounts), to: SPENDING_ACCOUNTS_ROUTE },
+      ...(standing.owed === null ? [] : [{ key: 'overdrawn accounts', label: words.overdrawn, cents: standing.owed, side: 'owes' as const, caption: null, to: SPENDING_ACCOUNTS_ROUTE }]),
     ],
     notes: standing.unconverted === 0 ? [] : [plural(words.notConvertedNote(standing.unconverted), standing.unconverted)],
   }
