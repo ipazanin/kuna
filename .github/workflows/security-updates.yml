@@ -31,9 +31,9 @@ jobs:
       - name: Audit
         id: audit
         run: |
-          npm audit --json > audit.json || true
+          npm audit --json > "$RUNNER_TEMP/audit.json" || true
           node -e "
-            const report = JSON.parse(require('fs').readFileSync('audit.json', 'utf8'))
+            const report = JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP + '/audit.json', 'utf8'))
             if (report.error) {
               console.error('npm audit failed: ' + (report.error.summary ?? report.error.code))
               process.exit(1)
@@ -52,12 +52,12 @@ jobs:
         if: steps.audit.outputs.found != '0'
         run: |
           npm audit fix || true
-          if ! npm audit > left.txt; then
+          if ! npm audit > "$RUNNER_TEMP/left.txt"; then
             {
               echo '## Left for the next run'
               echo 'Fixes younger than 3 days and fixes that need a major version.'
               echo '```'
-              cat left.txt
+              cat "$RUNNER_TEMP/left.txt"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -94,19 +94,19 @@ jobs:
           git add package.json package-lock.json
           git commit --message 'Security fixes for packages from npm audit'
           git push --force origin "$BRANCH"
-          npm audit --json > after.json || true
+          npm audit --json > "$RUNNER_TEMP/after.json" || true
           node -e "
-            const read = (name) => JSON.parse(require('fs').readFileSync(name, 'utf8')).vulnerabilities ?? {}
+            const read = (name) => JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP + '/' + name, 'utf8')).vulnerabilities ?? {}
             const before = read('audit.json')
             const after = read('after.json')
             const fixed = Object.entries(before).filter(([name]) => !(name in after))
             const lines = fixed.map(([name, entry]) => '- ' + name + ' (' + entry.severity + '): ' + entry.via.map((via) => typeof via === 'string' ? via : via.title + ' ' + via.url).join(', '))
             const left = Object.keys(after)
             const body = ['Advisories this pull request fixes:', '', ...lines, '', left.length ? 'Left for the next run: ' + left.join(', ') : 'Nothing is left in npm audit.'].join('\n')
-            require('fs').writeFileSync('body.md', body)
+            require('fs').writeFileSync(process.env.RUNNER_TEMP + '/body.md', body)
           "
           if gh pr view "$BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
-            gh pr edit "$BRANCH" --body-file body.md
+            gh pr edit "$BRANCH" --body-file "$RUNNER_TEMP/body.md"
           else
-            gh pr create --head "$BRANCH" --base main --title 'Security fixes for packages from npm audit' --body-file body.md
+            gh pr create --head "$BRANCH" --base main --title 'Security fixes for packages from npm audit' --body-file "$RUNNER_TEMP/body.md"
           fi
