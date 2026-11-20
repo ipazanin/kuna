@@ -68,15 +68,15 @@ function linkOf(step: RunStep) {
 
 <template>
   <div class="flex flex-col gap-3" data-testid="sync-steps">
-    <p class="figure text-xs text-muted">{{ when }}</p>
+    <p class="figure type-caption">{{ when }}</p>
     <div v-if="run" class="flex flex-col gap-3">
       <section v-for="group in run.groups" :key="group.app" class="flex flex-col gap-2" :aria-label="run.groups.length > 1 ? group.name : undefined" :data-group="group.app">
-        <h3 v-if="run.groups.length > 1" class="text-xs font-medium text-muted">{{ group.name }}</h3>
+        <h3 v-if="run.groups.length > 1" class="type-label">{{ group.name }}</h3>
         <ol class="flex flex-col gap-2.5">
           <li v-for="step in listedSteps(group)" :key="step.id" class="flex items-start gap-2" :data-step="step.id" :data-state="step.state.kind">
             <UIcon :name="ICONS[step.state.kind].name" class="mt-0.5 size-4 shrink-0" :class="ICONS[step.state.kind].tone" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-1">
-              <p class="text-sm break-words text-toned">
+              <p class="type-body break-words">
                 <span class="font-medium text-highlighted">{{ step.label }}</span>
                 <span class="sr-only">:</span>
                 {{ lineOf(step) }}
@@ -94,7 +94,7 @@ function linkOf(step: RunStep) {
                   data-testid="sync-step-undo"
                   @click="page.undo(group.app, undoable(group.app, step)!)"
                 />
-                <DrillLink v-if="linkOf(step)" :to="linkOf(step)!.to" class="text-sm font-medium text-highlighted">{{ linkOf(step)!.label }}</DrillLink>
+                <DrillLink v-if="linkOf(step)" :to="linkOf(step)!.to" class="type-card-title">{{ linkOf(step)!.label }}</DrillLink>
               </div>
             </div>
           </li>

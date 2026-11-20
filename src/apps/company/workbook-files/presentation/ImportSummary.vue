@@ -47,7 +47,7 @@ const facts = computed(() => {
       variant="subtle"
       :title="failure"
       :description="failureDetail"
-      :ui="{ description: 'figure break-words text-xs' }"
+      :ui="{ description: 'figure break-words type-caption text-error' }"
     />
 
     <template v-if="preview">
@@ -62,7 +62,7 @@ const facts = computed(() => {
 
         <section class="flex flex-col gap-2" data-testid="record-counts">
           <h3 class="type-card-title">{{ plural(words.summary.records(preview.recordCount), preview.recordCount) }}</h3>
-          <dl class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-6 gap-y-1 text-sm">
+          <dl class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-6 gap-y-1 type-body">
             <div v-for="kind in preview.counts" :key="kind.name" class="flex min-w-0 items-baseline justify-between gap-3">
               <CutText as="dt" class="identifier text-toned">{{ kind.name }}</CutText>
               <dd class="figure text-highlighted">{{ kind.count }}</dd>

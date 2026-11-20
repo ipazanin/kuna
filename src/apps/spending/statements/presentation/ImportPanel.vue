@@ -158,7 +158,7 @@ async function confirm(): Promise<void> {
     <AppCard :title="words.import.title" :subtitle="words.import.subtitle">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="spending-import-file">
         <FileDrop v-model="picked" accept=".xlsx,.csv" :label="words.import.drop" :description="words.import.orChoose" />
-        <p v-if="loading" class="flex items-center gap-2 text-sm text-muted">
+        <p v-if="loading" class="flex items-center gap-2 type-aside">
           <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
           {{ words.import.reading }}
         </p>
@@ -180,8 +180,8 @@ async function confirm(): Promise<void> {
             </UFormField>
           </FormGrid>
         </section>
-        <p class="text-sm text-highlighted" data-testid="spending-dry-run-summary">{{ words.import.summary(dryRun.newRows, dryRun.alreadyIn, dryRun.filled) }}</p>
-        <ul v-if="dryRun.notes.length > 0 || loansUnread !== null" class="flex flex-col gap-1 text-sm text-muted" data-testid="spending-dry-run-notes">
+        <p class="type-row-title" data-testid="spending-dry-run-summary">{{ words.import.summary(dryRun.newRows, dryRun.alreadyIn, dryRun.filled) }}</p>
+        <ul v-if="dryRun.notes.length > 0 || loansUnread !== null" class="flex flex-col gap-1 type-aside" data-testid="spending-dry-run-notes">
           <li v-for="note in dryRun.notes" :key="note">{{ note }}</li>
           <li v-if="loansUnread !== null" data-testid="spending-dry-run-loans-unread">{{ loansUnread }}</li>
         </ul>
@@ -209,7 +209,7 @@ async function confirm(): Promise<void> {
           data-testid="spending-import-confirm"
           @click="confirm"
         />
-        <p v-else class="text-sm text-muted" data-testid="spending-import-nothing">{{ words.import.nothing }}</p>
+        <p v-else class="type-aside" data-testid="spending-import-nothing">{{ words.import.nothing }}</p>
       </div>
     </AppCard>
   </div>

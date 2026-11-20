@@ -148,7 +148,7 @@ const shownSections = computed(() => {
             <tr v-for="line in review.lines" :key="line.line">
               <th scope="row" class="cell-wraps text-start" :class="line.emphasised ? 'font-medium text-highlighted' : 'font-normal text-toned'">
                 {{ line.label }}
-                <MoneyText v-if="line.change !== null" :cents="line.change" sign="always" class="block text-xs font-normal @sm:hidden" />
+                <MoneyText v-if="line.change !== null" :cents="line.change" sign="always" class="block font-normal type-caption @sm:hidden" />
               </th>
               <td class="text-end">
                 <DrillLink :to="line.currentTo" :label="words.openRows(line.label, review.currentLabel)">
@@ -189,7 +189,7 @@ const shownSections = computed(() => {
               <tr v-for="row in section.rows" :key="row.key">
                 <th scope="row" class="cell-wraps text-start font-normal text-highlighted">
                   {{ row.category }}
-                  <MoneyText v-if="row.change !== null" :cents="row.change" sign="always" class="block text-xs @md:hidden" />
+                  <MoneyText v-if="row.change !== null" :cents="row.change" sign="always" class="block type-caption @md:hidden" />
                 </th>
                 <td class="hidden text-muted @2xl:table-cell">{{ row.family }}</td>
                 <td class="text-end">

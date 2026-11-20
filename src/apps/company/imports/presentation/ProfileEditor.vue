@@ -147,7 +147,7 @@ const problem = computed(() => profileDraftProblem(profile.value))
       </UFormField>
     </div>
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <p :class="problem ? 'text-sm text-warning' : 'type-aside'" data-testid="profile-problem">
+      <p :class="problem ? 'type-body text-warning' : 'type-aside'" data-testid="profile-problem">
         {{ problem ?? words.profile.reads }}
       </p>
       <UButton

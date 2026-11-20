@@ -101,9 +101,9 @@ async function create(withChat = false): Promise<void> {
   <StepCard :title="appWords.title" :subtitle="words.firstRun.folder.subtitle">
     <slot v-if="moving === null" name="missing" />
     <div v-else class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" :data-testid="`${firstRun.testId}-folder-confirm`">
-      <p class="text-sm text-muted">{{ appWords.savedIn }}</p>
-      <p class="identifier text-sm font-medium break-words text-highlighted">{{ where }}</p>
-      <p class="flex items-center gap-2 text-sm text-toned">
+      <p class="type-aside">{{ appWords.savedIn }}</p>
+      <p class="identifier type-card-title break-words">{{ where }}</p>
+      <p class="flex items-center gap-2 type-body">
         <UIcon name="i-lucide-file-json" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span class="min-w-0"
           ><span class="identifier">{{ firstRun.fileName }}</span
@@ -111,7 +111,7 @@ async function create(withChat = false): Promise<void> {
         >
       </p>
     </div>
-    <p v-if="moving === undefined && !alreadyOnDrive" class="text-sm text-toned" :data-testid="`${firstRun.testId}-have-one`">{{ words.firstRun.folder.haveOne }}</p>
+    <p v-if="moving === undefined && !alreadyOnDrive" class="type-body" :data-testid="`${firstRun.testId}-have-one`">{{ words.firstRun.folder.haveOne }}</p>
     <div v-if="!alreadyOnDrive && moving !== null && (moving === undefined || kunaFolder.canChoose.value)" class="flex flex-col items-start gap-1">
       <UButton
         v-if="moving === undefined"

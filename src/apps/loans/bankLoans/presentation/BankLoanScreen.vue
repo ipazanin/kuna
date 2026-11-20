@@ -375,7 +375,7 @@ function openLate(key: string | null): void {
     <template v-else-if="state.workbook !== null">
       <PageHeader :title="loanWords.bankLoan" />
       <AppCard>
-        <p class="px-4 py-6 text-sm text-muted sm:px-5" data-testid="loan-missing">{{ loanWords.missing }}</p>
+        <p class="px-4 py-6 type-aside sm:px-5" data-testid="loan-missing">{{ loanWords.missing }}</p>
       </AppCard>
     </template>
   </section>

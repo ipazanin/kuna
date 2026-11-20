@@ -395,8 +395,8 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                   <li v-for="credit in view.unattributed" :key="credit.key" class="credit-row">
                     <span class="figure type-caption">{{ credit.date }}</span>
                     <CutText class="min-w-0 type-body">{{ credit.counterparty }}</CutText>
-                    <DrillLink :to="credit.to" :label="words.panel.openCredit(credit.date, credit.counterparty)" class="justify-self-end">
-                      <MoneyText :cents="credit.amount" tone="flow" class="text-sm font-medium" />
+                    <DrillLink :to="credit.to" :label="words.panel.openCredit(credit.date, credit.counterparty)" class="justify-self-end type-card-title">
+                      <MoneyText :cents="credit.amount" tone="flow" />
                     </DrillLink>
                   </li>
                 </ul>

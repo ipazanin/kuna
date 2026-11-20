@@ -75,7 +75,7 @@ function pick(listing: SearchedListing): void {
       <li v-for="row in rows" :key="row.key">
         <UButton color="neutral" variant="ghost" block class="justify-start rounded-none text-start" data-testid="instrument-search-result" @click="pick(row.listing)">
           <span class="flex min-w-0 flex-col">
-            <span class="type-body text-highlighted">{{ row.listing.symbol }} · {{ row.listing.name }}</span>
+            <span class="type-row-title">{{ row.listing.symbol }} · {{ row.listing.name }}</span>
             <span class="type-caption">{{ row.details }}</span>
           </span>
         </UButton>

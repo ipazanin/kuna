@@ -75,7 +75,7 @@ async function startOver(): Promise<void> {
         <UIcon :name="onDrive ? 'i-lucide-file-json' : 'i-lucide-monitor-smartphone'" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span class="min-w-0 break-words" :class="{ identifier: onDrive }">{{ shownName }}</span>
       </p>
-      <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target quiet-link text-sm">
+      <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target quiet-link">
         {{ storageWords.firstRun.folder.openFolder }}
         <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
       </a>

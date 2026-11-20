@@ -125,7 +125,7 @@ function reviewBadge(listed: ListedRow) {
 /** The owner's part of a shared row names the share, any VAT it carries and the category it comes from. */
 function ownerPartNote(listed: ListedRow) {
   const origin = ownerPartOrigin(listedOwnerPart(listed), names.value.category, (amount) => formatMoney(amount))
-  return origin === null ? null : h('span', { class: 'text-xs text-muted' }, origin)
+  return origin === null ? null : h('span', { class: 'type-caption' }, origin)
 }
 
 function categoryOf(listed: ListedRow) {
@@ -159,7 +159,7 @@ function counterpartyName(row: Transaction | ListedAdvanceRow) {
 
 /** Below a container width the category column drops out and the category moves under the row's name. */
 function categoryBelowName(listed: ListedRow) {
-  return h('div', { class: 'mt-1 text-sm @2xl:hidden' }, [categoryOf(listed)])
+  return h('div', { class: 'mt-1 @2xl:hidden' }, [categoryOf(listed)])
 }
 
 /** Split on a payment that is not split yet. A shared payment offers it on its heading, since a split divides the payment as booked. */
@@ -227,7 +227,7 @@ const COLUMNS: TableColumn<TableEntry>[] = [
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : entry.kind === 'group' ? '' : entry.whole.counterparty),
     header: words.columns.counterparty,
     meta: besideHeading('whitespace-normal'),
-    footer: () => h('span', { class: 'text-xs font-normal text-muted' }, plural(words.rows(props.rows.length), props.rows.length)),
+    footer: () => h('span', { class: 'font-normal type-caption' }, plural(words.rows(props.rows.length), props.rows.length)),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
@@ -235,7 +235,7 @@ const COLUMNS: TableColumn<TableEntry>[] = [
         const { whole } = entry
         return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [counterpartyName(whole), headingBadge(entry)]),
-          whole.description === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => whole.description),
+          whole.description === '' ? null : h(CutText, { as: 'p', class: 'type-caption' }, () => whole.description),
           seenLine(whole),
         ])
       }
@@ -248,14 +248,14 @@ const COLUMNS: TableColumn<TableEntry>[] = [
             h(UIcon, { name: 'i-lucide-corner-down-right', class: 'size-3.5 shrink-0 text-muted', 'aria-hidden': 'true' }),
             words.part(place.number, place.count),
           ]),
-          note === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => note),
+          note === '' ? null : h(CutText, { as: 'p', class: 'type-caption' }, () => note),
           labelLine(listed),
           categoryBelowName(listed),
         ])
       }
       return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
         counterpartyName(listed),
-        listed.description === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => listed.description),
+        listed.description === '' ? null : h(CutText, { as: 'p', class: 'type-caption' }, () => listed.description),
         labelLine(listed),
         seenLine(listed),
         categoryBelowName(listed),
@@ -270,7 +270,7 @@ const COLUMNS: TableColumn<TableEntry>[] = [
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
-      if (entry.kind !== 'row') return h('span', { class: 'text-xs text-muted' }, words.countsAsParts)
+      if (entry.kind !== 'row') return h('span', { class: 'type-caption' }, words.countsAsParts)
       return categoryOf(entry.row)
     },
   },
@@ -309,7 +309,7 @@ const COLUMNS: TableColumn<TableEntry>[] = [
     // The count sits under the counterparty, and the total's label goes above it when the card is tight, so the amount column stays as narrow as its figures.
     footer: () =>
       h('span', { class: 'inline-flex flex-wrap items-baseline justify-end gap-x-2' }, [
-        h('span', { class: 'text-xs font-normal text-muted' }, words.total),
+        h('span', { class: 'font-normal type-caption' }, words.total),
         h(MoneyText, { cents: props.total, class: 'font-semibold text-highlighted' }),
       ]),
   },

@@ -136,6 +136,10 @@ body {
 }
 
 /* A plain table of figures inside a card: hairline rows, muted headers, numbers right-aligned by their cells. */
+.data-table {
+  @apply text-sm;
+}
+
 .data-table th,
 .data-table td {
   padding: 0.5rem 0.75rem;

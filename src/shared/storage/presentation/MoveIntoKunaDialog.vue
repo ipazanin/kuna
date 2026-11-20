@@ -87,10 +87,10 @@ async function move(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" :title="text.title" :description="text.description" :dismissible="!moving">
     <div class="flex flex-col gap-4" data-testid="move-into-kuna">
-      <p class="identifier text-sm font-medium break-words text-highlighted" data-testid="move-into-kuna-where">{{ where }}</p>
+      <p class="identifier type-card-title break-words" data-testid="move-into-kuna-where">{{ where }}</p>
       <div v-if="plan" class="flex flex-col gap-1">
-        <p class="text-sm font-medium text-highlighted">{{ text.goes }}</p>
-        <ul class="list-disc space-y-1 ps-4 text-sm text-toned" data-testid="move-into-kuna-goes">
+        <p class="type-card-title">{{ text.goes }}</p>
+        <ul class="list-disc space-y-1 ps-4 type-body" data-testid="move-into-kuna-goes">
           <li class="identifier">{{ fileName }}</li>
           <li v-for="name in plan.files" :key="name" class="identifier">{{ name }}</li>
           <li v-if="plan.backups > 0">{{ plural(text.backups(plan.backups), plan.backups) }}</li>
@@ -101,18 +101,18 @@ async function move(): Promise<void> {
         </ul>
       </div>
       <div v-if="plan && (plan.stays.length > 0 || otherFiles > 0)" class="flex flex-col gap-1">
-        <p class="text-sm font-medium text-highlighted">{{ text.stays }}</p>
-        <ul class="list-disc space-y-1 ps-4 text-sm text-toned" data-testid="move-into-kuna-stays">
+        <p class="type-card-title">{{ text.stays }}</p>
+        <ul class="list-disc space-y-1 ps-4 type-body" data-testid="move-into-kuna-stays">
           <li v-for="name in plan.stays" :key="name" class="identifier">{{ name }}</li>
           <li v-if="otherFiles > 0" data-testid="move-into-kuna-others">{{ plural(text.others(otherFiles), otherFiles) }}</li>
         </ul>
       </div>
-      <p v-for="trail in leftBehind" :key="trail" class="text-sm text-toned" data-testid="move-into-kuna-stops-reading">
+      <p v-for="trail in leftBehind" :key="trail" class="type-body" data-testid="move-into-kuna-stops-reading">
         <span class="identifier">{{ trail }}</span
         >{{ text.stopsReading }}
       </p>
-      <p class="text-sm text-muted">{{ text.keepsWorking }}</p>
-      <p class="text-sm text-muted">{{ text.partWay }}</p>
+      <p class="type-aside">{{ text.keepsWorking }}</p>
+      <p class="type-aside">{{ text.partWay }}</p>
       <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="move-into-kuna-failed" />
     </div>
     <template #end>

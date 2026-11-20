@@ -51,7 +51,7 @@ const marks = computed(() => {
         </li>
       </ol>
       <slot />
-      <footer class="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted">
+      <footer class="flex flex-wrap gap-x-6 gap-y-2 type-caption">
         <span>{{ footer }}</span>
       </footer>
       <CompanyFooter class="mt-auto" />

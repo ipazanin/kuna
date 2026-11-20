@@ -74,8 +74,8 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <template v-if="source === 'browser'">
         <p class="text-base text-highlighted" data-testid="books-file-name">{{ fileName }}</p>
-        <p class="text-sm text-muted">{{ words.booksFile.inBrowser }}</p>
-        <p class="figure text-xs text-muted">
+        <p class="type-aside">{{ words.booksFile.inBrowser }}</p>
+        <p class="figure type-caption">
           <span v-if="changedAt">{{ words.booksFile.lastChanged(changedAt) }}</span
           >{{ exportedAt ? words.booksFile.lastExported(exportedAt) : words.booksFile.notExported }}
         </p>
@@ -83,8 +83,8 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
       </template>
       <template v-else-if="source === 'drive'">
         <p class="text-base text-highlighted" data-testid="books-file-name">{{ fileName }}</p>
-        <p class="text-sm text-muted">{{ words.booksFile.onDrive }}</p>
-        <dl class="drive-facts text-xs" data-testid="drive-file-place">
+        <p class="type-aside">{{ words.booksFile.onDrive }}</p>
+        <dl class="drive-facts type-caption" data-testid="drive-file-place">
           <template v-if="shownPlace">
             <dt>{{ words.booksFile.folder }}</dt>
             <dd>

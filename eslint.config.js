@@ -344,8 +344,67 @@ const allLinks = {
   },
 }
 
+const typeSizes = new Set(['text-xs', 'text-sm'])
+const typeInks = new Set(['text-muted', 'text-toned', 'text-highlighted', 'text-default', 'text-dimmed'])
+const rawSize = /^text-(?:xs|sm|base|lg|[2-9]?xl|title|figure-[a-z]+)$/
+const typeRolesMessage =
+  'Text takes its size and ink from a type-* role, such as type-caption or type-aside, never from text-xs or text-sm with a colour, and a role never takes a size or an ink beside it.'
+const typeSizeMessage = 'Text takes its size from a type-* role, such as type-caption or type-body, or from its parent. text-xs and text-sm stay inside the components of src/shared/ui.'
+
+/** The utilities of a class string, each without its variants or important mark, and whether it had a variant. */
+const utilitiesOf = (names) =>
+  names
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((name) => {
+      const bare = name.replace(new RegExp(variants), '')
+      return { name: bare.replace(/^!|!$/g, ''), varied: bare !== name }
+    })
+
+/**
+ * Text that sets its size and ink by hand beside the roles, or a role with a size or an ink beside it. It reads an element's
+ * class and bound class together, so a size in one and an ink in the other is one pair, and each string of a ui binding
+ * or an h() class on its own. An ink behind a variant, such as group-hover:text-toned, changes a role's ink and stays. With
+ * sizes set, a size alone is refused too.
+ */
+const typeRoles = {
+  meta: { type: 'problem', schema: [{ type: 'object', properties: { sizes: { type: 'boolean' } }, additionalProperties: false }] },
+  create(context) {
+    const sizes = context.options[0]?.sizes === true
+    const check = (node, strings) => {
+      const utilities = strings.flatMap(utilitiesOf)
+      const sized = utilities.some(({ name }) => typeSizes.has(name))
+      const inked = utilities.some(({ name, varied }) => typeInks.has(name) && !varied)
+      const role = utilities.some(({ name }) => name.startsWith('type-'))
+      if ((sized && inked) || (role && (inked || utilities.some(({ name }) => rawSize.test(name))))) context.report({ node, message: typeRolesMessage })
+      else if (sizes && sized) context.report({ node, message: typeSizeMessage })
+    }
+    const attributeName = (attribute) => (attribute.directive ? (attribute.key.name.name === 'bind' ? attribute.key.argument?.name : undefined) : attribute.key.name)
+    const template = {
+      VElement(element) {
+        const classes = element.startTag.attributes.filter((attribute) => attributeName(attribute) === 'class')
+        if (classes.length > 0)
+          check(
+            classes[0],
+            classes.flatMap((attribute) => (attribute.directive ? boundClassStrings(attribute.value?.expression ?? null) : [attribute.value?.value ?? ''])),
+          )
+        for (const attribute of element.startTag.attributes.filter((candidate) => candidate.directive && attributeName(candidate) === 'ui')) {
+          for (const names of boundClassStrings(attribute.value?.expression ?? null)) check(attribute, [names])
+        }
+      },
+    }
+    const script = {
+      "CallExpression[callee.name='h'] > ObjectExpression > Property[key.name='class']"(property) {
+        check(property, boundClassStrings(property.value))
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(template, script) ?? script
+  },
+}
+
 const kunaPlugin = {
   rules: {
+    'type-roles': typeRoles,
     'shoot-at': shootAt,
     'date-parameters': dateParameters,
     'money-tone-colours': moneyToneColours,
@@ -561,6 +620,8 @@ export function kunaConfig(exempt) {
     { name: 'kuna/all-links', files: ['src/**/*.vue'], rules: { 'kuna/all-links': 'error' } },
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
+    { name: 'kuna/type-roles', files: ['src/**/*.vue'], ignores: ['src/shared/ui/**'], rules: { 'kuna/type-roles': ['error', { sizes: true }] } },
+    { name: 'kuna/type-roles-shared-ui', files: ['src/shared/ui/**/*.vue'], rules: { 'kuna/type-roles': 'error' } },
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },
     { name: 'kuna/book-casts', files: ['tests/**/*.ts'], rules: { 'kuna/book-casts': 'error' } },
     { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },

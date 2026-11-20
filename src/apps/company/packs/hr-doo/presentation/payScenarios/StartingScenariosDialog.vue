@@ -75,7 +75,7 @@ async function save(): Promise<void> {
       <UFormField :label="words.startingDialog.rent" :help="words.startingDialog.rentHelp" :error="(tried && parsedRent === 'bad' && words.startingDialog.rentError) || false">
         <UInput v-model="rent" inputmode="decimal" :placeholder="words.startingDialog.amountPlaceholder" class="w-full" data-testid="starting-rent" />
       </UFormField>
-      <p v-if="clash.length > 0" class="text-sm text-error" role="alert">{{ words.startingDialog.clash(clash.join(', '), year) }}</p>
+      <p v-if="clash.length > 0" class="type-body text-error" role="alert">{{ words.startingDialog.clash(clash.join(', '), year) }}</p>
     </form>
     <template #end>
       <UButton :label="words.startingDialog.cancel" color="neutral" variant="ghost" @click="open = false" />

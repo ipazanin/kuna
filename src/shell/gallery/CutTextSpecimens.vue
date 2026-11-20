@@ -18,11 +18,11 @@ import GallerySection from './GallerySection.vue'
         <dl class="flex max-w-56 flex-col gap-3 px-4 pb-4 sm:px-5" data-testid="cut-text-specimen">
           <div>
             <dt class="type-caption">Short, so nothing more</dt>
-            <CutText as="dd" class="type-body text-highlighted">Rent</CutText>
+            <CutText as="dd" class="type-row-title">Rent</CutText>
           </div>
           <div>
             <dt class="type-caption">Cut, outside any control</dt>
-            <CutText as="dd" class="type-body text-highlighted">Domain Software Solutions d.o.o., Zagreb</CutText>
+            <CutText as="dd" class="type-row-title">Domain Software Solutions d.o.o., Zagreb</CutText>
           </div>
           <div>
             <dt class="type-caption">Cut, inside a link</dt>
@@ -36,7 +36,7 @@ import GallerySection from './GallerySection.vue'
       </AppCard>
       <AppCard title="Two lines">
         <div class="max-w-56 px-4 pb-4 sm:px-5">
-          <CutText as="p" :lines="2" class="type-body text-toned">Monthly rent for the office on the second floor, with the shared kitchen and the parking space behind the building</CutText>
+          <CutText as="p" :lines="2" class="type-body">Monthly rent for the office on the second floor, with the shared kitchen and the parking space behind the building</CutText>
         </div>
       </AppCard>
     </DashboardGrid>

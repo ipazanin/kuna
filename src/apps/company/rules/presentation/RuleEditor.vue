@@ -134,7 +134,7 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
           <ul class="mt-1 flex flex-wrap gap-1.5">
             <li v-for="entry in split" :key="entry.category" class="flex items-center gap-1">
               <CategoryChip :category="entry.category" :bucket="bucketBySlug.get(entry.category) ?? UNCLASSIFIED" />
-              <span class="figure text-xs">{{ entry.count }}</span>
+              <span class="figure type-caption">{{ entry.count }}</span>
             </li>
           </ul>
           <p class="mt-2">{{ words.editor.startsOn(names.category(split[0]!.category)) }}</p>

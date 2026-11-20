@@ -78,11 +78,11 @@ function toggle(): void {
         <div class="flex items-start gap-3">
           <div class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1 basis-full sm:basis-48">
-              <component :is="heading" :id="titleId" class="flex items-center gap-2 text-sm font-medium text-highlighted">
+              <component :is="heading" :id="titleId" class="flex items-center gap-2 type-card-title">
                 <slot name="title">{{ title }}</slot>
               </component>
-              <p v-if="collapsed" class="mt-0.5 text-xs text-muted" data-testid="card-summary">{{ summary ?? subtitle }}</p>
-              <p v-else-if="subtitle !== undefined || $slots.subtitle" class="mt-0.5 text-xs text-muted">
+              <p v-if="collapsed" class="mt-0.5 type-caption" data-testid="card-summary">{{ summary ?? subtitle }}</p>
+              <p v-else-if="subtitle !== undefined || $slots.subtitle" class="mt-0.5 type-caption">
                 <slot name="subtitle">{{ subtitle }}</slot>
               </p>
             </div>

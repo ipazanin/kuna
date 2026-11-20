@@ -205,7 +205,7 @@ function startDeleting(): void {
             <ColourSwatchPicker v-model="colour" :title="words.dialog.colourOf(typed.name)" :blank="blankColour" :warning="lookalikes" />
           </UFormField>
           <USwitch v-model="hidden" :label="words.dialog.hide" :description="words.dialog.hideHelp" data-testid="spending-category-hidden" />
-          <p v-if="kept !== null" class="text-sm text-muted" data-testid="spending-category-kept">{{ kept }}</p>
+          <p v-if="kept !== null" class="type-aside" data-testid="spending-category-kept">{{ kept }}</p>
         </template>
       </FormGrid>
     </div>

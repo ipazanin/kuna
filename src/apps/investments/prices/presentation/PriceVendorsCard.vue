@@ -86,7 +86,7 @@ const vendorRows = computed(() =>
         :data-kept="row.kept"
       >
         <div class="flex flex-col gap-0.5">
-          <p class="type-body text-highlighted">{{ row.vendor.name }}</p>
+          <p class="type-row-title">{{ row.vendor.name }}</p>
           <p class="type-caption">{{ row.vendor.covers }}</p>
           <p class="type-caption" data-testid="price-vendor-offers">{{ row.offers }}</p>
           <p class="type-caption" data-testid="price-vendor-limits">{{ row.limits }}</p>

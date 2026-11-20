@@ -73,7 +73,7 @@ const rows = computed(() => (expanded.value ? props.entries : props.entries.slic
             <slot name="first" :entry="entry">{{ row.first }}</slot>
           </p>
           <p class="type-caption break-words">{{ row.mailLine }}</p>
-          <p v-if="row.note !== ''" class="type-caption break-words text-toned">{{ row.note }}</p>
+          <p v-if="row.note !== ''" class="type-caption break-words">{{ row.note }}</p>
         </div>
       </li>
     </ul>

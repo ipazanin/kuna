@@ -32,7 +32,7 @@ const allowed = computed(assistAllowedNow)
         <UButton :to="KUNA_SETTINGS_ROUTE" :label="words.appCard.change" trailing-icon="i-lucide-arrow-right" color="neutral" variant="link" size="sm" class="px-0" data-testid="assist-allow-link" />
       </div>
       <div class="flex flex-col gap-1.5 border-t border-default pt-3" data-testid="assist-chat-reads">
-        <p class="type-body text-highlighted">{{ words.appCard.chatTitle }}</p>
+        <p class="type-row-title">{{ words.appCard.chatTitle }}</p>
         <p class="type-caption">{{ words.consent.sends(words.appCard.chatSends(appName)) }}</p>
       </div>
     </div>

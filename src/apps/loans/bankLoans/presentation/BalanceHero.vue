@@ -36,7 +36,7 @@ const paidOff = computed(() => props.figures.owed === 0 && props.figures.next ==
 <template>
   <AppCard as="article" class="gap-5 p-4 sm:flex-row sm:gap-0 sm:p-5" data-testid="bank-loan-hero">
     <div class="flex min-w-0 flex-col gap-2 sm:flex-1 sm:pe-6">
-      <p class="flex items-center gap-1 text-sm text-muted">
+      <p class="flex items-center gap-1 type-aside">
         {{ paidOff && figures.payoff !== null ? loanWords.hero.paidOffOn(dayLabel(figures.payoff)) : loanWords.hero.owedToday }}
         <InfoPopover v-if="!paidOff" :subject="loanWords.hero.owedToday" :definition="loanWords.hero.owedTodayDefinition" />
       </p>
@@ -58,7 +58,7 @@ const paidOff = computed(() => props.figures.owed === 0 && props.figures.next ==
         ]"
       />
       <div v-if="figures.yours !== undefined && part !== null" class="mt-2 flex flex-col gap-1 border-t border-default pt-4" data-testid="bank-loan-your-part">
-        <p class="flex items-center gap-1.5 text-sm text-muted"><span class="swatch swatch-line" style="--swatch: var(--loan-your-part)" aria-hidden="true" />{{ loanWords.hero.yourPart }}</p>
+        <p class="flex items-center gap-1.5 type-aside"><span class="swatch swatch-line" style="--swatch: var(--loan-your-part)" aria-hidden="true" />{{ loanWords.hero.yourPart }}</p>
         <MoneyText :cents="figures.yours" class="block text-figure-lg font-semibold text-highlighted" />
         <p class="type-caption">{{ loanWords.hero.yourPartCaption(percentText(part)) }}</p>
         <p class="type-caption" data-testid="bank-loan-joint-debtors">{{ loanWords.hero.jointDebtors }}</p>
@@ -66,7 +66,7 @@ const paidOff = computed(() => props.figures.owed === 0 && props.figures.next ==
     </div>
     <div class="flex min-w-0 flex-col gap-2 border-t border-default pt-5 sm:flex-1 sm:border-t-0 sm:border-s sm:ps-6 sm:pt-0">
       <div class="flex items-start justify-between gap-2">
-        <p class="text-sm text-muted">{{ loanWords.hero.totalOwed }}</p>
+        <p class="type-aside">{{ loanWords.hero.totalOwed }}</p>
         <div class="-my-1 -me-1.5">
           <InfoPopover :subject="loanWords.hero.totalOwed" :definition="loanWords.hero.totalOwedDefinition" />
         </div>

@@ -68,7 +68,7 @@ const gutter = computed(() => (props.flush ? '' : 'px-4 sm:px-5'))
     >
       <PickBox v-if="picking" :picked="picked === true" :unpickable="unpickable" />
       <span class="list-row-lines" :class="{ 'min-w-0 flex-1': to !== undefined || picking }">
-        <span class="list-row-title break-words text-sm" :class="quiet ? 'text-muted' : 'text-highlighted'">{{ title }}</span>
+        <span class="list-row-title break-words" :class="quiet ? 'type-aside' : 'type-row-title'">{{ title }}</span>
         <span v-if="$slots.amount" class="list-row-amount text-sm">
           <slot name="amount" />
         </span>

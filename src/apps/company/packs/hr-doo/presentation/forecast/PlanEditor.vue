@@ -184,7 +184,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
               <span class="min-w-0 text-start">
                 <span class="block type-body">{{ entry.name }}</span>
                 <span class="block type-caption">{{ entry.caption }}</span>
-                <span v-for="reason in entry.reasons" :key="reason" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(reason) }}</span>
+                <span v-for="reason in entry.reasons" :key="reason" class="mt-0.5 block type-caption text-warning">{{ words.plan.notCounted(reason) }}</span>
               </span>
               <UIcon v-if="!(ownerPaySet && isOwnerPayCost(entry.category))" name="i-lucide-pencil" class="size-4 shrink-0 text-muted" aria-hidden="true" />
             </button>
@@ -210,7 +210,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
               <span class="min-w-0 text-start">
                 <span class="block type-body">{{ purchase.note || words.plan.purchase }}</span>
                 <span class="block type-caption">{{ dayLabel(purchase.date) }}, {{ uncapitalised(GROUP_WORDS[purchase.group]) }}</span>
-                <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(notCounted.get(purchase.id) ?? '') }}</span>
+                <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block type-caption text-warning">{{ words.plan.notCounted(notCounted.get(purchase.id) ?? '') }}</span>
               </span>
               <MoneyText :cents="purchase.amount" class="shrink-0 type-body" />
             </button>
@@ -237,7 +237,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
           <span class="min-w-0 text-start">
             <span class="block type-body">{{ words.plan.paidIn(dividend.month === null ? String(year) : monthLabel(monthKey(year, dividend.month))) }}</span>
             <span v-if="dividend.note" class="block type-caption">{{ dividend.note }}</span>
-            <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(notCounted.get(dividend.id) ?? '') }}</span>
+            <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block type-caption text-warning">{{ words.plan.notCounted(notCounted.get(dividend.id) ?? '') }}</span>
           </span>
           <MoneyText :cents="dividend.amount" class="shrink-0 type-body" />
         </button>

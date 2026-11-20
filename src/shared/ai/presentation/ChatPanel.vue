@@ -287,7 +287,7 @@ function dropped(event: DragEvent): void {
     <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3" data-testid="chat-messages">
       <div class="mx-auto w-full max-w-2xl">
         <div v-if="chatLines.length === 0" class="flex flex-col items-start gap-3">
-          <p class="type-body text-muted" data-testid="chat-empty">{{ emptyLine() }}</p>
+          <p class="type-aside" data-testid="chat-empty">{{ emptyLine() }}</p>
           <div v-if="setUpOpeners.length > 0" class="flex flex-wrap gap-1.5">
             <UButton
               v-for="opener in setUpOpeners"

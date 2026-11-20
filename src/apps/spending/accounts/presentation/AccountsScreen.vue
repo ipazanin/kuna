@@ -157,7 +157,7 @@ const adding = ref(false)
             <ListRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
               <template #amount>
                 <span class="text-highlighted"><AccountMoneyText :cents="row.balance" :currency="row.account.currency" tone="balance" data-testid="spending-account-balance" /></span>
-                <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
+                <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure type-caption" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
               </template>
               <template #caption>
                 <span data-testid="spending-account-kind">

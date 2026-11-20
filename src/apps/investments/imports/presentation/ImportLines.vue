@@ -31,7 +31,7 @@ const shown = computed(() => (expanded.value ? props.lines : props.lines.slice(0
         </template>
         <template v-if="line.euros !== null || line.figure !== ''" #amount>
           <MoneyText v-if="line.euros !== null" :cents="line.euros" v-bind="line.flows ? { tone: 'flow' } : { sign: 'magnitude' }" />
-          <span v-if="line.figure !== ''" class="figure" :class="line.euros === null ? 'text-muted' : 'type-caption'">{{ line.figure }}</span>
+          <span v-if="line.figure !== ''" class="figure" :class="line.euros === null ? 'type-aside' : 'type-caption'">{{ line.figure }}</span>
         </template>
       </ListRow>
     </ul>

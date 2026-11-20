@@ -80,7 +80,7 @@ const payoutChoices = computed(() => props.payouts.map((entry) => ({ value: entr
             </dd>
           </div>
         </dl>
-        <p class="flex items-start gap-2" :class="option.capitalProtected ? 'type-caption' : 'text-xs text-error'">
+        <p class="flex items-start gap-2 type-caption" :class="{ 'text-error': !option.capitalProtected }">
           <UIcon :name="option.capitalProtected ? 'i-lucide-shield-check' : 'i-lucide-shield-alert'" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           <span>{{ option.capitalProtected ? words.dividend.capitalCovered : words.dividend.capitalShort }}</span>
         </p>

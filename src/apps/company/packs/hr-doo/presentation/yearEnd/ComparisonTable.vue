@@ -142,7 +142,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
   </ul>
 
   <div v-else class="overflow-x-auto">
-    <table class="data-table comparison-table w-full text-sm" :data-testid="testId">
+    <table class="data-table comparison-table w-full" :data-testid="testId">
       <thead>
         <tr>
           <th scope="col" class="text-start">{{ words.comparison.line }}</th>

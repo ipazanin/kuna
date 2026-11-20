@@ -17,7 +17,7 @@ defineProps<{
     <UButton icon="i-lucide-info" color="neutral" variant="ghost" size="xs" :aria-label="words.about(subject)" class="text-muted hover:text-highlighted" />
     <template #content>
       <slot>
-        <p class="max-w-72 p-3 text-sm leading-relaxed text-toned">{{ definition }}</p>
+        <p class="max-w-72 p-3 type-body leading-relaxed">{{ definition }}</p>
       </slot>
     </template>
   </UPopover>

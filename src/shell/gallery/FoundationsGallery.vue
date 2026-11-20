@@ -210,10 +210,10 @@ const TYPE_ROLES = [
         <h3 class="mb-2 type-label">{{ group.title }}</h3>
         <ul class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-2">
           <li v-for="swatch in group.swatches" :key="swatch.token" class="overflow-hidden rounded-control border border-default bg-raised" data-testid="gallery-swatch">
-            <span class="figure block h-10 px-2 py-2.5 text-sm font-semibold text-default" :class="swatch.fill" :style="swatch.fill ? undefined : { background: `var(${swatch.token})` }">
+            <span class="figure block h-10 px-2 py-2.5 font-semibold text-default" :class="swatch.fill" :style="swatch.fill ? undefined : { background: `var(${swatch.token})` }">
               <template v-if="swatch.figure !== undefined">{{ formatPercent(shareFromRatio(swatch.figure), 'always') }}</template>
             </span>
-            <span class="block px-2 py-1.5 text-xs">
+            <span class="block px-2 py-1.5 type-caption">
               <span class="block text-highlighted">{{ swatch.name }}</span>
               <span class="identifier block text-muted">{{ swatch.token }}</span>
               <span class="identifier block text-muted">{{ swatch.value }}</span>
@@ -247,7 +247,7 @@ const TYPE_ROLES = [
         <p class="type-caption"><span class="identifier">text-figure-xl</span>, the one figure a hero card leads with</p>
       </div>
       <div class="flex flex-col gap-1">
-        <p class="figure text-sm text-default">€1,111.11 / €8,888.88 / −€404.04</p>
+        <p class="figure type-body">€1,111.11 / €8,888.88 / −€404.04</p>
         <p class="identifier text-toned">HR00 0000 0000 0000 0000 0</p>
         <p class="type-caption"><span class="identifier">figure</span> and <span class="identifier">identifier</span>, figures in running text and codes such as an IBAN</p>
       </div>

@@ -207,7 +207,7 @@ function openValuation(key: string | null): void {
     <template v-else-if="state.workbook !== null">
       <PageHeader :title="words.asset" />
       <AppCard>
-        <p class="px-4 py-6 text-sm text-muted sm:px-5" data-testid="asset-missing">{{ words.missing }}</p>
+        <p class="px-4 py-6 type-aside sm:px-5" data-testid="asset-missing">{{ words.missing }}</p>
       </AppCard>
     </template>
   </section>

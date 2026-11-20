@@ -37,7 +37,7 @@ async function remove(): Promise<void> {
 
 <template>
   <div class="flex flex-col items-start gap-2">
-    <p v-if="place !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">
+    <p v-if="place !== null" class="flex flex-col items-start" data-testid="spending-entry-place">
       <span>{{ place.text }}</span>
       <a :href="place.link" target="_blank" rel="noopener noreferrer" class="quiet-link" data-testid="spending-entry-place-link">{{ words.openMap }}</a>
     </p>

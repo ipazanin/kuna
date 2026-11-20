@@ -29,7 +29,7 @@ withDefaults(
           <dl v-if="rule.rows.length > 0" class="flex flex-col">
             <div v-for="row in rule.rows" :key="row.key" class="phone-term">
               <dt class="type-caption">{{ row.label }}</dt>
-              <dd class="figure" :class="row.cells[columnIndex]?.changed ? 'is-changed text-sm' : 'type-body'">
+              <dd class="figure type-body" :class="{ 'is-changed': row.cells[columnIndex]?.changed }">
                 {{ row.cells[columnIndex]?.wording }}<span v-if="row.cells[columnIndex]?.changed" class="sr-only">{{ words.detail.changed }}</span>
               </dd>
             </div>
@@ -43,7 +43,7 @@ withDefaults(
         </li>
       </ul>
       <div v-else class="overflow-x-auto">
-        <table class="data-table value-table w-full text-sm" data-testid="rule-values">
+        <table class="data-table value-table w-full" data-testid="rule-values">
           <thead>
             <tr>
               <th scope="col" class="text-start">

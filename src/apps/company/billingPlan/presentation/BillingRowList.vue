@@ -57,7 +57,7 @@ const phone = usePhoneLayout()
   </ul>
 
   <div v-else class="@container overflow-x-auto">
-    <table class="data-table billing-table w-full text-sm" data-testid="billing-rows">
+    <table class="data-table billing-table w-full" data-testid="billing-rows">
       <thead>
         <tr>
           <th scope="col" class="text-start">{{ words.rows.billableFrom }}</th>

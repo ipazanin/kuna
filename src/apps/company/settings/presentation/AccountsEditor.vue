@@ -94,7 +94,7 @@ function save(): void {
 
 <template>
   <div class="@container relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-    <table class="data-table editor-table w-full text-sm" data-testid="accounts-editor">
+    <table class="data-table editor-table w-full" data-testid="accounts-editor">
       <thead>
         <tr>
           <th scope="col" class="text-start">{{ words.accounts.columns.account }}</th>

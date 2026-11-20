@@ -95,9 +95,9 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
       <p class="-mt-1 type-caption">{{ list.help }}</p>
       <ul v-if="list.changes.length" class="overflow-hidden rounded-control border border-default">
         <li v-for="change in shown(list.changes)" :key="change.transaction.id" class="backtest-row">
-          <span class="flex min-w-0 items-baseline justify-between gap-3">
-            <CutText class="min-w-0 type-row-title">{{ change.transaction.counterparty || transactionWords.noCounterparty }}</CutText>
-            <MoneyText :cents="change.transaction.amount" tone="flow" class="shrink-0 text-sm" />
+          <span class="flex min-w-0 items-baseline justify-between gap-3 type-row-title">
+            <CutText class="min-w-0">{{ change.transaction.counterparty || transactionWords.noCounterparty }}</CutText>
+            <MoneyText :cents="change.transaction.amount" tone="flow" class="shrink-0" />
           </span>
           <span class="flex min-w-0 flex-wrap items-center gap-1.5 type-caption">
             <span class="figure">{{ dayLabel(change.transaction.date) }}</span>

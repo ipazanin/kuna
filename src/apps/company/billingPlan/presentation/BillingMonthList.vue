@@ -61,7 +61,7 @@ function toggle(month: MonthKey): void {
       </button>
 
       <div v-if="expanded.has(month.month)" :id="`billing-month-detail-${month.month}`" class="month-detail">
-        <p v-if="month.open > 0" class="callout text-xs">
+        <p v-if="month.open > 0" class="callout type-caption">
           <UIcon name="i-lucide-file-clock" class="size-3.5 shrink-0" aria-hidden="true" />
           <span><MoneyText :cents="month.open" /> {{ words.months.notInvoiced }}</span>
         </p>
@@ -90,7 +90,7 @@ function toggle(month: MonthKey): void {
           </li>
         </ul>
         <div v-if="month.withoutPlanLines.length > 0" class="flex flex-col gap-1" data-testid="billing-without-plan">
-          <p class="callout text-xs">
+          <p class="callout type-caption">
             <UIcon name="i-lucide-file-question-mark" class="size-3.5 shrink-0" aria-hidden="true" />
             <span>{{ words.months.invoicedAbove(month.label) }}</span>
           </p>

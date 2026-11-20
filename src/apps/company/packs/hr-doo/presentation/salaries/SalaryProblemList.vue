@@ -33,7 +33,7 @@ const FACT = { hash: '#employee-rows' }
           <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <div class="flex min-w-0 flex-1 flex-col gap-1">
             <p class="type-body">{{ problem.text }}</p>
-            <div v-if="problem.detail || problem.rows || problem.fact" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            <div v-if="problem.detail || problem.rows || problem.fact" class="flex flex-wrap items-center gap-x-4 gap-y-1 type-caption">
               <span v-if="problem.detail" class="inline-flex items-center gap-0.5">
                 <button type="button" class="problem-action text-highlighted" @click="$emit('open', problem.detail)">{{ words.problemList.howWorkedOut }}</button>
                 <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />

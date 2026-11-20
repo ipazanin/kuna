@@ -29,7 +29,7 @@ useStickyBandPart(useTemplateRef<HTMLElement>('bar'))
     :aria-label="plural(words.selection.picked(count), count)"
     data-testid="selection-bar"
   >
-    <p class="flex-1 type-body whitespace-nowrap text-highlighted" aria-live="polite" data-testid="selection-bar-count">{{ plural(words.selection.picked(count), count) }}</p>
+    <p class="flex-1 type-row-title whitespace-nowrap" aria-live="polite" data-testid="selection-bar-count">{{ plural(words.selection.picked(count), count) }}</p>
     <UButton
       v-if="allPicked !== null"
       :label="words.selection.pickAll"

@@ -51,7 +51,7 @@ const report = computed((): ReportReview | null => {
 <template>
   <div class="flex flex-col gap-3" data-testid="mail-report-upload">
     <h3 class="type-card-title">{{ words.upload.title }}</h3>
-    <p class="type-body text-muted">{{ words.upload.intro }}</p>
+    <p class="type-aside">{{ words.upload.intro }}</p>
     <FileDrop v-model="picked" accept=".xml" icon="i-lucide-file-code" :label="words.upload.drop" :description="words.upload.orChoose" />
     <UAlert v-if="failure !== null" icon="i-lucide-file-x" color="error" variant="subtle" :title="failure" data-testid="mail-report-upload-failed" />
     <WorkbookImportDialog v-if="report" v-model:open="reviewing" :report="report" />

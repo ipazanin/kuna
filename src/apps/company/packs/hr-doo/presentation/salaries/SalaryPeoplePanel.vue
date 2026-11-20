@@ -34,27 +34,27 @@ const phone = usePhoneLayout()
             <dl class="grid grid-cols-3 gap-2">
               <div>
                 <dt class="type-caption">{{ words.people.gross }}</dt>
-                <dd class="text-sm"><MoneyText :cents="person.gross" /></dd>
+                <dd><MoneyText :cents="person.gross" /></dd>
               </div>
               <div>
                 <dt class="type-caption">{{ words.people.net }}</dt>
-                <dd class="text-sm"><MoneyText :cents="person.net" /></dd>
+                <dd><MoneyText :cents="person.net" /></dd>
               </div>
               <div>
                 <dt class="type-caption">{{ words.people.pensionSavings }}</dt>
-                <dd class="text-sm"><MoneyText :cents="person.pensionSavings" /></dd>
+                <dd><MoneyText :cents="person.pensionSavings" /></dd>
               </div>
               <div>
                 <dt class="type-caption">{{ words.people.toState }}</dt>
-                <dd class="text-sm"><MoneyText :cents="person.toState" /></dd>
+                <dd><MoneyText :cents="person.toState" /></dd>
               </div>
               <div>
                 <dt class="type-caption">{{ words.people.cost }}</dt>
-                <dd class="text-sm"><MoneyText :cents="person.cost" /></dd>
+                <dd><MoneyText :cents="person.cost" /></dd>
               </div>
               <div>
                 <dt class="type-caption">{{ words.people.problems }}</dt>
-                <dd class="figure text-sm" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</dd>
+                <dd class="figure" :class="person.problems === 0 ? 'type-aside' : 'type-body text-error'">{{ person.problems }}</dd>
               </div>
             </dl>
           </template>

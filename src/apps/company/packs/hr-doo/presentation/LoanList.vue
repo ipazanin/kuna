@@ -44,9 +44,7 @@ defineProps<{
   <ul v-else class="flex flex-col" data-testid="loan-list">
     <li v-for="loan in loans" :key="loan.key" class="loan-row">
       <div class="loan-head">
-        <DrillLink :to="loan.to" :label="words.loanList.openRow(loan.lentOn)" class="text-highlighted">
-          <span class="text-sm">{{ loan.lentOn }}</span>
-        </DrillLink>
+        <DrillLink :to="loan.to" :label="words.loanList.openRow(loan.lentOn)" class="type-row-title">{{ loan.lentOn }}</DrillLink>
         <MoneyText :cents="loan.amount" class="type-card-title" />
         <UBadge :label="loan.open ? words.loanList.open : words.loanList.repaid" :color="loan.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
         <p class="loan-remaining type-caption">

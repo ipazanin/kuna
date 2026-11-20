@@ -107,7 +107,7 @@ function save(): void {
 
 <template>
   <div class="relative overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
-    <table class="data-table editor-table w-full text-sm">
+    <table class="data-table editor-table w-full">
       <thead>
         <tr>
           <th v-for="column in columns" :key="column.name" scope="col" class="text-start">{{ column.label }}</th>

@@ -145,7 +145,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
 
         <InvoiceLinesEditor v-model:lines="run.lines.value" :total="run.total.value" :disabled="!editable" @plan="run.fillLines()" @merge="run.mergeLines()" />
 
-        <div class="flex flex-col gap-2 text-sm">
+        <div class="flex flex-col gap-2 type-body">
           <p class="text-toned" data-testid="invoice-run-where">{{ where }}</p>
           <USwitch
             v-if="run.google.value"
@@ -179,14 +179,14 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
         data-testid="invoice-run-hidden"
       />
 
-      <ul v-if="stage.kind === 'ready'" class="flex flex-col gap-1.5 text-sm" data-testid="invoice-run-ready">
+      <ul v-if="stage.kind === 'ready'" class="flex flex-col gap-1.5 type-body" data-testid="invoice-run-ready">
         <li v-for="line in readyLines" :key="line" class="flex items-start gap-2">
           <UIcon name="i-lucide-check" class="mt-0.5 size-4 shrink-0 text-success" />
           <span class="text-toned">{{ line }}</span>
         </li>
       </ul>
 
-      <ol v-if="steps.length > 0" class="flex flex-col gap-2 text-sm" data-testid="invoice-run-steps">
+      <ol v-if="steps.length > 0" class="flex flex-col gap-2 type-body" data-testid="invoice-run-steps">
         <li v-for="step in steps" :key="step.kind" class="flex items-start gap-2" :data-status="step.status">
           <UIcon
             :name="STEP_ICONS[step.status]"
@@ -195,12 +195,12 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           />
           <span class="min-w-0">
             <span class="block text-highlighted">{{ words.run.steps[step.kind] }}</span>
-            <span v-if="step.note" class="block break-words" :class="step.status === 'failed' ? 'text-xs text-error' : 'type-caption'">{{ step.note }}</span>
+            <span v-if="step.note" class="block break-words type-caption" :class="{ 'text-error': step.status === 'failed' }">{{ step.note }}</span>
           </span>
         </li>
       </ol>
 
-      <p v-if="run.previewError.value" class="text-xs text-error">{{ run.previewError.value }}</p>
+      <p v-if="run.previewError.value" class="type-caption text-error">{{ run.previewError.value }}</p>
     </div>
     <template #start>
       <UButton

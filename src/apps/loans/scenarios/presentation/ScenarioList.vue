@@ -33,7 +33,7 @@ const emit = defineEmits<{
         data-testid="scenario-row"
       >
         <div class="min-w-0">
-          <p class="flex items-center gap-2 text-sm font-medium text-highlighted">
+          <p class="flex items-center gap-2 type-card-title">
             <ScenarioMark :letter="row.mark?.letter ?? null" :colour="row.mark?.colour ?? null" />
             <span class="min-w-0">{{ row.name }}</span>
           </p>

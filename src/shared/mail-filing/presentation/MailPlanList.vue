@@ -67,9 +67,9 @@ function rowOf(entry: PlanEntry, index: number): MailResultRow {
 
 <template>
   <div class="flex flex-col gap-5" data-testid="mail-plan">
-    <p v-if="stopped !== null" class="type-body text-muted" data-testid="mail-stopped">{{ stopped }}</p>
-    <p v-else-if="plan === null" class="type-body text-muted">{{ words.plan.noSyncYet }} {{ words.plan.syncToFile }}</p>
-    <p v-else-if="plan.sources.length === 0" class="type-body text-muted">{{ words.plan.noneOn }}</p>
+    <p v-if="stopped !== null" class="type-aside" data-testid="mail-stopped">{{ stopped }}</p>
+    <p v-else-if="plan === null" class="type-aside">{{ words.plan.noSyncYet }} {{ words.plan.syncToFile }}</p>
+    <p v-else-if="plan.sources.length === 0" class="type-aside">{{ words.plan.noneOn }}</p>
     <MailSearchResults v-for="{ source, entries, search } in sources" :key="source.id" :search="search" :entries="entries" :row-of="rowOf" :data-source="source.id" :data-state="source.kind">
       <template #heading>
         <h3 class="type-card-title">{{ source.label }}</h3>

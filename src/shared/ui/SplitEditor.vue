@@ -104,7 +104,7 @@ function takeRest(id: number): void {
           </UTooltip>
         </div>
         <div v-if="field.rest" class="flex flex-col gap-1">
-          <span :id="restLabel" class="text-sm font-medium text-default">{{ words.split.rest }}</span>
+          <span :id="restLabel" class="font-medium type-body">{{ words.split.rest }}</span>
           <p
             role="status"
             aria-live="polite"

@@ -221,7 +221,7 @@ function removeCondition(place: number): void {
             @remove="removeCondition(place)"
           />
         </ol>
-        <p v-if="tried && errors.conditions !== null" class="text-sm text-error" data-testid="spending-rule-dialog-conditions-error">{{ errors.conditions }}</p>
+        <p v-if="tried && errors.conditions !== null" class="type-body text-error" data-testid="spending-rule-dialog-conditions-error">{{ errors.conditions }}</p>
         <UButton
           :label="words.rules.dialog.addCondition"
           icon="i-lucide-plus"

@@ -129,8 +129,8 @@ const dialogOpen = ref(false)
           <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.benefits.setOnSettings }}</DrillLink>
         </p>
         <p v-else class="note type-body">{{ words.benefits.notWorkedOut(comparison.failure) }}</p>
-        <div class="note flex flex-col items-start gap-1 text-xs">
-          <p class="text-muted">{{ ESTIMATE }}</p>
+        <div class="note flex flex-col items-start gap-1 type-caption">
+          <p>{{ ESTIMATE }}</p>
           <DrillLink :to="DEFAULTS" class="text-highlighted" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
         </div>
       </div>

@@ -121,7 +121,7 @@ function ownerPartNote(row: ListedRow): string | null {
 
 <template>
   <AppCard as="div" class="@container overflow-clip">
-    <p class="flex items-baseline justify-between gap-3 border-b border-default px-4 py-3 text-sm" data-testid="transaction-total">
+    <p class="flex items-baseline justify-between gap-3 border-b border-default px-4 py-3 type-body" data-testid="transaction-total">
       <span class="text-muted">{{ plural(words.rowsWithTotal(rows.length), rows.length) }}</span>
       <MoneyText :cents="total" class="font-semibold text-highlighted" />
     </p>
@@ -138,7 +138,7 @@ function ownerPartNote(row: ListedRow): string | null {
                 <CutText class="min-w-0 font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</CutText>
                 <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
               </span>
-              <span class="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span class="flex flex-wrap items-center gap-2 type-caption">
                 <UBadge v-if="entry.whole.kind === 'owner-advance'" :label="words.ownerAdvance" color="neutral" variant="subtle" size="sm" />
                 <UBadge :label="words.sharedWithOwner(entry.share)" color="neutral" variant="subtle" size="sm" />
                 <span class="figure"
@@ -174,7 +174,7 @@ function ownerPartNote(row: ListedRow): string | null {
                 <CutText class="min-w-0 font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</CutText>
                 <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
               </span>
-              <span class="flex items-center gap-2 text-xs text-muted">
+              <span class="flex items-center gap-2 type-caption">
                 <UBadge :label="plural(words.splitInParts(entry.count), entry.count)" color="neutral" variant="subtle" size="sm" />
                 <span class="figure"
                   >{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ names.account(entry.whole.account) }}</template></span
@@ -202,7 +202,7 @@ function ownerPartNote(row: ListedRow): string | null {
                   <CutText v-else class="min-w-0 font-medium text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</CutText>
                   <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
                 </span>
-                <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
+                <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 type-caption">
                   <span class="flex min-w-0 flex-wrap items-center gap-1.5">
                     <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
                     <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
@@ -218,17 +218,13 @@ function ownerPartNote(row: ListedRow): string | null {
               </span>
             </button>
             <div v-if="picked === null && openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">
-              <p v-if="entry.row.description" class="text-sm text-toned">{{ entry.row.description }}</p>
-              <p class="text-xs text-muted">{{ dayLabel(entry.row.date) }}, {{ accountOf(entry.row) }}</p>
+              <p v-if="entry.row.description" class="type-body">{{ entry.row.description }}</p>
+              <p class="type-caption">{{ dayLabel(entry.row.date) }}, {{ accountOf(entry.row) }}</p>
               <div class="flex flex-wrap gap-x-4">
-                <DrillLink
-                  v-if="entry.row.kind === 'bank'"
-                  :to="drillLocation(drillToTransactions({ counterparties: [counterpartyIdentity(entry.row).key] }))"
-                  class="inline-target text-sm text-highlighted"
-                >
+                <DrillLink v-if="entry.row.kind === 'bank'" :to="drillLocation(drillToTransactions({ counterparties: [counterpartyIdentity(entry.row).key] }))" class="inline-target type-row-title">
                   {{ words.everyRowFromCounterparty }}
                 </DrillLink>
-                <DrillLink v-if="entry.row.category" :to="drillLocation(drillToTransactions({ categories: [entry.row.category] }))" class="inline-target text-sm text-highlighted">
+                <DrillLink v-if="entry.row.category" :to="drillLocation(drillToTransactions({ categories: [entry.row.category] }))" class="inline-target type-row-title">
                   {{ words.everyRowIn(names.category(entry.row.category)) }}
                 </DrillLink>
                 <UButton
@@ -237,7 +233,7 @@ function ownerPartNote(row: ListedRow): string | null {
                   icon="i-lucide-tag"
                   color="neutral"
                   variant="link"
-                  class="inline-target px-0 text-sm"
+                  class="inline-target px-0"
                   data-testid="change-category-row"
                   @click="entry.row.kind === 'bank' && emit('changeCategory', entry.row)"
                 />
@@ -247,7 +243,7 @@ function ownerPartNote(row: ListedRow): string | null {
                   icon="i-lucide-split"
                   color="neutral"
                   variant="link"
-                  class="inline-target px-0 text-sm"
+                  class="inline-target px-0"
                   data-testid="split-row"
                   @click="entry.row.kind === 'bank' && emit('split', entry.row)"
                 />
@@ -257,7 +253,7 @@ function ownerPartNote(row: ListedRow): string | null {
                   icon="i-lucide-hand-coins"
                   color="neutral"
                   variant="link"
-                  class="inline-target px-0 text-sm"
+                  class="inline-target px-0"
                   data-testid="owner-share-row"
                   @click="emit('ownerShare', entry.row)"
                 />

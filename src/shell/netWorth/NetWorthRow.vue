@@ -23,10 +23,10 @@ defineProps<{
     <RouterLink v-if="figure !== null" :to="to" class="group flex items-start gap-3 rounded-control py-3">
       <AppMark :icon="icon" :colour="colour" />
       <span class="flex min-w-0 flex-1 flex-col">
-        <span class="type-body text-highlighted decoration-primary underline-offset-3 group-hover:underline">{{ label }}</span>
+        <span class="type-row-title decoration-primary underline-offset-3 group-hover:underline">{{ label }}</span>
         <span v-if="caption" class="type-caption">{{ caption }}</span>
       </span>
-      <span class="type-body font-semibold text-highlighted tabular-nums">{{ figure }}</span>
+      <span class="type-card-title tabular-nums">{{ figure }}</span>
     </RouterLink>
     <div v-else class="flex items-center gap-3 py-3 type-body">
       <AppMark :icon="icon" :colour="colour" />

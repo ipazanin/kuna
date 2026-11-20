@@ -128,7 +128,7 @@ function openMovement(movement: Movement | null): void {
       <AppCard as="article" class="gap-5 p-4 sm:flex-row sm:gap-0 sm:p-5" data-testid="informal-loan-hero">
         <div class="flex min-w-0 flex-col gap-2 sm:flex-1 sm:pe-6">
           <UBadge :label="look.label" :icon="look.icon" :color="look.tone" variant="subtle" class="self-start" data-testid="loan-direction" />
-          <p class="text-sm text-muted">{{ owedLabel }}</p>
+          <p class="type-aside">{{ owedLabel }}</p>
           <MoneyText :cents="absMoney(figures.owedByYou)" class="block text-figure-lg font-semibold text-highlighted sm:text-figure-xl" />
           <p class="type-caption">{{ words.hero.atTheEnd(dayLabel(day)) }}</p>
         </div>
@@ -177,19 +177,19 @@ function openMovement(movement: Movement | null): void {
           :summary="plural(words.tiles.movements(lines.length), lines.length)"
           data-testid="movement-list"
         >
-          <p v-if="lines.length === 0" class="px-4 pb-4 text-sm text-muted sm:px-5">{{ words.movements.none(formatMoney(book.loan.openingBalance)) }}</p>
+          <p v-if="lines.length === 0" class="px-4 pb-4 type-aside sm:px-5">{{ words.movements.none(formatMoney(book.loan.openingBalance)) }}</p>
           <ul v-else class="flex flex-col pb-2">
             <li v-for="line in shown" :key="line.movement.id" class="flex items-center gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5" data-testid="movement-line">
               <div class="min-w-0 flex-1">
-                <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
+                <p class="flex flex-wrap items-baseline gap-x-2">
                   <span class="text-highlighted">{{ line.kind }}</span>
                   <MoneyText v-bind="line.amount" />
                 </p>
-                <p class="text-xs text-muted">{{ [dayLabel(line.movement.date), line.movement.note].filter((part) => part !== '').join(', ') }}</p>
+                <p class="type-caption">{{ [dayLabel(line.movement.date), line.movement.note].filter((part) => part !== '').join(', ') }}</p>
               </div>
-              <p class="text-end text-xs text-muted">
+              <p class="text-end type-caption">
                 {{ whoOwes(line.owedAfter) }}<br />
-                <MoneyText :cents="absMoney(line.owedAfter)" class="text-sm text-toned" />
+                <MoneyText :cents="absMoney(line.owedAfter)" class="type-body" />
               </p>
               <UButton
                 icon="i-lucide-pencil"
@@ -214,7 +214,7 @@ function openMovement(movement: Movement | null): void {
     <template v-else-if="state.workbook !== null">
       <PageHeader :title="words.informalLoan" />
       <AppCard>
-        <p class="px-4 py-6 text-sm text-muted sm:px-5" data-testid="loan-missing">{{ words.missing }}</p>
+        <p class="px-4 py-6 type-aside sm:px-5" data-testid="loan-missing">{{ words.missing }}</p>
       </AppCard>
     </template>
   </section>

@@ -85,7 +85,7 @@ async function importCloses(): Promise<void> {
                 @update:model-value="closesImport.pick(row.name, String($event))"
               />
             </UFormField>
-            <p v-else-if="row.line !== null" class="type-body text-highlighted">{{ row.line.instrument.name }} ({{ row.line.instrument.symbol }})</p>
+            <p v-else-if="row.line !== null" class="type-row-title">{{ row.line.instrument.name }} ({{ row.line.instrument.symbol }})</p>
             <template v-if="row.line !== null">
               <p class="type-caption" data-testid="closes-import-adds">{{ text.adds(row.line.added, dayLabel(row.line.first), dayLabel(row.line.last), row.line.replaced) }}</p>
               <p class="type-caption">{{ text.currency(row.line.instrument.currency) }}</p>

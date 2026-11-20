@@ -78,7 +78,7 @@ defineProps<{
         </div>
       </dl>
 
-      <table class="data-table grant-table w-full text-sm">
+      <table class="data-table grant-table w-full">
         <thead>
           <tr>
             <th scope="col" class="text-start">{{ words.grants.year }}</th>

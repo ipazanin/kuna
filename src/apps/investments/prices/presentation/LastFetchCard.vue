@@ -93,7 +93,7 @@ async function fetchNow(): Promise<void> {
         <h3 class="type-label">{{ plural(words.failures.title(failures.length), failures.length) }}</h3>
         <ul class="flex flex-col gap-2">
           <li v-for="line in failures" :key="line.series" class="flex flex-col">
-            <span class="type-body text-highlighted">{{ line.what }}</span>
+            <span class="type-row-title">{{ line.what }}</span>
             <span class="type-caption">
               {{ line.why }} {{ line.advice }}
               <UButton v-if="line.link !== null" :to="line.link.to" :label="line.link.label" color="neutral" variant="link" size="sm" class="inline-target px-0" data-testid="prices-failure-link" />

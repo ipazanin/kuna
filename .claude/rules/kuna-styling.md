@@ -10,6 +10,7 @@ paths:
 - Use a component from [components.md](../../.agents/skills/kuna-design/components.md) as it is. Compose before building, and build before styling a screen to get a look.
 - Colours come from the tokens in `src/shared/styles/tokens.css`. Never use a Tailwind palette colour, `white`, `black`, a literal, `dark:` or `!`.
 - Take type from the `type-*` roles, tones from `text-success`, `text-error` and `text-warning`, stacking from `z-control` and `z-top-bar`, and fades from `duration-fade`.
+- Never write `text-xs` or `text-sm` with an ink, and never a size or an ink beside a role. Outside `src/shared/ui` a size alone takes a role or its parent's size, and a tone sits beside a role, such as `type-caption text-warning`.
 - An amount takes its colour from `MoneyText`'s `tone` by the kind of figure, never from a class: `outcome` for a gain or loss, `flow` for money in and out, `balance` for a balance, `move` for money moved between your own accounts, none for an amount with no direction. The Amounts table in the kuna-design skill says which is which.
 - A new token has a light and a dark value, and passes 4.5:1 for text or 3:1 for a mark on the surfaces it sits on. A tint under a figure in ink, such as `--gain-1`, passes 4.5:1 with that ink instead, and where its shape matters, as on a treemap tile, a border that passes 3:1 draws its edge.
 - No new `<style>` block, and no colour in an arbitrary value such as `text-(--ink)`. A look belongs in a component such as `AppCard`, `FormGrid` or `DashboardGrid`, a token or `app.css`.

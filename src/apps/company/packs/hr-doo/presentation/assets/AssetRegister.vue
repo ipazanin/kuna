@@ -96,7 +96,7 @@ const tableFits = roomAtLeast(70)
             <dd><MoneyText :cents="line.accumulated" /></dd>
           </div>
         </dl>
-        <p v-if="line.payment === null" class="mt-1.5 text-xs text-warning">{{ words.register.noPayment }}</p>
+        <p v-if="line.payment === null" class="mt-1.5 type-caption text-warning">{{ words.register.noPayment }}</p>
       </li>
     </ul>
     <dl class="asset-cells px-3">
@@ -112,7 +112,7 @@ const tableFits = roomAtLeast(70)
   </div>
 
   <div v-else class="overflow-x-auto">
-    <table class="data-table asset-table w-full text-sm" data-testid="asset-register">
+    <table class="data-table asset-table w-full" data-testid="asset-register">
       <thead>
         <tr>
           <th scope="col" class="text-start">{{ words.register.asset }}</th>
@@ -132,7 +132,7 @@ const tableFits = roomAtLeast(70)
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink v-if="line.payment" :to="line.payment" :label="words.register.openPayment(line.name)" class="text-highlighted">{{ line.name }}</DrillLink>
             <span v-else class="text-highlighted">{{ line.name }}</span>
-            <span v-if="line.payment === null" class="block text-xs text-warning">{{ words.register.noPayment }}</span>
+            <span v-if="line.payment === null" class="block type-caption text-warning">{{ words.register.noPayment }}</span>
           </th>
           <td class="figure text-toned">{{ line.bought }}</td>
           <td class="figure text-toned">{{ line.inUse }}</td>

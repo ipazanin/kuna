@@ -23,7 +23,7 @@ async function find(lookup: DriveFileLookup): Promise<void> {
 
 <template>
   <StepCard :title="appWords.title">
-    <p class="text-sm text-toned">
+    <p class="type-body">
       {{ appWords.before }}<span class="identifier">{{ firstRun.fileName }}</span
       >{{ appWords.after }}
     </p>

@@ -269,7 +269,7 @@ async function save(): Promise<void> {
       </AppCard>
     </div>
     <template #start>
-      <p v-if="headline" class="basis-full text-xs text-toned @2xl:hidden" data-testid="scenario-headline">
+      <p v-if="headline" class="basis-full type-caption @2xl:hidden" data-testid="scenario-headline">
         <span v-if="mark" class="font-semibold text-highlighted">{{ mark.letter }}</span> {{ headline }}
         <NoteLine v-if="eksWarning" as="span" tone="warning" inline class="ms-1 font-medium" data-testid="scenario-eks-flag">{{ words.editor.eksFlag }}</NoteLine>
       </p>

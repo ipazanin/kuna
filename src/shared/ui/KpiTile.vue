@@ -62,14 +62,14 @@ const deltaPresentation = computed(() => {
 <template>
   <AppCard as="article" class="kpi-tile stretched-card group gap-3 p-4 transition-colors hover:border-accented">
     <div class="flex items-start justify-between gap-2">
-      <RouterLink v-if="to !== null" :to="to" class="kpi-link stretched-link min-w-0 text-sm text-muted transition-colors group-hover:text-toned">
+      <RouterLink v-if="to !== null" :to="to" class="kpi-link stretched-link min-w-0 type-aside transition-colors group-hover:text-toned">
         <span class="flex min-w-0 items-start gap-1.5">
           <UIcon v-if="icon" :name="icon" class="mt-0.5 size-4 shrink-0" :class="iconClass" aria-hidden="true" />
           <CutText class="block min-w-0">{{ label }}</CutText>
         </span>
         <span class="sr-only">: {{ value }}</span>
       </RouterLink>
-      <p v-else class="kpi-label flex min-w-0 items-start gap-1.5 text-sm text-muted">
+      <p v-else class="kpi-label flex min-w-0 items-start gap-1.5 type-aside">
         <UIcon v-if="icon" :name="icon" class="mt-0.5 size-4 shrink-0" :class="iconClass" aria-hidden="true" />
         <CutText class="min-w-0">{{ label }}</CutText>
       </p>
@@ -83,8 +83,8 @@ const deltaPresentation = computed(() => {
         <p class="text-figure-lg font-semibold text-highlighted">
           <slot name="value">{{ value }}</slot>
         </p>
-        <p v-if="caption" class="mt-1.5 text-xs text-muted">{{ caption }}</p>
-        <p v-if="delta && deltaPresentation" class="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+        <p v-if="caption" class="mt-1.5 type-caption">{{ caption }}</p>
+        <p v-if="delta && deltaPresentation" class="mt-1.5 flex flex-wrap items-center gap-x-1.5 type-caption">
           <span class="inline-flex items-center gap-0.5 font-medium whitespace-nowrap" :class="deltaPresentation.tone">
             <UIcon :name="deltaPresentation.icon" class="size-3.5" aria-hidden="true" />
             <span class="figure">{{ delta.text }}</span>
@@ -92,7 +92,7 @@ const deltaPresentation = computed(() => {
           </span>
           <span>{{ delta.comparison }}</span>
         </p>
-        <p v-if="$slots.default" class="mt-1.5 text-xs text-muted"><slot /></p>
+        <p v-if="$slots.default" class="mt-1.5 type-caption"><slot /></p>
       </div>
       <SparkLine v-if="trend" :points="trend" class="kpi-trend mb-0.5" />
     </div>

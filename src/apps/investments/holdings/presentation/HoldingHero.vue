@@ -134,7 +134,7 @@ const facts = computed((): Fact[] => {
   <AppCard as="article" class="gap-5 p-4 sm:p-5" data-testid="holding-hero">
     <div class="flex flex-col gap-5 sm:flex-row sm:gap-0">
       <div class="flex min-w-0 flex-col gap-2 sm:flex-1 sm:pe-6">
-        <p class="text-sm text-muted">{{ words.hero.value }}</p>
+        <p class="type-aside">{{ words.hero.value }}</p>
         <template v-if="holding.valuation !== null">
           <MoneyText :cents="holding.valuation.value" class="block text-figure-lg font-semibold text-highlighted sm:text-figure-xl" data-testid="holding-value" />
           <p v-for="line in closeLines" :key="line" class="type-caption">{{ line }}</p>
@@ -147,23 +147,23 @@ const facts = computed((): Fact[] => {
       </div>
       <div class="flex min-w-0 flex-col gap-2 border-t border-default pt-5 sm:flex-1 sm:border-t-0 sm:border-s sm:ps-6 sm:pt-0">
         <div class="flex items-start justify-between gap-2">
-          <p class="text-sm text-muted">{{ words.hero.totalReturn }}</p>
+          <p class="type-aside">{{ words.hero.totalReturn }}</p>
           <div class="-my-1 -me-1.5">
             <InfoPopover :subject="words.hero.totalReturn" :definition="words.hero.totalReturnDefinition" />
           </div>
         </div>
         <p v-if="returns.total !== null" class="flex flex-wrap items-baseline gap-x-2" data-testid="holding-return">
           <MoneyText :cents="returns.total" tone="outcome" class="text-figure-lg font-semibold" />
-          <span v-if="returns.share !== null" class="figure text-sm font-medium text-toned">{{ formatPercent(returns.share, 'always') }}</span>
+          <span v-if="returns.share !== null" class="figure type-card-title">{{ formatPercent(returns.share, 'always') }}</span>
         </p>
         <p v-else class="text-figure-lg font-semibold text-highlighted">{{ words.hero.waitsForPrice }}</p>
         <dl v-if="parts.length > 0" class="mt-1 flex flex-col gap-2">
           <div v-for="part in parts" :key="part.key" class="flex items-baseline justify-between gap-3" :data-part="part.key">
-            <dt class="min-w-0 text-sm text-toned">
+            <dt class="min-w-0 type-body">
               {{ part.label }}
               <span v-if="part.caption !== ''" class="block type-caption">{{ part.caption }}</span>
             </dt>
-            <dd><MoneyText :cents="part.amount" tone="outcome" class="text-sm font-medium" /></dd>
+            <dd class="type-card-title"><MoneyText :cents="part.amount" tone="outcome" /></dd>
           </div>
         </dl>
       </div>

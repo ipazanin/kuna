@@ -113,7 +113,7 @@ function cellOf(line: ComparedLine, index: number): ComparedCell {
               :class="line.total ? 'border-accented' : 'border-default'"
               :data-line="line.key"
             >
-              <dt class="min-w-0 text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'">
+              <dt class="min-w-0" :class="line.total ? 'type-card-title' : 'type-body'">
                 {{ line.label }}
                 <span v-if="line.caption && cellOf(line, index).captioned !== false" class="block type-caption">{{ line.caption }}</span>
               </dt>
@@ -140,7 +140,7 @@ function cellOf(line: ComparedLine, index: number): ComparedCell {
             <span class="sr-only">{{ lineHeading }}</span>
           </th>
           <th v-for="column in columns" :key="column.key" scope="col" class="cell-wraps text-end align-bottom" :data-column="column.key">
-            <span class="text-sm font-semibold text-highlighted"
+            <span class="type-card-title"
               ><slot name="column" :column="column">{{ column.label }}</slot></span
             >
             <span v-if="column.isBase" class="block font-normal">{{ baseNote }}</span>

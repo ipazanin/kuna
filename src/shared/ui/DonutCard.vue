@@ -136,7 +136,7 @@ function onSliceClick(event: { dataIndex?: number }): void {
         <VChart :option="option" :theme="theme" autoresize class="ring-chart" @click="onSliceClick" />
         <p class="ring-middle" aria-hidden="true">
           <span class="figure font-semibold text-highlighted" :class="totalSize">{{ total }}</span>
-          <span class="text-xs text-muted">{{ totalLabel }}</span>
+          <span class="type-caption">{{ totalLabel }}</span>
         </p>
       </div>
       <div v-if="$slots.beside" class="donut-beside">
@@ -152,7 +152,7 @@ function onSliceClick(event: { dataIndex?: number }): void {
                 {{ part.label }}
               </DrillLink>
               <span class="figure text-end text-highlighted">{{ formatValue(part.value) }}</span>
-              <span class="figure text-end text-xs text-muted">{{ part.note ?? share(part.value) }}</span>
+              <span class="figure text-end type-caption">{{ part.note ?? share(part.value) }}</span>
               <span v-if="part.caption" class="col-span-3 col-start-2 pb-2 type-caption" data-testid="donut-caption">{{ part.caption }}</span>
             </li>
           </ul>

@@ -44,14 +44,14 @@ const facts = computed((): Fact[] => {
         </div>
       </div>
       <div>
-        <p v-if="waiting" class="type-body text-muted">{{ valueWords.waitingForIndex }}</p>
+        <p v-if="waiting" class="type-aside">{{ valueWords.waitingForIndex }}</p>
         <template v-else-if="entry.value !== null">
           <MoneyText :cents="entry.equity.value ?? entry.value.cents" class="block text-figure-lg font-semibold text-highlighted" data-testid="asset-card-value" />
           <p v-if="entry.share !== null" class="type-caption" data-testid="asset-card-part">{{ words.card.yourPart(percentText(entry.share), formatMoney(entry.value.cents)) }}</p>
           <p class="type-caption">{{ valueCaption(entry.value) }}</p>
         </template>
         <template v-else>
-          <p class="type-body font-medium text-highlighted">{{ valueWords.noValue }}</p>
+          <p class="type-card-title">{{ valueWords.noValue }}</p>
           <p class="type-caption">{{ words.card.addValuation }}</p>
         </template>
       </div>

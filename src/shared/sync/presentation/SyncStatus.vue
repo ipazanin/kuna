@@ -201,7 +201,7 @@ function syncAgain(): void {
     <p v-if="compact" class="sr-only" role="status">
       {{ saving ? appWords.saving : control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}
     </p>
-    <p v-else class="w-full min-w-0 text-xs" :class="control.kind === 'problems' ? 'font-medium text-error' : 'text-muted'" role="status" data-testid="sync-line">
+    <p v-else class="w-full min-w-0" :class="control.kind === 'problems' ? 'type-label text-error' : 'type-caption'" role="status" data-testid="sync-line">
       <CutText v-if="control.kind === 'ready' || control.kind === 'running' || saving" class="block">
         <time v-if="control.kind === 'ready' && syncedAt && !saving" :datetime="control.syncedAt ?? undefined" class="figure">{{ statusLine }}</time>
         <template v-else>{{ statusLine }}</template>

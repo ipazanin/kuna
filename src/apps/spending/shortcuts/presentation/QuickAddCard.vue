@@ -71,7 +71,7 @@ function addFromMenu(id: string): void {
           @click="add(held, name)"
         >
           <span class="w-full break-words">{{ name }}</span>
-          <AccountMoneyText :cents="amount" :currency="currency" tone="flow" class="text-sm" />
+          <AccountMoneyText :cents="amount" :currency="currency" tone="flow" />
         </UButton>
         <MenuButton
           v-if="rest.length > 0"

@@ -117,7 +117,7 @@ const status = computed(() =>
           <dl class="phone-cells">
             <div v-for="(cell, index) in row.cells" v-show="index !== titleColumn" :key="index" class="flex items-baseline justify-between gap-3">
               <dt class="type-caption">{{ table.headers[index] }}</dt>
-              <dd class="figure text-end" :class="cell.changed ? 'is-changed text-sm' : 'type-body'">{{ cell.wording }}</dd>
+              <dd class="figure text-end type-body" :class="{ 'is-changed': cell.changed }">{{ cell.wording }}</dd>
             </div>
           </dl>
         </div>
@@ -125,7 +125,7 @@ const status = computed(() =>
     </ul>
 
     <div v-else-if="rowsShown.length > 0" class="overflow-x-auto rounded-control border border-default">
-      <table class="data-table term-table w-full text-sm">
+      <table class="data-table term-table w-full">
         <thead>
           <tr>
             <th v-if="table.byPeriod" scope="col" class="text-start">{{ words.table.period }}</th>

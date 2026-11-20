@@ -59,7 +59,7 @@ async function choose(asPay: boolean): Promise<void> {
           :description="countsAsPay ? words.loanBucket.on : words.loanBucket.off"
           @update:model-value="choose($event)"
         />
-        <p v-if="mixed" class="mt-3 text-xs text-warning">{{ words.loanBucket.mixed(listed) }}</p>
+        <p v-if="mixed" class="mt-3 type-caption text-warning">{{ words.loanBucket.mixed(listed) }}</p>
       </template>
     </div>
   </AppCard>

@@ -8,7 +8,7 @@ defineProps<{
 </script>
 
 <template>
-  <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-highlighted">
+  <span class="inline-flex items-center gap-1.5 type-card-title">
     <span class="swatch swatch-line h-0.75" :style="{ '--swatch': colour === null ? 'var(--border-strong)' : `var(${colour})` }" aria-hidden="true" />
     {{ letter ?? '·' }}
   </span>

@@ -29,6 +29,6 @@ const expanded = defineModel<boolean>('expanded', { required: true })
       data-testid="show-all"
       @click="expanded = !expanded"
     />
-    <span v-if="!expanded" class="figure text-xs text-muted">{{ words.shownOf(FIRST_SHOWN, total) }}</span>
+    <span v-if="!expanded" class="figure type-caption">{{ words.shownOf(FIRST_SHOWN, total) }}</span>
   </div>
 </template>

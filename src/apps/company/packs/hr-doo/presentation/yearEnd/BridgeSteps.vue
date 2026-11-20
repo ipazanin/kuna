@@ -38,7 +38,7 @@ const NAMED = 2
       <div class="flex items-baseline justify-between gap-3">
         <p class="min-w-0" :class="step.kind === null ? 'type-card-title' : 'type-body'">{{ step.label }}</p>
         <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="shrink-0">
-          <MoneyText :cents="step.cents" :sign="step.kind === null ? 'negative' : 'always'" :class="step.kind === null ? 'type-card-title' : 'text-sm'" />
+          <MoneyText :cents="step.cents" :sign="step.kind === null ? 'negative' : 'always'" :class="{ 'type-card-title': step.kind === null }" />
         </DrillLink>
       </div>
       <div v-if="step.kind !== null" class="mt-1 flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">

@@ -201,7 +201,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
     </PageHeader>
 
     <nav aria-label="Parts of the gallery">
-      <ul class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+      <ul class="flex flex-wrap gap-x-4 gap-y-2">
         <li v-for="[id, label] in CONTENTS" :key="id">
           <DrillLink :to="{ path: '/gallery', hash: `#${id}` }">{{ label }}</DrillLink>
         </li>
@@ -312,7 +312,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
         <FactGrid :facts="AMOUNT_FACTS" class="border-t border-default pt-4" data-testid="gallery-amount-facts" />
         <FactGrid :facts="KEY_FACTS" class="border-t border-default pt-4">
           <template #value="{ fact }">
-            <span class="identifier break-all text-sm text-default">{{ fact.value }}</span>
+            <span class="identifier break-all type-body">{{ fact.value }}</span>
           </template>
         </FactGrid>
       </AppCard>

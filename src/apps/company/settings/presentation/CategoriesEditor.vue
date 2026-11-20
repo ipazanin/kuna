@@ -268,7 +268,7 @@ function save(): void {
 <template>
   <CategoryFilterBar v-model="filters" :roles="modifiers" :tax-classes="classChoices" :shares="shares" :shown="rows.length" :total="drafts.length" :kept="kept" />
   <div class="table-frame relative mx-1 my-2 sm:mx-2" data-testid="categories-frame">
-    <table class="data-table editor-table w-full text-sm" data-testid="categories-editor">
+    <table class="data-table editor-table w-full" data-testid="categories-editor">
       <thead>
         <tr>
           <SortableHeader :label="words.categories.columns.category" :model-value="directionOf('category')" @update:model-value="sortBy('category', $event)" />

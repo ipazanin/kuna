@@ -80,7 +80,7 @@ async function write(refile: boolean): Promise<void> {
 <template>
   <AppDialog v-model:open="open" changes :title="asked?.title ?? title" :description="asked === null ? description : asked.description">
     <div v-if="asked !== null" class="flex flex-col gap-1" data-testid="spending-rule-apply-dialog">
-      <p class="text-sm text-highlighted" data-testid="spending-rule-files">
+      <p class="type-row-title" data-testid="spending-rule-files">
         {{ rowsChanged === 0 ? words.rules.apply.nothing : plural(words.rules.apply.changes(rowsChanged), rowsChanged) }}
       </p>
       <p v-if="changesHeld" class="type-caption" data-testid="spending-rule-joins">{{ words.rules.apply.joins }}</p>

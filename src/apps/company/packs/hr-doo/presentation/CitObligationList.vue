@@ -92,7 +92,7 @@ const phone = usePhoneLayout()
   </ul>
 
   <div v-else class="@container overflow-x-auto">
-    <table class="data-table obligation-table w-full text-sm" :data-testid="testId">
+    <table class="data-table obligation-table w-full" :data-testid="testId">
       <thead>
         <tr>
           <th scope="col" class="text-start">{{ words.citObligations.payment }}</th>

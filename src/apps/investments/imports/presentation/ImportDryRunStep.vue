@@ -62,7 +62,7 @@ const ticked = (id: RecordId): boolean => props.workbookImport.deleting.value.ha
 <template>
   <div class="flex flex-col gap-6" data-testid="import-dry-run">
     <div class="flex flex-col gap-1">
-      <p class="type-body text-highlighted" data-testid="import-dry-run-summary">{{ summary }}</p>
+      <p class="type-row-title" data-testid="import-dry-run-summary">{{ summary }}</p>
       <p v-if="beforeStart > 0" class="type-caption" data-testid="import-before-start">{{ plural(words.dryRun.beforeStart(beforeStart), beforeStart) }}</p>
       <p v-if="byHand > 0" class="type-caption" data-testid="import-by-hand">{{ plural(words.dryRun.byHand(byHand), byHand) }}</p>
     </div>

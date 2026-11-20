@@ -133,7 +133,7 @@ const balanced = computed(() => personal.value.sum.state === 'ready' && groups.v
           <div v-for="group in groups" :key="group.side" class="flex flex-col gap-1.5">
             <p class="flex items-baseline justify-between gap-3">
               <span class="type-label">{{ group.title }}</span>
-              <span class="type-body font-medium text-highlighted tabular-nums">{{ group.totalText }}</span>
+              <span class="type-card-title tabular-nums">{{ group.totalText }}</span>
             </p>
             <ProgressMeter :parts="group.meter" :label="group.meterLabel" :height="10" />
           </div>

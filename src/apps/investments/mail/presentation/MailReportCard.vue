@@ -155,8 +155,8 @@ function rowOf(entry: ReportMail, index: number): MailResultRow {
       <UAlert v-if="on && !takesAnAccount" icon="i-lucide-info" color="info" variant="subtle" :description="words.step.noAccount" data-testid="investments-mail-no-account" />
       <div class="flex flex-col gap-3">
         <h3 class="type-card-title">{{ words.card.lastSync }}</h3>
-        <p v-if="state.stopped !== null" class="type-body text-muted" data-testid="investments-mail-stopped">{{ state.stopped }}</p>
-        <p v-else-if="state.plan === null" class="type-body text-muted">{{ mailFilingWords.plan.noSyncYet }}</p>
+        <p v-if="state.stopped !== null" class="type-aside" data-testid="investments-mail-stopped">{{ state.stopped }}</p>
+        <p v-else-if="state.plan === null" class="type-aside">{{ mailFilingWords.plan.noSyncYet }}</p>
         <template v-else>
           <MailSearchResults :search="search" :entries="state.plan.mails" :row-of="rowOf" />
           <p v-if="state.plan.mails.length === 0" class="type-body" data-testid="investments-mail-none">{{ words.card.noMailFound }}</p>

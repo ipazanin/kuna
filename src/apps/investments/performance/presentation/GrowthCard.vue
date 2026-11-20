@@ -89,7 +89,7 @@ const replay = computed(() => {
     </template>
     <template v-if="replay !== null" #footer>
       <div class="flex flex-col gap-2 border-t border-default px-4 py-3 sm:px-5" data-testid="performance-replay">
-        <p class="type-body text-highlighted" data-testid="performance-replay-line">{{ replay.line }}</p>
+        <p class="type-row-title" data-testid="performance-replay-line">{{ replay.line }}</p>
         <ul v-if="replay.unpaid.length > 0" class="flex flex-col gap-1 type-caption" data-testid="performance-replay-unpaid">
           <li v-for="line in replay.unpaid" :key="line">{{ line }}</li>
         </ul>

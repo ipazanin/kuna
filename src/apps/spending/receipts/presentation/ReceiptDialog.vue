@@ -296,7 +296,7 @@ function closeAsked(wanted: boolean): void {
     <FormGrid v-else id="spending-receipt" as="form" data-testid="spending-receipt-form" @submit.prevent="save">
       <div class="flex items-start gap-3" data-testid="spending-receipt-photo">
         <img v-if="preview !== null" :src="preview" :alt="words.photo" class="h-24 w-18 shrink-0 rounded-sm border border-default object-cover" data-testid="spending-receipt-preview" />
-        <div class="flex min-w-0 flex-col gap-1 text-sm" data-testid="spending-receipt-reading" :data-reading="reading">
+        <div class="flex min-w-0 flex-col gap-1 type-body" data-testid="spending-receipt-reading" :data-reading="reading">
           <p v-if="reading === 'reading'" class="flex items-center gap-2 text-muted">
             <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
             {{ words.reading }}
@@ -387,8 +387,8 @@ function closeAsked(wanted: boolean): void {
         :data-match="matches?.kind"
         @update:model-value="pickedPlace = String($event)"
       />
-      <p v-if="tried && errors.place !== null" class="text-sm text-error" data-testid="spending-receipt-place-error">{{ errors.place }}</p>
-      <p v-if="matches?.kind === 'none'" class="text-sm text-muted" data-testid="spending-receipt-no-match">{{ waits ? words.noMatchWaits : words.noMatch }}</p>
+      <p v-if="tried && errors.place !== null" class="type-body text-error" data-testid="spending-receipt-place-error">{{ errors.place }}</p>
+      <p v-if="matches?.kind === 'none'" class="type-aside" data-testid="spending-receipt-no-match">{{ waits ? words.noMatchWaits : words.noMatch }}</p>
       <UFormField v-if="newEntryPlaced" :label="words.account" :help="words.accountHelp" :error="(tried && errors.account) || false" data-testid="spending-receipt-account-field">
         <USelect v-model="account" :items="accountItems" class="w-full" data-testid="spending-receipt-account" />
       </UFormField>

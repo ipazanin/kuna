@@ -31,7 +31,7 @@ const total = computed(() => props.fills.reduce((sum, fill) => sum + fill.target
 <template>
   <AppDialog v-model:open="open" :title="words.fillDialog.title">
     <div class="flex flex-col gap-4" data-testid="share-fill">
-      <ul class="flex flex-col gap-2 text-sm">
+      <ul class="flex flex-col gap-2 type-body">
         <li v-for="fill in fills" :key="fill.category" class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-4">
           <CutText class="min-w-0 text-highlighted">{{ names.category(fill.category) }}</CutText>
           <span class="figure text-toned">{{ formatPercent(shareFromPercent(fill.ownerShare)) }}</span>

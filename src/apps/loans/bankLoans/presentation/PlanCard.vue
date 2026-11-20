@@ -63,11 +63,11 @@ function dateOf(line: PlanLineOnScreen): string {
           data-testid="plan-year"
           @click="opened = toggle(opened, year.year)"
         >
-          <span class="flex items-center gap-2 text-sm font-medium text-highlighted">
+          <span class="flex items-center gap-2 type-card-title">
             <span class="figure">{{ year.year }}</span>
             <UBadge v-if="year.estimate" :label="loanWords.plan.estimate" color="neutral" variant="subtle" size="sm" />
           </span>
-          <span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          <span class="flex flex-wrap items-center gap-x-3 gap-y-1 type-caption">
             <span class="whitespace-nowrap">{{ loanWords.split.youPay }} <MoneyText :cents="year.totals.youPay" class="text-toned" /></span>
             <span v-if="year.totals.yours !== undefined" class="whitespace-nowrap">{{ loanWords.tiles.yourPart }} <MoneyText :cents="year.totals.yours" class="text-toned" /></span>
             <span class="whitespace-nowrap">{{ loanWords.plan.owedAfter }} <MoneyText :cents="year.balance" class="text-toned" /></span>
@@ -80,7 +80,7 @@ function dateOf(line: PlanLineOnScreen): string {
               <th scope="col" class="text-start">{{ loanWords.plan.due }}</th>
               <th scope="col" class="text-end">
                 {{ loanWords.split.youPay }}
-                <span v-if="shared" class="block text-xs font-normal whitespace-normal text-muted">{{ loanWords.plan.wholeMark }}</span>
+                <span v-if="shared" class="block font-normal type-caption whitespace-normal">{{ loanWords.plan.wholeMark }}</span>
               </th>
               <th scope="col" class="hidden text-end @md:table-cell">{{ loanWords.plan.instalment }}</th>
               <th scope="col" class="hidden text-end @xl:table-cell">{{ loanWords.split.interest }}</th>
@@ -106,14 +106,14 @@ function dateOf(line: PlanLineOnScreen): string {
                     <span class="text-highlighted">{{ dateOf(line) }}</span>
                   </UButton>
                   <span class="hidden text-highlighted @4xl:inline">{{ dateOf(line) }}</span>
-                  <span v-if="line.estimate" class="block text-xs text-muted @4xl:ms-1 @4xl:inline">{{ loanWords.plan.estimateMark }}</span>
-                  <span v-if="line.late" class="block text-xs text-warning @4xl:ms-1 @4xl:inline">{{ loanWords.plan.lateMark }}</span>
-                  <span v-if="line.notSeen" class="block text-xs text-warning @4xl:ms-1 @4xl:inline">{{ loanWords.plan.notSeenMark }}</span>
-                  <span v-if="line.kind === 'extra-payment'" class="block text-xs text-muted @4xl:ms-1 @4xl:inline">{{ loanWords.plan.extraMark }}</span>
+                  <span v-if="line.estimate" class="block type-caption @4xl:ms-1 @4xl:inline">{{ loanWords.plan.estimateMark }}</span>
+                  <span v-if="line.late" class="block type-caption text-warning @4xl:ms-1 @4xl:inline">{{ loanWords.plan.lateMark }}</span>
+                  <span v-if="line.notSeen" class="block type-caption text-warning @4xl:ms-1 @4xl:inline">{{ loanWords.plan.notSeenMark }}</span>
+                  <span v-if="line.kind === 'extra-payment'" class="block type-caption @4xl:ms-1 @4xl:inline">{{ loanWords.plan.extraMark }}</span>
                 </th>
                 <td class="text-end">
                   <MoneyText :cents="line.youPay" />
-                  <span v-if="line.yours !== undefined" class="block text-xs text-muted" data-testid="plan-row-yours">{{ loanWords.plan.yourPartMark }} <MoneyText :cents="line.yours" /></span>
+                  <span v-if="line.yours !== undefined" class="block type-caption" data-testid="plan-row-yours">{{ loanWords.plan.yourPartMark }} <MoneyText :cents="line.yours" /></span>
                 </td>
                 <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.payment" /></td>
                 <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.interest" /></td>
@@ -124,19 +124,19 @@ function dateOf(line: PlanLineOnScreen): string {
               </tr>
               <tr v-if="tapped.has(line.key)" class="@4xl:hidden" data-testid="plan-row-detail">
                 <td :colspan="hasSubsidy ? 8 : 7" class="cell-wraps">
-                  <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                    <dt class="text-muted">{{ loanWords.plan.instalment }}</dt>
-                    <dd class="text-end"><MoneyText :cents="line.payment" /></dd>
-                    <dt class="text-muted">{{ loanWords.split.interest }}</dt>
-                    <dd class="text-end"><MoneyText :cents="line.interest" /></dd>
-                    <dt class="text-muted">{{ loanWords.split.principal }}</dt>
-                    <dd class="text-end"><MoneyText :cents="line.principal" /></dd>
+                  <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 type-caption">
+                    <dt>{{ loanWords.plan.instalment }}</dt>
+                    <dd class="text-end text-default"><MoneyText :cents="line.payment" /></dd>
+                    <dt>{{ loanWords.split.interest }}</dt>
+                    <dd class="text-end text-default"><MoneyText :cents="line.interest" /></dd>
+                    <dt>{{ loanWords.split.principal }}</dt>
+                    <dd class="text-end text-default"><MoneyText :cents="line.principal" /></dd>
                     <template v-if="hasSubsidy">
-                      <dt class="text-muted">{{ loanWords.changes.subsidy }}</dt>
-                      <dd class="text-end"><MoneyText :cents="line.subsidy" /></dd>
+                      <dt>{{ loanWords.changes.subsidy }}</dt>
+                      <dd class="text-end text-default"><MoneyText :cents="line.subsidy" /></dd>
                     </template>
-                    <dt class="text-muted">{{ loanWords.plan.status }}</dt>
-                    <dd class="text-end">{{ line.estimate ? loanWords.plan.anEstimate(line.status) : line.status }}</dd>
+                    <dt>{{ loanWords.plan.status }}</dt>
+                    <dd class="text-end text-default">{{ line.estimate ? loanWords.plan.anEstimate(line.status) : line.status }}</dd>
                   </dl>
                 </td>
               </tr>
@@ -147,7 +147,7 @@ function dateOf(line: PlanLineOnScreen): string {
               <th scope="row" class="cell-wraps text-start">{{ loanWords.plan.total(year.year) }}</th>
               <td class="text-end">
                 <MoneyText :cents="year.totals.youPay" />
-                <span v-if="year.totals.yours !== undefined" class="block text-xs font-normal text-muted">{{ loanWords.plan.yourPartMark }} <MoneyText :cents="year.totals.yours" /></span>
+                <span v-if="year.totals.yours !== undefined" class="block font-normal type-caption">{{ loanWords.plan.yourPartMark }} <MoneyText :cents="year.totals.yours" /></span>
               </td>
               <td class="hidden text-end @md:table-cell"><MoneyText :cents="year.totals.payment" /></td>
               <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.interest" /></td>

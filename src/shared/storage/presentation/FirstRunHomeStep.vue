@@ -67,8 +67,8 @@ async function proceed(withChat = false): Promise<void> {
 <template>
   <StepCard :title="appWords.title">
     <div v-if="answered" class="rounded-control border border-default bg-elevated/40 px-3 py-3" :data-testid="`${firstRun.testId}-in-browser`">
-      <p class="text-sm font-medium text-highlighted">{{ words.firstRun.home.browser }}</p>
-      <p class="text-sm text-toned">{{ words.firstRun.home.browserNote }}</p>
+      <p class="type-card-title">{{ words.firstRun.home.browser }}</p>
+      <p class="type-body">{{ words.firstRun.home.browserNote }}</p>
     </div>
     <URadioGroup v-else v-model="chosen" :items="CHOICES" :legend="appWords.title" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" :data-testid="`${firstRun.testId}-home`" />
     <UAlert v-if="dropsBrowserFile" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="appWords.dropsTitle" :description="words.firstRun.home.drops" />

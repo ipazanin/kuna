@@ -161,7 +161,7 @@ async function remove(): Promise<void> {
       </UFormField>
       <LoanTermsFields v-model="terms" :tried="tried" />
       <template v-if="book === null">
-        <p class="text-sm font-medium text-highlighted sm:col-span-2">{{ loanWords.loanDialog.firstRate }}</p>
+        <p class="type-card-title sm:col-span-2">{{ loanWords.loanDialog.firstRate }}</p>
         <RateFields v-model="rate" :tried="tried" />
       </template>
       <FoldBlock

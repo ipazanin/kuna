@@ -65,7 +65,7 @@ function update(index: number, field: 'group' | 'percent', value: string): void 
       <p class="type-card-title">{{ text.mix }}</p>
       <ChoiceButtons v-model="picked" :options="MIX_OPTIONS" :label="text.mixPick" data-testid="instrument-mix-pick" />
     </div>
-    <p class="text-sm text-muted">{{ text.mixHelp }}</p>
+    <p class="type-aside">{{ text.mixHelp }}</p>
     <FactsheetPaste v-if="pasting && picked === 'country'" @fill="filled" @cancel="pasting = false" />
     <ol v-if="lines.length > 0" class="flex flex-col gap-2" :aria-label="text.mixes[picked]">
       <li v-for="(line, index) in lines" :key="line.key" class="grid grid-cols-[minmax(0,1fr)_7rem_auto] items-start gap-2" data-testid="instrument-mix-line">
@@ -118,11 +118,11 @@ function update(index: number, field: 'group' | 'percent', value: string): void 
           @click="pasting = true"
         />
       </span>
-      <p v-if="lines.length > 0" class="text-sm" :class="sum === HUNDRED_PERCENT ? 'text-toned' : tried ? 'text-error' : 'text-muted'" data-testid="instrument-mix-sum">
+      <p v-if="lines.length > 0" :class="sum === HUNDRED_PERCENT ? 'type-body' : tried ? 'type-body text-error' : 'type-aside'" data-testid="instrument-mix-sum">
         {{ text.mixSum(formatQuantity(sum, PERCENT_PLACES)) }}
       </p>
     </div>
-    <p v-if="shown(errors.whole[picked])" class="text-sm text-error" data-testid="instrument-mix-whole">{{ errors.whole[picked] }}</p>
-    <p v-if="tried && otherToFix !== undefined" class="text-sm text-error" data-testid="instrument-mix-other">{{ text.mixToFix(text.mixes[otherToFix]) }}</p>
+    <p v-if="shown(errors.whole[picked])" class="type-body text-error" data-testid="instrument-mix-whole">{{ errors.whole[picked] }}</p>
+    <p v-if="tried && otherToFix !== undefined" class="type-body text-error" data-testid="instrument-mix-other">{{ text.mixToFix(text.mixes[otherToFix]) }}</p>
   </div>
 </template>

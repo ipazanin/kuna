@@ -7,7 +7,7 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
 
 <template>
   <AppCard :title="words.privacy.title">
-    <p class="px-4 pt-3 pb-4 text-sm text-muted sm:px-5 sm:pb-5">
+    <p class="px-4 pt-3 pb-4 type-aside sm:px-5 sm:pb-5">
       {{ words.privacy.note }}
       <a :href="privacyPage" class="quiet-link inline-target">{{ words.privacy.link }}</a>
     </p>

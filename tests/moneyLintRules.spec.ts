@@ -89,8 +89,8 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ['an Error subclass', DOMAIN, 'export class Refused extends Error {}'],
     ['a class on a screen', 'src/apps/loans/planted/presentation/planted.ts', 'export class Loan {}'],
     ['a text colour on a figure with no tone', SCREEN, '<template><MoneyText :cents="a" class="text-muted" /></template>'],
-    ['a size on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="text-sm font-medium" /></template>'],
-    ['a size picked by a condition on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="outcome" :class="hero ? \'text-figure-xl\' : \'text-sm\'" /></template>'],
+    ['a size on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="text-base font-medium" /></template>'],
+    ['a size picked by a condition on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="outcome" :class="hero ? \'text-figure-xl\' : \'text-base\'" /></template>'],
     [
       'muted ink in a bound class on a figure whose tone a bound object drops',
       SCREEN,

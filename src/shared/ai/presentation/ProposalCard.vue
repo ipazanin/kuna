@@ -165,7 +165,8 @@ async function undo(event: Event): Promise<void> {
         </UAlert>
         <ul class="flex flex-col gap-1.5">
           <li v-for="(line, lineAt) in shownOf(group.lines, `lines-${at}`)" :key="lineAt" class="flex min-w-0 flex-col" data-testid="chat-proposal-line">
-            <p class="wrap-anywhere text-highlighted" :class="line.identifier === true ? 'identifier' : 'type-body'">{{ line.label }}</p>
+            <p v-if="line.identifier === true" class="identifier wrap-anywhere text-highlighted">{{ line.label }}</p>
+            <p v-else class="wrap-anywhere type-row-title">{{ line.label }}</p>
             <NoteLine v-if="line.warning !== null" tone="warning" data-testid="chat-proposal-line-warning">{{ line.warning }}</NoteLine>
             <template v-for="field in line.fields" :key="field.name">
               <p class="type-caption wrap-anywhere" :class="{ 'text-warning': field.warns }" data-testid="chat-proposal-field">{{ field.name }}: {{ fieldText(group.verb, field) }}</p>

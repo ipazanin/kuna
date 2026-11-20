@@ -50,7 +50,7 @@ async function deleteKeys(): Promise<void> {
     <DeleteKunaDialog v-model:open="deletingAll" />
     <AppDialog v-model:open="open" :title="text.confirmTitle" :description="text.confirmDescription" :dismissible="!deleting">
       <div class="flex flex-col gap-4" data-testid="delete-keys-dialog">
-        <ul class="list-disc space-y-1 ps-4 text-sm text-toned">
+        <ul class="list-disc space-y-1 ps-4 type-body">
           <li>{{ text.stayHere }}</li>
           <li>{{ text.syncsAgain }}</li>
         </ul>

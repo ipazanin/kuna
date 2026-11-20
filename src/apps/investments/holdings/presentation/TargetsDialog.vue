@@ -119,10 +119,10 @@ async function remove(): Promise<void> {
           <template #trailing><span class="text-muted">%</span></template>
         </UInput>
       </UFormField>
-      <p class="text-sm sm:col-span-2" :class="whole ? 'text-toned' : tried ? 'text-error' : 'text-muted'" data-testid="targets-sum">
+      <p class="sm:col-span-2" :class="whole ? 'type-body' : tried ? 'type-body text-error' : 'type-aside'" data-testid="targets-sum">
         {{ words.instrumentDialog.mixSum(formatQuantity(sum, PERCENT_PLACES)) }}
       </p>
-      <p v-if="tried && !whole" class="text-sm text-error sm:col-span-2" data-testid="targets-whole">{{ text.whole }}</p>
+      <p v-if="tried && !whole" class="type-body text-error sm:col-span-2" data-testid="targets-whole">{{ text.whole }}</p>
     </FormGrid>
     <template #start>
       <UButton

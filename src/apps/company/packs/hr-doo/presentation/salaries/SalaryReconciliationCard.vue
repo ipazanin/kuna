@@ -54,7 +54,7 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
         <ul v-if="phone" class="flex flex-col">
           <FigureAsk v-for="line in section.lines" :key="line.key" v-slot="{ ask, askLabel, marked }" :detail="line.app">
             <li class="line-card" :data-verdict="line.verdict" v-bind="marked">
-              <p class="flex items-center justify-between gap-2 text-sm">
+              <p class="flex items-center justify-between gap-2 type-body">
                 <span class="text-toned">{{ line.label }}</span>
                 <NoteLine v-if="line.verdict === 'agrees'" as="span" icon="i-lucide-check" inline>{{ words.reconciliation.agrees }}</NoteLine>
                 <NoteLine v-else-if="line.verdict === 'differs'" as="span" tone="error" inline>{{ words.reconciliation.differs }}</NoteLine>

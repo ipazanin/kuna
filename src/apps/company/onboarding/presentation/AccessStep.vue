@@ -100,7 +100,7 @@ async function ask(): Promise<void> {
           data-testid="onboarding-drafts"
           @update:model-value="switchMailDrafts($event === true)"
         />
-        <p v-if="answered && mailDraftsOn" class="flex items-center gap-2 text-sm">
+        <p v-if="answered && mailDraftsOn" class="flex items-center gap-2">
           <UBadge
             :label="allowed('gmail.compose') ? words.access.allowed : words.access.notAllowed"
             :color="allowed('gmail.compose') ? 'success' : 'error'"

@@ -12,7 +12,7 @@ defineProps<{
 
 <template>
   <div class="@container relative overflow-x-auto">
-    <table class="data-table w-full text-sm" :aria-label="label">
+    <table class="data-table w-full" :aria-label="label">
       <slot />
     </table>
   </div>

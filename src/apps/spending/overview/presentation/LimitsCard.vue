@@ -93,7 +93,7 @@ const rows = computed(() =>
     <ul class="flex flex-col gap-4 px-4 pt-3 pb-2 sm:px-5">
       <li v-for="row in rows" :key="row.limit.category" class="flex flex-col gap-1.5" data-testid="spending-limit">
         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-          <span class="min-w-0 type-body text-highlighted">{{ row.category.name }}</span>
+          <span class="min-w-0 type-row-title">{{ row.category.name }}</span>
           <span class="figure type-caption">{{ row.caption }}</span>
         </div>
         <ProgressMeter :parts="row.parts" :label="row.label" :height="8" />

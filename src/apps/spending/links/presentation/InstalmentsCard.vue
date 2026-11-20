@@ -76,7 +76,7 @@ async function notNow(): Promise<void> {
       <div v-if="count > FIRST_SHOWN" class="px-4 sm:px-5">
         <ShowAllButton v-model:expanded="allShown" :total="count" />
       </div>
-      <p class="px-4 text-sm text-muted sm:px-5">{{ words.past.note }}</p>
+      <p class="px-4 type-aside sm:px-5">{{ words.past.note }}</p>
       <div class="flex flex-wrap gap-2 px-4 sm:px-5">
         <UButton
           :label="plural(words.past.linkAll(count), count)"

@@ -233,7 +233,7 @@ const description = computed(() => {
     <template v-else-if="state.workbook !== null">
       <PageHeader :title="words.holding" />
       <AppCard>
-        <p class="px-4 py-6 text-sm text-muted sm:px-5" data-testid="holding-missing">{{ words.missing }}</p>
+        <p class="px-4 py-6 type-aside sm:px-5" data-testid="holding-missing">{{ words.missing }}</p>
       </AppCard>
     </template>
   </section>

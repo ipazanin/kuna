@@ -15,7 +15,7 @@ defineProps<{
 </script>
 
 <template>
-  <p v-if="missing[0] !== undefined" class="text-xs text-muted" data-testid="mix-missing">
+  <p v-if="missing[0] !== undefined" class="type-caption" data-testid="mix-missing">
     {{ plural(words.mixes.missing[mix](missing.length), missing.length) }}
     <DrillLink :to="holdingLink(missing[0].instrument)" in-prose>{{ missing[0].instrument.name }}</DrillLink
     >.

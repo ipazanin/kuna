@@ -75,7 +75,7 @@ const summary = computed(() => {
       >
         <span class="flex flex-col gap-0.5">
           <span class="flex flex-wrap items-baseline justify-between gap-x-3">
-            <span class="type-label text-highlighted">{{ line.label }}</span>
+            <span class="type-label">{{ line.label }}</span>
             <span class="type-caption" :class="line.over ? 'text-warning' : 'text-success'">{{ line.over ? text.over : text.within }}</span>
           </span>
           <span class="type-caption">{{ line.sentence }}</span>
@@ -84,7 +84,7 @@ const summary = computed(() => {
       <NoteLine v-if="troubled.length > 0" as="li" size="body" tone="warning" class="border-t border-default py-2.5" data-testid="check-facts">
         <span class="flex flex-col gap-0.5">
           <span class="flex flex-wrap items-baseline justify-between gap-x-3">
-            <span class="type-label text-highlighted">{{ text.facts }}</span>
+            <span class="type-card-title">{{ text.facts }}</span>
             <span class="type-caption text-warning">{{ text.factsMissing }}</span>
           </span>
           <span class="type-caption">{{ plural(text.factProblems(troubled.length), troubled.length) }}:</span>

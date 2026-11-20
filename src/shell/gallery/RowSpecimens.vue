@@ -125,7 +125,7 @@ function pick(key: string): void {
             <ListRow :to="recordLink" title="Travel card" caption="Bank · Card Bank · USD">
               <template #amount>
                 <span class="figure text-highlighted">$1,234.56</span>
-                <span class="figure text-xs text-toned">€1,140.20</span>
+                <span class="figure type-caption">€1,140.20</span>
               </template>
               <template #details><span class="text-end type-caption">At the ECB rate of 13 Nov</span></template>
             </ListRow>
@@ -238,7 +238,7 @@ function pick(key: string): void {
         >A long note wraps under its own first word rather than under the icon, so a reason that runs over several lines on a phone still reads as one line with its mark.</NoteLine
       >
       <NoteLine size="body" tone="warning">The tax is an estimate until every rate of the year is known. In body size the words keep body ink and only the icon takes the tone.</NoteLine>
-      <p class="flex gap-4 text-sm">
+      <p class="flex gap-4">
         <MoneyText :cents="moneyFromCents(412_000)" />
         <NoteLine as="span" size="inherit" inline tone="warning"><MoneyText :cents="moneyFromCents(-1_250)" sign="always" /></NoteLine>
       </p>

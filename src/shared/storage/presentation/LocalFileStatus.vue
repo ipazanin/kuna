@@ -49,8 +49,8 @@ const reminder = computed(() => {
     data-testid="local-status"
   >
     <div v-if="!compact" class="min-w-0">
-      <CutText as="p" class="text-xs text-toned">{{ name ?? words.localFile.kept }}</CutText>
-      <CutText as="p" class="figure text-xs text-muted">{{ exportedText }}</CutText>
+      <CutText as="p" class="type-caption">{{ name ?? words.localFile.kept }}</CutText>
+      <CutText as="p" class="figure type-caption">{{ exportedText }}</CutText>
     </div>
     <UTooltip :text="words.localFile.export" :disabled="!rail" :content="{ side: 'right' }">
       <UButton
@@ -66,7 +66,7 @@ const reminder = computed(() => {
         @click="emit('export')"
       />
     </UTooltip>
-    <p v-if="reminder && !compact" class="flex w-full items-start gap-1.5 text-xs text-warning" role="status">
+    <p v-if="reminder && !compact" class="flex w-full items-start gap-1.5 type-caption text-warning" role="status">
       <UIcon name="i-lucide-clock-alert" class="mt-px size-3.5 shrink-0" aria-hidden="true" />
       <span>{{ reminder }}</span>
     </p>

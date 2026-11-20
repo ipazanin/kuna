@@ -187,7 +187,7 @@ function route(leg: TripLeg): string {
           </tr>
         </tfoot>
       </FigureTable>
-      <p v-if="buildUps.companyCosts.steps.length > 0" class="flex items-baseline justify-between gap-3 border-t border-default px-4 py-3 text-sm sm:px-5" data-testid="trip-company-costs">
+      <p v-if="buildUps.companyCosts.steps.length > 0" class="flex items-baseline justify-between gap-3 border-t border-default px-4 py-3 type-body sm:px-5" data-testid="trip-company-costs">
         <span class="text-muted">{{ words.totals.companyPaid }}</span>
         <BuildUpButton :cents="buildUps.companyCosts.amount" :label="words.totals.companyPaid" class="text-toned" @open="opened = detailOf(buildUps.companyCosts)" />
       </p>

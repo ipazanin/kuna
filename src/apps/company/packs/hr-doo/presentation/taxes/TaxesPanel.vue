@@ -298,7 +298,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
             </div>
             <div class="min-w-0">
               <dt class="type-caption">{{ words.cadence.missed }}</dt>
-              <dd class="figure" :class="cadence.missed === 0 ? 'type-card-title' : 'text-sm font-medium text-error'">{{ cadence.missed === 0 ? words.cadence.none2 : cadence.missed }}</dd>
+              <dd class="figure type-card-title" :class="{ 'text-error': cadence.missed !== 0 }">{{ cadence.missed === 0 ? words.cadence.none2 : cadence.missed }}</dd>
             </div>
             <div class="min-w-0">
               <dt class="type-caption">{{ words.cadence.typical }}</dt>
