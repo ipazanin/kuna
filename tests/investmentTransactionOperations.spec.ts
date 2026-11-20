@@ -8,7 +8,12 @@ import { words as transactionWords } from '../src/apps/investments/transactions/
 import { parseCivilDate, today } from '../src/shared/calendar/civilDate'
 import { dayLabel } from '../src/shared/calendar/dayLabel'
 import { decimalText } from '../src/shared/money/decimal'
-import { DESK, EXAMPLE_RECORDS, investmentsDesk } from './fixtures/investmentsDesk'
+import { bookingKey } from '../src/apps/investments/imports/domain/reportKey'
+import { IBKR_FLEX_RECIPE } from '../src/apps/investments/mail/domain/ibkrFlexRecipe'
+import { waitingRows } from '../src/apps/investments/mail/domain/waitingRows'
+import type { WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
+import type { AskedRow } from '../src/shared/recipes/domain/runRecipe'
+import { DESK, EXAMPLE_RECORDS, investmentsDesk, mailedReport } from './fixtures/investmentsDesk'
 import type { InvestmentsDesk } from './fixtures/investmentsDesk'
 import { USD, rateBookOf } from './fixtures/investments'
 import { forgetCaches } from './fixtures/writeBack'
@@ -38,6 +43,7 @@ function addTrade(desk: InvestmentsDesk, fields: Readonly<Record<string, unknown
       fees: '1',
       rate: '1.08',
       note: '',
+      askedRow: null,
       ...fields,
     },
   }
@@ -151,6 +157,7 @@ describe('income and cash', () => {
         reverses: null,
         rate: '1.08',
         note: '',
+        askedRow: null,
         ...fields,
       },
     })
@@ -190,6 +197,7 @@ describe('in Croatian', () => {
       reverses: null,
       rate: '1.0875',
       note: '',
+      askedRow: null,
     }
     expect((await desk.propose([{ op: 'add-income', input: income }])).isError).toBe(false)
     await desk.accept()
@@ -309,5 +317,68 @@ describe('accounts and instruments', () => {
     await desk.accept()
     const answer = await desk.propose([{ ...change({ isin: 'US0378331005' }), input: { ...change({ isin: 'US0378331005' }).input, instrument: desk.ref('instrument', DESK.UNHELD.id) } }])
     expect(answer.isError).toBe(true)
+  })
+})
+
+describe("booking a waiting row of IBKR's mailed report", () => {
+  /** A cancelled buy, whose units go out, which takes only hold or leave-out. */
+  const CANCELLED: AskedRow = {
+    key: 'asked-cancelled',
+    section: 'Trades',
+    shown: [
+      ['buySell', 'BUY (Ca.)'],
+      ['quantity', '-5'],
+    ],
+    dates: {},
+    why: { kind: 'no-kind' },
+  }
+
+  /** The desk's mailed report with the cancelled buy as its second question. */
+  function withCancelled(): WorkbookRows {
+    const report = mailedReport()
+    return { ...report, report: { ...report.report!, asked: [...report.report!.asked, CANCELLED] } }
+  }
+
+  const waitingNumbers = (desk: InvestmentsDesk): number[] => waitingRows(withCancelled(), bookOf(desk)).map((row) => row.number)
+
+  it('keeps the row’s booking key on the record, names the row on the card, and leaves the other row its number until Undo brings it back', async () => {
+    const desk = await investmentsDesk(used, null, withCancelled)
+    const [asked] = mailedReport().report!.asked
+
+    const answer = await desk.propose([addTrade(desk, { askedRow: 1 })])
+
+    expect(answer.isError).toBe(false)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes.map((note) => note.text))).toContain('Books this row of the report: Trades · Symbol XYZ.')
+    const result = await desk.accept()
+    expect(bookOf(desk).trades.at(-1)!.importKeys).toEqual([bookingKey(IBKR_FLEX_RECIPE.id, asked!)])
+    expect(waitingNumbers(desk)).toEqual([2])
+    if (result.kind === 'done') await result.undo!()
+    expect(waitingNumbers(desk)).toEqual([1, 2])
+  })
+
+  it('refuses a number that names no waiting row, saying which can be booked', async () => {
+    const desk = await investmentsDesk(used, null, withCancelled)
+
+    const answer = await desk.propose([addTrade(desk, { askedRow: 7 })])
+
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain("askedRow 7 names no row of IBKR's mailed report that waits to be booked. Row 1 does.")
+  })
+
+  it('refuses a cancelled trade, which takes only hold or leave-out', async () => {
+    const desk = await investmentsDesk(used, null, withCancelled)
+
+    const answer = await desk.propose([addTrade(desk, { askedRow: 2 })])
+
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain("Row 2 of IBKR's mailed report cannot be booked.")
+  })
+
+  it('refuses a card that books one row twice, and any row before a sync read the mail', async () => {
+    const twice = await investmentsDesk(used, null, withCancelled)
+    expect((await twice.propose([addTrade(twice, { askedRow: 1 }), addTrade(twice, { askedRow: 1 })])).text).toContain('booked by two steps')
+
+    const unread = await investmentsDesk(used, null, () => null)
+    expect((await unread.propose([addTrade(unread, { askedRow: 1 })])).text).toContain('None does.')
   })
 })

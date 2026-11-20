@@ -15,7 +15,7 @@ import type { PricesPorts } from './pricesOperations'
 import { proposalGroupsOf } from './proposalLines'
 import { REQUEST_COUNT_OPERATIONS, requestCountCards } from './requestCountOperations'
 import type { RequestCounts } from './requestCountOperations'
-import { TRANSACTION_STEPS } from './transactionOperations'
+import { TRANSACTION_STEPS, refuseRowBookedTwice } from './transactionOperations'
 import type { WorkbookRows } from '../../imports/domain/importDryRun'
 import type { AppAcceptance, AppProposer, AssistantOperation, CardNote, CheckedProposal, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused, proposedWrites, refuseBesideImport } from '../../../../shared/app/proposedWrites'
@@ -67,6 +67,7 @@ interface Planned {
 /** Plans the steps into one write, in order, each on the books the steps before it leave. */
 function planned(unit: UnitOfWork, books: OpenBooks<InvestmentsBooks>, steps: readonly ProposalStep[], ports: InvestmentsPorts): Planned {
   refuseBesideImport(steps, IMPORTING)
+  refuseRowBookedTwice(steps)
   let book = books.workbook.book
   const storedSettings = recordsOf(books.records.settings)
   const made = new Map<string, string>()
@@ -76,7 +77,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<InvestmentsBooks>, steps: re
   for (const step of steps) {
     const part = PART_OF.get(step.operation)
     if (part === undefined) throw new StepRefused('There is no such operation.')
-    const card: CardBooks = { book, rates: ports.rates(), pricesFile: ports.pricesFile(), storedSettings, idOf: (value) => made.get(String(value)) ?? String(value) }
+    const card: CardBooks = { book, rates: ports.rates(), pricesFile: ports.pricesFile(), storedSettings, mailReport: ports.mailReport(), idOf: (value) => made.get(String(value)) ?? String(value) }
     const written = part.write(unit, card, step)
     book = written.book
     if (step.as !== null && written.made !== null) made.set(step.as, written.made)

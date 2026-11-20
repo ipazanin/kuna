@@ -115,6 +115,7 @@ export const investmentsApp: AppContribution = {
         book: () => state.workbook?.book ?? null,
         sources: () => sources.value,
         taxShown: () => taxShown.value,
+        mailReport: () => reading.value,
       },
       { proposer: investmentsProposer(store, ports, file), acceptance: investmentsAcceptance(store, ports, file) },
     )

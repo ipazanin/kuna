@@ -48,7 +48,7 @@ const APPS: readonly { readonly id: string; readonly source: string; readonly as
   {
     id: 'investments',
     source: 'src/apps/investments/overview/presentation/investmentsSetUp.ts',
-    assistant: investmentsAssistant({ status: () => 'none', book: () => null, sources: () => null, taxShown: () => false }),
+    assistant: investmentsAssistant({ status: () => 'none', book: () => null, sources: () => null, taxShown: () => false, mailReport: () => null }),
     operations: INVESTMENTS_OPERATIONS,
   },
 ]

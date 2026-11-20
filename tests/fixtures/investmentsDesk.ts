@@ -152,7 +152,7 @@ export interface InvestmentsDesk {
   accept(at?: number): ReturnType<ReturnType<typeof investmentsAcceptance>['accept']>
 }
 
-export async function investmentsDesk(used: Set<string>, rates: RateBook | null = null): Promise<InvestmentsDesk> {
+export async function investmentsDesk(used: Set<string>, rates: RateBook | null = null, mailReport: () => WorkbookRows | null = mailedReport): Promise<InvestmentsDesk> {
   const { store } = await browserHarness(used, emptyInvestmentsDocument('2026-10-30T09:00:00.000Z'), INVESTMENTS)
   await store.write('Set up', (unit) => {
     ;[ONE, TWO, EMPTY].forEach((added) => unit.of(INVESTMENT_ACCOUNT_WRITES).add(added))
@@ -197,7 +197,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
       quotesOff: () => runs.quotesOff,
     },
     now: () => '2026-10-30T15:00:00.000Z',
-    mailReport: () => mailedReport(),
+    mailReport,
     history: { file: () => history.file, given: () => history.complete, give: () => (history.complete = true), takeBack: () => (history.complete = false) },
     requestCounts: { today: (vendorId) => requests.get(vendorId) ?? 0, set: (vendorId, count) => requests.set(vendorId, count) },
   }

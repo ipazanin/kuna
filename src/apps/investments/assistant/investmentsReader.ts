@@ -1,6 +1,10 @@
 import { BY_HAND } from '../../../shared/app/accountSource'
 import { HOLDING_ROUTE } from '../holdings/presentation/holdingLinks'
 import { accountIntakes } from '../imports/domain/accountIntake'
+import type { WorkbookRows } from '../imports/domain/importDryRun'
+import { askedColumns } from '../imports/presentation/askedColumns'
+import { waitingRows } from '../mail/domain/waitingRows'
+import type { WaitingRow } from '../mail/domain/waitingRows'
 import type { PortfolioSources } from '../holdings/domain/holding'
 import { portfolioFigures } from '../holdings/domain/portfolioFigures'
 import type { LastDay } from '../holdings/domain/portfolioFigures'
@@ -67,6 +71,8 @@ export interface InvestmentsReading {
   sources(): PortfolioSources | null
   /** Whether the owner told Kuna the file holds every buy, which the Tax screen waits for before it shows a figure. */
   taxShown(): boolean
+  /** The rows of IBKR's report the last sync read from mail, or null before one did. */
+  mailReport(): WorkbookRows | null
 }
 
 /** A place in Porezna's surtax table for 2023, which the chat looks up by name before it proposes the 2023 city. */
@@ -109,6 +115,50 @@ const TABLE_PLACE_FIELDS: FieldDocs<TablePlace> = {
   spellings: { exposure: 'plain', meaning: 'The ways a person writes the name, which a query matches.' },
   office: { exposure: 'plain', meaning: 'The Porezna office it is under, which tells two places of one name apart.' },
   rate: { exposure: 'plain', meaning: 'The yearly surtax rate for 2023.', read: (place) => `${writtenPercent(place.rate)}%` },
+}
+
+/** A row of the last mailed report that waits, as the chat reads it. */
+interface ReadWaitingRow {
+  readonly id: string
+  readonly row: number
+  readonly section: string
+  readonly date: CivilDate | null
+  readonly columns: string
+  readonly bookable: boolean
+}
+
+const WAITING_ROW: Pick<RecordKind<ReadWaitingRow>, 'name' | 'noun'> = {
+  name: 'waiting-report-row',
+  noun: {
+    en: { one: "waiting row of IBKR's report", many: "waiting rows of IBKR's report", article: 'a' },
+    hr: {
+      one: 'redak IBKR-ova izvješća koji čeka',
+      of: 'retka IBKR-ova izvješća koji čeka',
+      few: 'retka IBKR-ova izvješća koja čekaju',
+      other: 'redaka IBKR-ova izvješća koji čekaju',
+      gender: 'masculine',
+    },
+  },
+}
+
+const WAITING_ROW_FIELDS: FieldDocs<ReadWaitingRow> = {
+  id: { exposure: 'never', meaning: 'The row.' },
+  row: { exposure: 'plain', meaning: "Its number, which an add's askedRow takes." },
+  section: { exposure: 'plain', meaning: 'The section of the report it is in.' },
+  date: { exposure: 'plain', meaning: 'Its day, or null where Kuna reads none from it.' },
+  columns: { exposure: 'free-text', meaning: 'The columns the section shows, as the file writes them and the card names the row.' },
+  bookable: { exposure: 'plain', meaning: 'Whether an add can book it. A cancelled trade, or a changed row a record holds, only takes hold or leave-out.' },
+}
+
+function readWaitingRow({ number, question, start }: WaitingRow): ReadWaitingRow {
+  return {
+    id: `row-${number}`,
+    row: number,
+    section: question.section,
+    date: question.dates['date'] ?? null,
+    columns: askedColumns(question),
+    bookable: start !== null,
+  }
 }
 
 function decimalOrNull(value: Decimal | null): string | null {
@@ -449,7 +499,7 @@ function taxReport(sources: PortfolioSources, period: string | null, shown: bool
   ]
 }
 
-/** What the chat can read of Investments: every kind but the mail reader, with every field classified, Porezna's 2023 surtax table, and the figures the screens show, from the same functions. Nothing here writes. */
+/** What the chat can read of Investments: every kind but the mail reader, with every field classified, Porezna's 2023 surtax table, the rows of the last mailed report that wait, and the figures the screens show, from the same functions. Nothing here writes. */
 export function investmentsReader(reading: InvestmentsReading): AppReader {
   const fields = fieldsOf(() => reading.book())
   const rows = <R>(of: (book: InvestmentBook) => readonly R[]): readonly R[] => {
@@ -515,6 +565,14 @@ export function investmentsReader(reading: InvestmentsReading): AppReader {
       readableKind({ kind: CHECK_RECORDS, about: words.reads.check, fields: fields.check, dated: null, rows: () => rows((book) => book.checks), currencyOf: euro }),
       readableKind({ kind: SETTING_RECORDS, about: words.reads.setting, fields: fields.setting, dated: null, rows: () => rows((book) => book.settings), currencyOf: euro }),
       readableKind({ kind: TABLE_PLACE, about: words.reads.surtaxCity2023, fields: TABLE_PLACE_FIELDS, dated: null, rows: () => TABLE_PLACES, currencyOf: euro }),
+      readableKind({
+        kind: WAITING_ROW,
+        about: words.reads.waitingRow,
+        fields: WAITING_ROW_FIELDS,
+        dated: null,
+        rows: () => rows((book) => waitingRows(reading.mailReport(), book).map(readWaitingRow)),
+        currencyOf: euro,
+      }),
     ],
     reports: [
       { id: 'portfolio', title: words.reports.portfolio.title, about: words.reports.portfolio.about, period: 'day', figures: report(portfolioReport) },

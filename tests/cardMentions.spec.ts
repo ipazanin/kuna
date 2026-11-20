@@ -6,7 +6,7 @@ import { cardsOfText } from '../src/apps/spending/workbook/domain/account'
 describe('the cards a statement row names', () => {
   it.each([
     ['Top-Up by *3670', ['3670']],
-    ['REVOLUT**3670*', ['3670']],
+    ['REVOLUT**9037* Card **3670', ['3670']],
     ['Card XXXX3670 Revolut', ['3670']],
     ['xxxx 3670', ['3670']],
     ['XXXX XXXX XXXX 3670', ['3670']],
@@ -16,13 +16,18 @@ describe('the cards a statement row names', () => {
     ['Card ...3670', ['3670']],
     ['Card …3670', ['3670']],
     ['*3670 and *1234', ['3670', '1234']],
+    ['Card No.****3670', ['3670']],
+    ['Kartica br.**3670', ['3670']],
   ])('reads %s', (text, cards) => {
     expect([...cardsNamedIn(text)]).toEqual(cards)
   })
 
-  it.each([['Corner market 3670'], ['Order 2026-10-14'], ['Paid 3670.00'], ['*36701'], ['*367'], ['BOX3670'], ['TAXX3670']])('reads no card in %s', (text) => {
-    expect(cardsNamedIn(text).size).toBe(0)
-  })
+  it.each([['Corner market 3670'], ['Order 2026-10-14'], ['Paid 3670.00'], ['*36701'], ['*367'], ['BOX3670'], ['TAXX3670'], ['REVOLUT**9037*'], ['Plaćanje TRGOVINAŠ•••3670'], ['ABC...3670']])(
+    'reads no card in %s',
+    (text) => {
+      expect(cardsNamedIn(text).size).toBe(0)
+    },
+  )
 })
 
 describe("an account's cards as typed or stored", () => {

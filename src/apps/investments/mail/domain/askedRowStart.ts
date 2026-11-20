@@ -1,4 +1,5 @@
 import { accountIntakes } from '../../imports/domain/accountIntake'
+import type { ReportQuestion } from '../../imports/domain/importDryRun'
 import type { Happening, TransactionTexts } from '../../transactions/domain/transactionDraft'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { amountShown } from '../../../../shared/money/amountTyping'
@@ -75,4 +76,9 @@ export function askedRowStart(question: Pick<AskedRow, 'section' | 'shown' | 'da
     default:
       return { happened: 'buy', texts: { date: base.date ?? '', account } }
   }
+}
+
+/** The form Book opens for a question that still waits, or null where only Hold back and Leave out are offered: a changed row a record holds, or a cancelled trade. */
+export function bookingStart(question: ReportQuestion, book: InvestmentBook): AskedRowStart | null {
+  return question.booking === null ? null : askedRowStart(question, book)
 }

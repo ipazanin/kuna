@@ -20,7 +20,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
-import { askedRowStart } from '../../mail/domain/askedRowStart'
+import { bookingStart } from '../../mail/domain/askedRowStart'
 import type { AskedRowStart } from '../../mail/domain/askedRowStart'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 
@@ -122,7 +122,7 @@ const askedQuestions = computed(() => {
   const book = props.workbookImport.book.value
   return (props.settled.dryRun.report?.asked ?? []).map((question) => {
     const line = askedLine(question)
-    const start = book === null || question.booking === null ? null : askedRowStart(question, book)
+    const start = book === null ? null : bookingStart(question, book)
     const booking: AskedBooking | null = start === null || question.booking === null ? null : { start, booking: { importKey: question.booking, row: line.caption } }
     return { key: line.key, row: line.title, caption: '', columns: line.caption, note: line.note, choice: props.workbookImport.choices.value.asked[line.key] ?? 'hold', booking }
   })

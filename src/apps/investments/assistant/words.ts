@@ -64,6 +64,7 @@ export const en = {
     check: 'The portfolio checks whose threshold or switch differs from the default.',
     setting: 'The Investments settings.',
     surtaxCity2023: "Porezna's table of surtax rates for 2023, each place with its code, its office and its rate. Search it by the place's name.",
+    waitingRow: "The rows of IBKR's last mailed report that wait for an answer, numbered as an add's askedRow takes them. Empty until a sync reads the mail.",
   },
   reports: {
     portfolio: {
@@ -102,6 +103,7 @@ export const en = {
     rowsAsked: (count: number): EnglishForms => ({ one: '1 row the report asks about stays waiting.', other: `${count} rows the report asks about stay waiting.` }),
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row left out', other: `${count} rows left out` }),
     mailReport: { label: 'IBKR report by mail', place: 'the review on Settings, General' },
+    bookedRow: (row: string) => `Books this row of the report: ${row}.`,
     transcribed: 'Rows read by the AI',
     lookAlike: {
       one: 'a record Kuna has from another file, of the same account, day and amounts',
@@ -236,6 +238,7 @@ export const hr: Translation<typeof en> = {
     check: 'Provjere portfelja čiji se prag ili uključenost razlikuju od zadanih.',
     setting: 'Postavke Ulaganja.',
     surtaxCity2023: 'Tablica stopa prireza Porezne za 2023., svako mjesto sa šifrom, ispostavom i stopom. Pretražite je po imenu mjesta.',
+    waitingRow: 'Redci zadnjeg IBKR-ova izvješća poštom koji čekaju odgovor, s brojem koji askedRow pri dodavanju uzima. Prazno dok sinkronizacija ne pročita poštu.',
   },
   reports: {
     portfolio: {
@@ -280,6 +283,7 @@ export const hr: Translation<typeof en> = {
     }),
     rowsLeftOut: (count): CroatianForms => ({ one: `${count} izostavljen redak`, few: `${count} izostavljena retka`, other: `${count} izostavljenih redaka` }),
     mailReport: { label: 'Izvješće IBKR-a poštom', place: 'pregled u Postavkama, Općenito' },
+    bookedRow: (row) => `Knjiži ovaj redak izvješća: ${row}.`,
     transcribed: 'Retci koje je pročitao AI',
     lookAlike: {
       one: 'zapisu koji Kuna ima iz druge datoteke, s istim računom, danom i iznosima',

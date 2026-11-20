@@ -483,7 +483,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
  * The questions of a report that still wait. One a record was booked from goes, since that record holds its booking key.
  * A changed row stays, with Hold and Leave out, and is offered Book only while no record holds its key.
  */
-function waitingQuestions(report: ReportFacts, keyed: ReadonlyMap<string, ImportedRecord>): ReportQuestion[] {
+export function waitingQuestions(report: ReportFacts, keyed: ReadonlyMap<string, ImportedRecord>): ReportQuestion[] {
   return report.asked.flatMap((question): ReportQuestion[] => {
     const booking = bookingKey(report.recipe, question)
     if (!keyed.has(booking)) return [{ ...question, booking }]

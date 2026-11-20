@@ -59,7 +59,7 @@ const LOANS_ASSISTANT = loansAssistant(
 )
 const SPENDING_ASSISTANT = spendingAssistant(CHAT_READING, { proposer: spendingProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: spendingAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) })
 const INVESTMENTS_ASSISTANT = investmentsAssistant(
-  { status: () => 'none', book: () => null, sources: () => null, taxShown: () => false },
+  { status: () => 'none', book: () => null, sources: () => null, taxShown: () => false, mailReport: () => null },
   { proposer: investmentsProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: investmentsAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) },
 )
 

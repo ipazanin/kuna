@@ -1,3 +1,4 @@
+import type { WorkbookRows } from '../../imports/domain/importDryRun'
 import type { PricesFile } from '../../prices/domain/pricesFile'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
@@ -38,6 +39,8 @@ export interface CardBooks {
   readonly pricesFile: PricesFile | null
   /** The settings rows as stored, a value the reader refused among them, so a step changes or clears it. */
   readonly storedSettings: readonly SettingRow[]
+  /** The rows of IBKR's report the last sync read from mail, whose waiting rows an add books, or null before one did. */
+  readonly mailReport: WorkbookRows | null
   /** The id a step's field names: a `$` name of an earlier step's record, or the id the ref stood for. */
   idOf(value: unknown): string
 }

@@ -3,6 +3,7 @@ import type { WaitReason, WorkbookDryRun } from '../domain/importDryRun'
 import type { ImportedRecord } from '../domain/importedRecords'
 import { WORKBOOK_COLUMNS } from '../domain/portfolioWorkbook'
 import type { RoundedCell, SkipReason, WorkbookRow } from '../domain/portfolioWorkbook'
+import { askedColumns } from './askedColumns'
 import { words } from './words'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import { listedTransactions } from '../../transactions/domain/listedTransactions'
@@ -180,7 +181,7 @@ function rowLine(key: string, row: WorkbookRow, rowsWords: string, accountName: 
 
 /** A row a report's recipe asks about, in the words its file writes it, with why it asks. */
 export function askedLine(row: AskedRow): ImportLine {
-  return { key: row.key, title: row.section, caption: row.shown.map(([column, text]) => `${column} ${text}`).join(' · '), euros: null, flows: false, figure: '', note: askedText(row.why) }
+  return { key: row.key, title: row.section, caption: askedColumns(row), euros: null, flows: false, figure: '', note: askedText(row.why) }
 }
 
 function askedText(why: AskedWhy): string {

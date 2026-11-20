@@ -18,17 +18,22 @@ import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import type { ReportFigure } from '../src/shared/app/assistantReader'
 import { decimalOfText } from '../src/shared/money/decimal'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
+import type { WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
+import type { AskedRow } from '../src/shared/recipes/domain/runRecipe'
+import { mailedReport } from './fixtures/investmentsDesk'
 import { STOCK_B, WORKED_PRICES, WORKED_RATES, decimal, workedPortfolio } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
 
 const SOURCES: PortfolioSources = { book: workedPortfolio(), prices: WORKED_PRICES, rates: WORKED_RATES, today: civil('2026-10-29') }
 
-function readingOf(taxShown: boolean, sources: PortfolioSources | null = SOURCES): InvestmentsReading {
-  return { status: () => 'open', book: () => sources?.book ?? null, sources: () => sources, taxShown: () => taxShown }
+function readingOf(taxShown: boolean, sources: PortfolioSources | null = SOURCES, mailReport: WorkbookRows | null = null): InvestmentsReading {
+  return { status: () => 'open', book: () => sources?.book ?? null, sources: () => sources, taxShown: () => taxShown, mailReport: () => mailReport }
 }
 
 /** The kind that reads Porezna's 2023 table, which needs no books. */
 const SURTAX_TABLE = 'surtax-city-2023'
+/** The kind that reads the rows of the last mailed report that wait. */
+const WAITING_ROWS = 'waiting-report-row'
 
 function figure(figures: readonly ReportFigure[], label: string): ReportFigure | undefined {
   return figures.find((entry) => entry.label === label)
@@ -41,9 +46,34 @@ function centsOf(entry: ReportFigure | undefined): number | null {
 describe('the Investments reader', () => {
   const reader = investmentsReader(readingOf(true))
 
-  it('reads every kind but the mail reader, which holds a mailbox’s senders, and Porezna’s 2023 surtax table', () => {
+  it('reads every kind but the mail reader, which holds a mailbox’s senders, Porezna’s 2023 surtax table and the waiting rows of the mailed report', () => {
     const kinds = Object.values(investmentKinds).map((kind) => kind.name)
-    expect(reader.kinds.map((kind) => kind.name).sort()).toEqual([...kinds.filter((name) => name !== MAIL_READER_RECORDS.name), SURTAX_TABLE].sort())
+    expect(reader.kinds.map((kind) => kind.name).sort()).toEqual([...kinds.filter((name) => name !== MAIL_READER_RECORDS.name), SURTAX_TABLE, WAITING_ROWS].sort())
+  })
+
+  it('numbers the rows of the last mailed report that wait, with their section and columns, and says which an add can book', () => {
+    const report = mailedReport()
+    const cancelled: AskedRow = {
+      key: 'asked-cancelled',
+      section: 'Trades',
+      shown: [
+        ['buySell', 'BUY (Ca.)'],
+        ['quantity', '-5'],
+      ],
+      dates: {},
+      why: { kind: 'no-kind' },
+    }
+    const mailed = { ...report, report: { ...report.report!, asked: [...report.report!.asked, cancelled] } }
+    const rows = investmentsReader(readingOf(true, SOURCES, mailed))
+      .kinds.find((kind) => kind.name === WAITING_ROWS)!
+      .rows()
+      .map((row) => Object.fromEntries(row.fields.map((field) => [field.name, 'value' in field ? field.value : null])))
+
+    expect(rows).toEqual([
+      { row: 1, section: 'Trades', date: null, columns: 'Symbol XYZ', bookable: true },
+      { row: 2, section: 'Trades', date: null, columns: 'buySell BUY (Ca.) · quantity -5', bookable: false },
+    ])
+    expect(reader.kinds.find((kind) => kind.name === WAITING_ROWS)!.rows()).toEqual([])
   })
 
   it.each([

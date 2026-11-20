@@ -1,4 +1,6 @@
-import { writeTransaction } from '../../transactions/application/transactionWrites'
+import { waitingRows } from '../../mail/domain/waitingRows'
+import type { WaitingRow } from '../../mail/domain/waitingRows'
+import { transactionRecordKind, writeTransaction } from '../../transactions/application/transactionWrites'
 import { withImportFacts } from '../../transactions/domain/listedTransactions'
 import type { TransactionKind, TransactionRecord } from '../../transactions/domain/listedTransactions'
 import { matchingDeposit } from '../../transactions/domain/matchingDeposit'
@@ -23,13 +25,14 @@ import {
 import { TRADE_SIDES } from '../../workbook/domain/trade'
 import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
-import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
+import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
 import { amountShown } from '../../../../shared/money/amountTyping'
 import { decimalShown, decimalText } from '../../../../shared/money/decimal'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { bookedRowNote } from './importOperations'
 import { DECIMAL, DECIMAL_OR_NULL, decimalOf, unchanged } from './investmentSteps'
 import type { CardBooks, InvestmentSteps, StepWritten } from './investmentSteps'
 
@@ -253,6 +256,14 @@ function schemaOf(field: FormField, nullable: boolean): StrictSchema {
 /** A record's ref field, the same name on every change and delete. */
 const RECORD = 'record'
 
+/** The field of an add that books a waiting row of IBKR's mailed report, as Book on the import's Questions step does. A close typed by hand books none. */
+const ASKED_ROW = 'askedRow'
+const ASKED_ROW_SCHEMA: StrictSchema = { type: ['number', 'null'], description: 'The row of the waiting-report-row this records, or null.' }
+
+function booksRows(form: TransactionForm): boolean {
+  return form.kind !== 'price'
+}
+
 const RECORD_KINDS: Readonly<Record<TransactionKind, string>> = {
   trade: TRADE_RECORDS.name,
   income: INCOME_RECORDS.name,
@@ -281,11 +292,14 @@ function operationsOf(form: TransactionForm): AssistantOperation[] {
     {
       name: `add-${form.noun}`,
       about: `${form.adds} A field that may be null takes the dialog's start, the ECB rate of the day for a rate.`,
-      input: inputOf(Object.fromEntries(form.fields.map((field) => [field.name, schemaOf(field, field.optional === true)]))),
+      input: inputOf({
+        ...Object.fromEntries(form.fields.map((field) => [field.name, schemaOf(field, field.optional === true)])),
+        ...(booksRows(form) ? { [ASKED_ROW]: ASKED_ROW_SCHEMA } : {}),
+      }),
       refs: refsOf(form.fields),
       creates: null,
       alone: false,
-      example: form.example,
+      example: booksRows(form) ? { ...form.example, [ASKED_ROW]: null } : form.example,
     },
     {
       name: `change-${form.noun}`,
@@ -338,7 +352,7 @@ function textOf(card: CardBooks, field: FormField, value: unknown): string | boo
  * The record the dialog would save from the step's fields, laid over the record changed or over a new one's start, or
  * a refusal naming each field the dialog would mark. A new record's rate left null is the ECB's of its day, as the dialog fills it.
  */
-function drafted(card: CardBooks, form: TransactionForm, before: TransactionRecord | null, input: Readonly<Record<string, unknown>>): TransactionRecord {
+function drafted(card: CardBooks, form: TransactionForm, before: TransactionRecord | null, input: Readonly<Record<string, unknown>>, importKeys = importKeysOf(before)): TransactionRecord {
   const start = textsOf(before, { happened: form.happened ?? 'buy', instrument: null, today: today() }, card.book)
   const texts: TransactionTexts = { ...start, ...(form.happened === null ? {} : { happened: form.happened }) }
   const written = texts as unknown as Record<keyof TransactionTexts, string | boolean>
@@ -348,7 +362,7 @@ function drafted(card: CardBooks, form: TransactionForm, before: TransactionReco
   }
   if (form.kind === 'transfer') texts.moves = movesOf(input, start.moves)
   if (before === null && input['rate'] === null && form.fields.includes(RATE)) texts.rate = ecbRateText(card.rates, rateCurrency(texts, card.book), texts.date)
-  const draft = transactionDraft(texts, card.book, before === null ? newRecordId() : keyOf(before), importKeysOf(before))
+  const draft = transactionDraft(texts, card.book, before === null ? newRecordId() : keyOf(before), importKeys)
   if (draft.record === null) {
     const names = new Map(form.fields.map((field) => [field.text, field.name]))
     throw new StepRefused(
@@ -366,6 +380,28 @@ function movesOf(input: Readonly<Record<string, unknown>>, kept: TransactionText
   if (named('instrument') || named('quantity')) return 'units'
   if (named('currency') || named('amount')) return 'cash'
   return kept
+}
+
+/** The waiting row of the mailed report an add books, or null for none. A row that does not wait, or takes only hold or leave-out, is refused. */
+function bookedRow(card: CardBooks, asked: unknown): WaitingRow | null {
+  if (asked === null || asked === undefined) return null
+  const waiting = waitingRows(card.mailReport, card.book)
+  const row = waiting.find((candidate) => candidate.number === asked)
+  if (row === undefined) {
+    const which = waiting.filter((candidate) => candidate.start !== null).map((candidate) => candidate.number)
+    const those = which.length === 0 ? 'None does.' : which.length === 1 ? `Row ${which[0]} does.` : `Rows ${which.join(', ')} do.`
+    throw new StepRefused(`askedRow ${String(asked)} names no row of IBKR's mailed report that waits to be booked. ${those}`)
+  }
+  if (row.start === null)
+    throw new StepRefused(`Row ${row.number} of IBKR's mailed report cannot be booked. A cancelled trade, or a changed row Kuna holds, takes only hold or leave-out on accept-mail-report.`)
+  return row
+}
+
+/** Refuses a card that books one waiting row twice, since its steps are each checked on the books as they were before the card. */
+export function refuseRowBookedTwice(steps: readonly ProposalStep[]): void {
+  const asked = steps.flatMap((step) => (step.operation.startsWith('add-') && step.input[ASKED_ROW] != null ? [step.input[ASKED_ROW]] : []))
+  const twice = asked.find((number, index) => asked.indexOf(number) !== index)
+  if (twice !== undefined) throw new StepRefused(`Row ${String(twice)} of IBKR's mailed report is booked by two steps. Book it once.`)
 }
 
 const ADD_HOLDING: AssistantOperation = {
@@ -397,8 +433,10 @@ export const TRANSACTION_STEPS: InvestmentSteps = {
     }
     const form = BY_NAME.get(operation)!
     if (operation.startsWith('add-')) {
-      writeTransaction(unit, null, drafted(card, form, null, input))
-      return unchanged(card)
+      const row = booksRows(form) ? bookedRow(card, input[ASKED_ROW]) : null
+      const record = drafted(card, form, null, input, row === null ? [] : [row.question.booking!])
+      writeTransaction(unit, null, record)
+      return row === null ? unchanged(card) : { ...unchanged(card), notes: [bookedRowNote(transactionRecordKind(record.kind).noun, row.question)] }
     }
     const id = card.idOf(input[RECORD])
     const before = form.held(card.book).find((entry) => entry.record.id === id)

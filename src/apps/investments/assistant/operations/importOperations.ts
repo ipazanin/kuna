@@ -10,7 +10,7 @@ import type { CashOff, CopiedRowRefusal, TranscribedBalance, TranscribedRow } fr
 import { ratesWanted } from '../../imports/domain/workbookRates'
 import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/domain/importChoices'
 import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/domain/importChoices'
-import { lookAlikesOf, waitText } from '../../imports/presentation/dryRunLines'
+import { askedLine, lookAlikesOf, waitText } from '../../imports/presentation/dryRunLines'
 import { heldOrNewReader, writeLeftOut, writeReader } from '../../mail/application/mailReaderWrites'
 import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
 import { mailReaderFaults, mailReaderTexts, withMailField } from '../../mail/domain/mailReaderTexts'
@@ -31,6 +31,7 @@ import { decimalOfAccountMoney, decimalText } from '../../../../shared/money/dec
 import { NO_RATES } from '../../../../shared/money/rateBook'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import type { AskedRow } from '../../../../shared/recipes/domain/runRecipe'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { fold } from '../../../../shared/text/fold'
@@ -46,6 +47,12 @@ const ASKED: readonly AskedChoice[] = ['hold', 'leave-out']
 /** What the person says of a copied row that looks like a record Kuna has, as the Import dialog's Same record and Another record. */
 const LOOK_ALIKE_ANSWERS = ['same-record', 'another-record'] as const
 const MAIL_FIELDS: readonly MailReaderField[] = ['senders', 'subject', 'contents']
+
+/** The card's note on a record that books a row of the mailed report, naming the row as the import's Questions step shows it. */
+export function bookedRowNote(noun: RecordNoun, question: AskedRow): CardNote {
+  const line = askedLine(question)
+  return { noun, note: { label: words.proposals.mailReport.label, text: words.proposals.bookedRow([line.title, line.caption].filter((part) => part !== '').join(' · ')), tone: 'neutral' } }
+}
 
 /** The mailed report the last sync read, which stands in the step for the mail once read. */
 interface RowsRead {
@@ -368,7 +375,7 @@ export const IMPORT_STEPS: InvestmentSteps = {
     {
       name: ACCEPT_MAIL_REPORT,
       about:
-        "Accepts what the last sync read of IBKR's mailed report, as its review does: new records, and accounts and holdings named as Kuna proposes them. asked says what becomes of the rows the report asks about: hold keeps them waiting, leave-out stops asking for good. Rows that still wait are answered in the review on Settings, General, which also answers a split or a spin-off the card cannot.",
+        "Accepts what the last sync read of IBKR's mailed report, as its review does: new records, and accounts and holdings named as Kuna proposes them. asked says what becomes of the rows the report asks about: hold keeps them waiting, leave-out stops asking for good. A waiting-report-row whose bookable is true can be booked instead by an add with its askedRow. Rows that still wait are answered in the review on Settings, General, which also answers a split or a spin-off the card cannot.",
       input: inputOf({ asked: { type: 'string', enum: [...ASKED] } }),
       refs: {},
       creates: null,
