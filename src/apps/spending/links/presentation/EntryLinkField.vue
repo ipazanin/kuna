@@ -10,8 +10,8 @@ import { allTargets } from '../application/linkTargets'
 import type { ShownTarget } from '../application/linkTargets'
 import { categoryOfHome } from '../domain/companyPaymentFiling'
 import type { CompanyPaymentSplit } from '../domain/companyPaymentFiling'
-import { beyondPlan, linkFiling, wholeLoanKindOf } from '../domain/instalmentSplit'
-import { targetsFor } from '../domain/linkTarget'
+import { beyondPlan, linkFiling, wholeKindOf } from '../domain/instalmentSplit'
+import { mayAddToCompany, targetsFor } from '../domain/linkTarget'
 import type { InformalLoanTarget } from '../domain/linkTarget'
 import type { AddInApp } from './addInApp'
 import { LINK_TONE, useLinkLines } from './linkLine'
@@ -27,7 +27,6 @@ import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { words as spendingWords } from '../../words'
 import { absAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
-import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -35,7 +34,7 @@ import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
 
-/** A saved entry's links to records in other apps: each record its parts name with Remove, or a picker of Loans' records and Company's payments and costs to link it to, with Add to Loans and, for money out, Add to Company. */
+/** A saved entry's links to records in other apps: each record its parts name with Remove, or a picker of Loans' records, Company's payments and costs and Investments' deposits and withdrawals to link it to, with Add to Loans and, for money out, Add to Company. */
 const props = defineProps<{
   entry: Transaction
   /** The entry's items as the file holds them. */
@@ -84,7 +83,7 @@ const account = computed(() => ({ currency: props.currency, iban: store.state.wo
 const linkTargets = computed(() => targetsFor(props.entry, account.value, openTargets.value))
 const informalLoans = computed(() => openTargets.value.filter((target): target is ShownTarget & InformalLoanTarget => target.kind === 'informal-loan'))
 /** The categories a cost you paid for your company may go under in Company, for money out of a euro account that has no link while Company is open with owner pay. */
-const costCategories = computed(() => (!props.linkable || entryLinks.value.length > 0 || props.entry.amount >= 0 || props.currency !== EURO ? [] : companyCostCategories()))
+const costCategories = computed(() => (props.linkable && mayAddToCompany(props.entry, props.currency, props.lines) ? companyCostCategories() : []))
 
 /** What the picker says under each record: an instalment's share, or a movement's or extra payment's amount. */
 function choiceDetail(target: (typeof linkTargets.value)[number]): string {
@@ -116,8 +115,8 @@ const linkNote = computed(() => {
   const filing = linkFiling({ row: props.entry, items: props.lines }, target, { currency: props.currency, receipt: props.receipt, categories: props.categories })
   if (filing.split === 'payment') return paymentNote(filing)
   if (target.kind === 'owner-payment' || target.kind === 'owner-advance') return filing.split ? '' : words.whole[filing.why]
-  if (!filing.split && filing.why === 'principal')
-    return [words.filesWhole(fixedCategoryIn(props.categories, wholeLoanKindOf(target), language).category.name), ...(split.value ? [words.replacesParts] : [])].join(' ')
+  if (!filing.split && (filing.why === 'principal' || filing.why === 'saving'))
+    return [words.filesWhole(fixedCategoryIn(props.categories, wholeKindOf(target), language).category.name), ...(split.value ? [words.replacesParts] : [])].join(' ')
   if (!filing.split) return words.whole[filing.why]
   const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), props.currency)
   const category = props.categories.find((candidate) => candidate.id === filing.category)?.name ?? loanInterestCategoryIn(props.categories, language).category.name
@@ -152,7 +151,7 @@ async function removeLink(link: RowLink): Promise<void> {
           <UButton
             v-if="line.to !== null"
             :to="line.to"
-            :label="line.source === 'company' ? words.company.open : words.open"
+            :label="line.source === 'company' ? words.company.open : line.source === 'investments' ? words.investments.open : words.open"
             color="neutral"
             variant="link"
             :disabled="edited"

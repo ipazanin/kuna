@@ -44,6 +44,7 @@ import type { CurrencyCode } from '../../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalOfText } from '../../../../../shared/money/decimal'
 import type { Decimal } from '../../../../../shared/money/decimal'
 import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
+import { FAKE_PAID_DEPOSIT, fakePaidDepositDay } from '../../../../../shared/storage/infrastructure/fake/fakeInvestmentKeys'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
@@ -508,6 +509,12 @@ function weekdayBefore(date: CivilDate): CivilDate {
   return found
 }
 
+/** The deposit a waiting row of the fake Spending broker set pays, 2.32 less than the row since the broker took its cut. */
+function paidDeposit(today: CivilDate): CashMovement {
+  const date = fakePaidDepositDay(today)
+  return { id: recordIdOf(CASH_MOVEMENT_RECORDS, FAKE_PAID_DEPOSIT), account: BROKER_TWO.id, kind: 'deposit', date, currency: EURO, amount: decimal('997.68'), rate: null, importKeys: [], note: '' }
+}
+
 /** Two deposits into the World ETF, seven and three months before the fake build's day, each spent at that day's close, with ids of their own so every load holds the same records. */
 function youngRecords(today: CivilDate): WorkbookDocument['records'] {
   const first = weekdayBefore(dayMonthsLater(today, -7))
@@ -529,7 +536,7 @@ function youngRecords(today: CivilDate): WorkbookDocument['records'] {
 /**
  * The fake build's made-up Investments file: two accounts at made-up brokers, euros changed into dollars, buys and
  * sales of US shares, one of them sold in full, a Xetra ETF with its own mix and a money market fund priced by hand,
- * dividends with tax withheld, interest, an account fee and its refund, a transfer of units and one of cash, a
+ * dividends with tax withheld, interest, an account fee and its refund, a deposit four days before the day that a fake Spending row pays, a transfer of units and one of cash, a
  * spin-off and a split of what it gave, a US index fund it compares with, class targets, one changed check, and for
  * the Tax screen two sales of 2026, a dividend with 30% withheld, one with nothing withheld, stock lending and a
  * referral credit. Every figure in it is made up.
@@ -538,7 +545,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
   if (variant === 'young') {
     return { ...emptyInvestmentsDocument(savedAt), records: youngRecords(today) }
   }
-  const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS]
+  const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS, paidDeposit(today)]
   const kept = variant !== 'cash-below-zero' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
   const movements = variant === 'mail-typed' ? [...kept, ...typedReportMovements(today)] : kept
   const mailed = variant === 'mail' || variant === 'mail-typed'

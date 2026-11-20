@@ -63,6 +63,8 @@ Company reads which of its ledger rows and costs the owner paid other apps link 
 
 Loans hands the shell the records a row may link to the same way, as `loanTargets`, typed by `PublishedLoanTargets` in `src/shared/app/loanTargets.ts`: each bank loan's instalments and extra payments, and each informal loan with its movements. Loans builds them once per read of its books in `src/apps/loans/facts.ts`. `ShellReads.loanTargets` gives them by app, and Spending keeps the read in `src/apps/spending/links/application/loanRecords.ts`. `src/apps/spending/links/application/linkTargets.ts` gathers every app's targets under the app's id, so a link reads against the targets of the app it names and the picker lists every app's, each with its own wait or failure.
 
+Investments hands the shell its deposits and withdrawals the same way, as `cashMovements`, typed by `PublishedCashMovement` in `src/shared/app/cashMovements.ts`, each with its account's name and its euros at its own rate. Fees and fee refunds stay out, since no bank row pays them. Investments builds them once per read of its books in `src/apps/investments/transactions/application/publishedCashMovements.ts`. `ShellReads.cashMovements` gives them by app, and Spending keeps the read in `src/apps/spending/links/application/investmentTargets.ts`, which `linkTargets.ts` lists beside the others, so a row links to a broker deposit as it links to a loan's instalment and To review offers the deposit a row may pay.
+
 ## What may import what
 
 `tests/importBoundaries.spec.ts` runs with the unit tests and names the file, the line and the import of each break. Each rule below gives the name of its test.

@@ -1,13 +1,11 @@
 import { codecOfInvestmentsKind } from '../application/investmentsCodecs'
 import { INVESTMENT_RETIRED_SETTING_KEYS, INVESTMENT_SETTING_CHECKS } from '../application/settingWrites'
 import type { InvestmentsBooks } from '../domain/investmentsBooks'
+import { INVESTMENTS_APP } from '../domain/investmentsApp'
 import { investmentsRecordsOf, readInvestmentBook } from '../domain/readInvestmentBook'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument, recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
-
-/** The app of the hub whose file this store keeps. */
-export const INVESTMENTS_APP = 'investments'
 
 const INVESTMENTS_SCHEMA: WorkbookDocument['schema'] = { investments: 3 }
 

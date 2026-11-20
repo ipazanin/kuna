@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest'
 import type { AppContribution, ShellReads } from '../src/shared/app/appContribution'
 import type { AppMoneyWithOwner } from '../src/shared/app/moneyWithOwner'
 import type { AppLoanTargets } from '../src/shared/app/loanTargets'
+import type { AppCashMovements } from '../src/shared/app/cashMovements'
 import type { AppRowLinks } from '../src/shared/app/rowLinks'
 import { installApp } from '../src/shell/routing/appRegistry'
 
 /** An app as the shell's reads see it: its id, what it hands over, and the reads it installed with. */
 function appOf(
   id: string,
-  handed: { rowLinks?: () => AppRowLinks; moneyWithOwner?: () => AppMoneyWithOwner; loanTargets?: () => AppLoanTargets },
+  handed: { rowLinks?: () => AppRowLinks; moneyWithOwner?: () => AppMoneyWithOwner; loanTargets?: () => AppLoanTargets; cashMovements?: () => AppCashMovements },
   kept: { shell: ShellReads | null },
 ): AppContribution {
   return {
@@ -44,5 +45,16 @@ describe('what the shell lets an app read of the others', () => {
     expect(kept.shell?.loanTargets()).toEqual([{ app: 'loans', targets: 'opening' }])
     targets = { instalments: [], extraPayments: [], informalLoans: [] }
     expect(kept.shell?.loanTargets()).toEqual([{ app: 'loans', targets: { instalments: [], extraPayments: [], informalLoans: [] } }])
+  })
+
+  it('gathers the deposits and withdrawals of each app that keeps accounts at brokers, by app, afresh at each call', async () => {
+    const kept: { shell: ShellReads | null } = { shell: null }
+    let movements: AppCashMovements = 'opening'
+    await installApp(appOf('investments', { cashMovements: () => movements }, kept))
+    await installApp(appOf('assets', {}, kept))
+
+    expect(kept.shell?.cashMovements()).toEqual([{ app: 'investments', movements: 'opening' }])
+    movements = []
+    expect(kept.shell?.cashMovements()).toEqual([{ app: 'investments', movements: [] }])
   })
 })

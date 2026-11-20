@@ -285,6 +285,7 @@ import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRate
 import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { today } from '../src/shared/calendar/civilDate.ts'
+import { addDays } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
 import { formatAccountMoney, formatMoney, formatPercent, formatPercentChange } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
@@ -325,6 +326,7 @@ import {
   spendingBankRowFlowIn,
   spendingLinkFlowIn,
   spendingCompanyLinkFlowIn,
+  spendingBrokerLinkFlowIn,
   spendingAddToLoansFlowIn,
   spendingAddToCompanyFlowIn,
   spendingLinkMovementFlowIn,
@@ -8295,6 +8297,24 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=company&fake=one-employee&lang=hr' },
+  },
+  {
+    name: 'spending-broker-link',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Entries',
+    run: spendingBrokerLinkFlowIn('en', monthOf(addDays(today(), -6))),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=broker&investments=sample' },
+  },
+  {
+    name: 'spending-broker-link-croatian',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Unosi',
+    run: spendingBrokerLinkFlowIn('hr', monthOf(addDays(today(), -6))),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=broker&investments=sample&lang=hr' },
   },
   {
     name: 'spending-add-to-company',

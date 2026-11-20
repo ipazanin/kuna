@@ -20,7 +20,8 @@ import {
   TRANSFER_RECORDS,
 } from '../src/apps/investments/workbook/domain/investmentKinds'
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
-import { INVESTMENTS_APP, INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
+import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
+import { INVESTMENTS_APP } from '../src/apps/investments/workbook/domain/investmentsApp'
 import { investmentLots } from '../src/apps/investments/holdings/domain/lots'
 import { pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks'
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices'
@@ -546,7 +547,7 @@ describe('the Investments file', () => {
       instruments: 7,
       trades: 14,
       income: 13,
-      cashMovements: 9,
+      cashMovements: 10,
       exchanges: 1,
       transfers: 2,
       splits: 1,

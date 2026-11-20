@@ -45,6 +45,7 @@ import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampl
 import { BANK_SYNC_KEY_PREFIX, transcribedImportKeys } from '../../../statements/domain/statementRows'
 import { BANK_SYNC_LABEL } from '../../../bankSync/domain/bankSyncRows'
 import { FAKE_HOME_LOAN, FAKE_HOME_LOAN_EXTRA_PAYMENT, FAKE_MARKO_REPAID } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
+import { fakePaidDepositDay } from '../../../../../shared/storage/infrastructure/fake/fakeInvestmentKeys'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
@@ -69,12 +70,13 @@ import { language } from '../../../../../shared/text/language'
  * brought that the export's Corner market looks like, `cash` the statements set with cash withdrawals already on the file
  * and no cash leg, two dollar cash accounts and a pound account at Revolut, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split, and with the bank sync set up two receipts that wait for the bank's row on OTP, one of which two kiosk payments may be.
+ * `broker` is the sample with a transfer to a broker that the fake Investments deposit takes.
  * Every set holds three labels: a trip last month with its dollar dinner and its top-up between own accounts, a new flat whose rent and
  * bills run across three months with one line of the split receipt, and a garden label nothing carries yet. Every set but `foreign`
  * holds two events: a trip to Prague of five days that runs over the day, with its rows, a flight bought last month put in it and a
  * subscription on its days taken out, and longer autumn holidays over Prague's days and a fuel row before them. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people' | 'company' | 'company-before-roles'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people' | 'company' | 'company-before-roles' | 'broker'
 
 const GBP = currencyCodeOf('GBP')!
 
@@ -232,6 +234,11 @@ function dollarRows(month: MonthKey, day: CivilDate): Row[] {
 
 const REVOLUT_IBAN = 'LT000000000000000001'
 const PHARMACY_IBAN = 'HR1100000000000000099'
+
+/** What the broker set adds to the sample: a transfer to a broker waiting on To review, which the fake Investments deposit two days later takes with 2.32 less arrived. */
+function brokerRow(day: CivilDate): FakeRow {
+  return statementRow(1740, OTP, addDays(fakePaidDepositDay(day), -2), -1000, 'Example Broker', { description: 'Example Broker deposit' })
+}
 
 /** What the people set adds to the sample, all made up: a payment to a person, with her IBAN and address in the bank's text, and a row whose text tries to give the assistant orders. */
 function peopleRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
@@ -765,6 +772,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
   if (bankSync === 'pending-books') transactions.push(pendingBakeryRow(day, idOf))
   if (set === 'receipts') transactions.push(...receiptRows(day, idOf), ...(bankSync === null ? [] : kioskRows(day, idOf)))
   if (set === 'people') transactions.push(...peopleRows(day, idOf))
+  if (set === 'broker') transactions.push(brokerRow(day))
   if (set === 'company' || set === 'company-before-roles') transactions.push(...companyRows(day, idOf))
   if (set !== 'foreign') {
     const [out, into] = [fixedId(TRANSACTION_RECORDS, 1501), fixedId(TRANSACTION_RECORDS, 1502)]

@@ -15,7 +15,7 @@ import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingRe
 import ReviewRow from './ReviewRow.vue'
 import type { ReviewAction } from './ReviewRow.vue'
 import { linkEntry } from '../../entries/application/entryWrites'
-import { companyPaymentReview, instalmentReview } from '../../links/application/linkReview'
+import { cashMovementReview, companyPaymentReview, instalmentReview } from '../../links/application/linkReview'
 import CompanyPaymentsCard from '../../links/presentation/CompanyPaymentsCard.vue'
 import CompanyRolesCard from '../../links/presentation/CompanyRolesCard.vue'
 import InstalmentsCard from '../../links/presentation/InstalmentsCard.vue'
@@ -70,8 +70,9 @@ const queue = computed(() => (book.value === null ? null : reviewQueue(book.valu
 const receipts = computed(() => (book.value === null ? [] : waitingReceipts(book.value)))
 const instalments = computed(() => (book.value === null ? { offers: [], past: [], extraPayments: [] } : instalmentReview(book.value, today())))
 const company = computed(() => (book.value === null ? { offers: [], past: [], roles: null } : companyPaymentReview(book.value)))
+const cashMovements = computed(() => (book.value === null ? [] : cashMovementReview(book.value)))
 const offerOf = computed(() => {
-  const offers = new Map([...company.value.offers, ...instalments.value.offers].map((offer) => [offer.row.id, offer]))
+  const offers = new Map([...cashMovements.value, ...company.value.offers, ...instalments.value.offers].map((offer) => [offer.row.id, offer]))
   return (row: Transaction) => offers.get(row.id) ?? null
 })
 /** Waiting receipts sit beside the pairs and lone legs, which also only wait, unless one asks which payment it is. */

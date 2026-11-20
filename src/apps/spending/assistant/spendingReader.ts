@@ -207,7 +207,14 @@ function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<
         return words.reads.linkCompanyPayment(target.parts.map((part) => part.kind).join(', '), target.day, target.direction === 'to-owner')
       case 'owner-advance':
         return words.reads.linkCompanyAdvance(target.categoryName, target.day)
+      case 'cash-movement':
+        return words.reads.linkCashMovement(target.accountName, target.day, target.movement === 'deposit')
     }
+  }
+  if (sourceOf(item.link.app) === 'investments') {
+    return { gone: words.reads.linkInvestmentsGone, opening: words.reads.linkInvestmentsUnknown, failed: words.reads.linkInvestmentsUnknown, 'not-set-up': words.reads.linkInvestmentsNotSetUp }[
+      read.state
+    ]
   }
   if (sourceOf(item.link.app) === 'company') {
     return { gone: words.reads.linkCompanyGone, opening: words.reads.linkCompanyUnknown, failed: words.reads.linkCompanyUnknown, 'not-set-up': words.reads.linkCompanyNotSetUp }[read.state]

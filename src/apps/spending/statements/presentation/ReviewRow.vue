@@ -11,6 +11,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import type { WaitingRow } from '../domain/reviewQueue'
 import type { InstalmentOffer } from '../../links/domain/instalmentOffers'
 import type { OwnerPaymentOffer } from '../../links/domain/ownerPaymentOffers'
+import type { CashMovementOffer } from '../../links/domain/cashMovementOffers'
 import { choiceText, instalmentText, words as linkWords } from '../../links/presentation/words'
 import { words } from './words'
 import { rowCaption, rowTitle } from './rowParts'
@@ -26,6 +27,8 @@ import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import type { CashMovementTarget } from '../../links/domain/linkTarget'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -37,8 +40,8 @@ const props = defineProps<{
   accounts: readonly Account[]
   /** What a rule would file this row under, offered beside joining it with what you typed. */
   ruleCategory: Category | null
-  /** An instalment in Loans this row may pay, or a payment in Company it may be, which Link links it to. */
-  offer: InstalmentOffer | OwnerPaymentOffer | null
+  /** An instalment in Loans this row may pay, a payment in Company or a deposit or withdrawal in Investments it may be, which Link links it to. */
+  offer: InstalmentOffer | OwnerPaymentOffer | CashMovementOffer | null
   takesReceipt: boolean
   /** Whether it is picked while rows are being selected, or null while its own controls file it. */
   picked: boolean | null
@@ -73,6 +76,7 @@ const typedLine = computed(() => {
 const offerLine = computed(() => {
   const offer = props.offer
   if (offer === null) return null
+  if (isCashMovementOffer(offer)) return cashMovementLine(offer.target, offer.difference)
   if (offer.target.kind === 'owner-payment') {
     const payment = choiceText(offer.target)
     if (offer.difference === 0) return (offer.suggested ? linkWords.companyOffer.is : linkWords.companyOffer.mayBeAnotherDay)(payment)
@@ -85,6 +89,17 @@ const offerLine = computed(() => {
   const amount = formatAccountMoney(absAccountMoney(offer.difference), currency.value)
   return linkWords.offer.mayPay(instalment, (offer.difference < 0 ? linkWords.above : linkWords.below)(amount))
 })
+
+function isCashMovementOffer(offer: NonNullable<typeof props.offer>): offer is CashMovementOffer {
+  return offer.target.kind === 'cash-movement'
+}
+
+/** A deposit or a withdrawal the row may be, with how much more or less arrived. */
+function cashMovementLine(target: CashMovementTarget, difference: AccountMoney): string {
+  const movement = (target.movement === 'deposit' ? linkWords.investmentsOffer.deposit : linkWords.investmentsOffer.withdrawal)(target.accountName, target.day)
+  if (difference === 0) return linkWords.investmentsOffer.is(movement)
+  return linkWords.investmentsOffer.mayBe(movement, (difference > 0 ? linkWords.investments.more : linkWords.investments.less)(formatAccountMoney(absAccountMoney(difference), currency.value)))
+}
 
 const transferLine = computed(() => {
   const pair = props.waiting.maybeTransfer

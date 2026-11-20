@@ -6956,6 +6956,35 @@ export function spendingAddToCompanyFlowIn(language) {
   }
 }
 
+/**
+ * The broker set's waiting transfer to Example Broker beside the fake Investments file: To review offers the deposit into
+ * Broker Two two days later with what less arrived, Link files the row under Saved to investments, and the row's dialog in
+ * `rowMonth` names the deposit, the account and the difference, with Open in Investments.
+ */
+export function spendingBrokerLinkFlowIn(language, rowMonth) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const offered = '[data-testid="spending-review-row"]'
+    const row = await page
+      .waitForFunction((selector) => [...document.querySelectorAll(selector)].find((element) => element.textContent?.includes('Broker Two')) ?? null, { timeout: 10_000 }, offered)
+      .then((handle) => handle.asElement())
+    await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await shootAt(page, shoot, '[data-testid="spending-review"]', 'spending-review-broker-offer')
+    await press(await row.$('[data-testid="spending-review-link"]'))
+    await toast(page, words.spendingLinks.linked)
+    await dismissToasts(page)
+    await page.evaluate((month) => (location.hash = `#/spending/transactions?month=${month}`), rowMonth)
+    await openSpendingRow(page, press, 'Example Broker', -100000)
+    await waitForTextIn(page, '[data-testid="spending-entry-link"]', 'Broker Two')
+    await waitForTextIn(page, '[data-testid="spending-entry-link"]', language === 'en' ? '2.32' : '2,32')
+    await shootAt(page, shoot, '[data-testid="spending-entry-link"]', 'spending-entry-broker-link')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
 /** Link on the company set's waiting trip payout on To review, which links it to Company's payment and takes it off the queue. */
 export function spendingCompanyReviewLinkFlowIn(language) {
   const words = SCREEN_WORDS[language]

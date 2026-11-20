@@ -39,7 +39,7 @@ export const en = {
     sources.length === 0
       ? 'Pick a record'
       : `Pick a record in ${listInWords(
-          sources.map((source) => ({ loans: 'Loans', company: 'Company' })[source]),
+          sources.map((source) => ({ loans: 'Loans', company: 'Company', investments: 'Investments' })[source]),
           'or',
         )}`,
   link: 'Link',
@@ -54,6 +54,7 @@ export const en = {
   splitNote: {
     loans: "The link split this entry into the loan plan's interest and principal. Its amount and account stay as they are, and removing the link leaves the parts.",
     company: 'The link split this entry into the kinds of money in the payment with Company. Its amount and account stay as they are, and removing the link leaves the parts.',
+    investments: 'Its link to Investments keeps the parts as they are.',
   } satisfies Record<TargetSource, string>,
   /** Why an entry links whole, where a person can link it. */
   whole: {
@@ -61,8 +62,10 @@ export const en = {
     receipt: 'Links the whole entry, since a receipt split it.',
     'no-principal': 'It is all interest, so the entry stays whole.',
     principal: '',
+    saving: '',
     'money-in': '',
     'transfer-leg': '',
+    kept: 'The entry keeps its category.',
   } satisfies Record<WholeReason, string>,
   /** The words a split gives its parts. */
   notes: { interest: 'Interest', difference: 'Difference from the plan' },
@@ -138,6 +141,25 @@ export const en = {
       undone: 'The link and the cost are taken back.',
       keptAdded: (reason: string) => `The link is off, and the cost stays in Company. ${reason}`,
     },
+  },
+  /** A deposit into a broker's account in Investments or a withdrawal from it, as a link names it. */
+  investments: {
+    deposit: (account: string, day: CivilDate) => `Deposit to ${account}, ${dayLabel(day)}`,
+    withdrawal: (account: string, day: CivilDate) => `Withdrawal from ${account}, ${dayLabel(day)}`,
+    more: (amount: string) => `${amount} more arrived`,
+    less: (amount: string) => `${amount} less arrived`,
+    gone: 'No longer in Investments',
+    opening: 'Linked to Investments, which is still opening',
+    failed: 'Linked to Investments, which did not open',
+    notSetUp: 'Linked to Investments, which is not set up on this device',
+    open: 'Open in Investments',
+  },
+  /** What To review offers for a row that may be a deposit or a withdrawal. */
+  investmentsOffer: {
+    deposit: (account: string, day: CivilDate) => `the deposit to ${account}, ${dayLabel(day)}`,
+    withdrawal: (account: string, day: CivilDate) => `the withdrawal from ${account}, ${dayLabel(day)}`,
+    is: (movement: string) => `Looks like ${movement}.`,
+    mayBe: (movement: string, difference: string) => `May be ${movement}, ${difference}.`,
   },
   /** The card of rows a loan's rule filed whole that To review offers to record in Loans as an extra payment, and the form that does it. */
   extra: {
@@ -222,7 +244,7 @@ export const hr: Translation<typeof en> = {
     sources.length === 0
       ? 'Odaberi zapis'
       : `Odaberi zapis u ${listInWords(
-          sources.map((source) => ({ loans: 'Kreditima', company: 'Tvrtki' })[source]),
+          sources.map((source) => ({ loans: 'Kreditima', company: 'Tvrtki', investments: 'Ulaganjima' })[source]),
           'or',
         )}`,
   link: 'Poveži',
@@ -236,14 +258,17 @@ export const hr: Translation<typeof en> = {
   splitNote: {
     loans: 'Poveznica je podijelila unos na kamate i glavnicu iz plana kredita. Iznos i račun ostaju kakvi jesu, a kad uklonite poveznicu, dijelovi ostaju.',
     company: 'Poveznica je podijelila unos na vrste novca u plaćanju s Tvrtkom. Iznos i račun ostaju kakvi jesu, a kad uklonite poveznicu, dijelovi ostaju.',
+    investments: 'Poveznica s Ulaganjima ne mijenja dijelove.',
   },
   whole: {
     'not-euro': 'Povezuje se cijeli unos jer je plan u eurima, a račun nije.',
     receipt: 'Povezuje se cijeli unos jer ga je podijelio fiskalni račun.',
     'no-principal': 'Sve je kamata, pa unos ostaje cijeli.',
     principal: '',
+    saving: '',
     'money-in': '',
     'transfer-leg': '',
+    kept: 'Unos zadržava svoju kategoriju.',
   },
   notes: { interest: 'Kamate', difference: 'Razlika prema planu' },
   offer: {
@@ -312,6 +337,24 @@ export const hr: Translation<typeof en> = {
       undone: 'Poveznica i trošak su vraćeni.',
       keptAdded: (reason) => `Poveznica je uklonjena, a trošak ostaje u Tvrtki. ${reason}`,
     },
+  },
+  investments: {
+    deposit: (account, day) => `Uplata na račun ${account}, ${dayLabel(day)}`,
+    withdrawal: (account, day) => `Isplata s računa ${account}, ${dayLabel(day)}`,
+    more: (amount) => `stiglo ${amount} više`,
+    less: (amount) => `stiglo ${amount} manje`,
+    gone: 'Više nije u Ulaganjima',
+    opening: 'Povezano s Ulaganjima, koja se još otvaraju',
+    failed: 'Povezano s Ulaganjima, koja se nisu otvorila',
+    notSetUp: 'Povezano s Ulaganjima, koja na ovom uređaju nisu postavljena',
+    open: 'Otvori u Ulaganjima',
+  },
+  investmentsOffer: {
+    deposit: (account, day) => `uplata na račun ${account}, ${dayLabel(day)}`,
+    withdrawal: (account, day) => `isplata s računa ${account}, ${dayLabel(day)}`,
+    // A movement's text ends in a Croatian date, which already ends in a full stop.
+    is: (movement) => `Izgleda kao: ${movement}`,
+    mayBe: (movement, difference) => `Možda je: ${movement}, ${difference}.`,
   },
   extra: {
     title: 'Prijevremene otplate za upis',
@@ -391,6 +434,8 @@ export function choiceText(target: LinkTarget): string {
       return companyPaymentText(target)
     case 'owner-advance':
       return words.company.advance(target.description, target.day)
+    case 'cash-movement':
+      return (target.movement === 'deposit' ? words.investments.deposit : words.investments.withdrawal)(target.accountName, target.day)
   }
 }
 
@@ -413,6 +458,6 @@ export function targetText(target: LinkTarget): string {
 /** What a row's link reads as: the record it names, or why that record is not shown, in the words of the kind of app it names. */
 export function linkText(read: LinkState<LinkTarget>, source: TargetSource): string {
   if (read.state === 'there') return targetText(read.target)
-  const said = source === 'company' ? words.company : words
+  const said = source === 'company' ? words.company : source === 'investments' ? words.investments : words
   return { opening: said.opening, failed: said.failed, 'not-set-up': said.notSetUp, gone: said.gone }[read.state]
 }

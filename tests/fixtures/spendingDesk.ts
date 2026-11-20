@@ -391,6 +391,7 @@ export function deskPorts(receipts: ReceiptPorts = receiptPorts(), bankSetup: Ba
     linkSource: () => 'loans',
     loanTargets: () => DESK_LOAN_TARGETS,
     companyPayments: () => [],
+    cashMovements: () => [],
   }
 }
 

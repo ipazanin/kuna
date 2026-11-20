@@ -2,15 +2,18 @@ import { computed } from 'vue'
 
 import { companyTargets } from './companyTargets'
 import { loanTargets } from './loanRecords'
+import { investmentTargets } from './investmentTargets'
 import type { ShownTarget } from './linkTargets'
 import { companyRolesAsk } from '../domain/companyRoles'
 import type { CompanyRolesAsk } from '../domain/companyRoles'
+import { cashMovementOffers } from '../domain/cashMovementOffers'
+import type { CashMovementOffer } from '../domain/cashMovementOffers'
 import { ownerPaymentOffers, pastOwnerPayments } from '../domain/ownerPaymentOffers'
 import type { OwnerPaymentOffer } from '../domain/ownerPaymentOffers'
 import { extraPaymentOffers, instalmentOffers, pastInstalments } from '../domain/instalmentOffers'
 import type { ExtraPaymentOffer, InstalmentOffer, PastInstalments } from '../domain/instalmentOffers'
 import { decidingRule } from '../../statements/domain/spendingCategorisation'
-import type { AppTargets, InstalmentTarget, OwnerPaymentTarget } from '../domain/linkTarget'
+import type { AppTargets, CashMovementTarget, InstalmentTarget, OwnerPaymentTarget } from '../domain/linkTarget'
 import { reviewCount } from '../../statements/domain/reviewQueue'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -78,6 +81,25 @@ export function companyPaymentReview(book: SpendingBook): CompanyPaymentReview {
   const review = { offers, past: pastOwnerPayments(book, offers, book.settings.companyPaymentsPutOff), roles: companyRolesAsk(book, payments) }
   latestCompany = { book, payments, review }
   return review
+}
+
+/** A deposit or a withdrawal in Investments as To review shows it, with its page in Investments. */
+export type ShownCashMovement = ShownTarget & CashMovementTarget
+
+/** Every app's deposits and withdrawals, read again only when one of them changes. Those of an app that opens, failed or is not set up are none. */
+const shownCashMovements = computed(() =>
+  investmentTargets().flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets.filter((target): target is ShownCashMovement => target.kind === 'cash-movement'))),
+)
+
+let latestCash: { readonly book: SpendingBook; readonly movements: readonly ShownCashMovement[]; readonly offers: readonly CashMovementOffer<ShownCashMovement>[] } | null = null
+
+/** The rows To review offers to link to a deposit or a withdrawal of the apps with brokers' accounts on screen. */
+export function cashMovementReview(book: SpendingBook): readonly CashMovementOffer<ShownCashMovement>[] {
+  const movements = shownCashMovements.value
+  if (latestCash !== null && latestCash.book === book && latestCash.movements === movements) return latestCash.offers
+  const offers = cashMovementOffers(book, movements)
+  latestCash = { book, movements, offers }
+  return offers
 }
 
 /**

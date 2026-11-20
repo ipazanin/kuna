@@ -36,6 +36,11 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['spending: LinkTarget.description', 'spending: LinkTarget.categoryName'],
   },
   {
+    reason:
+      "A deposit into a broker's account or a withdrawal from it, which Investments publishes with its account's name and link-entry names by that name and a day, so nobody types it in Spending.",
+    fields: ['spending: LinkTarget.accountName'],
+  },
+  {
     reason: 'The labels on a part of a quick add, which Settings, Quick add sets. A label goes on the entry the quick add wrote through label-entries.',
     fields: ['spending: ShortcutPart.labels'],
   },

@@ -12,7 +12,7 @@ import { INVESTMENTS_OVERVIEW_ROUTE, INVESTMENTS_SETTINGS_ROUTE, INVESTMENTS_STA
 import { HOLDING_ROUTE, HOLDINGS_ROUTE } from './holdings/presentation/holdingLinks'
 import { usePortfolio } from './holdings/presentation/usePortfolio'
 import { useMailReports } from './mail/presentation/useMailReports'
-import { TRANSACTIONS_ROUTE } from './transactions/presentation/transactionLinks'
+import { TRANSACTIONS_ROUTE } from './transactions/domain/transactionLinks'
 import { words as transactionWords } from './transactions/presentation/words'
 import { words as holdingsWords } from './holdings/presentation/words'
 import { investmentsSetUp } from './overview/presentation/investmentsSetUp'
@@ -23,10 +23,11 @@ import { words as settingsWords } from './settings/presentation/words'
 import { TAX_ROUTE } from './tax/presentation/taxLinks'
 import { confirmHistoryComplete, forgetHistoryComplete, useTaxShown } from './tax/presentation/useTaxShown'
 import { words as taxWords } from './tax/presentation/words'
+import { publishedCashMovements } from './transactions/application/publishedCashMovements'
 import { investmentsSyncGroup } from './sync/presentation/investmentsSyncGroup'
 import { words } from './words'
 import { useInvestmentsBooks } from './workbook/application/investmentsStore'
-import { INVESTMENTS_APP } from './workbook/infrastructure/investmentsDocument'
+import { INVESTMENTS_APP } from './workbook/domain/investmentsApp'
 import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { words as fileWords } from './workbook/presentation/words'
 import { pageRequestCounts, startPrices, usePrices } from './prices/presentation/usePrices'
@@ -127,6 +128,7 @@ export const investmentsApp: AppContribution = {
   firstRun: () => isFirstRun(state),
   startPath: INVESTMENTS_START_ROUTE,
   syncGroup: investmentsSyncGroup,
+  cashMovements: publishedCashMovements,
   // Written inline so the production build folds it away with the gallery's chunk.
   ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true' ? { gallery: async () => (await import('./gallery/InvestmentsGallery.vue')).default } : {}),
   asksGoogleOnOpen: () => loadWorkbookChoice(INVESTMENTS_APP)?.source === 'drive' && autoSyncOn.value,

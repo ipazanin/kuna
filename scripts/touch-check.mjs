@@ -219,6 +219,7 @@ import {
   spendingRuleWithdrawalFlowIn,
   spendingLoanRuleFlowIn,
   spendingExtraPaymentFlowIn,
+  spendingBrokerLinkFlowIn,
   spendingImportMissingFlowIn,
   spendingImportLookAlikeFlowIn,
   spendingPendingRowFlowIn,
@@ -343,6 +344,7 @@ import { delay, typeDay } from './support/pressing.mjs'
 import { cutTextTouchStep } from './support/cutTextFlows.mjs'
 import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
 import { today } from '../src/shared/calendar/civilDate.ts'
+import { addDays } from '../src/shared/calendar/civilDate.ts'
 import { addMonths, monthOf } from '../src/shared/calendar/monthKey.ts'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -3538,6 +3540,7 @@ async function checkWidth(browser, width) {
     ['spending-rules-withdrawal', 'drive&spending=statements', spendingRuleWithdrawalFlowIn('en'), '#/spending/sorting#rules', 'Sorting'],
     ['spending-rules-loan', 'drive&spending=sample&loans=sample', spendingLoanRuleFlowIn('en'), '#/spending/sorting#rules', 'Sorting'],
     ['spending-review-extra-payment', 'drive&spending=statements&loans=sample', spendingExtraPaymentFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    ['spending-broker-link', 'drive&spending=broker&investments=sample', spendingBrokerLinkFlowIn('en', monthOf(addDays(today(), -6))), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-review-cash', 'drive&spending=cash', spendingReviewCashFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-bank-sync-withdrawal', 'drive&spending=statements&banksync=withdrawal', spendingBankSyncWithdrawalFlowIn('en'), '#/spending/settings?tab=bank-sync', 'Settings'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],

@@ -5,7 +5,7 @@ import { PRICES_FILE_NAME } from '../../prices/domain/pricesFile'
 import { forgetPricesCopy, pagePricesDrive, usePrices } from '../../prices/presentation/usePrices'
 import { words as appWords } from '../../words'
 import { useInvestmentsBooks } from '../application/investmentsStore'
-import { INVESTMENTS_APP } from '../infrastructure/investmentsDocument'
+import { INVESTMENTS_APP } from '../domain/investmentsApp'
 import { words as fileWords } from './words'
 
 const store = useInvestmentsBooks()

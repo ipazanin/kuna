@@ -2,6 +2,7 @@ import type { AppContribution } from '../../shared/app/appContribution'
 import type { AppLinkedRows } from '../../shared/app/rowLinks'
 import type { MoneyWithOwnerOfApp } from '../../shared/app/moneyWithOwner'
 import type { LoanTargetsOfApp } from '../../shared/app/loanTargets'
+import type { CashMovementsOfApp } from '../../shared/app/cashMovements'
 
 const installed: AppContribution[] = []
 
@@ -19,7 +20,7 @@ export function inAppOrder<App extends { readonly id: string }>(apps: readonly A
 
 /** Called by main.ts for each app, before the router is made. */
 export async function installApp(app: AppContribution): Promise<void> {
-  await app.install({ linkedRows, moneyWithOwner, loanTargets })
+  await app.install({ linkedRows, moneyWithOwner, loanTargets, cashMovements })
   installed.splice(0, installed.length, ...inAppOrder([...installed, app]))
 }
 
@@ -40,6 +41,11 @@ function moneyWithOwner(): readonly MoneyWithOwnerOfApp[] {
 /** The loan records each installed app publishes, by app, which each app reads through the `ShellReads` it installed with. */
 function loanTargets(): readonly LoanTargetsOfApp[] {
   return installed.flatMap((app) => (app.loanTargets === undefined ? [] : [{ app: app.id, targets: app.loanTargets() }]))
+}
+
+/** The deposits and withdrawals each installed app publishes, by app, which each app reads through the `ShellReads` it installed with. */
+function cashMovements(): readonly CashMovementsOfApp[] {
+  return installed.flatMap((app) => (app.cashMovements === undefined ? [] : [{ app: app.id, movements: app.cashMovements() }]))
 }
 
 /** Whether the address is one of the app's: its id, or a path under it. */

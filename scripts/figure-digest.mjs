@@ -12,7 +12,7 @@
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-assets <sample, house-and-car, loan-gone or co-owned> [--today yyyy-mm-dd]
  *   npm run check:figures -- --spending <path to a Kuna Spending file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-spending <sample, foreign, over, statements, cash, receipts or company> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-spending <sample, foreign, over, statements, cash, receipts, company or broker> [--today yyyy-mm-dd]
  *
  * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
  * company's, in that order. With two or more, two last groups add them up as Net worth does and split them into its two sides. An Investments file
@@ -193,6 +193,9 @@ import { instalmentOffers, pastInstalments } from '../src/apps/spending/links/do
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanRecords.ts'
 import { companyTargetsFrom } from '../src/apps/spending/links/application/companyTargets.ts'
 import { ownerPaymentOffers, pastOwnerPayments } from '../src/apps/spending/links/domain/ownerPaymentOffers.ts'
+import { cashMovementOffers } from '../src/apps/spending/links/domain/cashMovementOffers.ts'
+import { investmentTargetsFrom } from '../src/apps/spending/links/application/investmentTargets.ts'
+import { cashMovementTargetsOf } from '../src/apps/investments/transactions/application/publishedCashMovements.ts'
 import { publishedMoneyWithOwner } from '../src/apps/company/transactions/application/publishedMoneyWithOwner.ts'
 import { withCashLeg } from '../src/apps/spending/pairing/domain/cashWithdrawals.ts'
 import { itemizedRow } from '../src/apps/spending/workbook/domain/rowItems.ts'
@@ -258,11 +261,11 @@ if (
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal', 'lending', 'co-owned'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone', 'co-owned'].includes(options['fake-assets'])) ||
-  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts', 'company'].includes(options['fake-spending'])) ||
+  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts', 'company', 'broker'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal, lending or co-owned>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car, loan-gone or co-owned>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash, receipts or company>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal, lending or co-owned>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car, loan-gone or co-owned>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash, receipts, company or broker>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -287,6 +290,8 @@ const groups = []
 const group = (name, figures) => groups.push([name, figures])
 // The payments between the company and its owner that the Spending groups offer rows as, none without a Company input.
 let companyPayments = []
+// The deposits and withdrawals the Spending groups offer rows as: the Investments input's, or for a fake Spending set the fake Investments file's.
+let cashMovements = null
 
 if (companyAsked) {
   const { records, workbook: read } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
@@ -629,6 +634,8 @@ function investmentsGroups(addGroup) {
   // How each account's rows come in, as the file says or Kuna reads it, has a group of its own, so the records keep their digest.
   addGroup('investments.read.sources', [...accountIntakes(workbook.book).values()])
   add('investments.read.problems', workbook.problems)
+  cashMovements = cashMovementTargetsOf(workbook.book)
+  add('investments.published.targets', cashMovements)
   const prices = pricesOfInput()
   const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates: pricesFileRateBook(prices), today }
   const facts = fetchedFactsBook(prices.facts)
@@ -738,6 +745,23 @@ async function ratesOfInput(demand, fake) {
 }
 
 /**
+ * The rows the file offers as deposits or withdrawals of the Investments input, or of the fake Investments file for a fake set,
+ * as one list, or nothing when it offers none, so a file whose rows pay no deposit keeps its digest.
+ */
+function cashOffersOf(workbook) {
+  const movements =
+    cashMovements ??
+    (options['fake-spending'] === undefined
+      ? []
+      : cashMovementTargetsOf(
+          INVESTMENTS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document: fakeInvestmentsDocument(AT, 'sample', today) }).workbook.book,
+        ))
+  const targets = investmentTargetsFrom([{ app: 'investments', movements }]).flatMap(({ targets: shown }) => shown)
+  const offers = cashMovementOffers(workbook, targets)
+  return offers.length === 0 ? [] : [offers]
+}
+
+/**
  * The Spending groups: the records, where each account's rows come from and the problems, then per account, named by its place in the file and never by its
  * name, its balance on the day in its currency and in euros, then income, spending and saved for every month from the
  * oldest row to the day's, then for the newest complete month and the day's month what each category and group counts
@@ -803,7 +827,7 @@ async function spendingGroups(addGroup, loansBook) {
   if (offeredLoans !== null) {
     add('spending.links.offers', () => {
       const offers = instalmentOffers(workbook, loanTargetsFrom(loanTargetsOf(offeredLoans)), today)
-      const loanOffers = [offers, pastInstalments(workbook, offers, workbook.settings.instalmentsPutOff)]
+      const loanOffers = [offers, pastInstalments(workbook, offers, workbook.settings.instalmentsPutOff), ...cashOffersOf(workbook)]
       if (companyPayments.length === 0) return loanOffers
       const payments = companyTargetsFrom([{ app: 'company', money: { payments: companyPayments, advances: [] } }]).flatMap(({ targets }) => targets)
       const owner = ownerPaymentOffers(workbook, payments)

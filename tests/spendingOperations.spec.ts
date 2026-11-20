@@ -894,6 +894,50 @@ describe('an entry’s link to Loans', () => {
     ).toEqual([[accountMoneyFromAmount(-45.3), forCompany?.id, cost.link]])
   })
 
+  it("links money out to a deposit into a broker's account by the account's name and its day, keeping the entry's category, and refuses a day it cannot be", async () => {
+    const deposit: LinkTarget = {
+      kind: 'cash-movement',
+      link: { app: 'investments', kind: 'cash-movement', key: 'made-up-deposit', due: null },
+      accountName: 'IBKR',
+      day: parseCivilDate('2026-10-14')!,
+      movement: 'deposit',
+      amount: moneyFromAmount(45.3),
+    }
+    const desk = await spendingDesk(used, { ...deskPorts(), cashMovements: () => [deposit] })
+    const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    const before = bookOf(desk).items.find((part) => part.transaction === EXAMPLE_RECORDS['transaction'])?.category
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'IBKR', due: '2026-10-11' })])).text).toContain('IBKR has no deposit or withdrawal on 2026-10-11')
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'ibkr', due: '2026-10-14' })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === EXAMPLE_RECORDS['transaction'])
+        .map((part) => [part.amount, part.category, part.link]),
+    ).toEqual([[accountMoneyFromAmount(-45.3), before, deposit.link]])
+  })
+
+  it("refuses a name both a broker's account and a loan in Loans have, naming both", async () => {
+    const deposit: LinkTarget = {
+      kind: 'cash-movement',
+      link: { app: 'investments', kind: 'cash-movement', key: 'made-up-deposit', due: null },
+      accountName: 'Housing loan',
+      day: parseCivilDate('2026-10-14')!,
+      movement: 'deposit',
+      amount: moneyFromAmount(45.3),
+    }
+    const desk = await spendingDesk(used, { ...deskPorts(), cashMovements: () => [deposit] })
+    const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan', due: '2026-10-14' })])).text).toContain(
+      "Both a loan in Loans and a broker's account in Investments are called Housing loan",
+    )
+  })
+
+  it('points to Add to Company when Company has no cost on the day for money out of a euro account with no link', async () => {
+    const desk = await spendingDesk(used)
+    const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Company', due: '2026-10-12' })])).text).toContain('Add to Company')
+  })
+
   it('tells the chat what a link names, or that Loans no longer has it', async () => {
     const desk = await spendingDesk(used)
     const linkOf = (targets: typeof DESK_LOAN_TARGETS) =>

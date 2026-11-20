@@ -21,6 +21,7 @@ import { toReviewCount } from './links/application/linkReview'
 import { sourceOf, targetsOf } from './links/application/linkTargets'
 import { companyTargets, readMoneyWithOwnerThrough } from './links/application/companyTargets'
 import { loanTargets, readLoanTargetsThrough } from './links/application/loanRecords'
+import { investmentTargets, readCashMovementsThrough } from './links/application/investmentTargets'
 import { companyOib, oibToMatch } from './company/application/companyFacts'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
 import { ratesNeeded } from './rates/domain/ratesNeeded'
@@ -65,6 +66,7 @@ export const spendingApp: AppContribution = {
     noteBankReturn()
     readMoneyWithOwnerThrough(() => shell.moneyWithOwner())
     readLoanTargetsThrough(() => shell.loanTargets())
+    readCashMovementsThrough(() => shell.cashMovements())
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
@@ -150,6 +152,7 @@ export const spendingApp: AppContribution = {
       linkSource: sourceOf,
       loanTargets,
       companyPayments: () => companyTargets().flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets)),
+      cashMovements: () => investmentTargets().flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets)),
     }
     return spendingAssistant(
       {

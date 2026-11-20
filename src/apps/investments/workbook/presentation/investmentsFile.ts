@@ -3,7 +3,8 @@ import type { WorkbookDocument } from '../../../../shared/storage/infrastructure
 import type { DocumentCopy } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import { documentName } from '../../../../shared/storage/infrastructure/driveDocument'
 import type { InvestmentsBooks } from '../domain/investmentsBooks'
-import { INVESTMENTS_APP, emptyInvestmentsDocument } from '../infrastructure/investmentsDocument'
+import { emptyInvestmentsDocument } from '../infrastructure/investmentsDocument'
+import { INVESTMENTS_APP } from '../domain/investmentsApp'
 
 type InvestmentsStore = WorkbookStore<InvestmentsBooks, DocumentCopy, WorkbookDocument>
 

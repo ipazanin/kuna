@@ -208,7 +208,7 @@ function plannedSteps(
       continue
     }
     if (isLinkStep(operation)) {
-      const linked = writeLinkStep(unit, book, records(), operation, field, idOf, { loans, companyPayments: ports.companyPayments() })
+      const linked = writeLinkStep(unit, book, records(), operation, field, idOf, { loans, companyPayments: ports.companyPayments(), cashMovements: ports.cashMovements() })
       if (linked !== null) book = withEntry({ ...book, categories: [...book.categories, ...linked.added] }, linked.entry)
       continue
     }
@@ -309,6 +309,8 @@ export interface SpendingPorts {
   loanTargets(): AppTargets<LinkTarget>
   /** The payments between a company and you of every company app that is open, which a step names by Company and their day. */
   companyPayments(): readonly LinkTarget[]
+  /** The deposits and withdrawals of every app with brokers' accounts that is open, which a step names by the account's name and their day. */
+  cashMovements(): readonly LinkTarget[]
 }
 
 /**

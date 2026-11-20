@@ -3,7 +3,7 @@ import { realBooksFile, seedRealBook } from '../../../../../shared/storage/infra
 import { PRICES_FILE_NAME, decodePricesFile } from '../../../prices/domain/pricesFile'
 import { openPricesCache } from '../../../prices/infrastructure/pricesCache'
 import { HISTORY_COMPLETE } from '../../../tax/domain/historyAnswer'
-import { INVESTMENTS_APP } from '../investmentsDocument'
+import { INVESTMENTS_APP } from '../../domain/investmentsApp'
 
 /**
  * Keeps the real Investments file in this browser with its prices, as this browser keeps them for a file with no prices file

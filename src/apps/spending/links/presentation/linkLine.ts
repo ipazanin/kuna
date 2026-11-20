@@ -4,9 +4,10 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import { allTargets, sourceIn } from '../application/linkTargets'
 import type { ShownTarget } from '../application/linkTargets'
+import { arrivedBeyond } from '../domain/cashMovementOffers'
 import { beyondPlan, beyondRecord } from '../domain/instalmentSplit'
 import { linkStateOf, targetsIn } from '../domain/linkTarget'
-import type { AppTargets, LinkState, LinkTarget, TargetSource } from '../domain/linkTarget'
+import type { AppTargets, CashMovementTarget, LinkState, LinkTarget, TargetSource } from '../domain/linkTarget'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { linkText, targetText, words } from './words'
@@ -45,7 +46,8 @@ export interface LinkedRow {
 
 /**
  * The record a row is linked to in words, with what the row paid above or below an instalment's plan, or a movement's or extra
- * payment's amount and how much more or less the row moved. Entries and the import's dry run both say it this way.
+ * payment's amount and how much more or less the row moved, or how much more or less arrived at or from a broker. Entries and the
+ * import's dry run both say it this way.
  */
 export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
   const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), row.currency)
@@ -55,8 +57,16 @@ export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
   const differs = [
     ...(plan === null || plan === 0 ? [] : [(plan > 0 ? words.above : words.below)(money(plan))]),
     ...(record === null || record === 0 ? [] : [(record > 0 ? words.moreThanLoans : words.lessThanLoans)(money(record))]),
+    ...(target.kind === 'cash-movement' ? arrivedText(target, row) : []),
   ]
   return [targetText(target), ...amount, ...differs].join(', ')
+}
+
+/** How much more or less arrived at or from the broker than left, or nothing when the two are equal or do not compare. */
+function arrivedText(target: CashMovementTarget, row: LinkedRow): readonly string[] {
+  const arrived = arrivedBeyond(target, row, row.currency)
+  if (arrived === null || arrived === 0) return []
+  return [(arrived > 0 ? words.investments.more : words.investments.less)(formatAccountMoney(absAccountMoney(arrived), row.currency))]
 }
 
 /** The line a link reads as against its app's records, with what the row paid above or below an instalment's plan. */
