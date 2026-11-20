@@ -31,6 +31,31 @@ export function decimalOfText(text: string): Decimal | null {
   return match === null ? null : decimalOfDigits(match[1] === '-', match[2]!, match[3] ?? '')
 }
 
+/** Which mark a file writes between whole units and their decimals. The other mark, a space or an apostrophe groups thousands. */
+export type DecimalMark = 'comma' | 'point'
+
+/** A file's amount by its decimal mark: an optional currency code before or after, a sign before or after, and whole groups of three between grouping marks. */
+const MARKED_TEXT: Readonly<Record<DecimalMark, RegExp>> = {
+  comma: /^([+-]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,12}))?(-?)$/,
+  point: /^([+-]?)(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,12}))?(-?)$/,
+}
+
+/**
+ * Text a bank's file writes, such as `1.234,56`, `-0,5`, `80,00-`, `1,234.56 EUR` or `0.8`, read by the file's decimal mark.
+ * Null for anything else, such as `12.50` read with a decimal comma, which is not a grouped thousand.
+ */
+export function decimalOfMarkedText(text: string, mark: DecimalMark): Decimal | null {
+  const grouping = mark === 'comma' ? '.' : ','
+  const bare = text
+    .trim()
+    .replace(/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/g, '')
+    .replace(/^([+-])\s+/, '$1')
+    .replace(/[\s']/g, grouping)
+  const match = MARKED_TEXT[mark].exec(bare)
+  if (match === null || (match[1] === '-' && match[4] === '-')) return null
+  return decimalOfDigits(match[1] === '-' || match[4] === '-', match[2]!.split(grouping).join(''), match[3] ?? '')
+}
+
 /**
  * Typed into a field, as `typedAmount` reads money: with a decimal point or a decimal comma, and with thousands grouped
  * as the language on screen writes them, so 1,000 in English and 1.000 in Croatian are a thousand. There is no k or m.

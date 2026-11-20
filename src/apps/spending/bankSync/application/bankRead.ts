@@ -8,7 +8,7 @@ import type { StatedBalance } from '../domain/bankBalance'
 import { accountsOfLinked, fetchFrom, linkableBankNamed, olderRowsMissing } from '../domain/bankLinks'
 import { BANK_SYNC_LABEL, bankSyncRows, rowsWithMoves } from '../domain/bankSyncRows'
 import { words } from '../domain/words'
-import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
+import type { FileNote, StatementRow, StatementRows } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -21,7 +21,6 @@ import type { Decimal } from '../../../../shared/money/decimal'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { plural } from '../../../../shared/text/translation'
 
 /** How far back a fetch for an account Kuna does not keep yet asks, so a link's first minutes bring all the history a bank gives. */
 const NEW_ACCOUNT_HISTORY_DAYS = 5 * 366
@@ -98,7 +97,7 @@ export async function readBanks(
 ): Promise<BankRead> {
   const rows: StatementRow[] = []
   const exchangeRates = new Map<StatementRow, Decimal>()
-  const notes: string[] = []
+  const fileNotes: FileNote[] = []
   const linkedAll: LinkedOfBank[] = []
   const proposals: AccountProposal[] = []
   const problems: string[] = []
@@ -157,8 +156,8 @@ export async function readBanks(
         covers.set(account.id, { from: askedFrom, to: latest })
         statement.exchangeRates.forEach((rate, row) => exchangeRates.set(row, rate))
         const { zero, unreadable } = statement.leftOut
-        if (zero > 0) notes.push(plural(words.zeroLeftOut(zero, account.name), zero))
-        if (unreadable > 0) notes.push(plural(words.unreadableLeftOut(unreadable, account.name), unreadable))
+        if (zero > 0) fileNotes.push({ kind: 'zero-left-out', count: zero, account: account.name })
+        if (unreadable > 0) fileNotes.push({ kind: 'unreadable-left-out', count: unreadable, account: account.name })
         const missing = freshLinks.includes(bank) ? null : olderRowsMissing(account, starts[place]!, statement.rows, book.transactions, day)
         if (missing !== null) olderRows.push({ bank, account, reached: missing.reached })
       })
@@ -171,7 +170,7 @@ export async function readBanks(
           accounts.length === 0
             ? [words.linkedAccount(words.banks[bank], linked.currency === NO_SINGLE_CURRENCY ? '' : linked.currency, linkedAccountEnding(linked))]
             : accounts.map((account) => account.name)
-        notes.push(words.balanceNotRead(names.join(', '), reasonOf(failure)))
+        fileNotes.push({ kind: 'balance-not-read', accounts: names.join(', '), reason: reasonOf(failure) })
       }
       for (const account of accounts) {
         const balance = statedBalance(balances, account.currency)
@@ -185,7 +184,7 @@ export async function readBanks(
           continue
         }
         const count = answer.filter((transaction) => transaction.currency === currency).length
-        notes.push(plural(words.otherCurrencyLeftOut(count, currency), count))
+        fileNotes.push({ kind: 'other-currency-left-out', count, currency })
       }
     }
   }
@@ -195,7 +194,7 @@ export async function readBanks(
   const moved = rowsWithMoves([...rows, ...held], exchangeRates, [...book.accounts, ...proposals.map((proposal) => proposal.account)])
   const movedOf = new Map(held.map((row, place) => [row, moved[rows.length + place]!]))
   return {
-    statement: { label: BANK_SYNC_LABEL, rows: moved.slice(0, rows.length), notes, covers },
+    statement: { label: BANK_SYNC_LABEL, rows: moved.slice(0, rows.length), fileNotes, covers },
     linked: linkedAll,
     proposals: proposals.map((proposal) => ({ ...proposal, rows: { ...proposal.rows, rows: proposal.rows.rows.map((row) => movedOf.get(row) ?? row) } })),
     problems,

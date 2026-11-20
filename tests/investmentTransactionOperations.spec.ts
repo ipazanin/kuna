@@ -325,6 +325,7 @@ describe("booking a waiting row of IBKR's mailed report", () => {
   const CANCELLED: AskedRow = {
     key: 'asked-cancelled',
     section: 'Trades',
+    place: 0,
     shown: [
       ['buySell', 'BUY (Ca.)'],
       ['quantity', '-5'],

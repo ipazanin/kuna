@@ -45,6 +45,7 @@ import {
   EVENT_RECORDS,
   LABEL_RECORDS,
   RECEIPT_RECORDS,
+  RECIPE_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SHORTCUT_PART_RECORDS,
@@ -132,15 +133,15 @@ interface BankAccountLine {
 /**
  * The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the
  * catalogue already says what each setting means. A bank row on hold and a payment the bank dropped are answered on To review, which the chat has no action for.
- * A line of a file from before items is read as the item it makes.
+ * A line of a file from before items is read as the item it makes. A saved recipe is shown and deleted on Settings until the chat writes recipes.
  */
-export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, DROPPED_ROW_RECORDS.name, LINE_RECORDS.name]
+export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, DROPPED_ROW_RECORDS.name, LINE_RECORDS.name, RECIPE_RECORDS.name]
 
 const ACCOUNT_FIELDS: FieldDocs<Account> = {
   id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },
   name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
   kind: { exposure: 'plain', meaning: 'bank, cash or savings.' },
-  bank: { exposure: 'plain', meaning: 'otp, revolut, other or empty.' },
+  bank: { exposure: 'free-text', meaning: "The bank's name as the owner or a statement file wrote it, such as Revolut, or empty for none." },
   currency: { exposure: 'plain', meaning: 'Its one currency.' },
   opening: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'What it held at the start of openedOn.' },
   openedOn: { exposure: 'plain', meaning: 'The day its figures start.' },

@@ -73,7 +73,7 @@ function statementRow(date: string, amount: number): StatementRow {
   }
 }
 
-const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, notes: [] })
+const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, fileNotes: [] })
 const principal = CATEGORIES.find((held) => held.kind === 'repayment')!
 const interest = category('Money and fees/Loan interest')
 

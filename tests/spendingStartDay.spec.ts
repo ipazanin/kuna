@@ -158,7 +158,7 @@ describe("an account's start day", () => {
 
   it('leaves out of a statement the rows from before it', async () => {
     const store = await spendingStore()
-    const statement = { label: 'export.csv', rows: [{ ...RENT, category: null, importKey: 'old-1', date: civil('2026-08-30') }], notes: [] }
+    const statement = { label: 'export.csv', rows: [{ ...RENT, category: null, importKey: 'old-1', date: civil('2026-08-30') }], fileNotes: [] }
 
     expect(statementDryRun(store.state.workbook!, statement, DAY).lines.map((line) => line.outcome)).toEqual(['before-opening'])
   })

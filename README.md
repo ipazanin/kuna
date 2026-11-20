@@ -2966,7 +2966,8 @@ run, Settings and card on the home. Its menu is Overview, Entries, Limits and Ac
 Settings apart. Its schema is `{"spending":1}`, with four kinds: `account`, `category`, `transaction`
 and `budget`.
 
-- **An account** has a name, a kind (Bank account, Cash or Savings), its bank (OTP, Revolut or other),
+- **An account** has a name, a kind (Bank account, Cash or Savings), its bank by any name, which the
+  field suggests from the banks the other accounts name,
   one currency, the opening balance on the day it opened, below zero for one that was overdrawn, an
   IBAN, blank on cash, and whether it is closed. A Revolut card that holds euros and dollars is two
   accounts, and no two accounts share an IBAN and a currency. An account keeps its currency once

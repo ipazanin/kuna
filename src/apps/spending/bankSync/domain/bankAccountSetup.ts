@@ -1,4 +1,4 @@
-import { NO_SINGLE_CURRENCY } from './bankAnswer'
+import { ENABLE_BANKING_NAMES, NO_SINGLE_CURRENCY } from './bankAnswer'
 import type { BankBalance, BankTransaction, LinkedAccount } from './bankAnswer'
 import { rowsCountedBy, statedBalance } from './bankBalance'
 import type { BankStated } from './bankBalance'
@@ -8,6 +8,7 @@ import type { BankOpening, OpeningEvidence } from '../../accounts/domain/bankOpe
 import { bankSyncRows } from './bankSyncRows'
 import type { SyncedRows } from './bankSyncRows'
 import { draftedAccount } from '../../accounts/domain/accountDraft'
+import { sameBank } from '../../workbook/domain/account'
 import type { Account, AccountKind } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spendingSettings'
@@ -110,7 +111,14 @@ export function kindOfBankAccount(linked: Pick<LinkedAccount, 'cashAccountType' 
 
 /** A new account as its bank describes it, opening at zero on the day. */
 export function draftAccount(linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode, id: RecordId, day: CivilDate, accounts: readonly Pick<Account, 'name'>[]): Account {
-  return { id, ...draftedAccount({ kind: kindOfBankAccount(linked) ?? 'bank', bank, currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day }, accounts, 'automation') }
+  return {
+    id,
+    ...draftedAccount(
+      { kind: kindOfBankAccount(linked) ?? 'bank', bank: ENABLE_BANKING_NAMES[bank], currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day },
+      accounts,
+      'automation',
+    ),
+  }
 }
 
 /** The draft starting on the day of the fetch, with the bank's rows and balance held for when it is added. */
@@ -131,11 +139,11 @@ export function proposeAccount(
 
 /** The account with the bank's details: its bank, IBAN and currency, its kind where the bank states one, and its rows from the bank. Its name and opening stay. */
 export function withBankDetails(account: Account, linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode): Account {
-  return { ...account, bank, iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind, rowsFrom: 'bank-link' }
+  return { ...account, bank: ENABLE_BANKING_NAMES[bank], iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind, rowsFrom: 'bank-link' }
 }
 
 function sameDetails(one: Account, other: Account): boolean {
-  return one.bank === other.bank && one.iban === other.iban && one.currency === other.currency && one.kind === other.kind && one.rowsFrom === other.rowsFrom
+  return sameBank(one.bank, other.bank) && one.iban === other.iban && one.currency === other.currency && one.kind === other.kind && one.rowsFrom === other.rowsFrom
 }
 
 /**
@@ -153,7 +161,7 @@ function fittingAccount(
 ): Account | null {
   const iban = ibanKey(linked.iban)
   const open = accounts.filter((account) => !claimed.has(account.id) && !account.closed && account.kind !== 'cash')
-  const withoutIban = open.find((account) => account.iban === '' && account.currency === currency && (account.bank === bank || account.bank === null || account.bank === 'other'))
+  const withoutIban = open.find((account) => account.iban === '' && account.currency === currency && (account.bank === null || sameBank(account.bank, ENABLE_BANKING_NAMES[bank])))
   return withoutIban ?? open.find((account) => iban !== '' && account.iban === iban && !rows.some((row) => row.account === account.id)) ?? null
 }
 

@@ -2,7 +2,6 @@ import { fixedByBank, refusedOnAccount } from './bankRows'
 import type { Account } from '../../workbook/domain/account'
 import { categoryWithRole } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
-import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -40,9 +39,8 @@ export interface TransferAmounts {
   readonly fee: { readonly side: 'from' | 'to'; readonly amount: AccountMoney } | null
 }
 
-/** The words a fee row is written with: the bank's name as its payee, and its description. */
+/** The words a fee row is written with: its description. Its payee is the bank's name. */
 export interface FeeWords {
-  readonly bankNames: Readonly<Record<LinkableBank, string>>
   readonly description: string
 }
 
@@ -114,7 +112,7 @@ export function newTransfer(
     id: recordIdOf(TRANSACTION_RECORDS, newRecordId()),
     account: id,
     amount: negateAccountMoney(amounts.fee.amount),
-    payee: bank === 'otp' || bank === 'revolut' ? feeWords.bankNames[bank] : '',
+    payee: bank ?? '',
     description: feeWords.description,
     pair: null,
   }

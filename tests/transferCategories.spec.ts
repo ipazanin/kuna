@@ -62,7 +62,7 @@ function statementRow(on: typeof OTP, amount: number, payee: string, fields: Par
   }
 }
 
-const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, notes: [] })
+const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, fileNotes: [] })
 
 describe('a second transfer category', () => {
   it('holds money between your own accounts as the first one does', () => {

@@ -73,7 +73,7 @@ const OPENED_ON = civil('2026-09-01')
 export const OTP = account(1, {
   name: 'OTP current',
   kind: 'bank',
-  bank: 'otp',
+  bank: 'OTP banka',
   currency: EURO,
   opening: accountMoneyFromAmount(1_550),
   openedOn: OPENED_ON,
@@ -85,7 +85,7 @@ export const OTP = account(1, {
 export const REVOLUT_EUR = account(2, {
   name: 'Revolut EUR',
   kind: 'bank',
-  bank: 'revolut',
+  bank: 'Revolut',
   currency: EURO,
   opening: accountMoneyFromAmount(300),
   openedOn: OPENED_ON,
@@ -97,7 +97,7 @@ export const REVOLUT_EUR = account(2, {
 export const REVOLUT_USD = account(3, {
   name: 'Revolut USD',
   kind: 'bank',
-  bank: 'revolut',
+  bank: 'Revolut',
   currency: USD,
   opening: accountMoneyFromAmount(200),
   openedOn: OPENED_ON,
@@ -209,6 +209,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     items: wholeItems(transactions),
     held: [],
     dropped: [],
+    recipes: [],
     stored: given.items === undefined ? storedBeforeItems(transactions) : storedWithItems(transactions, given.items),
     ...given,
   }
@@ -233,6 +234,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
       items: counting(storedOf(book.stored.items)),
       held: counting(book.held),
       dropped: counting(book.dropped),
+      recipes: counting(book.recipes),
       settings: counting(settingRows),
     },
     problems: [],

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
-import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
+import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement'
+import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
+import { en as statementWords } from '../src/apps/spending/statements/domain/words'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import {
@@ -12,7 +14,7 @@ import {
   sampleRefusedCsv,
   sampleRevolutCsv,
 } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
-import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
+import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids'
 import { fakeSpendingDay, fakeSpendingDocument, fakeStarterDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import type { FakeSpendingSet } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
@@ -125,8 +127,8 @@ describe("the fake build's Spending sets", () => {
   it('seeds the rows from the day the checks build the sample files for', async () => {
     const day = fakeSpendingDay(SAMPLE_DAY)
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', day))
-    const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(SAMPLE_DAY)), SAMPLE_REVOLUT_FILE_NAME, book)
-    if (!('statement' in reading)) throw new Error(reading.refusal)
+    const reading = recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleRevolutCsv(SAMPLE_DAY)), SAMPLE_REVOLUT_FILE_NAME, book, statementWords.feeOn)
+    if (!('statement' in reading)) throw new Error(reading.refused.kind)
 
     expect(day).toBe(SAMPLE_DAY)
     expect(statementDryRun(book, reading.statement, day)).toMatchObject({ newRows: 10, alreadyIn: 1, filled: 1 })
@@ -138,12 +140,12 @@ describe("the fake build's Spending sets", () => {
 
   it.each(['2026-11-04', '2026-12-01', '2027-03-31', '2027-06-01'])("read the sample Revolut export through the csv path as the statements set's dry run on %s", async (day) => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day)))
-    const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(civil(day))), SAMPLE_REVOLUT_FILE_NAME, book)
-    if (!('statement' in reading)) throw new Error(reading.refusal)
+    const reading = recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleRevolutCsv(civil(day))), SAMPLE_REVOLUT_FILE_NAME, book, statementWords.feeOn)
+    if (!('statement' in reading)) throw new Error(reading.refused.kind)
 
     const run = statementDryRun(book, reading.statement, civil(day))
 
-    expect(reading.statement.notes).toEqual(['1 reverted or declined row left out.'])
+    expect(reading.statement.fileNotes).toEqual([{ kind: 'not-completed', count: 1 }])
     expect(run).toMatchObject({ newRows: 10, alreadyIn: 1, filled: 1 })
     expect(run.notes).toContain('1 pocket move counts as a transfer and waits for a Revolut savings account.')
     expect(run.added.map((row) => row.payee)).toEqual([
@@ -184,14 +186,24 @@ describe("the fake build's Spending sets", () => {
   it('refuse the sample export without its Fee column', async () => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil('2026-11-04')))
 
-    expect(revolutStatement(await readFirstSheet(sampleRefusedCsv(civil('2026-11-04'))), SAMPLE_REVOLUT_FILE_NAME, book)).toEqual({ refusal: 'The file has no Fee column', missing: [] })
+    expect(recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleRefusedCsv(civil('2026-11-04'))), SAMPLE_REVOLUT_FILE_NAME, book, statementWords.feeOn)).toEqual({
+      refused: { kind: 'no-column', column: 'Fee' },
+      missing: [],
+      holdings: [],
+    })
   })
 
   it('offer the two accounts the sample export in GBP and CHF needs, each opening at the balance before its first row', async () => {
     const day = civil('2026-11-04')
-    const reading = revolutStatement(await readFirstSheet(sampleMissingAccountsCsv(day)), SAMPLE_MISSING_FILE_NAME, bookOf(fakeSpendingDocument(SAVED_AT, 'statements', day)))
+    const reading = recipeStatement(
+      REVOLUT_STATEMENT,
+      await readFirstSheetCells(sampleMissingAccountsCsv(day)),
+      SAMPLE_MISSING_FILE_NAME,
+      bookOf(fakeSpendingDocument(SAVED_AT, 'statements', day)),
+      statementWords.feeOn,
+    )
 
-    expect('refusal' in reading && reading.refusal).toBe('Add Revolut bank accounts in GBP and CHF to bring in this file')
+    expect('refused' in reading && reading.refused).toEqual({ kind: 'missing-accounts' })
     expect(reading.missing.map(({ account }) => [account.name, account.openedOn, account.opening])).toEqual([
       // 331.50 less the rows, -18.50 and 100.00.
       ['Revolut GBP', civil('2026-10-29'), accountMoneyFromAmount(250)],

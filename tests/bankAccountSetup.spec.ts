@@ -89,7 +89,7 @@ describe('the setup list', () => {
   it('keeps an account typed with a blank bank, and offers the bank as an update', () => {
     const typed = { ...REVOLUT_EUR, bank: null }
     const [line] = setupLines([revolut(linked('eur', REVOLUT_EUR.iban, 'EUR'))], [], book([typed]))
-    expect(line).toMatchObject({ kind: 'kept', account: typed, update: { ...typed, bank: 'revolut' } })
+    expect(line).toMatchObject({ kind: 'kept', account: typed, update: { ...typed, bank: 'Revolut' } })
   })
 
   it('offers an account of the bank and currency typed without an IBAN the bank details, rather than a second account', () => {
@@ -248,7 +248,7 @@ describe('a drafted account', () => {
       id,
       name: 'Revolut USD savings',
       kind: 'savings',
-      bank: 'revolut',
+      bank: 'Revolut',
       currency: USD,
       opening: 0,
       openedOn: DAY,

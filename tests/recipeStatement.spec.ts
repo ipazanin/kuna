@@ -1,13 +1,19 @@
+import * as XLSX from 'xlsx'
 import { describe, expect, it } from 'vitest'
 
-import { addRevolutAccounts, revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
-import type { StatementRows } from '../src/apps/spending/statements/domain/statementRows'
+import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement'
+import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
+import type { StatementReading, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
+import { en } from '../src/apps/spending/statements/domain/words'
+import { addRevolutAccounts, fileNoteLine, refusalLine } from '../src/apps/spending/statements/presentation/readingLines'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
+import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids'
 import { account, ACCOUNTS, CATEGORIES, category, REVOLUT_EUR, REVOLUT_USD } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 
 const HEADER = ['Type', 'Product', 'Started Date', 'Completed Date', 'Description', 'Amount', 'Fee', 'Currency', 'State', 'Balance']
 
+/** A row as its cells, where a number in a date column is a date cell and any other number a number cell, as an xlsx holds them. */
 function line(
   type: string,
   started: string | number,
@@ -23,10 +29,40 @@ function line(
 
 const BOOK = { accounts: ACCOUNTS, categories: CATEGORIES }
 
-function read(rows: readonly (readonly (string | number)[])[], book = BOOK): StatementRows {
-  const reading = revolutStatement([HEADER, ...rows], 'export.csv', book)
-  if (!('statement' in reading)) throw new Error(reading.refusal)
-  return reading.statement
+type Grid = readonly (readonly (string | number)[])[]
+
+/** The reading of an export whose cells are all text, as a csv gives them, with a refusal worded as Import shows it. */
+function reading(grid: Grid, book = BOOK): StatementReading | { readonly refusal: string; readonly missing: StatementReading['missing'] } {
+  const read = recipeStatement(
+    REVOLUT_STATEMENT,
+    grid.map((cells) => cells.map(String)),
+    'export.csv',
+    book,
+    en.feeOn,
+  )
+  return 'refused' in read ? { refusal: refusalLine(read.refused, read.missing), missing: read.missing } : read
+}
+
+function rowsOf(read: ReturnType<typeof reading>): StatementRows & { readonly notes: readonly string[] } {
+  if (!('statement' in read)) throw new Error('refusal' in read ? read.refusal : 'refused')
+  return { ...read.statement, notes: read.statement.fileNotes.map(fileNoteLine) }
+}
+
+function read(rows: Grid, book = BOOK): StatementRows & { readonly notes: readonly string[] } {
+  return rowsOf(reading([HEADER, ...rows], book))
+}
+
+/** The same export written as an xlsx, with its started and completed times as date cells, read back as Import reads it. */
+async function readXlsx(rows: Grid, book = BOOK): Promise<StatementRows> {
+  const cell = (value: string | number, column: number): XLSX.CellObject =>
+    typeof value === 'number' ? { t: 'n', v: value, ...(column === 2 || column === 3 ? { z: 'yyyy-mm-dd hh:mm:ss' } : {}) } : { t: 's', v: value }
+  const sheet = XLSX.utils.aoa_to_sheet([HEADER, ...rows.map((cells) => cells.map(cell))])
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Export')
+  const cells = await readFirstSheetCells(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+  const read = recipeStatement(REVOLUT_STATEMENT, cells, 'export.xlsx', book, en.feeOn)
+  if (!('statement' in read)) throw new Error(read.refused.kind)
+  return read.statement
 }
 
 describe("Revolut's export", () => {
@@ -34,7 +70,7 @@ describe("Revolut's export", () => {
     const place = HEADER.indexOf(column)
     const without = [HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Corner market', '-5.00')].map((row) => row.filter((_cell, index) => index !== place))
 
-    expect(revolutStatement(without, 'export.csv', BOOK)).toEqual({ refusal: `The file has no ${column} column`, missing: [] })
+    expect(reading(without)).toEqual({ refusal: `The file has no ${column} column`, missing: [] })
   })
 
   it('finds the columns by their names, in any order', () => {
@@ -42,9 +78,11 @@ describe("Revolut's export", () => {
       ['State', 'Amount', 'Currency', 'Started Date', 'Description', 'Fee', 'Type', 'Product', 'Completed Date', 'Balance'],
       ['COMPLETED', '-5.00', 'EUR', '2026-10-01 10:00:00', 'Corner market', '0.00', 'CARD_PAYMENT', 'Current', '', ''],
     ]
-    const reading = revolutStatement(shuffled, 'export.csv', BOOK)
+    const shuffledReading = reading(shuffled)
 
-    expect('statement' in reading && reading.statement.rows).toMatchObject([{ payee: 'Corner market', amount: accountMoneyFromAmount(-5), date: civil('2026-10-01'), account: REVOLUT_EUR.id }])
+    expect('statement' in shuffledReading && shuffledReading.statement.rows).toMatchObject([
+      { payee: 'Corner market', amount: accountMoneyFromAmount(-5), date: civil('2026-10-01'), account: REVOLUT_EUR.id },
+    ])
   })
 
   it('takes a date by the started day, not the completed one', () => {
@@ -54,8 +92,8 @@ describe("Revolut's export", () => {
     expect(read([row]).rows[0]?.date).toBe('2026-10-01')
   })
 
-  it('reads a date and an amount from an xlsx file, as a serial number and numbers', () => {
-    const { rows } = read([line('CARD_PAYMENT', 46296.5, 'Corner market', -5.5, 0.25)])
+  it('reads a date and an amount from an xlsx file, as a serial number and numbers', async () => {
+    const { rows } = await readXlsx([line('CARD_PAYMENT', 46296.5, 'Corner market', -5.5, 0.25)])
 
     expect(rows.map((row) => [row.date, row.amount])).toEqual([
       [civil('2026-10-01'), accountMoneyFromAmount(-5.5)],
@@ -63,11 +101,11 @@ describe("Revolut's export", () => {
     ])
   })
 
-  it('gives one row one key and one started time, from a csv with text or an xlsx with a date cell', () => {
+  it('gives one row one key and one started time, from a csv with text or an xlsx with a date cell', async () => {
     // 46315 is 20 Oct 2026, and 0.4166… of a day is 10:00:00.
     const asText = read([line('EXCHANGE', '2026-10-20 10:00:00', 'Exchanged to USD', '-54.00')]).rows[0]!
     for (const started of [46315.416666666664, 46315.41666666668, '2026-10-20T10:00', '2026-10-20 10:00:00']) {
-      const other = read([line('EXCHANGE', started, 'Exchanged to USD', -54)]).rows[0]!
+      const other = (await readXlsx([line('EXCHANGE', started, 'Exchanged to USD', -54)])).rows[0]!
 
       expect([other.importKey, other.movedAt, other.date]).toEqual([asText.importKey, '2026-10-20 10:00:00', civil('2026-10-20')])
     }
@@ -145,9 +183,10 @@ describe("Revolut's export", () => {
 
   it('refuses a file two open Revolut accounts of its currency could take, naming them', () => {
     const second = account(8, { ...REVOLUT_EUR, name: 'Second Revolut' })
-    const reading = revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00')], 'export.csv', { accounts: [REVOLUT_EUR, second], categories: CATEGORIES })
-
-    expect(reading).toEqual({ refusal: 'More than one open Revolut account keeps EUR: Revolut EUR, Second Revolut. Close the one the file is not for', missing: [] })
+    expect(reading([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00')], { accounts: [REVOLUT_EUR, second], categories: CATEGORIES })).toEqual({
+      refusal: 'More than one open Revolut account keeps EUR: Revolut EUR, Second Revolut. Close the one the file is not for',
+      missing: [],
+    })
   })
 
   it('refuses a file in currencies no Revolut account keeps, saying what to add for every currency at once, each drafted from the file under the IBAN the Revolut current account already holds', () => {
@@ -156,28 +195,24 @@ describe("Revolut's export", () => {
       row[9] = balance
       return row
     }
-    const reading = revolutStatement(
-      [
-        HEADER,
-        // GBP opens at 100.00: the last balance 85.00 less the rows, -10.00 and -5.00 with a 0.00 and a 0.00 fee.
-        at('2026-10-02 10:00:00', '-10.00', '0.00', 'GBP', '90.00'),
-        at('2026-10-04 10:00:00', '-5.00', '0.00', 'GBP', '85.00'),
-        // CHF reaches back to an empty account, so it opens at zero the day before its first row.
-        at('2026-10-03 10:00:00', '20.00', '0.00', 'CHF', '20.00'),
-        at('2026-10-05 10:00:00', '7.00', '0.00', 'GBP', '7.00', 'Savings'),
-        line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Kept', '-1.00'),
-      ],
-      'export.csv',
-      BOOK,
-    )
+    const refused = reading([
+      HEADER,
+      // GBP opens at 100.00: the last balance 85.00 less the rows, -10.00 and -5.00 with a 0.00 and a 0.00 fee.
+      at('2026-10-02 10:00:00', '-10.00', '0.00', 'GBP', '90.00'),
+      at('2026-10-04 10:00:00', '-5.00', '0.00', 'GBP', '85.00'),
+      // CHF reaches back to an empty account, so it opens at zero the day before its first row.
+      at('2026-10-03 10:00:00', '20.00', '0.00', 'CHF', '20.00'),
+      at('2026-10-05 10:00:00', '7.00', '0.00', 'GBP', '7.00', 'Savings'),
+      line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Kept', '-1.00'),
+    ])
 
-    expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
+    expect({ ...refused, missing: refused.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add Revolut bank accounts in GBP and CHF and a Revolut savings account in GBP to bring in this file',
       missing: [
         {
           name: 'Revolut GBP',
           kind: 'bank',
-          bank: 'revolut',
+          bank: 'Revolut',
           currency: 'GBP',
           iban: REVOLUT_EUR.iban,
           opening: accountMoneyFromAmount(100),
@@ -190,7 +225,7 @@ describe("Revolut's export", () => {
         {
           name: 'Revolut CHF',
           kind: 'bank',
-          bank: 'revolut',
+          bank: 'Revolut',
           currency: 'CHF',
           iban: REVOLUT_EUR.iban,
           opening: accountMoneyFromAmount(0),
@@ -203,7 +238,7 @@ describe("Revolut's export", () => {
         {
           name: 'Revolut GBP savings',
           kind: 'savings',
-          bank: 'revolut',
+          bank: 'Revolut',
           currency: 'GBP',
           iban: '',
           opening: accountMoneyFromAmount(0),
@@ -218,15 +253,15 @@ describe("Revolut's export", () => {
   })
 
   it('drafts a missing account at zero on its first day when the file prints no balance', () => {
-    const reading = revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'GBP')], 'export.csv', BOOK)
+    const refused = reading([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'GBP')])
 
-    expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
+    expect({ ...refused, missing: refused.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add a Revolut bank account in GBP to bring in this file',
       missing: [
         {
           name: 'Revolut GBP',
           kind: 'bank',
-          bank: 'revolut',
+          bank: 'Revolut',
           currency: 'GBP',
           iban: REVOLUT_EUR.iban,
           opening: accountMoneyFromAmount(0),
@@ -240,9 +275,9 @@ describe("Revolut's export", () => {
     })
   })
 
-  it('refuses a currency Kuna does not know, naming it', () => {
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'XYZ')], 'export.csv', BOOK)).toEqual({
-      refusal: 'The file has rows in "XYZ", which is not a currency code such as EUR or USD',
+  it('refuses a currency Kuna does not know, naming it and its row', () => {
+    expect(reading([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'XYZ')])).toEqual({
+      refusal: 'Row 2 of the file is in "XYZ", which is not a currency code such as EUR or USD',
       missing: [],
     })
   })
@@ -259,7 +294,7 @@ describe("Revolut's export", () => {
     const savings = account(9, {
       name: 'Revolut pocket',
       kind: 'savings',
-      bank: 'revolut',
+      bank: 'Revolut',
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
@@ -270,11 +305,11 @@ describe("Revolut's export", () => {
 
     expect(left.rows).toEqual([])
     expect(left.notes).toEqual([])
-    expect(revolutStatement([HEADER, row], 'export.csv', BOOK).missing.map(({ account }) => account)).toEqual([
+    expect(reading([HEADER, row]).missing.map(({ account }) => account)).toEqual([
       {
         name: 'Revolut EUR savings',
         kind: 'savings',
-        bank: 'revolut',
+        bank: 'Revolut',
         currency: 'EUR',
         iban: '',
         opening: accountMoneyFromAmount(0),
@@ -285,7 +320,7 @@ describe("Revolut's export", () => {
         closed: false,
       },
     ])
-    expect(addRevolutAccounts(revolutStatement([HEADER, row], 'export.csv', BOOK).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')
+    expect(addRevolutAccounts(reading([HEADER, row]).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')
     expect(read([row], { accounts: [...ACCOUNTS, savings], categories: CATEGORIES }).rows[0]?.account).toBe(savings.id)
   })
 
@@ -304,7 +339,7 @@ describe("Revolut's export", () => {
     const pocket = account(9, {
       name: 'Revolut pocket',
       kind: 'savings',
-      bank: 'revolut',
+      bank: 'Revolut',
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
@@ -331,8 +366,8 @@ describe("Revolut's export", () => {
       expect(notes).toEqual([])
     })
 
-    it('finds the legs across a serial and a text', () => {
-      expect(read([current('-20.00', 46296 + 10 / 24), savingsRow('20.00')], withPocket).rows.map((row) => row.pocket)).toEqual([true, true])
+    it('finds the legs across a serial and a text', async () => {
+      expect((await readXlsx([current('-20.00', 46296 + 10 / 24), savingsRow('20.00')], withPocket)).rows.map((row) => row.pocket)).toEqual([true, true])
     })
 
     it('leaves legs a second apart, of another amount or of the same sign as ordinary rows', () => {
@@ -375,7 +410,7 @@ describe("Revolut's export", () => {
     const pocket = account(9, {
       name: 'Revolut pocket',
       kind: 'savings',
-      bank: 'revolut',
+      bank: 'Revolut',
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
@@ -421,19 +456,30 @@ describe("Revolut's export", () => {
   })
 
   it('refuses a date or an amount it cannot read, since a row left out would throw the balance', () => {
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', 'soon', 'Pub', '-5.00')], 'export.csv', BOOK)).toEqual({ refusal: 'Row 2 of the file starts on "soon", which is not a date', missing: [] })
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5,00')], 'export.csv', BOOK)).toEqual({
+    expect(reading([HEADER, line('CARD_PAYMENT', 'soon', 'Pub', '-5.00')])).toEqual({ refusal: 'Row 2 of the file starts on "soon", which is not a date', missing: [] })
+    expect(reading([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5,00')])).toEqual({
       refusal: 'Row 2 of the file holds "-5,00", which is not an amount',
       missing: [],
     })
   })
 
   it('refuses a blank amount, and reads a blank fee as none', () => {
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '')], 'export.csv', BOOK)).toEqual({
+    expect(reading([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '')])).toEqual({
       refusal: 'Row 2 of the file holds "", which is not an amount',
       missing: [],
     })
     expect(read([line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '')]).rows).toHaveLength(1)
+  })
+
+  it('names the first line no recipe field reads, below a title and a blank line', () => {
+    expect(reading([['Account statement'], [], HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00'), line('CARD_PAYMENT', 'soon', 'Pub', '-5.00')])).toEqual({
+      refusal: 'Row 5 of the file starts on "soon", which is not a date',
+      missing: [],
+    })
+  })
+
+  it('counts a row of another product whose day and amount cannot be read, and refuses nothing for it', () => {
+    expect(read([line('TRANSFER', 'soon', 'On Deposit', 'some', '0.00', 'EUR', 'COMPLETED', 'Deposit')]).notes).toEqual(['1 row of the product "Deposit" left out.'])
   })
 
   it('keeps the same key for the same row across two overlapping exports, and two equal coffees stay two', () => {

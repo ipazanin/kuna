@@ -6,6 +6,7 @@ import ShortcutsCard from '../../shortcuts/presentation/ShortcutsCard.vue'
 import AppAssistCard from '../../../../shared/ai/presentation/AppAssistCard.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
+import RecipesCard from './RecipesCard.vue'
 import SpendingBooksCard from './SpendingBooksCard.vue'
 import { words } from './words'
 import { words as spendingWords } from '../../words'
@@ -25,7 +26,10 @@ const TABS = [
     <PageHeader :title="screenWords.settings" :description="words.description" />
     <PageTabs :tabs="TABS" :label="words.tabs.label">
       <template #general>
-        <SpendingBooksCard />
+        <div class="flex flex-col gap-6">
+          <SpendingBooksCard />
+          <RecipesCard />
+        </div>
       </template>
       <template #quick-add>
         <ShortcutsCard />

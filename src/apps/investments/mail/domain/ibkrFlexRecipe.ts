@@ -1,6 +1,6 @@
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { MailReader } from '../../workbook/domain/mailReader'
-import type { RecipeField, RecipeFields, Recipe, RowTest } from '../../../../shared/recipes/domain/recipe'
+import type { RecipeField, RecipeFields, Recipe, RowTest, XmlFile } from '../../../../shared/recipes/domain/recipe'
 
 const DATE_FORMATS = ['yyyyMMdd;HHmmss', 'yyyyMMdd']
 
@@ -36,10 +36,9 @@ const WHAT_A_TRADE_NAMES: RecipeFields = {
  * carrying corporate actions fails rather than leaves them out without a word. A section has the name IBKR's query gives
  * it, so a line about a missing section names what to tick there.
  */
-export const IBKR_FLEX_RECIPE: Recipe = {
+export const IBKR_FLEX_RECIPE: Recipe<XmlFile> = {
   id: 'ibkr-activity-flex',
   name: 'IBKR Activity Flex',
-  mail: { senders: ['donotreply@interactivebrokers.com'], subject: '', contents: '' },
   file: { format: 'xml', root: 'FlexQueryResponse' },
   sections: [
     {
@@ -165,8 +164,8 @@ export const IBKR_FLEX_RECIPE: Recipe = {
   ],
 }
 
-/** The recipes Kuna brings with it. */
-export const BUILT_IN_RECIPES: readonly Recipe[] = [IBKR_FLEX_RECIPE]
+/** The mail IBKR sends the report in, until the person changes that: its sender, and any subject and contents. */
+export const IBKR_FLEX_MAIL: Pick<MailReader, 'senders' | 'subject' | 'contents'> = { senders: ['donotreply@interactivebrokers.com'], subject: '', contents: '' }
 
 /** The file's reader of IBKR's report, or null before one is saved. */
 export function ibkrMailReader(book: InvestmentBook | null | undefined): MailReader | null {

@@ -1,34 +1,35 @@
+import type { DecimalMark } from '../../money/decimal'
+
 /**
  * A saved description of how to read a document, which Kuna's own code runs. It is data, so it can do nothing but
  * produce rows, and a person or the chat can read and write it. A recipe that stops fitting fails and never guesses.
  */
-export interface Recipe {
+export interface Recipe<File extends RecipeFile = RecipeFile> {
   readonly id: string
   /** What the screens call the document, such as IBKR's Activity Flex report. */
   readonly name: string
-  /** The mail it is expected in, until the person changes that. */
-  readonly mail: RecipeMail
-  readonly file: RecipeFile
+  readonly file: File
+  /** A table file holds one section, under the first row that names every column the section reads. */
   readonly sections: readonly RecipeSection[]
 }
 
-/** Which mail holds the document: its senders, and a phrase of its subject and of its contents, blank for any. */
-export interface RecipeMail {
-  readonly senders: readonly string[]
-  readonly subject: string
-  readonly contents: string
-}
-
-/** The format of the file, and the root element it starts with. */
-export interface RecipeFile {
+/** An XML file and the root element it starts with. */
+export interface XmlFile {
   readonly format: 'xml'
   readonly root: string
 }
 
+/** A spreadsheet or a CSV file whose rows sit under a header row. */
+export interface TableFile {
+  readonly format: 'table'
+}
+
+export type RecipeFile = XmlFile | TableFile
+
 /** Where rows are in a file, and what each row is. A row no kind takes is asked about, never guessed at. */
 export interface RecipeSection {
   readonly name: string
-  /** A section element and its row element, such as `Trades/Trade`. */
+  /** A section element and its row element, such as `Trades/Trade`. A table file leaves it blank. */
   readonly rows: string
   /** Only rows that pass every test belong to the section. Other rows of the file are not the document's business. */
   readonly keep: readonly RowTest[]
@@ -51,24 +52,32 @@ export interface RowKind {
 export type RecipeFields = Readonly<Record<string, RecipeField>>
 
 /**
- * A test on one column of a row: its text is one of these, each of its parts is one of these (so a blank passes), or its
- * number is above or below zero.
+ * A test on one column of a row: its text is one of these, in any case where `anyCase` says so, each of its parts is one of
+ * these (so a blank passes), or its number is above or below zero.
  */
 export type RowTest =
-  | { readonly column: string; readonly is: readonly string[] }
+  | { readonly column: string; readonly is: readonly string[]; readonly anyCase?: true }
   | { readonly column: string; readonly partsWithin: readonly string[]; readonly separator: string }
   | { readonly column: string; readonly sign: 'above-zero' | 'below-zero' }
 
 /**
  * How one field of a record is read from its column. A blank cell makes the row a question unless `blank` allows it.
  * `part` takes one piece of the text, such as the EUR of `EUR.USD`. A date or a time gives the formats it may be written
- * in, using yyyy, MM, dd, HH, mm and ss, and a time reads the same column as its date.
+ * in, using yyyy, MM, dd, HH, mm and ss, and a time reads the same column as its date. A decimal written with a decimal
+ * comma, or with thousands grouped, names its `mark`. Without one it is read as a record stores it, such as `-12.5`.
  */
 export type RecipeField =
   | { readonly from: string; readonly as: 'text'; readonly blank?: true }
-  | { readonly from: string; readonly as: 'decimal'; readonly blank?: true }
+  | { readonly from: string; readonly as: 'decimal'; readonly blank?: true; readonly mark?: DecimalMark }
   | { readonly from: string; readonly as: 'currency'; readonly blank?: true; readonly part?: { readonly separator: string; readonly at: number } }
   | { readonly from: string; readonly as: 'date' | 'time'; readonly formats: readonly string[]; readonly blank?: true }
+
+/** The columns a section reads from its rows, whichever kind a row turns out to be. Columns it only shows may be absent. */
+export function sectionColumns(section: RecipeSection): string[] {
+  const ofFields = (fields: RecipeFields): string[] => Object.values(fields).map((field) => field.from)
+  const ofTests = (tests: readonly RowTest[]): string[] => tests.map((test) => test.column)
+  return [...new Set([...ofTests(section.keep), ...ofFields(section.fields), ...section.kinds.flatMap((kind) => [...ofTests(kind.when), ...ofFields(kind.fields)])])]
+}
 
 /** One row of a file by its column names, as text. A column the file does not give is absent, which differs from a blank cell. */
 export type SourceRow = ReadonlyMap<string, string>

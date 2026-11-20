@@ -92,8 +92,8 @@ function bankRow(importKey: string, date: string, amount: number, payee: string)
   }
 }
 
-const synced = (...rows: StatementRow[]) => ({ label: 'Enable Banking', rows, notes: [] })
-const fromFile = (...rows: StatementRow[]) => ({ label: 'export.csv', rows, notes: [] })
+const synced = (...rows: StatementRow[]) => ({ label: 'Enable Banking', rows, fileNotes: [] })
+const fromFile = (...rows: StatementRow[]) => ({ label: 'export.csv', rows, fileNotes: [] })
 
 async function waiting(store: WorkbookStore<SpendingBooks>, draft: ReceiptDraft = DRAFT): Promise<void> {
   await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(draft, { account: OTP }, LINES)))

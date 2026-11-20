@@ -52,7 +52,7 @@ function synced(on: typeof OTP, date: string, amount: number, payee: string, fie
 
 const SEEN = new Map([[OTP.id, { from: civil('2026-10-16'), to: civil('2026-10-29') }]])
 
-const syncOf = (rows: readonly StatementRow[], covers = SEEN): StatementRows => ({ label: 'Enable Banking', rows, notes: [], covers })
+const syncOf = (rows: readonly StatementRow[], covers = SEEN): StatementRows => ({ label: 'Enable Banking', rows, fileNotes: [], covers })
 
 /** The row's one item with a label and a note, as a person filed it. */
 function filedItem(entry: Transaction): TransactionItem {
@@ -122,7 +122,7 @@ describe('a row the bank had not booked yet', () => {
     const hold = waiting(OTP, '2026-10-20', -64.2, 'HOTEL ESPLANADE')
     const fromFile = { ...synced(OTP, '2026-10-21', -64.2, 'HOTEL ESPLANADE'), importKey: 'file-row-1' }
 
-    expect(statementDryRun(spendingBook([hold]), { label: 'export.csv', rows: [synced(OTP, '2026-10-25', -3, 'BAKERY')], notes: [] }, DAY).pending).toBeUndefined()
+    expect(statementDryRun(spendingBook([hold]), { label: 'export.csv', rows: [synced(OTP, '2026-10-25', -3, 'BAKERY')], fileNotes: [] }, DAY).pending).toBeUndefined()
     expect(statementDryRun(spendingBook([hold]), { ...syncOf([fromFile]), label: 'export.csv' }, DAY).pending).toBeUndefined()
   })
 

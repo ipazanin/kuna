@@ -10,6 +10,16 @@ export const en = {
   localTitle: 'Spending file',
   export: 'Export',
   switchStorage: 'Switch storage',
+  recipes: {
+    title: 'Statement recipes',
+    subtitle: "How Import reads a bank's statement file. Import reads Revolut's export with no recipe of yours.",
+    formats: { table: 'Spreadsheet or CSV', xml: 'XML' },
+    caption: (bank: string, format: string) => `${bank} · ${format}`,
+    delete: 'Delete',
+    deleteNamed: (name: string) => `Delete ${name}`,
+    deleted: 'Recipe deleted',
+    notDeleted: 'Not deleted',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -19,6 +29,16 @@ export const hr: Translation<typeof en> = {
   localTitle: 'Datoteka potrošnje',
   export: 'Izvezi',
   switchStorage: 'Promijeni mjesto',
+  recipes: {
+    title: 'Recepti za izvode',
+    subtitle: 'Kako Uvoz čita datoteku izvoda banke. Uvoz čita Revolutov izvoz i bez vašeg recepta.',
+    formats: { table: 'Tablica ili CSV', xml: 'XML' },
+    caption: (bank, format) => `${bank} · ${format}`,
+    delete: 'Obriši',
+    deleteNamed: (name) => `Obriši ${name}`,
+    deleted: 'Recept je obrisan',
+    notDeleted: 'Nije obrisano',
+  },
 }
 
 export const words = language === 'hr' ? hr : en

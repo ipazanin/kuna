@@ -1,4 +1,4 @@
-import { IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
+import { IBKR_FLEX_MAIL, IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
 import { INVESTMENT_ACCOUNT_WRITES } from '../../holdings/application/holdingWrites'
 import { sourcesSaid } from '../../imports/domain/accountIntake'
 import { INVESTMENT_KINDS, bookWith } from '../../workbook/application/investmentWriteGuards'
@@ -55,9 +55,7 @@ export function heldOrNewReader(held: MailReader | null): MailReader {
       id: recordIdOf(MAIL_READER_RECORDS, newRecordId()),
       recipe: IBKR_FLEX_RECIPE.id,
       on: false,
-      senders: IBKR_FLEX_RECIPE.mail.senders,
-      subject: IBKR_FLEX_RECIPE.mail.subject,
-      contents: IBKR_FLEX_RECIPE.mail.contents,
+      ...IBKR_FLEX_MAIL,
       since: null,
       leftOut: [],
     }

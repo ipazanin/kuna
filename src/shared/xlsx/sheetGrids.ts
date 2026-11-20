@@ -1,4 +1,8 @@
-import type { WorkSheet } from 'xlsx'
+import type { CellObject, WorkSheet } from 'xlsx'
+
+import { civilDateFromSerial } from '../calendar/civilDate'
+import { decimalOfNumber, decimalText } from '../money/decimal'
+import { roundHalfAwayFromZero } from '../money/money'
 
 export const XLSX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -75,4 +79,41 @@ export async function readFirstSheet(contents: ArrayBuffer | string): Promise<(S
   const book = typeof contents === 'string' ? XLSX.read(contents, { type: 'string', raw: true }) : XLSX.read(contents, { type: 'array', cellText: false })
   const sheet = book.Sheets[book.SheetNames[0] ?? '']
   return sheet === undefined ? [] : gridOf(XLSX, sheet)
+}
+
+const SECONDS_PER_DAY = 86_400
+
+/** A day cell's serial number as `yyyy-MM-dd HH:mm:ss` to the nearest second, or `yyyy-MM-dd` for a day with no time. */
+function dayTimeText(serial: number): string {
+  const seconds = roundHalfAwayFromZero(serial * SECONDS_PER_DAY)
+  const day = civilDateFromSerial(Math.floor(seconds / SECONDS_PER_DAY))
+  const inDay = seconds % SECONDS_PER_DAY
+  if (inDay === 0) return day
+  const [hours, minutes, rest] = [Math.floor(inDay / 3600), Math.floor(inDay / 60) % 60, inDay % 60].map((part) => String(part).padStart(2, '0'))
+  return `${day} ${hours}:${minutes}:${rest}`
+}
+
+function cellText(XLSX: typeof import('xlsx'), cell: CellObject | undefined): string {
+  if (cell === undefined || cell.v === undefined) return ''
+  if (typeof cell.v === 'number') {
+    if (typeof cell.z === 'string' && XLSX.SSF.is_date(cell.z)) return dayTimeText(cell.v)
+    const exact = decimalOfNumber(cell.v, 12)
+    return exact === null ? '' : decimalText(exact)
+  }
+  return String(cell.v)
+}
+
+/**
+ * The first sheet of a file as text for a recipe, from A1: a csv's cells as written, so `1.234,56` stays text, and an xlsx,
+ * xls or ods file's cells by their kind. A day cell reads as `yyyy-MM-dd HH:mm:ss`, or `yyyy-MM-dd` for a whole day, and
+ * any other number as its full value in decimal text, such as `-12.5`.
+ */
+export async function readFirstSheetCells(contents: ArrayBuffer | string): Promise<string[][]> {
+  const XLSX = await sheetJs()
+  const book = typeof contents === 'string' ? XLSX.read(contents, { type: 'string', raw: true }) : XLSX.read(contents, { type: 'array', cellText: false, cellNF: true })
+  const sheet = book.Sheets[book.SheetNames[0] ?? '']
+  const reference = sheet?.['!ref']
+  if (sheet === undefined || reference === undefined) return []
+  const { e: end } = XLSX.utils.decode_range(reference)
+  return Array.from({ length: end.r + 1 }, (_, row) => Array.from({ length: end.c + 1 }, (_, column) => cellText(XLSX, sheet[XLSX.utils.encode_cell({ r: row, c: column })])))
 }

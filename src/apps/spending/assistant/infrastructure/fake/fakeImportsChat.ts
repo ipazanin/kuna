@@ -96,7 +96,7 @@ function otpStatementRows(): readonly { readonly date: string; readonly amount: 
 /** The account of the bank's name, or the first when none is. */
 function accountOf(found: string, bank: string): string {
   const accounts = recordsIn(found)
-  return (accounts.find((account) => account.bank === bank) ?? accounts[0]!).ref
+  return (accounts.find((account) => account.bank?.toLowerCase() === bank.toLowerCase()) ?? accounts[0]!).ref
 }
 
 /** Copies the OTP statement with no balances, so Kuna skips the first row, the second waits as a look-alike and the kiosk row is new. */
@@ -105,7 +105,7 @@ export function copyReply({ request, tokens }: FakeChatTurn): ModelReply {
   if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length === 1) {
     const rows = otpStatementRows().map((row) => ({ ...row, amount: Number(row.amount) }))
-    const step = proposedStep(SPENDING_OPERATIONS, 'import-statement', { account: accountOf(answers[0]!.text, 'otp'), rows, statementName: '12/2026', part: 1, lookAlikes: 'ask' })
+    const step = proposedStep(SPENDING_OPERATIONS, 'import-statement', { account: accountOf(answers[0]!.text, 'OTP banka'), rows, statementName: '12/2026', part: 1, lookAlikes: 'ask' })
     return lookup(1, 'propose_changes', { app: 'spending', title: says.copyTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.copyProposed, tokens)
@@ -137,7 +137,7 @@ export function revolutCopyReply({ request, tokens }: FakeChatTurn): ModelReply 
   if (answers.length === 2) {
     const step = proposedStep(SPENDING_OPERATIONS, 'import-statement', {
       file,
-      account: accountOf(answers[1]!.text, 'revolut'),
+      account: accountOf(answers[1]!.text, 'Revolut'),
       statementName: says.revolutName,
       rows: revolutRows(answers[0]!.text),
       part: 1,
@@ -154,7 +154,7 @@ export function matchReply({ request, tokens }: FakeChatTurn): ModelReply {
   if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length === 1) {
     const rows = otpStatementRows().map(({ date, amount, payee }) => ({ date, amount, counterparty: payee, description: '' }))
-    return lookup(1, 'match_records', { app: 'spending', kind: 'transaction', account: accountOf(answers[0]!.text, 'otp'), rows, receipts: [] }, tokens)
+    return lookup(1, 'match_records', { app: 'spending', kind: 'transaction', account: accountOf(answers[0]!.text, 'OTP banka'), rows, receipts: [] }, tokens)
   }
   const { matches } = JSON.parse(answers[1]!.text) as { readonly matches: readonly { readonly row: number; readonly match: 'same' | 'like' | 'none' }[] }
   return answered(request, matches.map(({ row, match }) => `- ${says.matched[match](row)}`).join('\n'), tokens)

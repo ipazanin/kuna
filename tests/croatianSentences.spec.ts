@@ -835,3 +835,52 @@ function oneFormsOf(words: unknown, key = '', depth = 0): { readonly key: string
 function isCroatianForms(words: unknown): words is { readonly one: string; readonly few: string; readonly other: string } {
   return typeof words === 'object' && words !== null && ['one', 'few', 'other'].every((form) => typeof (words as Record<string, unknown>)[form] === 'string')
 }
+
+/** The sentences a builder gives, every plural form of them, with each argument named for a day as a day label and every count 2. */
+function builtSentences(builder: (...args: never[]) => unknown, day: string): string[] {
+  const names = /^\(?([^)=]*)\)?\s*(?::[^=]*)?=>/.exec(builder.toString())?.[1]?.split(',') ?? []
+  const args = names.map((name) => {
+    const plain = name.trim().replace(/:.*$/, '')
+    return /count/i.test(plain) ? 2 : /^(day|from|to)$/.test(plain) ? day : 'X'
+  })
+  const built = (builder as (...given: unknown[]) => unknown)(...args)
+  return typeof built === 'string' ? [built] : Object.values(built as Record<string, string>)
+}
+
+describe('the closing full stop of a note in Croatian', () => {
+  it.each([
+    ['the statement notes', () => import('../src/apps/spending/statements/domain/words')],
+    ['what a reader left out or noticed', () => import('../src/apps/spending/statements/presentation/readingWords')],
+    ['the bank sync', () => import('../src/apps/spending/bankSync/domain/words')],
+    ['the bank sync card', () => import('../src/apps/spending/bankSync/presentation/words')],
+  ] as const)('ends %s as English ends them, a day label in Croatian closing the sentence with its own stop', async (_name, load) => {
+    const { dayLabel: englishDay } = await import('../src/shared/calendar/dayLabel')
+    const { dayLabel: croatianDay } = await inCroatian(() => import('../src/shared/calendar/dayLabel'))
+    const { en, hr } = (await load()) as unknown as { en: Record<string, unknown>; hr: Record<string, unknown> }
+    const builders = (words: Record<string, unknown>, path = ''): [string, (...args: never[]) => unknown][] =>
+      Object.entries(words).flatMap(([key, value]): [string, (...args: never[]) => unknown][] =>
+        typeof value === 'function'
+          ? [[`${path}${key}`, value as (...args: never[]) => unknown]]
+          : typeof value === 'object' && value !== null
+            ? builders(value as Record<string, unknown>, `${path}${key}.`)
+            : [],
+      )
+    const croatianOf = new Map(builders(hr))
+    const day = civilDate(2026, 10, 3)
+    const differing = builders(en).flatMap(([key, builder]) => {
+      const english = builtSentences(builder, englishDay(day)).every((sentence) => sentence.endsWith('.'))
+      const croatian = builtSentences(croatianOf.get(key)!, croatianDay(day)).every((sentence) => sentence.endsWith('.') && !sentence.endsWith('..'))
+      return english === croatian ? [] : [key]
+    })
+
+    expect(differing).toEqual([])
+  })
+
+  it('ends a question after a list of days without a second stop', async () => {
+    const { ANSWERS } = await inCroatian(() => import('../src/apps/spending/assistant/infrastructure/fake/fakeReceiptsChat'))
+    const { dayLabel } = await inCroatian(() => import('../src/shared/calendar/dayLabel'))
+    const asked = ANSWERS.hr.pickWhich(ANSWERS.hr.paymentOn('23,49 €', dayLabel(civilDate(2026, 11, 18))))
+
+    expect(asked).not.toContain('..')
+  })
+})

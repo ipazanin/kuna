@@ -20,6 +20,7 @@ import {
   LINE_RECORDS,
   RECEIPT_RECORDS,
   DROPPED_ROW_RECORDS,
+  RECIPE_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SHORTCUT_PART_RECORDS,
@@ -40,7 +41,10 @@ import type { RowLink } from '../../domain/rowLink'
 import { spendingDocumentOf } from '../spendingDocument'
 import { FAKE_HOME_LOAN_IBAN, fakeHomeLoanShare } from './fakeHomeLoan'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
-import { revolutStatement } from '../../../statements/domain/revolutStatement'
+import { recipeStatement } from '../../../statements/domain/recipeStatement'
+import { fakeRecipes } from './fakeRecipes'
+import { REVOLUT_STATEMENT } from '../../../statements/domain/revolutRecipe'
+import { words as statementWords } from '../../../statements/domain/words'
 import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
 import { BANK_SYNC_KEY_PREFIX, transcribedImportKeys } from '../../../statements/domain/statementRows'
 import { BANK_SYNC_LABEL } from '../../../bankSync/domain/bankSyncRows'
@@ -345,7 +349,7 @@ function statementRow(place: number, account: RecordId, date: CivilDate, amount:
 function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, categories: readonly Category[], accounts: readonly Account[]): readonly FakeRow[] {
   const back = (days: number): CivilDate => addDays(day, -days)
   const between = idOf('Between my accounts')
-  const read = revolutStatement(sampleRevolutRows(day), 'earlier-statement.csv', { accounts, categories })
+  const read = recipeStatement(REVOLUT_STATEMENT, sampleRevolutRows(day), 'earlier-statement.csv', { accounts, categories }, statementWords.feeOn)
   const bistroKey = 'statement' in read ? (read.statement.rows.find((row) => row.payee === 'Harbour bistro')?.importKey ?? '') : ''
   const [paidOut, paidIn] = [fixedId(TRANSACTION_RECORDS, 1703), fixedId(TRANSACTION_RECORDS, 1704)]
   const typed = (place: number, account: RecordId, date: CivilDate, amount: number, payee: string, category: string): FakeRow => ({
@@ -844,6 +848,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
       ...stored(RECEIPT_RECORDS, receipts.receipts),
       ...stored(DROPPED_ROW_RECORDS, bankSync === 'pending-books' ? [droppedHotel(day)] : []),
+      ...stored(RECIPE_RECORDS, set === 'statements' ? fakeRecipes() : []),
       ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
     },
     rows: transactions,

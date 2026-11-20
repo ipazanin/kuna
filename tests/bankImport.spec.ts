@@ -214,7 +214,7 @@ describe('a fetch', () => {
         throw new BankScriptFailure('Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED')
       }
       const { dryRun } = await importerOver(portOf({ balances }), fake.store).run(false)
-      expect(dryRun.notes).toEqual(['The balance of OTP current was not checked, since the bank did not give it: Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED'])
+      expect(dryRun.fileNotes).toEqual([{ kind: 'balance-not-read', accounts: 'OTP current', reason: 'Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED' }])
       expect(fake.added.filter((record) => 'importKey' in record)).toHaveLength(1)
     })
   })
@@ -336,7 +336,7 @@ describe('finishing a link', () => {
 })
 
 describe('what the step says', () => {
-  const dryRun = { newRows: 2, alreadyIn: 1, filled: 0, notes: [] } as never
+  const dryRun = { newRows: 2, alreadyIn: 1, filled: 0, fileNotes: [], leftOut: [], notes: [] } as never
   const noWrite = { dryRun, problems: [], linked: [], proposals: [], differences: [], stated: [], olderRows: [], receipt: null }
   const bookNow = () => bookOf([])
   const other = { bank: 'otp' as const, account: linked('u', 'HR0000000000000000077', 'EUR') }

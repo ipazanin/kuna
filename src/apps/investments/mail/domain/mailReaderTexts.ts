@@ -1,4 +1,4 @@
-import { IBKR_FLEX_RECIPE } from './ibkrFlexRecipe'
+import { IBKR_FLEX_MAIL } from './ibkrFlexRecipe'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail/domain/mailSource'
 import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
@@ -14,7 +14,7 @@ export type MailReaderField = keyof MailReaderTexts
 
 /** The reader's fields as the card shows them, or IBKR's own terms before the file holds a reader. */
 export function mailReaderTexts(saved: MailReader | null): MailReaderTexts {
-  const { senders, subject, contents } = saved ?? IBKR_FLEX_RECIPE.mail
+  const { senders, subject, contents } = saved ?? IBKR_FLEX_MAIL
   return { senders: senders.join(', '), subject, contents }
 }
 

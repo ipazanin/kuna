@@ -161,6 +161,7 @@ export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader:
           {
             key: row.key,
             section,
+            place: null,
             shown: [
               ['date', row.date],
               ['symbol', row.brokerSymbol],

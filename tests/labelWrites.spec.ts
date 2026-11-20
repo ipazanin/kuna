@@ -197,7 +197,7 @@ describe('labels typed in the entry dialog', () => {
       { from: { account: OTP!, row: null }, to: { account: ACCOUNTS_BY_HAND[1]!, row: null }, sent: accountMoneyFromAmount(40), arrived: null },
       { date: dinner.date, note: '', category: category('Between my accounts').id },
       [],
-      { bankNames: { otp: 'OTP', revolut: 'Revolut' }, description: '' },
+      { description: '' },
     )
     if ('refused' in typed) throw new Error(typed.refused)
     const legs = typed.legs

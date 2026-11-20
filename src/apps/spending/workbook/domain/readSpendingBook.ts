@@ -11,6 +11,7 @@ import { isBeforeItems, itemOfWaitingLine, itemsOfStoredRow } from './beforeItem
 import type { StoredLine } from './beforeItems'
 import type { HeldBankRow } from './heldBankRow'
 import type { DroppedRow } from './droppedRow'
+import type { SavedRecipe } from './savedRecipe'
 import { eventPutIn } from './event'
 import type { SpendingEvent } from './event'
 import type { Receipt } from './receipt'
@@ -21,6 +22,7 @@ import {
   EVENT_RECORDS,
   HELD_ROW_RECORDS,
   DROPPED_ROW_RECORDS,
+  RECIPE_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
   LINE_RECORDS,
@@ -111,6 +113,7 @@ export interface SpendingRecords {
   readonly items: RecordsRead<TransactionItem>
   readonly held: RecordsRead<HeldBankRow>
   readonly dropped: RecordsRead<DroppedRow>
+  readonly recipes: RecordsRead<SavedRecipe>
   readonly settings: RecordsRead<SettingRow>
 }
 
@@ -130,6 +133,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   items: ITEM_RECORDS,
   held: HELD_ROW_RECORDS,
   dropped: DROPPED_ROW_RECORDS,
+  recipes: RECIPE_RECORDS,
   settings: SETTING_RECORDS,
 }
 
@@ -150,6 +154,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     items: of(SPENDING_PARTS.items),
     held: of(SPENDING_PARTS.held),
     dropped: of(SPENDING_PARTS.dropped),
+    recipes: of(SPENDING_PARTS.recipes),
     settings: of(SPENDING_PARTS.settings),
   }
 }
@@ -187,6 +192,8 @@ export interface SpendingBook {
   readonly held: readonly HeldBankRow[]
   /** The payments the bank dropped that you had filed, waiting on To review until you press OK, in the order of the file. */
   readonly dropped: readonly DroppedRow[]
+  /** The recipes kept for a bank's statement files, in the order of the file. */
+  readonly recipes: readonly SavedRecipe[]
   readonly settings: SpendingSettings
   /** The rows, lines and items as the file stores them, which a write of rows starts from. */
   readonly stored: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
@@ -528,8 +535,9 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     const onAccount = accountReason(accountsById, record)
     return onAccount === null ? [] : [onAccount]
   })
+  const recipes = readEach(records.recipes, () => [])
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, dropped, settings }
+  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, dropped, recipes, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -544,6 +552,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     items: beforeItems ? itemsBeforeItems(records.transactions, transactions.facts, lines.facts) : items.facts,
     held: held.facts,
     dropped: dropped.facts,
+    recipes: recipes.facts,
     settings: spendingSettingsOf(settings.facts),
     stored: { transactions: records.transactions, lines: records.lines, items: records.items },
     readings,

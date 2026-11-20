@@ -11,7 +11,9 @@ import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRo
 import type { BankSession, BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
-import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
+import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement'
+import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
+import { en as statementWords } from '../src/apps/spending/statements/domain/words'
 import { syncGapOf } from '../src/apps/spending/statements/domain/sourceDays'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
@@ -26,6 +28,7 @@ import { ACCOUNT_RECORDS, RULE_RECORDS } from '../src/apps/spending/workbook/dom
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { ACCOUNTS, CATEGORIES, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, filedDryRun, spendingBook } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
+import { dryRunNotes } from '../src/apps/spending/statements/presentation/readingLines'
 
 const DAY = civil('2026-10-30')
 
@@ -52,7 +55,7 @@ const BANK: BankTransaction = {
 
 function syncOf(answer: readonly BankTransaction[]): StatementRows {
   const { label, rows } = bankSyncRows(answer, OTP)
-  return { label, rows, notes: [] }
+  return { label, rows, fileNotes: [] }
 }
 
 function fileRow(place: number, date = '2026-10-28', amount = -6.5): Transaction {
@@ -62,7 +65,7 @@ function fileRow(place: number, date = '2026-10-28', amount = -6.5): Transaction
 function fileStatement(rows: readonly Partial<StatementRow>[]): StatementRows {
   return {
     label: 'statement.csv',
-    notes: [],
+    fileNotes: [],
     rows: rows.map((fields, place) => ({
       account: OTP.id,
       date: civil('2026-10-28'),
@@ -86,7 +89,7 @@ describe('a synced row against the file', () => {
     const run = filedDryRun(spendingBook([fileRow(1)]), syncOf([BANK]), DAY, () => '00000000-0000-4000-8000-000000000001')
     expect(run.added).toEqual([])
     expect(run.lines.map((line) => line.outcome)).toEqual(['other-source'])
-    expect(run.notes).toEqual(['1 row of OTP current left out, since a file covers the days up to 28 Oct 2026.'])
+    expect(dryRunNotes(run, ACCOUNTS)).toEqual(['1 row of OTP current left out, since a file covers the days up to 28 Oct 2026.'])
   })
 
   it('leaves out a row before that day whatever its amount, since a sync row may hold a fee the file split off', () => {
@@ -167,7 +170,7 @@ describe('a file against rows a sync brought', () => {
     const run = filedDryRun(spendingBook([synced('2026-10-28')]), fileStatement([{ date: civil('2026-10-29'), amount: accountMoneyFromAmount(-99) }]), DAY)
     expect(run.added).toEqual([])
     expect(run.lines.map((line) => line.outcome)).toEqual(['other-source'])
-    expect(run.notes).toEqual(['1 row of OTP current left out, since the bank sync covers the days from 28 Oct 2026.'])
+    expect(dryRunNotes(run, ACCOUNTS)).toEqual(['1 row of OTP current left out, since the bank sync covers the days from 28 Oct 2026.'])
   })
 
   it('takes a row from before the sync began, so a file can fill what came earlier', () => {
@@ -210,7 +213,7 @@ describe('a file for the days it names on a synced account', () => {
     const run = filedDryRun(book, { ...file, days: days('2026-10-05', '2026-10-25') }, DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['outside-days', 'already-in', 'new', 'already-in', 'outside-days'])
     expect(run.added.map((added) => added.payee)).toEqual(['Pharmacy'])
-    expect(run.notes).toEqual(['2 rows left out, since the file brings only the days from 5 Oct 2026 to 25 Oct 2026.'])
+    expect(dryRunNotes(run, ACCOUNTS)).toEqual(['2 rows left out, since the file brings only the days from 5 Oct 2026 to 25 Oct 2026.'])
   })
 
   it('asks about a row on an end of the days that only looks like the synced one, instead of adding it twice', () => {
@@ -278,14 +281,14 @@ describe('a Revolut export and a sync answer of the same days', () => {
   ]
 
   function exported(): StatementRows {
-    const reading = revolutStatement(EXPORT, 'revolut.csv', { accounts: ACCOUNTS, categories: CATEGORIES })
-    if (!('statement' in reading)) throw new Error(reading.refusal)
+    const reading = recipeStatement(REVOLUT_STATEMENT, EXPORT, 'revolut.csv', { accounts: ACCOUNTS, categories: CATEGORIES }, statementWords.feeOn)
+    if (!('statement' in reading)) throw new Error(reading.refused.kind)
     return reading.statement
   }
 
   function synced(): StatementRows {
     const { label, rows } = bankSyncRows(ANSWER, REVOLUT_EUR)
-    return { label, rows, notes: [] }
+    return { label, rows, fileNotes: [] }
   }
 
   it('puts the bakery of a sync after the export on hold, since the sync asks nobody', () => {
@@ -294,12 +297,12 @@ describe('a Revolut export and a sync answer of the same days', () => {
     const second = filedDryRun(spendingBook(first.added), synced(), DAY)
     expect(second.lines.map((line) => line.outcome)).toEqual(['other-source', 'look-alike'])
     expect(second.added).toEqual([])
-    expect([second.notes.length, second.held.length]).toEqual([1, 1])
+    expect([second.leftOut.length, second.held.length]).toEqual([1, 1])
   })
 
   it('asks about the bakery on an export after the sync, and books it once whichever way the person answers', () => {
     const { label, rows } = bankSyncRows(ANSWER.slice(1), REVOLUT_EUR)
-    const first = filedDryRun(spendingBook([]), { label, rows, notes: [] }, DAY)
+    const first = filedDryRun(spendingBook([]), { label, rows, fileNotes: [] }, DAY)
     expect(first.added).toHaveLength(1)
     const book = spendingBook(first.added)
     const asked = filedDryRun(book, exported(), DAY)
@@ -325,7 +328,7 @@ describe('an exchange or a pocket move from the sync, whose shape is a guess unt
   const synced = (legs: readonly SyncedRows[], accounts: readonly Account[] = ACCOUNTS): StatementRows => {
     const rows = legs.flatMap((one) => one.rows)
     const rates = new Map(legs.flatMap((one) => [...one.exchangeRates]))
-    return { label: 'Enable Banking', notes: [], rows: rowsWithMoves(rows, rates, accounts) }
+    return { label: 'Enable Banking', fileNotes: [], rows: rowsWithMoves(rows, rates, accounts) }
   }
   const between = category('Between my accounts').id
 
@@ -395,7 +398,7 @@ describe('readBanks', () => {
 
   it('drafts a linked account Kuna does not keep, and reads the rest', async () => {
     const { proposals, statement } = await readBanks(fakeBankSync('unknown-account', DAY), spendingBook([]), DAY)
-    expect(proposals.map(({ bank, account }) => [bank, account.iban, account.currency, account.name])).toEqual([['otp', 'HR0000000000000000077', 'EUR', 'OTP EUR']])
+    expect(proposals.map(({ bank, account }) => [bank, account.iban, account.currency, account.name])).toEqual([['otp', 'HR0000000000000000077', 'EUR', 'OTP banka EUR']])
     expect(statement.rows.some((statementRow) => statementRow.account === proposals[0]!.account.id)).toBe(false)
   })
 

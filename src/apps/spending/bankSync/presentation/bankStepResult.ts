@@ -4,6 +4,7 @@ import { linkedAccountEnding, setupLines } from '../domain/bankAccountSetup'
 import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
 import type { BalanceDifference, StatedBalance } from '../domain/bankBalance'
 import { words } from './words'
+import { dryRunNotes } from '../../statements/presentation/readingLines'
 import { SPENDING_BANK_SYNC_LINK, SPENDING_REVIEW_LINK } from '../../overview/presentation/spendingLinks'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -65,8 +66,8 @@ export function bankStepResult(outcome: BankSyncOutcome, book: BookNow | null, w
   const accounts = accountLines(outcome.linked, outcome.proposals, book)
   const differences = outcome.differences.map(differenceLine)
   const left = [...differences, ...bankProblemLines(outcome), ...accounts.waiting]
-  const { newRows, alreadyIn, filled, notes } = outcome.dryRun
-  const line = [words.summary(newRows, alreadyIn, filled), ...notes, ...unlistedLines(outcome.stated), ...left, ...accounts.notes].join(' ')
+  const { newRows, alreadyIn, filled } = outcome.dryRun
+  const line = [words.summary(newRows, alreadyIn, filled), ...dryRunNotes(outcome.dryRun, book?.accounts ?? []), ...unlistedLines(outcome.stated), ...left, ...accounts.notes].join(' ')
   if (left.length > 0) return { kind: 'waits', line, writeId, link: SETTINGS_LINK }
   if (toReview > 0) return { kind: 'done', line, writeId, link: { label: plural(words.step.review(toReview), toReview), to: SPENDING_REVIEW_LINK } }
   return { kind: 'done', line, writeId, link: accounts.notes.length === 0 ? null : SETTINGS_LINK }

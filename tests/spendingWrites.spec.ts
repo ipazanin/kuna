@@ -195,7 +195,7 @@ describe('a statement in the Spending file', () => {
     await store.write('Added', (unit) => addEntries(unit, store.state.records!, [typed]))
     const before = store.state.workbook!.transactions
     const rows = [rowOf('CAFE', -5), rowOf('Shop', -7), { ...rowOf('To Revolut', -75), counterpartyIban: REVOLUT_EUR.iban }, { ...rowOf('Top-up', 75), account: REVOLUT_EUR.id }]
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, fileNotes: [] }, civil('2026-10-30'))
 
     const receipt = await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
 
@@ -221,7 +221,7 @@ describe('a statement in the Spending file', () => {
       { ...rowOf('To Revolut', -75), counterpartyIban: REVOLUT_EUR.iban },
       { ...rowOf('Top-up', 75), account: REVOLUT_EUR.id },
     ]
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     return store
   }
@@ -245,7 +245,7 @@ describe('a statement in the Spending file', () => {
   it('pairs two offered rows through the store, and they read as a pair', async () => {
     const store = await spendingStore()
     const rows = [rowOf('Card top-up', -60), { ...rowOf('Top-up', 60), account: REVOLUT_EUR.id }]
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const offered = reviewQueue(store.state.workbook!, civil('2026-10-30')).waiting[0]!.maybeTransfer!
 
@@ -260,7 +260,7 @@ describe('a statement in the Spending file', () => {
     const store = await spendingStore()
     const typed = coffee('2026-10-19', -5)
     await store.write('Added', (unit) => addEntries(unit, store.state.records!, [typed]))
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('CAFE', -5.2)], notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('CAFE', -5.2)], fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const before = store.state.workbook!.transactions
     const near = reviewQueue(store.state.workbook!, civil('2026-10-30')).waiting[0]!.maybeTyped!
@@ -275,7 +275,7 @@ describe('a statement in the Spending file', () => {
 
   it('keeps a typed leg sent back to review, with no offer to join it with itself', async () => {
     const store = await spendingStore()
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -30)], notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -30)], fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const [bank] = store.state.workbook!.transactions
     const { kept, added } = transferOver({ row: bank!, items: store.state.workbook!.items }, topUp(30))
@@ -306,7 +306,7 @@ describe('a statement in the Spending file', () => {
 
   it('refuses to move a row a statement brought to another account, since the next export would bring it again', async () => {
     const store = await spendingStore()
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -5)], notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -5)], fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const [row] = store.state.workbook!.transactions
 
@@ -317,7 +317,7 @@ describe('a statement in the Spending file', () => {
 
   it('files a refund under a spending category through the store, where it counts against spending', async () => {
     const store = await spendingStore()
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop refund', 40)], notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop refund', 40)], fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const [row] = store.state.workbook!.transactions
 
@@ -328,7 +328,7 @@ describe('a statement in the Spending file', () => {
 
   it('files several waiting rows under one category in one write, which one Undo puts back whole', async () => {
     const store = await spendingStore()
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('City pharmacy', -12), rowOf('Shoe shop', -8)], notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('City pharmacy', -12), rowOf('Shoe shop', -8)], fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const waiting = store.state.workbook!.transactions
 
@@ -344,7 +344,7 @@ describe('a statement in the Spending file', () => {
 
   it('says a deleted statement row comes back, and it does on the next overlapping export, while a typed row does not', async () => {
     const store = await spendingStore()
-    const statement = { label: 'export.csv', rows: [rowOf('Shop', -5)], notes: [] }
+    const statement = { label: 'export.csv', rows: [rowOf('Shop', -5)], fileNotes: [] }
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, statement, civil('2026-10-30'))))
     const [row] = store.state.workbook!.transactions
 
@@ -359,7 +359,7 @@ describe('a statement in the Spending file', () => {
   it('undoes a first import of thousands of rows in about the time the import took, not minutes', async () => {
     const store = await spendingStore()
     const rows = Array.from({ length: 4_300 }, (_, place) => ({ ...rowOf(`Shop ${place}`, -1 - place / 100, `2026-10-${String((place % 28) + 1).padStart(2, '0')}`) }))
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, fileNotes: [] }, civil('2026-10-30'))
     const importing = performance.now()
     const receipt = await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const undoing = performance.now()
@@ -393,7 +393,7 @@ describe('a statement in the Spending file', () => {
 
   it('makes a rule and files the rows waiting in one write', async () => {
     const store = await spendingStore()
-    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -7)], notes: [] }, civil('2026-10-30'))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -7)], fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
 
     await store.write('Rule', (unit) => writeRules(unit, store.state.workbook!, rulesInto([{ test: 'payee_contains', values: ['shop'], not: false }], category('Food/Groceries').id), null))
@@ -440,9 +440,9 @@ describe('a bank row on hold', () => {
 
   /** The file's bakery imported, then the sync's of a day later put on hold. */
   async function withHold(store: WorkbookStore<SpendingBooks>) {
-    const file = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [FILE_ROW], notes: [] }, civil('2026-10-30'))
+    const file = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [FILE_ROW], fileNotes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, file))
-    const sync = statementDryRun(store.state.workbook!, { label: 'Enable Banking', rows: [SYNCED], notes: [] }, civil('2026-10-30'))
+    const sync = statementDryRun(store.state.workbook!, { label: 'Enable Banking', rows: [SYNCED], fileNotes: [] }, civil('2026-10-30'))
     const receipt = await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, sync))
     return { receipt, held: store.state.workbook!.held[0]! }
   }
@@ -467,8 +467,8 @@ describe('a bank row on hold', () => {
     const book = store.state.workbook!
     expect(book.transactions.map((row) => [row.date, row.payee, row.importKey])).toEqual([[civil('2026-10-27'), 'Corner bakery', 'bank-ref-1']])
     expect(book.held).toEqual([])
-    expect(statementDryRun(book, { label: 'Enable Banking', rows: [SYNCED], notes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['already-in'])
-    expect(statementDryRun(book, { label: 'export.csv', rows: [FILE_ROW], notes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['other-source'])
+    expect(statementDryRun(book, { label: 'Enable Banking', rows: [SYNCED], fileNotes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['already-in'])
+    expect(statementDryRun(book, { label: 'export.csv', rows: [FILE_ROW], fileNotes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['other-source'])
   })
 })
 
@@ -491,8 +491,12 @@ describe('a bank row on hold whose look-alike is gone', () => {
 
   /** The file's bakery imported, the sync's of a day later put on hold, then the file's row deleted. */
   async function withLoneHold(store: WorkbookStore<SpendingBooks>) {
-    await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [FILE_ROW], notes: [] }, civil('2026-10-30'))))
-    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, { label: 'Enable Banking', rows: [SYNCED], notes: [] }, civil('2026-10-30'))))
+    await store.write('Imported', (unit) =>
+      writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [FILE_ROW], fileNotes: [] }, civil('2026-10-30'))),
+    )
+    await store.write('Synced', (unit) =>
+      writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, { label: 'Enable Banking', rows: [SYNCED], fileNotes: [] }, civil('2026-10-30'))),
+    )
     await store.write('Deleted', (unit) => writeRows(unit, store.state.records!, [{ before: store.state.workbook!.transactions[0]!, after: null }]))
     return store.state.workbook!.held[0]!
   }

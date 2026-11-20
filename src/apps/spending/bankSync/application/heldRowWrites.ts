@@ -18,7 +18,7 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
  */
 export function answerHeldRow(unit: UnitOfWork, book: SpendingBook, held: HeldBankRow, keep: TwinAnswer['keep'], day: CivilDate): void {
   if (keep === 'both') {
-    const statement = { label: BANK_SYNC_LABEL, rows: [rowOfHeld(held)], notes: [], twinAnswers: new Map([[rowKey(held), { booked: held.like, keep }]]) }
+    const statement = { label: BANK_SYNC_LABEL, rows: [rowOfHeld(held)], fileNotes: [], twinAnswers: new Map([[rowKey(held), { booked: held.like, keep }]]) }
     writeDryRun(unit, book.stored, statementDryRun({ ...book, held: book.held.filter((other) => other !== held) }, statement, day))
   } else {
     const kept = book.transactions.find((row) => row.id === held.like)

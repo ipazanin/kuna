@@ -79,6 +79,7 @@ import { en as spendingReceiptsEnglish, hr as spendingReceiptsCroatian } from '.
 import { en as spendingReceiptNotesEnglish, hr as spendingReceiptNotesCroatian } from '../../src/apps/spending/receipts/domain/words.ts'
 import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
 import { en as spendingStatementReadingEnglish, hr as spendingStatementReadingCroatian } from '../../src/apps/spending/statements/domain/words.ts'
+import { en as spendingFileReadingEnglish, hr as spendingFileReadingCroatian } from '../../src/apps/spending/statements/presentation/readingWords.ts'
 import { en as spendingAccountsEnglish, hr as spendingAccountsCroatian } from '../../src/apps/spending/accounts/presentation/words.ts'
 import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
 import { linkedAccountEnding } from '../../src/apps/spending/bankSync/domain/bankAccountSetup.ts'
@@ -228,6 +229,7 @@ const SCREEN_WORDS = {
     spendingReceipts: spendingReceiptsEnglish,
     spendingReceiptNotes: spendingReceiptNotesEnglish,
     spendingStatementReading: spendingStatementReadingEnglish,
+    spendingFileReading: spendingFileReadingEnglish,
     spendingAccounts: spendingAccountsEnglish,
     spendingBankSync: spendingBankSyncEnglish,
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
@@ -318,6 +320,7 @@ const SCREEN_WORDS = {
     spendingReceipts: spendingReceiptsCroatian,
     spendingReceiptNotes: spendingReceiptNotesCroatian,
     spendingStatementReading: spendingStatementReadingCroatian,
+    spendingFileReading: spendingFileReadingCroatian,
     spendingAccounts: spendingAccountsCroatian,
     spendingBankSync: spendingBankSyncCroatian,
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
@@ -7583,7 +7586,7 @@ export function spendingBankSyncRowsFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingStatementReading.coveredByFile(1, 'OTP current', '').one)
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingFileReading.leftOut.coveredByFile(1, 'OTP current', '').one)
     await page.waitForSelector('[data-testid="spending-bank-account"][data-kind="missing"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('the bank sync with rows a file brought')
@@ -7863,7 +7866,7 @@ export function spendingImportRefusedFlowIn(language, paths) {
   return async (page, { shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.refused)
-    const wanted = words.spendingStatementReading.noColumn('Fee')
+    const wanted = words.spendingFileReading.refused.recipeMiss('Revolut', 'Fee')
     await page
       .waitForFunction((text) => document.querySelector('[data-testid="spending-import-refused"]')?.textContent?.includes(text) ?? false, { timeout: 10_000 }, wanted)
       .catch(() => {
@@ -7882,7 +7885,7 @@ export function spendingImportRefusedFlowIn(language, paths) {
  */
 export function spendingImportMissingFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
-  const reading = words.spendingStatementReading
+  const reading = words.spendingFileReading.refused
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const offer = '[data-testid="spending-import-missing-accounts"]'
@@ -7939,17 +7942,18 @@ export function spendingImportMissingBankFlowIn(language, paths) {
   }
 }
 
-/** Drops the export whose pocket moves have no savings account: the dry run shows once, with the offer to add that account under its notes and no second note for the same gap. */
+/** Drops the export whose pocket moves have no savings account: Import says what the file holds, with the offer to add that account under it, and the dry run has no second note for the same gap. */
 export function spendingImportMissingSavingsFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
   return async (page, { shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const offer = '[data-testid="spending-dry-run"] [data-testid="spending-import-missing-accounts"]'
+    const offer = '[data-testid="spending-import-file"] [data-testid="spending-import-missing-accounts"]'
     await dropSpendingFile(page, paths.revolut)
     await spendingDryRunSays(page, words.spendingStatements.import.summary(10, 1, 1))
     await page.waitForSelector(offer, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('the dry run offers no savings account')
+      throw new Error('Import offers no savings account under what the file holds')
     })
+    await countOf(page, '[data-testid="spending-import-holding"]', 3, 'what the file holds, by product and currency')
     const notes = await page.$eval('[data-testid="spending-dry-run-notes"]', (element) => element.textContent ?? '')
     if (/savings rows? left out|redaka štednje/i.test(notes)) throw new Error(`the dry run notes repeat the savings gap: ${notes}`)
     await delay(300)
@@ -13773,5 +13777,52 @@ export function spendingRulesForFlowIn(language) {
     await pressSelector(page, press, `[aria-label="${rules.showAll(groceries)}"]`)
     await countOf(page, RULE, 4, 'the chip should show every rule again')
     if (await page.evaluate(() => window.location.hash.includes('category='))) throw new Error('the chip left the category in the address')
+  }
+}
+
+/**
+ * The sample OTP account's dialog takes any bank's name: it opens with the bank the file names, offers the book's other bank as
+ * a name is typed, and marks a name no account has as a new bank.
+ */
+export function spendingAccountBankNameFlowIn(language) {
+  const ui = language === 'en' ? uiEnglish : uiCroatian
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openAccountDialog(page, press)
+    const field = '[data-testid="spending-account-bank"]'
+    const named = await page.$eval(`input${field}, ${field} input`, (input) => input.value)
+    if (named !== 'OTP banka') throw new Error(`the account dialog names the bank "${named}", not OTP banka`)
+    const input = await pressSelector(page, press, `input${field}, ${field} input`)
+    await input.evaluate((element) => element.select())
+    await page.keyboard.type('Erste')
+    const offered = await page
+      .waitForFunction(() => [...document.querySelectorAll('[role="listbox"] [role="option"]')].map((option) => option.textContent?.trim() ?? ''), { timeout: 5_000 })
+      .then((handle) => handle.jsonValue())
+    if (offered[0] !== ui.bankName.fresh('Erste')) throw new Error(`the bank field offers ${offered.join(', ')} for a new bank`)
+    await delay(250)
+    await inspect?.('the bank field with a new bank typed')
+    await shoot('spending-account-bank-name')
+  }
+}
+
+/** Settings, General on the statements set lists its saved recipe by name, bank and format, with Delete. Delete takes the card away with its last recipe and Undo brings it back. */
+export function spendingSettingsRecipesFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await countOf(page, '[data-testid="spending-recipe"]', 1, 'the saved recipes on Settings')
+    await centreOn(page, '[data-testid="spending-recipes"]', 'Promet Primjer banke')
+    await delay(300)
+    await inspect?.('the saved recipes on Settings')
+    await shoot('spending-settings-recipes')
+    await pressSelector(page, press, '[data-testid="spending-recipe-delete"]')
+    await page.waitForSelector('[data-testid="spending-recipes"]', { hidden: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Delete of the last recipe left the recipes card on Settings')
+    })
+    await delay(300)
+    await shoot('spending-settings-recipes-deleted')
+    await undoIn(page, press, words)
+    await countOf(page, '[data-testid="spending-recipe"]', 1, 'Undo should bring the recipe back')
+    await dismissToasts(page)
   }
 }

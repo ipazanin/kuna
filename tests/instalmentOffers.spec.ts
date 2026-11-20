@@ -16,11 +16,13 @@ import { statementPaymentsFrom } from '../src/apps/loans/bankLoans/application/s
 import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
 import { rowLinksOf } from '../src/apps/spending/facts'
 import { decidingRule } from '../src/apps/spending/statements/domain/spendingCategorisation'
-import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
+import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement'
+import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
+import { en as statementWords } from '../src/apps/spending/statements/domain/words'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { SAMPLE_LOAN_FILE_NAME, sampleLoanCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
 import { monthOf } from '../src/shared/calendar/monthKey'
-import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
+import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -205,8 +207,8 @@ describe('the fake books', () => {
     const meta = { id: 'import', source: 'browser' as const, title: 'import', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
     const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'statements', day) }).workbook
     const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
-    const reading = revolutStatement(await readFirstSheet(sampleLoanCsv(day)), SAMPLE_LOAN_FILE_NAME, spending)
-    if (!('statement' in reading)) throw new Error(reading.refusal)
+    const reading = recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleLoanCsv(day)), SAMPLE_LOAN_FILE_NAME, spending, statementWords.feeOn)
+    if (!('statement' in reading)) throw new Error(reading.refused.kind)
 
     const run = statementDryRun(spending, reading.statement, day, {
       targets: loanTargetsFrom(loanTargetsOf(loans)),

@@ -56,6 +56,7 @@ describe('the Investments reader', () => {
     const cancelled: AskedRow = {
       key: 'asked-cancelled',
       section: 'Trades',
+      place: 0,
       shown: [
         ['buySell', 'BUY (Ca.)'],
         ['quantity', '-5'],

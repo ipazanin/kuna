@@ -8,7 +8,7 @@ import { SPENDING_OPERATIONS } from '../../operations/spendingOperations'
 import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
 import { GROCERIES, HOUSEHOLD, personTexts, recordsIn } from './fakeSpendingRecords'
 
-const ANSWERS = {
+export const ANSWERS = {
   en: {
     noPhoto: 'Attach a photo of the receipt first, and I will read its lines.',
     petFood: 'Pet food',
@@ -45,7 +45,8 @@ const ANSWERS = {
     categoryFirst: 'Jedna je stavka hrana za ljubimce, za koju još nema kategorije. Prihvatite karticu ispod, pa me ponovno zamolite da pročitam račun.',
     receiptTitle: 'Fiskalni račun iz trgovine Corner market',
     receiptProposed: 'Kartica ispod dijeli plaćanje na stavke koje sam pročitao. Ništa se ne mijenja dok je ne prihvatite.',
-    pickWhich: (payments: string) => `Fiskalni račun može biti bilo koje od ovih plaćanja: ${payments}. Koje je to bilo?`,
+    // The list ends on a day label, whose own full stop closes the sentence.
+    pickWhich: (payments: string) => `Fiskalni račun može biti bilo koje od ovih plaćanja: ${payments} Koje je to bilo?`,
     paymentOn: (amount: string, day: string) => `${amount} od ${day}`,
     wasItCash: 'Nijedno plaćanje u Potrošnji ne odgovara ovom računu. Jeste li platili gotovinom?',
     noPayment: 'Nijedan od zadnjih redaka nije trošak koji bih mogao podijeliti.',

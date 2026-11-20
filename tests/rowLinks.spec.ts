@@ -571,7 +571,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
       CATEGORIES.filter((held) => held.kind !== 'repayment' && held.id !== LOAN_INTEREST.id),
     )
     const book = () => store.state.workbook!
-    const statement = { label: 'export.csv', rows: [paying('2026-11-21', -650, 'EXAMPLE BANK')], notes: [] }
+    const statement = { label: 'export.csv', rows: [paying('2026-11-21', -650, 'EXAMPLE BANK')], fileNotes: [] }
     const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES })
 
     expect(run.lines.map((line) => line.outcome === 'new' && line.pays?.target)).toEqual([INSTALMENT])
@@ -607,7 +607,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
       ),
     )
     const book = () => store.state.workbook!
-    const statement = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'EXAMPLE BANK ZAGREB')], notes: [] }
+    const statement = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'EXAMPLE BANK ZAGREB')], fileNotes: [] }
     const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES })
 
     expect(run.receipts).toHaveLength(1)
@@ -675,8 +675,8 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
 describe('importing a statement against the instalments in Loans', () => {
   it("files an imported row's interest under the category its rule gives, and leaves a row only near the plan, and every row of a sync, unlinked for To review", () => {
     const book = spendingBook([], { categories: CATEGORIES })
-    const ruled = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'Example Bank', { category: GROCERIES.id })], notes: [] }
-    const near = { label: 'export.csv', rows: [paying('2026-11-20', -700, 'Card payment')], notes: [] }
+    const ruled = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'Example Bank', { category: GROCERIES.id })], fileNotes: [] }
+    const near = { label: 'export.csv', rows: [paying('2026-11-20', -700, 'Card payment')], fileNotes: [] }
     const links = { targets: [INSTALMENT], language: 'en' as const, notes: NOTES }
 
     expect(statementDryRun(book, ruled, on('2026-11-25'), links).items.map((part) => part.category)).toEqual([GROCERIES.id, PRINCIPAL.id])

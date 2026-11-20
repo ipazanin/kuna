@@ -15,7 +15,7 @@ export const en = {
   import: {
     title: 'Import a statement',
     subtitle: 'What the file would do shows here first, and nothing is written until you import it.',
-    drop: 'Drop a Revolut export',
+    drop: 'Drop a statement file',
     orChoose: 'Or tap to choose its .xlsx or .csv file',
     reading: 'Reading the file…',
     unreadable: (reason: string) => `The file cannot be read: ${reason}`,
@@ -32,6 +32,17 @@ export const en = {
     addAccount: 'Add this account',
     addAccounts: 'Add these accounts',
     draftLine: (name: string, day: CivilDate, opening: string) => `${name}, opening on ${dayLabel(day)} with ${opening}`,
+    holdings: {
+      title: 'What the file holds',
+      product: (savings: boolean, currency: string) => (savings ? `Savings in ${currency}` : `Current account in ${currency}`),
+      rows: (count: number, from: CivilDate, to: CivilDate): EnglishForms => {
+        const days = from === to ? `on ${dayLabel(from)}` : `from ${dayLabel(from)} to ${dayLabel(to)}`
+        return { one: `1 row ${days}`, other: `${count} rows ${days}` }
+      },
+      goesTo: (account: string) => `Goes to ${account}`,
+      noAccount: 'No account keeps these rows yet',
+    },
+    letFilesFill: (account: string) => `Let statement files fill ${account}`,
     days: {
       title: 'Days this file brings',
       intro: 'The bank sync already brought some of these days. Rows outside them are left out, and a row the sync brought is not added twice.',
@@ -244,7 +255,7 @@ export const hr: Translation<typeof en> = {
   import: {
     title: 'Uvezi izvod',
     subtitle: 'Ovdje najprije vidite što bi datoteka napravila, a ništa se ne zapisuje dok je ne uvezete.',
-    drop: 'Ispusti Revolutov izvoz',
+    drop: 'Ispusti datoteku izvoda',
     orChoose: 'Ili dodirnite za odabir datoteke .xlsx ili .csv',
     reading: 'Čitam datoteku…',
     unreadable: (reason) => `Datoteka se ne može pročitati: ${reason}`,
@@ -260,6 +271,17 @@ export const hr: Translation<typeof en> = {
     addAccount: 'Dodaj ovaj račun',
     addAccounts: 'Dodaj ove račune',
     draftLine: (name, day, opening) => `${name}, otvara se ${dayLabel(day)} sa stanjem ${opening}`,
+    holdings: {
+      title: 'Što datoteka sadrži',
+      product: (savings, currency) => (savings ? `Štednja u valuti ${currency}` : `Tekući račun u valuti ${currency}`),
+      rows: (count, from, to): CroatianForms => {
+        const days = from === to ? `, ${dayLabel(from)}` : ` od ${dayLabel(from)} do ${dayLabel(to)}`
+        return { one: `${count} redak${days}`, few: `${count} retka${days}`, other: `${count} redaka${days}` }
+      },
+      goesTo: (account) => `Ide na račun ${account}`,
+      noAccount: 'Nijedan račun još ne vodi ove retke',
+    },
+    letFilesFill: (account) => `Dopusti izvode za račun ${account}`,
     days: {
       title: 'Dani koje datoteka donosi',
       intro: 'Sinkronizacija s bankom već je donijela neke od ovih dana. Retci izvan njih se izostavljaju, a redak iz sinkronizacije ne dodaje se dvaput.',

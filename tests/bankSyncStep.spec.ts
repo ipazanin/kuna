@@ -13,7 +13,16 @@ const HOUR = 3_600_000
 // The step reads the store's state as it runs, so each test sets the file this device opened.
 const store = vi.hoisted(() => ({ state: { workbook: null as SpendingWorkbook | null, writes: [] as unknown[] } }))
 const fetchAndImport = vi.hoisted(() =>
-  vi.fn(async () => ({ dryRun: { newRows: 0, alreadyIn: 0, filled: 0, notes: [] }, problems: [], linked: [], proposals: [], differences: [], stated: [], olderRows: [], receipt: null })),
+  vi.fn(async () => ({
+    dryRun: { newRows: 0, alreadyIn: 0, filled: 0, fileNotes: [], leftOut: [], notes: [] },
+    problems: [],
+    linked: [],
+    proposals: [],
+    differences: [],
+    stated: [],
+    olderRows: [],
+    receipt: null,
+  })),
 )
 
 vi.mock('../src/apps/spending/workbook/application/spendingStore', () => ({ useSpendingBooks: () => store }))

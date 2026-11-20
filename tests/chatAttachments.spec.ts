@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest'
 
 import { readCamtDocument } from '../src/apps/company/imports/domain/camtStatement'
 import { statementTies as companyStatementTies } from '../src/shared/money/statementTies'
-import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
+import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement'
+import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
+import { en as statementWords } from '../src/apps/spending/statements/domain/words'
 import {
   MOST_BYTES,
   MOST_CHARACTERS_A_READ,
@@ -26,7 +28,7 @@ import {
 } from '../src/shared/ai/domain/chatAttachments'
 import type { CellSheet } from '../src/shared/ai/domain/chatAttachments'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
-import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
+import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids'
 import { ACCOUNTS, CATEGORIES, REVOLUT_EUR } from './fixtures/spending'
 
 const MEGABYTE = 1024 * 1024
@@ -158,9 +160,9 @@ describe('the pages a read asks for', () => {
 
 describe('statement files the import screens read', () => {
   it("reads the Revolut sheet through Spending's reader, with the pending row marked pending", async () => {
-    const grid = await readFirstSheet(new Uint8Array(fixture('revolut.xlsx')).buffer)
-    const reading = revolutStatement(grid, 'revolut.xlsx', { accounts: ACCOUNTS, categories: CATEGORIES })
-    if (!('statement' in reading)) throw new Error(reading.refusal)
+    const cells = await readFirstSheetCells(new Uint8Array(fixture('revolut.xlsx')).buffer)
+    const reading = recipeStatement(REVOLUT_STATEMENT, cells, 'revolut.xlsx', { accounts: ACCOUNTS, categories: CATEGORIES }, statementWords.feeOn)
+    if (!('statement' in reading)) throw new Error(reading.refused.kind)
 
     expect(reading.statement.rows.filter((row) => !row.pending).map((row) => [row.account, row.date, row.amount, row.payee])).toEqual([
       [REVOLUT_EUR.id, '2026-10-02', accountMoneyFromAmount(-12.4), 'Corner market'],
@@ -168,7 +170,7 @@ describe('statement files the import screens read', () => {
       [REVOLUT_EUR.id, '2026-10-06', accountMoneyFromAmount(-38.6), 'Harbour bistro'],
     ])
     expect(reading.statement.rows.filter((row) => row.pending).map((row) => row.payee)).toEqual(['Fuel station'])
-    expect(reading.statement.notes).toEqual([])
+    expect(reading.statement.fileNotes).toEqual([])
   })
 
   it("reads the camt file through Company's reader, and its entries tie to its printed balances", () => {

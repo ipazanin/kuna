@@ -1,11 +1,19 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import type { Recipe, RecipeSection } from '../src/shared/recipes/domain/recipe'
+import type { Recipe, RecipeSection, XmlFile } from '../src/shared/recipes/domain/recipe'
 import { runRecipe } from '../src/shared/recipes/domain/runRecipe'
 import type { RecipeRow, RecipeRun } from '../src/shared/recipes/domain/runRecipe'
 import { fileNameFits, readRecipeFile } from '../src/shared/recipes/infrastructure/recipeFile'
-import { decimalOfText } from '../src/shared/money/decimal'
+import { decimalOfMarkedText, decimalOfText } from '../src/shared/money/decimal'
+import type { DecimalMark } from '../src/shared/money/decimal'
+import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
+import type { CivilDate } from '../src/shared/calendar/civilDate'
+import { civil } from './fixtures/ledger'
+import type { TableFile } from '../src/shared/recipes/domain/recipe'
+import { tableRows } from '../src/shared/recipes/domain/tableRows'
+import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids'
+import * as XLSX from 'xlsx'
 
 const ROWS: RecipeSection = {
   name: 'Rows',
@@ -41,7 +49,7 @@ const ROWS: RecipeSection = {
   ],
 }
 
-const XML_RECIPE: Recipe = { id: 'test', name: 'Test report', mail: { senders: [], subject: '', contents: '' }, file: { format: 'xml', root: 'Report' }, sections: [ROWS] }
+const XML_RECIPE: Recipe<XmlFile> = { id: 'test', name: 'Test report', file: { format: 'xml', root: 'Report' }, sections: [ROWS] }
 
 function bytesOf(text: string): ArrayBuffer {
   return new TextEncoder().encode(text).buffer as ArrayBuffer
@@ -54,7 +62,7 @@ function row(attributes: Readonly<Record<string, string>>): string {
     .join(' ')} />`
 }
 
-function runXml(body: string, recipe: Recipe = XML_RECIPE): RecipeRun {
+function runXml(body: string, recipe: Recipe<XmlFile> = XML_RECIPE): RecipeRun {
   const file = readRecipeFile(recipe, bytesOf(`<Report><Inner><Rows>${body}</Rows></Inner></Report>`))
   return file.kind === 'misfit' ? { kind: 'misfit', misfit: file.misfit } : runRecipe(recipe, file.rows)
 }
@@ -147,5 +155,105 @@ describe('the file a recipe reads', () => {
     ['report.pdf', false],
   ])('tells whether an attachment is XML by its name: %s', (name, fits) => {
     expect(fileNameFits({ file: { format: 'xml', root: 'R' } }, name)).toBe(fits)
+  })
+
+  it.each([
+    ['export.CSV', true],
+    ['export.xlsx', true],
+    ['export.xml', false],
+  ])('tells whether an attachment is a table by its name: %s', (name, fits) => {
+    expect(fileNameFits({ file: { format: 'table' } }, name)).toBe(fits)
+  })
+})
+
+const TABLE_RECIPE: Recipe<TableFile> = {
+  id: 'table',
+  name: 'Test export',
+  file: { format: 'table' },
+  sections: [
+    {
+      name: 'Rows',
+      rows: '',
+      keep: [],
+      shown: ['Note'],
+      fields: {
+        day: { from: 'Booked', as: 'date', formats: ['yyyy-MM-dd HH:mm:ss', 'yyyy-MM-dd', 'dd.MM.yyyy'] },
+        amount: { from: 'Amount', as: 'decimal', mark: 'comma' },
+      },
+      kinds: [{ kind: 'row', when: [], fields: {} }],
+    },
+  ],
+}
+
+function xlsxBytes(rows: readonly (readonly unknown[])[]): ArrayBuffer {
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(rows.map((row) => [...row])), 'Export')
+  return XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+}
+
+function dayCell(day: CivilDate, fraction = 0): XLSX.CellObject {
+  return { t: 'n', v: serialFromCivilDate(day) + fraction, z: 'dd.mm.yyyy hh:mm' }
+}
+
+describe('a table recipe', () => {
+  it('finds its header below a title by the columns it reads, ignoring case and spacing, and numbers each row by its line', () => {
+    const cells = [['Account statement'], [], ['booked', ' AMOUNT ', 'Note'], ['01.03.2031', '-1.234,56', 'Rent'], ['', '', ''], ['02.03.2031', '0,8', '']]
+    const reading = tableRows(TABLE_RECIPE, cells)
+    if (reading.kind !== 'read') throw new Error('It fits.')
+    expect(reading.lines).toEqual([4, 6])
+    const run = runRecipe(TABLE_RECIPE, reading.rows)
+    if (run.kind !== 'read') throw new Error('It fits.')
+    expect(run.rows.map((read) => [read.place, read.dates.day, read.decimals.amount])).toEqual([
+      [0, '2031-03-01', decimalOfText('-1234.56')],
+      [1, '2031-03-02', decimalOfText('0.8')],
+    ])
+  })
+
+  it('names the first column the likeliest header lacks when no row holds them all', () => {
+    expect(tableRows(TABLE_RECIPE, [['Title'], ['Booked', 'Sum', 'Note']])).toEqual({ kind: 'misfit', misfit: { kind: 'no-column', section: 'Rows', column: 'Amount' } })
+  })
+
+  it('reads an xlsx day cell to the second, a whole day as a day, and a number as its full value', async () => {
+    const cells = await readFirstSheetCells(
+      xlsxBytes([
+        ['Booked', 'Amount'],
+        [dayCell(civil('2031-03-01'), 0.587_5), -12.5],
+        [dayCell(civil('2031-03-02')), 0.1 + 0.2],
+      ]),
+    )
+    expect(cells).toEqual([
+      ['Booked', 'Amount'],
+      ['2031-03-01 14:06:00', '-12.5'],
+      ['2031-03-02', '0.3'],
+    ])
+  })
+
+  it('keeps a csv as written', async () => {
+    expect(await readFirstSheetCells('Booked;Amount\n01.03.2031;"1.234,56"\n')).toEqual([
+      ['Booked', 'Amount'],
+      ['01.03.2031', '1.234,56'],
+    ])
+  })
+})
+
+describe('a decimal written in a file', () => {
+  it.each([
+    ['1.234,56', 'comma', '1234.56'],
+    ['1,234.56', 'point', '1234.56'],
+    ['-0,5', 'comma', '-0.5'],
+    ['0.8', 'point', '0.8'],
+    ['80,00-', 'comma', '-80'],
+    ['1 234,5 EUR', 'comma', '1234.5'],
+  ] as const)('reads %s with a decimal %s', (text, mark: DecimalMark, decimal) => {
+    expect(decimalOfMarkedText(text, mark)).toBe(decimalOfText(decimal))
+  })
+
+  it.each([
+    ['12.50', 'comma'],
+    ['12,50', 'point'],
+    ['-1,00-', 'comma'],
+    ['abc', 'point'],
+  ] as const)('refuses %s with a decimal %s', (text, mark: DecimalMark) => {
+    expect(decimalOfMarkedText(text, mark)).toBeNull()
   })
 })

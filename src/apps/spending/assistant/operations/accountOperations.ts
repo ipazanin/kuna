@@ -2,8 +2,8 @@ import { ALSO_FROM_OR_NULL, FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_
 import { ACCOUNT_WRITES, changeAccount, keptAccount, newAccount } from '../../accounts/application/accountWrites'
 import { startDayMove } from '../../accounts/domain/startDayMove'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, cardsOfText, rowsFromRefusal } from '../../workbook/domain/account'
-import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
+import { ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, cardsOfText, rowsFromRefusal } from '../../workbook/domain/account'
+import type { Account, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
@@ -27,7 +27,7 @@ const ROWS_FROM_ABOUT =
 export const ACCOUNT_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-account',
-    about: `A new account in one currency. kind is bank, cash or savings. bank is otp, revolut, other or null. Cash has no bank and no IBAN. ${ROWS_FROM_ABOUT} openedOn is the day it starts from, and a bank link fetches its rows from that day.`,
+    about: `A new account in one currency. kind is bank, cash or savings. bank is the bank's name as the person writes it, such as Revolut or OTP banka, or null for none. Cash has no bank and no IBAN. ${ROWS_FROM_ABOUT} openedOn is the day it starts from, and a bank link fetches its rows from that day.`,
     input: inputOf({
       name: TEXT,
       kind: { type: 'string', enum: [...ACCOUNT_KINDS] },
@@ -53,7 +53,7 @@ export const ACCOUNT_OPERATIONS: readonly AssistantOperation[] = [
       account: TEXT,
       name: TEXT_OR_NULL,
       kind: { type: ['string', 'null'], description: `${ACCOUNT_KINDS.join(', ')}, or null to leave it.` },
-      bank: { type: ['string', 'null'], description: `${ACCOUNT_BANKS.join(', ')}, none for no bank, or null to leave it.` },
+      bank: { type: ['string', 'null'], description: "The bank's name, such as Revolut, none for no bank, or null to leave it." },
       currency: TEXT_OR_NULL,
       opening: NUMBER_OR_NULL,
       openedOn: TEXT_OR_NULL,
@@ -99,6 +99,12 @@ export function openedBy(day: CivilDate, accounts: readonly Account[]): CivilDat
 }
 
 /** Why a step's account cannot take its rows from where it says, in the chat's words. */
+/** A bank's name as the chat wrote it, trimmed, or null for a blank one. */
+function bankNameOf(typed: unknown): string | null {
+  const name = typeof typed === 'string' ? typed.trim() : ''
+  return name === '' ? null : name
+}
+
 function refuseRowsFrom(refusal: RowsFromRefusal | null): void {
   if (refusal === 'bank-link-not-offered') throw new StepRefused('A bank link is for a bank or savings account, once the person saves a bank sync deployment on Settings, Bank sync. Make it by-hand.')
   if (refusal === 'bank-link-without-iban') throw new StepRefused("A bank link needs the account's IBAN, since the bank sync finds the account by it.")
@@ -128,7 +134,7 @@ export function writeAccountStep(
     const typed = {
       name: field['name'],
       kind: field['kind'] as AccountKind,
-      bank: choiceOf(ACCOUNT_BANKS, field['bank'], 'bank'),
+      bank: bankNameOf(field['bank']),
       currency,
       opening: accountMoneyFromAmount(field['opening']),
       openedOn: dayOf(field['openedOn']),
@@ -147,7 +153,7 @@ export function writeAccountStep(
     const before = accountOf(field['account'])
     const currency = field['currency'] === null ? before.currency : currencyCodeOf(field['currency'])
     if (currency === null) throw new StepRefused('That currency is not one Kuna knows. Write its three-letter ISO code, such as EUR or USD.')
-    const bank: AccountBank | 'none' | null = choiceOf([...ACCOUNT_BANKS, 'none'], field['bank'], 'bank')
+    const typedBank = field['bank'] as string | null
     const move = field['openedOn'] === null ? null : startDayMove(book, before, dayOf(field['openedOn']))
     const kind = choiceOf(ACCOUNT_KINDS, field['kind'], 'kind') ?? before.kind
     const rowsFrom = choiceOf(ROWS_FROM, field['rowsFrom'], 'rowsFrom') ?? (kind === 'cash' ? 'by-hand' : before.rowsFrom)
@@ -155,7 +161,7 @@ export function writeAccountStep(
       ...before,
       name: (field['name'] as string | null) ?? before.name,
       kind,
-      bank: bank === null ? before.bank : bank === 'none' ? null : bank,
+      bank: typedBank === null ? before.bank : typedBank.trim() === 'none' ? null : bankNameOf(typedBank),
       currency,
       opening: field['opening'] === null ? (move?.opening ?? before.opening) : accountMoneyFromAmount(field['opening']),
       openedOn: move?.startsOn ?? before.openedOn,

@@ -31,7 +31,7 @@ function copied(on: StatementRow['account'], rows: readonly (readonly [string, n
   const keys = transcribedImportKeys(dated)
   return {
     label: 'Copied statement',
-    notes: [],
+    fileNotes: [],
     transcribed: { lookAlikes },
     rows: dated.map((fields, at) => ({ ...fields, category: null, description: '', counterpartyIban: '', importKey: keys[at]!, movedAt: '', pocket: false, cashWithdrawal: false, pending: false })),
   }

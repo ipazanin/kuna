@@ -106,7 +106,7 @@ function shownValue(
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return swatchOf(record.colour)?.name ?? null
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
-  if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank === null ? null : accountWords.banks[record.bank]
+  if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'rowsFrom') return accountWords.rowsFrom[record.rowsFrom]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'cards') return record.cards.length === 0 ? null : cardsText(record.cards)
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no

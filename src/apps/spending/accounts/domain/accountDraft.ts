@@ -1,7 +1,6 @@
 import { words } from './words'
-import { NEW_ACCOUNT_DEFAULTS, rowsFromOfDetails } from '../../workbook/domain/account'
+import { NEW_ACCOUNT_DEFAULTS, rowsFromOfDetails, sameBank } from '../../workbook/domain/account'
 import type { Account, AccountKind } from '../../workbook/domain/account'
-import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import type { ExtraOrigin, RowOrigin } from '../../../../shared/app/accountSource'
 
 /**
@@ -10,7 +9,7 @@ import type { ExtraOrigin, RowOrigin } from '../../../../shared/app/accountSourc
  * bank's statement file that the bank link would fill also takes that file, whose rows it is made for.
  */
 export function draftedAccount(
-  details: Pick<Account, 'kind' | 'currency' | 'iban' | 'opening' | 'openedOn'> & { readonly bank: LinkableBank },
+  details: Pick<Account, 'kind' | 'currency' | 'iban' | 'opening' | 'openedOn'> & { readonly bank: string },
   accounts: readonly Pick<Account, 'name'>[],
   draftedFrom: Extract<RowOrigin, 'automation' | 'provider-file'>,
 ): Omit<Account, 'id'> {
@@ -21,11 +20,14 @@ export function draftedAccount(
   return { ...details, name, rowsFrom, ...NEW_ACCOUNT_DEFAULTS, alsoFrom }
 }
 
+/** Revolut's name, as its statement export and Enable Banking give it. */
+export const REVOLUT_BANK = 'Revolut'
+
 /**
  * The IBAN a new Revolut account of the kind shares with the file's other Revolut accounts of that kind, since Revolut gives one
  * IBAN for every currency of an account. Blank while they hold none, or more than one, since then which it shares cannot be told.
  */
 export function revolutIban(kind: AccountKind, accounts: readonly Pick<Account, 'bank' | 'kind' | 'iban'>[]): string {
-  const ibans = new Set(accounts.filter((account) => account.bank === 'revolut' && account.kind === kind && account.iban !== '').map((account) => account.iban))
+  const ibans = new Set(accounts.filter((account) => sameBank(account.bank, REVOLUT_BANK) && account.kind === kind && account.iban !== '').map((account) => account.iban))
   return ibans.size === 1 ? [...ibans][0]! : ''
 }

@@ -1,8 +1,11 @@
+import type { FileHolding } from './fileHoldings'
 import type { OpeningEvidence } from '../../accounts/domain/bankOpening'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { TwinAnswer, LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
@@ -52,8 +55,8 @@ export interface StatementRows {
   /** The label each row of the file carries. */
   readonly label: string
   readonly rows: readonly StatementRow[]
-  /** What the reader left out and why. */
-  readonly notes: readonly string[]
+  /** What the reader left out of the file or noticed in it. */
+  readonly fileNotes: readonly FileNote[]
   /** Set for rows the AI copied off a statement, which are matched against the rows on the file instead of by their keys alone. */
   readonly transcribed?: { readonly lookAlikes: LookAlikes }
   /** What the person said of the file's rows that look like rows Kuna has from another source, by `rowKey`. */
@@ -70,6 +73,35 @@ export interface StatementRows {
   readonly covers?: ReadonlyMap<RecordId, DateRange>
 }
 
+/**
+ * What a reader left out or noticed, as facts the screens word: rows of a state or a product Kuna does not read, savings rows
+ * with no account, a product whose last balance its rows do not reach, and the bank sync's rows of zero, rows it could not
+ * read, a balance it could not read and rows in a currency no account keeps.
+ */
+export type FileNote =
+  | { readonly kind: 'not-completed'; readonly count: number }
+  | { readonly kind: 'savings-left-out'; readonly count: number; readonly currencies: readonly string[] }
+  | { readonly kind: 'other-product'; readonly count: number; readonly product: string }
+  | { readonly kind: 'balance-differs'; readonly savings: boolean; readonly currency: CurrencyCode; readonly balance: AccountMoney; readonly worked: AccountMoney }
+  | { readonly kind: 'zero-left-out'; readonly count: number; readonly account: string }
+  | { readonly kind: 'unreadable-left-out'; readonly count: number; readonly account: string }
+  | { readonly kind: 'balance-not-read'; readonly accounts: string; readonly reason: string }
+  | { readonly kind: 'other-currency-left-out'; readonly count: number; readonly currency: string }
+
+/**
+ * Why a reader read nothing of a file: it lacks a column, a row on a line of the file cannot be read or is no kind the reader
+ * knows, a row's currency is no currency code, two open accounts could take a currency's rows, accounts it needs are missing, or
+ * no recipe reads the file, with the column each recipe lacks.
+ */
+export type StatementRefusal =
+  | { readonly kind: 'no-column'; readonly column: string }
+  | { readonly kind: 'unreadable'; readonly line: number; readonly column: string; readonly text: string; readonly reads: 'day' | 'amount' | 'text' }
+  | { readonly kind: 'no-kind'; readonly line: number }
+  | { readonly kind: 'not-a-currency'; readonly line: number; readonly text: string }
+  | { readonly kind: 'many-accounts'; readonly bank: string; readonly names: readonly string[]; readonly currency: string }
+  | { readonly kind: 'missing-accounts' }
+  | { readonly kind: 'no-recipe'; readonly misses: readonly { readonly recipe: string; readonly column: string }[] }
+
 /** An account a file needs that Kuna does not keep, drafted to start on the earliest day its rows allow, with what its opening is worked out from on a later day. */
 export interface DraftedAccount {
   readonly account: Omit<Account, 'id'>
@@ -80,4 +112,8 @@ export interface DraftedAccount {
  * A file a reader could read, or why it could not, with the accounts its rows need that Kuna does not keep, drafted from the
  * file. A file read without them leaves their rows out with a note. A refusal names them when they are why.
  */
-export type StatementReading = ({ readonly statement: StatementRows } | { readonly refusal: string }) & { readonly missing: readonly DraftedAccount[] }
+export type StatementReading = ({ readonly statement: StatementRows } | { readonly refused: StatementRefusal }) & {
+  readonly missing: readonly DraftedAccount[]
+  /** What the file holds of each product and currency, empty when it was refused before its rows were read. */
+  readonly holdings: readonly FileHolding[]
+}

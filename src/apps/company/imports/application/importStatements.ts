@@ -18,9 +18,11 @@ import { readCamtDocument } from '../domain/camtStatement'
 import { importDryRun } from '../domain/importDryRun'
 import type { DryRunInputs, ImportDryRun } from '../domain/importDryRun'
 import { replaceLedgerRows } from '../../transactions/application/itemWrites'
+import { profileColumns } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
+import { headerRowOf } from '../../../../shared/recipes/domain/headerRow'
 import type { StatementReading } from '../domain/importedStatement'
-import { headerRowOf, readTabularStatement } from '../domain/tabularStatement'
+import { readTabularStatement } from '../domain/tabularStatement'
 import { words } from './words'
 import type { CellGrid } from '../domain/tabularStatement'
 
@@ -139,5 +141,5 @@ export function importTitle(run: Pick<ImportDryRun, 'accounts' | 'newRows'>): st
 
 /** The saved profiles whose columns all head one row of the file, in the order the settings tab lists them. */
 export function fittingProfiles(grid: CellGrid, profiles: readonly ImportProfile[]): ImportProfile[] {
-  return profiles.filter((profile) => headerRowOf(grid, profile) !== null)
+  return profiles.filter((profile) => headerRowOf(grid, profileColumns(profile)) !== null)
 }

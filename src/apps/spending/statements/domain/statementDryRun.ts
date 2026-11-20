@@ -2,9 +2,10 @@ import { rulesOutcome, spendingCategorisationContext } from './spendingCategoris
 import type { RuledRow } from './spendingCategorisation'
 import type { RowChange } from './spendingCategorisation'
 import { coveredByOtherSource, sourceDaysOf } from './sourceDays'
-import type { SourceDays } from './sourceDays'
+import { leftOutOf } from './leftOut'
+import type { LeftOut } from './leftOut'
 import { isBankSyncKey } from './statementRows'
-import type { StatementRow, StatementRows } from './statementRows'
+import type { FileNote, StatementRow, StatementRows } from './statementRows'
 import { heldRowsOf, twinRowsOf } from './twinRows'
 import { filledByBank, pendingBooking } from './bankBooking'
 import type { TwinQuestion } from './twinRows'
@@ -22,7 +23,6 @@ import { words as receiptWords } from '../../receipts/domain/words'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
 import { refusedOnAccount } from '../../entries/domain/bankRows'
 import { beforeStartDay } from '../../workbook/domain/account'
-import type { Account } from '../../workbook/domain/account'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -42,7 +42,6 @@ import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCateg
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -123,27 +122,11 @@ export interface StatementDryRun {
   readonly newRows: number
   readonly alreadyIn: number
   readonly filled: number
+  /** What the reader left out of the file or noticed in it. */
+  readonly fileNotes: readonly FileNote[]
+  /** The rows the dry run leaves out, per account and why. */
+  readonly leftOut: readonly LeftOut[]
   readonly notes: readonly string[]
-}
-
-/** One note per account for the rows it takes from its bank link alone. */
-function notTakenNotes(lines: readonly DryRunLine[], accounts: ReadonlyMap<RecordId, Account>): readonly string[] {
-  const left = lines.filter((line) => line.outcome === 'not-taken')
-  return [...new Set(left.map((line) => line.row.account))].map((account) => {
-    const count = left.filter((line) => line.row.account === account).length
-    return plural(words.notTakenLeftOut(count, accounts.get(account)?.name ?? ''), count)
-  })
-}
-
-/** One note per account for the rows the other source's days left out. */
-function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<RecordId, SourceDays>, accounts: ReadonlyMap<RecordId, Account>): readonly string[] {
-  return [...new Set(rows.map((row) => row.account))].map((account) => {
-    const ofAccount = rows.filter((row) => row.account === account)
-    const name = accounts.get(account)?.name ?? ''
-    const { lastFileDay, firstSyncDay } = days.get(account)!
-    const forms = isBankSyncKey(ofAccount[0]!.importKey) ? words.coveredByFile(ofAccount.length, name, dayLabel(lastFileDay!)) : words.coveredBySync(ofAccount.length, name, dayLabel(firstSyncDay!))
-    return plural(forms, ofAccount.length)
-  })
 }
 
 /**
@@ -346,8 +329,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     ...fileLines,
     ...pairedOnFile.map(({ before, items }): DryRunLine => ({ row: { ...before, category: categoryOf(itemsOf(before)) }, outcome: 'refiled', category: categoryOf(items ?? itemsOf(before)) })),
   ]
-  const leftOut = lines.filter((line) => line.outcome === 'before-opening').length
-  const outside = lines.filter((line) => line.outcome === 'outside-days').length
+  const rowsOf = (outcome: DryRunOutcome): readonly StatementRow[] => lines.filter((line) => line.outcome === outcome).map((line) => line.row)
   const wanting = added.filter(({ row }) => wantsSavingsAccount(row, book.accounts)).length
   const wantingCash = withdrawals.length - cashLegs.size
   return {
@@ -363,14 +345,11 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     newRows: comingIn.length,
     alreadyIn: lines.filter((line) => line.outcome === 'already-in').length,
     filled: filledRows.length,
+    fileNotes: statement.fileNotes,
+    leftOut: leftOutOf({ beforeOpening: rowsOf('before-opening'), notTaken: rowsOf('not-taken'), outsideDays: rowsOf('outside-days'), otherSource: [...otherSource] }, accounts, days, sourceDays),
     notes: [
-      ...statement.notes,
-      ...(leftOut === 0 ? [] : [plural(words.beforeOpeningLeftOut(leftOut), leftOut)]),
-      ...notTakenNotes(lines, accounts),
-      ...(outside === 0 || days === undefined ? [] : [plural(words.outsideDaysLeftOut(outside, dayLabel(days.from), dayLabel(days.to)), outside)]),
       ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)]),
       ...(wantingCash === 0 ? [] : [plural(words.withdrawalsWaiting(wantingCash), wantingCash)]),
-      ...otherSourceNotes([...otherSource], sourceDays, accounts),
       ...(booking.booked.length === 0 ? [] : [plural(words.pendingBooked(booking.booked.length), booking.booked.length)]),
       ...(booking.gone.length === 0 ? [] : [plural(words.pendingGone(booking.gone.length), booking.gone.length)]),
       ...(pendingLookAlikes === 0 ? [] : [plural(words.pendingLookAlikesWait(pendingLookAlikes), pendingLookAlikes)]),

@@ -80,7 +80,7 @@ export function mailedReport(): WorkbookRows {
     { name: 'Transactions', grid: workbookGrid([['2026-03-03', { broker: 'IBKR', account: 'U0000008', sourceFile: 'flex.xml', type: 'DEPOSIT', currency: 'EUR', netCash: 250 }]]) },
   ])
   if (read.kind !== 'read') throw new Error('The mailed report was refused.')
-  const asked: AskedRow = { key: 'asked-1', section: 'Trades', shown: [['Symbol', 'XYZ']], dates: {}, why: { kind: 'no-kind' } }
+  const asked: AskedRow = { key: 'asked-1', section: 'Trades', place: 0, shown: [['Symbol', 'XYZ']], dates: {}, why: { kind: 'no-kind' } }
   const rows = read.rows.map((row) => ({ ...row, key: reportRowKey(IBKR_FLEX_RECIPE.id, row.account, `tx-${row.fileRow}`) }))
   return { ...read, rows, report: { recipe: IBKR_FLEX_RECIPE.id, mailed: true, asked: [asked], beforeStart: 0, byHand: 0 } }
 }

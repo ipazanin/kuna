@@ -17,6 +17,7 @@ import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
 import { words as spendingWords } from '../../words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { sameBank } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -117,7 +118,7 @@ function offersSync(line: SetupLine): boolean {
 function changes(line: Extract<SetupLine, { kind: 'kept' | 'fits' }> & { readonly update: Account }): string {
   const { account, update } = line
   const details = [
-    ...(account.bank === update.bank || update.bank === null || update.bank === 'other' ? [] : [words.setup.detailBank(words.banks[update.bank])]),
+    ...(update.bank === null || sameBank(account.bank, update.bank) ? [] : [words.setup.detailBank(update.bank)]),
     ...(account.iban === update.iban ? [] : [words.setup.detailIban(update.iban)]),
     ...(account.currency === update.currency ? [] : [words.setup.detailCurrency(update.currency)]),
     ...(account.kind === update.kind ? [] : [words.setup.detailKind(accountWords.kinds[update.kind])]),

@@ -18,9 +18,9 @@ const [OTP, REVOLUT_EUR, REVOLUT_USD, CASH] = [uuid(1), uuid(2), uuid(3), uuid(4
 const [FOOD, GROCERIES, RESTAURANTS, INCOME, SALARY, BETWEEN, SAVED, COMPANY] = [uuid(11), uuid(12), uuid(13), uuid(14), uuid(15), uuid(16), uuid(17), uuid(18)]
 
 const ACCOUNTS: readonly RecordFields[] = [
-  { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: 'EUR', opening: '1000.00', opened_on: '2026-09-01', iban: 'HR0000000000000000001' },
-  { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: 'EUR', opened_on: '2026-09-01', iban: 'LT000000000000000001' },
-  { id: REVOLUT_USD, name: 'Revolut USD', kind: 'bank', bank: 'revolut', currency: 'USD', opened_on: '2026-09-01', iban: 'LT000000000000000001' },
+  { id: OTP, name: 'OTP current', kind: 'bank', bank: 'OTP banka', currency: 'EUR', opening: '1000.00', opened_on: '2026-09-01', iban: 'HR0000000000000000001' },
+  { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'Revolut', currency: 'EUR', opened_on: '2026-09-01', iban: 'LT000000000000000001' },
+  { id: REVOLUT_USD, name: 'Revolut USD', kind: 'bank', bank: 'Revolut', currency: 'USD', opened_on: '2026-09-01', iban: 'LT000000000000000001' },
   { id: CASH, name: 'Cash', kind: 'cash', currency: 'EUR', opening: '64.00', opened_on: '2026-09-01' },
 ]
 
@@ -94,7 +94,7 @@ describe('the Spending file', () => {
 
     expect(book.problems).toEqual([])
     expect(book.accounts).toMatchObject([
-      { id: recordIdOf(ACCOUNT_RECORDS, OTP), kind: 'bank', bank: 'otp', currency: 'EUR', opening: euros(1_000), openedOn: '2026-09-01', iban: 'HR0000000000000000001', closed: false },
+      { id: recordIdOf(ACCOUNT_RECORDS, OTP), kind: 'bank', bank: 'OTP banka', currency: 'EUR', opening: euros(1_000), openedOn: '2026-09-01', iban: 'HR0000000000000000001', closed: false },
     ])
     expect(book.categories.map((category) => [category.name, category.kind, category.parent])).toEqual([
       ['Food', 'spending', null],
@@ -118,6 +118,22 @@ describe('the Spending file', () => {
 
     expect(book.problems).toEqual([])
     expect(book.accounts).toMatchObject([{ bank: null, currency: 'EUR', opening: euros(0), iban: '' }])
+  })
+})
+
+describe("a Spending account's bank", () => {
+  it('reads any name, trimmed, and the keys a file stored before a bank took any name as the names Enable Banking gives', () => {
+    const book = bookOf({
+      account: [
+        { ...ACCOUNTS[0]!, bank: 'otp' },
+        { ...ACCOUNTS[1]!, bank: 'revolut' },
+        { ...ACCOUNTS[2]!, bank: 'other' },
+        { ...ACCOUNTS[0]!, id: uuid(5), name: 'Typed', bank: '  Privredna banka Zagreb ', iban: 'HR0000000000000000005' },
+      ],
+    })
+
+    expect(book.problems).toEqual([])
+    expect(book.accounts.map((account) => account.bank)).toEqual(['OTP banka', 'Revolut', null, 'Privredna banka Zagreb'])
   })
 })
 

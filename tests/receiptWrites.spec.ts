@@ -166,7 +166,7 @@ describe('a confirmed receipt', () => {
           pending: false,
         },
       ],
-      notes: [],
+      fileNotes: [],
     }
     const run = statementDryRun(store.state.workbook!, statement, civil('2026-11-06'))
     expect([run.newRows, run.filled]).toEqual([0, 1])
@@ -357,7 +357,7 @@ describe('a row a receipt split', () => {
           pending: false,
         },
       ],
-      notes: [],
+      fileNotes: [],
     }
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, statement, civil('2026-11-06'))))
     const near = reviewQueue(store.state.workbook!, civil('2026-11-06')).waiting[0]!.maybeTyped!
@@ -561,6 +561,7 @@ describe('reading receipts and lines', () => {
       items: read([]),
       held: read([]),
       dropped: read([]),
+      recipes: read([]),
       settings: read([]),
     })
 

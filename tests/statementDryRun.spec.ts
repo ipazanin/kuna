@@ -13,6 +13,8 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { account, ACCOUNTS, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, storedBeforeItems, transactionId, filedDryRun, filedChanges, refiled, rulesInto, spendingBook } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
+import { dryRunNotes } from '../src/apps/spending/statements/presentation/readingLines'
+import { dayLabel } from '../src/shared/calendar/dayLabel'
 
 const DAY = civil('2026-10-30')
 
@@ -34,7 +36,7 @@ function statementRow(on: typeof OTP, date: string, amount: number, payee: strin
   }
 }
 
-const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, notes: [] })
+const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, fileNotes: [] })
 
 function counting(): () => string {
   let place = 0
@@ -70,7 +72,8 @@ describe('the dry run of a statement', () => {
   it('leaves a row before its account opened out with a note, as the entry dialog refuses one', () => {
     const run = filedDryRun(spendingBook([]), statementOf(statementRow(OTP, '2026-08-31', -5, 'Coffee')), DAY)
 
-    expect(run).toMatchObject({ newRows: 0, added: [], notes: ['1 row before its account opened left out.'] })
+    expect(run).toMatchObject({ newRows: 0, added: [], leftOut: [{ kind: 'before-opening', account: OTP.id, count: 1, openedOn: OTP.openedOn }] })
+    expect(dryRunNotes(run, ACCOUNTS)).toEqual([`1 row of OTP current left out, since it is dated before the account opened on ${dayLabel(OTP.openedOn)}.`])
     expect(run.lines[0]?.outcome).toBe('before-opening')
   })
 
@@ -600,14 +603,14 @@ describe('a rule-filed bank row near a typed row', () => {
   const typed = row(OTP, '2026-10-20', -23.49, 'Food/Groceries', { source: 'receipt', categorisedBy: 'person' })
 
   it('waits on review, with no category and no rule mark, so the money does not count twice', () => {
-    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], notes: [] }, DAY)
+    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
 
     expect(run.added).toMatchObject([{ category: null, categorisedBy: null, payee: 'KONZUM' }])
     expect(run.lines[0]).toMatchObject({ outcome: 'new', category: null })
   })
 
   it('is offered on To review as maybe the same money', () => {
-    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], notes: [] }, DAY)
+    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
     const [waiting] = reviewQueue(spendingBook([typed, ...run.added], { rules: [rule] }), DAY).waiting
 
     expect(waiting?.maybeTyped).toMatchObject({ typed, difference: accountMoneyFromAmount(-2.35) })
@@ -621,13 +624,13 @@ describe('a rule-filed bank row near a typed row', () => {
   })
 
   it('is filed by the rule when no typed row is near', () => {
-    const run = filedDryRun(spendingBook([], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], notes: [] }, DAY)
+    const run = filedDryRun(spendingBook([], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
 
     expect(run.added).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
   })
 
   it('still fills a typed row of the same money', () => {
-    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -23.49, 'KONZUM')], notes: [] }, DAY)
+    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -23.49, 'KONZUM')], fileNotes: [] }, DAY)
 
     expect([run.filled, run.newRows]).toEqual([1, 0])
   })

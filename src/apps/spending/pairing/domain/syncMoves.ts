@@ -1,5 +1,6 @@
 import { namesNoStranger, ownIbansOf } from './transferPairs'
 import type { TransferPair } from './transferPairs'
+import { sameBank } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
@@ -16,7 +17,7 @@ const EXCHANGE_TOLERANCE = decimalOfText('0.01')!
 function accountsAtOneBank(debit: SyncLeg, credit: SyncLeg, accounts: readonly Account[]): readonly [Account, Account] | null {
   const from = accounts.find((account) => account.id === debit.account)
   const to = accounts.find((account) => account.id === credit.account)
-  if (from === undefined || to === undefined || from.id === to.id || from.bank === null || from.bank !== to.bank) return null
+  if (from === undefined || to === undefined || from.id === to.id || from.bank === null || !sameBank(from.bank, to.bank)) return null
   return [from, to]
 }
 

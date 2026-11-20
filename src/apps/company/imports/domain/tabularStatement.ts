@@ -1,7 +1,9 @@
 import { civilDate, civilDateFromSerial } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { decimalOfMarkedText, inEuros, roundedDecimal } from '../../../../shared/money/decimal'
 import { absMoney, addMoney, moneyFromAmount, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { HEADER_SEARCH_ROWS, headerKey, headerRowOf } from '../../../../shared/recipes/domain/headerRow'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
 import { profileColumns } from './importProfile'
@@ -15,19 +17,6 @@ export type StatementCell = string | number | boolean
 
 /** A sheet's cells from A1, row by row, as a spreadsheet file holds them. */
 export type CellGrid = readonly (readonly (StatementCell | undefined)[])[]
-
-/** How far down a file the header row is looked for, past a bank's title and account lines. */
-const HEADER_SEARCH_ROWS = 40
-
-/** The first row that carries every header the profile names, 0-based, or null. */
-export function headerRowOf(grid: CellGrid, profile: ImportProfile): number | null {
-  const wanted = profileColumns(profile).map(headerKey)
-  const index = grid.slice(0, HEADER_SEARCH_ROWS).findIndex((row) => {
-    const headers = new Set(row.map((cell) => headerKey(cellString(cell))))
-    return wanted.every((column) => headers.has(column))
-  })
-  return index < 0 ? null : index
-}
 
 /**
  * The rows of a bank's spreadsheet export, read by a profile: the header row found by its texts,
@@ -64,7 +53,7 @@ interface ReadRow {
 }
 
 function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: string, fileHash: string, label: string): ImportedStatement {
-  const headerIndex = headerRowOf(grid, profile)
+  const headerIndex = headerRowOf(grid, profileColumns(profile))
   if (headerIndex === null) {
     throw new StatementRefused(words.table.noHeader(HEADER_SEARCH_ROWS, fileName, profile.name, profileColumns(profile)))
   }
@@ -234,29 +223,16 @@ export function dateOf(cell: StatementCell | undefined, format: DateFormat): Civ
   }
 }
 
-/** A text amount by its decimal mark: a sign before or after, whole groups of three between grouping marks, at most two decimals. */
-const TEXT_AMOUNT: Record<DecimalMark, RegExp> = {
-  comma: /^([+-]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?(-?)$/,
-  point: /^([+-]?)(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?(-?)$/,
-}
-
 /**
- * A number cell, or text such as `1.234,56`, `-80,00` or `1,234.56 EUR` by the decimal mark. Null
- * for anything else, such as `12.50` read with a decimal comma, which is not a grouped thousand.
+ * A number cell, or text such as `1.234,56`, `-80,00` or `1,234.56 EUR` by the decimal mark, in whole cents. Null for
+ * anything else, such as `12.50` read with a decimal comma, which is not a grouped thousand, or `1.234,567`.
  */
 export function moneyOf(cell: StatementCell | undefined, decimal: DecimalMark): Money | null {
   if (typeof cell === 'number') {
     return Number.isFinite(cell) ? moneyFromAmount(cell) : null
   }
-  const grouping = decimal === 'comma' ? '.' : ','
-  const text = cellString(cell)
-    .replace(/^[A-Za-z]{3}\s*|\s*[A-Za-z]{3}$/g, '')
-    .replace(/^([+-])\s+/, '$1')
-    .replace(/[\s']/g, grouping)
-  const match = TEXT_AMOUNT[decimal].exec(text)
-  if (match === null || (match[1] === '-' && match[4] === '-')) return null
-  const magnitude = moneyFromAmount(Number(`${match[2]!.split(grouping).join('')}.${match[3] ?? '0'}`))
-  return match[1] === '-' || match[4] === '-' ? negateMoney(magnitude) : magnitude
+  const amount = decimalOfMarkedText(cellString(cell), decimal)
+  return amount === null || roundedDecimal(amount, 2) !== amount ? null : inEuros(amount, null)
 }
 
 /** The facts that tell a row from every other row of its account, so a key from another export of the same row matches. */
@@ -266,8 +242,4 @@ function rowFacts(account: string, row: ReadRow): string[] {
 
 function cellString(cell: StatementCell | undefined): string {
   return cell === undefined ? '' : String(cell).trim()
-}
-
-function headerKey(text: string): string {
-  return text.replace(/\s+/g, ' ').trim().toLowerCase()
 }

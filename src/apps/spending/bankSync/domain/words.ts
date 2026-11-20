@@ -1,23 +1,13 @@
 import { en as accountsEn, hr as accountsHr } from '../../accounts/domain/words'
 import { language } from '../../../../shared/text/language'
-import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
+import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
 
 export const en = {
   banks: accountsEn.banks,
-  zeroLeftOut: (count: number, account: string): EnglishForms => ({ one: `1 row of ${account} without an amount left out.`, other: `${count} rows of ${account} without an amount left out.` }),
-  otherCurrencyLeftOut: (count: number, currency: string): EnglishForms => ({
-    one: `1 row in ${currency} left out, since no account keeps ${currency}.`,
-    other: `${count} rows in ${currency} left out, since no account keeps ${currency}.`,
-  }),
-  unreadableLeftOut: (count: number, account: string): EnglishForms => ({
-    one: `1 row of ${account} left out, since its day or amount cannot be read.`,
-    other: `${count} rows of ${account} left out, since their day or amount cannot be read.`,
-  }),
   /** A linked account Kuna does not keep, by its bank, its currency where it has one, and the end of its number, never the whole IBAN. */
   linkedAccount: (bank: string, currency: string, ending: string) => [bank, currency, ending === '' ? '' : `ending ${ending}`].filter((part) => part !== '').join(' '),
-  balanceNotRead: (accounts: string, reason: string) => `The balance of ${accounts} was not checked, since the bank did not give it: ${reason}`,
   sameAccountTwice: (bank: string, account: string) => `${bank} has more than one account that fits ${account}, so none of them was read.`,
   didNotAnswer: (reason: string) => `The bank sync script did not answer: ${reason}`,
   bankFailed: (bank: string, reason: string) => `${bank} did not answer, so its rows wait for a later sync: ${reason}`,
@@ -31,23 +21,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   banks: accountsHr.banks,
-  zeroLeftOut: (count, account): CroatianForms => ({
-    one: `Izostavljeno redaka računa ${account} bez iznosa: ${count}.`,
-    few: `Izostavljeno redaka računa ${account} bez iznosa: ${count}.`,
-    other: `Izostavljeno redaka računa ${account} bez iznosa: ${count}.`,
-  }),
-  otherCurrencyLeftOut: (count, currency): CroatianForms => ({
-    one: `Izostavljeno redaka u valuti ${currency}: ${count}. Nijedan račun ne vodi tu valutu.`,
-    few: `Izostavljeno redaka u valuti ${currency}: ${count}. Nijedan račun ne vodi tu valutu.`,
-    other: `Izostavljeno redaka u valuti ${currency}: ${count}. Nijedan račun ne vodi tu valutu.`,
-  }),
-  unreadableLeftOut: (count, account): CroatianForms => ({
-    one: `Izostavljeno redaka računa ${account} kojima se ne mogu pročitati dan ili iznos: ${count}.`,
-    few: `Izostavljeno redaka računa ${account} kojima se ne mogu pročitati dan ili iznos: ${count}.`,
-    other: `Izostavljeno redaka računa ${account} kojima se ne mogu pročitati dan ili iznos: ${count}.`,
-  }),
   linkedAccount: (bank, currency, ending) => [bank, currency, ending === '' ? '' : `koji završava na ${ending}`].filter((part) => part !== '').join(' '),
-  balanceNotRead: (accounts, reason) => `Stanje računa ${accounts} nije provjereno jer ga banka nije dala: ${reason}`,
   sameAccountTwice: (bank, account) => `${bank} ima više računa koji odgovaraju računu ${account}, pa nijedan nije pročitan.`,
   didNotAnswer: (reason) => `Skripta za sinkronizaciju s bankom nije odgovorila: ${reason}`,
   bankFailed: (bank, reason) => `Banka ${bank} nije odgovorila, pa njezini retci čekaju sljedeću sinkronizaciju: ${reason}`,

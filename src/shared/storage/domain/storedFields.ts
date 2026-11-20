@@ -205,6 +205,13 @@ export function requiredChoice<Choice extends string>(fields: StoredFields, name
   return (choices as readonly string[]).includes(word) ? (word as Choice) : refuse(words.reasons.notAChoice(word, name, noun, choices.join(', ')))
 }
 
+/** A field `read` makes sense of, refused when it is blank or `read` gives null, as for a recipe's sections written as JSON. */
+export function requiredRead<Value>(fields: StoredFields, name: string, read: (text: string) => Value | null): Value {
+  const text = textOf(fields[name])
+  if (text.trim() === '') refuse(words.reasons.none(name, ''))
+  return read(text) ?? refuse(words.reasons.notReadable(name))
+}
+
 /** The choices a cell lists, such as `a, b`, each once in the order given. A blank cell lists none, and a word that is not a choice is refused. */
 export function choiceList<Choice extends string>(fields: StoredFields, name: string, choices: readonly Choice[], noun = ''): readonly Choice[] {
   const entries = textOf(fields[name])

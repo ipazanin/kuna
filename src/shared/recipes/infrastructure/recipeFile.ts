@@ -1,16 +1,18 @@
-import type { Recipe, RecipeMisfit, SourceRow, SourceRows } from '../domain/recipe'
+import { decodedText } from '../../text/decodedText'
+import { readFirstSheetCells } from '../../xlsx/sheetGrids'
+import type { Recipe, RecipeMisfit, SourceRow, SourceRows, XmlFile } from '../domain/recipe'
 
 export type RecipeFileReading = { readonly kind: 'read'; readonly rows: SourceRows } | { readonly kind: 'misfit'; readonly misfit: RecipeMisfit }
 
 /** The attachment names a recipe's format can be, by their ending. */
-const ENDINGS: Readonly<Record<Recipe['file']['format'], RegExp>> = { xml: /\.xml$/i }
+const ENDINGS: Readonly<Record<Recipe['file']['format'], RegExp>> = { xml: /\.xml$/i, table: /\.(csv|xlsx|xls|ods)$/i }
 
 export function fileNameFits(recipe: Pick<Recipe, 'file'>, name: string): boolean {
   return ENDINGS[recipe.file.format].test(name)
 }
 
 /** Each row under a section's elements as its attributes, wherever those section elements sit below the root. A section with no element is absent, and an empty one has no rows. */
-function xmlRows(recipe: Recipe, root: Element): SourceRows {
+function xmlRows(recipe: Recipe<XmlFile>, root: Element): SourceRows {
   const rows = new Map<string, readonly SourceRow[]>()
   for (const section of recipe.sections) {
     const [container = '', element = ''] = section.rows.split('/')
@@ -25,10 +27,15 @@ function xmlRows(recipe: Recipe, root: Element): SourceRows {
   return rows
 }
 
-/** A file's rows by the recipe's sections, or why it is not that kind of file. Whether the rows fit is the recipe run's question. */
-export function readRecipeFile(recipe: Recipe, bytes: ArrayBuffer): RecipeFileReading {
+/** An XML file's rows by the recipe's sections, or why it is not that kind of file. Whether the rows fit is the recipe run's question. */
+export function readRecipeFile(recipe: Recipe<XmlFile>, bytes: ArrayBuffer): RecipeFileReading {
   const document = new DOMParser().parseFromString(new TextDecoder().decode(bytes), 'application/xml')
   if (document.getElementsByTagName('parsererror').length > 0) return { kind: 'misfit', misfit: { kind: 'not-readable' } }
   if (document.documentElement.tagName !== recipe.file.root) return { kind: 'misfit', misfit: { kind: 'no-root', root: recipe.file.root } }
   return { kind: 'read', rows: xmlRows(recipe, document.documentElement) }
+}
+
+/** A table file's first sheet as text for `tableRows`: a csv or txt decoded by what its bytes are, anything else read by SheetJS. */
+export async function tableFileCells(fileName: string, bytes: ArrayBuffer): Promise<string[][]> {
+  return readFirstSheetCells(/\.(csv|txt)$/i.test(fileName) ? decodedText(bytes) : bytes)
 }

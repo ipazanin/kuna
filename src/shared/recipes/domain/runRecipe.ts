@@ -2,14 +2,17 @@ import { parseCivilDate } from '../../calendar/civilDate'
 import type { CivilDate } from '../../calendar/civilDate'
 import { currencyCodeOf } from '../../money/currencyCode'
 import type { CurrencyCode } from '../../money/currencyCode'
-import { DECIMAL_ZERO, decimalOfText } from '../../money/decimal'
+import { DECIMAL_ZERO, decimalOfMarkedText, decimalOfText } from '../../money/decimal'
 import type { Decimal } from '../../money/decimal'
 import { factKey } from '../../text/factKey'
+import { sectionColumns } from './recipe'
 import type { Recipe, RecipeFields, RecipeMisfit, RecipeSection, RowKind, RowTest, SourceRow, SourceRows } from './recipe'
 
 /** A row a kind took, with its fields by type. A blank field is null where the recipe allows it. */
 export interface RecipeRow {
   readonly section: string
+  /** The row's index among its section's rows in the file, kept or not. */
+  readonly place: number
   readonly kind: string
   /** The row's text in the columns it read, which tells whether a later file changed it. */
   readonly facts: string
@@ -27,6 +30,8 @@ export interface AskedRow {
   /** Stable across files, since it comes from the row's own text. */
   readonly key: string
   readonly section: string
+  /** The row's index among its section's rows in the file, kept or not, or null for a row that changed since an earlier file. */
+  readonly place: number | null
   /** The columns the section shows, as the file writes them. */
   readonly shown: readonly (readonly [column: string, text: string])[]
   /** The dates the section's own fields read from the row, null where one cannot be read, so a question has a day even when no kind takes its row. */
@@ -38,17 +43,10 @@ export type RecipeRun = { readonly kind: 'misfit'; readonly misfit: RecipeMisfit
 
 function passes(test: RowTest, row: SourceRow): boolean {
   const text = (row.get(test.column) ?? '').trim()
-  if ('is' in test) return test.is.includes(text)
+  if ('is' in test) return test.anyCase === true ? test.is.some((one) => one.toLowerCase() === text.toLowerCase()) : test.is.includes(text)
   if ('partsWithin' in test) return text === '' || text.split(test.separator).every((part) => test.partsWithin.includes(part.trim()))
   const number = decimalOfText(text)
   return number !== null && (test.sign === 'above-zero' ? number > DECIMAL_ZERO : number < DECIMAL_ZERO)
-}
-
-/** The columns a section reads from its rows, whichever kind a row turns out to be. Columns it only shows may be absent. */
-function columnsOf(section: RecipeSection): string[] {
-  const ofFields = (fields: RecipeFields): string[] => Object.values(fields).map((field) => field.from)
-  const ofTests = (tests: readonly RowTest[]): string[] => tests.map((test) => test.column)
-  return [...new Set([...ofTests(section.keep), ...ofFields(section.fields), ...section.kinds.flatMap((kind) => [...ofTests(kind.when), ...ofFields(kind.fields)])])]
 }
 
 /** Reads a date or a time written in exactly one of the formats. A format's letters match digits and anything else matches itself. */
@@ -96,7 +94,7 @@ function fieldsOf(fields: RecipeFields, row: SourceRow): Pick<RecipeRow, 'texts'
         break
       }
       case 'decimal': {
-        const decimal = blank ? null : decimalOfText(text)
+        const decimal = blank ? null : field.mark === undefined ? decimalOfText(text) : decimalOfMarkedText(text, field.mark)
         if (!blank && decimal === null) return unreadable
         decimals[name] = decimal
         break
@@ -127,10 +125,11 @@ function sectionDates(section: RecipeSection, row: SourceRow): Readonly<Record<s
   return Object.fromEntries(Object.entries(section.fields).flatMap(([name, field]) => (field.as === 'date' ? [[name, dateFrom((row.get(field.from) ?? '').trim(), field.formats)]] : [])))
 }
 
-function askedRow(section: RecipeSection, row: SourceRow, why: AskedWhy): AskedRow {
+function askedRow(section: RecipeSection, row: SourceRow, place: number, why: AskedWhy): AskedRow {
   return {
     key: askedKey(section, row),
     section: section.name,
+    place,
     shown: section.shown.flatMap((column) => (row.get(column) ? [[column, row.get(column)!] as const] : [])),
     dates: sectionDates(section, row),
     why,
@@ -152,26 +151,26 @@ export function runRecipe(recipe: Recipe, source: SourceRows): RecipeRun {
   for (const section of recipe.sections) {
     const sourceRows = source.get(section.name)
     if (sourceRows === undefined) return { kind: 'misfit', misfit: { kind: 'no-section', section: section.name } }
-    const columns = columnsOf(section)
-    for (const row of sourceRows) {
+    const columns = sectionColumns(section)
+    for (const [place, row] of sourceRows.entries()) {
       const lacking = columns.find((column) => !row.has(column))
       if (lacking !== undefined) return { kind: 'misfit', misfit: { kind: 'no-column', section: section.name, column: lacking } }
       if (!section.keep.every((test) => passes(test, row))) continue
       const kind = firstKind(section, row)
       if (kind === undefined) {
-        asked.push(askedRow(section, row, { kind: 'no-kind' }))
+        asked.push(askedRow(section, row, place, { kind: 'no-kind' }))
         continue
       }
       const fields = { ...section.fields, ...kind.fields }
       const read = fieldsOf(fields, row)
       if ('unreadable' in read) {
-        asked.push(askedRow(section, row, { kind: 'unreadable', field: read.unreadable, text: read.text }))
+        asked.push(askedRow(section, row, place, { kind: 'unreadable', field: read.unreadable, text: read.text }))
         continue
       }
       const facts = Object.values(fields)
         .map((field) => row.get(field.from) ?? '')
         .join('|')
-      rows.push({ section: section.name, kind: kind.kind, facts, ...read })
+      rows.push({ section: section.name, place, kind: kind.kind, facts, ...read })
     }
   }
   return { kind: 'read', rows, asked }

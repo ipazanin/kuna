@@ -4,16 +4,12 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { SpendingSettings } from './spendingSettings'
 import type { AccountSource, ExtraOrigin } from '../../../../shared/app/accountSource'
+import { fold } from '../../../../shared/text/fold'
 
 /** A current account at a bank, cash in hand, or savings kept apart. */
 export const ACCOUNT_KINDS = ['bank', 'cash', 'savings'] as const
 
 export type AccountKind = (typeof ACCOUNT_KINDS)[number]
-
-/** The banks a statement reader knows, and any other. */
-export const ACCOUNT_BANKS = ['otp', 'revolut', 'other'] as const
-
-export type AccountBank = (typeof ACCOUNT_BANKS)[number]
 
 /** The ways a Spending account's rows come in. Spending reads no mail. */
 export const ROWS_FROM = ['bank-link', 'by-hand'] as const satisfies readonly AccountSource[]
@@ -25,8 +21,8 @@ export interface Account {
   readonly id: RecordId
   readonly name: string
   readonly kind: AccountKind
-  /** Null for cash, and for an account whose bank was left blank. */
-  readonly bank: AccountBank | null
+  /** The bank's name as the person or a reader wrote it, such as Revolut. Null for cash, and for an account whose bank was left blank. */
+  readonly bank: string | null
   readonly currency: CurrencyCode
   /** What the account held at the start of `openedOn`, in its currency. */
   readonly opening: AccountMoney
@@ -40,6 +36,11 @@ export interface Account {
   /** The last four digits of each card that pays from the account, which a top-up on another account may name in place of an IBAN. Empty on cash. */
   readonly cards: readonly string[]
   readonly closed: boolean
+}
+
+/** Whether two accounts, or an account and a recipe, name the same bank, ignoring case, accents and spacing as the bank field does. Two blanks are the same. */
+export function sameBank(one: string | null, other: string | null): boolean {
+  return fold(one ?? '') === fold(other ?? '')
 }
 
 /** What a new account holds unless a person sets it: open, with no card. */

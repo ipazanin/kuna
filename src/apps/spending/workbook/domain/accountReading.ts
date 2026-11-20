@@ -1,4 +1,4 @@
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, ROWS_FROM, cardsOfText, cardsText, rowsFromOfDetails } from './account'
+import { ACCOUNT_KINDS, ROWS_FROM, cardsOfText, cardsText, rowsFromOfDetails } from './account'
 import type { Account } from './account'
 import { flagOf, optionalAccountMoney } from './fieldReading'
 import { ACCOUNT_RECORDS } from './spendingKinds'
@@ -19,11 +19,20 @@ export function ibanKey(text: string): string {
   return text.replace(/\s+/g, '').toUpperCase()
 }
 
+/** The banks a file stored as keys before a bank took any name, read as the names Enable Banking gives them. `other` named no bank. */
+const BANK_KEYS: Readonly<Record<string, string | null>> = { otp: 'OTP banka', revolut: 'Revolut', other: null }
+
+/** A stored bank as its name, trimmed, or null for none. */
+function bankOfText(text: string): string | null {
+  const trimmed = text.trim()
+  return trimmed === '' ? null : Object.hasOwn(BANK_KEYS, trimmed) ? BANK_KEYS[trimmed]! : trimmed
+}
+
 export function accountOf(fields: StoredFields, id: RecordId | null): Account {
   const name = textOf(fields.name)
   if (name === '') refuse(storedWords.reasons.none('name', ''))
   const kind = requiredChoice(fields, 'kind', ACCOUNT_KINDS, 'kind of account')
-  const bank = fields.bank === undefined ? null : requiredChoice(fields, 'bank', ACCOUNT_BANKS)
+  const bank = bankOfText(textOf(fields.bank))
   if (bank !== null && kind === 'cash') refuse(words.bankOnCash)
   const currencyText = textOf(fields.currency)
   if (currencyText === '') refuse(storedWords.reasons.none('currency', ''))

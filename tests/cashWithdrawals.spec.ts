@@ -69,7 +69,7 @@ function statementRow(on: Account, amount: number, payee: string, fields: Partia
   }
 }
 
-const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, notes: [] })
+const statementOf = (...rows: StatementRow[]): StatementRows => ({ label: 'export.csv', rows, fileNotes: [] })
 
 function counting(): () => string {
   let place = 0

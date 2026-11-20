@@ -37,7 +37,7 @@ export function copiedStatementRows(account: Account, name: string, rows: readon
       cashWithdrawal: false,
       pending: false,
     })),
-    notes: [],
+    fileNotes: [],
     transcribed: { lookAlikes },
   }
 }

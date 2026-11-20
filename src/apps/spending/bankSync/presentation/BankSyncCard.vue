@@ -15,6 +15,7 @@ import { heldBankSetup, useBankSync } from './useBankSync'
 import { words } from './words'
 import { useHeldRows } from './useHeldRows'
 import DryRunLines from '../../statements/presentation/DryRunLines.vue'
+import { dryRunNotes } from '../../statements/presentation/readingLines'
 import { rowKey } from '../../workbook/domain/transaction'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
@@ -73,6 +74,8 @@ const returnLine = returned?.kind === 'refused' ? words.linkRefused(returned.rea
 
 /** After a reload the last fetch's accounts, against the file, with nothing held, so the step's link still lands on the list. */
 const setup = computed(heldBankSetup)
+/** What the last sync's dry run left out or noticed. */
+const syncNotes = computed(() => (sync.lastOutcome.value === null ? [] : dryRunNotes(sync.lastOutcome.value.dryRun, store.state.workbook?.accounts ?? [])))
 
 function announced(outcome: BankSyncOutcome | null): void {
   if (outcome?.receipt) writes.announce(outcome.receipt)
@@ -146,8 +149,8 @@ onMounted(() => {
         <p class="type-row-title" data-testid="spending-bank-sync-summary">
           {{ words.summary(sync.lastOutcome.value.dryRun.newRows, sync.lastOutcome.value.dryRun.alreadyIn, sync.lastOutcome.value.dryRun.filled) }}
         </p>
-        <ul v-if="sync.lastOutcome.value.dryRun.notes.length > 0" class="flex flex-col gap-1 type-aside" data-testid="spending-bank-sync-notes">
-          <li v-for="note in sync.lastOutcome.value.dryRun.notes" :key="note">{{ note }}</li>
+        <ul v-if="syncNotes.length > 0" class="flex flex-col gap-1 type-aside" data-testid="spending-bank-sync-notes">
+          <li v-for="note in syncNotes" :key="note">{{ note }}</li>
         </ul>
         <UAlert
           v-for="problem in sync.lastOutcome.value.problems"

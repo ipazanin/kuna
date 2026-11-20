@@ -5,7 +5,6 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { words } from './words'
@@ -14,8 +13,9 @@ import { cutoverWords } from './startDayMoveWords'
 import { deletesRecords, startDayMove } from '../domain/startDayMove'
 import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, bankLinkOffered, cardsOfText, cardsText, rowsFromRefusal } from '../../workbook/domain/account'
-import type { Account, AccountBank, AccountKind, RowsFrom } from '../../workbook/domain/account'
+import { ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, bankLinkOffered, cardsOfText, cardsText, rowsFromRefusal } from '../../workbook/domain/account'
+import type { Account, AccountKind, RowsFrom } from '../../workbook/domain/account'
+import { bankNamesOf } from '../domain/bankNames'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -27,6 +27,7 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import BankNameField from '../../../../shared/ui/BankNameField.vue'
 import CurrencySelect from '../../../../shared/ui/CurrencySelect.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
@@ -53,16 +54,12 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 const router = useRouter()
 
-/** What the bank select holds for no bank, since a select's value cannot be empty. */
-const NONE = 'none'
-
 const KIND_OPTIONS = ACCOUNT_KINDS.map((kind) => ({ value: kind, label: words.kinds[kind] }))
 const ROWS_FROM_OPTIONS = ROWS_FROM.map((rowsFrom) => ({ value: rowsFrom, label: words.rowsFrom[rowsFrom] }))
-const BANK_ITEMS = [{ label: words.dialog.noBank, value: NONE }, ...ACCOUNT_BANKS.map((bank) => ({ label: words.banks[bank], value: bank }))]
 
 const name = ref('')
 const kind = ref<AccountKind>('bank')
-const bank = ref<AccountBank | typeof NONE>(NONE)
+const bank = ref('')
 const currency = ref<string>(EURO)
 const opening = ref('')
 /** The opening is typed as an amount of zero or more, since a phone's number pad has no minus, and this says it was below zero. */
@@ -73,6 +70,9 @@ const cards = ref('')
 const rowsFrom = ref<RowsFrom>('by-hand')
 const takesStatementFile = ref(false)
 const tried = ref(false)
+
+/** The banks the book's accounts and saved recipes name, which the bank field suggests. */
+const banks = computed(() => bankNamesOf([...(store.state.workbook?.accounts ?? []), ...(store.state.workbook?.recipes ?? [])]))
 
 /** An account that entries name keeps its currency, since their amounts are in it. */
 const hasEntries = computed(() => props.account !== null && (store.state.workbook?.transactions ?? []).some((row) => row.account === props.account?.id))
@@ -88,7 +88,7 @@ watch(open, (opened) => {
   const account = props.account
   name.value = account?.name ?? ''
   kind.value = account?.kind ?? props.startingKind ?? 'bank'
-  bank.value = account?.bank ?? NONE
+  bank.value = account?.bank ?? ''
   currency.value = account?.currency ?? props.startingCurrency ?? EURO
   if (account === null) {
     opening.value = ''
@@ -159,7 +159,7 @@ async function save(): Promise<void> {
   const typed = newAccount({
     name: name.value,
     kind: kind.value,
-    bank: bank.value === NONE ? null : bank.value,
+    bank: bank.value.trim() === '' ? null : bank.value.trim(),
     currency: code,
     opening: amount,
     openedOn: day,
@@ -223,7 +223,7 @@ async function remove(): Promise<void> {
         <UInput v-model="cards" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-cards" />
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.bank">
-        <USelect v-model="bank" :items="BANK_ITEMS" class="w-full" data-testid="spending-account-bank" />
+        <BankNameField v-model="bank" :banks="banks" data-testid="spending-account-bank" />
       </UFormField>
       <UFormField :label="words.dialog.currency" v-bind="hasEntries ? { help: words.dialog.currencyKept } : {}">
         <CurrencySelect v-model="currency" :search="words.dialog.findCurrency" :disabled="hasEntries" class="w-full" data-testid="spending-account-currency" />

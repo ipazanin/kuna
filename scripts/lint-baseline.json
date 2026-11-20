@@ -240,7 +240,6 @@
     "src/apps/spending/bankSync/domain/words.ts",
     "src/apps/spending/receipts/domain/receiptDraft.ts",
     "src/apps/spending/receipts/domain/receiptSplit.ts",
-    "src/apps/spending/statements/domain/revolutStatement.ts",
     "src/apps/spending/statements/domain/statementDryRun.ts",
     "src/apps/spending/workbook/domain/accountReading.ts",
     "src/apps/spending/workbook/domain/budgetReading.ts",

@@ -29,7 +29,7 @@ const ACCOUNT: Account = {
   id: recordIdOf(ACCOUNT_RECORDS, 'account-a'),
   name: 'Current',
   kind: 'bank',
-  bank: 'otp',
+  bank: 'OTP banka',
   currency: currencyCodeOf('EUR')!,
   opening: accountMoneyFromAmount(1000),
   openedOn: on('2026-01-01'),

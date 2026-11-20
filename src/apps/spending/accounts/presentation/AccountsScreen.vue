@@ -75,7 +75,7 @@ const unconverted = computed(() => (state.workbook === null || rates.value === '
 /** The account's kind, bank and currency, and By hand only on a bank or savings account kept by hand, since that is the exception. */
 function kindParts(account: Account): readonly string[] {
   const byHand = account.kind !== 'cash' && account.rowsFrom === 'by-hand' ? words.rowsFrom['by-hand'] : ''
-  return [words.kinds[account.kind], account.bank === null ? '' : words.banks[account.bank], account.currency, byHand].filter((part) => part !== '')
+  return [words.kinds[account.kind], account.bank ?? '', account.currency, byHand].filter((part) => part !== '')
 }
 
 const adding = ref(false)

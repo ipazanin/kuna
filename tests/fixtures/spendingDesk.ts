@@ -66,7 +66,7 @@ function account(key: string, name: string, fields: Partial<Account> = {}): Acco
     id: recordIdOf(ACCOUNT_RECORDS, key),
     name,
     kind: 'bank',
-    bank: 'otp',
+    bank: 'OTP banka',
     currency: EUR,
     opening: accountMoneyFromAmount(1000),
     openedOn: on('2026-01-01'),
@@ -85,9 +85,9 @@ function category(key: string, name: string, kind: Category['kind'], parent: Cat
 
 const CURRENT = account('account-current', 'Current', { iban: 'HR6523400091110000001' })
 const SAVINGS = account('account-savings', 'Savings', { kind: 'savings', bank: null })
-const DOLLARS = account('account-dollars', 'Dollars', { bank: 'other', currency: currencyCodeOf('USD')! })
+const DOLLARS = account('account-dollars', 'Dollars', { bank: null, currency: currencyCodeOf('USD')! })
 const WALLET = account('account-wallet', 'Old wallet', { kind: 'cash', bank: null })
-const REVOLUT = account('account-revolut', 'Revolut', { bank: 'revolut', opening: accountMoneyFromAmount(500) })
+const REVOLUT = account('account-revolut', 'Revolut', { bank: 'Revolut', opening: accountMoneyFromAmount(500) })
 
 const FOOD = category('category-food', 'Food', 'spending', null, 1)
 const GROCERIES = category('category-groceries', 'Groceries', 'spending', FOOD, 1)

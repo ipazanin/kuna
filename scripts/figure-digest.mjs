@@ -187,7 +187,9 @@ import { inPeriod } from '../src/apps/spending/payees/domain/payeePeriod.ts'
 import { payeeTotals } from '../src/apps/spending/payees/domain/payeeTotals.ts'
 import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch.ts'
 import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
-import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
+import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement.ts'
+import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe.ts'
+import { en as statementWords } from '../src/apps/spending/statements/domain/words.ts'
 import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
 import { instalmentOffers, pastInstalments } from '../src/apps/spending/links/domain/instalmentOffers.ts'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanRecords.ts'
@@ -205,7 +207,7 @@ import { balanceDifferences } from '../src/apps/spending/bankSync/domain/bankBal
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync.ts'
 import { rowsAfterDryRun, statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
 import { SAMPLE_LOAN_FILE_NAME, SAMPLE_REVOLUT_FILE_NAME, sampleLoanCsv, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
-import { readFirstSheet } from '../src/shared/xlsx/sheetGrids.ts'
+import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow.ts'
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures.ts'
@@ -851,11 +853,11 @@ async function spendingGroups(addGroup, loansBook) {
     add('spending.payees.all', () => payeeTotals(euroRows(workbook, rates.everyday), workbook.categories))
   }
   if (options['fake-spending'] === 'statements') {
-    const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
+    const reading = recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook, statementWords.feeOn)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))
     // The sample export that pays the fake home loan's latest instalment, linked and split as the import writes it.
     if (offeredLoans !== null) {
-      const paying = revolutStatement(await readFirstSheet(sampleLoanCsv(today)), SAMPLE_LOAN_FILE_NAME, workbook)
+      const paying = recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleLoanCsv(today)), SAMPLE_LOAN_FILE_NAME, workbook, statementWords.feeOn)
       const links = { targets: loanTargetsFrom(loanTargetsOf(offeredLoans)), language: 'en', notes: { interest: 'Interest', difference: 'Difference from the plan' } }
       add('spending.import.instalment', () => {
         let place = 0
