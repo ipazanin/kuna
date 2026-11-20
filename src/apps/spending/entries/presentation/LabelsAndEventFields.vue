@@ -31,7 +31,7 @@ const eventItems = computed(() => (props.kit.events.value.length > 0 ? props.kit
 </script>
 
 <template>
-  <div class="grid gap-x-3 gap-y-2" :class="{ 'sm:grid-cols-2': eventItems.length > 0 }">
+  <div class="grid gap-x-4 gap-y-2" :class="{ 'sm:grid-cols-2': eventItems.length > 0 }">
     <UFormField :label="words.dialog.labels" :error="refused">
       <LabelsSelect
         v-model="labels"

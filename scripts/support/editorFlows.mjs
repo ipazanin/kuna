@@ -6342,7 +6342,7 @@ export function spendingEntryLabelsFlowIn(language) {
     await openSpendingRow(page, press, 'Corner market', -6120)
     const parts = await page.$$('[data-testid="spending-entry-part-labels"]')
     if (parts.length !== 2) throw new Error(`the receipt's entry dialog shows ${parts.length} labels fields, not one per line`)
-    if ((await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="labels-select"]`)).length > 0) throw new Error('a split entry shows a labels field for the whole entry beside its parts')
+    if ((await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-entry-labels"]`)).length > 0) throw new Error('a split entry shows a labels field for the whole entry beside its parts')
     const held = await parts[1].evaluate((element) => element.textContent ?? '')
     if (!held.includes(flat)) throw new Error(`the receipt's second line shows "${held.trim()}", not its label ${flat}`)
     await inspect?.("the entry dialog of a receipt's row, a labels field on each line")
@@ -6360,7 +6360,7 @@ export function spendingEntryLabelsFlowIn(language) {
     await dismissToasts(page)
 
     await typeMoneyOut(page, press, words)
-    const whole = await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="labels-select"]`)
+    const whole = await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-entry-labels"]`)
     if (whole.length !== 1) throw new Error(`a new entry shows ${whole.length} labels fields, not one`)
     await pickLabel(page, press, whole[0], typed, true)
     await delay(300)
