@@ -62,7 +62,7 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   },
   {
     reason: "The Picker. Google's Picker shows the person's Drive, so picking a file or the folder beside it stays on the screen.",
-    paths: ['company: store.chooseDriveFile', 'shared: store.chooseDriveFile', 'company: store.folderBesideFile'],
+    paths: ['company: store.chooseDriveFile', 'shared: store.chooseDriveFile'],
   },
   {
     reason: "Bank linking. The bank's approval page needs the person, so linking a bank and coming back from it stay on the screen.",

@@ -1,4 +1,3 @@
-import { FOLDER_MIME_TYPE } from '../../google/driveClient'
 import { GoogleApiError, isRateLimited } from '../../google/googleApi'
 import type { RedirectResume } from '../../google/googleRedirect'
 import { BooksAlreadyOnDrive } from '../application/booksAlreadyOnDrive'
@@ -53,7 +52,6 @@ export type DocumentStorePorts<Books extends BooksRead> = Pick<
   | 'findDriveFile'
   | 'pickDriveFolder'
   | 'driveHomeOfApp'
-  | 'folderBesideFile'
   | 'hasKunaFolder'
   | 'createDriveFile'
   | 'planMoveIntoKuna'
@@ -179,15 +177,6 @@ export function documentStorePorts<Books extends BooksRead>(
     async hasKunaFolder() {
       const access = await driveAccess()
       return access.signedIn() ? (await findKunaFolder(access.drive)) !== null : null
-    },
-
-    async folderBesideFile(fileId, name) {
-      const { drive } = await driveAccess()
-      const parentId = await drive.parentOf(fileId)
-      const inside = await drive.children(parentId)
-      if (!inside.some((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === name)) {
-        await drive.createFolder(parentId, name)
-      }
     },
 
     async planMoveIntoKuna(fileId, beside) {

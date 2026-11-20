@@ -502,13 +502,13 @@ function money(amount: number): string {
   return amountText(moneyFromAmount(amount))
 }
 
-/** The folders of the fake Drive the made-up books name, which the fake statements folder and the fake mail folders answer for. */
+/** The folders of the fake Drive the made-up books still name in retired rows, which nothing reads. */
 export const FAKE_FOLDERS = {
   statements: ['finance', 'statements'],
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 /**
- * The rows the made-up books name their folders and the owner-pay module in, as the books saved from the app hold them. Two are retired
+ * The rows the made-up books name their folders and the owner-pay module in, as the books saved from the app hold them. Three are retired
  * folder rows that older books still hold, which read without a problem.
  */
 const FAKE_CHOICES: readonly (readonly [key: string, value: FieldValue])[] = [
@@ -1109,7 +1109,7 @@ function fakeBooks(staff: FakeStaff | null, giving: boolean): { readonly booking
   all.push(...tripPayments.map((payment) => booking(payment.date, payment.counterparty, payment.iban, payment.description, payment.amount, payment.category, undefined, 'human')))
   staffDifference = roundToCent(staffDifference - tripPayments.reduce((sum, payment) => sum + payment.amount, 0))
   if (staff !== null && staffDifference !== 0) {
-    // The main account then ends where the flat salary leaves it, so the statements folder's sample carries it on.
+    // The main account then ends where the flat salary leaves it, so the sample statement the bank mails carries it on.
     all.push(
       booking('2026-10-05', PAYEES.owner.name, PAYEES.owner.iban, staffDifference > 0 ? 'Share capital paid in' : 'Share capital paid back', staffDifference, 'share-capital', undefined, 'human'),
     )

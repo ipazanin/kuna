@@ -1,6 +1,6 @@
 import { ANSWER_WAIT_MS, backoff, googleRequest, isRateLimited } from '../../google/googleApi'
-import { MailRateLimited } from '../application/mailFiling'
-import type { Mailbox } from '../application/mailFiling'
+import { MailRateLimited } from '../application/mailReading'
+import type { Mailbox } from '../application/mailReading'
 import type { MailAttachment } from '../domain/mailSource'
 
 const GMAIL_MESSAGES_API = 'https://gmail.googleapis.com/gmail/v1/users/me/messages'

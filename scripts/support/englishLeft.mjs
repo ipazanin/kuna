@@ -20,7 +20,7 @@ import { DEFAULT_MAIL_SUBJECT } from '../../src/apps/company/invoicing/domain/in
 import { en as settingsEnglish } from '../../src/apps/company/settings/domain/words.ts'
 import { sampleCamtXml, sampleTableFile } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
 import { fakeMails } from '../../src/apps/company/mail/infrastructure/fake/fakeMailbox.ts'
-import { FAKE_SEARCH_FAILURE, FAKE_UPLOAD_FAILURE } from '../../src/shared/mail-filing/infrastructure/fake/fakeMail.ts'
+import { FAKE_SEARCH_FAILURE } from '../../src/shared/mail/infrastructure/fake/fakeMail.ts'
 import { FAKE_BOOKS_FOLDER } from '../../src/shared/storage/infrastructure/fake/fakeDriveSession.ts'
 import { fakeStaffOf } from '../../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff.ts'
 import { en as scenariosEnglish } from '../../src/apps/company/packs/hr-doo/domain/scenarios/words.ts'
@@ -251,7 +251,7 @@ async function typedInFakeFiles() {
   return [
     ...FAKE_DOCUMENTS.flatMap(stringsIn),
     ...categoryMovePlanRecords().flatMap(stringsIn),
-    ...fakeMails().flatMap(stringsIn),
+    ...fakeMails('held-statement').flatMap(stringsIn),
     FAKE_BOOKS_FOLDER,
     ...camt,
     ...tableCells.map(String),
@@ -391,8 +391,8 @@ export const ENGLISH_ALLOWED = [
   },
   {
     name: 'fake Google failures',
-    reason: 'The fake Gmail and Drive fail a search or an upload with these answers, which stand in for the answer Google sends and a real failure shows as Google wrote it.',
-    texts: [FAKE_SEARCH_FAILURE, FAKE_UPLOAD_FAILURE],
+    reason: 'The fake Gmail fails a search with this answer, which stands in for the answer Google sends and a real failure shows as Google wrote it.',
+    texts: [FAKE_SEARCH_FAILURE],
   },
   {
     name: "IBKR's section names",

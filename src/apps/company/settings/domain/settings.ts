@@ -19,13 +19,12 @@ import { ANY_VALUE, settingCodec } from '../../../../shared/storage/domain/setti
 import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
-import { BOOKS_FOLDER, folderPathOf } from '../../../../shared/text/folderPath'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
-import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
-import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
-import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
+import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail/domain/mailSource'
+import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
+import { words as mailWords } from '../../../../shared/mail/domain/words'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
 import { personPayeesOf, personPayeesText } from '../../../../shared/privacy/domain/personPayees'
 import { words } from './words'
@@ -60,8 +59,6 @@ export interface Settings {
   readonly invoicing: InvoicingTerms
   /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
   readonly importProfiles: readonly ImportProfile[]
-  /** The Drive folder the bank's camt statements are filed in, as folder names from My Drive down, or from the folder of the books file after a first `.`. None until one is chosen. */
-  readonly statementsFolder: readonly string[]
   /** The addresses the bank mails statements from, in lower case. None leaves the bank's mail unread. */
   readonly statementsMailFrom: readonly string[]
   /** The phrase before the statement number in the subject of the bank's statement mail. Blank leaves the bank's mail unread. */
@@ -193,7 +190,6 @@ export const DEFAULT_SETTINGS: Settings = {
     reverseChargeNote: DEFAULT_REVERSE_CHARGE_NOTE,
   },
   importProfiles: [],
-  statementsFolder: [],
   statementsMailFrom: [],
   statementsMailSubject: '',
   personPayees: [],
@@ -419,7 +415,7 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 ]
 
 /** Keys core no longer reads that older books may still hold. They read silently, and a save leaves their rows alone. */
-export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id', 'statements_sync', 'mail_since'])
+export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id', 'statements_sync', 'mail_since', 'statements_folder'])
 
 /** The key that says the books store which invoice each client payment pays. Only Kuna sets it. */
 export const CLIENT_PAYMENTS_PLACED_KEY = 'client_payments_placed'
@@ -542,18 +538,6 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     type: 'text',
     valueOf: (settings) => settings.tripFolderId,
     apply: (settings, value) => ({ ...settings, tripFolderId: value.trim() }),
-  },
-  {
-    key: 'statements_folder',
-    label: words.settingLabels.statementsFolder,
-    note: 'The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside, or from the folder of the books file when it starts with ./ as in ./statements. Blank names none, and statements come in through Import.',
-    type: 'text',
-    valueOf: (settings) => settings.statementsFolder.join('/'),
-    apply: (settings, value) => {
-      const folders = folderPathOf(value)
-      if (folders.slice(1).includes(BOOKS_FOLDER)) return words.settings.booksFolderLater(value, BOOKS_FOLDER)
-      return folders.filter((name) => name !== BOOKS_FOLDER).length === 0 ? words.settings.namesNoFolder(value) : { ...settings, statementsFolder: folders }
-    },
   },
   {
     key: 'statements_mail_from',

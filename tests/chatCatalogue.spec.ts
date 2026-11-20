@@ -337,7 +337,7 @@ describe('the catalogue', () => {
       for (const automation of app.assistant.automations) expect(page).toContain(`- ${automation.title}: ${automation.what} Set up: ${automation.setUpRoute}`)
     }
     expect(SPENDING_ASSISTANT.automations).toHaveLength(1)
-    expect(COMPANY.automations.map((automation) => automation.id)).toEqual(['statements-from-mail', 'statements-on-sync'])
+    expect(COMPANY.automations.map((automation) => automation.id)).toEqual(['statements-from-mail'])
     expect(INVESTMENTS_ASSISTANT.automations.map((automation) => automation.id)).toEqual(['daily-closes', 'ibkr-mail'])
     for (const app of [LOANS_ASSISTANT, ASSETS_ASSISTANT]) expect(app.automations).toEqual([])
   })

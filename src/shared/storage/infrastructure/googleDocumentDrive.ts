@@ -5,7 +5,6 @@ import {
   downloadRevision,
   JSON_MIME_TYPE,
   filesWithAppProperty,
-  folderOfMyDrivePath,
   getFile,
   listChildren,
   listRevisions,
@@ -98,11 +97,6 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
 
     async setAppProperty(fileId, key, value) {
       return setAppProperty(await accessToken(), fileId, key, value)
-    },
-
-    async folderAtPath(path) {
-      const folder = await folderOfMyDrivePath(await accessToken(), path)
-      return folder.kind === 'found' ? folder.id : null
     },
 
     async createFile(parentId, name, text, appProperties = {}) {

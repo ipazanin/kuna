@@ -15,8 +15,8 @@ export const en = {
   intake: {
     statementsFill: (account: string, startsOn: CivilDate, camtFile: boolean) =>
       camtFile
-        ? `${account} takes its rows from the bank's statements in the statements folder from ${dayLabel(startsOn)}, so a camt file you bring goes on it only once its settings allow the bank's file. Nothing of it is written.`
-        : `${account} takes its rows from the bank's statements in the statements folder from ${dayLabel(startsOn)}, so a sheet or a copied statement does not go on it. Nothing of it is written.`,
+        ? `${account} takes its rows from the bank's statement mail from ${dayLabel(startsOn)}, so a camt file you bring goes on it only once its settings allow the bank's file. Nothing of it is written.`
+        : `${account} takes its rows from the bank's statement mail from ${dayLabel(startsOn)}, so a sheet or a copied statement does not go on it. Nothing of it is written.`,
     keptByHand: (account: string) => `${account} is kept by hand, so the sync leaves its statements to you. Import its file on Import, or let the bank's statements fill it in Settings, Accounts.`,
     beforeStart: (account: string, startsOn: CivilDate, first: CivilDate) =>
       `It starts on ${dayLabel(first)}, before ${dayLabel(startsOn)}, the day the bank's statements fill ${account} from, so the sync leaves it to you.`,
@@ -65,8 +65,8 @@ export const hr: Translation<typeof en> = {
   intake: {
     statementsFill: (account, startsOn, camtFile) =>
       camtFile
-        ? `Račun „${account}” dobiva stavke iz izvoda banke u mapi izvoda od ${dayLabel(startsOn)}, pa camt datoteka koju donesete ide na njega tek kad njegove postavke dopuste datoteku banke. Ništa se iz nje ne upisuje.`
-        : `Račun „${account}” dobiva stavke iz izvoda banke u mapi izvoda od ${dayLabel(startsOn)}, pa tablica ili prepisani izvod ne idu na njega. Ništa se iz njih ne upisuje.`,
+        ? `Račun „${account}” dobiva stavke iz pošte banke s izvodima od ${dayLabel(startsOn)}, pa camt datoteka koju donesete ide na njega tek kad njegove postavke dopuste datoteku banke. Ništa se iz nje ne upisuje.`
+        : `Račun „${account}” dobiva stavke iz pošte banke s izvodima od ${dayLabel(startsOn)}, pa tablica ili prepisani izvod ne idu na njega. Ništa se iz njih ne upisuje.`,
     keptByHand: (account) =>
       `Račun „${account}” vodi se ručno, pa sinkronizacija njegove izvode ostavlja vama. Uvezite njegovu datoteku u Uvozu ili u Postavkama, Računi, dopustite da ga pune izvodi banke.`,
     beforeStart: (account, startsOn, first) => `Počinje ${dayLabel(first)}, prije ${dayLabel(startsOn)}, dana od kojega izvodi banke pune račun „${account}”, pa ga sinkronizacija ostavlja vama.`,

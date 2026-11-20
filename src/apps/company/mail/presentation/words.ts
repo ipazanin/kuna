@@ -7,11 +7,11 @@ import { listed } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// Mail is pošta and one mail poruka. Filing an attachment saves it into its Drive folder, so it is spremiti.
+// Mail is pošta and one mail poruka. Filing a statement writes its rows into the ledger, so it is upisati.
 
 export const en = {
   step: {
-    label: 'Mail',
+    label: 'Statement mail',
     seeList: 'See the list',
     accessRanOut: 'The Google access ran out. Sync again.',
     searching: 'Searching Gmail',
@@ -22,12 +22,12 @@ export const en = {
   },
   card: {
     title: 'Mail',
-    subtitle: "Where each sync looks in Gmail for the bank's statements, which it files into the statements folder.",
+    subtitle: "Where each sync looks in Gmail for the bank's statements, which it reads and files into the ledger. Nothing is kept on Drive.",
     notRead: 'Bank mail is not read.',
     readFrom: (senders: readonly string[], fills: readonly string[]) =>
       fills.length === 0 ? `Bank mail from ${senders.join(', ')}, for no account yet.` : `Bank mail from ${senders.join(', ')}, for ${listInWords(fills)}.`,
     fillsFrom: (account: string, day: string) => `${account} from ${day}`,
-    searchedFrom: { newest: 'a week before the newest file in its folder', since: 'the earliest start day of the accounts it fills' },
+    searchedFrom: { newest: 'a week before the newest statement of the account furthest behind', since: 'the earliest start day of the accounts it fills' },
     senders: settingsEn.settingLabels.statementsMailFrom,
     sendersHelp: "Mail addresses, comma separated. Blank leaves the bank's mail unread, and Gmail is not asked for.",
     sendersPlaceholder: 'Not read',
@@ -37,12 +37,15 @@ export const en = {
     accountFrom: (day: string) => `${settingsScreenEn.accounts.columns.startsOn} ${day}`,
     noAccount: "No account takes the bank's statements yet.",
     lastSync: 'What the last sync found',
+    syncToRead: 'Sync to read what is new.',
+    kinds: { read: 'Read', 'not-read': 'Not read', 'passed-over': 'Passed over' },
+    passedOver: 'Only the XML statement is read.',
   },
 }
 
 export const hr: Translation<typeof en> = {
   step: {
-    label: 'Pošta',
+    label: 'Pošta s izvodima',
     seeList: 'Prikaži popis',
     accessRanOut: 'Googleov pristup je istekao. Sinkronizirajte ponovno.',
     searching: 'Pretražuje Gmail',
@@ -53,12 +56,12 @@ export const hr: Translation<typeof en> = {
   },
   card: {
     title: 'Pošta',
-    subtitle: 'Gdje svaka sinkronizacija u Gmailu traži izvode banke, koje sprema u mapu izvoda.',
+    subtitle: 'Gdje svaka sinkronizacija u Gmailu traži izvode banke, koje čita i upisuje u evidenciju. Ništa se ne sprema na Drive.',
     notRead: 'Pošta banke se ne čita.',
     readFrom: (senders, fills) =>
       withFullStop(`Pošta banke ${listed({ one: 's adrese', other: 's adresa' }, senders.length)} ${senders.join(', ')}, ${fills.length === 0 ? 'još ni za jedan račun' : `za ${listInWords(fills)}`}`),
     fillsFrom: (account, day) => `${account} od ${day}`,
-    searchedFrom: { newest: 'tjedan dana prije najnovije datoteke u mapi', since: 'najranijeg početnog dana računa koje puni' },
+    searchedFrom: { newest: 'tjedan dana prije najnovijeg izvoda računa koji najviše kasni', since: 'najranijeg početnog dana računa koje puni' },
     senders: settingsHr.settingLabels.statementsMailFrom,
     sendersHelp: 'Adrese e-pošte, odvojene zarezom. Ako je prazno, pošta banke se ne čita i ne traži se pristup Gmailu.',
     sendersPlaceholder: 'Ne čita se',
@@ -68,6 +71,9 @@ export const hr: Translation<typeof en> = {
     accountFrom: (day) => `${settingsScreenHr.accounts.columns.startsOn} ${day}`,
     noAccount: 'Nijedan račun još ne uzima izvode banke.',
     lastSync: 'Što je pronašla zadnja sinkronizacija',
+    syncToRead: 'Sinkronizirajte da se pročita ono što je novo.',
+    kinds: { read: 'Pročitano', 'not-read': 'Nije pročitano', 'passed-over': 'Preskočeno' },
+    passedOver: 'Čita se samo izvod u XML-u.',
   },
 }
 

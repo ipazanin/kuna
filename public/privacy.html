@@ -166,16 +166,8 @@
               <code>drive.file</code>, "See, edit, create, and delete only the specific Google Drive files you use with this app". Always asked. It covers the files and folders you pick in Google's
               file picker and the files the app makes. The app reads and saves your books in <code>kuna-company.json</code>, the file it makes in a folder inside its own Kuna folder, and reads the
               names of that folder and of the backups beside the file. When you press Move in an app's Settings, it moves into the Kuna folder that file and what the app itself made: its backups, its
-              prices file, receipt photos and statements it filed from your mail. Everything else stays, your accountant's files among them. When you make an invoice, it lists the folders inside the
-              invoice folder you picked, and files the PDF there. When a sync files your bank's statement mail or a kind of your accountant's mail you switched on, it makes the files, and a missing
-              year or month folder, in that mail's folder. When you switch on Keep the photo on Drive for a receipt, it makes the photo's file, and a <code>Receipts</code> folder when it is missing,
-              beside your Spending file.
-            </li>
-            <li>
-              <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank statements from a Drive folder or file your mail into one.
-              Google's wording covers your whole Drive. The app uses it to read the bank statements in your statements folder that are not on the ledger yet, since <code>drive.file</code> cannot see
-              files another app filed there. While it reads your mail, it also lists the names, dates and checksums of the files in the folders that mail goes into, to tell what is filed already. It
-              reads nothing else with it and changes nothing.
+              prices file and receipt photos. Everything else stays. When you make an invoice, it lists the folders inside the invoice folder you picked, and files the PDF there. When you switch on
+              Keep the photo on Drive for a receipt, it makes the photo's file, and a <code>Receipts</code> folder when it is missing, beside your Spending file.
             </li>
             <li>
               <code>drive.appdata</code>, "See, create, and delete its own configuration data in your Google Drive". Asked only while a file of yours is on Drive and you saved a key, hold an
@@ -184,12 +176,10 @@
               files an older Kuna made, one per Investments file, once their keys are in the new file. It reads, writes and deletes nothing else with it.
             </li>
             <li>
-              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, switch on a kind of your accountant's mail, or switch on
-              IBKR report by mail in Investments. Google's wording covers your whole mailbox. On each sync the app searches it for mail from those addresses whose subject starts with the words you
-              set, reads each one's subject, date and attachment names, downloads a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a
-              file of the same name in your Drive. It files your bank's new statements and the kinds of your accountant's mail you switched on into your Drive, as "What the app writes" says. Nothing
-              it reads leaves your browser except those files, which go to your own Drive. For IBKR's report it downloads the XML file of each mail it finds and reads it in this browser, filing
-              nothing. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
+              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from or switch on IBKR report by mail in Investments. Google's
+              wording covers your whole mailbox. On each sync the app searches it for mail from those addresses whose subject holds the words you set, reads each one's subject, date and attachment
+              names, and downloads the XML file of each mail it finds to read it in this browser. Your bank's new statements go into your books, as "What the app writes" says. Nothing it reads leaves
+              your browser, and no attachment is kept on Drive. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
             </li>
             <li>
               <code>gmail.compose</code>, "Manage drafts and send emails". Asked only while "Create the mail draft" is on for invoices. The app saves one draft per invoice in your Gmail. It never
@@ -209,7 +199,7 @@
           </ul>
           <p>
             Kuna is not verified by Google. Google shows a warning on its consent screen for the restricted permissions
-            <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified app.
+            <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified app.
           </p>
           <p>
             A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only. So is a receipt photo's QR code. The photo leaves this browser only when you switch on
@@ -254,11 +244,8 @@
             the photo sent to the assistant leaves it behind. The entry shows those coordinates with a link to <code>openstreetmap.org</code>, which sees them only if you tap it.
           </p>
           <p>
-            While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a
-            folder for the year that it makes when it is missing. While you switch on a kind of your accountant's mail, each sync files its new payroll documents, VAT returns or the accountant's
-            invoices into the folder you set for that kind, in a folder for the year, and for the payroll and the invoices one for the month, that it makes when it is missing. Nothing in the app reads
-            those files. Each file it makes carries three labels only this app sees: that the app filed it from mail, the Gmail id of the mail, and the mail's date. The next sync starts a week before
-            the newest file in the folder, whoever filed it. It never trashes, renames or overwrites a file there, and it never changes your mail.
+            While you name the address your bank mails statements from, each sync reads the camt statement in its new statement mail and files its rows on the ledger of your books, as a statement you
+            import does. It keeps no copy of the mail or its attachments on Drive, and it never changes your mail.
           </p>
         </section>
         <section>

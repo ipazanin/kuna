@@ -1,16 +1,12 @@
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { BOOKS_FOLDER } from '../../../../shared/text/folderPath'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
-import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
-import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
+import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail/domain/mailSource'
+import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
 import type { Settings } from '../../settings/domain/settings'
 import { proposedStartDay } from '../../../../shared/app/accountSource'
 import { handDaysOf } from '../../workbook/domain/accountIntakes'
 import type { Account, CompanyIntake, Transaction } from '../../workbook/domain/workbook'
-
-/** The folder the app makes beside the books file for the statements it files from mail, which `drive.file` can then read. */
-export const MAIL_STATEMENTS_FOLDER = 'statements'
 
 /** The bank named for any bank without a preset, whose sender and subject words are typed in. */
 export const OTHER_BANK = 'other'
@@ -27,8 +23,7 @@ export interface StatementMail {
 }
 
 /** New books take their statements by hand, and delivery is offered after the first one. */
-export const STATEMENTS_BY_HAND: Pick<Settings, 'statementsFolder' | 'statementsMailFrom' | 'statementsMailSubject'> = {
-  statementsFolder: [],
+export const STATEMENTS_BY_HAND: Pick<Settings, 'statementsMailFrom' | 'statementsMailSubject'> = {
   statementsMailFrom: [],
   statementsMailSubject: '',
 }
@@ -56,18 +51,17 @@ export function statementMailProblems(mail: StatementMail): { readonly from?: St
   return { ...(from === null ? {} : { from }), ...(subjectProblem === null ? {} : { subject: subjectProblem }) }
 }
 
-/** The settings rows that file the bank's mail on each sync into the folder the app makes beside the books file. */
+/** The settings rows that read the bank's statement mail on each sync. */
 export function mailDeliveryRows(mail: StatementMail): readonly { readonly key: string; readonly value: string }[] {
   const { senders, subject } = mailTermsOf(mail)
   return [
-    { key: 'statements_folder', value: [BOOKS_FOLDER, MAIL_STATEMENTS_FOLDER].join('/') },
     { key: 'statements_mail_from', value: senders.join(', ') },
     { key: 'statements_mail_subject', value: subject },
   ]
 }
 
 /**
- * The accounts kept by hand that the bank's statements fill once they reach the statements folder, each from the day the mail
+ * The accounts kept by hand that the bank's statement mail fills, each from the day the mail
  * search starts, and never over a day already filed or a row by hand. Only an account with an IBAN, which a statement finds it by.
  */
 export function accountsTheStatementsFill(
@@ -82,9 +76,4 @@ export function accountsTheStatementsFill(
       const proposed = proposedStartDay(handDaysOf(account.slug, ledger), since, firstOpen)
       return { slug: account.slug, intake: { rowsFrom: 'mail', startsOn: proposed > since ? proposed : since, alsoFrom: [] } }
     })
-}
-
-/** The settings rows that read each sync's statements from a folder at this path from My Drive. */
-export function folderDeliveryRows(path: readonly string[]): readonly { readonly key: string; readonly value: string }[] {
-  return [{ key: 'statements_folder', value: path.join('/') }]
 }

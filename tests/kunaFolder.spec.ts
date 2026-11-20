@@ -4,8 +4,7 @@ import type { DriveFileBeside } from '../src/shared/storage/application/workbook
 import { DriveMoveRefused } from '../src/shared/storage/application/driveMoveRefused'
 import { placeOfDriveDocument } from '../src/shared/storage/infrastructure/driveDocument'
 import { FOLDER_MIME_TYPE } from '../src/shared/google/driveClient'
-import { statementFilesToRead } from '../src/apps/company/imports/domain/statementFiles'
-import { companyFileBeside, settingsAfterMove } from '../src/apps/company/settings/presentation/companyFileBeside'
+import { companyFileBeside } from '../src/apps/company/settings/presentation/companyFileBeside'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { createFakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
@@ -195,19 +194,18 @@ describe('moving a file into the Kuna folder', () => {
 })
 
 describe('moving only what Kuna made', () => {
-  /** A statements folder at a path from My Drive with one statement Kuna filed from mail, one a script filed, and a file another mail source filed there. */
+  /** A statements folder beside the books with one statement Kuna filed from mail, one a script filed, and a file another mail source filed there. */
   async function mixedStatements() {
     const drive = createFakeDrive()
     const folder = await drive.createFolder('root', 'books')
     const { id: fileId } = await drive.createFile(folder, 'kuna-company.json', '{}', { kuna: 'company' })
-    const work = await drive.createFolder('root', 'work')
-    const statements = await drive.createFolder(work, 'statements')
+    const statements = await drive.createFolder(folder, 'statements')
     const year = await drive.createFolder(statements, '2026-statements')
     const { id: filed } = await drive.createFile(year, '2026-09-01-statement-010-main.xml', 'camt', { 'kuna-mail': 'statements', 'kuna-mail-id': 'a', 'kuna-mail-date': '2026-09-01T08:00:00.000Z' })
     const { id: scripted } = await drive.createFile(year, '2026-09-02-statement-011-main.xml', 'camt')
     drive.file(scripted).isAppAuthorized = false
     const { id: otherSource } = await drive.createFile(year, '2026-09-report.pdf', 'report', { 'kuna-mail': 'reports', 'kuna-mail-id': 'b', 'kuna-mail-date': '2026-09-03T08:00:00.000Z' })
-    const beside: DriveFileBeside = { ...NOTHING, folders: [{ name: 'statements', fromPath: ['work', 'statements'], mailSource: 'statements' }] }
+    const beside: DriveFileBeside = { ...NOTHING, folders: [{ name: 'statements', mailSource: 'statements' }] }
     return { drive, fileId, statements, year, filed, scripted, otherSource, beside }
   }
 
@@ -220,13 +218,12 @@ describe('moving only what Kuna made', () => {
     expect(drive.file(scripted).parents).toEqual([year])
     expect(drive.file(otherSource).parents).toEqual([year])
     expect(drive.file(year).parents).toEqual([statements])
-    expect(await drive.folderAtPath(['work', 'statements', '2026-statements'])).toBe(year)
   })
 
   it('counts what goes and what stays, so the dialog can say it cannot tell who made the rest', async () => {
     const { drive, fileId, beside } = await mixedStatements()
 
-    expect((await planDriveMove(drive, fileId, 'company', beside)).folders).toEqual([{ name: 'statements', kuna: 1, others: 2, fromPath: ['work', 'statements'] }])
+    expect((await planDriveMove(drive, fileId, 'company', beside)).folders).toEqual([{ name: 'statements', kuna: 1, others: 2 }])
   })
 
   it('moves a file with no mark of its source as nothing Kuna made, which is what an older file looks like', async () => {
@@ -254,36 +251,13 @@ describe('moving only what Kuna made', () => {
 describe('what the Company file takes along', () => {
   const books = (settings: Partial<Workbook['settings']>) => emptyCompany({ settings: { ...DEFAULT_SETTINGS, ...settings } })
 
-  it('takes statements Kuna files from mail and rewrites the setting to the folder beside the file', () => {
-    const workbook = books({ statementsFolder: ['work', 'statements'], statementsMailFrom: ['bank@example.com'] })
-
-    expect(companyFileBeside(workbook).folders).toEqual([{ name: 'statements', fromPath: ['work', 'statements'], mailSource: 'statements' }])
-    expect(settingsAfterMove(workbook)).toEqual([{ key: 'statements_folder', value: './statements' }])
-  })
-
-  it('keeps the path of a statements folder Kuna does not file into, since only a script or a person fills it, and goes on reading it', () => {
-    const workbook = books({ statementsFolder: ['work', 'statements'] })
-
-    expect(companyFileBeside(workbook)).toMatchObject({ folders: [], stays: ['My Drive › work › statements'] })
-    expect(settingsAfterMove(workbook)).toEqual([])
-  })
-
-  it('needs no new setting for a folder already named from the file, and leaves the invoice folder where the person picked it', () => {
-    const workbook = books({ statementsFolder: ['.', 'statements'], invoicing: { ...DEFAULT_SETTINGS.invoicing, folderId: 'picked' } })
-
-    expect(companyFileBeside(workbook).folders).toEqual([{ name: 'statements', mailSource: 'statements' }])
-    expect(companyFileBeside(workbook).stays).toHaveLength(1)
-    expect(settingsAfterMove(workbook)).toEqual([])
-  })
-})
-
-describe('a statement after a move', () => {
-  it('still reads as imported, since the check reads the name and the account, never the id or the folder', () => {
-    const name = '2026-09-01-statement-010-main.xml'
-    const ledger = [{ account: 'main', statement: '2026-09-01-statement-010' }]
-
-    expect(statementFilesToRead([{ id: 'before', name }], ledger)).toEqual([])
-    expect(statementFilesToRead([{ id: 'after', name }], ledger)).toEqual([])
+  it('takes only its backups, and leaves the invoice folder where the person picked it', () => {
+    expect(companyFileBeside(books({}))).toEqual({ files: [], folders: [], stays: [] })
+    expect(companyFileBeside(books({ invoicing: { ...DEFAULT_SETTINGS.invoicing, folderId: 'picked' } }))).toEqual({
+      files: [],
+      folders: [],
+      stays: ['Your invoices folder, with every invoice in it, which Kuna finds wherever it is'],
+    })
   })
 })
 

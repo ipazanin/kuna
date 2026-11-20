@@ -221,8 +221,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['spending: Setting.company_roles_not_now', 'spending: Setting.company_payments_not_now'],
   },
   {
-    reason: "Where the bank's statements come from. Reading the folder or the bank's mail needs Google's consent, so the chat links the screen that asks for it.",
-    fields: ['company: Setting.statements_folder', 'company: Setting.statements_mail_from'],
+    reason: "Where the bank's statements come from. Reading the bank's mail needs Google's consent, so the chat links the screen that asks for it.",
+    fields: ['company: Setting.statements_mail_from'],
   },
   {
     reason: "The invoice and travel orders folders. Only Google's Picker picks them, so the chat links the screen that files them.",

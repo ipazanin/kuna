@@ -1,7 +1,7 @@
 import { IBKR_FLEX_RECIPE } from './ibkrFlexRecipe'
 import type { MailReader } from '../../workbook/domain/mailReader'
-import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
-import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
+import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail/domain/mailSource'
+import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
 
 /** The fields of the mail card a person types. */
 export interface MailReaderTexts {

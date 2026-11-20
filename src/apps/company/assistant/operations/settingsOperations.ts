@@ -43,19 +43,10 @@ const ACCOUNT = ACCOUNT_RECORDS.name
 
 /**
  * The keys no card sets. Kuna's version marker and the review label are the owner's. The payees flagged as people are the chat's
- * own guard. The invoice and travel orders folders need Google's picker. The statements folder and the bank's mail address need Google's consent,
+ * own guard. The invoice and travel orders folders need Google's picker. The bank's mail address needs Google's consent,
  * so the chat links their screen. The subject of the bank's mail needs none, so a card sets it.
  */
-const NEVER_PROPOSED: ReadonlySet<string> = new Set([
-  'template_version',
-  CLIENT_PAYMENTS_PLACED_KEY,
-  'review_label',
-  PERSON_PAYEES_KEY,
-  'invoice_folder_id',
-  TRIP_FOLDER_KEY,
-  'statements_folder',
-  'statements_mail_from',
-])
+const NEVER_PROPOSED: ReadonlySet<string> = new Set(['template_version', CLIENT_PAYMENTS_PLACED_KEY, 'review_label', PERSON_PAYEES_KEY, 'invoice_folder_id', TRIP_FOLDER_KEY, 'statements_mail_from'])
 
 /** The keys whose value says where money or mail goes, or where an invoice is filed, which a card warns on. */
 export const WARNED_SETTING_KEYS: ReadonlySet<string> = new Set([
@@ -414,7 +405,7 @@ function deleteCategory(card: CompanyCard, step: ProposalStep): void {
 }
 
 const ROWS_FROM_ABOUT =
-  "rowsFrom mail: the bank's statements bring its rows from startsOn, by mail or dropped in the statements folder, and no sheet or copied row goes on it on any day. startsOn null takes the day after its last row by hand. A start day may not reach a day whose VAT return is filed or a row by hand. alsoFrom provider-file also takes its camt file on Import or in the chat. by-hand: its files are imported or the chat copies them."
+  "rowsFrom mail: the bank's statements bring its rows from startsOn, read from the bank's mail, and no sheet or copied row goes on it on any day. startsOn null takes the day after its last row by hand. A start day may not reach a day whose VAT return is filed or a row by hand. alsoFrom provider-file also takes its camt file on Import or in the chat. by-hand: its files are imported or the chat copies them."
 
 const ROWS_FROM_INPUT = { type: 'string', enum: [...COMPANY_ROWS_FROM] } as const satisfies StrictSchema
 

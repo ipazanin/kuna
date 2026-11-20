@@ -1,7 +1,4 @@
-import { startsAtBooksFolder } from '../text/folderPath'
-import { words as textWords } from '../text/words'
 import { ANSWER_WAIT_MS, googleRequest, noAnswer } from './googleApi'
-import { words } from './words'
 
 /** How long a request that carries a file's content waits. Drive takes at most 5 MB in one media upload, about 110 seconds on a 384 kbit/s phone connection. */
 const CONTENT_WAIT_MS = 120_000
@@ -15,8 +12,6 @@ export const JSON_MIME_TYPE = 'application/json'
 
 /** The parent of a file in the app's hidden folder, and the space a search of that folder names. Kuna reaches it with a `drive.appdata` token. */
 export const APP_DATA_FOLDER = 'appDataFolder'
-
-const IS_FOLDER = `mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`
 
 export interface DriveFile {
   readonly id: string
@@ -92,65 +87,6 @@ export async function listChildren<Field extends keyof DriveFile>(
     pageToken = page.nextPageToken
   } while (pageToken !== undefined)
   return files
-}
-
-/** Where a path of folder names leads: to one folder, or to a name no folder or several folders have, under `where`. */
-type FolderOfPath =
-  | { readonly kind: 'found'; readonly id: string }
-  | { readonly kind: 'missing'; readonly where: string; readonly name: string }
-  | { readonly kind: 'ambiguous'; readonly where: string; readonly name: string; readonly count: number }
-
-/**
- * Drive has no search by path, so the path is walked one folder name at a time from the folder
- * `startId`, which messages call `start`. A name that two folders share is not guessed.
- */
-async function folderBelow(accessToken: string, startId: string, start: string, path: readonly string[]): Promise<FolderOfPath> {
-  let folderId = startId
-  for (const [depth, name] of path.entries()) {
-    const where = depth === 0 ? start : path.slice(0, depth).join('/')
-    const found = await listChildren(accessToken, `${queryLiteral(folderId)} in parents and name = ${queryLiteral(name)} and ${IS_FOLDER}`, ['id'])
-    if (found.length === 0) {
-      return { kind: 'missing', where, name }
-    }
-    if (found.length > 1) {
-      return { kind: 'ambiguous', where, name, count: found.length }
-    }
-    folderId = found[0]!.id
-  }
-  return { kind: 'found', id: folderId }
-}
-
-/** Where a path of folder names from My Drive leads, which needs a token that reads the whole Drive. */
-export function folderOfMyDrivePath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
-  return folderBelow(accessToken, 'root', textWords.myDrive, path)
-}
-
-/**
- * Where a folder setting's path leads. One that starts at the folder the books file is in, such as
- * `./statements`, is walked from there, which `drive.file` can do through the folders the app made.
- * Any other path is walked from My Drive.
- */
-export async function folderOfSetting(accessToken: string, path: readonly string[], booksFileId: string): Promise<FolderOfPath> {
-  if (!startsAtBooksFolder(path)) {
-    return folderOfMyDrivePath(accessToken, path)
-  }
-  const start = words.booksFolder
-  const parent = (await getFile(accessToken, booksFileId, ['parents'])).parents?.[0]
-  return parent === undefined ? { kind: 'missing', where: start, name: path[1] ?? '' } : folderBelow(accessToken, parent, start, path.slice(1))
-}
-
-/** The folders directly inside the given ones, with the fields asked for, or none when none are given. */
-export async function foldersInside<Field extends keyof DriveFile>(accessToken: string, folderIds: readonly string[], fields: readonly Field[]): Promise<Pick<DriveFile, Field>[]> {
-  return folderIds.length === 0 ? [] : listChildren(accessToken, `(${inAnyOf(folderIds)}) and ${IS_FOLDER}`, fields)
-}
-
-/** The files directly inside the given folders, folders left out, with the fields asked for. */
-export async function filesInside<Field extends keyof DriveFile>(accessToken: string, folderIds: readonly string[], fields: readonly Field[]): Promise<Pick<DriveFile, Field>[]> {
-  return folderIds.length === 0 ? [] : listChildren(accessToken, `(${inAnyOf(folderIds)}) and mimeType != '${FOLDER_MIME_TYPE}' and trashed = false`, fields)
-}
-
-function inAnyOf(folderIds: readonly string[]): string {
-  return folderIds.map((id) => `${queryLiteral(id)} in parents`).join(' or ')
 }
 
 /** The contents of a file that is not a Google document, never from the browser's HTTP cache, which could hold an older revision. */

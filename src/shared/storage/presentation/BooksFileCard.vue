@@ -33,8 +33,6 @@ const props = defineProps<{
   store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'driveFilePlace' | 'hasKunaFolder' | 'pickDriveFolder' | 'planMoveIntoKuna' | 'moveIntoKuna'>
   /** What goes along when the file moves, read as the move opens, for a file that has more beside it than its backups. */
   beside?: (() => DriveFileBeside) | undefined
-  /** What the move changes in the app's settings, for a file with such a setting. */
-  afterMove?: (() => Promise<void>) | undefined
   /** The title the app stores on a file it makes, and the words shown for it in the language on screen. */
   seededTitle?: { readonly stored: string; readonly shown: string }
 }>()
@@ -123,7 +121,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
         <UButton v-if="holdsData" icon="i-lucide-trash-2" :label="words.deleteData.open" color="error" variant="ghost" size="sm" data-testid="delete-data" @click="deleting = true" />
       </div>
     </div>
-    <MoveIntoKunaDialog v-model:open="moving" :app-id="appId" :file-name="fileName ?? ''" :store="store" :beside="beside" :after-move="afterMove" @ended="readPlace" />
+    <MoveIntoKunaDialog v-model:open="moving" :app-id="appId" :file-name="fileName ?? ''" :store="store" :beside="beside" @ended="readPlace" />
     <DeleteAppDataDialog v-model:open="deleting" :data="data" />
   </AppCard>
 </template>

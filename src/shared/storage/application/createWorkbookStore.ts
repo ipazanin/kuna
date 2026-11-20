@@ -108,8 +108,6 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
   driveHomeOfApp(parentId: string | null): Promise<string>
   /** Whether Drive already holds the Kuna folder, null while the page holds no token, so that stays unknown. */
   hasKunaFolder(): Promise<boolean | null>
-  /** Makes a folder of this name beside the file, unless the app made one there before. */
-  folderBesideFile(fileId: string, name: string): Promise<void>
   /** What a move of the file into the Kuna folder would take and leave, changing nothing. */
   planMoveIntoKuna(fileId: string, beside: DriveFileBeside): Promise<DriveMovePlan>
   /** Moves the file into the app's subfolder of the Kuna folder, as `moveDriveDocument` says, and gives the names that stayed because theirs was taken. */
@@ -185,18 +183,15 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
   driveHomeOfApp(parentId: string | null): Promise<string>
   /** Whether Drive already holds the Kuna folder, as `WorkbookStorePorts.hasKunaFolder` says. */
   hasKunaFolder(): Promise<boolean | null>
-  /** Makes a folder of this name beside the chosen Drive file. Does nothing for a workbook kept in this browser. */
-  folderBesideFile(name: string): Promise<void>
   /** What a move of the chosen Drive file into the Kuna folder would take and leave, read from the file as it is now, or null for a workbook kept in this browser. */
   planMoveIntoKuna(beside: () => DriveFileBeside): Promise<DriveMovePlan | null>
   /**
    * Moves the chosen Drive file into the app's subfolder of the Kuna folder, with a new Kuna folder in `parentId`, or at the top of My Drive
    * for null. It reads the file first, so what goes along comes from the settings as they are now, not as this device last saw them. No write or
    * sync runs meanwhile: `WorkbookWriteRefused` says so while anything is queued, and what comes after waits. The file keeps its id, so this and every other device keep reading
-   * it. `afterMove` writes what the move changed in the settings, before the move counts as over, so a failure there can be pressed again. Gives the
-   * names that stayed because theirs was taken.
+   * it. Gives the names that stayed because theirs was taken.
    */
-  moveIntoKuna(beside: () => DriveFileBeside, parentId: string | null, afterMove?: () => Promise<void>): Promise<readonly string[]>
+  moveIntoKuna(beside: () => DriveFileBeside, parentId: string | null): Promise<readonly string[]>
   /**
    * Keeps the contents, an opened file's, a fresh start's or the workbook kept in this browser, in a
    * new file in the folder, and shows that file once it reads back with the same records. Leaving a
@@ -612,11 +607,6 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       return ports.hasKunaFolder()
     },
 
-    async folderBesideFile(name) {
-      const choice = state.choice
-      if (choice?.source === 'drive') await ports.folderBesideFile(choice.id, name)
-    },
-
     async planMoveIntoKuna(beside) {
       const choice = state.choice
       if (choice?.source !== 'drive') return null
@@ -624,7 +614,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       return ports.planMoveIntoKuna(choice.id, beside())
     },
 
-    async moveIntoKuna(beside, parentId, afterMove) {
+    async moveIntoKuna(beside, parentId) {
       const choice = state.choice
       if (choice?.source !== 'drive') {
         return []
@@ -634,7 +624,6 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
         await readChosenNow(choice)
         return ports.moveIntoKuna(choice.id, beside(), parentId)
       })
-      await afterMove?.()
       await ports.finishMoveIntoKuna(choice.id)
       return left
     },

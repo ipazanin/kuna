@@ -38,7 +38,7 @@ const IMPORT_STATEMENT: AssistantOperation = {
   about: [
     "Imports a bank statement through Import's own dry run: rows already on the ledger are skipped, the rules file the new rows, and each account's rows must run on from its balance.",
     'file names the attached file by its id, whatever its format, a camt XML file or a bank sheet included, or null for a statement pasted as text.',
-    "An account the bank's statements fill, rowsFrom mail on its reading, takes no copied row and no bank sheet on any day, and a camt file only when its alsoFrom holds provider-file. Its rows come in when the statement reaches the statements folder, so tell the person that rather than copy it.",
+    "An account the bank's statements fill, rowsFrom mail on its reading, takes no copied row and no bank sheet on any day, and a camt file only when its alsoFrom holds provider-file. Its rows come in when a sync reads the bank's statement mail, so tell the person that rather than copy it.",
     'Read every row and copy each as written, oldest first, money out below zero. statementName names the statement in words as it names itself, such as its number or the month it covers, never as a key or as dates joined by a slash. Give the opening and closing balances only as the statement prints them, and never work one out. Without them the balances run on from the ledger and the card warns that Kuna could not check the rows.',
     `lookAlikes says what becomes of a copied row that looks like a ledger row from another source, such as a camt file or a bank sheet: the same amount on the same account at most ${BOOKING_DAYS_APART} days apart, unless the two counterparties and descriptions share no word. ask keeps it waiting, and the card lists it and asks the person to say in the chat. import imports it once the person says it is another payment: propose the same rows again with import once the card is answered, and a row dated before the account's newest row is still refused. A row of the same day, amount and counterparty as a ledger row is skipped either way.`,
     `A card carries at most ${ROWS_A_PART} copied rows. A longer statement goes in parts, oldest first, each its own card with only its own rows and the same statementName, part 1 first and each part once the one before is accepted. A part ends at the end of a day. Part 1 gives the opening alone and the last part both balances, and the parts between give neither. Kuna checks on the last part that its rows run on from where the earlier parts left the account to the closing. A statement in one part gives both or neither.`,
@@ -79,7 +79,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'file-held-statements',
     about:
-      "Files the statements the last sync of the statements folder held back, as Import's folder card does: an account with no rows starts at its statement's opening, and a statement of a new IBAN adds the account named in newAccount.",
+      "Files the statements the last sync of the bank's mail held back, as Import's card of the bank's mail does: an account with no rows starts at its statement's opening, and a statement of a new IBAN adds the account named in newAccount.",
     input: inputOf(START_FIELDS),
     refs: {},
     creates: null,
@@ -192,7 +192,7 @@ function upToPart(readings: readonly StatementReading[], part: number): readonly
  * at zero for copied rows that print no balances, and a statement of a new IBAN under the account the step names. A statement the dry run refuses refuses the card, with its reason.
  * `copied` is the warning on rows the AI copied, null for held statements, and its label names the statement on every note. The card asks about look-alikes first, then warns, then states plain facts.
  * `earlierRows` is how many rows of each statement the parts before this card's hold, which the model does not hear of again.
- * `camtOrigin` is `automation` for the statements folder's own held statements, as on Import's folder card, and the person's file otherwise.
+ * `camtOrigin` is `automation` for the held statements of the bank's mail, as on Import's card of the bank's mail, and the person's file otherwise.
  */
 function writeStatements(
   card: CompanyCard,
@@ -278,7 +278,7 @@ function importStatement(card: CompanyCard, step: ProposalStep): void {
   writeStatements(card, readings, field['newAccount'], { label: shownAs, text: warning, tone: 'warning' }, 'provider-file')
 }
 
-/** The statements the last sync of the statements folder held back for a person, which `app.ts` hands in. */
+/** The statements the last sync of the bank's mail held back for a person, which `app.ts` hands in. */
 export type HeldStatements = () => readonly StatementReading[]
 
 function fileHeldStatements(card: CompanyCard, step: ProposalStep, held: HeldStatements): void {

@@ -40,7 +40,6 @@ vi.mock('../src/apps/company/workbook/application/workbookStore', () => ({
 }))
 vi.mock('../src/apps/company/workbook-files/presentation/LocalWorkbookStatus.vue', () => ({ default: {} }))
 vi.mock('../src/apps/company/mail/presentation/useMailSync', () => ({ useMailSync: () => ({ step: { id: 'mail' } }), mailNeeds: () => [] }))
-vi.mock('../src/apps/company/imports/presentation/useStatementSync', () => ({ useStatementSync: () => ({ step: { id: 'statements' } }), statementNeeds: () => [] }))
 vi.mock('../src/shared/storage/presentation/useRecordWrites', () => ({ useRecordWrites: () => ({ undo: async () => {} }) }))
 vi.mock('../src/apps/investments/prices/presentation/usePrices', () => ({ PRICES_STEP: { id: 'prices' } }))
 vi.mock('../src/apps/investments/mail/presentation/useMailReports', () => ({ MAIL_STEP: { id: 'ibkr-mail', label: 'IBKR report' }, MAIL_SCOPE: 'gmail.readonly' }))

@@ -30,8 +30,6 @@ export const en = {
     return accounts.length === 0 ? `Imported ${counted}` : `Added ${accounts.join(' and ')} and imported ${counted}`
   },
   sync: {
-    notCamt: (fileName: string) => `${fileName} is not a camt.053 statement, so it was not read.`,
-    folderNotRead: (why: string) => `The statements folder could not be read: ${why}`,
     syncAgain: 'Not filed. Sync again.',
     /** "Filed statement 028, 4 rows", "Filed statements 028 and 029, 5 rows", or "Filed 3 statements, 9 rows". */
     filed: (numbers: readonly string[], rows: number) => {
@@ -65,8 +63,6 @@ export const hr: Translation<typeof en> = {
     return `${added} i ${rowsImported(rows)}`
   },
   sync: {
-    notCamt: (fileName) => `„${fileName}” nije camt.053 izvod, pa nije pročitan.`,
-    folderNotRead: (why) => `Mapa izvoda nije se mogla pročitati: ${why}`,
     syncAgain: 'Nije upisano. Sinkronizirajte ponovno.',
     filed: (numbers, rows) => {
       const count = numbers.length

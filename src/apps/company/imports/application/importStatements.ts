@@ -65,7 +65,7 @@ export function newAccountNameProblem(name: string, taken: ReadonlySet<string>):
  * is filed under that account, and a name that cannot be used names no account. The new rows pay
  * the invoices `proposedInvoicePayments` places them on, on books that place client payments, and
  * on books with an items tab that do not yet when `startsPlacing`, since confirming starts it. `camtOrigin` says whether a camt
- * statement comes from the statements folder or from the person.
+ * statement comes from the bank's mail or from the person.
  */
 export function dryRunFor(
   readings: readonly StatementReading[],

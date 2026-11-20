@@ -4,14 +4,14 @@ import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
 import AppCard from '../../shared/ui/AppCard.vue'
 import GallerySection from './GallerySection.vue'
 
-/** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statements step filed a statement. */
+/** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statement mail step filed a statement. */
 const SYNC_CONTROLS: readonly SyncControl[] = [
   { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
-  { kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 3 rows' },
+  { kind: 'running', label: 'Statement mail', position: 2, of: 3, line: 'Filing 3 rows' },
   { kind: 'sign-in', failure: null },
-  { kind: 'allow-access', scopes: ['drive.readonly', 'gmail.readonly'], labels: ['Mail', 'Statements'], failure: null },
-  { kind: 'allow-access', scopes: ['drive.readonly', 'gmail.readonly'], labels: ['Mail', 'Statements'], failure: "Google's window was closed before access was allowed." },
-  { kind: 'problems', count: 1, labels: ['Statements'] },
+  { kind: 'allow-access', scopes: ['gmail.readonly'], labels: ['Statement mail'], failure: null },
+  { kind: 'allow-access', scopes: ['gmail.readonly'], labels: ['Statement mail'], failure: "Google's window was closed before access was allowed." },
+  { kind: 'problems', count: 1, labels: ['Statement mail'] },
 ]
 
 const SYNC_RUN: SyncRun = {
@@ -23,11 +23,10 @@ const SYNC_RUN: SyncRun = {
       name: 'Company',
       steps: [
         { id: 'books', label: 'Books', scopes: ['drive.file'], state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
-        { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], state: { kind: 'done', line: 'Nothing new, already there 50', writeId: null, link: null } },
         {
-          id: 'statements',
-          label: 'Statements',
-          scopes: ['drive.readonly'],
+          id: 'mail',
+          label: 'Statement mail',
+          scopes: ['gmail.readonly'],
           state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/gallery' } },
         },
       ],

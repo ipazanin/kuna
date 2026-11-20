@@ -33,8 +33,6 @@ export interface DocumentDrive {
   appPropertyOf(fileId: string, key: string): Promise<string | null>
   /** Sets a property only this app sees, or removes it for null, with no new revision. */
   setAppProperty(fileId: string, key: string, value: string | null): Promise<void>
-  /** The folder at this path from My Drive, or null when the page cannot read one there. */
-  folderAtPath(path: readonly string[]): Promise<string | null>
   createFile(parentId: string, name: string, text: string, appProperties?: Readonly<Record<string, string>>): Promise<{ readonly id: string; readonly revision: string }>
   trash(fileId: string): Promise<void>
   /** The ids of the files the app gave this property, the trashed ones left out. */

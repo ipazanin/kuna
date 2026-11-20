@@ -128,17 +128,11 @@ export function companyAssistant(
         what: words.automations.statementsFromMail.what(AUTOMATION_LABELS),
         setUpRoute: GENERAL_SETTINGS_LINK,
       },
-      {
-        id: 'statements-on-sync',
-        title: words.automations.statementsOnSync.title,
-        what: words.automations.statementsOnSync.what(AUTOMATION_LABELS),
-        setUpRoute: GENERAL_SETTINGS_LINK,
-      },
     ],
     setUp: [
       { key: 'first-statement', about: 'No statement row is in yet.', operations: ['import-statement'] },
       { key: 'first-rules', about: 'Rows a rule could file wait, and fewer than five rules of the person file them.', operations: ['add-rule'] },
-      { key: 'statements-folder', about: 'Filing statements on sync is on, with no statements folder.', operations: [] },
+      { key: 'statements-mail', about: "An account takes the bank's statements, with no address the bank mails them from.", operations: [] },
       {
         key: 'categories',
 

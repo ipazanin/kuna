@@ -1,7 +1,6 @@
 import { FOLDER_MIME_TYPE } from '../../google/driveClient'
-import { MAIL_SOURCE_PROPERTY } from '../../mail-filing/domain/mailSource'
 import { DriveMoveRefused } from '../application/driveMoveRefused'
-import type { DriveFileBeside, DriveMovePlan, KunaFilesFolder, KunaFilesInFolder } from '../application/workbookPorts'
+import type { DriveFileBeside, DriveMovePlan, KunaFilesInFolder } from '../application/workbookPorts'
 import { APP_PROPERTY, KUNA_FOLDER_MARK } from '../domain/driveMarks'
 import { KUNA_FOLDER_NAME } from '../domain/kunaFolderName'
 import { backupDayOf, BACKUPS_FOLDER } from './driveDocument'
@@ -9,6 +8,9 @@ import type { DocumentDrive } from './driveDocument'
 
 /** The property a moved file carries, naming the folder the rest of it still sits in, until the move has brought the rest. */
 const MOVED_FROM = 'movedFrom'
+
+/** The property that names the mail source a file was filed from, which files Kuna filed from mail before it read mail straight into the books carry. */
+const MAIL_SOURCE_PROPERTY = 'kuna-mail'
 
 /** The person's own Kuna folder, or null before any device made one. */
 export async function findKunaFolder(drive: DocumentDrive): Promise<string | null> {
@@ -76,10 +78,6 @@ async function filesWithin(drive: DocumentDrive, folderId: string, mailSource: s
   return { kuna, others }
 }
 
-async function folderToRead(drive: DocumentDrive, sourceId: string, folder: KunaFilesFolder): Promise<string | null> {
-  return folder.fromPath === undefined ? childFolder(drive, sourceId, folder.name) : drive.folderAtPath(folder.fromPath)
-}
-
 /** The file's own folder, which is the old one while a move is unfinished. */
 async function homeOfFile(drive: DocumentDrive, fileId: string): Promise<string> {
   return (await unfinishedMoveOf(drive, fileId)) ?? (await drive.parentOf(fileId))
@@ -109,10 +107,10 @@ export async function planDriveMove(drive: DocumentDrive, fileId: string, app: s
   const entries = await drive.children(sourceId)
   const folders: KunaFilesInFolder[] = []
   for (const folder of beside.folders) {
-    const folderId = await folderToRead(drive, sourceId, folder)
+    const folderId = await childFolder(drive, sourceId, folder.name)
     if (folderId !== null) {
       const { kuna, others } = await filesWithin(drive, folderId, folder.mailSource)
-      folders.push({ name: folder.name, kuna: kuna.length, others, ...(folder.fromPath === undefined ? {} : { fromPath: folder.fromPath }) })
+      folders.push({ name: folder.name, kuna: kuna.length, others })
     }
   }
   return {
@@ -146,7 +144,7 @@ async function moveBeside(drive: DocumentDrive, sourceId: string, targetId: stri
     if (beside.files.includes(entry.name) && madeByKuna(entry, null)) left.push(...(await moveFile(drive, entry, sourceId, targetId)))
   }
   for (const folder of beside.folders) {
-    const folderId = await folderToRead(drive, sourceId, folder)
+    const folderId = await childFolder(drive, sourceId, folder.name)
     if (folderId !== null) {
       for (const { entry, parentId, below } of (await filesWithin(drive, folderId, folder.mailSource)).kuna) {
         left.push(...(await moveFile(drive, entry, parentId, await folderBelow(drive, targetId, [folder.name, ...below]))))

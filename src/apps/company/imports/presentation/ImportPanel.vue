@@ -29,7 +29,7 @@ import { loadImportFile } from '../infrastructure/importFiles'
 import type { LoadedImportFile } from '../application/importStatements'
 import DryRunStatementCard from './DryRunStatementCard.vue'
 import ProfileEditor from './ProfileEditor.vue'
-import StatementFolderCard from './StatementFolderCard.vue'
+import MailedStatementsCard from './MailedStatementsCard.vue'
 import { useDryRun } from './useDryRun'
 import { words } from './words'
 
@@ -209,7 +209,7 @@ const summary = computed(() => {
     <template v-else>
       <p class="max-w-prose type-aside">{{ words.panel.intro }}</p>
 
-      <StatementFolderCard />
+      <MailedStatementsCard />
 
       <AppCard :title="words.panel.file" :subtitle="words.panel.fileSubtitle">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="import-file">

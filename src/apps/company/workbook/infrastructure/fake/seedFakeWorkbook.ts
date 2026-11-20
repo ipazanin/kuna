@@ -9,10 +9,8 @@ import { createDriveDocument, documentName } from '../../../../../shared/storage
 import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, seedFakeBackups, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
-import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
 import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
 import {
-  FAKE_FOLDERS,
   FAKE_WORKBOOK_ID,
   categoryMovePlanRecords,
   fakeWorkbookDocument,
@@ -84,12 +82,12 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
 /**
  * Fills the browser from the synthetic workbook, as a successful sync would, and chooses it: a file
  * on the fake build's Drive, or with `?fake=browser` a workbook kept in this browser with changes nine
- * days past their last export, and `?fake=mail-move` books whose statements folder on the fake Drive holds a mix for a move, `?fake=browser-beside-drive` that workbook with a file another
+ * days past their last export, and `?fake=browser-beside-drive` that workbook with a file another
  * device made on the fake Drive too. `?fake=unregistered` is the file on Drive without the company's registration day, and a variant that ends in `older-interest` keeps bank interest on the other income class as older books do. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios`, `no-plan` or `no-ledger` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
- * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. A variant that starts with `mail` names the bank's mail, which the
- * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
+ * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. Books on the fake Drive name the bank's mail, which the
+ * fake mailbox answers, but for `?fake=mail-off`. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, one that ends
@@ -126,7 +124,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
   const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : variant?.endsWith('refused-splits') ? withRefusedSplits(planned) : planned
   const kept = missing === null ? unlinked : { ...unlinked, records: { ...unlinked.records, [missing]: [] } }
-  const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : kept
+  const mailed = source === 'drive' && variant !== 'mail-off' ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : kept
   const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {
     raceTheNextSave(otherDeviceSave)
@@ -156,9 +154,6 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
           document,
         }
       : await onFakeDrive(text, savedAt, document)
-  if (variant === 'mail-move') {
-    await seedMixedStatements()
-  }
   if (source === 'drive' && new URLSearchParams(window.location.search).has('backups')) {
     await seedFakeBackups(copy.meta.id, COMPANY_APP)
   }
@@ -172,18 +167,6 @@ function otherDeviceSave(text: string): string {
   const ledger = (document.records['ledger-row'] ?? []).map((row) => (row === kiosk ? { ...row, flagged_by: 'phone' } : row))
   const items = (document.records.item ?? []).map((item) => (kiosk !== undefined && item.row_id === kiosk[ID_FIELD] ? { ...item, category: 'travel' } : item))
   return encodeDocument({ ...document, records: { ...document.records, 'ledger-row': ledger, item: items } })
-}
-
-/** A made-up statements folder holding a statement Kuna filed from mail, one a script filed and a file another mail source filed, for the move to sort out. */
-async function seedMixedStatements(): Promise<void> {
-  const drive = fakeDriveSession()
-  const finance = await drive.createFolder('root', FAKE_FOLDERS.statements[0])
-  const statements = await drive.createFolder(finance, FAKE_FOLDERS.statements[1])
-  const year = await drive.createFolder(statements, `2026-${FAKE_FOLDERS.statements[1]}`)
-  await drive.createFile(year, '2026-09-01-statement-010-main.xml', '<Document/>', { [MAIL_SOURCE_PROPERTY]: 'statements' })
-  const scripted = await drive.createFile(year, '2026-09-02-statement-011-main.xml', '<Document/>')
-  drive.file(scripted.id).isAppAuthorized = false
-  await drive.createFile(year, '2026-09-pdv.xlsx', 'made up', { [MAIL_SOURCE_PROPERTY]: 'vat' })
 }
 
 async function onFakeDrive(text: string, savedAt: string, document: DocumentCopy['document']): Promise<DocumentCopy> {

@@ -85,9 +85,9 @@ export type DryRunRefusal =
   | { readonly kind: 'before-newest'; readonly first: CivilDate; readonly newest: CivilDate; readonly account: string }
   | { readonly kind: 'missing-between'; readonly account: string; readonly balance: Money; readonly day: CivilDate; readonly before: Money }
   | { readonly kind: 'part-does-not-tie'; readonly account: string; readonly left: Money; readonly rows: Money; readonly reached: Money; readonly closing: Money; readonly gap: Money }
-  /** The account takes its rows from the bank's statements, which reach the statements folder, and takes none from where this statement came. */
+  /** The account takes its rows from the bank's statements, which each sync reads from the bank's mail, and takes none from where this statement came. */
   | { readonly kind: 'statements-fill'; readonly account: string; readonly startsOn: CivilDate; readonly origin: Exclude<RowOrigin, 'automation'> }
-  /** A statement of the folder for an account kept by hand, which the sync leaves to the person. */
+  /** A statement of the bank's mail for an account kept by hand, which the sync leaves to the person. */
   | { readonly kind: 'kept-by-hand'; readonly account: string }
   /** A statement of the folder that starts before the day the bank's statements fill its account from. */
   | { readonly kind: 'before-start'; readonly account: string; readonly startsOn: CivilDate; readonly first: CivilDate }
@@ -174,7 +174,7 @@ export interface DryRunInputs {
   readonly twinAnswers: ReadonlyMap<string, TwinAnswer>
   /** How each account's rows come in, by its name. An account it lacks, such as one the import adds, is kept by hand. */
   readonly intakes: ReadonlyMap<string, CompanyIntake>
-  /** Where a camt statement comes from: the statements folder, which the bank's statements reach, or a file the person brings. */
+  /** Where a camt statement comes from: the bank's statement mail, which each sync reads, or a file the person brings. */
   readonly camtOrigin: Extract<RowOrigin, 'automation' | 'provider-file'>
   /** What the new entries pay of the invoices and of the records a pack keeps, each entry as the items it becomes. */
   paymentsOf(added: readonly LedgerEntry[]): readonly RowPayments[]
@@ -286,7 +286,7 @@ function withPayments(statements: readonly DryRunStatement[], added: readonly Le
   }))
 }
 
-/** How a new account's rows come in: from the bank's statements from its first statement's day when that statement came from the statements folder, and by hand otherwise. */
+/** How a new account's rows come in: from the bank's statements from its first statement's day when that statement came from the bank's mail, and by hand otherwise. */
 function newAccountIntake(statement: ImportedStatement, newAccount: NewAccountStart, camtOrigin: DryRunInputs['camtOrigin']): CompanyIntake {
   return statement.source.kind === 'camt' && camtOrigin === 'automation' && newAccount.date !== null ? { rowsFrom: 'mail', startsOn: newAccount.date, alsoFrom: [] } : BY_HAND
 }
@@ -489,7 +489,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
 
 /**
  * Why the account does not take the statement's new rows from where they came, or null when it does. A camt statement of the
- * statements folder is the bank's own, which goes only on an account the bank's statements fill, from its start day. Any other
+ * bank's mail is the bank's own, which goes only on an account the bank's statements fill, from its start day. Any other
  * goes on such an account only from an origin it allows: a camt file the person brings when it allows the bank's file, and a
  * sheet or a copied statement never.
  */

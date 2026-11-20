@@ -200,8 +200,6 @@ export const en = {
       one: `${count} other file in those folders. Kuna cannot say it made it, as with an older file or one a script or a person put there, so it stays, and it goes on working there for whatever made it.`,
       other: `${count} other files in those folders. Kuna cannot say it made them, as with older files or ones a script or a person put there, so they stay, and they go on working there for whatever made them.`,
     }),
-    stopsReading:
-      ': Kuna stops reading this folder and files the same statements from your mail into its own folder, so nothing is lost. A script that files there is not touched, and goes on filing. A file you put there by hand and have not imported needs Import.',
     keepsWorking:
       'Kuna goes on finding the file on your other devices, with nothing to do there. Anything outside Kuna that reaches it by its path, such as Drive for Desktop or a script, needs the new path.',
     partWay: 'The file goes first. If what follows stops part way, a sync may not find a folder that has not caught up, and the button stays until you press it again.',
@@ -366,8 +364,6 @@ export const hr: Translation<typeof en> = {
       few: `${count} druge datoteke u tim mapama. Kuna ne može reći da ih je izradila, kao kod starijih datoteka ili onih koje je ondje stavila skripta ili osoba, pa ostaju i ondje i dalje služe onome što ih je izradilo.`,
       other: `${count} drugih datoteka u tim mapama. Kuna ne može reći da ih je izradila, kao kod starijih datoteka ili onih koje je ondje stavila skripta ili osoba, pa ostaju i ondje i dalje služe onome što ih je izradilo.`,
     }),
-    stopsReading:
-      ': Kuna prestaje čitati ovu mapu i sprema iste izvode iz vaše pošte u svoju mapu, pa se ništa ne gubi. Skripta koja ondje sprema ostaje netaknuta i nastavlja spremati. Datoteku koju ste ondje stavili ručno, a niste je uvezli, treba uvesti kroz Uvoz.',
     keepsWorking: 'Kuna i dalje pronalazi datoteku na vašim drugim uređajima, bez ikakve radnje. Sve izvan Kune što do nje dolazi po putu, poput Drivea za računala ili skripte, treba novi put.',
     partWay: 'Datoteka ide prva. Ako ono što slijedi stane na pola puta, sinkronizacija možda neće naći mapu koja još nije stigla, a gumb ostaje dok ga ponovno ne pritisnete.',
     cancel: 'Ne sada',

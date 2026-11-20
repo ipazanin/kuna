@@ -15,7 +15,6 @@ import { moneyFromCents } from '../src/shared/money/money'
 import { sheetJs } from '../src/shared/xlsx/sheetGrids'
 import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
 import { fileShapeOf } from '../src/apps/company/imports/domain/profileGuess'
-import { statementFilesToRead } from '../src/apps/company/imports/domain/statementFiles'
 import { readTabularStatement } from '../src/apps/company/imports/domain/tabularStatement'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
@@ -72,10 +71,6 @@ async function sentRows(name: string, bytes: Uint8Array<ArrayBuffer>): Promise<r
 }
 
 describe("a camt.053.001.02 statement in the Croatian banks' shape", () => {
-  it('is read from the statements folder by its BCS name, which carries no label of its own', () => {
-    expect(statementFilesToRead([{ id: 'f1', name: CAMT }], workbook.transactions).map((file) => file.name)).toEqual([CAMT])
-  })
-
   it('imports its booked entries, with codes and totals that end in a space trimmed, a counted batch and an upper-case reversal flagged, and the pending entry left out', async () => {
     const loaded = await loadImportFile(CAMT, bytesOf(CAMT).buffer)
     const readings = statementReadings(loaded, workbook, null)

@@ -1,6 +1,6 @@
 import { IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
 import type { MailReaderFault, MailReaderField } from '../domain/mailReaderTexts'
-import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
+import { words as mailWords } from '../../../../shared/mail/domain/words'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 

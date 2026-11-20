@@ -14,15 +14,15 @@ import ListRow from '../../../../shared/ui/ListRow.vue'
 import type { Settings, SettingsField } from '../../settings/domain/settings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { displayNamesOf } from '../../workbook/domain/displayName'
-import { mailAddressesOf } from '../../../../shared/mail-filing/domain/mailSource'
-import MailPlanList from '../../../../shared/mail-filing/presentation/MailPlanList.vue'
+import { mailAddressesOf } from '../../../../shared/mail/domain/mailSource'
+import StatementMailList from './StatementMailList.vue'
 import { ACCOUNTS_LINK, useMailSync } from './useMailSync'
 import { words } from './words'
 
 /**
  * The mail card of Settings, General: where each sync looks in Gmail for the bank's statements,
  * edited in the settings form's draft and saved by its Save, the accounts those statements fill
- * from their start day, and what the last sync's mail step found and filed of them. A link to
+ * from their start day, and what the last sync's mail step read of them. A link to
  * `#mail`, as the mail step's line gives, opens it.
  */
 const props = defineProps<{
@@ -121,7 +121,7 @@ function updateSenders(text: string): void {
       </div>
       <div class="flex flex-col gap-3">
         <h3 class="type-card-title">{{ words.card.lastSync }}</h3>
-        <MailPlanList :plan="mail.state.plan" :stopped="mail.state.stopped" :why="words.card.searchedFrom" />
+        <StatementMailList :plan="mail.state.plan" :stopped="mail.state.stopped" />
       </div>
     </div>
   </AppCard>

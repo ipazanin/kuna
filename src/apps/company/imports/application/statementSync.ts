@@ -3,23 +3,18 @@ import type { WorkbookStore } from '../../../../shared/storage/application/creat
 import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import type { WriteReceipt } from '../../../../shared/storage/application/recordWrites'
 import { WorkbookWriteRefused } from '../../../../shared/storage/application/workbookWriteRefused'
-import type { Workbook } from '../../workbook/domain/workbook'
 import type { DryRunStatement } from '../domain/importDryRun'
 import type { StatementReading } from '../domain/importedStatement'
-import { statementFilesToRead } from '../domain/statementFiles'
-import type { StatementFile } from '../domain/statementFiles'
-import { dryRunFor, statementReadings, writeImport } from './importStatements'
+import { dryRunFor, writeImport } from './importStatements'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
-import type { LoadedImportFile } from './importStatements'
-import type { StatementFolder } from './statementFolder'
 import { words } from './words'
 
-/** What the statements step of a sync is doing: looking through the folder, or filing this many rows. */
+/** What filing a sync's statements is doing: checking them against the ledger, or filing this many rows. */
 export type StatementSyncStep = { readonly kind: 'looking' } | { readonly kind: 'filing'; readonly rows: number }
 
-/** What one sync did with the statements folder. It is held by the page and never stored. */
+/** What one sync did with the statements it read. It is held by the page and never stored. */
 export interface StatementSyncOutcome {
-  /** Why the folder could not be read or the statements not filed, or null. */
+  /** Why the statements were not filed, or null. */
   readonly problem: string | null
   /** The statements this sync read and did not file, which wait for the person on the Import tab. */
   readonly held: readonly StatementReading[]
@@ -33,58 +28,22 @@ export const NOTHING_FILED: StatementSyncOutcome = { problem: null, held: [], fi
 
 export interface StatementSyncPorts {
   readonly store: Pick<WorkbookStore<CompanyBooks>, 'state' | 'sync' | 'write'>
-  readonly folder: StatementFolder
-  load(fileName: string, bytes: ArrayBuffer): Promise<LoadedImportFile>
   step(step: StatementSyncStep): void
 }
 
 /**
- * Files the statements of the folder the ledger lacks, after the file was read: the files whose
- * name the ledger does not hold are downloaded and read, one dry run takes them all, and one write
- * adds every statement it accepts through the ledger's write rules, as Import does. Only an account the bank's statements fill
- * takes them, from its start day. A statement it refuses, such as one of an account kept by hand or one before that day, one
- * that waits for its account to start, or one whose IBAN no account has, is held, and nothing
- * after it is written for that account. A sync with nothing new downloads nothing and writes
- * nothing. Google turning the token away throws, so the sync can ask for access.
+ * Files the statements a sync read from the bank's mail: one dry run takes them all, and one write adds every statement it
+ * accepts through the ledger's write rules, as Import does. Only an account the bank's statements fill takes them, from its
+ * start day. A statement it refuses, such as one of an account kept by hand or one before that day, one that waits for its
+ * account to start, or one whose IBAN no account has, is held, and nothing after it is written for that account. A sync whose
+ * statements the ledger holds already writes nothing. Google turning the token away throws, so the sync can ask for access.
  */
-export async function fileNewStatements(ports: StatementSyncPorts): Promise<StatementSyncOutcome> {
-  const workbook = ports.store.state.workbook
-  if (workbook === null) {
+export async function fileNewStatements(readings: readonly StatementReading[], ports: StatementSyncPorts): Promise<StatementSyncOutcome> {
+  if (ports.store.state.workbook === null || readings.length === 0) {
     return NOTHING_FILED
   }
   ports.step({ kind: 'looking' })
-  let readings: StatementReading[]
-  try {
-    const listing = await ports.folder.files(workbook.settings.statementsFolder)
-    if (listing.kind === 'refused') {
-      return { ...NOTHING_FILED, problem: listing.reason }
-    }
-    const toRead = statementFilesToRead(listing.files, workbook.transactions)
-    if (toRead.length === 0) {
-      return NOTHING_FILED
-    }
-    readings = (await Promise.all(toRead.map((file) => readingsOf(file, ports, workbook)))).flat()
-  } catch (failure) {
-    if (isUnauthorized(failure)) {
-      throw failure
-    }
-    return { ...NOTHING_FILED, problem: words.sync.folderNotRead(messageOf(failure)) }
-  }
   return await fileReadings(readings, ports, true)
-}
-
-async function readingsOf(file: StatementFile, ports: StatementSyncPorts, workbook: Workbook): Promise<StatementReading[]> {
-  const bytes = await ports.folder.download(file)
-  let loaded: LoadedImportFile
-  try {
-    loaded = await ports.load(file.name, bytes)
-  } catch (failure) {
-    return [{ fileName: file.name, label: file.name, refusal: messageOf(failure) }]
-  }
-  if (loaded.kind !== 'camt') {
-    return [{ fileName: file.name, label: file.name, refusal: words.sync.notCamt(file.name) }]
-  }
-  return statementReadings(loaded, workbook, null)
 }
 
 /**

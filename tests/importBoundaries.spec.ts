@@ -119,7 +119,7 @@ const DOMAIN_SHARED = [
   'src/shared/app/accountSource.ts',
   'src/shared/app/moneyMatch.ts',
   'src/shared/categorising/domain/',
-  'src/shared/mail-filing/domain/',
+  'src/shared/mail/domain/',
   'src/shared/recipes/domain/',
   'src/shared/privacy/domain/',
 ]
@@ -208,7 +208,7 @@ function readsPublished(entry: Import): boolean {
 }
 
 /** The shared modules that each hold one capability two apps use, which stay apart so none grows into another. */
-const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail-filing/', 'src/shared/privacy/']
+const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail/', 'src/shared/privacy/']
 
 function capabilityOf(file: string): string | null {
   return CAPABILITIES.find((folder) => file.startsWith(folder)) ?? null

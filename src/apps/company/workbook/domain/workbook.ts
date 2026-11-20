@@ -46,7 +46,7 @@ export function categoryIdOf(category: Pick<Category, 'slug'>): RecordId {
 /** The ways a Company account's rows come in. Company has no bank link yet. */
 export const COMPANY_ROWS_FROM = ['mail', 'by-hand'] as const satisfies readonly AccountSource[]
 
-/** How an account's rows come in: from the bank's statements, which reach the statements folder by mail or by hand, from a start day, or by hand. */
+/** How an account's rows come in: from the bank's statements, which each sync reads from the bank's mail, from a start day, or by hand. */
 export type CompanyIntake = AccountIntake<'mail'>
 
 export interface Account {

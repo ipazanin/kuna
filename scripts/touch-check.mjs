@@ -19,7 +19,7 @@
  * IBAN typed as tags, refused, removed and saved, the client's with Undo, in both modes, an owner advance
  * changed, deleted and brought back, a payment split, edited, deleted and
  * brought back, the same from a row of the To review queue, ledger rows without an id given theirs from Waiting for you and taken back by Undo, a group of rows no rule repeats dismissed, restored and the restore undone, the same for the interest income class older books lack on Settings, General,
- * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
+ * the way back from Google with one token for every scope and the sync it resumes ending ready, with Gmail read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
  * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, 100,000 at 4% over 10 years typed into a new scenario with the editor's headline reading the annuity and then equal principal, a rate change tried on a loan's page, saved in Saved tries, deleted and undone, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart opened with no key, its funds waiting for a Twelve Data key with a link to the Prices settings, then searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY), named so on its chip and in the chart's words, and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, Paste from factsheet in a fund's Change dialog reading an English and Croatian country table, flagging what it cannot read and filling the country mix on Fill, a fund's empty fund profile warning on its Details card cleared by Ask again, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a dollar sale typed with its tax line read as about, the Tax screen's Sales tab listing the sales by their lots and handing over kuna-porez-2026.xlsx, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, a key in the Investments file's old keys file taken by the sync on open, alone and beside an older one in the secrets file, with the secrets file left alone in the hidden folder, the delete of an app's data on the sample on Drive asked first, backed up, cancelled and then done to the first run with the vendor key and the secrets file kept, in English and Croatian, with only the copy ticked, refused for a file someone shared, for a file kept in this browser with another tab following, the delete of all of Kuna needing its name typed, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a made-up AI key typed, saved, tested, given Opus 5.5, removed and put back on Kuna settings, a key refused, a key fetched from Google, a switch of company that keeps the other key, Company's Assistant tab and Spending's, and Company's switch still on after a reload,
@@ -31,7 +31,7 @@
  * on a card, accepted and undone, and a sale over the units held refused, a text note beside a photo refused on the chat's
  * prompt, a salary figure's build-up read with Anonymise off and refused with nothing sent once Anonymise is on again, a chat left empty by Sign out on Kuna settings
  * and by Company's last file on Drive kept in this browser in its place,
- * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
+ * a statement filed on Sync from the fake bank's mail with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
  * a save on the Mail card that asks for Gmail read in its own tap and syncs, Allow access whose Google window closed with why in what a screen reader hears,
@@ -47,9 +47,9 @@
  * advance, a pay scenario's component, the starting scenarios, a category's plan and a planned purchase in Croatian, each undone, the Tax rules search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, the first run kept
  * on the fake Drive and in this browser with Back to the step that made the books and its Start over, both again in Croatian with Settings, General, Accounts and Books file and the card settlement IBANs saved, the folder step offering to open the books
- * the fake Drive already holds, new books, a move from this browser and the Loans file alike, new books on the fake Drive with statements from mail and their first sync, the statement step asking for Drive read before the Picker,
+ * the fake Drive already holds, new books, a move from this browser and the Loans file alike, new books on the fake Drive with statements from mail and their first sync,
  * an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
- * moved there from Settings, Books file with the Drive read its folders need asked up front, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
+ * moved there from Settings, Books file, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
  * and a row edited while filtered and sorted, saved and undone, a row confirmed while another device files the other one, the notice for a file a
  * newer app saved, the Assets card opening the Assets Overview, the Assets first run finding the file another device made
  * on Drive and keeping a new one in this browser, a flat added by touch with its region and the Home loan, its loan cleared and
@@ -257,7 +257,6 @@ import {
   mailOffFlow,
   mailPlanSpecimenFlow,
   mailSaveAsksFlow,
-  mailUploadFailedFlow,
   mailRateLimitedFlow,
   mailWindowFlow,
   moveFromBrowserFlow,
@@ -273,7 +272,6 @@ import {
   kunaWelcomeBrowserFlow,
   kunaWelcomeFlow,
   moveIntoKunaFlow,
-  moveStatementsIntoKunaFlow,
   onboardingDeliveryFlow,
   onboardingPackFlow,
   onboardingOnDriveFlow,
@@ -309,13 +307,11 @@ import {
   itemsMoveBlockedFlowIn,
   startingScenariosFlow,
   startingScenariosFlowIn,
-  statementAccessFlow,
   spendingFirstAccountFlow,
   spendingAccountOpensTodayFlow,
   investmentsHistoryFlow,
   investmentsAddHeldFlow,
   statementSyncFlow,
-  statementsFolderFlow,
   saveFailsFlow,
   savesWaitingBenchmarkFlow,
   savesWaitingFlow,
@@ -1636,7 +1632,6 @@ async function checkWidth(browser, width) {
       ['categories-filters', '#/company/settings?tab=categories', 'Settings', categoryFiltersFlow],
       ['spending-category-colour', '#/spending/sorting#categories', 'Sorting', spendingCategoryColourFlowIn('en'), `${query}&spending=sample`],
       ['spending-category-colour-croatian', '#/spending/sorting#categories', 'Razvrstavanje', spendingCategoryColourFlowIn('hr'), `${query}&spending=sample&lang=hr`],
-      ['settings-statements-folder', '#/company/settings', 'Settings', statementsFolderFlow],
       ['settings-card-ibans', '#/company/settings', 'Settings', cardSettlementIbansFlow],
       ['clients-ibans', '#/company/invoicing?tab=clients', 'Invoicing', clientIbansFlow],
       ['assets', '#/company/year?tab=assets#asset-rows', 'Year', assetFlow],
@@ -1756,19 +1751,17 @@ async function checkWidth(browser, width) {
     ['statements-sync', '', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-held-croatian', '&fake=held-statement&lang=hr', heldStatementFlowIn('hr'), '#/company', overviewCroatian.title],
-    ['statements-access', '', statementAccessFlow],
     ['sync-running', '&fake=slow-statements', syncRunningFlow],
     ['saves-waiting', '&fake=slow-writes', savesWaitingFlow, '#/company/settings', 'Settings'],
     ['saves-waiting-benchmark', '&fake=slow-writes&investments=sample', savesWaitingBenchmarkFlow, '#/investments/settings', 'Settings'],
     ['save-fails', '&fake=save-fails', saveFailsFlow, '#/company/settings', 'Settings'],
-    ['mail-off', '', mailOffFlow],
+    ['mail-off', '&fake=mail-off', mailOffFlow],
     ['mail-filed', '&fake=mail', mailFiledFlow],
     ['mail-list-croatian', '&fake=mail&lang=hr', mailListFlowIn('hr'), '#/company', overviewCroatian.title],
-    ['mail-upload-failed', '&fake=mail-upload-failed', mailUploadFailedFlow],
     ['mail-nothing-new', '&fake=mail-nothing-new', mailNothingNewFlow],
     ['mail-failed', '&fake=mail-failed', mailFailedFlow],
     ['mail-access', '&fake=mail', mailAccessFlow],
-    ['mail-save-asks', '', mailSaveAsksFlow],
+    ['mail-save-asks', '&fake=mail-off', mailSaveAsksFlow],
     ['mail-plan-specimen', '', mailPlanSpecimenFlow, '#/gallery', 'Gallery', '[data-testid="gallery-mail-plan"], [data-testid="gallery-mail-stopped"]'],
     ['mail-rate-limited', '&fake=mail-rate-limited', mailRateLimitedFlow],
     ['mail-window', '&fake=mail-nothing-new', mailWindowFlow],
@@ -2408,13 +2401,13 @@ async function checkWidth(browser, width) {
     await inspect(page, `${width}px full grant return`)
     await shoot('google-return-full-grant')
 
-    // The same with Drive read unticked: the books sync, and the control asks for Drive read for the steps that need it.
+    // The same with Drive read and Gmail read unticked: the books sync, and the control asks for Gmail read for the statement mail step.
     await comeBack('drive', tapAsk, tokenOf(scopeOf('drive.file', 'gmail.compose')))
     await waitForTitle(page, 'Transactions')
     await syncStarted('a partial grant')
-    await controlShows('allow-access', 'a grant without Drive read did not leave Allow access in the sync control')
+    await controlShows('allow-access', 'a grant without Gmail read did not leave Allow access in the sync control')
     const partial = await control()
-    if (!partial.name.includes('Statements needs your Drive read access')) throw new Error(`after a partial grant a screen reader hears "${partial.name}"`)
+    if (!partial.name.includes('Statement mail needs your Gmail read access')) throw new Error(`after a partial grant a screen reader hears "${partial.name}"`)
     await expect(
       granted(),
       (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.appdata', 'gmail.compose', 'script.external_request']),
@@ -3338,7 +3331,6 @@ async function checkWidth(browser, width) {
     ['kuna-welcome-ai-refused-croatian', 'empty&ai=key-refused&lang=hr', kunaWelcomeAiRefusedFlowIn('hr'), '#/', 'Dobrodošli u Kunu'],
     ['import-repayment', 'open-advance', importRepaymentFlowIn('en', IMPORT_SAMPLES.refund), '#/company/transactions?tab=import', 'Transactions'],
     ['move-into-kuna', 'drive', moveIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
-    ['move-into-kuna-statements', 'mail-move', moveStatementsIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
     ['onboarding-drive-croatian', 'empty&lang=hr', onboardingDriveFlowIn('hr'), '#/company/start', 'Tvrtka'],
     ['onboarding-browser-croatian', 'empty&lang=hr', onboardingBrowserFlowIn('hr'), '#/company/start', 'Tvrtka'],

@@ -48,12 +48,12 @@ export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[]
   return [...core, ...shownPack(workbook.settings).waitingJobs(workbook, asOf, rates)]
 }
 
-/** The statements the last sync held, or why it could not read the folder, with the Import tab that shows them. */
+/** The statements the last sync held, or why it could not file them, with the Import tab that shows them. */
 export function statementsJob(notFiled: number, problem: string | null): WaitingJob | null {
   if (notFiled === 0 && problem === null) return null
   return {
     key: 'statements',
-    text: notFiled > 0 ? plural(words.waiting.notFiled(notFiled), notFiled) : words.waiting.folderUnread,
+    text: notFiled > 0 ? plural(words.waiting.notFiled(notFiled), notFiled) : words.waiting.statementsUnfiled,
     tone: 'warning',
     link: { label: words.waiting.links.import, to: { path: '/company/transactions', query: { tab: 'import' } } },
   }

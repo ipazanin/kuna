@@ -251,17 +251,6 @@ export function createFakeDrive(): FakeDrive {
       file.appProperties = Object.fromEntries(Object.entries({ ...file.appProperties, [key]: value }).filter((entry): entry is [string, string] => entry[1] !== null))
     },
 
-    async folderAtPath(path) {
-      requests.push('folderAtPath')
-      let current = 'root'
-      for (const name of path) {
-        const next = [...files.values()].find((file) => !file.trashed && file.parents.includes(current) && file.mimeType === FOLDER_MIME_TYPE && file.name === name)
-        if (next === undefined) return null
-        current = next.id
-      }
-      return current
-    },
-
     async createFile(parentId, name, text, appProperties = {}) {
       requests.push('createFile')
       const file = add(parentId, name, JSON_MIME_TYPE, text, appProperties)

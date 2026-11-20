@@ -116,9 +116,9 @@ export const en = {
     save: 'Save profile',
     saveNew: 'Save new profile',
   },
-  folder: {
-    title: 'From the statements folder',
-    subtitle: (folder: string) => `${folder} in Drive. Each sync files the statements there that the ledger lacks.`,
+  mailed: {
+    title: "From the bank's mail",
+    subtitle: "Each sync reads the bank's statement mail and files the statements the ledger lacks.",
     filedByLastSync: 'Filed by the last sync',
     filed: (label: string, account: string, rows: number, waiting: number) => `${label}, ${account}, ${rows === 1 ? '1 row' : `${rows} rows`}${waiting > 0 ? `, ${waiting} to review` : ''}`,
     openReview: 'Open the rows to review',
@@ -131,16 +131,13 @@ export const en = {
     confirm: 'Confirm and file',
   },
   step: {
-    label: 'Statements',
-    accessRanOut: 'The Google access ran out. Sync again.',
-    looking: 'Looking for new statements',
+    looking: 'Checking the statements against the ledger',
     filing: (count: number): EnglishForms => ({ one: 'Filing 1 row', other: `Filing ${count} rows` }),
     onReview: (title: string, waiting: number) => `${title}${waiting === 0 ? '' : `, ${waiting} to review`}.`,
     held: (count: number): EnglishForms => ({ one: '1 statement was not filed.', other: `${count} statements were not filed.` }),
     importLink: 'Import',
     reviewLink: 'To review',
     nothingNew: 'Nothing new',
-    beforeBooks: 'Nothing to look for before the books are read',
   },
 }
 
@@ -266,9 +263,9 @@ export const hr: Translation<typeof en> = {
     save: 'Spremi profil',
     saveNew: 'Spremi novi profil',
   },
-  folder: {
-    title: 'Iz mape izvoda',
-    subtitle: (folder) => `„${folder}” na Driveu. Svaka sinkronizacija upisuje izvode iz te mape kojih još nema u evidenciji.`,
+  mailed: {
+    title: 'Iz pošte banke',
+    subtitle: 'Svaka sinkronizacija čita poštu banke s izvodima i upisuje izvode kojih još nema u evidenciji.',
     filedByLastSync: 'Upisala zadnja sinkronizacija',
     filed: (label, account, rows, waiting) =>
       `${label}, ${account}, ${plural({ one: `${rows} stavka`, few: `${rows} stavke`, other: `${rows} stavki` }, rows)}${waiting > 0 ? `, ${waiting} za provjeru` : ''}`,
@@ -283,16 +280,13 @@ export const hr: Translation<typeof en> = {
     confirm: 'Potvrdi i upiši',
   },
   step: {
-    label: 'Uvoz izvoda',
-    accessRanOut: 'Googleov pristup je istekao. Sinkronizirajte ponovno.',
-    looking: 'Provjerava ima li novih izvoda',
+    looking: 'Uspoređuje izvode s evidencijom',
     filing: (count) => ({ one: `Upisuje ${count} stavku`, few: `Upisuje ${count} stavke`, other: `Upisuje ${count} stavki` }),
     onReview: (title, waiting) => `${title}${waiting === 0 ? '' : `, ${waiting} za provjeru`}.`,
     held: (count) => ({ one: `${count} izvod nije upisan.`, few: `${count} izvoda nisu upisana.`, other: `${count} izvoda nije upisano.` }),
     importLink: 'Uvoz',
     reviewLink: 'Za provjeru',
     nothingNew: 'Ništa novo',
-    beforeBooks: 'Nema se što tražiti prije čitanja datoteke',
   },
 }
 

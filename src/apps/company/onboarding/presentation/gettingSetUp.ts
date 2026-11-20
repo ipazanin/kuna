@@ -44,7 +44,7 @@ function firstRulesLine(workbook: Workbook): SetUpLine | null {
 
 /**
  * What the books still lack after onboarding, each gone once done: a first statement, its biggest
- * payees taught as rules, the statements folder while an account takes the bank's statements without one, a look over
+ * payees taught as rules, the bank's mail address while an account takes the bank's statements without one, a look over
  * the categories new books start with until someone says they look right, the company's invoice
  * details once there is a client to invoice, and how later statements arrive, once a first one is in
  * books on Drive whose accounts all take them by hand.
@@ -55,10 +55,10 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
   if (workbook.transactions.length === 0) {
     lines.push({ key: 'first-statement', text: words.setUp.firstStatement, whileEmpty: true, link: { label: words.setUp.importLink, to: { path: '/company/transactions', query: { tab: 'import' } } } })
   }
-  const { statementsFolder, statementsMailFrom } = workbook.settings
+  const { statementsMailFrom } = workbook.settings
   const bankFills = earliestStartDay(workbook.accounts.map((account) => account.intake)) !== null
-  if (bankFills && statementsFolder.length === 0) {
-    lines.push({ key: 'statements-folder', text: words.setUp.statementsFolder, link: { label: words.setUp.settingsLink, to: '/company/settings' } })
+  if (bankFills && statementsMailFrom.length === 0) {
+    lines.push({ key: 'statements-mail', text: words.setUp.statementsMail, link: { label: words.setUp.settingsLink, to: '/company/settings#mail' } })
   }
   if (!categoriesLookRight && categoriesAsNewBooksStart(workbook.categories)) {
     lines.push({
@@ -70,7 +70,7 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
   if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {
     lines.push({ key: 'invoice-terms', text: words.setUp.invoiceTerms, link: { label: words.setUp.clientsLink, to: { path: '/company/invoicing', query: { tab: 'clients' } } } })
   }
-  if (offersDelivery && workbook.transactions.length > 0 && !bankFills && statementsFolder.length === 0 && statementsMailFrom.length === 0) {
+  if (offersDelivery && workbook.transactions.length > 0 && !bankFills && statementsMailFrom.length === 0) {
     lines.push({ key: DELIVERY_LINE, text: words.setUp.delivery })
   }
   return lines

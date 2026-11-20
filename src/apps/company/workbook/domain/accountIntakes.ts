@@ -46,3 +46,20 @@ export function handDaysOf(account: string, ledger: readonly Pick<Transaction, '
 export function accountsWithIntakes(accounts: readonly Omit<AccountRecord, 'id'>[], ledger: readonly LedgerRow[], folderFiled: boolean): Account[] {
   return accounts.map((account) => ({ ...account, intake: account.intake ?? derivedIntake(account, ledger, folderFiled) }))
 }
+
+/**
+ * The day the bank's statement mail must still reach back to: for each account the mail fills, the day of its newest row from a
+ * bank statement, or its start day when it has none on or after it, and the oldest of those. Null while the mail fills no account.
+ * The oldest keeps a statement the sync held, such as one whose account waits to start, inside the search until it is filed.
+ */
+export function statementMailReach(accounts: readonly Pick<Account, 'slug' | 'intake'>[], ledger: readonly Pick<Transaction, 'account' | 'date' | 'statement' | 'reference'>[]): CivilDate | null {
+  const days = accounts.flatMap((account) => {
+    if (account.intake.rowsFrom !== 'mail') return []
+    const { startsOn } = account.intake
+    const newest = ledger
+      .filter((row) => row.account === account.slug && isBankStatementRow(row) && row.date >= startsOn)
+      .reduce<CivilDate>((last, row) => (row.date > last ? row.date : last), startsOn)
+    return [newest]
+  })
+  return days.length === 0 ? null : days.reduce((oldest, day) => (day < oldest ? day : oldest))
+}

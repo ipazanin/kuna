@@ -1,6 +1,5 @@
-import type { FiledFile, MailFolders, Mailbox } from '../../src/shared/mail-filing/application/mailFiling'
-import { MailRateLimited } from '../../src/shared/mail-filing/application/mailFiling'
-import { MAIL_DATE_PROPERTY } from '../../src/shared/mail-filing/domain/mailSource'
+import { MailRateLimited } from '../../src/shared/mail/application/mailReading'
+import type { Mailbox } from '../../src/shared/mail/application/mailReading'
 import { fold } from '../../src/shared/text/fold'
 
 /** A mail as a test writes it: an ISO time, and each attachment's name with the text its bytes are. */
@@ -9,14 +8,6 @@ export interface TestMail {
   readonly subject: string
   readonly at: string
   readonly attachments: readonly (readonly [name: string, content: string])[]
-}
-
-/** A file a test's folder holds, below the source folder, and for a file the app filed the ISO time of its mail. */
-export interface TestFiled {
-  readonly folders: readonly string[]
-  readonly name: string
-  readonly created: string
-  readonly filedFrom?: string
 }
 
 /**
@@ -53,55 +44,6 @@ export function testMailbox(mails: readonly TestMail[], pageSize = 500, rateLimi
       const mail = mails.find((candidate) => candidate.id === messageId)!
       const content = mail.attachments[Number(attachmentId.split('/')[1])]![1]
       return new TextEncoder().encode(content).buffer as ArrayBuffer
-    },
-  }
-}
-
-/** A file the step made: its source folder, the folders below it, its name and properties, and its bytes as text. */
-export interface TestCreated {
-  readonly folder: readonly string[]
-  readonly below: readonly string[]
-  readonly name: string
-  readonly properties: Readonly<Record<string, string>>
-  readonly content: string
-}
-
-/**
- * Folders that hold these files below any source folder. A file the step makes lands in `created`
- * and is listed from then on, made at `madeAt`, unless `refuse` gives the error its upload fails with.
- * Each listing's folders are kept in `asked`.
- */
-export function testFolders(
-  files: readonly TestFiled[],
-  options: { readonly refuse?: (name: string) => Error | null; readonly created?: TestCreated[]; readonly madeAt?: string } = {},
-): MailFolders & { readonly asked: (readonly string[])[][]; readonly created: TestCreated[] } {
-  const asked: (readonly string[])[][] = []
-  const created = options.created ?? []
-  return {
-    asked,
-    created,
-    async filesIn(_folder, below) {
-      asked.push([...below])
-      const listed: FiledFile[] = [
-        ...files.map((file) => ({
-          folders: file.folders,
-          name: file.name,
-          createdTime: Date.parse(file.created),
-          filedFrom: file.filedFrom === undefined ? null : Date.parse(file.filedFrom),
-        })),
-        ...created.map((file) => ({
-          folders: file.below,
-          name: file.name,
-          createdTime: Date.parse(options.madeAt ?? '2031-12-31T00:00:00Z'),
-          filedFrom: Date.parse(file.properties[MAIL_DATE_PROPERTY] ?? ''),
-        })),
-      ].filter((file) => below.some((path) => path.every((name, index) => file.folders[index] === name)))
-      return { kind: 'listed', files: listed }
-    },
-    async create(folder, below, file) {
-      const refusal = options.refuse?.(file.name) ?? null
-      if (refusal !== null) throw refusal
-      created.push({ folder, below, name: file.name, properties: file.properties, content: new TextDecoder().decode(file.bytes) })
     },
   }
 }

@@ -162,35 +162,30 @@
  * then deletes the rule from its editor and brings it back with Undo. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms the statement, reads how many
  * new rows wait for review and undoes it, sees the export refused, since the bank's statements fill main, then deletes the profile, at 360, 430 and 1440 px. With the
- * file on Drive, from Overview, Sync files the fake statements folder's sample statement with no
+ * file on Drive, from Overview, Sync files the sample statement of the fake bank's mail with no
  * toast, its step on Kuna settings says so with Undo, which takes it out, Import lists it,
- * and a last sync finds nothing new. With a held statement in the folder, the sync control says 1
+ * and a last sync finds nothing new. With a held statement in the mail, the sync control says 1
  * problem and opens its steps, a popover at 1440 and a bottom sheet at 360, whose link opens Import,
- * which says why. A tab Google gave no Drive read token gets Allow access in the sync control, which
- * files the sample, and a slow statements folder shows the control while its step runs and once it
+ * which says why. A slow search of the mail shows the control while its step runs and once it
  * is ready. On Salaries with five employees the one problem opens its build-up and its bank rows,
  * the People tab opens one employee's month and a month of the Over time table opens on the Month
  * tab.
  * The mail step is off until the Mail card on Settings, General saves a sender with the subject it
- * asks for, and the next sync files the bank's new mail. With the fake mailbox it files the bank's
- * PDF and statement, the statements step of the same sync files the statement on the ledger, its
- * link opens the list on the Mail card, and a second sync files nothing new. Mail all filed already
- * says nothing new, a source that fails and an upload that fails each give 1 problem with the steps
- * open, and a token without Gmail read gets Allow access, which runs the step. Saving a sender on the
+ * asks for, and the next sync reads the bank's mail. With the fake mailbox it reads the sample
+ * statement and files it on the ledger in the same step, the Mail card lists what it read and passed
+ * over, and a second sync files nothing new. Mail the books hold already says nothing new, a search
+ * that fails gives 1 problem with the steps open, and a token without Gmail read gets Allow access, which runs the step. Saving a sender on the
  * Mail card without Gmail read asks for it in the same tap and syncs, and Allow access whose Google
  * window closed says so beside the button. Gmail asking to slow down fails the step with one plain
- * sentence, which the Mail card says too, and mail all filed by another app moves the source's
- * search to a week before the newest file in its folder.
+ * sentence, which the Mail card says too, and the search starts a week before the newest statement on the books.
  * With no account taking the bank's statements, the Mail card says so and links to the Accounts tab.
  * The first run keeps an empty workbook on the fake Drive and one in this browser, goes back to the
  * step that made them, which shows them made and starts over, and offers to open the books the fake
  * Drive already holds when new books, a move from this browser or the Loans file would make a
  * second file. New books
- * on the fake Drive with statements from mail name the bank, make the statements folder beside the
- * books file and file the bank's mail there on the first sync. The statement step asks for Drive
- * read before the Picker when the page lacks it. An xlsx file
+ * on the fake Drive with statements from mail name the bank. An xlsx file
  * moves to the fake Drive through its summary, Settings, Books file moves a workbook kept in this
- * browser there with the Drive read its folders need asked up front, and a row confirmed on the To review tab while another device files the other row keeps both.
+ * browser there asking for the books file alone, and a row confirmed on the To review tab while another device files the other row keeps both.
  *
  * Run on the fake build, which `--serve fake` serves on a free port for the run and stops after:
  *   npm run build:fake && npm run check:visual -- --serve fake
@@ -432,7 +427,6 @@ import {
   assistKeyRefusedFlowIn,
   assistProviderSwitchFlowIn,
   setUpFlowIn,
-  statementsFolderFlowIn,
   dismissFlow,
   dismissFlowIn,
   heldStatementFlow,
@@ -490,7 +484,6 @@ import {
   mailOffFlow,
   mailPlanSpecimenFlow,
   mailSaveAsksFlow,
-  mailUploadFailedFlow,
   mailRateLimitedFlow,
   mailWindowFlow,
   moveFromBrowserFlow,
@@ -511,8 +504,6 @@ import {
   kunaWelcomeFlowIn,
   moveIntoKunaFlow,
   moveIntoKunaFlowIn,
-  moveStatementsIntoKunaFlow,
-  moveStatementsIntoKunaFlowIn,
   onboardingDeliveryFlow,
   onboardingDeliveryFlowIn,
   onboardingPackFlow,
@@ -552,9 +543,7 @@ import {
   placedRefileFlowIn,
   startingScenariosFlow,
   startingScenariosFlowIn,
-  statementAccessFlow,
   statementSyncFlow,
-  statementsFolderFlow,
   saveFailsFlow,
   savesWaitingBenchmarkFlow,
   savesWaitingFlow,
@@ -7351,14 +7340,6 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
   },
-  { name: 'settings-statements-folder', hash: '#/company/settings', title: 'Settings', run: statementsFolderFlow },
-  {
-    name: 'settings-statements-folder-croatian',
-    hash: '#/company/settings',
-    title: 'Postavke',
-    run: statementsFolderFlowIn('hr'),
-    queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
-  },
   { name: 'settings-card-ibans', hash: '#/company/settings', title: 'Settings', run: cardSettlementIbansFlow },
   {
     name: 'settings-card-ibans-croatian',
@@ -7756,7 +7737,6 @@ const FLOWS = [
     modes: ['browser'],
     queries: { browser: '&fake=browser&lang=hr' },
   },
-  { name: 'statements-access', hash: '#/company', title: 'Overview', run: statementAccessFlow, modes: ['drive'] },
   { name: 'sync-running', hash: '#/company', title: 'Overview', run: syncRunningFlow, modes: ['drive'], queries: { drive: '&fake=slow-statements' } },
   {
     name: 'saves-waiting',
@@ -7812,14 +7792,13 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: '&fake=save-fails&lang=hr' },
   },
-  { name: 'mail-off', hash: '#/company', title: 'Overview', run: mailOffFlow, modes: ['drive'] },
+  { name: 'mail-off', hash: '#/company', title: 'Overview', run: mailOffFlow, modes: ['drive'], queries: { drive: '&fake=mail-off' } },
   { name: 'mail-filed', hash: '#/company', title: 'Overview', run: mailFiledFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
-  { name: 'mail-upload-failed', hash: '#/company', title: 'Overview', run: mailUploadFailedFlow, modes: ['drive'], queries: { drive: '&fake=mail-upload-failed' } },
   { name: 'mail-nothing-new', hash: '#/company', title: 'Overview', run: mailNothingNewFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
   { name: 'mail-failed', hash: '#/company', title: 'Overview', run: mailFailedFlow, modes: ['drive'], queries: { drive: '&fake=mail-failed' } },
   { name: 'mail-access', hash: '#/company', title: 'Overview', run: mailAccessFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
-  { name: 'mail-save-asks', hash: '#/company', title: 'Overview', run: mailSaveAsksFlow, modes: ['drive'] },
-  { name: 'mail-save-asks-croatian', hash: '#/company', title: 'Pregled', run: mailSaveAsksFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
+  { name: 'mail-save-asks', hash: '#/company', title: 'Overview', run: mailSaveAsksFlow, modes: ['drive'], queries: { drive: '&fake=mail-off' } },
+  { name: 'mail-save-asks-croatian', hash: '#/company', title: 'Pregled', run: mailSaveAsksFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=mail-off&lang=hr' } },
   { name: 'mail-no-account', hash: '#/company', title: 'Overview', run: mailNoAccountFlowIn('en'), modes: ['drive'] },
   { name: 'mail-no-account-croatian', hash: '#/company', title: 'Pregled', run: mailNoAccountFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
   { name: 'mail-plan-specimen', hash: '#/gallery', title: 'Gallery', run: mailPlanSpecimenFlow, modes: ['drive'] },
@@ -7832,11 +7811,10 @@ const FLOWS = [
     { name: 'statements-sync-croatian', variant: '' },
     { name: 'statements-access-croatian', variant: '', stored: { 'kuna.google-granted': JSON.stringify(['drive.file', 'gmail.compose']) } },
     { name: 'sync-running-croatian', variant: '&fake=slow-statements' },
-    { name: 'mail-off-croatian', variant: '', stored: { 'kuna.google-granted': null, 'kuna.google-needed': null } },
-    { name: 'mail-upload-failed-croatian', variant: '&fake=mail-upload-failed' },
+    { name: 'mail-off-croatian', variant: '&fake=mail-off', stored: { 'kuna.google-granted': null, 'kuna.google-needed': null } },
     { name: 'mail-nothing-new-croatian', variant: '&fake=mail-nothing-new' },
     { name: 'mail-failed-croatian', variant: '&fake=mail-failed' },
-    { name: 'mail-access-croatian', variant: '&fake=mail', stored: { 'kuna.google-granted': JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']) } },
+    { name: 'mail-access-croatian', variant: '&fake=mail', stored: { 'kuna.google-granted': JSON.stringify(['drive.file', 'gmail.compose']) } },
     { name: 'mail-rate-limited-croatian', variant: '&fake=mail-rate-limited' },
     { name: 'sync-access-closed-croatian', variant: '&fake=google-closed', stored: { 'kuna.google-silent-refused': 'interaction_required' } },
   ].map(({ name, variant, stored }) => ({ name, hash: '#/company', title: 'Pregled', run: syncStatesFlowIn('hr', stored), modes: ['drive'], queries: { drive: `${variant}&lang=hr` } })),
@@ -7914,15 +7892,6 @@ const FLOWS = [
     queries: { drive: '&fake=empty&ai=key-refused&lang=hr' },
   },
   { name: 'move-into-kuna', hash: '#/company/settings?tab=books', title: 'Settings', run: moveIntoKunaFlow, modes: ['drive'] },
-  { name: 'move-into-kuna-statements', hash: '#/company/settings?tab=books', title: 'Settings', run: moveStatementsIntoKunaFlow, modes: ['drive'], queries: { drive: '&fake=mail-move' } },
-  {
-    name: 'move-into-kuna-statements-croatian',
-    hash: '#/company/settings?tab=books',
-    title: 'Postavke',
-    run: moveStatementsIntoKunaFlowIn('hr'),
-    modes: ['drive'],
-    queries: { drive: '&fake=mail-move&lang=hr' },
-  },
   { name: 'move-into-kuna-croatian', hash: '#/company/settings?tab=books', title: 'Postavke', run: moveIntoKunaFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
   { name: 'onboarding-browser', hash: '#/company/start', title: 'Company', run: onboardingBrowserFlow, modes: ['browser'], queries: { browser: '&fake=empty' } },
   {
@@ -10584,6 +10553,23 @@ if (unmatched !== null) {
   console.error(unmatched)
   process.exit(2)
 }
+/** How many times a screen opens again after Chrome says the frame navigating to it was detached. */
+const DETACHED_RETRIES = 2
+
+/**
+ * Opens the address, and opens it again up to twice when Chrome says the frame navigating there was detached, a failure of Chrome's own
+ * that says nothing about the screen. Any other failure throws as it came, and so does that one once the retries are spent.
+ */
+async function openScreen(page, url, options) {
+  for (let retry = 0; ; retry += 1) {
+    try {
+      return await page.goto(url, options)
+    } catch (failure) {
+      if (retry === DETACHED_RETRIES || !String(failure?.message ?? failure).includes('Navigating frame was detached')) throw failure
+    }
+  }
+}
+
 // Screens and flows are dealt out as one list, since a flow takes far longer than a screen.
 const shared = selection.share([...chosenVisits, ...chosenFlows].map((checked) => checked.name))
 const visits = chosenVisits.filter((visit) => shared.has(visit.name))
@@ -10600,7 +10586,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
     const page = await context.newPage()
     if (selection.classicScrollbars) await floatPhoneScrollbars(page)
     await page.setViewport({ width: 1024, height: 768 })
-    await page.goto(BASE, { waitUntil: 'load' })
+    await openScreen(page, BASE, { waitUntil: 'load' })
     const kept = await page.evaluate(() => window.innerWidth - document.body.clientWidth)
     await context.close()
     return kept
@@ -10642,7 +10628,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
       await page.setViewport({ width: viewport.chatDocked ? viewport.width + gutter : viewport.width, height: viewport.height })
       // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
       await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
-      await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
+      await openScreen(page, `${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
 
       const drawsCharts = visit.gallery || visit.charts > 0
       const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
@@ -10864,7 +10850,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
             await stateCheck('an open menu')
           }
           try {
-            await page.goto(`${BASE}?theme=${theme}${query}&day=${SAMPLE_DAY}${flow.hash}`, { waitUntil: 'networkidle0' })
+            await openScreen(page, `${BASE}?theme=${theme}${query}&day=${SAMPLE_DAY}${flow.hash}`, { waitUntil: 'networkidle0' })
             await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
             await flow.run(page, {
               press: pressLookingAtMenus,

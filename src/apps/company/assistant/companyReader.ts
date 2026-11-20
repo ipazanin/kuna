@@ -293,10 +293,10 @@ const ACCOUNT_FIELDS: FieldDocs<AccountView> = {
   rowsFrom: {
     exposure: 'plain',
     meaning:
-      "mail when the bank's statements, which reach the statements folder by mail or dropped there, bring its rows, or by-hand when its files are imported or the chat copies them. A mail account takes no sheet or copied row on any day.",
+      "mail when the bank's statements, which each sync reads from the bank's mail, bring its rows, or by-hand when its files are imported or the chat copies them. A mail account takes no sheet or copied row on any day.",
   },
   startsOn: { exposure: 'plain', meaning: "With mail, the first day the bank's statements bring rows of. Empty by hand." },
-  alsoFrom: { exposure: 'plain', meaning: "With mail, provider-file when it also takes the bank's camt file on Import or in the chat. Empty takes the folder's alone." },
+  alsoFrom: { exposure: 'plain', meaning: "With mail, provider-file when it also takes the bank's camt file on Import or in the chat. Empty takes the mail's alone." },
 }
 
 const RULE_FIELDS: FieldDocs<RuleView> = {

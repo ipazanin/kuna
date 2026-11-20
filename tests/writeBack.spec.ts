@@ -362,17 +362,17 @@ describe.each([
     )
   })
 
-  it('writes the statements folder a save of Settings changes, adding its row once and changing that row after', async () => {
+  it("writes the bank's mail sender a save of Settings changes, adding its row once and changing that row after", async () => {
     const { store } = await harnessOf(used)
     const held = () => store.state.records!.settings
     const save = (next: Settings) => store.write('Settings saved', (unit) => setSettings(unit, held(), changedSettings(settings(store), next)))
-    const folderRows = () => held().records.filter((stored) => stored.record.key === 'statements_folder')
+    const senderRows = () => held().records.filter((stored) => stored.record.key === 'statements_mail_from')
 
-    await save({ ...settings(store), statementsFolder: ['finance', 'statements'] })
-    await save({ ...settings(store), statementsFolder: ['finance', 'bank statements'] })
+    await save({ ...settings(store), statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Izvadak' })
+    await save({ ...settings(store), statementsMailFrom: ['izvodi@bank.example.com'] })
 
-    expect(settings(store).statementsFolder).toEqual(['finance', 'bank statements'])
-    expect(folderRows().map((stored) => stored.record.value)).toEqual(['finance/bank statements'])
+    expect(settings(store).statementsMailFrom).toEqual(['izvodi@bank.example.com'])
+    expect(senderRows().map((stored) => stored.record.value)).toEqual(['izvodi@bank.example.com'])
     expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(true)
   })
 

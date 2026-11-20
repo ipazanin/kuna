@@ -736,21 +736,6 @@ describe('workbook store moving its file into the Kuna folder', () => {
     expect(seen).toEqual([2])
   })
 
-  it('counts the move as over only once what it changes in the settings is written', async () => {
-    const side = driveSide()
-    const choice = await onDrive(side, documentOf([1]))
-    used.add(choice.id)
-    const store = storeOf(harness(choice, side).ports)
-    await store.open()
-    const nothing = () => ({ files: [], folders: [], stays: [] })
-
-    await expect(store.moveIntoKuna(nothing, null, async () => Promise.reject(new Error('not saved')))).rejects.toThrow('not saved')
-    expect(side.drive.file(choice.id).appProperties.movedFrom).toBeDefined()
-
-    await store.moveIntoKuna(nothing, null, async () => {})
-    expect(side.drive.file(choice.id).appProperties.movedFrom).toBeUndefined()
-  })
-
   it('moves nothing when that read fails', async () => {
     const side = driveSide()
     const choice = await onDrive(side, documentOf([1]))

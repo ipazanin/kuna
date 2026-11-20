@@ -5,7 +5,6 @@ import { BOOKS_STEP } from '../../../../shared/sync/application/syncRun'
 import type { AccessNeed } from '../../../../shared/sync/application/syncRun'
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync'
-import { statementNeeds, useStatementSync } from '../../imports/presentation/useStatementSync'
 import { mailDraftsOn } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { mailNeeds, useMailSync } from '../../mail/presentation/useMailSync'
 import { BOOKS_FILE_LINK } from '../../settings/presentation/settingsTabs'
@@ -21,16 +20,16 @@ import { words } from './words'
 function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
   return [
     ...BOOKS_STEP.scopes.map((scope) => ({ scope, label: BOOKS_STEP.label })),
-    ...(workbook === null ? [] : [...mailNeeds(workbook), ...statementNeeds(workbook)]),
+    ...(workbook === null ? [] : mailNeeds(workbook)),
     ...(mailDraftsOn.value ? [{ scope: 'gmail.compose' as const, label: words.invoiceDrafts }] : []),
   ]
 }
 
-/** The company's part of the page's sync: its books, then mail, then statements, then the keys while the assistant is on for the company. */
+/** The company's part of the page's sync: its books, then the bank's statement mail, then the keys while the assistant is on for the company. */
 export function companySyncGroup(): AppSyncGroup {
   const store = useWorkbook()
   const writes = useRecordWrites(store)
-  const steps = [useMailSync().step, useStatementSync().step, secretsStep(assistAllowedNow)]
+  const steps = [useMailSync().step, secretsStep(assistAllowedNow)]
   return {
     store,
     steps: () => steps,

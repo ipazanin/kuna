@@ -15,7 +15,7 @@ export interface MailResultRow {
   /** The entry's kind, which the row carries for the checks. */
   readonly kind: string
   readonly icon: string
-  /** `text-success`, `text-warning` or `text-error`. */
+  /** `text-success`, `text-warning` or `text-error`, or blank for a mark in the ink around it. */
   readonly tone: string
   readonly first: string
   readonly mailLine: string

@@ -6,7 +6,6 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { withGoogleAccess } from '../../google/withGoogleAccess'
 import { usePageSync } from '../../sync/presentation/pageSync'
-import { folderTrail } from '../../text/folderPath'
 import { plural } from '../../text/translation'
 import AppDialog from '../../ui/AppDialog.vue'
 import type { BooksRead, WorkbookStore } from '../application/createWorkbookStore'
@@ -27,8 +26,6 @@ const props = defineProps<{
   fileName: string
   store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'hasKunaFolder' | 'pickDriveFolder' | 'planMoveIntoKuna' | 'moveIntoKuna'>
   beside: () => DriveFileBeside
-  /** What the move changes in the app's settings, written before it counts as over. */
-  afterMove?: (() => Promise<void>) | undefined
 }>()
 const emit = defineEmits<{ ended: [] }>()
 const text = words.moveIntoKuna
@@ -41,7 +38,6 @@ const moving = ref(false)
 const failure = ref<string | null>(null)
 const where = computed(() => kunaFolder.trail(props.appId))
 const filedFolders = computed(() => plan.value?.folders.filter((folder) => folder.kuna > 0) ?? [])
-const leftBehind = computed(() => plan.value?.folders.flatMap((folder) => (folder.fromPath === undefined ? [] : [folderTrail(folder.fromPath)])) ?? [])
 const otherFiles = computed(() => plan.value?.folders.reduce((sum, folder) => sum + folder.others, 0) ?? 0)
 
 function reasonOf(refused: unknown): string {
@@ -67,7 +63,7 @@ async function move(): Promise<void> {
   failure.value = null
   try {
     await sync.settled()
-    const left = await withGoogleAccess(['drive.file'], () => props.store.moveIntoKuna(props.beside, kunaFolder.parent.value?.id ?? null, props.afterMove))
+    const left = await withGoogleAccess(['drive.file'], () => props.store.moveIntoKuna(props.beside, kunaFolder.parent.value?.id ?? null))
     open.value = false
     toast.add({
       title: text.moved(props.fileName, where.value),
@@ -107,10 +103,6 @@ async function move(): Promise<void> {
           <li v-if="otherFiles > 0" data-testid="move-into-kuna-others">{{ plural(text.others(otherFiles), otherFiles) }}</li>
         </ul>
       </div>
-      <p v-for="trail in leftBehind" :key="trail" class="type-body" data-testid="move-into-kuna-stops-reading">
-        <span class="identifier">{{ trail }}</span
-        >{{ text.stopsReading }}
-      </p>
       <p class="type-aside">{{ text.keepsWorking }}</p>
       <p class="type-aside">{{ text.partWay }}</p>
       <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="move-into-kuna-failed" />

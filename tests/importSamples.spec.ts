@@ -3,10 +3,9 @@ import { describe, expect, it } from 'vitest'
 
 import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
 import { accountNamedIn, fileShapeOf } from '../src/apps/company/imports/domain/profileGuess'
-import { statementFilesToRead } from '../src/apps/company/imports/domain/statementFiles'
-import { FAKE_FOLDERS } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
-import type { FakeMadeFile } from '../src/shared/mail-filing/infrastructure/fake/fakeMail'
-import { fakeStatementFolder } from '../src/apps/company/imports/infrastructure/fake/fakeStatementFolder'
+import { readStatementMail } from '../src/apps/company/mail/application/statementMail'
+import { fakeMailbox } from '../src/apps/company/mail/infrastructure/fake/fakeMailbox'
+import { mailWindow } from '../src/shared/mail/domain/mailSource'
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtLabel, sampleCamtXml, sampleTableGrid } from '../src/apps/company/imports/infrastructure/fake/sampleImportFiles'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
@@ -23,7 +22,7 @@ const profile = { ...guess, name: 'example-bank', account: accountNamedIn(grid, 
 const table = { kind: 'table' as const, fileName: SAMPLE_TABLE_FILE_NAME, fileHash: 'e'.repeat(64), grid }
 
 describe('the fake build’s sample statement files', () => {
-  it("carry the main account on with four new rows from the camt file, which main allows beside the folder, and refuse the sheet, since the bank's statements fill main", () => {
+  it("carry the main account on with four new rows from the camt file, which main allows beside the bank's mail, and refuse the sheet, since the bank's statements fill main", () => {
     const fromCamt = dryRunFor(statementReadings(camt, workbook, null), FAKE_BOOKS, new Map())
     const fromTable = dryRunFor(statementReadings(table, workbook, profile), FAKE_BOOKS, new Map())
 
@@ -52,49 +51,43 @@ describe('the fake build’s sample statement files', () => {
   })
 })
 
-describe('the fake build’s statements folder', () => {
-  it('holds a name for every statement on the fake ledger and the sample camt statement, the only file the name test reads', async () => {
-    const folder = fakeStatementFolder(null)
-    const listing = await folder.files(FAKE_FOLDERS.statements)
-    if (listing.kind !== 'listed') throw new Error(listing.reason)
-    const toRead = statementFilesToRead(listing.files, workbook.transactions)
+/** What the fake build's bank mail gives to a sync whose search starts a week before the main account's newest statement. */
+async function readFakeMail(variant: string | null) {
+  const newest = workbook.transactions.filter((row) => row.account === 'main').reduce((last, row) => (row.date > last ? row.date : last), '')
+  return readStatementMail({
+    mailbox: fakeMailbox(variant),
+    search: { senders: ['statements@bank.example.com'], subject: 'Izvadak' },
+    window: mailWindow(Date.parse(`${newest}T00:00:00Z`), Date.parse('2026-01-01T00:00:00Z')),
+    workbook,
+    load: loadImportFile,
+    known: new Map(),
+  })
+}
 
-    expect(listing.files.length).toBeGreaterThan(100)
-    expect(toRead.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`])
-    const loaded = await loadImportFile(toRead[0]!.name, await folder.download(toRead[0]!))
-    const run = dryRunFor(statementReadings(loaded, workbook, null), FAKE_BOOKS, new Map(), new Map(), new Map(), false, 'automation')
+describe('the fake build’s bank mail', () => {
+  it('mails the sample camt statement twice, which reads once and carries main on with four rows, beside PDFs passed over and a notice that is no statement', async () => {
+    const plan = await readFakeMail(null)
+
+    expect(plan.entries.map((entry) => entry.kind).sort()).toEqual(['not-read', 'passed-over', 'passed-over', 'passed-over', 'read', 'read'])
+    expect(plan.entries.filter((entry) => entry.kind === 'read').map((entry) => entry.label)).toEqual([sampleCamtLabel(), sampleCamtLabel()])
+    const run = dryRunFor(plan.readings, FAKE_BOOKS, new Map(), new Map(), new Map(), false, 'automation')
     expect(run.statements.map((statement) => [statement.label, statement.account, statement.refusal && refusalText(statement.refusal)])).toEqual([[sampleCamtLabel(), 'main', null]])
     expect(run.newRows).toBe(4)
   })
 
-  it('holds, under ?fake=held-statement, the first statement of an account the accounts tab lacks, named by its label alone', async () => {
-    const folder = fakeStatementFolder('held-statement')
-    const listing = await folder.files(FAKE_FOLDERS.statements)
-    if (listing.kind !== 'listed') throw new Error(listing.reason)
-    const toRead = statementFilesToRead(listing.files, workbook.transactions)
+  it('adds, under ?fake=held-statement, the first statement of an account the accounts tab lacks', async () => {
+    const plan = await readFakeMail('held-statement')
 
-    expect(toRead.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`, `${sampleCamtLabel(1)}.xml`])
-    const loaded = await loadImportFile(toRead[1]!.name, await folder.download(toRead[1]!))
-    expect(statementReadings(loaded, workbook, null)).toMatchObject([{ statement: { account: '', label: sampleCamtLabel(1) }, newAccount: { iban: 'XX43FAKE0000000000000003', currency: 'EUR' } }])
+    expect(plan.readings).toMatchObject([
+      { statement: { label: sampleCamtLabel() } },
+      { statement: { account: '', label: sampleCamtLabel(1) }, newAccount: { iban: 'XX43FAKE0000000000000003', currency: 'EUR' } },
+    ])
   })
 
-  it('lists the statements folder new books from mail make beside the books file, which holds only what a sync filed there', async () => {
-    const made: FakeMadeFile[] = [
-      { folder: ['.', 'statements'], folders: ['2026-statements'], name: 'filed-from-mail.xml', created: '2026-10-27T06:00:00.000Z', bytes: new ArrayBuffer(0), appProperties: {} },
-      { folder: [...FAKE_FOLDERS.statements], folders: ['2026-statements'], name: 'filed-elsewhere.xml', created: '2026-10-27T06:00:00.000Z', bytes: new ArrayBuffer(0), appProperties: {} },
-    ]
-    const listing = await fakeStatementFolder('empty', made).files(['.', 'statements'])
+  it('keeps, under ?fake=mail-nothing-new, only mail whose statements the books already hold', async () => {
+    const plan = await readFakeMail('mail-nothing-new')
 
-    expect(listing).toEqual({ kind: 'listed', files: [{ id: 'fake-made-0', name: 'filed-from-mail.xml' }] })
-  })
-
-  it('refuses any other path, and a download of a statement it holds only the name of', async () => {
-    const folder = fakeStatementFolder(null)
-
-    expect(await folder.files(['work', 'statements'])).toEqual({
-      kind: 'refused',
-      reason: `The fake Drive holds statements only in ${FAKE_FOLDERS.statements.join('/')} and ./statements, not in work/statements.`,
-    })
-    await expect(folder.download({ id: 'fake-statement-1', name: 'filed.xml' })).rejects.toThrow('holds only the name of filed.xml')
+    expect(plan.readings).toEqual([])
+    expect(plan.entries.map((entry) => entry.kind).sort()).toEqual(['not-read', 'passed-over'])
   })
 })

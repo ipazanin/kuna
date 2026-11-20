@@ -22,7 +22,6 @@ import { en as onboardingEnglish, hr as onboardingCroatian } from '../../src/app
 import { en as settingsReasonsEnglish, hr as settingsReasonsCroatian } from '../../src/apps/company/settings/domain/words.ts'
 import { en as booksEnglish, hr as booksCroatian } from '../../src/apps/company/workbook/presentation/words.ts'
 import { en as mailEnglish, hr as mailCroatian } from '../../src/apps/company/mail/presentation/words.ts'
-import { en as mailPlanEnglish, hr as mailPlanCroatian } from '../../src/shared/mail-filing/presentation/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../../src/apps/company/invoicing/presentation/words.ts'
 import { en as receivablesEnglish, hr as receivablesCroatian } from '../../src/apps/company/receivables/presentation/words.ts'
 import { en as billingEnglish, hr as billingCroatian } from '../../src/apps/company/billingPlan/presentation/words.ts'
@@ -115,7 +114,6 @@ import {
 } from './chatFlows.mjs'
 import { delay, pressSelector, typeDay } from './pressing.mjs'
 import { scrollbarGutter, shellRoom } from './shellFlows.mjs'
-import { en as mailFilingEnglish, hr as mailFilingCroatian } from '../../src/shared/mail-filing/application/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
 
@@ -190,7 +188,6 @@ const SCREEN_WORDS = {
     labelName: uiEnglish.labelName,
     imports: importEnglish,
     mail: mailEnglish,
-    mailPlan: mailPlanEnglish.plan,
     invoicing: invoicingEnglish,
     receivables: receivablesEnglish,
     billing: billingEnglish,
@@ -213,9 +210,7 @@ const SCREEN_WORDS = {
     storage: storageEnglish,
     files: filesEnglish,
     myDrive: textEnglish.myDrive,
-    mailFiled: /Filed \d+/,
     companyHome: companyHomeEnglish,
-    mailCounts: mailFilingEnglish.counts,
     loansHome: loansHomeEnglish,
     investmentsHome: investmentsHomeEnglish,
     investmentsOverview: investmentsOverviewEnglish.title,
@@ -283,7 +278,6 @@ const SCREEN_WORDS = {
     labelName: uiCroatian.labelName,
     imports: importCroatian,
     mail: mailCroatian,
-    mailPlan: mailPlanCroatian.plan,
     invoicing: invoicingCroatian,
     receivables: receivablesCroatian,
     billing: billingCroatian,
@@ -306,9 +300,7 @@ const SCREEN_WORDS = {
     storage: storageCroatian,
     files: filesCroatian,
     myDrive: textCroatian.myDrive,
-    mailFiled: /Spremljeno \d+/,
     companyHome: companyHomeCroatian,
-    mailCounts: mailFilingCroatian.counts,
     loansHome: loansHomeCroatian,
     investmentsHome: investmentsHomeCroatian,
     investmentsOverview: investmentsOverviewCroatian.title,
@@ -2383,7 +2375,7 @@ async function openKunaSettings(page) {
 const FILED = /Filed statement \d+, 4 rows/
 
 /**
- * Sync files the sample statement from the fake statements folder and says so in the statements
+ * Sync files the sample statement from the fake bank's mail and says so in the statement mail
  * step, not in a toast. Undo in the step's line on Kuna settings takes it out, the card's
  * Sync again files it again, and Import lists it. A last sync finds nothing new and says so there.
  */
@@ -2391,38 +2383,38 @@ export async function statementSyncFlow(page, { press, shoot }) {
   await syncAndSettle(page, press)
   await noToast(page, 'a sync that filed a statement showed a toast')
   await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', FILED)
   await shootAt(page, shoot, SYNC_CARD, 'statements-filed', { block: 'start' })
-  await pressSelector(page, press, `${SYNC_CARD} [data-step="statements"] [data-testid="sync-step-undo"]`)
+  await pressSelector(page, press, `${SYNC_CARD} [data-step="mail"] [data-testid="sync-step-undo"]`)
   await toast(page, 'Undone')
   await page
     .waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, `${SYNC_CARD} [data-testid="sync-step-undo"]`)
     .catch(() => {
-      throw new Error('the statements step still offers Undo after it was undone')
+      throw new Error('the statement mail step still offers Undo after it was undone')
     })
   await dismissToasts(page)
 
   await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
-  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', FILED)
   await noToast(page, 'a sync from the Sync card showed a toast')
   await page.evaluate(() => {
     window.location.hash = '#/company/transactions?tab=import'
   })
-  await page.waitForSelector('[data-testid="statement-folder-filed"]', { visible: true, timeout: 10_000 }).catch(() => {
+  await page.waitForSelector('[data-testid="mailed-statements-filed"]', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Import does not list the statement the sync filed')
   })
   await delay(300)
-  await shoot('statements-folder-filed')
+  await shoot('mailed-statements-filed')
 
   await syncAndSettle(page, press)
   await noToast(page, 'a sync that found nothing new showed a toast')
-  if (await page.$('[data-testid="statement-folder"]')) throw new Error('the folder card stayed after a sync that found nothing new')
+  if (await page.$('[data-testid="mailed-statements"]')) throw new Error("the card of the bank's mail stayed after a sync that found nothing new")
   await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'statements', 'done', /Nothing new/)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new/)
 }
 
 /**
- * With a statement of an account the accounts tab lacks in the folder, Sync files the sample and
+ * With a statement of an account the accounts tab lacks in the bank's mail, Sync files the sample and
  * holds the other: the control says 1 problem, and its steps, in a popover from 640 px and a bottom
  * sheet on a phone, link to Import, which offers to add the account. Overview lists the held
  * statement too. Named and confirmed on Import, the account is added and the statement filed.
@@ -2435,14 +2427,14 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await inspect?.('the sync control with a problem')
   await shoot('sync-problem')
   await press(await syncButton(page))
-  const said = await stepSays(page, '', 'statements', 'waits', /1 statement was not filed/)
+  const said = await stepSays(page, '', 'mail', 'waits', /1 statement was not filed/)
   if (!FILED.test(said)) throw new Error(`the statements step does not say what it filed, it says: ${said}`)
   await delay(400)
   await inspect?.('the steps of the last sync')
   await shoot('sync-steps')
-  await pressSelector(page, press, `${SYNC_STEPS} [data-step="statements"] a`)
+  await pressSelector(page, press, `${SYNC_STEPS} [data-step="mail"] a`)
   await page
-    .waitForFunction(() => document.querySelector('[data-testid="statement-folder"] [data-testid="dry-run-new-account"]')?.textContent?.includes('is new') ?? false, { timeout: 10_000 })
+    .waitForFunction(() => document.querySelector('[data-testid="mailed-statements"] [data-testid="dry-run-new-account"]')?.textContent?.includes('is new') ?? false, { timeout: 10_000 })
     .catch(() => {
       throw new Error('Import does not offer the account the held statement names')
     })
@@ -2466,9 +2458,9 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await page.evaluate(() => {
     window.location.hash = '#/company/transactions?tab=import'
   })
-  const name = await page.waitForSelector('[data-testid="statement-folder"] input[data-testid="dry-run-account-name"]', { visible: true, timeout: 10_000 })
+  const name = await page.waitForSelector('[data-testid="mailed-statements"] input[data-testid="dry-run-account-name"]', { visible: true, timeout: 10_000 })
   await setField(name, 'second')
-  await pressSelector(page, press, '[data-testid="statement-folder-confirm"]')
+  await pressSelector(page, press, '[data-testid="mailed-statements-confirm"]')
   await toastMatching(page, /^Filed statement/)
   await page
     .waitForFunction(() => !document.querySelector('[data-testid="dry-run-new-account"]'), { timeout: 10_000 })
@@ -2485,32 +2477,6 @@ export async function heldStatementFlow(page, { press, shoot, inspect }) {
     })
 }
 
-/** Makes the next load's token come without Drive read, as when the person unticked it on Google's consent screen. */
-async function withoutDriveRead(page) {
-  await page.evaluate(() => localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
-  await page.reload({ waitUntil: 'networkidle0' })
-}
-
-/**
- * A token Google gave without Drive read: Overview offers nothing, the sync control shows Allow
- * access as the app opens, and that tap asks Google and files the sample, with no toast.
- */
-export async function statementAccessFlow(page, { press, shoot, inspect }) {
-  await withoutDriveRead(page)
-  const control = await controlShows(page, 'allow-access')
-  if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
-  if (!control.name.includes('Statements needs your Drive read access')) throw new Error(`a screen reader hears "${control.name}"`)
-  if (await page.$('[data-job="check-statements"]')) throw new Error('Overview still offers to check for new statements')
-  await inspect?.('the sync control asking for access')
-  await shoot('sync-allow-access')
-  await syncAndSettle(page, press)
-  await controlShows(page, 'ready')
-  await noToast(page, 'the sync after Allow access showed a toast')
-  await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
-}
-
-/** With a slow statements folder, the control names the running step and its place, and a screen reader hears it, until the sync is done. */
 /** What the control under this selector shows while a save waits: where it stands, whether it is grayed and whether it spins. */
 function savingControl(page, selector) {
   return page.evaluate(savingLook, selector)
@@ -2569,11 +2535,11 @@ export async function savesWaitingFlow(page, { press, shoot, inspect }) {
   await controlSaving(page, LOAN_SWITCH, was)
   await shoot(await shotInLanguage(page, 'saves-waiting-switch'))
 
-  const folder = await page.waitForSelector('[data-testid="statements-folder"] input', { visible: true, timeout: 5_000 })
-  await setField(folder, 'Typed/while/saving')
+  const name = await page.waitForSelector('input[data-testid="company-name"]', { visible: true, timeout: 5_000 })
+  await setField(name, 'Primjer d.o.o.')
   await controlLanded(page, LOAN_SWITCH)
   await inspect?.('the switch once its save landed')
-  if ((await folder.evaluate((input) => input.value)) !== 'Typed/while/saving') throw new Error('the save that landed wiped what was typed in the form')
+  if ((await name.evaluate((input) => input.value)) !== 'Primjer d.o.o.') throw new Error('the save that landed wiped what was typed in the form')
   if ((await savingControl(page, LOAN_SWITCH)).value === was) throw new Error('the switch went back after its save landed')
 
   // The fake books start on, so this tap saves towards On, where a track left amber would already read as on.
@@ -2666,18 +2632,19 @@ export async function saveFailsFlow(page, { press, shoot }) {
   if ((await savingControl(page, LOAN_SWITCH)).value === was) throw new Error('the switch went back after Try again saved it')
 }
 
+/** With a slow search of the bank's mail, the control names the running step and its place, and a screen reader hears it, until the sync is done. */
 export async function syncRunningFlow(page, { press, shoot, inspect }) {
   await press(await syncButton(page))
   const running = await controlShows(page, 'running')
   await page
-    .waitForFunction(() => document.querySelector('[data-testid="sync-button"]')?.getAttribute('aria-label')?.startsWith('Syncing, Statements, step 2 of 2') ?? false, { timeout: 10_000 })
+    .waitForFunction(() => document.querySelector('[data-testid="sync-button"]')?.getAttribute('aria-label')?.startsWith('Syncing, Statement mail, step 2 of 2') ?? false, { timeout: 10_000 })
     .catch(async () => {
-      throw new Error(`the running control does not name the statements step, a screen reader hears "${running.name}"`)
+      throw new Error(`the running control does not name the statement mail step, a screen reader hears "${running.name}"`)
     })
   const shown = await controlShows(page, 'running')
   if (!shown.disabled) throw new Error('the sync control takes a tap while the sync runs')
-  if (!/^Statements 2\/2$|^Syncing$/.test(shown.label)) throw new Error(`the running control says "${shown.label}"`)
-  await inspect?.('the sync control while the statements step runs')
+  if (!/^Statement mail 2\/2$|^Syncing$/.test(shown.label)) throw new Error(`the running control says "${shown.label}"`)
+  await inspect?.('the sync control while the statement mail step runs')
   await shoot('sync-running')
   const ready = await controlShows(page, 'ready')
   if (!ready.name.startsWith('Synced ')) throw new Error(`the ready control is heard as "${ready.name}"`)
@@ -2686,7 +2653,7 @@ export async function syncRunningFlow(page, { press, shoot, inspect }) {
 }
 
 /**
- * A held statement in a language: the sync control says 1 problem, its steps name the statements
+ * A held statement in a language: the sync control says 1 problem, its steps name the statement mail
  * step and link to Import, which offers to add the account the statement names. Nothing is written.
  */
 export function heldStatementFlowIn(language) {
@@ -2697,15 +2664,15 @@ export function heldStatementFlowIn(language) {
     await controlShows(page, 'problems')
     await press(await syncButton(page))
     const held = countedIn(words, words.imports.step.held(1), 1)
-    await stepSays(page, '', 'statements', 'waits', new RegExp(held.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    await stepSays(page, '', 'mail', 'waits', new RegExp(held.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
     await delay(400)
     await inspect?.('the steps of the last sync')
     await shoot('sync-steps')
-    await pressSelector(page, press, `${SYNC_STEPS} [data-step="statements"] a`)
-    await page.waitForSelector('[data-testid="statement-folder"] [data-testid="dry-run-new-account"]', { visible: true, timeout: 10_000 }).catch(() => {
+    await pressSelector(page, press, `${SYNC_STEPS} [data-step="mail"] a`)
+    await page.waitForSelector('[data-testid="mailed-statements"] [data-testid="dry-run-new-account"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('Import does not offer the account the held statement names')
     })
-    await elementSays(page, '[data-testid="statement-folder"]', [words.imports.folder.title, words.imports.folder.filedByLastSync], 'the statements folder card is not in its language')
+    await elementSays(page, '[data-testid="mailed-statements"]', [words.imports.mailed.title, words.imports.mailed.filedByLastSync], "the card of the bank's mail is not in its language")
     await delay(300)
     await inspect?.('the held statement on Import')
     await shoot('statements-held-import')
@@ -2714,15 +2681,14 @@ export function heldStatementFlowIn(language) {
 
 const MAIL_CARD = '[data-testid="mail-settings"]'
 const MAIL_PLAN = '[data-testid="mail-plan"]'
-const MAIL_FILED = /Filed 2, already there 2, 1 unmatched\./
 
-/** Waits until the mail card lists the sources in these states, and returns what each source's line says. */
+/** Waits until the mail card lists entries of each of these kinds, and returns the kind of every entry it lists. */
 async function mailListShows(page, wanted) {
   return page
     .waitForFunction(
       (selector, expected) => {
-        const sources = [...document.querySelectorAll(`${selector} [data-source]`)].map((source) => `${source.dataset.source}:${source.dataset.state}`)
-        return JSON.stringify(sources) === JSON.stringify(expected) ? [...document.querySelectorAll(`${selector} [data-testid="mail-source-line"]`)].map((line) => line.textContent?.trim()) : null
+        const kinds = [...document.querySelectorAll(`${selector} [data-testid="mail-entry"]`)].map((entry) => entry.dataset.entry)
+        return expected.every((kind) => kinds.includes(kind)) ? kinds : null
       },
       { timeout: 10_000 },
       MAIL_PLAN,
@@ -2730,22 +2696,22 @@ async function mailListShows(page, wanted) {
     )
     .then((handle) => handle.jsonValue())
     .catch(async () => {
-      const shown = await page.evaluate(
-        (selector) => [...document.querySelectorAll(`${selector} [data-source]`)].map((source) => `${source.dataset.source}:${source.dataset.state}`).join(', '),
-        MAIL_PLAN,
-      )
+      const shown = await page.evaluate((selector) => [...document.querySelectorAll(`${selector} [data-testid="mail-entry"]`)].map((entry) => entry.dataset.entry).join(', '), MAIL_PLAN)
       throw new Error(`the mail card does not list ${wanted.join(', ')}, it lists ${shown || 'nothing'}`)
     })
 }
 
-/** Presses the link of the mail step's line, the one in the steps on screen, and waits for the mail card to open on its list. */
-async function openMailList(page, press, scope) {
-  await pressSelector(page, press, `${scope} ${SYNC_STEPS} [data-step="mail"] a`)
-  await page
-    .waitForFunction((selector) => document.querySelector(selector)?.getAttribute('data-collapsed') === 'false', { timeout: 10_000 }, MAIL_CARD)
-    .catch(() => {
-      throw new Error('the link of the mail step did not open the mail card')
-    })
+/** What the fake bank's mail gives a sync: the sample statement mailed twice, PDFs and an HTML copy passed over, and a notice that is no statement. */
+const ALL_KINDS = ['read', 'passed-over', 'not-read']
+
+/** Opens the mail card on Settings, General at #mail. */
+async function openMailCard(page) {
+  await page.evaluate(() => {
+    window.location.hash = '#/company/settings#mail'
+  })
+  await page.waitForSelector(MAIL_CARD, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Settings, General has no mail card at #mail')
+  })
 }
 
 /** Scrolls the element under the selector to the top of the window, below the bars that stick there. */
@@ -2753,8 +2719,6 @@ async function scrollToTop(page, selector) {
   await page.$eval(selector, (element) => element.scrollIntoView({ block: 'start' }))
   await delay(300)
 }
-
-const ALL_SOURCES = ['statements:planned']
 
 /**
  * A sync in a language and every place that says how it went: the sync control before, during and
@@ -2802,31 +2766,26 @@ export function syncStatesFlowIn(language, stored = {}) {
     await scrollToTop(page, SYNC_CARD)
     await inspect?.('the sync card on Kuna settings')
     await shoot('sync-card')
-    await page.evaluate(() => {
-      window.location.hash = '#/company/settings#mail'
-    })
-    await page.waitForSelector(MAIL_CARD, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Settings, General has no mail card at #mail')
-    })
+    await openMailCard(page)
     await scrollToTop(page, MAIL_CARD)
     await inspect?.('the mail card')
     await shoot('mail-card')
   }
 }
 
-/** The mail card in a language once a sync filed the fake mailbox: every source's line, search and files, opened from the mail step's link. */
+/** The mail card in a language once a sync read the fake bank's mail: its search and what each attachment gave. */
 export function mailListFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await syncAndSettle(page, press)
     await openKunaSettings(page)
-    await stepSays(page, SYNC_CARD, 'statements', 'done', /./)
+    await stepSays(page, SYNC_CARD, 'mail', 'done', /./)
     await scrollToTop(page, SYNC_CARD)
     await shoot('mail-step')
-    await openMailList(page, press, SYNC_CARD)
-    await mailListShows(page, ALL_SOURCES)
-    await elementSays(page, MAIL_CARD, [words.mail.card.title, words.mail.card.lastSync, words.mailPlan.kinds.filed], 'the mail card is not in its language')
+    await openMailCard(page)
+    await mailListShows(page, ALL_KINDS)
+    await elementSays(page, MAIL_CARD, [words.mail.card.title, words.mail.card.lastSync, words.mail.card.kinds.read], 'the mail card is not in its language')
     await scrollToTop(page, MAIL_PLAN)
     await inspect?.('the mail list')
     await shoot('mail-list')
@@ -2835,15 +2794,13 @@ export function mailListFlowIn(language) {
 
 /**
  * The mail list specimens in the Company gallery: the bank's statements with every kind of entry, more than ten so Show all shows
- * the rest, and a second source that failed, then a list whose step stopped. The fake mailbox's bank mail alone never shows those.
- * The gallery is English only.
+ * the rest, then a list whose step stopped. The fake bank's mail alone never shows that many. The gallery is English only.
  */
 export async function mailPlanSpecimenFlow(page, { press, shoot, inspect }) {
   const specimen = '[data-testid="gallery-mail-plan"]'
   await page.waitForSelector(specimen, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the Company gallery has no mail list specimen')
   })
-  await mailListShows(page, ['statements:planned', 'savings-statements:failed'])
   const entries = () => page.$$eval(`${specimen} [data-entry]`, (rows) => rows.map((row) => row.dataset.entry))
   if ((await entries()).length !== 10) throw new Error(`the mail list specimen shows ${(await entries()).length} entries before Show all, not 10`)
   await scrollToTop(page, specimen)
@@ -2856,7 +2813,7 @@ export async function mailPlanSpecimenFlow(page, { press, shoot, inspect }) {
       throw new Error('Show all on the mail list specimen did not show all 12 entries')
     })
   const kinds = new Set(await entries())
-  for (const kind of ['not-filed', 'filed', 'unmatched', 'already']) {
+  for (const kind of ALL_KINDS) {
     if (!kinds.has(kind)) throw new Error(`the mail list specimen has no ${kind} entry`)
   }
   await inspect?.('the mail list specimen with every entry')
@@ -2870,7 +2827,7 @@ export async function mailPlanSpecimenFlow(page, { press, shoot, inspect }) {
 /**
  * With no sender named, the mail step is off in the steps of a sync. On Settings, General the mail
  * card takes a sender, asks for the subject a sender needs, and saves both, and the next sync's mail
- * step files the bank's new PDF and lists the rest. The page holds every scope, as a first open
+ * step files the sample statement and lists the rest. The page holds every scope, as a first open
  * does, so the save asks Google nothing.
  */
 export async function mailOffFlow(page, { press, shoot, inspect }) {
@@ -2886,9 +2843,7 @@ export async function mailOffFlow(page, { press, shoot, inspect }) {
     `${SYNC_CARD} ${SYNC_STEPS}`,
   )
   if (leftOut.length > 0) throw new Error(`the step list shows ${leftOut.join(', ')}, which are left out while the file has nothing for them`)
-  await page.evaluate(() => {
-    window.location.hash = '#/company/settings#mail'
-  })
+  await openMailCard(page)
   const senders = await page.waitForSelector(`${MAIL_CARD} [data-testid="statements-mail-from"] input`, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Settings, General has no mail card open at #mail')
   })
@@ -2912,99 +2867,68 @@ export async function mailOffFlow(page, { press, shoot, inspect }) {
   await dismissToasts(page)
   await syncAndSettle(page, press)
   await noToast(page, 'a sync with mail on showed a toast')
-  const lines = await mailListShows(page, ['statements:planned'])
-  if (!/^Filed 1, already there 3, 1 unmatched\.$/.test(lines[0] ?? '')) throw new Error(`the bank's mail reads "${lines[0]}"`)
+  await mailListShows(page, ALL_KINDS)
   await scrollToTop(page, MAIL_CARD)
   await inspect?.('the mail card once saved and synced')
   await shoot('mail-card-saved')
 }
 
 /**
- * With the bank's mail named, the mail step files the bank's PDF and statement into the fake Drive,
- * and the statements step of the same sync files that statement on the ledger. Its link opens the
- * list on the mail card, which marks what was filed beside what was there already or needs a look.
- * A second sync files nothing new.
+ * The mail step reads the sample statement from the fake bank's mail and files it on the ledger in the same step, keeping
+ * nothing on Drive. Its link opens the list on the mail card, which marks what it read beside what it passed over or could not
+ * read. A second sync files nothing new.
  */
 export async function mailFiledFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
   await noToast(page, 'a sync that filed mail showed a toast')
   await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'mail', 'done', MAIL_FILED)
-  await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', FILED)
   await scrollToTop(page, SYNC_CARD)
-  await inspect?.('the mail step that filed a statement, and the statements step that read it')
+  await inspect?.('the mail step that read and filed a statement')
   await shoot('mail-step')
-  await openMailList(page, press, SYNC_CARD)
-  const lines = await mailListShows(page, ALL_SOURCES)
-  if (lines[0] !== 'Filed 2, already there 2, 1 unmatched.') throw new Error(`the bank's mail reads "${lines[0]}"`)
-  for (const kind of ['filed', 'already', 'unmatched']) {
-    if ((await page.$(`${MAIL_PLAN} [data-entry="${kind}"]`)) === null) throw new Error(`the list has no ${kind} entry`)
-  }
+  await openMailCard(page)
+  const kinds = await mailListShows(page, ALL_KINDS)
+  if (kinds.filter((kind) => kind === 'read').length !== 2) throw new Error(`the list reads ${JSON.stringify(kinds)}, not the sample statement from both of its mails`)
   await scrollToTop(page, MAIL_PLAN)
-  await inspect?.('the list of what the mail step filed and found')
+  await inspect?.('the list of what the mail step read and passed over')
   await shoot('mail-list')
 
   await syncAndSettle(page, press)
-  const again = await mailListShows(page, ALL_SOURCES)
-  if (again[0] !== 'Nothing new, already there 3.') throw new Error(`a second sync's bank mail reads "${again[0]}"`)
   await openKunaSettings(page)
-  const line = await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 3\./)
+  const line = await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new/)
   if (line.includes('Filed')) throw new Error(`a second sync's mail step says "${line}"`)
-  await stepSays(page, SYNC_CARD, 'statements', 'done', /Nothing new/)
 }
 
-/**
- * The upload of every PDF fails beside the other files: the mail step fails with the PDF named by
- * its source, 1 problem in the control, the statement still on the ledger from the same sync, and the
- * list marks the bank's PDF not filed with why.
- */
-export async function mailUploadFailedFlow(page, { press, shoot, inspect }) {
-  await syncAndSettle(page, press)
-  const control = await controlShows(page, 'problems')
-  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
-  await press(await syncButton(page))
-  await stepSays(page, '', 'mail', 'failed', /Filed 1, already there 2, 1 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\./)
-  await stepSays(page, '', 'statements', 'done', FILED)
-  await delay(400)
-  await inspect?.('the steps with an upload that failed')
-  await shoot('mail-upload-failed-steps')
-  await openMailList(page, press, '')
-  const lines = await mailListShows(page, ALL_SOURCES)
-  if (!/^Filed 1, already there 2, 1 unmatched\. \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\.$/.test(lines[0] ?? '')) throw new Error(`the bank's mail reads "${lines[0]}"`)
-  const entry = await page.$(`${MAIL_PLAN} [data-source="statements"] [data-entry="not-filed"]`)
-  if (entry === null) throw new Error('the list marks no entry not filed')
-  if (!(await entry.evaluate((element) => element.textContent ?? '')).includes('Drive did not take the upload. Sync again later.')) throw new Error('the entry not filed does not say why')
-  await scrollToTop(page, MAIL_PLAN)
-  await inspect?.('the list with an upload that failed')
-  await shoot('mail-upload-failed-list')
-}
-
-/** Mail that is all filed already says nothing new, and opens no problem. */
+/** Mail whose statements the books hold already says nothing new, and opens no problem. */
 export async function mailNothingNewFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
   await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 3\./)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new/)
   await scrollToTop(page, SYNC_CARD)
   await inspect?.('the mail step with nothing new')
   await shoot('mail-nothing-new')
 }
 
-/** A source whose search fails fails the mail step with why in its line: 1 problem in the control, and the steps open on it with the list a link away. */
+/** A search that fails fails the mail step with why in its line: 1 problem in the control, and the mail card says the same in place of its list. */
 export async function mailFailedFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   const control = await controlShows(page, 'problems')
   if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
   await press(await syncButton(page))
-  await stepSays(page, '', 'mail', 'failed', /Bank statements: Gmail did not answer the search/)
+  await stepSays(page, '', 'mail', 'failed', /Gmail did not answer the search/)
   await delay(400)
-  await inspect?.('the steps with a mail source that failed')
+  await inspect?.('the steps with a mail search that failed')
   await shoot('mail-failed-steps')
-  await openMailList(page, press, '')
-  const lines = await mailListShows(page, ['statements:failed'])
-  if (lines[0] !== 'Gmail did not answer the search. Sync again later.') throw new Error(`the failed source reads "${lines[0]}"`)
-  await shootAt(page, shoot, `${MAIL_PLAN} [data-source="statements"]`, 'mail-failed-list')
+  await page.keyboard.press('Escape')
+  await delay(300)
+  await openMailCard(page)
+  const said = await page
+    .waitForSelector(`${MAIL_PLAN} [data-testid="mail-stopped"]`, { visible: true, timeout: 10_000 })
+    .then((element) => element.evaluate((paragraph) => paragraph.textContent?.trim() ?? ''))
+  if (said !== 'Gmail did not answer the search. Sync again later') throw new Error(`the mail card says "${said}"`)
+  await shootAt(page, shoot, `${MAIL_PLAN} [data-testid="mail-stopped"]`, 'mail-failed-list')
 }
 
 /** A token without Gmail read shows Allow access for the mail step as the app opens, and that tap runs it. */
@@ -3013,34 +2937,32 @@ export async function mailAccessFlow(page, { press, shoot, inspect }) {
   await page.reload({ waitUntil: 'networkidle0' })
   const control = await controlShows(page, 'allow-access')
   if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
-  if (!control.name.includes('Mail needs your Gmail read access')) throw new Error(`a screen reader hears "${control.name}"`)
+  if (!control.name.includes('Statement mail needs your Gmail read access')) throw new Error(`a screen reader hears "${control.name}"`)
   await inspect?.('the sync control asking for Gmail read access')
   await shoot('mail-allow-access')
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
+  await noToast(page, 'the sync after Allow access showed a toast')
   await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'mail', 'done', MAIL_FILED)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', FILED)
 }
 
 /**
  * A token without Gmail read and the mail step off: saving a sender and subject on the Mail card
  * asks Google in that same tap, so the sync control never shows Allow access, and the sync that
- * follows the save files the bank's mail.
+ * follows the save reads the bank's mail.
  */
 export function mailSaveAsksFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const filed = `${words.mailCounts({ filed: 1, notFiled: 0, already: 3, unmatched: 1 })}.`
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await page.evaluate(() => {
       for (const key of ['kuna.google-needed', 'kuna.google-silent-refused']) localStorage.removeItem(key)
-      localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
+      localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'gmail.compose']))
     })
     await page.reload({ waitUntil: 'networkidle0' })
     await controlShows(page, 'ready')
-    await page.evaluate(() => {
-      window.location.hash = '#/company/settings#mail'
-    })
+    await openMailCard(page)
     const senders = await page.waitForSelector(`${MAIL_CARD} [data-testid="statements-mail-from"] input`, { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('Settings, General has no mail card open at #mail')
     })
@@ -3048,12 +2970,12 @@ export function mailSaveAsksFlowIn(language) {
     await setField(await page.$(`${MAIL_CARD} [data-testid="statements-mail-subject"] input`), 'Izvadak')
     await press(await saveSettingsButton(page, true, words))
     await toast(page, words.settings.saved)
-    const lines = await mailListShows(page, ['statements:planned'])
-    if (lines[0] !== filed) throw new Error(`the sync after the save reads the bank's mail as "${lines[0]}", not "${filed}"`)
+    await mailListShows(page, ALL_KINDS)
     const control = await controlShows(page, 'ready')
     if (control.label === words.sync.allowAccess) throw new Error('the sync control asks for access after a save that asked for it')
     const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-granted') ?? '[]'))
     if (!granted.includes('gmail.readonly')) throw new Error(`the save asked Google for ${granted.join(', ')}, without Gmail read`)
+    if (granted.includes('drive.readonly')) throw new Error("the save asked Google for Drive read, which the bank's mail does not need")
     await scrollToTop(page, MAIL_CARD)
     await inspect?.('the mail card saved with Gmail read asked in the same tap')
     await shoot('mail-save-asks')
@@ -3118,16 +3040,14 @@ export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
   const control = await controlShows(page, 'problems')
   if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
   await press(await syncButton(page))
-  const line = await stepSays(page, '', 'mail', 'failed', /Mail: Gmail asked us to slow down\. Sync again in a minute\.$/)
+  const line = await stepSays(page, '', 'mail', 'failed', /Gmail asked us to slow down\. Sync again in a minute\.$/)
   if (/[{}]|rateLimit|403|429/.test(line)) throw new Error(`the mail step shows Google's answer: "${line}"`)
   await delay(400)
   await inspect?.('the steps after Gmail asked to slow down')
   await shoot('mail-rate-limited')
   await page.keyboard.press('Escape')
   await delay(300)
-  await page.evaluate(() => {
-    window.location.hash = '#/company/settings#mail'
-  })
+  await openMailCard(page)
   const said = await page
     .waitForSelector(`${MAIL_PLAN} [data-testid="mail-stopped"]`, { visible: true, timeout: 10_000 })
     .then((element) => element.evaluate((paragraph) => paragraph.textContent?.trim() ?? ''))
@@ -3138,19 +3058,17 @@ export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
   await shootAt(page, shoot, `${MAIL_PLAN} [data-testid="mail-stopped"]`, 'mail-rate-limited-card')
 }
 
-/** With every mail already in its folder, filed by another app, the source searches from a week before the newest file there and not from the start day. */
+/** With the main account's newest statement on the books, the search starts a week before it and not from the start day. */
 export async function mailWindowFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
-  await page.evaluate(() => {
-    window.location.hash = '#/company/settings#mail'
-  })
-  await mailListShows(page, ALL_SOURCES)
+  await openMailCard(page)
+  await mailListShows(page, ['passed-over'])
   const windows = await page.$$eval(`${MAIL_PLAN} [data-testid="mail-source-window"]`, (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
-  if (windows.length !== 1 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest file in its folder$/.test(line)))
-    throw new Error(`the sources searched ${JSON.stringify(windows)}`)
+  if (windows.length !== 1 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest statement of the account furthest behind$/.test(line)))
+    throw new Error(`the search started ${JSON.stringify(windows)}`)
   await scrollToTop(page, MAIL_PLAN)
-  await inspect?.('the list searched from a week before the newest file in the folder')
+  await inspect?.('the list searched from a week before the newest statement')
   await shoot('mail-window')
 }
 
@@ -3318,8 +3236,6 @@ export function newerClassFlowIn(language) {
 
 export const newerClassFlow = newerClassFlowIn('en')
 
-const STATEMENTS_FOLDER = '[data-testid="statements-folder"]'
-
 /** The Save settings button once it is enabled or disabled, as `enabled` asks. */
 async function saveSettingsButton(page, enabled, words = SCREEN_WORDS.en) {
   return page
@@ -3334,36 +3250,6 @@ async function saveSettingsButton(page, enabled, words = SCREEN_WORDS.en) {
       throw new Error(`Save settings did not become ${enabled ? 'enabled' : 'disabled'}`)
     })
 }
-
-/**
- * Settings, General shows the statements folder the books name, Save waits for a change, and a new
- * path is written to the same row. Settings keep no Undo, so the flow leaves the row in the workbook.
- */
-export function statementsFolderFlowIn(language) {
-  const words = SCREEN_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const field = await page.waitForSelector(`${STATEMENTS_FOLDER} input`, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Settings, General has no statements folder field')
-    })
-    await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    const shown = await field.evaluate((element) => element.value)
-    if (shown !== 'finance/statements') throw new Error(`the field shows "${shown}", not the path the books name`)
-    await saveSettingsButton(page, false, words)
-    await inspect?.('the statements folder the books name')
-    await shoot('statements-folder-named')
-
-    await setField(field, 'finance/bank statements/')
-    await press(await saveSettingsButton(page, true, words))
-    await toast(page, words.settings.saved)
-    await saveSettingsButton(page, false, words)
-    await shootAt(page, shoot, field, 'statements-folder-saved')
-    await dismissToasts(page)
-  }
-}
-
-export const statementsFolderFlow = statementsFolderFlowIn('en')
 
 const FACT_ROW = '[data-testid="fact-row"]'
 const CARD_IBANS = '[data-testid="card-settlement-ibans"]'
@@ -3835,7 +3721,7 @@ export const onboardingPackFlow = onboardingPackFlowIn('en')
 
 /**
  * Delivery comes after the first statement: the access step offers no statements choice, and Getting set up offers how later ones arrive.
- * Its dialog names the Erste preset, then another bank typed in, which goes on only once named. Saving makes the statements folder and takes the
+ * Its dialog names the Erste preset, then another bank typed in, which goes on only once named. Saving takes the
  * line away. A sync then asks Google for Gmail read, as any sync of books with mail settings does. "I import by hand" takes the line away too.
  */
 export function onboardingDeliveryFlowIn(language) {
@@ -4163,8 +4049,8 @@ export const moveOntoDriveFlow = moveOntoDriveFlowIn('en')
 
 /**
  * Settings, Books file: the books kept in this browser move to a new file on the fake Drive through
- * onboarding's access and folder steps. The access step asks for the Drive read their statements
- * folder needs, the folder confirm names the app's subfolder of the Kuna folder, and the sync control
+ * onboarding's access and folder steps. The access step asks for the books file alone, since the books
+ * name no bank's mail, the folder confirm names the app's subfolder of the Kuna folder, and the sync control
  * shows no Allow access once they are there.
  */
 export function moveFromBrowserFlowIn(language) {
@@ -4174,12 +4060,10 @@ export function moveFromBrowserFlowIn(language) {
     await pageSays(page, words.writes.localFile.kept, true)
     await pressSelector(page, press, '[data-testid="keep-on-drive"]')
     await onboardingAt(page, 'access')
-    await page.waitForSelector(`${STEP} [data-scope="drive.readonly"]`, { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error('the access step of the move does not name the Drive read the books need')
-    })
+    if (await page.$(`${STEP} [data-scope="drive.readonly"]`)) throw new Error('the access step of the move names Drive read, which the books no longer need')
     await allowGoogle(page, press, { shoot, inspect }, words)
     const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('kuna.google-needed') ?? '[]'))
-    if (JSON.stringify(asked) !== JSON.stringify(['drive.file', 'drive.readonly'])) throw new Error(`the move asked Google for ${asked.join(', ')}, not the books file and Drive read`)
+    if (JSON.stringify(asked) !== JSON.stringify(['drive.file'])) throw new Error(`the move asked Google for ${asked.join(', ')}, not the books file alone`)
     await confirmFolder(page, press, { shoot, inspect }, inKunaFolder(words, 'company'))
     await toastMatching(page, anyCount(words.writes.firstRun.folder.moved(1000)))
     await onboardingAt(page, 'overview')
@@ -4304,7 +4188,7 @@ export const kunaWelcomeBrowserFlow = kunaWelcomeBrowserFlowIn('en')
 
 /**
  * Settings, Books file on the fake Drive: the file sits outside the Kuna folder and stays there until the person presses. The dialog names what
- * goes and what stays, with the statements folder staying since its setting is a path from My Drive. Moving keeps the file open and working, the
+ * goes, the file and its backups, and nothing stays, since the books keep no folder of their own beside the file. Moving keeps the file open and working, the
  * Settings then names its new folder and stops offering the move, and a sync afterwards still reads it.
  */
 export function moveIntoKunaFlowIn(language) {
@@ -4325,8 +4209,7 @@ export function moveIntoKunaFlowIn(language) {
     })
     await delay(400)
     if (!(await goes.evaluate((element) => element.textContent ?? '')).includes('kuna-company.json')) throw new Error('the move does not name the file')
-    const stays = await page.$eval('[data-testid="move-into-kuna-stays"]', (element) => element.textContent ?? '').catch(() => '')
-    if (!stays.includes(words.myDrive)) throw new Error(`the move says "${stays}" stays, without the statements folder named from My Drive`)
+    if (await page.$('[data-testid="move-into-kuna-stays"]')) throw new Error('the move says something stays, though the books keep nothing beside the file but backups')
     await inspect?.('the move dialog')
     await shoot('move-into-kuna')
     await pressSelector(page, press, '[data-testid="move-into-kuna-confirm"]')
@@ -4350,50 +4233,6 @@ export function moveIntoKunaFlowIn(language) {
 }
 
 export const moveIntoKunaFlow = moveIntoKunaFlowIn('en')
-
-/**
- * The statements folder holds a statement Kuna filed from mail, one a script filed and a file another mail source filed. The dialog counts one going and two
- * staying, and says it cannot tell who made them. Moving takes the one, and the setting then names the folder beside the file.
- */
-export function moveStatementsIntoKunaFlowIn(language) {
-  const words = SCREEN_WORDS[language]
-  const text = words.writes.moveIntoKuna
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await pressSelector(page, press, '[data-testid="move-into-kuna-open"]')
-    const goes = await page.waitForSelector('[data-testid="move-into-kuna-goes"]', { visible: true, timeout: 10_000 })
-    await delay(400)
-    const going = await goes.evaluate((element) => element.textContent ?? '')
-    if (!going.includes('statements')) throw new Error(`the move says "${going}" goes, without the statements Kuna filed`)
-    const others = await page.$eval('[data-testid="move-into-kuna-others"]', (element) => element.textContent ?? '').catch(() => '')
-    if (
-      !others.includes(
-        (() => {
-          const forms = words.writes.moveIntoKuna.others(2)
-          return (forms.few ?? forms.other).split(' ').slice(0, 3).join(' ')
-        })(),
-      )
-    )
-      throw new Error(`the move says "${others}" of the rest`)
-    if (!(await page.$('[data-testid="move-into-kuna-stops-reading"]'))) throw new Error('the move does not say Kuna stops reading the old statements folder')
-    await inspect?.('the move dialog with statements')
-    await shoot('move-statements-into-kuna')
-    await pressSelector(page, press, '[data-testid="move-into-kuna-confirm"]')
-    await toastMatching(page, exactly(text.moved('kuna-company.json', inKunaFolder(words, 'company'))))
-    await dismissToasts(page)
-    await page.evaluate(() => {
-      window.location.hash = '#/company/settings'
-    })
-    await page
-      .waitForFunction(() => document.querySelector('[data-testid="statements-folder"] input')?.value === './statements', { timeout: 10_000 })
-      .catch(() => {
-        throw new Error('the statements setting does not name the folder beside the file after the move')
-      })
-    await inspect?.('Settings, General after the move')
-  }
-}
-
-export const moveStatementsIntoKunaFlow = moveStatementsIntoKunaFlowIn('en')
 
 function queueLength(page) {
   return page.evaluate(() => document.querySelectorAll('[data-testid="review-row"]').length)

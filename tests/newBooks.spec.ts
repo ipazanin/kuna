@@ -40,12 +40,13 @@ describe('new books', () => {
 
     expect(rows).toMatchObject({
       owner_pay_module: 'false',
-      statements_folder: '',
+      statements_mail_from: '',
       currency: 'EUR',
     })
+    expect(rows).not.toHaveProperty('statements_folder')
     expect(Object.keys(rows).filter((key) => COMPANY_FACT_SETTINGS.retired.includes(key))).toEqual([])
     const { workbook } = read(document)
-    expect(workbook.settings).toMatchObject({ ownerPayModule: false, statementsFolder: [] })
+    expect(workbook.settings).toMatchObject({ ownerPayModule: false, statementsMailFrom: [] })
     expect(workbook.accounts).toEqual([])
     expect(workbook.transactions).toEqual([])
     expect(workbook.problems).toEqual([])
@@ -82,12 +83,12 @@ describe('getting set up', () => {
 
   it("lists what new books lack once an account takes the bank's statements, asks a Croatian d.o.o. for nothing more, and each line goes once it is done", () => {
     const syncing = newBooks()
-    expect(keysOf(syncing)).toEqual(['first-statement', 'statements-folder', 'categories'])
+    expect(keysOf(syncing)).toEqual(['first-statement', 'statements-mail', 'categories'])
 
     const croatian = withRows(syncing, { owner_pay_module: true })
-    expect(keysOf(croatian)).toEqual(['first-statement', 'statements-folder', 'categories'])
+    expect(keysOf(croatian)).toEqual(['first-statement', 'statements-mail', 'categories'])
 
-    const named = withRows(croatian, { statements_folder: 'finance/statements' })
+    const named = withRows(croatian, { statements_mail_from: 'statements@bank.example.com', statements_mail_subject: 'Izvadak' })
     expect(keysOf(named)).toEqual(['first-statement', 'categories'])
 
     const recategorised = { ...named, records: { ...named.records, category: [...(named.records.category ?? []), { category: 'hosting', family: 'operating', bucket: 'operating' }] } }
@@ -98,7 +99,7 @@ describe('getting set up', () => {
     expect(gettingSetUp(read(newBooks()).workbook, true).map((line) => line.key)).toEqual(['first-statement'])
   })
 
-  it('leaves the statements folder alone for statements by hand, and links each line to its screen', () => {
+  it('leaves the bank’s mail alone for statements by hand, and links each line to its screen', () => {
     expect(gettingSetUp(read(newBooks()).workbook)).toEqual([
       { key: 'first-statement', text: 'Import your first bank statement', whileEmpty: true, link: { label: 'Import', to: { path: '/company/transactions', query: { tab: 'import' } } } },
       {
@@ -117,7 +118,6 @@ describe('getting set up', () => {
     expect(delivery(workbook, true)).toBe(false)
     expect(delivery(withRow, true)).toBe(true)
     expect(delivery(withRow, false)).toBe(false)
-    expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsFolder: ['work', 'dss', 'statements'] } }, true)).toBe(false)
     expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsMailFrom: ['a@example.com'] } }, true)).toBe(false)
     expect(delivery({ ...withRow, accounts: [BY_MAIL] }, true)).toBe(false)
   })

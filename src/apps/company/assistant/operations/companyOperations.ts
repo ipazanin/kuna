@@ -28,7 +28,7 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 
 /** What Company's operations need beyond its store, which `app.ts` hands in. */
 export interface CompanyOperationPorts {
-  /** The statements the last sync of the statements folder held back. */
+  /** The statements the last sync of the bank's mail held back. */
   readonly heldStatements: HeldStatements
   /** The answers to Company's set-up questions kept on this device. */
   readonly setUpAnswers: SetUpAnswers

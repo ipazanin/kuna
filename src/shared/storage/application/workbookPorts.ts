@@ -61,10 +61,8 @@ export interface DriveFilePlace {
 
 /** A folder whose files Kuna made may go along. The folder itself never moves, since it may hold what Kuna did not make. */
 export interface KunaFilesFolder {
-  /** The folder's name, beside the file or, with `fromPath`, in the app's subfolder of the Kuna folder. */
+  /** The folder's name beside the file. */
   readonly name: string
-  /** Where a setting names it from My Drive, for one that is not beside the file. */
-  readonly fromPath?: readonly string[]
   /** The mail source that files into it, whose files are the only ones that go, or null for every file the app made. */
   readonly mailSource: string | null
 }
@@ -82,8 +80,6 @@ export interface KunaFilesInFolder {
   readonly name: string
   readonly kuna: number
   readonly others: number
-  /** Where a setting names it from My Drive, which Kuna stops reading once the file has moved. */
-  readonly fromPath?: readonly string[]
 }
 
 /** What a move into the Kuna folder would take and leave. */

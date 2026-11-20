@@ -156,44 +156,12 @@ describe('card_settlement_ibans', () => {
 })
 
 describe('statements_folder', () => {
-  it('reads a path from My Drive as folder names, without blank ones, and writes it back with slashes', () => {
-    const { settings, problems } = parseSettings(rows(['statements_folder', ' /finance / bank statements//erste/ ']))
+  it('reads without a problem from an older file and is no longer listed, since statements now come by mail or through Import', () => {
+    const { settings, problems } = parseSettings(rows(['statements_folder', 'finance/statements']))
 
     expect(problems).toEqual([])
-    expect(settings.statementsFolder).toEqual(['finance', 'bank statements', 'erste'])
-    expect(settingsTabEntries(settings, null)).toContainEqual({ key: 'statements_folder', value: 'finance/bank statements/erste' })
-    expect(parseSettings(rows(...settingsTabEntries(settings, null).map(({ key, value }) => [key, value] as [string, Cell]))).settings).toEqual(settings)
-  })
-
-  it('reads a path from the folder of the books file after ./, as onboarding writes it for statements from mail', () => {
-    const { settings, problems } = parseSettings(rows(['statements_folder', './statements']))
-
-    expect(problems).toEqual([])
-    expect(settings.statementsFolder).toEqual(['.', 'statements'])
-    expect(settingsTabEntries(settings, null)).toContainEqual({ key: 'statements_folder', value: './statements' })
-  })
-
-  it('reports a path that names no folder, or holds . after its start, and keeps the default', () => {
-    for (const [value, reason] of [
-      [' / ', '"/" names no folder'],
-      ['./', '"./" names no folder'],
-      ['finance/./statements', '"finance/./statements" holds . after its start, where it names no folder'],
-    ] as const) {
-      const { settings, problems } = parseSettings(rows(['statements_folder', value]))
-
-      expect(settings.statementsFolder).toEqual(DEFAULT_SETTINGS.statementsFolder)
-      expect(problems).toEqual([settingProblem('statements_folder', `${reason}, so the default is used`)])
-    }
-  })
-
-  it('names no folder by default, so statements come in through Import, and is listed blank in the template', () => {
-    expect(DEFAULT_SETTINGS.statementsFolder).toEqual([])
-    expect(parseSettings(rows(['statements_folder', ' '])).settings.statementsFolder).toEqual([])
-    expect(settingsTabEntries(DEFAULT_SETTINGS, null)).toContainEqual({ key: 'statements_folder', value: '' })
-  })
-
-  it('may be left blank when typed in the app', () => {
-    expect(settingsErrors({ ...DEFAULT_SETTINGS, statementsFolder: [] })).toEqual({})
+    expect(settings).toEqual(DEFAULT_SETTINGS)
+    expect(settingsTabEntries(DEFAULT_SETTINGS, null).map(({ key }) => key)).not.toContain('statements_folder')
   })
 })
 

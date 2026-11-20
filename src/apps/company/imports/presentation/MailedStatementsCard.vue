@@ -26,10 +26,9 @@ const writes = useRecordWrites(store)
 const names = useDisplayNames()
 
 const outcome = computed(() => statements.state.outcome)
-const folder = computed(() => store.state.workbook?.settings.statementsFolder.join('/') ?? '')
 
 const heldReadings = computed(() => outcome.value?.held ?? [])
-// The held statements are the folder's own, so they go on an account the bank's statements fill, and an account named here takes them.
+// The held statements are the bank's own mail, so they go on an account the bank's statements fill, and an account named here takes them.
 const starts = useDryRun(heldReadings, 'automation')
 const { dryRun, started, typedOpenings, accountNames, accountNameProblems } = starts
 
@@ -51,35 +50,35 @@ const summary = computed(() => {
   const count = held.value.length
   if (count === 0) return ''
   const newRows = dryRun.value?.newRows ?? 0
-  return [plural(words.folder.held(count), count), newRows > 0 ? plural(words.folder.confirming(newRows), newRows) : ''].filter((sentence) => sentence !== '').join(' ')
+  return [plural(words.mailed.held(count), count), newRows > 0 ? plural(words.mailed.confirming(newRows), newRows) : ''].filter((sentence) => sentence !== '').join(' ')
 })
 
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
   const filing = run.statements.filter((statement) => statement.rows.some((row) => row.verdict !== null))
-  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run, companyBooksOf(store.state)), { failedTitle: words.folder.notFiled })
+  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run, companyBooksOf(store.state)), { failedTitle: words.mailed.notFiled })
 }
 </script>
 
 <template>
-  <section v-if="shows" class="flex flex-col gap-4" data-testid="statement-folder">
-    <AppCard :title="words.folder.title" :subtitle="words.folder.subtitle(folder)">
+  <section v-if="shows" class="flex flex-col gap-4" data-testid="mailed-statements">
+    <AppCard :title="words.mailed.title" :subtitle="words.mailed.subtitle">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-        <UAlert v-if="outcome?.problem" icon="i-lucide-folder-x" color="error" variant="subtle" :title="outcome.problem" data-testid="statement-folder-problem" />
-        <div v-if="filed.length" class="flex flex-col gap-1" data-testid="statement-folder-filed">
-          <p class="type-card-title">{{ words.folder.filedByLastSync }}</p>
+        <UAlert v-if="outcome?.problem" icon="i-lucide-mail-x" color="error" variant="subtle" :title="outcome.problem" data-testid="mailed-statements-problem" />
+        <div v-if="filed.length" class="flex flex-col gap-1" data-testid="mailed-statements-filed">
+          <p class="type-card-title">{{ words.mailed.filedByLastSync }}</p>
           <ul class="flex flex-col gap-1 type-body">
             <li v-for="statement in filed" :key="`${statement.account}-${statement.label}`" class="flex items-start gap-2">
               <UIcon name="i-lucide-check" class="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
               <span class="min-w-0 flex-1 break-words">
-                {{ words.folder.filed(statement.label, names.account(statement.account), statement.rows, statement.waiting) }}
+                {{ words.mailed.filed(statement.label, names.account(statement.account), statement.rows, statement.waiting) }}
               </span>
             </li>
           </ul>
-          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" :to="REVIEW_LINK" class="type-card-title">{{ words.folder.openReview }}</DrillLink>
+          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" :to="REVIEW_LINK" class="type-card-title">{{ words.mailed.openReview }}</DrillLink>
         </div>
-        <p v-if="summary" class="type-body" data-testid="statement-folder-summary">{{ summary }}</p>
+        <p v-if="summary" class="type-body" data-testid="mailed-statements-summary">{{ summary }}</p>
       </div>
     </AppCard>
 
@@ -87,7 +86,7 @@ async function confirm(): Promise<void> {
       v-for="(statement, index) in held"
       :key="`${statement.fileName}-${statement.label}`"
       :statement="statement"
-      :collapse-id="`import.folder-statement-${index + 1}`"
+      :collapse-id="`import.mailed-statement-${index + 1}`"
       :started="started[statement.account] === true"
       :typed-opening="typedOpenings[statement.account] ?? ''"
       :account-name="statement.newAccount ? accountNames[statement.newAccount.iban] : undefined"
@@ -99,11 +98,11 @@ async function confirm(): Promise<void> {
 
     <div v-if="held.length && (dryRun?.newRows ?? 0) > 0" class="flex justify-end">
       <UButton
-        :label="words.folder.confirm"
+        :label="words.mailed.confirm"
         icon="i-lucide-file-input"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value || writes.refused.value"
-        data-testid="statement-folder-confirm"
+        data-testid="mailed-statements-confirm"
         @click="confirm"
       />
     </div>

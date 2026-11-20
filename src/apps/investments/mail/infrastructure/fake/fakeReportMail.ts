@@ -1,9 +1,9 @@
 import { sampleFlexReport } from './sampleFlexReport'
 import type { SampleFlexShape } from './sampleFlexReport'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
-import type { Mailbox } from '../../../../../shared/mail-filing/application/mailFiling'
-import { fakeMailboxOf } from '../../../../../shared/mail-filing/infrastructure/fake/fakeMail'
-import type { FakeMail } from '../../../../../shared/mail-filing/infrastructure/fake/fakeMail'
+import type { Mailbox } from '../../../../../shared/mail/application/mailReading'
+import { fakeMailboxOf } from '../../../../../shared/mail/infrastructure/fake/fakeMail'
+import type { FakeMail } from '../../../../../shared/mail/infrastructure/fake/fakeMail'
 
 /** Two made-up daily mails whose files overlap by a day, as a rolling report's do. */
 function reportMails(shape: SampleFlexShape): FakeMail[] {

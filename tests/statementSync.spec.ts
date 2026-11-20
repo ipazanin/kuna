@@ -8,11 +8,9 @@ import { decodeDocument, encodeDocument } from '../src/shared/storage/infrastruc
 import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
 import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWrites'
-import type { StatementFolder } from '../src/apps/company/imports/application/statementFolder'
 import { NOTHING_FILED, fileNewStatements, filedTitle } from '../src/apps/company/imports/application/statementSync'
 import type { StatementSyncStep } from '../src/apps/company/imports/application/statementSync'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
-import { GoogleApiError } from '../src/shared/google/googleApi'
 import { moneyFromCents } from '../src/shared/money/money'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
@@ -20,7 +18,6 @@ import type { CellValue } from '../src/apps/company/workbook/infrastructure/work
 import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
-import { statementNeeds } from '../src/apps/company/imports/presentation/useStatementSync'
 import { mailNeeds } from '../src/apps/company/mail/presentation/useMailSync'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Account } from '../src/apps/company/workbook/domain/workbook'
@@ -95,25 +92,12 @@ function camt(iban: string, sequence: number, day: string, openingCents: number,
 `
 }
 
-/** A statements folder at the default path, holding each file's text, or only its name for a statement Drive holds but no test downloads. */
-function folderHolding(files: Readonly<Record<string, string | null>>): { readonly folder: StatementFolder; readonly downloads: string[] } {
-  const downloads: string[] = []
-  const folder: StatementFolder = {
-    async files() {
-      return { kind: 'listed', files: Object.keys(files).map((name) => ({ id: name, name })) }
-    },
-    async download(file) {
-      downloads.push(file.name)
-      const text = files[file.name]
-      if (text === null || text === undefined) throw new Error(`${file.name} was downloaded, though the ledger holds it.`)
-      return new TextEncoder().encode(text).buffer as ArrayBuffer
-    },
-  }
-  return { folder, downloads }
-}
-
-function syncOf(store: WorkbookStore<CompanyBooks, DocumentCopy>, folder: StatementFolder, steps: StatementSyncStep[] = []) {
-  return fileNewStatements({ store, folder, load: loadImportFile, step: (step) => steps.push(step) })
+/** Files the statements of each camt text as a sync does once the mail step read them, each text as one mailed XML. */
+async function syncOf(store: WorkbookStore<CompanyBooks, DocumentCopy>, texts: readonly string[], steps: StatementSyncStep[] = []) {
+  const readings = await Promise.all(
+    texts.map(async (text, index) => statementReadings(await loadImportFile(`IZV_${index}.xml`, new TextEncoder().encode(text).buffer as ArrayBuffer), store.state.workbook!, null)),
+  )
+  return fileNewStatements(readings.flat(), { store, step: (step) => steps.push(step) })
 }
 
 const MAIN_003 = camt(MAIN_IBAN, 3, '2026-10-06', 100_000, [{ reference: 'M3-1', cents: 10_000 }])
@@ -146,15 +130,14 @@ describe('the title of a filing write', () => {
 describe.each([
   ['a file on Drive', driveHarness],
   ['a workbook kept in this browser', browserHarness],
-] as const)('the statements step of a sync, on %s', (name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
+] as const)('filing the statements a sync read, on %s', (name, harnessOf: (used: Set<string>, grids?: Record<string, CellValue[][]>) => Promise<WriteBackHarness>) => {
   it('files every accepted statement in one write, which one Undo takes out', async () => {
     const harness = await harnessOf(used, grids())
     const { store } = harness
     const before = ledgerOf(store, 'main')
-    const { folder } = folderHolding({ '2026-10-06-statement-003-main.xml': MAIN_003, '2026-10-06-statement-003.pdf': null, '2026-10-07-statement-004-main.xml': MAIN_004 })
     const steps: StatementSyncStep[] = []
 
-    const outcome = await syncOf(store, folder, steps)
+    const outcome = await syncOf(store, [MAIN_003, MAIN_004], steps)
 
     expect(outcome.problem).toBeNull()
     expect(outcome.held).toEqual([])
@@ -174,9 +157,7 @@ describe.each([
     const { store } = await harnessOf(used, grids())
     const gap = camt(MAIN_IBAN, 3, '2026-10-06', 90_000, [{ reference: 'M3-1', cents: 10_000 }])
     const savings = camt(SAVINGS_IBAN, 2, '2026-10-06', 25_000, [{ reference: 'S2-1', cents: 1_000 }])
-    const { folder } = folderHolding({ '2026-10-06-statement-003-main.xml': gap, '2026-10-07-statement-004-main.xml': MAIN_004, '2026-10-06-statement-002-savings.xml': savings })
-
-    const outcome = await syncOf(store, folder)
+    const outcome = await syncOf(store, [gap, MAIN_004, savings])
 
     expect(outcome.filed.map((statement) => statement.label)).toEqual(['2026-10-06-statement-002'])
     expect(outcome.held.map((reading) => ('statement' in reading ? reading.statement.label : reading.label))).toEqual(['2026-10-06-statement-003', '2026-10-07-statement-004'])
@@ -202,9 +183,7 @@ describe.each([
       ],
     })
     const savings = camt(SAVINGS_IBAN, 2, '2026-10-06', 25_000, [{ reference: 'S2-1', cents: 1_000 }])
-    const { folder } = folderHolding({ '2026-10-06-statement-003-main.xml': MAIN_003, '2026-10-06-statement-002-savings.xml': savings })
-
-    const outcome = await syncOf(store, folder)
+    const outcome = await syncOf(store, [MAIN_003, savings])
 
     expect(outcome.filed).toEqual([])
     const held = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map(), new Map(), new Map(), true, 'automation').statements
@@ -215,30 +194,33 @@ describe.each([
     expect(store.state.writes).toEqual([])
   })
 
-  it('downloads nothing, writes nothing and adds nothing to the session when every file is on the ledger by its name', async () => {
+  it('writes nothing and adds nothing to the session when the mail held no statement', async () => {
     const harness = await harnessOf(used, grids())
     const { store } = harness
-    const { folder, downloads } = folderHolding({
-      '2026-10-03-statement-001-main.xml': null,
-      '2026-10-03-statement-001.pdf': null,
-      '2026-10-05-statement-002-main.xml': null,
-      '2026-10-01-statement-001-savings.xml': null,
-    })
     const steps: StatementSyncStep[] = []
 
-    expect(await syncOf(store, folder, steps)).toEqual(NOTHING_FILED)
-    expect(downloads).toEqual([])
-    expect(steps).toEqual([{ kind: 'looking' }])
+    expect(await syncOf(store, [], steps)).toEqual(NOTHING_FILED)
+    expect(steps).toEqual([])
     expect(store.state.writes).toEqual([])
     if (name === 'a file on Drive') expect(writesTo(harness)).toBe(0)
+  })
+
+  it('adds the rows of a statement the bank mailed twice once, and a later sync that reads it again writes nothing', async () => {
+    const harness = await harnessOf(used, grids())
+    const { store } = harness
+
+    const outcome = await syncOf(store, [MAIN_003, MAIN_003])
+
+    expect(outcome.filed.map((statement) => statement.label)).toEqual(['2026-10-06-statement-003'])
+    expect(ledgerOf(store, 'main').filter((row) => row.includes('M3-1'))).toEqual(['2026-10-06 M3-1 110000'])
+    expect(await syncOf(store, [MAIN_003])).toEqual(NOTHING_FILED)
+    expect(store.state.writes).toHaveLength(1)
   })
 
   it('holds the first statement of an account with no rows until it is started, then files it through the ledger writes', async () => {
     const { store } = await harnessOf(used, grids())
     const reserve = camt(RESERVE_IBAN, 1, '2026-10-06', 5_000, [{ reference: 'R1-1', cents: 2_000 }])
-    const { folder } = folderHolding({ '2026-10-06-statement-001-reserve.xml': reserve })
-
-    const outcome = await syncOf(store, folder)
+    const outcome = await syncOf(store, [reserve])
 
     expect(outcome.filed).toEqual([])
     expect(outcome.receipt).toBeNull()
@@ -252,25 +234,13 @@ describe.each([
     expect(ledgerOf(store, 'reserve')).toEqual(['2026-10-06 R1-1 7000'])
   })
 
-  it('reads a file that does not parse as a held statement with the reason', async () => {
-    const { store } = await harnessOf(used, grids())
-    const { folder } = folderHolding({ 'stray.xml': '<Document><nothing' })
-
-    const outcome = await syncOf(store, folder)
-
-    expect(outcome.held).toEqual([{ fileName: 'stray.xml', label: 'stray.xml', refusal: 'stray.xml is not well-formed XML, so it cannot be read as a camt.053 statement.' }])
-    expect(store.state.writes).toEqual([])
-  })
-
   it('refuses a statement row whose reference a refused ledger row of the account holds, and writes nothing', async () => {
     const withRefused = grids()
     withRefused.ledger!.splice(1, 0, [46301, 'main', '2026-10-06-statement-003', 'Typed by hand', '', 'Half a row', 'abc', 1100, 'revenue', 'human', 'M3-1', '', '', '', '', '', '', ''])
     const { store } = await harnessOf(used, withRefused)
     expect(store.state.records?.ledger.refused.map((refused) => refused.reason)).toEqual(['the amount "abc" is not a number'])
     const before = ledgerOf(store, 'main')
-    const { folder } = folderHolding({ 'main-003.xml': MAIN_003 })
-
-    const outcome = await syncOf(store, folder)
+    const outcome = await syncOf(store, [MAIN_003])
 
     expect(outcome.filed).toEqual([])
     expect(outcome.receipt).toBeNull()
@@ -281,7 +251,7 @@ describe.each([
   })
 })
 
-describe("the statements step against another device's sync", () => {
+describe("filing the statements a sync read against another device's sync", () => {
   it('reads the file again and runs the dry run once more when another device filed the same rows first, and writes nothing', async () => {
     const harness = await driveHarness(used, grids())
     const { store, drive } = harness
@@ -315,10 +285,9 @@ describe("the statements step against another device's sync", () => {
     const held = decodeDocument(await drive!.download(fileId))
     await drive!.upload(fileId, encodeDocument({ ...held, records: { ...held.records, 'ledger-row': [...held.records['ledger-row']!, filedElsewhere] } }))
     drive!.requests.length = 0
-    const { folder } = folderHolding({ '2026-10-06-statement-003-main.xml': MAIN_003 })
     const steps: StatementSyncStep[] = []
 
-    const outcome = await syncOf(store, folder, steps)
+    const outcome = await syncOf(store, [MAIN_003], steps)
 
     expect(outcome).toEqual(NOTHING_FILED)
     expect(steps).toEqual([{ kind: 'looking' }, { kind: 'filing', rows: 1 }, { kind: 'looking' }])
@@ -328,35 +297,19 @@ describe("the statements step against another device's sync", () => {
   })
 })
 
-describe('the statements step when Google turns the token away', () => {
-  it('throws for a token Google refuses, so the sync asks for access, and says any other failure as its problem', async () => {
-    const { store } = await driveHarness(used, grids())
-    const failing = (failure: Error): StatementFolder => ({
-      files: async () => {
-        throw failure
-      },
-      download: async () => new ArrayBuffer(0),
-    })
-    const refused = new GoogleApiError('https://www.googleapis.com/drive/v3/files', 401, '{}')
-
-    await expect(syncOf(store, failing(refused))).rejects.toBe(refused)
-    expect(await syncOf(store, failing(new Error('Offline')))).toEqual({ ...NOTHING_FILED, problem: 'The statements folder could not be read: Offline' })
-  })
-})
-
-describe('the statements and mail steps of a sync', () => {
+describe('the statement mail step of a sync', () => {
   const BY_MAIL: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', intake: { rowsFrom: 'mail', startsOn: civil('2026-11-01'), alsoFrom: [] } }
   const BY_HAND_TOO: Account = { ...BY_MAIL, slug: 'savings', iban: SAVINGS_IBAN, intake: { rowsFrom: 'by-hand', startsOn: null } }
   const named = emptyCompany({
     accounts: [BY_HAND_TOO],
-    settings: { ...DEFAULT_SETTINGS, statementsFolder: ['work', 'statements'], statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Izvadak' },
+    settings: { ...DEFAULT_SETTINGS, statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Izvadak' },
   })
 
-  it("ask Google for nothing while every account is kept by hand, and for the folder and Gmail once one takes the bank's statements", () => {
-    expect([statementNeeds(named), mailNeeds(named)]).toEqual([[], []])
+  it("asks Google for nothing while every account is kept by hand or no sender is named, and for Gmail read alone once one takes the bank's statements", () => {
+    expect(mailNeeds(named)).toEqual([])
 
     const filling = { ...named, accounts: [BY_HAND_TOO, BY_MAIL] }
-    expect(statementNeeds(filling)).toHaveLength(1)
-    expect(mailNeeds(filling).map((need) => need.scope)).toContain('gmail.readonly')
+    expect(mailNeeds(filling).map((need) => need.scope)).toEqual(['gmail.readonly'])
+    expect(mailNeeds({ ...filling, settings: { ...filling.settings, statementsMailFrom: [] } })).toEqual([])
   })
 })

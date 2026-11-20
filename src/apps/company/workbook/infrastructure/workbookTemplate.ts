@@ -118,12 +118,12 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'label', note: 'What the screens call the account, such as Main account. Optional. Blank shows the account name.' },
     {
       name: 'rows_from',
-      note: "How the account's rows come in: mail when the bank's statements reach the statements folder, by mail or dropped there, or by-hand when you import its files or the chat copies them. Blank is worked out from its rows once.",
+      note: "How the account's rows come in: mail when each sync reads the bank's statements from the bank's mail, or by-hand when you import its files or the chat copies them. Blank is worked out from its rows once.",
     },
     { name: 'starts_on', note: "With mail, the first day the bank's statements bring rows of, as a date cell. Required with mail, blank by hand." },
     {
       name: 'also_from',
-      note: "With mail, provider-file also takes the bank's camt file on Import or in the chat. Optional. Blank takes the statements folder's rows alone. No sheet or copied row goes on such an account.",
+      note: "With mail, provider-file also takes the bank's camt file on Import or in the chat. Optional. Blank takes the mail's rows alone. No sheet or copied row goes on such an account.",
     },
   ],
   rules: RULE_COLUMNS.map((name) => ({ name, note: RULE_COLUMN_NOTES[name] })),

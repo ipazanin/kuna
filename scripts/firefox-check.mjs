@@ -124,7 +124,7 @@ await withBrowser(launchFirefox, async (browser) => {
   })
 
   await step('dialog', async (page) => {
-    await open(page, 'fake=mail-move', '/company/settings?tab=books')
+    await open(page, 'fake=drive', '/company/settings?tab=books')
     const opener = await page.waitForSelector('[data-testid="move-into-kuna-open"]', VISIBLE)
     const main = () => page.$eval('main', (element) => element.getBoundingClientRect().left + element.getBoundingClientRect().width)
     const before = await main()

@@ -4,7 +4,7 @@ import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { scopesOfChoices } from '../src/apps/company/onboarding/application/onboardingScopes'
 import { answerForRun, makingStep, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../src/apps/company/onboarding/domain/onboardingSteps'
 import type { BooksHome, OnboardingPath, OnboardingPlace } from '../src/apps/company/onboarding/domain/onboardingSteps'
-import { folderDeliveryRows, mailDeliveryRows, OTHER_BANK, statementMailProblems } from '../src/apps/company/onboarding/domain/statementsChoice'
+import { mailDeliveryRows, OTHER_BANK, statementMailProblems } from '../src/apps/company/onboarding/domain/statementsChoice'
 import type { StatementMail } from '../src/apps/company/onboarding/domain/statementsChoice'
 
 const ERSTE: StatementMail = { bank: 'erste', from: '', subject: '', since: null }
@@ -105,16 +105,11 @@ describe('the onboarding steps', () => {
 })
 
 describe('how later statements arrive', () => {
-  it('files mail into a statements folder beside the books file, with the preset bank’s sender and subject words', () => {
+  it('reads the bank’s mail by the preset bank’s sender and subject words, and makes no folder', () => {
     expect(mailDeliveryRows(ERSTE)).toEqual([
-      { key: 'statements_folder', value: './statements' },
       { key: 'statements_mail_from', value: 'netbanking.support@erstebank.hr' },
       { key: 'statements_mail_subject', value: 'ERSTE Izvadak' },
     ])
-  })
-
-  it('reads a folder by its path from My Drive', () => {
-    expect(folderDeliveryRows(['work', 'statements'])).toEqual([{ key: 'statements_folder', value: 'work/statements' }])
   })
 
   it('takes another bank’s sender and subject words as typed, and says what is missing or does not hold', () => {

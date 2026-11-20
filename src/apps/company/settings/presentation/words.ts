@@ -24,8 +24,8 @@ export const en = {
   /** Settings, General: the settings tab's keys as cards, with one Save under them. */
   general: {
     title: 'The workbook',
-    subtitle: 'Its name, money, review label and statements folder, from the settings tab.',
-    summary: 'The company, the currency, the review label and the statements folder',
+    subtitle: 'Its name, money and review label, from the settings tab.',
+    summary: 'The company, the currency and the review label',
     companyName: settingsEn.settingLabels.companyName,
     companyNameHelp: 'Shown under the app name and used in the name of an exported file.',
     notSet: 'Not set',
@@ -42,9 +42,6 @@ export const en = {
     cardIbans: settingsEn.settingLabels.cardIbans,
     cardIbansHelp: "The bank's card settlement accounts. A row paid to one of them reads as a card purchase.",
     addIban: 'Add an IBAN',
-    statementsFolder: settingsEn.settingLabels.statementsFolder,
-    statementsFolderHelp:
-      'Where Sync looks in Google Drive for the bank’s camt statements, as a path from My Drive with a folder for each year inside. Blank names none, and statements come in through Import.',
     ownerPay: settingsEn.settingLabels.ownerPay,
     ownerPayHelp: 'Shows owner pay and owner earns. Off hides them, and rows in the owner-pay bucket then count as operating cost, so every total stays the same.',
     bucketLabels: 'Bucket labels',
@@ -255,8 +252,8 @@ export const hr: Translation<typeof en> = {
   notSaved: 'Nije spremljeno',
   general: {
     title: 'Osnovno',
-    subtitle: 'Naziv, valuta, oznaka provjere i mapa izvoda, s lista „settings”.',
-    summary: 'Tvrtka, valuta, oznaka provjere i mapa izvoda',
+    subtitle: 'Naziv, valuta i oznaka provjere, s lista „settings”.',
+    summary: 'Tvrtka, valuta i oznaka provjere',
     companyName: settingsHr.settingLabels.companyName,
     companyNameHelp: 'Prikazuje se ispod naziva aplikacije i ulazi u naziv izvezene datoteke.',
     notSet: 'Nije postavljeno',
@@ -273,9 +270,6 @@ export const hr: Translation<typeof en> = {
     cardIbans: settingsHr.settingLabels.cardIbans,
     cardIbansHelp: 'Bankovni računi za namiru kartičnih plaćanja. Stavka plaćena na jedan od njih čita se kao kupnja karticom.',
     addIban: 'Dodaj IBAN',
-    statementsFolder: settingsHr.settingLabels.statementsFolder,
-    statementsFolderHelp:
-      'Gdje sinkronizacija na Google Driveu traži bankovne camt izvode, kao put od mape Moj disk, s mapom za svaku godinu unutra. Prazno ne imenuje nijednu, pa izvodi stižu kroz Uvoz.',
     ownerPay: settingsHr.settingLabels.ownerPay,
     ownerPayHelp: 'Prikazuje isplate vlasniku i zaradu vlasnika. Isključen ih skriva, a stavke skupine „Isplate vlasniku” tada se broje kao poslovni rashodi, pa svi zbrojevi ostaju isti.',
     bucketLabels: 'Nazivi skupina',

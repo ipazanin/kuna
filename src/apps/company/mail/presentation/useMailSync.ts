@@ -1,22 +1,24 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
-import { deviceTimeZone, startOfDayIn, today } from '../../../../shared/calendar/civilDate'
+import { earliestStartDay } from '../../../../shared/app/accountSource'
+import { deviceTimeZone, startOfDayIn } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { currentToken } from '../../../../shared/google/googleAuth'
-import { folderReadScope, scopesOf } from '../../../../shared/google/googleScopes'
 import type { GoogleScope } from '../../../../shared/google/googleScopes'
+import type { Mailbox } from '../../../../shared/mail/application/mailReading'
+import { mailWindow } from '../../../../shared/mail/domain/mailSource'
+import type { MailSearch } from '../../../../shared/mail/domain/mailSource'
+import { gmailMailbox } from '../../../../shared/mail/infrastructure/gmailMailbox'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
 import type { AccessNeed } from '../../../../shared/sync/application/syncRun'
+import { useStatementSync } from '../../imports/presentation/useStatementSync'
 import { loadImportFile } from '../../imports/infrastructure/importFiles'
+import type { Settings } from '../../settings/domain/settings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { statementMailReach } from '../../workbook/domain/accountIntakes'
 import type { Workbook } from '../../workbook/domain/workbook'
-import { fileMail, hasProblem, planLine } from '../../../../shared/mail-filing/application/mailFiling'
-import type { MailAccess, MailPlan, MailSource } from '../../../../shared/mail-filing/application/mailFiling'
-import { statementMailSource } from '../application/statementMailSource'
-import { yearsSince } from '../../../../shared/mail-filing/domain/mailSource'
-import { earliestStartDay } from '../../../../shared/app/accountSource'
-import { gmailMailbox } from '../../../../shared/mail-filing/infrastructure/gmailMailbox'
-import { googleMailFolders } from '../../../../shared/mail-filing/infrastructure/googleMailFolders'
+import { readStatementMail } from '../application/statementMail'
+import type { KnownAttachment, StatementMailPlan } from '../application/statementMail'
 import { words } from './words'
 
 /** Where the step's line links, the mail card on Settings, General, which lists what the last run found. */
@@ -25,88 +27,66 @@ export const MAIL_LIST_LINK = { label: words.step.seeList, to: '/company/setting
 /** Where the step's line links while no account takes the bank's statements, the Accounts tab of Settings. */
 export const ACCOUNTS_LINK = { label: words.step.seeAccounts, to: '/company/settings?tab=accounts' } as const
 
+const MAIL_SCOPE: GoogleScope = 'gmail.readonly'
+
 interface MailSyncState {
-  /** What the last mail step of this page found and filed, or null before one ran and after one stopped. */
-  readonly plan: MailPlan | null
+  /** What the last mail step of this page found, or null before one ran and after one stopped. */
+  readonly plan: StatementMailPlan | null
   /** Why the last mail step stopped before it had a plan, or null. A lost access is not named, since only the sync control asks for it. */
   readonly stopped: string | null
 }
 
-const state = shallowReactive<{ plan: MailPlan | null; stopped: string | null }>({ plan: null, stopped: null })
+const state = shallowReactive<{ plan: StatementMailPlan | null; stopped: string | null }>({ plan: null, stopped: null })
 
-/** This device's time zone, which the day of a bank's mail and the accounts' start day are read in. */
+/** What this page already read of each attachment. A sync on a timer would otherwise fetch every statement of the window again. */
+const known = new Map<string, KnownAttachment>()
+
+/** This device's time zone, which the accounts' days are read in. */
 const DEVICE_TIME_ZONE = deviceTimeZone()
 
-const STATEMENTS = statementMailSource(loadImportFile, DEVICE_TIME_ZONE)
-
-/** The kinds of mail the step files, which today is the bank's statements alone. */
-const SOURCES: readonly MailSource<Workbook>[] = [STATEMENTS]
-
-/** On while any source is, so a source switched on without all it needs says so in the step's line. */
-function isOn(workbook: Workbook): boolean {
-  return SOURCES.some((source) => source.terms(workbook).kind !== 'off')
+/** What the bank's statement mail is searched by, or null while no sender is named, which leaves the mail unread. */
+function statementSearch(settings: Settings): MailSearch | null {
+  return settings.statementsMailFrom.length === 0 ? null : { senders: settings.statementsMailFrom, subject: settings.statementsMailSubject }
 }
 
-/** The day the search starts, the earliest start day of the accounts the bank's statements fill, or null while they fill none. */
-function searchStart(workbook: Workbook) {
-  return earliestStartDay(workbook.accounts.map((account) => account.intake))
-}
-
-/**
- * For the sources that run, Gmail read and the scope each one's folder is read with: Drive read
- * from My Drive, the books file's scope from the folder of the books file. None while no source
- * has all it needs or no account takes the bank's statements, since then the step calls neither Gmail nor Drive.
- */
+/** Gmail read while a sender is named and some account takes the bank's statements, and nothing otherwise. Before the books are read it counts as needed. */
 function mailScopes(workbook: Workbook | null): GoogleScope[] {
-  if (workbook === null) {
-    return ['gmail.readonly']
-  }
-  if (searchStart(workbook) === null) {
-    return []
-  }
-  const folders = SOURCES.flatMap((source) => {
-    const terms = source.terms(workbook)
-    return terms.kind === 'on' ? [terms.terms.folder] : []
-  })
-  return folders.length === 0 ? [] : scopesOf(['gmail.readonly', ...folders.map(folderReadScope)])
+  if (workbook === null) return [MAIL_SCOPE]
+  return statementSearch(workbook.settings) === null || earliestStartDay(workbook.accounts.map((account) => account.intake)) === null ? [] : [MAIL_SCOPE]
 }
 
 const MAIL_LABEL = words.step.label
 
 /** What the mail step needs of Google for these books, none while their settings turn it off. */
 export function mailNeeds(workbook: Workbook): AccessNeed[] {
-  return isOn(workbook) ? mailScopes(workbook).map((scope) => ({ scope, label: MAIL_LABEL })) : []
+  return mailScopes(workbook).map((scope) => ({ scope, label: MAIL_LABEL }))
 }
 
-async function openMail(workbook: Workbook, booksFileId: string): Promise<MailAccess> {
+async function openMailbox(): Promise<Mailbox> {
   // Inline, not hoisted, so a production build folds the fake away.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    const { fakeMailbox, fakeMailFolders } = await import('../infrastructure/fake/fakeMailbox')
-    const variant = new URLSearchParams(window.location.search).get('fake')
-    return { mailbox: fakeMailbox(variant), folders: fakeMailFolders(variant) }
+    const { fakeMailbox } = await import('../infrastructure/fake/fakeMailbox')
+    return fakeMailbox(new URLSearchParams(window.location.search).get('fake'))
   }
-  const mail = currentToken('gmail.readonly')
-  const drive = currentToken(mailScopes(workbook).includes('drive.readonly') ? 'drive.readonly' : 'drive.file')
-  if (mail === null || drive === null) {
-    throw new Error(words.step.accessRanOut)
-  }
-  return { mailbox: gmailMailbox(mail), folders: googleMailFolders(drive, booksFileId) }
+  const token = currentToken(MAIL_SCOPE)
+  if (token === null) throw new Error(words.step.accessRanOut)
+  return gmailMailbox(token)
 }
 
 export interface MailSync {
   readonly state: Readonly<MailSyncState>
-  /** The mail step of a sync, before the statements step, so a statement it files is read by the same sync. */
+  /** The mail step of a sync: reads the bank's statement mail and files the statements the ledger lacks. */
   readonly step: SyncStep
 }
 
 /**
- * The mail step and what it last found, shared by the whole page. It reads Gmail and the folders
- * the mail goes into, and files what is new there. A source or an upload that failed
- * fails the step, with the others' counts in its line. Gmail still asking to slow down fails it
- * with that alone.
+ * The mail step and what it last found, shared by the whole page. It searches Gmail from a week before the oldest of the
+ * newest statement days of the accounts the mail fills, reads each statement it finds, and files what is new in one write.
+ * Nothing is kept on Drive. Gmail still asking to slow down fails it with that alone.
  */
 export function useMailSync(): MailSync {
   const store = useWorkbook()
+  const statements = useStatementSync()
   return {
     state: shallowReadonly(state),
     step: {
@@ -114,35 +94,37 @@ export function useMailSync(): MailSync {
       label: MAIL_LABEL,
       scopes: () => mailScopes(store.state.workbook),
       startLine: words.step.searching,
-      on: () => store.state.workbook === null || isOn(store.state.workbook),
+      on: () => store.state.workbook === null || statementSearch(store.state.workbook.settings) !== null,
       async run(report) {
         const { workbook, choice } = store.state
         if (workbook === null || choice?.source !== 'drive') {
           return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
         }
-        const since = searchStart(workbook)
-        if (since === null) {
+        const search = statementSearch(workbook.settings)
+        const since = earliestStartDay(workbook.accounts.map((account) => account.intake))
+        const reach = statementMailReach(workbook.accounts, workbook.transactions)
+        if (search === null || since === null || reach === null) {
           state.plan = null
+          statements.forget()
           return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }
         }
-        const now = today()
         try {
-          state.plan = await fileMail({
-            open: () => openMail(workbook, choice.id),
-            sources: SOURCES,
-            books: workbook,
-            sinceStart: startOfDayIn(since, DEVICE_TIME_ZONE),
-            years: yearsSince(since, now),
-            report,
+          state.plan = await readStatementMail({
+            mailbox: await openMailbox(),
+            search,
+            window: mailWindow(startOfDayIn(reach, DEVICE_TIME_ZONE), startOfDayIn(since, DEVICE_TIME_ZONE)),
+            workbook,
+            load: loadImportFile,
+            known,
           })
           state.stopped = null
         } catch (failure) {
           state.plan = null
           state.stopped = isUnauthorized(failure) ? words.step.stopped : failure instanceof Error ? failure.message : String(failure)
+          statements.forget()
           throw failure
         }
-        const line = planLine(state.plan)
-        return hasProblem(state.plan) ? { kind: 'failed', line, link: MAIL_LIST_LINK } : { kind: 'done', line, writeId: null, link: MAIL_LIST_LINK }
+        return statements.file(state.plan.readings, report, MAIL_LIST_LINK)
       },
     },
   }

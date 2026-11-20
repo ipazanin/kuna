@@ -1,5 +1,4 @@
 import { language } from '../text/language'
-import { plural } from '../text/translation'
 import type { Translation } from '../text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -14,16 +13,12 @@ export const en = {
     'drive.file': 'Google Drive access was not allowed, so the app cannot read or save the books.',
     'drive.readonly': 'Drive read access was not allowed, so the app cannot read your Drive folders.',
     'drive.appdata': "Access to the app's hidden folder on Drive was not allowed, so your keys stay in this browser alone.",
-    'gmail.readonly': 'Gmail read access was not allowed, so the app cannot look for the mail it would file.',
+    'gmail.readonly': 'Gmail read access was not allowed, so the app cannot read the mail it looks for.',
     'gmail.compose': 'Gmail access was not allowed, so no draft can be saved. Leave "Create the mail draft" off to write the mail yourself.',
     'script.external_request': 'Script access to other sites was not allowed, so the bank sync cannot run.',
   },
   noSiteStorage: "This browser keeps no site storage, so the app could not check Google's answer. Sign in from an ordinary window.",
   notLoaded: (source: string) => `Could not load ${source}. A content blocker or the network may have stopped it.`,
-  booksFolder: 'The folder of the books file',
-  /** Why a folder path leads nowhere, as a refusal starts it. */
-  noFolder: (where: string, name: string) => `${where} holds no folder named "${name}"`,
-  severalFolders: (where: string, count: number, name: string) => `${where} holds ${count} folders named "${name}"`,
   googleTimedOut: 'Google did not answer in time, so Kuna stopped waiting.',
 }
 
@@ -37,15 +32,12 @@ export const hr: Translation<typeof en> = {
     'drive.file': 'Pristup Google Driveu nije dopušten, pa aplikacija ne može čitati ni spremati datoteku.',
     'drive.readonly': 'Čitanje Drivea nije dopušteno, pa aplikacija ne može čitati vaše mape na Driveu.',
     'drive.appdata': 'Pristup skrivenoj mapi aplikacije na Driveu nije dopušten, pa vaši ključevi ostaju samo u ovom pregledniku.',
-    'gmail.readonly': 'Čitanje Gmaila nije dopušteno, pa aplikacija ne može tražiti poštu koju bi spremila.',
+    'gmail.readonly': 'Čitanje Gmaila nije dopušteno, pa aplikacija ne može čitati poštu koju traži.',
     'gmail.compose': 'Pristup Gmailu nije dopušten, pa se skica ne može spremiti. Ostavite izradu skice isključenom i napišite poruku sami.',
     'script.external_request': 'Skripti nije dopušten pristup drugim stranicama, pa se sinkronizacija s bankom ne može pokrenuti.',
   },
   noSiteStorage: 'Ovaj preglednik ne čuva podatke stranica, pa aplikacija nije mogla provjeriti Googleov odgovor. Prijavite se iz običnog prozora.',
   notLoaded: (source) => `Nije se moglo učitati ${source}. Možda ga je zaustavio bloker sadržaja ili mreža.`,
-  booksFolder: 'Mapa datoteke',
-  noFolder: (where, name) => `${where} nema mapu „${name}”`,
-  severalFolders: (where, count, name) => `${where} ima ${plural({ one: `${count} mapu`, few: `${count} mape`, other: `${count} mapa` }, count)} naziva „${name}”`,
   googleTimedOut: 'Google nije odgovorio na vrijeme, pa je Kuna prestala čekati.',
 }
 

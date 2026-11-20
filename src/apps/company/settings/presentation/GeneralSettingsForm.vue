@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -11,7 +11,6 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { shownPack } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
-import { folderPathOf } from '../../../../shared/text/folderPath'
 import MailSettingsCard from '../../mail/presentation/MailSettingsCard.vue'
 import { amountLocaleOf, settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
@@ -65,22 +64,6 @@ function update<Field extends keyof Settings>(field: Field, value: Settings[Fiel
   draft.value = { ...draft.value, [field]: value }
 }
 
-/** The path as typed, so a trailing slash survives until the next folder name is written. */
-const statementsFolderText = ref(props.settings.statementsFolder.join('/'))
-watch(
-  () => draft.value.statementsFolder,
-  (folders) => {
-    if (JSON.stringify(folderPathOf(statementsFolderText.value)) !== JSON.stringify(folders)) {
-      statementsFolderText.value = folders.join('/')
-    }
-  },
-)
-
-function updateStatementsFolder(text: string): void {
-  statementsFolderText.value = text
-  update('statementsFolder', folderPathOf(text))
-}
-
 function updateLabel(bucket: DefinedBucket, label: string): void {
   draft.value = { ...draft.value, bucketLabels: { ...draft.value.bucketLabels, [bucket]: label } }
 }
@@ -112,9 +95,6 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
           </UFormField>
           <UFormField :label="words.general.cardIbans" :error="errors.cardSettlementIbans ?? false" :help="words.general.cardIbansHelp" class="sm:col-span-2" data-testid="card-settlement-ibans">
             <IbanTagsField :model-value="draft.cardSettlementIbans" class="w-full" @update:model-value="update('cardSettlementIbans', $event)" />
-          </UFormField>
-          <UFormField :label="words.general.statementsFolder" :help="words.general.statementsFolderHelp" class="sm:col-span-2" data-testid="statements-folder">
-            <UInput :model-value="statementsFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateStatementsFolder(String($event))" />
           </UFormField>
         </FormGrid>
 

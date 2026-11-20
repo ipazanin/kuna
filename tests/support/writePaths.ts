@@ -11,7 +11,7 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const VERBS = new Set(['add', 'change', 'remove'])
 
 /** The workbook store's members that act on the file as a whole, which a screen calls on the store it is handed. */
-export const FILE_ACTIONS = ['sync', 'chooseDriveFile', 'folderBesideFile', 'moveIntoKuna', 'keepOnDrive', 'dropWorkbook', 'trashBackups', 'replaceLocalWorkbook', 'recordExport'] as const
+export const FILE_ACTIONS = ['sync', 'chooseDriveFile', 'moveIntoKuna', 'keepOnDrive', 'dropWorkbook', 'trashBackups', 'replaceLocalWorkbook', 'recordExport'] as const
 
 /**
  * The store's members that change nothing a person chose, by reading, by writing records through a `UnitOfWork` whose record writes the scan

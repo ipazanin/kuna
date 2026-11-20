@@ -20,7 +20,7 @@ export const en = {
     title: 'Waiting for you',
     subtitle: 'Across the whole workbook, whatever the filters.',
     notFiled: (count: number): EnglishForms => ({ one: '1 statement was not filed', other: `${count} statements were not filed` }),
-    folderUnread: 'The statements folder could not be read',
+    statementsUnfiled: 'The statements the last sync read could not be filed',
     toReview: (count: number): EnglishForms => ({ one: `${count} row waits for a category check`, other: `${count} rows wait for a category check` }),
     invoicesNotMade: (count: number, oldest: string): EnglishForms => ({
       one: `${count} invoice the billing plan expects is not made yet, the oldest for ${oldest}`,
@@ -108,7 +108,7 @@ export const hr: Translation<typeof en> = {
     title: 'Čeka vas',
     subtitle: 'U cijeloj datoteci, bez obzira na filtre.',
     notFiled: (count) => ({ one: `${count} izvod nije upisan`, few: `${count} izvoda nisu upisana`, other: `${count} izvoda nije upisano` }),
-    folderUnread: 'Mapu izvoda nije moguće pročitati',
+    statementsUnfiled: 'Izvodi koje je pročitala zadnja sinkronizacija nisu se mogli upisati',
     toReview: (count) => ({
       one: `${count} stavka čeka provjeru kategorije`,
       few: `${count} stavke čekaju provjeru kategorije`,

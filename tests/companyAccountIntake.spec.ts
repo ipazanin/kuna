@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { firstVatOpenDay, vatReturnDue } from '../src/apps/company/packs/hr-doo/domain/vatFiledDays'
 import { ACCOUNT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
-import { derivedIntake, folderFiledOnSync } from '../src/apps/company/workbook/domain/accountIntakes'
+import { derivedIntake, folderFiledOnSync, statementMailReach } from '../src/apps/company/workbook/domain/accountIntakes'
 import { isBankStatementRow } from '../src/apps/company/workbook/domain/rowOrigin'
 import type { AccountRecord } from '../src/apps/company/workbook/domain/accountsReading'
 import { BY_HAND } from '../src/shared/app/accountSource'
@@ -37,6 +37,32 @@ describe('where a ledger row came from', () => {
     ['a copied statement labelled as a camt one', '2026-10-05-statement-002', 'read-main-1', false],
   ])('%s is the bank statement: %s', (_label, statement, reference, fromBank) => {
     expect(isBankStatementRow({ statement, reference })).toBe(fromBank)
+  })
+})
+
+describe("the day the bank's statement mail reaches back to", () => {
+  const mail = (slug: string, startsOn: string) => ({ slug, intake: { rowsFrom: 'mail' as const, startsOn: day(startsOn), alsoFrom: [] } })
+  const row = (account: string, date: string, statement: string, reference = `${account}-${date}`) => ({ account, date: day(date), statement, reference })
+
+  it('is the oldest of the newest statement day of each account the mail fills, so an account furthest behind keeps its statements in the search', () => {
+    const ledger = [row('main', '2026-10-01', '2026-10-01-statement-010'), row('main', '2026-11-10', '2026-11-10-statement-030'), row('savings', '2026-10-20', '2026-10-20-statement-004')]
+
+    expect(statementMailReach([mail('main', '2026-09-01'), mail('savings', '2026-09-01')], ledger)).toBe('2026-10-20')
+  })
+
+  it('is the start day of an account with no statement row on or after it, and leaves out rows by hand and accounts kept by hand', () => {
+    const ledger = [
+      row('main', '2026-11-10', '2026-11-10-statement-030'),
+      row('reserve', '2026-11-12', 'export (aaaaaaaa)'),
+      row('reserve', '2026-10-01', '2026-10-01-statement-001'),
+      row('hand', '2026-01-01', '2026-01-01-statement-001'),
+    ]
+
+    expect(statementMailReach([mail('main', '2026-09-01'), mail('reserve', '2026-11-05'), { slug: 'hand', intake: BY_HAND }], ledger)).toBe('2026-11-05')
+  })
+
+  it('is null while the mail fills no account', () => {
+    expect(statementMailReach([{ slug: 'hand', intake: BY_HAND }], [])).toBeNull()
   })
 })
 
