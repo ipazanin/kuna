@@ -1,0 +1,112 @@
+name: Security updates
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: security-updates
+  cancel-in-progress: false
+
+jobs:
+  audit-fix:
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: security-updates
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      # .npmrc's min-release-age needs npm 11.10 or later, which the LTS node does not always ship.
+      - run: npm install --global npm@11.20.0
+      - run: npm ci
+
+      - name: Audit
+        id: audit
+        run: |
+          npm audit --json > audit.json || true
+          node -e "
+            const report = JSON.parse(require('fs').readFileSync('audit.json', 'utf8'))
+            if (report.error) {
+              console.error('npm audit failed: ' + (report.error.summary ?? report.error.code))
+              process.exit(1)
+            }
+            const found = Object.keys(report.vulnerabilities ?? {}).length
+            require('fs').appendFileSync(process.env.GITHUB_OUTPUT, 'found=' + found + '\n')
+          "
+
+      - name: Nothing to fix
+        if: steps.audit.outputs.found == '0'
+        run: echo 'npm audit found nothing, so there is nothing to fix.' >> "$GITHUB_STEP_SUMMARY"
+
+      # .npmrc holds back a fix younger than 3 days, and a fix that needs a major version is not taken without --force.
+      # Both stay in the audit, so they show in the summary and wait for the next run.
+      - name: Fix
+        if: steps.audit.outputs.found != '0'
+        run: |
+          npm audit fix || true
+          if ! npm audit > left.txt; then
+            {
+              echo '## Left for the next run'
+              echo 'Fixes younger than 3 days and fixes that need a major version.'
+              echo '```'
+              cat left.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Changed anything
+        id: changed
+        if: steps.audit.outputs.found != '0'
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'npm audit fix changed nothing, so no pull request is opened.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check
+        if: steps.changed.outputs.changed == 'true'
+        run: npm run check
+      - name: Build
+        if: steps.changed.outputs.changed == 'true'
+        run: npm run build
+      - name: Build fake
+        if: steps.changed.outputs.changed == 'true'
+        run: npm run build:fake
+
+      - name: Open the pull request
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$BRANCH"
+          git add package.json package-lock.json
+          git commit --message 'Security fixes for packages from npm audit'
+          git push --force origin "$BRANCH"
+          npm audit --json > after.json || true
+          node -e "
+            const read = (name) => JSON.parse(require('fs').readFileSync(name, 'utf8')).vulnerabilities ?? {}
+            const before = read('audit.json')
+            const after = read('after.json')
+            const fixed = Object.entries(before).filter(([name]) => !(name in after))
+            const lines = fixed.map(([name, entry]) => '- ' + name + ' (' + entry.severity + '): ' + entry.via.map((via) => typeof via === 'string' ? via : via.title + ' ' + via.url).join(', '))
+            const left = Object.keys(after)
+            const body = ['Advisories this pull request fixes:', '', ...lines, '', left.length ? 'Left for the next run: ' + left.join(', ') : 'Nothing is left in npm audit.'].join('\n')
+            require('fs').writeFileSync('body.md', body)
+          "
+          if gh pr view "$BRANCH" --json state --jq .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$BRANCH" --body-file body.md
+          else
+            gh pr create --head "$BRANCH" --base main --title 'Security fixes for packages from npm audit' --body-file body.md
+          fi

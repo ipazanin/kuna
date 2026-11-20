@@ -23,6 +23,8 @@ jobs:
         with:
           node-version: lts/*
           cache: 'npm'
+      # .npmrc's min-release-age needs npm 11.10 or later, which the LTS node does not always ship.
+      - run: npm install --global npm@11.20.0
       - run: npm ci
       - name: Lint
         run: npm run lint
@@ -79,6 +81,8 @@ jobs:
         with:
           node-version: lts/*
           cache: 'npm'
+      # .npmrc's min-release-age needs npm 11.10 or later, which the LTS node does not always ship.
+      - run: npm install --global npm@11.20.0
       - run: npm ci
       # ubuntu-latest ships Chrome at /usr/bin/google-chrome and Firefox at /usr/bin/firefox, which the checks probe for.
       # They run against the fake build, so every screen has data and no Google call is made.

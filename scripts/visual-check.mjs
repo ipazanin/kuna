@@ -614,6 +614,7 @@ import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { fetchTodayFlowIn } from './support/fetchTodayFlows.mjs'
 import { homeFetchTodayFlowIn } from './support/fetchTodayFlows.mjs'
+import { EVENING_CLOCK, SATURDAY_CLOCK } from './support/fetchTodayFlows.mjs'
 import { runSelection } from './support/runSelection.mjs'
 import { servePreview } from './support/servePreview.mjs'
 import { shotIndex } from './support/shotIndex.mjs'
@@ -9828,6 +9829,42 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     modes: ['drive'],
     queries: { drive: '&investments=sample&lang=hr' },
+  },
+  {
+    name: 'investments-fetch-today-evening',
+    hash: '#/investments',
+    title: 'Overview',
+    run: fetchTodayFlowIn('en', EVENING_CLOCK),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-fetch-today-saturday',
+    hash: '#/investments',
+    title: 'Overview',
+    run: fetchTodayFlowIn('en', SATURDAY_CLOCK),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'home-fetch-today-evening',
+    hash: '#/',
+    title: homeEnglish.title,
+    run: homeFetchTodayFlowIn('en', EVENING_CLOCK),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'home-fetch-today-saturday',
+    hash: '#/',
+    title: homeEnglish.title,
+    run: homeFetchTodayFlowIn('en', SATURDAY_CLOCK),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
   },
   {
     name: 'dialogs-investments',
