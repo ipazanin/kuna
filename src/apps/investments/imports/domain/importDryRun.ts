@@ -21,7 +21,7 @@ import { INCOME_CODEC } from '../../workbook/domain/incomeReading'
 import type { Instrument, InstrumentType, PriceSource } from '../../workbook/domain/instrument'
 import type { InvestmentAccount, InvestmentIntake } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { BY_HAND, alsoFromOf, takesRowFrom } from '../../../../shared/app/accountSource'
+import { BY_HAND, alsoFromOf, earliestStartDay, takesRowFrom } from '../../../../shared/app/accountSource'
 import {
   CASH_MOVEMENT_RECORDS,
   EXCHANGE_RECORDS,
@@ -147,7 +147,7 @@ export interface AccountQuestion {
   readonly proposedName: string
   /** For a report's account no earlier import names, the account in Kuna whose records its rows look like most. */
   readonly likely: LikelyAccount | null
-  /** The rows still to import that name it. */
+  /** The rows still to import that name it, and for an account Kuna does not know yet also those its start day leaves out. */
   readonly rows: number
   /** The earliest day of those rows. */
   readonly firstDay: CivilDate
@@ -361,7 +361,10 @@ class EntrySkipped extends Error {
  * Copied rows list nothing as gone either. A report's row or a copied row whose key no record carries, but which looks
  * like a record Kuna has, waits until the person says whether it is that record or another one, and so does a workbook
  * row like a record that lost its workbook key to a report. A record that is the row takes the row's key beside its keys
- * from other sources, so the next file finds it by its key.
+ * from other sources, so the next file finds it by its key. A mailed row of an account Kuna does not know yet, dated
+ * before the earliest start day of the accounts the mail fills, counts as before the start day and asks nothing. Any
+ * other row of a report account Kuna does not know yet asks for its account before any start day leaves it out, so an
+ * answer cannot take its own question away.
  */
 export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): WorkbookDryRun {
   const { book, answers } = inputs
@@ -383,14 +386,22 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
   const instrumentOf = (row: WorkbookRow): Instrument | null =>
     answers.instruments.get(identityOf(row)) ?? book.instruments.find((instrument) => instrument.id === knownInstruments.get(identityOf(row))) ?? null
 
+  const mailed = reading.report?.mailed === true
+  const mailStart = mailed ? earliestStartDay(intakes.values()) : null
+  // No account the mail fills takes a mailed row dated before the earliest of their start days, so such a row of an account Kuna does not know yet asks nothing.
+  const beforeEveryStart = (entry: RowEntry): boolean => mailStart !== null && !knownAccounts.has(entry.rows[0].account) && entry.rows[0].date < mailStart
   const skipped: SkippedRow[] = [...reading.skipped]
   const leftOut = { beforeStart: 0, byHand: 0 }
   // A mailed report brings only the days the mail fills its account. Another report is the broker's own file, which an account the mail fills takes only when it allows that, and any other row is by hand, which it never takes.
   const taken = entries.filter((entry) => {
     const account = accountOf(entry.rows[0])
-    if (account === null) return true
+    if (account === null) {
+      if (!beforeEveryStart(entry)) return true
+      leftOut.beforeStart += entry.rows.length
+      return false
+    }
     const intake = intakeOf(account)
-    if (reading.report?.mailed === true) {
+    if (mailed) {
       if (intake.rowsFrom === 'mail' && entry.rows[0].date >= intake.startsOn) return true
       if (intake.rowsFrom === 'by-hand') leftOut.byHand += entry.rows.length
       else leftOut.beforeStart += entry.rows.length
@@ -453,7 +464,12 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
   const planned = plannedOf(outcomes)
   // A row the person matched to a record still asks its account, or the answer that made the match would go.
   const toImport = outcomes.filter((entry) => entry.outcome.kind !== 'in-kuna')
-  const likely = rolling ? likelyAccounts(toImport, book, knownAccounts, offered, (entry) => recordInAnyAccount(entry, mapping)) : new Map<string, LikelyAccount>()
+  // An account Kuna does not know yet is asked about by all its rows, so the start day of the account picked for it cannot take its own question away.
+  const askingAccount = [
+    ...toImport.filter((entry) => knownAccounts.has(entry.rows[0].account)),
+    ...entries.filter((entry) => !knownAccounts.has(entry.rows[0].account) && !keyed.has(entry.key) && !beforeEveryStart(entry)),
+  ]
+  const likely = rolling ? likelyAccounts(askingAccount, book, knownAccounts, offered, (entry) => recordInAnyAccount(entry, mapping)) : new Map<string, LikelyAccount>()
 
   return {
     entries: outcomes,
@@ -461,7 +477,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     rounded: reading.rounded,
     gone: rolling || reading.transcribed !== undefined ? [] : goneRecords(reading.rows, entries, keyed, accountOf),
     questions: {
-      accounts: accountQuestions(toImport, knownAccounts, likely, book.accounts),
+      accounts: accountQuestions(askingAccount, knownAccounts, likely, book.accounts),
       instruments: instrumentQuestions(toImport, book, knownInstruments, identityOf),
       splits: toImport.filter((entry) => entry.rows[0].type === 'SPLIT').map((entry) => splitQuestion(entry, planned, instrumentOf, identityOf)),
       spinOffs: questions.spinOffs,
@@ -946,12 +962,7 @@ function recordInAnyAccount(entry: RowEntry, mapping: Mapping): ImportedRecord |
 }
 
 /** A new account is proposed under its broker's name, numbered from 2 when Kuna or another account of the file has that name. The Account text stays out of it. */
-function accountQuestions(
-  entries: readonly DryRunEntry[],
-  known: ReadonlyMap<string, RecordId>,
-  likely: ReadonlyMap<string, LikelyAccount>,
-  accounts: readonly InvestmentAccount[],
-): AccountQuestion[] {
+function accountQuestions(entries: readonly RowEntry[], known: ReadonlyMap<string, RecordId>, likely: ReadonlyMap<string, LikelyAccount>, accounts: readonly InvestmentAccount[]): AccountQuestion[] {
   const rowsOf = new Map<string, WorkbookRow[]>()
   entries.flatMap((entry) => entry.rows).forEach((row) => rowsOf.set(row.account, [...(rowsOf.get(row.account) ?? []), row]))
   const taken = new Set(accounts.map((account) => fold(account.name)))

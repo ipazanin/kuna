@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
+import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/domain/importChoices'
 import { NO_ANSWERS, workbookDryRun } from '../src/apps/investments/imports/domain/importDryRun'
 import type { DryRunEntry, WorkbookAnswers, WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
 import { readMailReports } from '../src/apps/investments/mail/application/mailReports'
@@ -248,6 +249,21 @@ describe('a rolling report', () => {
     expect(dryRun.report).toMatchObject({ byHand: rows.rows.length, beforeStart: 0 })
   })
 
+  it('asks nothing for a report account known as an account kept by hand, and counts its mailed rows under by hand', () => {
+    const byHand = account('kuna-ibkr-by-hand', 'Kuna IBKR by hand')
+    const uploaded = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY])], { leftOut: [] }, { kind: 'uploaded' })
+    const before = book({ accounts: [ACCOUNT, byHand], instruments: [ABC, DEF], trades: [trade('buy', byHand, ABC, '2026-01-05', '10', '90', '1', '1.1')] })
+    const kept = workbookDryRun(uploaded, { book: before, rates: RATES, answers: { ...ANSWERS, accounts: new Map([['U0000001', byHand]]) } }).planned
+    const rows = rowsOf([DAY, NEXT_DAY])
+    const dryRun = workbookDryRun(rows, { book: kept, rates: RATES, answers: NO_ANSWERS })
+    expect(dryRun.questions.accounts).toEqual([])
+    expect(dryRun.entries).toEqual([])
+    expect(dryRun.report?.byHand).toBe(rows.rows.length)
+    const settled = settledImport(rows, kept, RATES, NO_CHOICES, (key) => `new-${key}`)
+    expect(settled.accounts).toEqual([])
+    expect(settled.dryRun.entries).toEqual([])
+  })
+
   it('refuses an uploaded report on an account the mail fills, and takes every row of it once the account allows uploads', () => {
     const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY])], { leftOut: [] }, { kind: 'uploaded' })
     const dryRunOn = (alsoFrom: readonly 'provider-file'[]) => {
@@ -285,6 +301,59 @@ describe('a rolling report', () => {
     expect(reportNews(rows, planned, RATES)).toEqual({ fresh: 0, changed: 0, asked: 6 })
     expect(newestReportDay(planned)).toBe(DAY)
     expect(newestReportDay(kept())).toBeNull()
+  })
+})
+
+describe("a mailed report's rows before a start day", () => {
+  const LATER = account('kuna-ibkr-later', 'Kuna IBKR later', { rowsFrom: 'mail', startsOn: NEXT_DAY, alsoFrom: [] })
+  const KEYED_IDS = (key: string) => `new-${key}`
+
+  function waiting(entries: readonly DryRunEntry[]) {
+    return entries.filter((entry) => entry.outcome.kind === 'waiting')
+  }
+
+  it('leaves out the rows of an unlinked account dated before the earliest start day, asking nothing', () => {
+    const rows = rowsOf([DAY])
+    const dryRun = workbookDryRun(rows, { book: book({ accounts: [LATER], instruments: [ABC, DEF] }), rates: RATES, answers: NO_ANSWERS })
+    expect(dryRun.questions.accounts).toEqual([])
+    expect(dryRun.entries).toEqual([])
+    expect(dryRun.report?.beforeStart).toBe(rows.rows.length)
+  })
+
+  it('still asks for the account of an unlinked row on the earliest start day', () => {
+    const rows = rowsOf([DAY, NEXT_DAY])
+    const dryRun = workbookDryRun(rows, { book: book({ accounts: [LATER], instruments: [ABC, DEF] }), rates: RATES, answers: NO_ANSWERS })
+    expect(dryRun.questions.accounts).toMatchObject([{ account: 'U0000001', firstDay: NEXT_DAY, rows: rows.rows.filter((row) => row.date === NEXT_DAY).length }])
+    expect(dryRun.entries.every((entry) => entry.rows[0].date === NEXT_DAY && entry.outcome.kind === 'waiting')).toBe(true)
+    expect(dryRun.report?.beforeStart).toBe(rows.rows.filter((row) => row.date === DAY).length)
+  })
+
+  it('never reads a choice for an account it does not ask about, when every row falls before the earliest start day', () => {
+    const rows = rowsOf([DAY])
+    const settled = settledImport(rows, book({ accounts: [LATER], instruments: [ABC, DEF] }), RATES, { ...NO_CHOICES, accounts: { U0000001: { kind: 'existing', account: LATER.id } } }, KEYED_IDS)
+    expect(waiting(settled.dryRun.entries)).toEqual([])
+    expect(settled.dryRun.report?.beforeStart).toBe(rows.rows.length)
+  })
+
+  it('asks once for an account whose rows fall between two start days, and counts them as before the start day of the account picked', () => {
+    const rows = rowsOf([DAY])
+    const kept = book({ accounts: [ACCOUNT, LATER], instruments: [ABC, DEF] })
+    const picked = { ...NO_CHOICES, accounts: { U0000001: { kind: 'existing', account: LATER.id } } } as const
+    const settled = settledImport(rows, kept, RATES, picked, KEYED_IDS)
+    expect(settled.accounts).toMatchObject([{ question: { account: 'U0000001' }, choice: { kind: 'existing', account: LATER.id } }])
+    expect(waiting(settled.dryRun.entries)).toEqual([])
+    expect(settled.dryRun.entries).toEqual([])
+    expect(settled.dryRun.report?.beforeStart).toBe(rows.rows.length)
+  })
+
+  it('reaches a fixed point between two start days: the answer keeps its own question, so the next pass gives the same dry run', () => {
+    const rows = rowsOf([DAY])
+    const kept = book({ accounts: [ACCOUNT, LATER], instruments: [ABC, DEF] })
+    const settled = settledImport(rows, kept, RATES, { ...NO_CHOICES, accounts: { U0000001: { kind: 'existing', account: LATER.id } } }, KEYED_IDS)
+    const unanswered = workbookDryRun(rows, { book: kept, rates: RATES, answers: NO_ANSWERS })
+    const answered = workbookDryRun(rows, { book: kept, rates: RATES, answers: { ...NO_ANSWERS, accounts: new Map([['U0000001', LATER]]) } })
+    expect(answered.questions.accounts).toEqual(unanswered.questions.accounts)
+    expect(settled.dryRun).toEqual(answered)
   })
 })
 

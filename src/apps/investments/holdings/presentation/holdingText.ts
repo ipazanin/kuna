@@ -3,7 +3,6 @@ import type { HoldingsGroup } from '../domain/holdingsList'
 import type { LastDay } from '../domain/portfolioFigures'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { words } from './words'
-import { usePrices } from '../../prices/presentation/usePrices'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dateFormat } from '../../../../shared/calendar/dateFormat'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
@@ -29,12 +28,6 @@ export function listingLine(instrument: Instrument): string {
 export function groupCount(group: Pick<HoldingsGroup, 'holdings' | 'lines'>): string {
   const balances = group.lines.length - group.holdings
   return listInWords([...(group.holdings > 0 ? [plural(words.holdingCount(group.holdings), group.holdings)] : []), ...(balances > 0 ? [plural(words.balanceCount(balances), balances)] : [])])
-}
-
-/** What a holding with no price says: Fetching while a fetch runs that may bring its close, else that it has none yet. */
-export function useNoPriceWord(): (instrument: Instrument) => string {
-  const prices = usePrices()
-  return (instrument) => (prices.state.fetching !== null && instrument.prices !== 'manual' ? words.fetching : words.noPrice)
 }
 
 /** Why a holding's price needs a look, with an icon so colour is never the only cue. Null for a fetched close that is not late. */

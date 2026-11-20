@@ -2,7 +2,7 @@
 import type { HoldingsLine } from '../domain/holdingsList'
 import { holdingLink } from './holdingLinks'
 import LastDayChange from './LastDayChange.vue'
-import { useNoPriceWord } from './holdingText'
+import { useNoPriceWord } from './useNoPriceWord'
 import PriceMarkNote from './PriceMarkNote.vue'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
