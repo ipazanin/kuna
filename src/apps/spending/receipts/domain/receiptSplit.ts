@@ -11,6 +11,8 @@ import { ITEM_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbo
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
+import { ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { heldRuleLabels } from '../../workbook/domain/transactionItemReading'
 import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { partsOfWhole } from '../../../../shared/money/partsOfWhole'
@@ -73,6 +75,14 @@ export function openingLineChoices(replaced: readonly Pick<TransactionItem, 'amo
 }
 
 /**
+ * Of the labels a receipt's line carries, those a rule put on every item it replaces that carries them, so a later rule change
+ * moves them on the line as on any other row. A label the line has by hand stays one.
+ */
+export function lineRuleLabels(labels: readonly RecordId[], replaced: readonly Pick<TransactionItem, 'labels' | 'ruleLabels'>[], byHand: readonly RecordId[] = []): readonly RecordId[] {
+  return heldRuleLabels({ labels: labels.filter((label) => !byHand.includes(label)), ruleLabels: ruleLabelsOf(replaced) })
+}
+
+/**
  * A line's labels and event choice once another payment is picked: a line still on what the payment picked before opened it
  * with moves to what the new one opens with, and a line you changed keeps yours.
  */
@@ -104,7 +114,7 @@ export function rowFiledBy(row: Transaction, merchant: string): Transaction {
  * any parts the row was split into by hand. When they do not add up to the row, or to minus the total of a receipt that
  * waits, as with a tip or a misread line, one Difference line in the main category shows what is left, and no line you confirmed changes.
  * Every line takes the row's link when its items named one record, and none when they named several or none. A line takes the
- * labels and event choice you set on it, or else those of `openingLineChoices`, as the Difference line does.
+ * labels and event choice you set on it, or else those of `openingLineChoices`, as the Difference line does, with `lineRuleLabels` still a rule's.
  */
 export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: readonly ReceiptPart[], newKey: () => string = newRecordId): ReceiptSplit {
   const merchant = draft.merchant.trim()
@@ -133,19 +143,24 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
   const replaced = 'row' in place ? place.held : []
   const link = linkOfItems(replaced)
   const opening = openingLineChoices(replaced)
-  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory, choices }): TransactionItem => ({
-    id: recordIdOf(ITEM_RECORDS, newKey()),
-    transaction,
-    receipt: receipt.id,
-    printed,
-    note,
-    amount: lineAmount,
-    category: lineCategory,
-    link,
-    ...(choices ?? opening),
-    ruleLabels: [],
-    splitByLink: false,
-  }))
+  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory, choices }): TransactionItem => {
+    const { labels, event } = choices ?? opening
+    return {
+      id: recordIdOf(ITEM_RECORDS, newKey()),
+      transaction,
+      receipt: receipt.id,
+      printed,
+      note,
+      amount: lineAmount,
+      category: lineCategory,
+      link,
+      labels,
+      ruleLabels: lineRuleLabels(labels, replaced),
+      event,
+      splitByLink: false,
+    }
+  })
   const difference = differenceItem(row?.amount ?? amount, lines, { transaction, receipt: receipt.id, category, link }, words.difference, newKey)
-  return { before, row, receipt, lines: difference === null ? lines : [...lines, { ...difference, ...opening }], replaced }
+  const openingDifference = { ...opening, ruleLabels: lineRuleLabels(opening.labels, replaced) }
+  return { before, row, receipt, lines: difference === null ? lines : [...lines, { ...difference, ...openingDifference }], replaced }
 }

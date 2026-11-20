@@ -3573,6 +3573,8 @@ async function checkWidth(browser, width) {
     ['chat-receipt', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { accept: true }), '#/spending/transactions', 'Entries'],
     ['chat-receipt-joins', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { joins: true }), '#/spending/transactions', 'Entries'],
     ['chat-receipt-pick', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'pick'), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-pick-other', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'pick-other'), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-pick-none', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'pick-none'), '#/spending/transactions', 'Entries'],
     ['chat-receipt-none', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'none'), '#/spending/transactions', 'Entries'],
     ['chat-receipt-picked', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'picked'), '#/spending/transactions', 'Entries'],
     ['chat-receipt-row', 'drive&spending=receipts', chatReceiptRowFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],

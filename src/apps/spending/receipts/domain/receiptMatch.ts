@@ -106,7 +106,15 @@ export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, '
     receipt,
     splittableRows(book).filter((row) => paidThere.has(row.account)),
     bankNamesIn(book)(receipt),
+    book.accounts,
   )
+}
+
+/** Whether a payee names the merchant: it is one of the bank's names for the merchant, or it holds the merchant's words. A blank payee names nothing. */
+export function payeeNamesMerchant(payee: string, merchant: string, bankNames: ReadonlySet<string>): boolean {
+  if (bankNames.has(payeeKey(payee))) return true
+  const named = distinctWords(payee)
+  return [...distinctWords(merchant)].some((word) => named.has(word))
 }
 
 /**
@@ -114,9 +122,15 @@ export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, '
  * the bank's names for the merchant, then by the merchant's words among the row's words, then the nearest day. One is clear when it
  * beats the next on the bank's name and then on words, or when it is alone and the bank's name or the merchant's words name it,
  * or there is neither to disagree with it. Only with none at minus the total do the near ones show, such as a card payment with a
- * tip, and those are always a pick.
+ * tip, and those are always a pick. A row on a cash account was typed on the day the money left the wallet, so it may be the
+ * receipt on the receipt's day, or on another day in the window only when its payee names the merchant, and it is never a near one.
  */
-export function matchesAmong(receipt: Pick<ReceiptFacts, 'merchant' | 'issuedOn' | 'total'>, open: readonly Transaction[], bankNames: ReadonlySet<string>): ReceiptMatches {
+export function matchesAmong(
+  receipt: Pick<ReceiptFacts, 'merchant' | 'issuedOn' | 'total'>,
+  open: readonly Transaction[],
+  bankNames: ReadonlySet<string>,
+  accounts: readonly Pick<Account, 'id' | 'kind'>[],
+): ReceiptMatches {
   const total = accountMoneyOfEuros(receipt.total)
   const asTyped = { date: receipt.issuedOn, amount: negateAccountMoney(total) }
   const words = distinctWords(receipt.merchant)
@@ -130,7 +144,10 @@ export function matchesAmong(receipt: Pick<ReceiptFacts, 'merchant' | 'issuedOn'
     [...rows].sort((one, other) => known(other) - known(one) || wordsIn(other) - wordsIn(one) || away(one) - away(other) || one.date.localeCompare(other.date))
   const candidateOf = (row: Transaction): ReceiptCandidate => ({ row, difference: addAccountMoney(row.amount, total) })
 
-  const equal = ranked(open.filter((row) => row.amount === asTyped.amount && inWindow(asTyped, row)))
+  const cash = new Set(accounts.filter((account) => account.kind === 'cash').map((account) => account.id))
+  const dayFits = (row: Transaction): boolean => !cash.has(row.account) || row.date === receipt.issuedOn || payeeNamesMerchant(row.payee, receipt.merchant, bankNames)
+
+  const equal = ranked(open.filter((row) => row.amount === asTyped.amount && inWindow(asTyped, row) && dayFits(row)))
   const [first, second] = equal
   if (first !== undefined) {
     const clear =
@@ -139,6 +156,6 @@ export function matchesAmong(receipt: Pick<ReceiptFacts, 'merchant' | 'issuedOn'
         : known(first) > known(second) || (known(first) === known(second) && wordsIn(first) > wordsIn(second))
     return { kind: clear ? 'ready' : 'pick', candidates: equal.map(candidateOf) }
   }
-  const near = ranked(open.filter((row) => isNear(asTyped, row)))
+  const near = ranked(open.filter((row) => !cash.has(row.account) && isNear(asTyped, row)))
   return near.length === 0 ? { kind: 'none' } : { kind: 'pick', candidates: near.map(candidateOf) }
 }

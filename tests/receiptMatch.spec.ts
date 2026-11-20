@@ -126,6 +126,29 @@ describe('which rows a receipt may split', () => {
     expect(matchesOf([row(CASH, '2026-11-03', -23.49, 'Food/Eating out')]).kind).toBe('ready')
   })
 
+  it('offers no cash row of the amount two days earlier paid to someone else, neither in the window nor as a near one', () => {
+    expect(matchesOf([row(CASH, '2026-11-01', -23.49, 'Food/Eating out', { payee: 'A person' })], 'Cafe Example')).toEqual({ kind: 'none' })
+  })
+
+  it('offers the cash row of the receipt day whatever its payee', () => {
+    const typed = row(CASH, '2026-11-03', -23.49, 'Food/Eating out', { payee: 'A person' })
+
+    expect(rowsOf(matchesOf([typed], 'Cafe Example'))).toEqual([typed])
+  })
+
+  it("offers a cash row a day off when its payee holds the merchant's words", () => {
+    const typed = row(CASH, '2026-11-02', -23.49, 'Food/Eating out', { payee: 'Example' })
+
+    expect(matchesOf([typed], 'Cafe Example d.o.o.')).toEqual({ kind: 'ready', candidates: [{ row: typed, difference: euros(0) }] })
+  })
+
+  it("still offers a card's row from 3 days before the receipt to 7 after, whoever the bank names", () => {
+    const before = row(OTP, '2026-10-31', -23.49, null, { payee: 'A person' })
+    const after = row(REVOLUT_EUR, '2026-11-10', -23.49, null, { payee: 'A person' })
+
+    expect(rowsOf(matchesOf([before, after], 'Cafe Example'))).toEqual([before, after])
+  })
+
   it('never lets a company form or a piece of a word win the match', () => {
     const konzum = row(OTP, '2026-11-04', -23.49, null, { payee: 'KONZUM DOO' })
     const bakery = row(OTP, '2026-11-04', -23.49, null, { payee: 'PEK 12' })

@@ -33,6 +33,10 @@ const ANSWERS = {
     cashAccountFirst: 'The card below adds a cash account with what you had and puts the receipt on it.',
     cashName: 'Cash',
     whichCash: (accounts: string) => `Which cash account did you pay from: ${accounts}?`,
+    fuelTitle: 'The receipt on the Fuel station payment',
+    fuelProposed: 'The card below puts the receipt on the Fuel station payment you named. Check what the card says differs before you accept.',
+    newEntryTitle: 'The receipt as a new entry',
+    newEntryProposed: 'The card below makes a new entry for the receipt and names the payments that may be the same money. Check them before you accept.',
   },
   hr: {
     noPhoto: 'Najprije priložite fotografiju fiskalnog računa, pa ću pročitati stavke.',
@@ -58,6 +62,10 @@ const ANSWERS = {
     cashAccountFirst: 'Kartica ispod dodaje račun gotovine s iznosom koji ste imali i stavlja fiskalni račun na njega.',
     cashName: 'Gotovina',
     whichCash: (accounts: string) => `S kojeg ste računa gotovine platili: ${accounts}?`,
+    fuelTitle: 'Fiskalni račun na plaćanju Fuel station',
+    fuelProposed: 'Kartica ispod stavlja fiskalni račun na plaćanje Fuel station koje ste naveli. Prije nego što prihvatite, provjerite što kartica kaže da se razlikuje.',
+    newEntryTitle: 'Fiskalni račun kao novi unos',
+    newEntryProposed: 'Kartica ispod dodaje novi unos za fiskalni račun i navodi plaćanja koja bi mogla biti isti novac. Provjerite ih prije nego što prihvatite.',
   },
 }
 
@@ -164,6 +172,40 @@ export function receiptReply(turn: FakeChatTurn): ModelReply {
     return lookup(4, 'propose_changes', { app: 'spending', title: says.receiptTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.receiptProposed, tokens)
+}
+
+/**
+ * The person's answer to which of the two €41.20 payments the sample receipt is, read as a card receipt from Corner market. Told
+ * the Fuel station one, the card puts the receipt on that payment and warns that its day and payee differ. Told none of them, the
+ * card makes a new entry on the first euro account kept by hand and names the payments it passed over.
+ */
+export function pickAnsweredReply({ request, tokens, typed }: FakeChatTurn): ModelReply {
+  const photo = lastPhotoId(request)
+  if (photo === null) return answered(request, says.noPhoto, tokens)
+  const none = /^none of them|^nijedno od njih/i.test(typed)
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', none ? findRecordsArgs('spending', 'account') : findRecordsArgs('spending', 'transaction', { query: 'Fuel station', limit: 5 }), tokens)
+  if (answers.length > 2) return answered(request, none ? says.newEntryProposed : says.fuelProposed, tokens)
+  const categories = recordsIn(answers[0]!.text)
+  const refOf = (names: readonly string[]): string => categories.find((category) => names.includes(category.name ?? ''))?.ref ?? ''
+  const found = recordsIn(answers[1]!.text)
+  const byHand = found.find((account) => account.kind === 'bank' && account.currency === 'EUR' && account.rowsFrom !== 'bank-link' && account.closed !== true)
+  const place = none ? { entry: null, account: byHand?.ref ?? null } : { entry: found[0]?.ref ?? null, account: null }
+  const step = proposedStep(SPENDING_OPERATIONS, 'add-receipt', {
+    photo,
+    paid: 'card',
+    ...place,
+    merchant: 'Corner market',
+    merchantOib: MADE_UP_MERCHANT_OIB,
+    issuedOn: fakeSpendingDayHere(),
+    issuedAt: '18:42',
+    lines: [receiptLine('KAVA ZRNO', 'kava u zrnu', 30, refOf(GROCERIES)), receiptLine('DET.TEK.', 'deterdžent tekući', 11.2, refOf(HOUSEHOLD))],
+    vat: [],
+    total: 41.2,
+    keepPhoto: false,
+  })
+  return lookup(2, 'propose_changes', { app: 'spending', title: none ? says.newEntryTitle : says.fuelTitle, steps: [step], next: false }, tokens)
 }
 
 /** The sample €17.00 receipt as read off its photo, dated the day of the run, its lines under the category given, paid as said and placed as said. */

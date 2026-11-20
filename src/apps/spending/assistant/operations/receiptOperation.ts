@@ -10,7 +10,8 @@ import { LINE_KINDS, receiptDraft, withR1Answer } from '../../receipts/domain/re
 import type { AnsweredLine, R1Answer, ReceiptAnswer, ReceiptRead } from '../../receipts/domain/receiptDraft'
 import { words as receiptWords } from '../../receipts/domain/words'
 import { COMPANY_OIB_PAGE } from '../../company/application/companyFacts'
-import { RECEIPT_PAYMENTS, heldReceiptOf, paidOn, receiptAccounts, receiptMatches, splittableRows } from '../../receipts/domain/receiptMatch'
+import { RECEIPT_PAYMENTS, heldReceiptOf, paidOn, payeeNamesMerchant, receiptAccounts, receiptMatches, splittableRows } from '../../receipts/domain/receiptMatch'
+import { bankNamesIn } from '../../receipts/domain/sameMerchant'
 import type { ReceiptFacts, ReceiptPayment } from '../../receipts/domain/receiptMatch'
 import { receiptSplit, rowPlace } from '../../receipts/domain/receiptSplit'
 import type { ReceiptPlace, ReceiptSplit } from '../../receipts/domain/receiptSplit'
@@ -18,6 +19,7 @@ import { beforeStartDay, cashAccountsOn } from '../../workbook/domain/account'
 import { companyCategoryOf } from '../../workbook/domain/category'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import type { Transaction } from '../../workbook/domain/transaction'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
@@ -39,8 +41,8 @@ export const ADD_RECEIPT: AssistantOperation = {
     'Adds a fiscal receipt from a photo attached to the chat, as Entries, Add a receipt does, splitting the payment into its lines. Read the photo with read_attachment first and copy what is printed. Never guess hidden or cut-off text: use null, and name the part in unreadable.',
     'Kuna reads the QR code and the place the photo was taken from the photo itself, and their date and total win over yours.',
     'paid says how the receipt was paid: "cash" for GOTOVINA or NOVČANICE, "card" for KARTICA or a card\'s name. When the receipt says neither, ask the person.',
-    "entry is the payment it splits: the entry tagged, as a row's camera tags the one the receipt was taken for, else the one match_records with kind receipt finds ready, or the one the person picks when it finds several. Any entry that can take a receipt goes, even days or cents away, and the card warns on the difference, which a Difference line makes up. Cash goes only on an entry on a cash account, and a card never on one. An entry split by hand loses those parts to the receipt's lines.",
-    "With entry null a new entry is made, which goes only when no payment paid that way may be this receipt. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on. On an account the bank fills, the receipt makes no entry: it waits on To review and goes on the bank's row when the sync or a file brings it.",
+    "entry is the payment it splits: the entry tagged, as a row's camera tags the one the receipt was taken for, else the one match_records with kind receipt finds ready, or the one the person picks when it finds several. Any entry that can take a receipt goes, even days or cents away or paid to someone else. The card warns on the day and the amount that differ, and on the payee of an entry the person picked, and a Difference line makes up the amount. Cash goes only on an entry on a cash account, and a card never on one. An entry split by hand loses those parts to the receipt's lines.",
+    "With entry null a new entry is made, also when the person says none of the payments match_records finds is this receipt. The card then names those payments and warns that the same money may be counted twice. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on. On an account the bank fills, the receipt makes no entry: it waits on To review and goes on the bank's row when the sync or a file brings it.",
     'Amounts are euros above zero, a discount below zero. Each line gets a category ref Kuna handed out, a spending category with no categories under it.',
     'A line whose category does not exist yet waits: propose that category on a card of its own first, and this receipt on the next card once it is accepted.',
     "A receipt marked R1, or naming a buyer, with no buyer's OIB readable needs the person to say whose it is: whose is \"company\" or \"personal\", as they said. A buyer's OIB Kuna can read decides by itself, so whose is null then, as for every other receipt. Kuna matches it against the OIB on Company's billing and invoice terms. Without Company on this device, or with no OIB there, the card says so and the lines start as read. Spending keeps no OIB of its own, so tell the person to set it in Company. Call the receipt the company's in the title only when its buyer's OIB is Company's.",
@@ -227,10 +229,7 @@ function cashAccountOf(field: Readonly<Record<string, never>>, book: SpendingBoo
   )
 }
 
-/**
- * The row the receipt splits, which may be any row that can take a receipt on an account paid that way, or the account of the
- * new entry it makes. A new entry goes only when no payment paid that way may be this receipt, so the model names the payment rather than doubling it.
- */
+/** The row the receipt splits, which may be any row that can take a receipt on an account paid that way, or the account of the new entry it makes. */
 function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, receipt: ReceiptFacts, paid: ReceiptPayment, idOf: (value: unknown) => string): ReceiptPlace {
   if (field['entry'] !== null) {
     if (field['account'] !== null) throw new StepRefused('A receipt splits the entry named, or with entry null makes a new entry, not both.')
@@ -245,13 +244,6 @@ function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, rec
       )
     return rowPlace(row, book.items)
   }
-  const matches = receiptMatches(receipt, book, paid)
-  if (matches.kind !== 'none') {
-    const payments = matches.candidates.slice(0, 3).map(({ row }) => `${formatAccountMoney(row.amount, EURO)} on ${dayLabel(row.date)}`)
-    throw new StepRefused(
-      `A payment on the file may be this receipt: ${payments.join(', ')}. Ask the person which one, as match_records with kind receipt lists them, and name it in entry. If the person says none of them is this receipt, link Entries, where Add a receipt makes a new entry.`,
-    )
-  }
   if (paid === 'cash') return { account: cashAccountOf(field, book, receipt.issuedOn, idOf) }
   if (field['account'] === null) throw new StepRefused('A card receipt with entry null makes a new entry on account, the euro account the card is on.')
   const account: Account = found(book.accounts, idOf(field['account']), 'account')
@@ -261,15 +253,37 @@ function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, rec
   return { account }
 }
 
-/** What the card says of the entry a receipt goes on beyond the read's checks: a day or an amount that differ, and the parts of a split by hand it replaces. */
-function placeNotes(split: ReceiptSplit, book: SpendingBook): readonly string[] {
-  if (split.before === null) return []
+/** How many of the payments a new entry passes over the card names. */
+const PASSED_OVER_NAMED = 3
+
+/** What the card says of a new entry: the payments the receipt may be, which it passes over, as the same money may then count twice. */
+function passedOverNotes(receipt: ReceiptFacts, book: SpendingBook, paid: ReceiptPayment): readonly string[] {
+  const matches = receiptMatches(receipt, book, paid)
+  if (matches.kind === 'none') return []
+  const payments = matches.candidates.slice(0, PASSED_OVER_NAMED).map(({ row }) => words.receipts.payment(formatAccountMoney(row.amount, EURO, 'magnitude'), dayLabel(row.date)))
+  return [words.receipts.passedOver(listInWords(payments))]
+}
+
+/** Whether the card warns that the entry is paid to someone other than the merchant. It warns only on an entry the person picked, never on the one Kuna found ready by itself. */
+function payeeDiffers(before: Transaction, receipt: ReceiptFacts, book: SpendingBook, paid: ReceiptPayment): boolean {
+  if (before.payee === '' || receipt.merchant === '' || payeeNamesMerchant(before.payee, receipt.merchant, bankNamesIn(book)(receipt))) return false
+  const matches = receiptMatches(receipt, book, paid)
+  return matches.kind !== 'ready' || matches.candidates[0]?.row.id !== before.id
+}
+
+/**
+ * What the card says of the entry a receipt goes on beyond the read's checks: a day, an amount or a payee that differ, and the
+ * parts of a split by hand it replaces. A new entry says what `passedOverNotes` says, and a receipt that waits says nothing here.
+ */
+function placeNotes(split: ReceiptSplit, book: SpendingBook, paid: ReceiptPayment): readonly string[] {
   const { before, receipt } = split
+  if (before === null) return split.row === null ? [] : passedOverNotes(receipt, book, paid)
   const total = negateAccountMoney(accountMoneyOfEuros(receipt.total))
   const nameOf = (category: string | null): string => book.categories.find((held) => held.id === category)?.name ?? ''
   return [
     ...(before.date === receipt.issuedOn ? [] : [words.receipts.otherDay(dayLabel(before.date), dayLabel(receipt.issuedOn))]),
     ...(before.amount === total ? [] : [words.receipts.otherAmount(formatAccountMoney(before.amount, EURO, 'magnitude'), formatAccountMoney(total, EURO, 'magnitude'))]),
+    ...(payeeDiffers(before, receipt, book, paid) ? [words.receipts.otherPayee(before.payee, receipt.merchant)] : []),
     ...(!isSplit(split.replaced)
       ? []
       : [words.receipts.replacesSplit(listInWords(split.replaced.map((part) => `${part.note === '' ? nameOf(part.category) : part.note} ${formatAccountMoney(part.amount, EURO)}`)))]),
@@ -365,5 +379,5 @@ export function writeReceiptStep(
     read.lines.map((line) => ({ printed: line.printed, note: line.text, amount: line.amount, category: line.category! })),
   )
   writeReceiptSplit(unit, book.stored, split)
-  return { split, notes: notesOf([...drafted.notes, ...placeNotes(split, book)], read, split, book) }
+  return { split, notes: notesOf([...drafted.notes, ...placeNotes(split, book, paid)], read, split, book) }
 }

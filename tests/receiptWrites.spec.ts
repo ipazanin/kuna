@@ -15,6 +15,7 @@ import { writeReceiptSplit } from '../src/apps/spending/receipts/application/rec
 import { openingLineChoices, receiptSplit, repickedLineChoices, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { joinWithTyped, writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
+import { withRuleLabels } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
@@ -40,7 +41,7 @@ import type { TransactionItem } from '../src/apps/spending/workbook/domain/trans
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, addEntries, category, filedRows, row, wholeReceiptLines } from './fixtures/spending'
+import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, addEntries, category, filedRows, row, wholeItems, wholeReceiptLines } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 /** The fixture's accounts kept by hand, since these checks type rows, which an account the bank fills refuses. */
@@ -459,6 +460,18 @@ describe('the lines of a receipt in place of what a row held', () => {
       [[flat.id], OUT_OF_EVENTS],
       [[trip], BY_DAYS],
     ])
+  })
+
+  it("keeps a label a rule put on the part it replaces a rule's on every line, the Difference line too, so the rule gone takes it off them", () => {
+    const card = row(OTP, '2026-11-04', -23.49, 'Food/Groceries')
+    const [trip, gift] = [newLabel('Prague').id, newLabel('Gift').id]
+    const held = wholeItems([card]).map((part) => ({ ...part, labels: [trip, gift], ruleLabels: [trip] }))
+    const short = [LINES[0]!, { ...LINES[1]!, amount: accountMoneyFromAmount(-8) }]
+
+    const { lines } = receiptSplit(DRAFT, { row: card, held }, short)
+
+    expect(lines.map((line) => line.ruleLabels)).toEqual([[trip], [trip], [trip]])
+    expect(lines.map((line) => withRuleLabels(line, []).labels)).toEqual([[gift], [gift], [gift]])
   })
 
   it('makes a new row whose lines carry no label', async () => {

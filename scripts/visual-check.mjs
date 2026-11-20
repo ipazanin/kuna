@@ -6703,6 +6703,8 @@ const FLOWS = [
   // The receipt paths beyond a payment that matches: two that may be it, none, one the person picked and split by hand, cash with one, no or two cash accounts, a card payment the bank has not brought yet, and an R1 receipt for the company with Company open and without it.
   ...[
     ['pick', 'receipts'],
+    ['pick-other', 'receipts'],
+    ['pick-none', 'receipts'],
     ['none', 'receipts'],
     ['picked', 'receipts'],
     ['cash', 'receipts'],

@@ -11940,6 +11940,8 @@ export function chatReceiptRowFlowIn(language, photos) {
  * chat asks how much cash there was, and told €50 the same card adds one with that opening first. `cash-several`: once a second cash account is in, the chat asks which one the cash came from.
  * `r1`: a cash receipt naming the fake Company's OIB as its buyer files every line under For the company. `r1-no-company`: without
  * Company on the device, the same receipt keeps its lines as read and the card says to set the OIB in Company.
+ * `pick-other`: asked which payment, the person names the Fuel station one, and the card warns that its payee differs.
+ * `pick-none`: told none of them, the card makes a new entry and names the two payments it passed over. Accept writes each and Undo takes it back.
  */
 export function chatReceiptPathFlowIn(language, photos, path) {
   const words = ASSIST_WORDS[language]
@@ -12008,6 +12010,35 @@ export function chatReceiptPathFlowIn(language, photos, path) {
         await shoot(`chat-receipt-${path}`)
         await acceptCard(press, page, card)
         await rowLinesAre(page, 'Harbour bistro', -1700, 2)
+        await undoCard(press, page, card, words)
+        return
+      }
+      if (path === 'pick-none' || path === 'pick-other') {
+        const none = path === 'pick-none'
+        await attachToChat(page, photos.twoMatches)
+        await sendInChat(page, press, english ? 'Read the receipt' : 'Pročitaj fiskalni račun')
+        await allowIfAsked(page, press)
+        const asked = english ? 'Which one was it?' : 'Koje je to bilo?'
+        await page
+          .waitForFunction((text) => [...document.querySelectorAll('[data-testid="chat-answer"]')].some((answer) => answer.textContent?.includes(text)), { timeout: 15_000 }, asked)
+          .catch(() => {
+            throw new Error('the chat did not ask which payment the receipt is')
+          })
+        const answer = none ? (english ? 'None of them' : 'Nijedno od njih') : english ? 'The Fuel station one' : 'Ono na benzinskoj'
+        await sendInChat(page, press, answer)
+        await allowIfAsked(page, press)
+        const card = await newestCard(page, 1, `the chat proposed no receipt once told "${answer}"`)
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+        const notes = await card.$$eval('[data-testid="chat-proposal-note"]', (shown) => shown.map((note) => note.textContent ?? '').join(' '))
+        const warned = none ? receiptWords.passedOver('').split(':')[0] : receiptWords.otherPayee('Fuel station', 'Corner market')
+        if (!notes.includes(warned)) throw new Error(`the receipt card does not say "${warned}", and notes "${notes}"`)
+        await delay(300)
+        await acceptLooksReady(page)
+        await inspect?.(none ? 'the receipt as a new entry beside the payments it may be' : 'the receipt on a payment with another payee')
+        await panelSettled(page)
+        await shootAt(page, shoot, await card.$('[data-testid="chat-proposal-note"]'), `chat-receipt-${path}`, { block: 'start' })
+        await acceptCard(press, page, card)
+        await rowLinesAre(page, none ? 'Corner market' : 'Fuel station', -4120, 2)
         await undoCard(press, page, card, words)
         return
       }

@@ -11,6 +11,7 @@ import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, deskPorts, receiptPorts,
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
+import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/rowRecords'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
@@ -142,23 +143,52 @@ describe('a receipt from the chat', () => {
     expect(bookOf(desk).problems).toEqual([])
   })
 
-  it('refuses a new entry while a payment on the file may be this receipt, so the model names that payment', async () => {
+  it('makes a new entry while a payment on the file may be this receipt, and the card names that payment and warns of counting it twice', async () => {
     const desk = await spendingDesk(used)
+    const before = bookOf(desk).transactions.length
 
     const answer = await desk.propose([receipt(desk, { entry: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) })], [attachedPhoto()])
 
-    expect(answer.text).toContain('A payment on the file may be this receipt: −€31.00 on 21 Oct 2026.')
-    expect(answer.text).toContain('name it in entry')
-    expect(desk.cards).toEqual([])
+    expect(answer.isError).toBe(false)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes).map((note) => note.text)).toEqual([`${words.receipts.passedOver(words.receipts.payment('€31.00', '21 Oct 2026'))}.`])
+    await desk.accept()
+    expect(bookOf(desk).transactions).toHaveLength(before + 1)
   })
 
-  it('takes an entry the person picked outside the match window, warns that its day and amount differ, and a Difference line makes it add up', async () => {
+  it('makes a new cash entry for a cash receipt when the only cash entry of its amount is two days away and paid to someone else', async () => {
+    const desk = await spendingDesk(used)
+    const wallet = desk.ref('account', DESK_ACCOUNTS.WALLET.id)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-entry', { account: wallet, date: '2026-10-19', amount: -31, payee: 'A person', category: null, note: '' })], [])
+    await desk.accept()
+
+    expect((await desk.propose([receipt(desk, { paid: 'cash', entry: null })], [attachedPhoto()])).isError).toBe(false)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes)).toEqual([])
+    await desk.accept()
+
+    expect(bookOf(desk).transactions.filter((row) => row.account === DESK_ACCOUNTS.WALLET.id)).toMatchObject([
+      { date: '2026-10-19', payee: 'A person' },
+      { date: '2026-10-21', payee: 'Pharmacy' },
+    ])
+  })
+
+  it('says nothing of the payee on the entry Kuna found ready by itself, though its payee does not name the merchant', async () => {
+    const desk = await spendingDesk(used)
+    const pharmacy = bookOf(desk).stored.transactions.records.find((stored) => stored.id === PHARMACY)!.record
+    await desk.store.write('Renamed', (unit) => unit.of(TRANSACTION_WRITES).change(pharmacy, { ...pharmacy, payee: 'CARD 4471', description: 'PHARMACY 22 ZAGREB' }))
+
+    expect((await desk.propose([receipt(desk)], [attachedPhoto()])).isError).toBe(false)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes)).toEqual([])
+  })
+
+  it('takes an entry the person picked outside the match window, warns that its day, amount and payee differ, and a Difference line makes it add up', async () => {
     const desk = await spendingDesk(used)
     const picked = EXAMPLE_RECORDS['transaction']!
 
     expect((await desk.propose([receipt(desk, { entry: desk.ref('transaction', picked) })], [attachedPhoto()])).isError).toBe(false)
     const warned = desk.cards[0]!.groups.flatMap((group) => group.notes)
-    expect(warned.map((shown) => shown.text)).toEqual([`${words.receipts.otherDay('12 Oct 2026', '21 Oct 2026')}. ${words.receipts.otherAmount('€45.30', '€31.00')}.`])
+    expect(warned.map((shown) => shown.text)).toEqual([
+      `${words.receipts.otherDay('12 Oct 2026', '21 Oct 2026')}. ${words.receipts.otherAmount('€45.30', '€31.00')}. ${words.receipts.otherPayee('Corner market', 'Pharmacy')}.`,
+    ])
     await desk.accept()
 
     expect(
@@ -178,7 +208,7 @@ describe('a receipt from the chat', () => {
     const handParts = bookOf(desk).items.filter((candidate) => candidate.transaction === split)
 
     await desk.propose(
-      [receipt(desk, { entry: desk.ref('transaction', split), issuedOn: '2026-10-30', lines: [line(desk, 'VITAMIN C', 40), line(desk, 'FLASTER', 20)], total: 60 })],
+      [receipt(desk, { entry: desk.ref('transaction', split), merchant: 'Hardware store', issuedOn: '2026-10-30', lines: [line(desk, 'VITAMIN C', 40), line(desk, 'FLASTER', 20)], total: 60 })],
       [attachedPhoto()],
     )
     const [card] = desk.cards

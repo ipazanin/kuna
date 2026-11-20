@@ -237,6 +237,23 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(placed.items.map((line) => [line.labels, line.event])).toEqual([[[own, trip], OUT_OF_EVENTS], ...rest.map(() => [[trip], OUT_OF_EVENTS]), [[trip], OUT_OF_EVENTS]])
   })
 
+  it("keeps a label a rule put on every part it replaces a rule's on its lines and the Difference line, but not on a line that has it by hand", async () => {
+    const store = await spendingStore()
+    await waiting(store)
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
+    const [asking] = waitingReceipts(store.state.workbook!)
+    const [tipped] = asking!.matches.kind === 'pick' ? asking!.matches.candidates : []
+    const [first, ...rest] = asking!.lines
+    const trip = newLabel('Prague').id
+    const held: readonly TransactionItem[] = [
+      { ...first!, id: recordIdOf(ITEM_RECORDS, 'held'), receipt: null, transaction: tipped!.row.id, amount: tipped!.row.amount, labels: [trip], ruleLabels: [trip] },
+    ]
+
+    const placed = receiptOnRow(asking!.receipt, [{ ...first!, labels: [trip] }, ...rest], { row: tipped!.row, held }, 'Difference')
+
+    expect(placed.items.map((line) => line.ruleLabels)).toEqual([[], ...rest.map(() => [trip]), [trip]])
+  })
+
   it('keeps waiting while no row it may be arrives', async () => {
     const store = await spendingStore()
     await waiting(store)
