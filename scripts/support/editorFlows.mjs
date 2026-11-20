@@ -6280,7 +6280,7 @@ export function assetsValuationFlowIn(language) {
 }
 
 /** Picks a label in a labels field, the existing one by its name or, with `create`, a new one typed into its search, and closes the list. */
-async function pickLabel(page, press, field, name, create) {
+async function pickLabel(page, press, field, name, create, dialog = SPENDING_ENTRY_DIALOG) {
   await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await delay(150)
   await press(field)
@@ -6299,11 +6299,18 @@ async function pickLabel(page, press, field, name, create) {
   await press(option.asElement())
   await page.keyboard.press('Escape')
   await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
-  await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 2_000 }).catch(() => {
-    throw new Error('Escape on the labels list closed the entry dialog')
+  await page.waitForSelector(dialog, { visible: true, timeout: 2_000 }).catch(() => {
+    throw new Error('Escape on the labels list closed its dialog')
   })
   const shown = await field.evaluate((element) => element.textContent ?? '')
   if (!shown.includes(name)) throw new Error(`the labels field shows "${shown.trim()}" after picking ${name}`)
+  if (!create) return
+  await press(field)
+  await page.waitForSelector('[role="listbox"]', { visible: true, timeout: 5_000 })
+  const typed = await page.evaluate(() => document.querySelector('[role="listbox"]')?.parentElement?.querySelector('input')?.value ?? null)
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  if (typed !== '') throw new Error(`the labels list keeps "${typed}" in its search after "${name}" was added`)
 }
 
 /** The labels the Entries row of this payee and amount names in its caption, or blank. */
@@ -13299,11 +13306,16 @@ export function spendingReceiptLinesFlowIn(language, photos) {
     await amount.evaluate((element) => element.select())
     await page.keyboard.type('20')
     await choose(page, press, await second.$('[data-testid="spending-receipt-line-category"]'), starter['Furniture and household goods'])
+    const labels = await second.$('[data-testid="spending-receipt-line-labels"]')
+    if (labels === null) throw new Error('line 2 of the receipt has no labels field')
+    await pickLabel(page, press, labels, language === 'en' ? 'Housewarming' : 'Useljenje', true, SPENDING_RECEIPT_FORM)
     await delay(300)
-    await inspect?.("a receipt's lines typed by hand, each with its category")
+    await inspect?.("a receipt's lines typed by hand, each with its category, labels and event")
     await shoot('spending-receipt-lines')
     await saveReceipt(page, press, words)
     await rowLinesAre(page, 'Corner market', -2349, 2)
+    if (!(await rowLabels(page, 'Corner market', -2349)).includes(language === 'en' ? 'Housewarming' : 'Useljenje'))
+      throw new Error("the receipt's row does not name the label typed on its second line")
     await undoIn(page, press, words)
     await rowLinesAre(page, 'Corner market', -2349, 0)
     await dismissToasts(page)

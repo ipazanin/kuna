@@ -1,20 +1,44 @@
 import { PART_AMOUNT, TEXT, TEXT_OR_NULL, found, inputOf } from '../../../../shared/app/operationInput'
 import { removeSplitOf, writeEntry, writeEntrySplit } from '../../entries/application/entryWrites'
-import { entrySplit } from '../../entries/domain/entrySplit'
-import type { ItemDraft } from '../../entries/domain/entrySplit'
+import { entrySplit, newPartChoices } from '../../entries/domain/entrySplit'
+import type { ItemDraft, PartChoices } from '../../entries/domain/entrySplit'
 import { en as entriesEnglish } from '../../entries/presentation/words'
 import { refiledReceiptLines } from '../../receipts/domain/receiptLines'
+import { isBeforeItems } from '../../workbook/domain/beforeItems'
+import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
+import type { EventChoice } from '../../workbook/domain/event'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { isSplit, itemizedRow } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import { CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { accountMoneyFromAmount, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+
+const EVENT_RULES = ['on-its-days', 'out-of-events'] as const
+
+/** The labels and event a part of split-entry carries as the Split dialog sets them, each null to keep what the part has. */
+const PART_CHOICES: StrictSchema = inputOf({
+  labels: { type: ['array', 'null'], items: TEXT, description: "The refs of every label the part carries, an empty list for none, or null to keep the part's own." },
+  event: { type: ['string', 'null'], description: 'The ref of the event the part is put in by hand, or null.' },
+  eventRule: {
+    type: ['string', 'null'],
+    enum: [...EVENT_RULES, null],
+    description: 'on-its-days puts the part on the event its day gives it, out-of-events takes it out of every event, or null. With null in event and in eventRule the part keeps its own.',
+  },
+})
+
+interface PartChoiceInput {
+  readonly labels: readonly string[] | null
+  readonly event: string | null
+  readonly eventRule: (typeof EVENT_RULES)[number] | null
+}
 
 /** What the entry dialog's Split and its receipt lines do: split an entry by hand, take a split or a receipt off, and file a receipt's lines anew. */
 export const SPLIT_OPERATIONS: readonly AssistantOperation[] = [
@@ -26,19 +50,27 @@ export const SPLIT_OPERATIONS: readonly AssistantOperation[] = [
       'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. note is the owner\'s optional words on the part, or "".',
       "part is the ref of the entry's part it keeps, which stays the same part with its new amount, category and note, or null for a new part. The one part of an entry not split yet goes to the first part that names none.",
       "Every part keeps the entry's link. A transfer's leg and an entry a receipt split stay as they are.",
+      "choices sets a part's labels and event as the Split does, and all null leaves them to Kuna, which carries those of the parts the new part took money from. Where choices sets one, what it leaves null stays as the part has it, and a new part starts from the labels every part of the entry carries and the event of its largest part.",
+      'A label or an event the same card adds is named by its $ name. A file from before parts keeps no labels or events.',
     ].join(' '),
     input: inputOf({
       entry: TEXT,
-      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, note: TEXT }) },
+      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, note: TEXT, choices: PART_CHOICES }) },
     }),
-    refs: { entry: TRANSACTION_RECORDS.name, 'parts.part': ITEM_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
+    refs: {
+      entry: TRANSACTION_RECORDS.name,
+      'parts.part': ITEM_RECORDS.name,
+      'parts.category': CATEGORY_RECORDS.name,
+      'parts.choices.labels': LABEL_RECORDS.name,
+      'parts.choices.event': EVENT_RECORDS.name,
+    },
     creates: null,
     alone: false,
     example: {
       entry: 'transaction',
       parts: [
-        { part: null, amount: 30, category: 'category', note: 'Lunch' },
-        { part: null, amount: null, category: 'category-other', note: '' },
+        { part: null, amount: 30, category: 'category', note: 'Lunch', choices: { labels: null, event: null, eventRule: null } },
+        { part: null, amount: null, category: 'category-other', note: '', choices: { labels: null, event: null, eventRule: null } },
       ],
     },
   },
@@ -89,10 +121,40 @@ function signedAs(row: Transaction, amount: AccountMoney): AccountMoney {
   return row.amount < 0 ? negateAccountMoney(amount) : amount
 }
 
+/** The event a part's choices name, on its days, out of every event, or the event by its ref, or null to keep the part's own. */
+function eventChoiceOf(book: SpendingBook, { event, eventRule }: PartChoiceInput, idOf: (value: unknown) => string): EventChoice | null {
+  if (event !== null && eventRule !== null) throw new StepRefused('A part takes an event or an eventRule, not both.')
+  if (event !== null) return found(book.events, idOf(event), 'event').id
+  if (eventRule === null) return null
+  return eventRule === 'on-its-days' ? BY_DAYS : OUT_OF_EVENTS
+}
+
+/** The labels and event a part is given, with what the choices leave null as the part has it, or null when they set nothing. */
+function choicesOf(
+  book: SpendingBook,
+  records: SpendingRecords,
+  held: readonly TransactionItem[],
+  kept: TransactionItem | undefined,
+  given: PartChoiceInput,
+  idOf: (value: unknown) => string,
+): PartChoices | null {
+  const event = eventChoiceOf(book, given, idOf)
+  if (given.labels === null && event === null) return null
+  if (isBeforeItems(records)) throw new StepRefused('This file stores entries the way older versions of Kuna did, so it keeps no labels or events. Propose move-to-items first.')
+  const own = kept ?? newPartChoices(held)
+  return { labels: given.labels === null ? own.labels : [...new Set(given.labels.map((label) => found(book.labels, idOf(label), 'label').id))], event: event ?? own.event }
+}
+
 /** Splits an entry by hand as the entry's Split does, and gives the entry with its new parts. */
 function splitEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingRecords, field: Readonly<Record<string, never>>, idOf: (value: unknown) => string): ItemizedRow {
   const row = found(book.transactions, idOf(field['entry']), 'row')
-  const given = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly note: string }[]
+  const given = field['parts'] as readonly {
+    readonly part: string | null
+    readonly amount: number | null
+    readonly category: string
+    readonly note: string
+    readonly choices: PartChoiceInput
+  }[]
   const held = itemizedRow(book, row).items
   const keptPart = (ref: string | null): RecordId | null => {
     if (ref === null) return null
@@ -100,12 +162,24 @@ function splitEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingRecor
     if (part === undefined) throw new StepRefused("A part keeps only one of the entry's own parts.")
     return part.id
   }
-  const drafts = given.map((part): ItemDraft => ({
-    id: keptPart(part.part),
-    amount: part.amount === null ? 'rest' : signedAs(row, accountMoneyFromAmount(part.amount)),
-    category: found(book.categories, idOf(part.category), 'category').id,
-    note: part.note,
-  }))
+  const drafts = given.map((part): ItemDraft => {
+    const id = keptPart(part.part)
+    const choices = choicesOf(
+      book,
+      records,
+      held,
+      held.find((candidate) => candidate.id === id),
+      part.choices,
+      idOf,
+    )
+    return {
+      id,
+      amount: part.amount === null ? 'rest' : signedAs(row, accountMoneyFromAmount(part.amount)),
+      category: found(book.categories, idOf(part.category), 'category').id,
+      note: part.note,
+      ...(choices === null ? {} : { choices }),
+    }
+  })
   const kept = drafts.flatMap((draft) => (draft.id === null ? [] : [draft.id]))
   if (new Set(kept).size < kept.length) throw new StepRefused("Each of the entry's parts is kept by one part at most.")
   const split = entrySplit(book, row, drafts)

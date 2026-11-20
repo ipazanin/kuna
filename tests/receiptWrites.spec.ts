@@ -7,11 +7,12 @@ import { deleteInto } from '../src/apps/spending/categories/application/category
 import { removeEntry, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
+import type { PartChoices } from '../src/apps/spending/entries/domain/entrySplit'
 import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import { RECEIPT_WRITES } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
-import { receiptSplit, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
+import { openingLineChoices, receiptSplit, repickedLineChoices, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { joinWithTyped, writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
@@ -27,7 +28,7 @@ import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domai
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
 import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { readSpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
-import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
+import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -35,6 +36,7 @@ import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
+import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil, month } from './fixtures/ledger'
@@ -397,7 +399,7 @@ describe('the lines of a receipt in place of what a row held', () => {
     ])
   })
 
-  it('gives every line the labels of every part of a split by hand, since no line says which part it was', async () => {
+  it('starts every line, the Difference line too, with the labels every part of a split by hand carries and the event choice of the largest, since no line says which part it was', async () => {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Groceries'))
     const hand = entrySplit(store.state.workbook!, card, [
@@ -417,21 +419,45 @@ describe('the lines of a receipt in place of what a row held', () => {
           before: split,
           after: split,
           items: [
-            { ...first!, labels: [], event: BY_DAYS },
-            { ...second!, labels: [trip, flat.id] },
+            { ...first!, event: BY_DAYS },
+            { ...second!, labels: [trip, flat.id], event: OUT_OF_EVENTS },
           ],
         },
       ])
     })
     const handParts = store.state.workbook!.items.map((part) => part.id)
 
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, rowPlace(split, store.state.workbook!.items), LINES)))
+    const short = [LINES[0]!, { ...LINES[1]!, amount: accountMoneyFromAmount(-8) }]
+
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, rowPlace(split, store.state.workbook!.items), short)))
 
     const lines = store.state.workbook!.items
     expect(lines.some((line) => handParts.includes(line.id))).toBe(false)
-    expect(lines.map((line) => line.labels)).toEqual([
-      [trip, flat.id],
-      [trip, flat.id],
+    expect(lines.map((line) => [line.note, line.labels, line.event])).toEqual([
+      ['Pizza', [trip], OUT_OF_EVENTS],
+      ['Wine', [trip], OUT_OF_EVENTS],
+      ['Difference', [trip], OUT_OF_EVENTS],
+    ])
+  })
+
+  it('keeps the labels and event choice you set on a line, and gives the others the labels of the row', async () => {
+    const store = await spendingStore()
+    const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Groceries'))
+    const trip = await labelled(store, [card], 'Prague')
+    const flat = newLabel('New flat')
+
+    await store.write('Saved', (unit) => {
+      addLabel(unit, flat)
+      writeReceiptSplit(
+        unit,
+        store.state.records!,
+        receiptSplit(DRAFT, rowPlace(card, store.state.workbook!.items), [{ ...LINES[0]!, choices: { labels: [flat.id], event: OUT_OF_EVENTS } }, LINES[1]!]),
+      )
+    })
+
+    expect(store.state.workbook!.items.map((line) => [line.labels, line.event])).toEqual([
+      [[flat.id], OUT_OF_EVENTS],
+      [[trip], BY_DAYS],
     ])
   })
 
@@ -439,6 +465,34 @@ describe('the lines of a receipt in place of what a row held', () => {
     const store = await spendingStore()
     await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, { account: OTP }, LINES)))
     expect(store.state.workbook!.items.map((line) => line.labels)).toEqual([[], []])
+  })
+})
+
+describe("a receipt line's labels and event as you pick its payment", () => {
+  const TRIP = newLabel('Prague').id
+  const FLAT = newLabel('New flat').id
+  const parts: readonly Pick<TransactionItem, 'amount' | 'labels' | 'event'>[] = [
+    { amount: accountMoneyFromAmount(-10), labels: [TRIP], event: BY_DAYS },
+    { amount: accountMoneyFromAmount(-13.49), labels: [TRIP, FLAT], event: OUT_OF_EVENTS },
+  ]
+  const onSplit = openingLineChoices(parts)
+  const onNewEntry = openingLineChoices([])
+
+  it('starts with the labels every item it replaces carries and the event choice of the largest, and none on a new entry', () => {
+    expect(onSplit).toEqual({ labels: [TRIP], event: OUT_OF_EVENTS })
+    expect(onNewEntry).toEqual({ labels: [], event: BY_DAYS })
+  })
+
+  it('moves a line not yet changed to what the payment picked now opens it with', () => {
+    expect(repickedLineChoices(onNewEntry, onNewEntry, onSplit)).toEqual(onSplit)
+    expect(repickedLineChoices({ labels: [TRIP], event: OUT_OF_EVENTS }, onSplit, onNewEntry)).toEqual(onNewEntry)
+  })
+
+  it('keeps a line whose labels or event you changed', () => {
+    const labelled: PartChoices = { labels: [FLAT], event: BY_DAYS }
+    const outOfEvents: PartChoices = { labels: [], event: OUT_OF_EVENTS }
+    expect(repickedLineChoices(labelled, onNewEntry, onSplit)).toBe(labelled)
+    expect(repickedLineChoices(outOfEvents, onNewEntry, onSplit)).toBe(outOfEvents)
   })
 })
 

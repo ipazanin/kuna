@@ -27,6 +27,7 @@ import MoneyText from '../../shared/ui/MoneyText.vue'
 import { moneyFromCents, plainAmount } from '../../shared/money/money'
 import { typedAmount } from '../../shared/money/typedAmount'
 import GallerySection from './GallerySection.vue'
+import LabelsSelectEmptySpecimen from './LabelsSelectEmptySpecimen.vue'
 
 const formOpen = ref(false)
 /** Made-up labels of a kind only the gallery has. */
@@ -246,7 +247,7 @@ const ROWS = [
   <GallerySection
     id="labels-select"
     title="LabelsSelect"
-    description="The labels a part carries, picked from the file's labels and each shown as a badge. A name typed into its search that no label has is handed to the screen, which adds the label in the same write."
+    description="The labels a part carries, picked from the file's labels and each shown as a badge. A name typed into its search that no label has is handed to the screen, which adds the label in the same write. In a file with no labels its open list says to type a name to add one."
   >
     <AppCard as="div" class="p-5">
       <FormGrid>
@@ -256,6 +257,7 @@ const ROWS = [
         <UFormField label="Two labels picked">
           <LabelsSelect v-model="someLabels" :labels="galleryLabels" name="Labels of the part" class="w-full" @create="someLabels = withGalleryLabel(someLabels, $event)" />
         </UFormField>
+        <LabelsSelectEmptySpecimen />
       </FormGrid>
     </AppCard>
   </GallerySection>

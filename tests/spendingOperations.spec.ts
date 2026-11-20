@@ -675,6 +675,67 @@ describe('an entry split by hand', () => {
     expect(answer.text).toContain(why)
   })
 
+  it('gives a part the labels and event its choices name, one made on the same card by its $ name, and leaves a part whose choices are null as the write carries it', async () => {
+    const desk = await spendingDesk(used)
+    const none = { labels: null, event: null, eventRule: null }
+    const answer = await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-label', { name: 'Prague' }, '$prague'),
+      stepOf(SPENDING_OPERATIONS, 'split-entry', {
+        entry: desk.ref('transaction', typed),
+        parts: [
+          {
+            part: null,
+            amount: 10,
+            category: desk.ref('category', EXAMPLE_RECORDS['category']!),
+            note: '',
+            choices: { labels: ['$prague', desk.ref('label', EXAMPLE_RECORDS['label']!)], event: desk.ref('event', EXAMPLE_RECORDS['event']!), eventRule: null },
+          },
+          { part: null, amount: 15, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '', choices: { labels: [], event: null, eventRule: 'out-of-events' } },
+          { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', choices: none },
+        ],
+      }),
+    ])
+    expect(answer.isError, answer.text).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+    const prague = bookOf(desk).labels.find((label) => label.name === 'Prague')!
+    const parts = bookOf(desk).items.filter((part) => part.transaction === typed)
+    expect(parts.map((part) => [part.labels, part.event])).toEqual([
+      [[prague.id, EXAMPLE_RECORDS['label']], EXAMPLE_RECORDS['event']],
+      [[], OUT_OF_EVENTS],
+      [[], BY_DAYS],
+    ])
+    expect(bookOf(desk).problems).toEqual([])
+  })
+
+  it('keeps what a kept part has where its choices leave a field null, and refuses an event and an eventRule together, a label that is no ref and a file from before items', async () => {
+    const desk = await spendingDesk(used)
+    const split = EXAMPLE_RECORDS['transaction-split']!
+    const rentPart = recordIdOf(ITEM_RECORDS, 'line-hardware-rent')
+    const parts = (choices: Readonly<Record<string, unknown>>) => [
+      { part: desk.ref(ITEM_RECORDS.name, rentPart), amount: 10, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '', choices },
+      { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', choices: { labels: null, event: null, eventRule: null } },
+    ]
+    const step = (choices: Readonly<Record<string, unknown>>) => stepOf(SPENDING_OPERATIONS, 'split-entry', { entry: desk.ref('transaction', split), parts: parts(choices) })
+
+    expect((await desk.propose([step({ labels: null, event: desk.ref('event', EXAMPLE_RECORDS['event']!), eventRule: 'on-its-days' })])).text).toContain('not both')
+    expect((await desk.propose([step({ labels: ['not a ref'], event: null, eventRule: null })])).text).toContain('parts.choices.labels is not a ref')
+
+    await desk.propose([step({ labels: null, event: null, eventRule: 'out-of-events' })])
+    await desk.accept()
+    const rent = bookOf(desk).items.find((part) => part.id === rentPart)!
+    expect([rent.labels, rent.event]).toEqual([[EXAMPLE_RECORDS['label']], OUT_OF_EVENTS])
+
+    const older = await spendingDesk(used, deskPorts(), 'before-items')
+    const olderStep = stepOf(SPENDING_OPERATIONS, 'split-entry', {
+      entry: older.ref('transaction', typed),
+      parts: [
+        { part: null, amount: 10, category: older.ref('category', EXAMPLE_RECORDS['category']!), note: '', choices: { labels: [], event: null, eventRule: 'out-of-events' } },
+        { part: null, amount: null, category: older.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', choices: { labels: null, event: null, eventRule: null } },
+      ],
+    })
+    expect((await older.propose([olderStep])).text).toContain('move-to-items')
+  })
+
   it("refuses a transfer's leg and an entry a receipt split, whose lines only remove-receipt takes off", async () => {
     const desk = await spendingDesk(used)
     const parts = [

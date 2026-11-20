@@ -16,6 +16,7 @@ export type StrictSchema =
   | { readonly type: 'string'; readonly enum?: readonly string[]; readonly description?: string }
   | { readonly type: 'integer' | 'number' | 'boolean' | 'null'; readonly description?: string }
   | { readonly type: readonly ('string' | 'number' | 'null')[]; readonly enum?: readonly (string | null)[]; readonly description?: string }
+  | { readonly type: readonly ['array', 'null']; readonly items: StrictSchema; readonly description?: string }
 
 /** What in the value does not match the schema, each as a path and what is wrong, such as `suggestions.0.row is not one of a, b`. Empty when it matches. */
 export function schemaProblems(value: unknown, schema: StrictSchema, path = ''): string[] {

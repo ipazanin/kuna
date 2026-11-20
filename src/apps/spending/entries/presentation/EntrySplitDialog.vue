@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UFormField from '@nuxt/ui/components/FormField.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
+import LabelsAndEventFields from './LabelsAndEventFields.vue'
 import { useLabelsAndEvents } from './useLabelsAndEvents'
 import { words } from './words'
 import { writeEntrySplit } from '../application/entryWrites'
@@ -26,7 +25,6 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
-import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
 import SplitEditor from '../../../../shared/ui/SplitEditor.vue'
 import { givenParts, splitField } from '../../../../shared/ui/splitFields'
 import type { SplitField } from '../../../../shared/ui/splitFields'
@@ -51,7 +49,8 @@ const tried = ref(false)
 const heldItems = computed(() => rowItemsOf({ items: store.state.workbook?.items ?? [] })(props.entry))
 /** Whether the entry is split already, so the dialog changes the split rather than making one. */
 const changing = computed(() => isSplit(heldItems.value))
-const { labelChoices, labelling, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventItems, start, addParts, addCarried } = useLabelsAndEvents(() => props.entry.date)
+const kit = useLabelsAndEvents(() => props.entry.date)
+const { labelling, partLabels, partEvents, labelPart, start, addParts, addCarried } = kit
 const labelsOf = (part: SplitField<RecordId>) => partLabels.value[part.id] ?? []
 
 watch(open, (opened) => {
@@ -145,22 +144,18 @@ async function save(): Promise<void> {
           <AccountMoneyText :cents="cents" :currency="currency" />
         </template>
         <template v-if="labelling" #part="{ field, place }">
-          <div class="grid gap-x-3 gap-y-2" :class="events.length > 0 ? 'sm:grid-cols-2' : ''">
-            <UFormField :label="words.dialog.labels" :error="labelRefused !== null && labelRefused.part === field.id ? labelRefused.text : false">
-              <LabelsSelect
-                :model-value="labelsOf(field)"
-                :labels="labelChoices"
-                :name="words.split.partLabels(place)"
-                class="w-full"
-                data-testid="split-part-labels"
-                @update:model-value="labelPart(field.id, $event)"
-                @create="labelPart(field.id, withTyped(labelsOf(field), $event, field.id))"
-              />
-            </UFormField>
-            <UFormField v-if="events.length > 0" :label="words.dialog.event">
-              <USelect v-model="partEvents[field.id]" :items="eventItems(field.category)" :aria-label="words.split.partEvent(place)" class="w-full" data-testid="split-part-event" />
-            </UFormField>
-          </div>
+          <LabelsAndEventFields
+            :labels="labelsOf(field)"
+            :event="partEvents[field.id] ?? BY_DAYS"
+            :kit="kit"
+            :part="field.id"
+            :filed-under="field.category"
+            :labels-name="words.split.partLabels(place)"
+            :event-name="words.split.partEvent(place)"
+            testid="split-part"
+            @update:labels="labelPart(field.id, $event)"
+            @update:event="partEvents[field.id] = $event"
+          />
         </template>
       </SplitEditor>
       <p class="type-caption">{{ words.split.sign }}</p>

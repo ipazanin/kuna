@@ -17,9 +17,13 @@ import { words } from './words'
 import { writeReceiptSplit } from '../application/receiptWrites'
 import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches } from '../domain/receiptMatch'
 import type { ReceiptCandidate } from '../domain/receiptMatch'
-import { receiptSplit, rowPlace, typedReceiptLines } from '../domain/receiptSplit'
+import { openingLineChoices, receiptSplit, repickedLineChoices, rowPlace, typedReceiptLines } from '../domain/receiptSplit'
 import type { ReceiptPlace } from '../domain/receiptSplit'
+import type { PartChoices } from '../../entries/domain/entrySplit'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
+import LabelsAndEventFields from '../../entries/presentation/LabelsAndEventFields.vue'
+import { useLabelsAndEvents } from '../../entries/presentation/useLabelsAndEvents'
+import type { PartKey } from '../../entries/presentation/useLabelsAndEvents'
 import { lastUsedAccount, rememberLastAccount } from '../../entries/infrastructure/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -62,6 +66,8 @@ const pickedPlace = ref<string | null>(null)
 const pickedCategory = ref('')
 /** The lines typed by hand, one of them the rest of the total, or null while one category takes the whole receipt. */
 const lines = ref<SplitField[] | null>(null)
+/** The key of the labels and event of a receipt under one category, which lines key by their own id. */
+const WHOLE = 'whole'
 const account = ref('')
 const keepPhoto = ref(false)
 const tried = ref(false)
@@ -88,6 +94,7 @@ watch(open, (opened) => {
   pickedPlace.value = null
   pickedCategory.value = ''
   lines.value = null
+  start([])
   keepPhoto.value = false
   tried.value = false
   failure.value = null
@@ -114,6 +121,25 @@ const candidates = computed((): readonly ReceiptCandidate[] => (matches.value ==
 
 const place = computed(() => placeOf(matches.value, pickedPlace.value))
 const chosenRow = computed(() => candidates.value.find((candidate) => candidate.row.id === place.value)?.row ?? null)
+
+/** A part's event joins by the day of the payment picked, or of the receipt on a new entry. */
+const kit = useLabelsAndEvents(() => chosenRow.value?.date ?? issuedOn.value)
+const { labelling, partLabels, partEvents, labelPart, start, addParts, addCarried } = kit
+
+const opening = computed(() => openingLineChoices(chosenRow.value === null ? [] : rowItemsOf({ items: book.value?.items ?? [] })(chosenRow.value)))
+const choicesOfPart = (part: PartKey): PartChoices => ({ labels: partLabels.value[part] ?? opening.value.labels, event: partEvents.value[part] ?? opening.value.event })
+const partKeys = computed<readonly PartKey[]>(() => lines.value?.map((field) => field.id) ?? [WHOLE])
+
+watch([open, partKeys], ([, keys]) => addParts(keys.map((part) => ({ part, ...opening.value }))), { immediate: true })
+watch(opening, (after, before) => {
+  for (const part of partKeys.value) {
+    const moved = repickedLineChoices(choicesOfPart(part), before, after)
+    labelPart(part, moved.labels)
+    partEvents.value[part] = moved.event
+  }
+})
+/** What a part saves with: the labels and event it shows, or nothing on a file from before parts, which keeps none. */
+const choicesOf = (part: PartKey): { readonly choices?: PartChoices } => (labelling.value ? { choices: choicesOfPart(part) } : {})
 
 const accountOfRow = (accountId: string) => book.value?.accounts.find((candidate) => candidate.id === accountId) ?? null
 
@@ -154,9 +180,11 @@ const category = computed<string>({
   },
 })
 
-/** Starts the lines with the category picked so far on the first, and the second taking the rest of the total. */
+/** Starts the lines with the category picked so far on the first, the second taking the rest of the total, and both with the whole receipt's labels and event. */
 function typeLines(): void {
-  lines.value = [splitField('', category.value, '', false), splitField('', '', '', true)]
+  const typed = [splitField('', category.value, '', false), splitField('', '', '', true)]
+  addParts(typed.map((field) => ({ part: field.id, ...choicesOfPart(WHOLE) })))
+  lines.value = typed
 }
 
 const lineItems = computed(() => entryCategoryChoices(categories.value, 'out', null))
@@ -174,7 +202,7 @@ const typedLines = computed(() => {
   return typedReceiptLines(
     categories.value,
     sum,
-    given.map((amount, place) => ({ amount, category: picked[place]!.id, note: fields?.[place]?.note ?? '' })),
+    given.map((amount, place) => ({ amount, category: picked[place]!.id, note: fields?.[place]?.note ?? '', ...choicesOf(fields?.[place]?.id ?? WHOLE) })),
   )
 })
 const linesRefusal = computed(() => (typedLines.value !== null && 'refused' in typedLines.value ? entryWords.split.refusals[typedLines.value.refused] : null))
@@ -232,8 +260,16 @@ async function save(): Promise<void> {
     latitude: photoPlace.value?.latitude ?? '',
     longitude: photoPlace.value?.longitude ?? '',
   }
+  const carried = new Set(typed.parts.flatMap((part) => part.choices?.labels ?? []))
   const outcome = await saves.save(keepPhoto.value && keepReason.value === null ? { file, issuedOn: day } : null, (photoId) =>
-    writes.write(words.saved, (unit) => writeReceiptSplit(unit, records, receiptSplit({ ...draft, photo: photoId }, where, typed.parts)), { failedTitle: words.notSaved }),
+    writes.write(
+      words.saved,
+      (unit) => {
+        addCarried(unit, carried)
+        writeReceiptSplit(unit, records, receiptSplit({ ...draft, photo: photoId }, where, typed.parts))
+      },
+      { failedTitle: words.notSaved },
+    ),
   )
   if (outcome.kind === 'photo-failed') failure.value = `${words.notKept}: ${outcome.reason}`
   if (outcome.kind !== 'saved') return
@@ -289,6 +325,16 @@ function closeAsked(wanted: boolean): void {
       <UFormField v-if="lines === null" :label="words.category" :error="(tried && errors.category) || false">
         <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.pickCategory" class="w-full" data-testid="spending-receipt-category" />
       </UFormField>
+      <LabelsAndEventFields
+        v-if="lines === null && labelling"
+        v-bind="choicesOfPart(WHOLE)"
+        :kit="kit"
+        :part="WHOLE"
+        :filed-under="category"
+        testid="spending-receipt"
+        @update:labels="labelPart(WHOLE, $event)"
+        @update:event="partEvents[WHOLE] = $event"
+      />
       <div v-if="lines === null" class="sm:col-span-2">
         <UButton :label="words.typeLines" icon="i-lucide-list-plus" color="neutral" variant="outline" data-testid="spending-receipt-type-lines" @click="typeLines" />
       </div>
@@ -312,6 +358,19 @@ function closeAsked(wanted: boolean): void {
           </template>
           <template #rest="{ cents }">
             <AccountMoneyText :cents="cents" :currency="EURO" />
+          </template>
+          <template v-if="labelling" #part="{ field, place: partPlace }">
+            <LabelsAndEventFields
+              v-bind="choicesOfPart(field.id)"
+              :kit="kit"
+              :part="field.id"
+              :filed-under="field.category"
+              :labels-name="entryWords.split.partLabels(partPlace)"
+              :event-name="entryWords.split.partEvent(partPlace)"
+              testid="spending-receipt-line"
+              @update:labels="labelPart(field.id, $event)"
+              @update:event="partEvents[field.id] = $event"
+            />
           </template>
         </SplitEditor>
         <p v-else class="type-caption" data-testid="spending-receipt-total-first">{{ words.linesNeedTotal }}</p>

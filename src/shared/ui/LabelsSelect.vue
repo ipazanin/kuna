@@ -48,5 +48,6 @@ const shown = computed(() => props.labels.filter((label) => picked.value.include
         <UBadge v-for="label in shown" :key="label.id" :label="label.name" color="neutral" variant="subtle" size="xs" class="max-w-full" data-testid="labels-pick" />
       </span>
     </template>
+    <template #empty>{{ words.labels.empty }}</template>
   </USelectMenu>
 </template>

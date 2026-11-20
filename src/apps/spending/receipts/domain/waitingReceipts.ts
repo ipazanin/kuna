@@ -1,10 +1,12 @@
 import { matchesAmong, splittableRows } from './receiptMatch'
 import type { ReceiptMatches } from './receiptMatch'
-import { rowFiledBy } from './receiptSplit'
+import { openingLineChoices, rowFiledBy } from './receiptSplit'
 import { bankNamesIn } from './sameMerchant'
 import type { ReceiptPlace } from './receiptSplit'
 import { differenceItem } from '../../entries/domain/entrySplit'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
+import { labelsOf } from '../../../../shared/categorising/domain/labels'
+import { BY_DAYS } from '../../workbook/domain/event'
 import type { Account } from '../../workbook/domain/account'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -78,7 +80,8 @@ export function waitingReceipts(book: WaitingBook): readonly WaitingReceipt[] {
 /**
  * The waiting receipt on the row, which it files as `receiptSplit` files one: its lines go in place of the row's items and take
  * the row's link when it has one, and a line of `differenceText` under the category most of the receipt's money is in makes up what the bank booked
- * beyond the total.
+ * beyond the total. Each line adds the labels of `openingLineChoices` to its own and, while it goes by its day, takes its event
+ * choice, and the Difference line takes both.
  */
 export function receiptOnRow(
   receipt: Receipt,
@@ -88,13 +91,20 @@ export function receiptOnRow(
   newKey: () => string = newRecordId,
 ): PlacedReceipt {
   const link = linkOfItems(held)
-  const placed = lines.map((line) => ({ ...line, transaction: row.id, link }))
+  const opening = openingLineChoices(held)
+  const placed = lines.map((line) => ({
+    ...line,
+    transaction: row.id,
+    link,
+    labels: labelsOf([line, opening]),
+    event: line.event === BY_DAYS ? opening.event : line.event,
+  }))
   const difference = differenceItem(row.amount, placed, { transaction: row.id, receipt: receipt.id, category: mainCategoryOf(lines), link }, differenceText, newKey)
   return {
     before: row,
     row: rowFiledBy(row, receipt.merchant),
     receipt: { before: receipt, after: { ...receipt, transaction: row.id, account: null, merchant: receipt.merchant === '' ? row.payee : receipt.merchant } },
-    items: difference === null ? placed : [...placed, difference],
+    items: difference === null ? placed : [...placed, { ...difference, ...opening }],
   }
 }
 

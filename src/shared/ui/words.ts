@@ -17,7 +17,7 @@ export const en = {
     pickAll: 'Pick all',
     cancel: 'Cancel',
   },
-  labels: { none: 'No labels', search: 'Find or add a label' },
+  labels: { none: 'No labels', search: 'Find or add a label', empty: 'Type a name to add a label' },
   labelName: { blank: 'Give the label a name', taken: 'Another label has this name' },
   labelPicker: { putOn: 'Put on', takeOff: 'Take off', newLabel: 'New label', add: 'Add', cancel: 'Cancel' },
   labelDialog: { addTitle: 'Add a label', changeTitle: 'Change the label', name: 'Name', add: 'Add', save: 'Save', cancel: 'Cancel', delete: 'Delete' },
@@ -68,6 +68,7 @@ export const en = {
   split: {
     parts: 'Parts',
     part: (place: number) => `Part ${place}`,
+    amount: 'Amount',
     amountOf: (place: number) => `Amount of part ${place}`,
     amountPlaceholder: '0.00',
     anAmount: 'An amount above zero, with at most two decimals',
@@ -103,7 +104,7 @@ export const hr: Translation<typeof en> = {
     pickAll: 'Odaberi sve',
     cancel: 'Odustani',
   },
-  labels: { none: 'Bez oznaka', search: 'Pretraži ili dodaj oznaku' },
+  labels: { none: 'Bez oznaka', search: 'Pretraži ili dodaj oznaku', empty: 'Upiši naziv za novu oznaku' },
   labelName: { blank: 'Upiši naziv', taken: 'Druga oznaka već ima taj naziv' },
   labelPicker: { putOn: 'Stavi', takeOff: 'Skini', newLabel: 'Nova oznaka', add: 'Dodaj', cancel: 'Odustani' },
   labelDialog: { addTitle: 'Dodaj oznaku', changeTitle: 'Promijeni oznaku', name: 'Naziv', add: 'Dodaj', save: 'Spremi', cancel: 'Odustani', delete: 'Obriši' },
@@ -154,6 +155,7 @@ export const hr: Translation<typeof en> = {
   split: {
     parts: 'Dijelovi',
     part: (place) => `${place}. dio`,
+    amount: 'Iznos',
     amountOf: (place) => `Iznos ${place}. dijela`,
     amountPlaceholder: '0,00',
     anAmount: 'Iznos veći od nule s najviše dvije decimale',

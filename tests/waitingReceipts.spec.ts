@@ -20,6 +20,8 @@ import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, TRANS
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
+import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
+import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_RATES } from '../src/shared/money/rateBook'
@@ -215,6 +217,24 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(lines.slice(0, asking!.lines.length).map((line) => line.id)).toEqual(asking!.lines.map((line) => line.id))
     expect(lines).toHaveLength(asking!.lines.length + 1)
     expect(lines.map((line) => line.labels)).toEqual(lines.map(() => [trip]))
+  })
+
+  it('adds to its lines, and gives the Difference line, the labels every part of a row split by hand carries and the event choice of the largest', async () => {
+    const store = await spendingStore()
+    await waiting(store)
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
+    const [asking] = waitingReceipts(store.state.workbook!)
+    const [tipped] = asking!.matches.kind === 'pick' ? asking!.matches.candidates : []
+    const [first, ...rest] = asking!.lines
+    const [trip, flat, own] = [newLabel('Prague').id, newLabel('New flat').id, newLabel('Gift').id]
+    const hand: readonly TransactionItem[] = [
+      { ...first!, id: recordIdOf(ITEM_RECORDS, 'hand-1'), receipt: null, transaction: tipped!.row.id, amount: accountMoneyFromAmount(-10), labels: [trip], event: BY_DAYS },
+      { ...first!, id: recordIdOf(ITEM_RECORDS, 'hand-2'), receipt: null, transaction: tipped!.row.id, amount: accountMoneyFromAmount(-15), labels: [trip, flat], event: OUT_OF_EVENTS },
+    ]
+
+    const placed = receiptOnRow(asking!.receipt, [{ ...first!, labels: [own] }, ...rest], { row: tipped!.row, held: hand }, 'Difference')
+
+    expect(placed.items.map((line) => [line.labels, line.event])).toEqual([[[own, trip], OUT_OF_EVENTS], ...rest.map(() => [[trip], OUT_OF_EVENTS]), [[trip], OUT_OF_EVENTS]])
   })
 
   it('keeps waiting while no row it may be arrives', async () => {

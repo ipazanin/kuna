@@ -1,7 +1,6 @@
 import { words } from './words'
-import { BY_DAYS } from '../../workbook/domain/event'
-import { differenceItem, partCategoryRefusal } from '../../entries/domain/entrySplit'
-import type { PartCategoryRefusal } from '../../entries/domain/entrySplit'
+import { differenceItem, newPartChoices, partCategoryRefusal } from '../../entries/domain/entrySplit'
+import type { PartCategoryRefusal, PartChoices } from '../../entries/domain/entrySplit'
 import type { Category } from '../../workbook/domain/category'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { takesRowsByHand } from '../../workbook/domain/account'
@@ -23,14 +22,15 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 /** What the owner confirmed of a receipt. */
 export type ReceiptDraft = Omit<Receipt, 'id' | 'transaction' | 'account'>
 
-/** A line the owner confirmed, its amount signed as the row is. */
-export type ReceiptPart = Pick<TransactionItem, 'printed' | 'note' | 'amount'> & { readonly category: RecordId }
+/** A line the owner confirmed, its amount signed as the row is, with the labels and event choice they set on it, or none to start it with those of `openingLineChoices`. */
+export type ReceiptPart = Pick<TransactionItem, 'printed' | 'note' | 'amount'> & { readonly category: RecordId; readonly choices?: PartChoices }
 
-/** A line of a receipt as you type it: its amount above zero, or the rest of the total, its category and your words. */
+/** A line of a receipt as you type it: its amount above zero, or the rest of the total, its category, your words and, when you set them, its labels and event choice. */
 export interface TypedLine {
   readonly amount: AccountMoney | 'rest'
   readonly category: RecordId
   readonly note: string
+  readonly choices?: PartChoices
 }
 
 /**
@@ -50,7 +50,7 @@ export function typedReceiptLines(
     lines.map((line) => (line.amount === 'rest' ? 'rest' : negateAccountMoney(line.amount))),
   )
   if ('refused' in placed) return placed
-  return { parts: lines.map((line, place) => ({ printed: '', note: line.note.trim(), amount: placed.parts[place]!, category: line.category })) }
+  return { parts: lines.map(({ note, category, choices }, place) => ({ printed: '', note: note.trim(), amount: placed.parts[place]!, category, ...(choices === undefined ? {} : { choices }) })) }
 }
 
 /**
@@ -62,6 +62,23 @@ export type ReceiptPlace = { readonly row: Transaction; readonly held: readonly 
 /** The row as a receipt's place, with the items the book holds of it, which the receipt's lines replace. */
 export function rowPlace(row: Transaction, items: readonly TransactionItem[]): Extract<ReceiptPlace, { readonly row: Transaction }> {
   return { row, held: rowItemsOf({ items })(row) }
+}
+
+/**
+ * The labels and event choice a receipt's line starts with: those a part added to a split of the row starts with, so the labels
+ * every item it replaces carries and the event choice of the largest. On a new entry, or one that waits, it replaces nothing.
+ */
+export function openingLineChoices(replaced: readonly Pick<TransactionItem, 'amount' | 'labels' | 'event'>[]): PartChoices {
+  return newPartChoices(replaced)
+}
+
+/**
+ * A line's labels and event choice once another payment is picked: a line still on what the payment picked before opened it
+ * with moves to what the new one opens with, and a line you changed keeps yours.
+ */
+export function repickedLineChoices(line: PartChoices, before: PartChoices, after: PartChoices): PartChoices {
+  const untouched = line.event === before.event && line.labels.length === before.labels.length && line.labels.every((label) => before.labels.includes(label))
+  return untouched ? after : line
 }
 
 /** Everything one confirmed receipt writes. */
@@ -86,7 +103,8 @@ export function rowFiledBy(row: Transaction, merchant: string): Transaction {
  * which no statement fills, or on an account the bank fills no row at all, as it waits for the bank's. Its lines go in place of
  * any parts the row was split into by hand. When they do not add up to the row, or to minus the total of a receipt that
  * waits, as with a tip or a misread line, one Difference line in the main category shows what is left, and no line you confirmed changes.
- * Every line takes the row's link when its items named one record, and none when they named several or none.
+ * Every line takes the row's link when its items named one record, and none when they named several or none. A line takes the
+ * labels and event choice you set on it, or else those of `openingLineChoices`, as the Difference line does.
  */
 export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: readonly ReceiptPart[], newKey: () => string = newRecordId): ReceiptSplit {
   const merchant = draft.merchant.trim()
@@ -114,7 +132,8 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
   const receipt: Receipt = { ...draft, id: recordIdOf(RECEIPT_RECORDS, newKey()), transaction, account: waitsOn, merchant: merchant === '' ? (row?.payee ?? '') : merchant }
   const replaced = 'row' in place ? place.held : []
   const link = linkOfItems(replaced)
-  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory }): TransactionItem => ({
+  const opening = openingLineChoices(replaced)
+  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory, choices }): TransactionItem => ({
     id: recordIdOf(ITEM_RECORDS, newKey()),
     transaction,
     receipt: receipt.id,
@@ -123,11 +142,10 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
     amount: lineAmount,
     category: lineCategory,
     link,
-    labels: [],
+    ...(choices ?? opening),
     ruleLabels: [],
-    event: BY_DAYS,
     splitByLink: false,
   }))
   const difference = differenceItem(row?.amount ?? amount, lines, { transaction, receipt: receipt.id, category, link }, words.difference, newKey)
-  return { before, row, receipt, lines: difference === null ? lines : [...lines, difference], replaced }
+  return { before, row, receipt, lines: difference === null ? lines : [...lines, { ...difference, ...opening }], replaced }
 }

@@ -9,6 +9,8 @@ import { ATTACHMENT_REF } from '../src/shared/app/assistantOperations'
 import type { AppProposer, AssistantOperation, CheckedProposal, ProposalStep } from '../src/shared/app/assistantOperations'
 import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
 import { proposeChanges } from '../src/shared/ai/application/chatProposals'
+import { schemaProblems } from '../src/shared/ai/domain/strictSchema'
+import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import type { ChatReads } from '../src/shared/ai/application/chatReads'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
@@ -393,10 +395,73 @@ describe('a proposal of another app', () => {
     expect((await refusedWith(false)).text).toBe('Ana Horvat has no account here. Iva Kovač left in October.')
   })
 
+  describe('with refs inside the items of a list', () => {
+    const LABELS: StrictSchema = { type: ['array', 'null'], items: { type: 'string' } }
+    const EVENT: StrictSchema = { type: ['string', 'null'] }
+    const object = (properties: Readonly<Record<string, StrictSchema>>): StrictSchema => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false })
+    const operationWith = (choices: StrictSchema): AssistantOperation => ({
+      name: 'tag-parts',
+      about: 'Tags the parts of an entry.',
+      input: object({ parts: { type: 'array', items: object({ choices }) } }),
+      refs: { 'parts.choices.labels': 'label', 'parts.choices.event': 'event' },
+      creates: null,
+      alone: false,
+      example: { parts: [] },
+    })
+    const TAG_PARTS = operationWith(object({ labels: LABELS, event: EVENT }))
+    const refOf = (kind: string, id: string) => reads.refs.recordRef({ app: 'kuna', kind, id })
+
+    async function proposed(operation: AssistantOperation, parts: readonly unknown[]) {
+      const seen: ProposalStep[][] = []
+      const answer = await proposeChanges(
+        { app: 'kuna', title: 'Tag', steps: [{ op: operation.name, input: JSON.stringify({ parts }), as: null }], next: false },
+        new Map([['kuna', { ...stubProposer(false, seen), operations: [operation] }]]),
+        reads,
+        [],
+        () => undefined,
+      )
+      return { answer, parts: seen[0]?.[0]?.input['parts'] }
+    }
+
+    it('puts the id in place of a ref in an object of the item and of each ref in a list, and keeps a null', async () => {
+      const { answer, parts } = await proposed(TAG_PARTS, [
+        { choices: { labels: [refOf('label', 'trip'), refOf('label', 'flat')], event: refOf('event', 'wedding') } },
+        { choices: { labels: null, event: null } },
+      ])
+      expect(answer.isError, answer.text).toBe(false)
+      expect(parts).toEqual([{ choices: { labels: ['trip', 'flat'], event: 'wedding' } }, { choices: { labels: null, event: null } }])
+    })
+
+    it('refuses a list that holds one value that is not a ref', async () => {
+      const { answer, parts } = await proposed(TAG_PARTS, [{ choices: { labels: [refOf('label', 'trip'), 'Trip'], event: null } }])
+      expect(answer.isError).toBe(true)
+      expect(answer.text).toContain('parts.choices.labels is not a ref')
+      expect(parts).toBeUndefined()
+    })
+
+    it('refuses a list on the way to a ref, which it cannot say which entry of it names', async () => {
+      const { answer, parts } = await proposed(operationWith({ type: 'array', items: object({ labels: LABELS, event: EVENT }) }), [{ choices: [{ labels: null, event: refOf('event', 'wedding') }] }])
+      expect(answer.isError).toBe(true)
+      expect(answer.text).toMatch(/parts\.choices\.(labels|event) is not a ref/)
+      expect(parts).toBeUndefined()
+    })
+  })
+
   it('asks for no yes to read when the proposer reads no books, and still needs it when it does', async () => {
     expect((await propose(stubProposer(false, []), 'a1')).isError).toBe(false)
     const seen: ProposalStep[][] = []
     expect((await propose(stubProposer(true, seen), 'a1')).isError).toBe(true)
     expect(seen).toEqual([])
+  })
+})
+
+describe('a schema that takes a list or null', () => {
+  const LABELS: StrictSchema = { type: ['array', 'null'], items: { type: 'string' } }
+
+  it('takes null or a list of its items, and says what else is wrong where', () => {
+    expect(schemaProblems(null, LABELS)).toEqual([])
+    expect(schemaProblems(['trip', 'flat'], LABELS)).toEqual([])
+    expect(schemaProblems(['trip', 3], LABELS, 'labels')).toEqual(['labels.1 is not text'])
+    expect(schemaProblems('trip', LABELS, 'labels')).toEqual(['labels is not a list'])
   })
 })

@@ -101,3 +101,6 @@ export function useLabelsAndEvents(day: () => CivilDate | null) {
 
   return { labelChoices, labelling, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventItems, start, addParts, addCarried }
 }
+
+/** The labels and events of one dialog's parts, which `LabelsAndEventFields` reads and adds typed labels to. */
+export type LabelsAndEvents = ReturnType<typeof useLabelsAndEvents>

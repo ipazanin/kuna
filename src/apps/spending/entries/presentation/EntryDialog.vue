@@ -8,6 +8,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
 import EntrySplitDialog from './EntrySplitDialog.vue'
+import LabelsAndEventFields from './LabelsAndEventFields.vue'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
 import { words } from './words'
 import { newTransfer } from '../domain/transfer'
@@ -94,7 +95,8 @@ const note = ref('')
 const labels = ref<readonly RecordId[]>([])
 const event = ref<EventChoice>(BY_DAYS)
 const day = computed(() => parseCivilDate(date.value))
-const { labelChoices, labelling: keepsLabels, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventItems, start, addCarried } = useLabelsAndEvents(() => day.value)
+const kit = useLabelsAndEvents(() => day.value)
+const { labelChoices, labelling: keepsLabels, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventItems, start, addCarried } = kit
 /** The category and note of each receipt line by its id, which its heading follows and Save files the line under. */
 const lineFilings = ref<Record<string, LineFiling>>({})
 const lineRefiles = computed(() => lineRefilesOf(categories.value, entryLines.value, lineFilings.value))
@@ -416,12 +418,7 @@ async function remove(): Promise<void> {
       <UFormField v-if="!split" :label="spendingWords.form.note" :class="twoCurrencies || (feeOn !== null && !lessArrived) ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
-      <UFormField v-if="labelling && !split" :label="words.dialog.labels" :error="labelRefused?.part === null ? labelRefused.text : false" class="sm:col-span-2">
-        <LabelsSelect v-model="labels" :labels="labelChoices" :name="words.dialog.labels" class="w-full" @create="labels = withTyped(labels, $event)" />
-      </UFormField>
-      <UFormField v-if="labelling && !split && events.length > 0" :label="words.dialog.event">
-        <USelect v-model="event" :items="eventItems(category)" class="w-full" data-testid="spending-entry-event" />
-      </UFormField>
+      <LabelsAndEventFields v-if="labelling && !split" v-model:labels="labels" v-model:event="event" :kit="kit" :part="null" :filed-under="category" testid="spending-entry" />
       <EntryLinkField
         v-if="entry !== null"
         :entry="entry"

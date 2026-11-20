@@ -78,15 +78,32 @@ function takeRest(id: number): void {
       <span class="text-toned">{{ wholeLabel }}</span>
       <span class="font-medium"><slot name="whole" /></span>
     </p>
-    <ol class="flex flex-col gap-3" :aria-label="words.split.parts">
+    <ol class="flex flex-col gap-5" :aria-label="words.split.parts">
       <li
         v-for="(field, index) in parts"
         :key="field.id"
-        class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-3 gap-y-2 border-b border-default pb-3 sm:grid-cols-[9rem_minmax(0,1fr)_auto]"
+        class="grid items-end gap-x-3 gap-y-2 border-b border-default pb-5 sm:grid-cols-[9rem_minmax(0,1fr)]"
         data-testid="split-part"
         :data-rest="field.rest"
       >
-        <div v-if="field.rest" class="col-start-1 row-start-1 flex flex-col gap-1">
+        <div class="col-span-full flex items-center justify-between gap-3">
+          <h3 class="type-card-title" data-testid="split-part-heading">{{ words.split.part(index + 1) }}</h3>
+          <UTooltip :text="parts.length <= 2 ? words.split.twoParts : words.split.removePart(index + 1)">
+            <span class="inline-flex">
+              <UButton
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                class="disabled:opacity-40"
+                :disabled="parts.length <= 2"
+                :aria-label="words.split.removePart(index + 1)"
+                data-testid="split-part-remove"
+                @click="removePart(field.id)"
+              />
+            </span>
+          </UTooltip>
+        </div>
+        <div v-if="field.rest" class="flex flex-col gap-1">
           <span :id="restLabel" class="text-sm font-medium text-default">{{ words.split.rest }}</span>
           <p
             role="status"
@@ -99,7 +116,7 @@ function takeRest(id: number): void {
             <slot name="rest" :cents="rest" />
           </p>
         </div>
-        <UFormField v-else :label="words.split.part(index + 1)" :error="(tried && amountError(field)) || false" class="col-start-1 row-start-1">
+        <UFormField v-else :label="words.split.amount" :error="(tried && amountError(field)) || false">
           <div class="flex gap-1">
             <MoneyInput v-model="field.amount" :placeholder="words.split.amountPlaceholder" :aria-label="words.split.amountOf(index + 1)" class="w-full" data-testid="split-part-amount" />
             <UTooltip :text="words.split.takeRest(index + 1)">
@@ -107,27 +124,13 @@ function takeRest(id: number): void {
             </UTooltip>
           </div>
         </UFormField>
-        <UFormField :label="words.split.category" :error="(tried && categoryError(field)) || false" class="col-span-2 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+        <UFormField :label="words.split.category" :error="(tried && categoryError(field)) || false">
           <slot name="category" :field="field" :place="index + 1" />
         </UFormField>
-        <UTooltip :text="parts.length <= 2 ? words.split.twoParts : words.split.removePart(index + 1)">
-          <span class="col-start-2 row-start-1 inline-flex sm:col-start-3">
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              class="disabled:opacity-40"
-              :disabled="parts.length <= 2"
-              :aria-label="words.split.removePart(index + 1)"
-              data-testid="split-part-remove"
-              @click="removePart(field.id)"
-            />
-          </span>
-        </UTooltip>
-        <UFormField :label="words.split.note" class="col-span-2 sm:col-span-3">
+        <UFormField :label="words.split.note" class="col-span-full">
           <UInput v-model="field.note" :placeholder="words.split.notePlaceholder" class="w-full" data-testid="split-part-note" />
         </UFormField>
-        <div v-if="$slots.part" class="col-span-2 sm:col-span-3">
+        <div v-if="$slots.part" class="col-span-full">
           <slot name="part" :field="field" :place="index + 1" />
         </div>
       </li>

@@ -34,6 +34,21 @@ function restoredIn(value: unknown, pseudonyms: Pseudonyms): unknown {
   return value
 }
 
+/**
+ * Puts the id in place of each ref at `path` of a record, one for each entry of a list at its end, and says whether every ref
+ * was one Kuna handed out. A null stays. A list anywhere else on the path is refused.
+ */
+function idsInPlace(record: Record<string, unknown>, path: readonly string[], idOf: (value: unknown) => string | null): boolean {
+  const [name, ...inner] = path
+  const held = record[name!]
+  if (held === null || held === undefined) return true
+  if (inner.length > 0) return typeof held === 'object' && !Array.isArray(held) && idsInPlace(held as Record<string, unknown>, inner, idOf)
+  const ids = (Array.isArray(held) ? held : [held]).map(idOf)
+  if (ids.some((id) => id === null)) return false
+  record[name!] = Array.isArray(held) ? ids : ids[0]
+  return true
+}
+
 /** List items with each alias in the named list fields turned into every way the person was written, and the rest restored. */
 function spelledItems(items: readonly unknown[], names: readonly string[], pseudonyms: Pseudonyms): unknown[] {
   return items.map((item) => {
@@ -56,7 +71,8 @@ function spelledItems(items: readonly unknown[], names: readonly string[], pseud
 /**
  * A step with refs turned into ids, attachment ids into the files, and aliases into what they stand for, so a model writes
  * `Person 3` and the record holds the name. A field the operation lists under `spellings` gets every way the person was
- * written, so a rule covers each, and so does a list field of a list's items named as `list.field`. Or why not, in a sentence.
+ * written, so a rule covers each, and so does a list field of a list's items named as `list.field`. A ref of a list's items
+ * may sit in an object of the item or in a list, named as `list.object.field`. Or why not, in a sentence.
  */
 function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['steps'][number], names: Set<string>, reads: ChatReads, attachments: readonly ChatAttachment[]): ProposalStep | string {
   const operation = proposer.operations.find((candidate) => candidate.name === step.op)
@@ -81,10 +97,7 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
       for (const item of value as readonly Readonly<Record<string, unknown>>[]) {
         const restored = restoredIn(item, reads.pseudonyms) as Record<string, unknown>
         for (const [name, of] of itemRefs) {
-          if (restored[name] === null) continue
-          const id = idOf(item[name], of)
-          if (id === null) return notARef(`${field}.${name}`, of)
-          restored[name] = id
+          if (!idsInPlace(restored, name.split('.'), (value) => idOf(value, of))) return notARef(`${field}.${name}`, of)
         }
         items.push(restored)
       }
