@@ -1,6 +1,7 @@
 import type { CivilDate } from '../calendar/civilDate'
 import type { AccountMoney } from '../money/accountMoney'
 import type { CurrencyCode } from '../money/currencyCode'
+import type { Money } from '../money/money'
 
 /** The record in another app a row names, as that app keeps it: its app, its kind and its key, and for an instalment its due date. */
 export interface PublishedLinkTarget {
@@ -10,7 +11,10 @@ export interface PublishedLinkTarget {
   readonly due: CivilDate | null
 }
 
-/** A row's item linked to a record in another app, as the shell takes it: which row, item and account, its day, the item's amount, and what it names. */
+/** How the app that keeps a linked item counts it: as spending, as income, as saved, as an asset bought, or in no figure. */
+export type LinkedItemCounts = 'spending' | 'income' | 'saved' | 'bought' | 'nowhere'
+
+/** A row's item linked to a record in another app, as the shell takes it: which row, item and account, its day, the item's amount in its currency and in euros, how it counts, and what it names. */
 export interface PublishedRowLink {
   /** The row's bare UUID. */
   readonly row: string
@@ -22,6 +26,9 @@ export interface PublishedRowLink {
   /** The item's money in the account's own currency, credits above zero and debits below. */
   readonly amount: AccountMoney
   readonly currency: CurrencyCode
+  /** The item's money in euros at the rate of its row's day, signed as `amount`, or null while the rates do not reach that day. */
+  readonly euros: Money | null
+  readonly counts: LinkedItemCounts
   readonly target: PublishedLinkTarget
 }
 

@@ -4,13 +4,14 @@ import type { AppContribution, ShellReads } from '../src/shared/app/appContribut
 import type { AppMoneyWithOwner } from '../src/shared/app/moneyWithOwner'
 import type { AppLoanTargets } from '../src/shared/app/loanTargets'
 import type { AppCashMovements } from '../src/shared/app/cashMovements'
+import type { AppAssets } from '../src/shared/app/assetTargets'
 import type { AppRowLinks } from '../src/shared/app/rowLinks'
 import { installApp } from '../src/shell/routing/appRegistry'
 
 /** An app as the shell's reads see it: its id, what it hands over, and the reads it installed with. */
 function appOf(
   id: string,
-  handed: { rowLinks?: () => AppRowLinks; moneyWithOwner?: () => AppMoneyWithOwner; loanTargets?: () => AppLoanTargets; cashMovements?: () => AppCashMovements },
+  handed: { rowLinks?: () => AppRowLinks; moneyWithOwner?: () => AppMoneyWithOwner; loanTargets?: () => AppLoanTargets; cashMovements?: () => AppCashMovements; assets?: () => AppAssets },
   kept: { shell: ShellReads | null },
 ): AppContribution {
   return {
@@ -56,5 +57,16 @@ describe('what the shell lets an app read of the others', () => {
     expect(kept.shell?.cashMovements()).toEqual([{ app: 'investments', movements: 'opening' }])
     movements = []
     expect(kept.shell?.cashMovements()).toEqual([{ app: 'investments', movements: [] }])
+  })
+
+  it('gathers the assets of each app that keeps them, by app, afresh at each call', async () => {
+    const kept: { shell: ShellReads | null } = { shell: null }
+    let assets: AppAssets = 'opening'
+    await installApp(appOf('assets', { assets: () => assets }, kept))
+    await installApp(appOf('spending', {}, kept))
+
+    expect(kept.shell?.assets()).toEqual([{ app: 'assets', assets: 'opening' }])
+    assets = []
+    expect(kept.shell?.assets()).toEqual([{ app: 'assets', assets: [] }])
   })
 })

@@ -167,7 +167,7 @@ const FAKE_DOCUMENTS = [
   ...['sample', 'one-loan', 'house-and-car', 'equal-principal', 'co-owned'].map((set) => fakeLoansDocument(FAKE_SAVED_AT, set)),
   ...['sample', 'cash-below-zero'].map((variant) => fakeInvestmentsDocument(FAKE_SAVED_AT, variant)),
   ...['sample', 'house-and-car', 'loan-gone', 'co-owned'].map((set) => fakeAssetsDocument(FAKE_SAVED_AT, set)),
-  ...['sample', 'foreign', 'over', 'statements', 'cash', 'receipts'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
+  ...['sample', 'foreign', 'over', 'statements', 'cash', 'receipts', 'assets'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
   fakeBeforeItemsDocument(FAKE_SAVED_AT),
 ]
 

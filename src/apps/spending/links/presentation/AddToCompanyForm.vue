@@ -6,6 +6,8 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { addAndLink } from '../application/linkWithRecord'
+import { companyTargets } from '../application/companyTargets'
+import { startingCostCategory } from '../domain/linkTarget'
 import { addCompanyCost } from '../../company/application/companyFacts'
 import type { CompanyCostCategory } from '../../company/application/companyFacts'
 import { toastAddedAndLinked } from './addedAndLinkedToasts'
@@ -46,7 +48,8 @@ const saving = defineModel<boolean>('saving', { default: false })
 const store = useSpendingBooks()
 const toast = useToast()
 
-const categorySlug = ref('')
+const advances = companyTargets().flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets.filter((target) => target.kind === 'owner-advance')))
+const categorySlug = ref(startingCostCategory(props.costCategories, advances, props.entry.payee)?.slug ?? '')
 const costCategory = computed(() => props.costCategories.find((candidate) => candidate.slug === categorySlug.value) ?? null)
 const date = ref<string>(props.entry.date)
 const amount = ref(amountForTyping(absAccountMoney(props.entry.amount)))

@@ -3,9 +3,9 @@ import type { TypedTransfer } from '../domain/transfer'
 import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
 import { eventOfLargest, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
-import { linkedEntry } from '../../links/domain/instalmentSplit'
-import type { LinkPlace, LinkedEntry } from '../../links/domain/instalmentSplit'
-import type { LinkTarget } from '../../links/domain/linkTarget'
+import { linkedEntry, linkedWithExtraPayment } from '../../links/domain/linkFiling'
+import type { LinkPlace, LinkedEntry } from '../../links/domain/linkFiling'
+import type { ExtraPaymentTarget, InstalmentTarget, LinkTarget } from '../../links/domain/linkTarget'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { heldItemsOf, writeRows } from './rowRecords'
 import type { RowWrite } from './rowRecords'
@@ -127,7 +127,24 @@ export function writeTransfer(unit: UnitOfWork, records: EntryRecords, before: I
  */
 export function linkEntry(unit: UnitOfWork, records: EntryRecords, row: Transaction, target: LinkTarget, place: LinkPlace, newKey: () => string = newRecordId): LinkedEntry {
   const receipt = recordsOf(records.receipts).some((held) => held.transaction === row.id)
-  const linked = linkedEntry({ row, items: heldItemsOf(records)(row) }, target, { ...place, receipt }, newKey)
+  return writeLinked(unit, records, row, linkedEntry({ row, items: heldItemsOf(records)(row) }, target, { ...place, receipt }, newKey))
+}
+
+/** Links the entry to its instalment and to the extra payment it also pays, split as `linkedWithExtraPayment` says, in one write. */
+export function linkWithExtraPayment(
+  unit: UnitOfWork,
+  records: EntryRecords,
+  row: Transaction,
+  instalment: InstalmentTarget,
+  extra: ExtraPaymentTarget,
+  place: LinkPlace,
+  newKey: () => string = newRecordId,
+): LinkedEntry {
+  return writeLinked(unit, records, row, linkedWithExtraPayment({ row, items: heldItemsOf(records)(row) }, instalment, extra, place, newKey))
+}
+
+/** Writes the entry as a link left it, with the categories the link added. */
+function writeLinked(unit: UnitOfWork, records: EntryRecords, row: Transaction, linked: LinkedEntry): LinkedEntry {
   linked.added.forEach((category) => unit.of(CATEGORY_WRITES).add(category))
   writeRows(unit, records, [{ before: row, after: linked.entry.row, items: linked.entry.items }])
   return linked

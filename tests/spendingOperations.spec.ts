@@ -446,6 +446,19 @@ describe('a rule card', () => {
   })
 })
 
+describe('a rule whose rows are for an asset', () => {
+  it('names the asset by its name in Assets, so each row it files links to it whole', async () => {
+    const car: LinkTarget = { kind: 'asset', link: { app: 'assets', kind: 'asset', key: 'made-up-car', due: null }, name: 'Family car', assetKind: 'car', bought: null }
+    const desk = await spendingDesk(used, { ...deskPorts(), assets: () => ({ apps: ['assets'], targets: [car] }) })
+    const rent = categoryNamed(desk, 'Rent')
+    await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { conditions: [{ test: 'payee_contains', values: ['Example Insurance'], not: false }], category: desk.ref('category', rent.id), pays: 'family car' }),
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).rules.find((rule) => rule.category === rent.id)?.link).toEqual(car.link)
+  })
+})
+
 describe('a rule that spots cash taken out', () => {
   it('adds one into Between my accounts with the cash account named, and changes it to the cash account of the currency', async () => {
     const desk = await spendingDesk(used)
@@ -914,6 +927,40 @@ describe('an entry’s link to Loans', () => {
         .items.filter((part) => part.transaction === EXAMPLE_RECORDS['transaction'])
         .map((part) => [part.amount, part.category, part.link]),
     ).toEqual([[accountMoneyFromAmount(-45.3), before, deposit.link]])
+  })
+
+  it('links money out to an asset by its name as its purchase under Bought assets, refuses income on money out, and takes a cost with no use', async () => {
+    const car: LinkTarget = { kind: 'asset', link: { app: 'assets', kind: 'asset', key: 'made-up-car', due: null }, name: 'Family car', assetKind: 'car', bought: null }
+    const desk = await spendingDesk(used, { ...deskPorts(), assets: () => ({ apps: ['assets'], targets: [car] }) })
+    const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Family car', due: null, use: 'income' })])).text).toContain('This entry is money out')
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'family car', due: null, use: 'bought' })])
+    expect((await desk.accept()).kind).toBe('done')
+    const bought = bookOf(desk).categories.find((held) => held.kind === 'asset')
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === EXAMPLE_RECORDS['transaction'])
+        .map((part) => [part.amount, part.category, part.link]),
+    ).toEqual([[accountMoneyFromAmount(-45.3), bought?.id, car.link]])
+  })
+
+  it('files a waiting entry under the category a cost of an asset names, and refuses it without one', async () => {
+    const car: LinkTarget = { kind: 'asset', link: { app: 'assets', kind: 'asset', key: 'made-up-car', due: null }, name: 'Family car', assetKind: 'car', bought: null }
+    const desk = await spendingDesk(used, { ...deskPorts(), assets: () => ({ apps: ['assets'], targets: [car] }) })
+    const account = desk.ref('account', bookOf(desk).accounts[0]!.id)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-entry', { account, date: '2026-11-02', amount: -62.4, payee: 'Example Insurance', category: null, note: '' })])
+    expect((await desk.accept()).kind).toBe('done')
+    const waiting = bookOf(desk).transactions.find((held) => held.payee === 'Example Insurance')!
+    const entry = desk.ref('transaction', waiting.id)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Family car', due: null, use: 'cost' })])).text).toContain('needs the category it goes under')
+    const spendingChild = bookOf(desk).categories.find((held) => held.kind === 'spending' && held.parent !== null)!
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Family car', due: null, use: 'cost', category: desk.ref('category', spendingChild.id) })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === waiting.id)
+        .map((part) => [part.category, part.link]),
+    ).toEqual([[spendingChild.id, car.link]])
   })
 
   it("refuses a name both a broker's account and a loan in Loans have, naming both", async () => {

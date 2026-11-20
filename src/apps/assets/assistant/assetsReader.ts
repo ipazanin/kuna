@@ -1,4 +1,4 @@
-import { ASSET_ROUTE } from '../overview/presentation/assetLinks'
+import { ASSET_ROUTE } from '../overview/domain/assetRoute'
 import { carriedByIndex } from '../values/domain/assetValue'
 import type { ValueBasis } from '../values/domain/assetValue'
 import { assetsOnDay, assetsTotal } from '../values/domain/assetsOnDay'
@@ -15,11 +15,14 @@ import { distinctNames } from '../../../shared/app/distinctNames'
 import { parseCivilDate, today } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { EURO } from '../../../shared/money/currencyCode'
-import { writtenPercent } from '../../../shared/money/percent'
+import { nearestBasisPoints, pointsOfShare, writtenPercent } from '../../../shared/money/percent'
 import { sumMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import { words } from './words'
+import { paidFromAccounts, yearlyNet } from '../rows/domain/assetMoney'
+import type { AssetRows, HeldAsset } from '../rows/domain/assetMoney'
+import { keyOfRecordId } from '../../../shared/storage/domain/recordId'
 
 /** What the reader reads from, which `app.ts` hands in over the app's own store, so this folder holds no store. */
 export interface AssetsReading {
@@ -29,6 +32,8 @@ export interface AssetsReading {
   index(): HouseIndexState
   /** The bank loans Loans lists on the day, which an asset names. */
   loans(day: CivilDate): LoansOnScreen
+  /** The rows of other apps linked to assets, as the asset's page reads them. */
+  rows(): AssetRows
 }
 
 function dayOfPeriod(period: string | null): CivilDate {
@@ -106,8 +111,31 @@ function basisText(basis: ValueBasis): string {
   }
 }
 
+/**
+ * What the rows linked to an asset as its purchase paid from your accounts, and each full year's net of the rows linked as its
+ * costs and income with that net as a share of your part of the value in that year, as the asset's page shows them.
+ */
+function linkedFigures(named: string, rows: AssetRows, held: HeldAsset, day: CivilDate): readonly ReportFigure[] {
+  const asset = keyOfRecordId(ASSET_RECORDS, held.asset.id)
+  if (rows === 'unchecked') return [{ label: `${named}: rows linked to it in Spending, which cannot be read now`, count: 1 }]
+  const paid = paidFromAccounts(rows, asset)
+  const years = yearlyNet(rows, asset, day, held)
+  return [
+    ...(paid === null || paid === 'unchecked' ? [] : [amount(`${named}: paid from your accounts by the rows linked as its purchase`, paid.paid)]),
+    ...(paid === null || paid === 'unchecked' || paid.unrated === 0 ? [] : [{ label: `${named}: rows linked as its purchase that wait on exchange rates`, count: paid.unrated }]),
+    ...(years === null || years === 'unchecked'
+      ? []
+      : years.full.flatMap((year): ReportFigure[] => [
+          amount(`${named}: net of the rows linked as its costs and income in ${year.year}`, year.net),
+          ...(year.share === null
+            ? []
+            : [{ label: `${named}: that net in ${year.year} as a share of its value at your part in that year`, basisPoints: nearestBasisPoints(pointsOfShare(year.share)) }]),
+        ])),
+  ]
+}
+
 /** What the assets are worth on the day, together and each, as the Overview and each asset's page show it. Assets go by their kind and purchase day, never by a name a person gave. */
-function worthReport(book: AssetBook, period: string | null, index: HouseIndexState, loans: (day: CivilDate) => LoansOnScreen): readonly ReportFigure[] {
+function worthReport(book: AssetBook, period: string | null, index: HouseIndexState, loans: (day: CivilDate) => LoansOnScreen, rows: AssetRows): readonly ReportFigure[] {
   const day = dayOfPeriod(period)
   const total = assetsTotal(book, day, index, loans(day))
   if (total === null) return []
@@ -117,6 +145,7 @@ function worthReport(book: AssetBook, period: string | null, index: HouseIndexSt
   const each = onDay.flatMap(({ value, share, link, equity }, at): ReportFigure[] => {
     const named = names[at]!
     return [
+      ...linkedFigures(named, rows, book.assets[at]!, day),
       value === null ? { label: `${named}: has no value, with no valuation and no price`, count: 1 } : amount(`${named}: worth, ${basisText(value.basis)}`, value.cents),
       ...(share === null || equity.value === null ? [] : [amount(`${named}: your part of it, ${writtenPercent(share)}% on the day, which the totals count`, equity.value)]),
       ...(link.kind === 'linked' && equity.owed !== null
@@ -174,7 +203,7 @@ export function assetsReader(reading: AssetsReading): AppReader {
         period: 'day',
         figures: (period) => {
           const book = reading.book()
-          return book === null ? [] : worthReport(book, period, reading.index(), reading.loans)
+          return book === null ? [] : worthReport(book, period, reading.index(), reading.loans, reading.rows())
         },
       },
     ],

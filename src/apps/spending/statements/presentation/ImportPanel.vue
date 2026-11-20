@@ -21,7 +21,8 @@ import { words } from './words'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { loanTargets } from '../../links/application/loanRecords'
-import { instalmentLinksOf } from '../../links/domain/instalmentSplit'
+import { ruleLinksOf } from '../../links/domain/linkFiling'
+import { ruleAssets } from '../../links/application/assetTargets'
 import { words as linkWords } from '../../links/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -126,7 +127,7 @@ const dryRun = computed(() => {
     book,
     { ...statement.value, twinAnswers: new Map(Object.entries(twinAnswers.value)), days: days.value },
     today(),
-    instalmentLinksOf(loans.value, { language, notes: linkWords.notes }),
+    ruleLinksOf(loans.value, { language, notes: linkWords.notes }, ruleAssets()),
   )
 })
 

@@ -65,6 +65,8 @@ Loans hands the shell the records a row may link to the same way, as `loanTarget
 
 Investments hands the shell its deposits and withdrawals the same way, as `cashMovements`, typed by `PublishedCashMovement` in `src/shared/app/cashMovements.ts`, each with its account's name and its euros at its own rate. Fees and fee refunds stay out, since no bank row pays them. Investments builds them once per read of its books in `src/apps/investments/transactions/application/publishedCashMovements.ts`. `ShellReads.cashMovements` gives them by app, and Spending keeps the read in `src/apps/spending/links/application/investmentTargets.ts`, which `linkTargets.ts` lists beside the others, so a row links to a broker deposit as it links to a loan's instalment and To review offers the deposit a row may pay.
 
+Assets hands the shell its assets the same way, as `assets`, typed by `PublishedAsset` in `src/shared/app/assetTargets.ts`, each with its name, what it is and the day it was bought. Assets builds them once per read of its books in `src/apps/assets/asset/application/publishedAssets.ts`. `ShellReads.assets` gives them by app, and Spending keeps the read in `src/apps/spending/links/application/assetTargets.ts`, which `linkTargets.ts` lists beside the others. Spending publishes each linked item with its euros at its row's rate and how it counts, so Assets reads back from `ShellReads.linkedRows` in `src/apps/assets/rows/application/linkedRows.ts` what the rows linked to an asset paid and earned, and writes nothing into Spending.
+
 ## What may import what
 
 `tests/importBoundaries.spec.ts` runs with the unit tests and names the file, the line and the import of each break. Each rule below gives the name of its test.

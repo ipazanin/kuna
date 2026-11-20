@@ -36,7 +36,7 @@ function bookOf(document: WorkbookDocument) {
   }).workbook
 }
 
-const SETS: readonly FakeSpendingSet[] = ['sample', 'foreign', 'over', 'statements', 'receipts']
+const SETS: readonly FakeSpendingSet[] = ['sample', 'foreign', 'over', 'statements', 'receipts', 'assets']
 
 describe("the fake build's Spending sets", () => {
   it.each(SETS.flatMap((set) => ['2026-11-04', '2026-12-01', '2027-03-31', '2027-06-01'].map((day) => [set, day] as const)))('read the %s set on %s with no problems', (set, day) => {
@@ -224,6 +224,6 @@ describe("the fake build's Spending sets", () => {
     const book = bookOf(fakeStarterDocument(SAVED_AT))
 
     expect([book.problems, book.accounts, book.transactions, book.budgets]).toEqual([[], [], [], []])
-    expect(book.categories).toHaveLength(64)
+    expect(book.categories).toHaveLength(65)
   })
 })

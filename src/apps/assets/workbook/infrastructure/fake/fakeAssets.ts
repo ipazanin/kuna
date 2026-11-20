@@ -13,6 +13,7 @@ import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { FAKE_CAR_LOAN, FAKE_HOME_LOAN } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
+import { FAKE_BOAT, FAKE_CAR, FAKE_FLAT, FAKE_PLOT } from '../../../../../shared/storage/infrastructure/fake/fakeAssetKeys'
 
 function day(text: string): CivilDate {
   const parsed = parseCivilDate(text)
@@ -30,7 +31,7 @@ const GONE_LOAN = 'fa4e0000-0000-4000-8000-000000000999'
 
 /** A made-up flat in the City of Zagreb, bought in March 2025 with no valuation since, so the house price index carries its price. */
 const FLAT: Asset = {
-  id: fixedId(ASSET_RECORDS, 1),
+  id: recordIdOf(ASSET_RECORDS, FAKE_FLAT),
   name: 'Flat in Zagreb',
   kind: 'home',
   bought: day('2025-03-15'),
@@ -43,7 +44,7 @@ const FLAT: Asset = {
 
 /** A made-up car bought new, which the customs table estimates. */
 const CAR: Asset = {
-  id: fixedId(ASSET_RECORDS, 2),
+  id: recordIdOf(ASSET_RECORDS, FAKE_CAR),
   name: 'Family car',
   kind: 'car',
   bought: day('2024-01-15'),
@@ -55,7 +56,7 @@ const CAR: Asset = {
 }
 
 const BOAT: Asset = {
-  id: fixedId(ASSET_RECORDS, 3),
+  id: recordIdOf(ASSET_RECORDS, FAKE_BOAT),
   name: 'Sailing boat',
   kind: 'other',
   bought: day('2022-06-01'),
@@ -67,7 +68,17 @@ const BOAT: Asset = {
 }
 
 /** Land with neither a price nor a valuation, so it has no value. */
-const PLOT: Asset = { id: fixedId(ASSET_RECORDS, 4), name: 'Plot by the sea', kind: 'other', bought: null, price: null, region: null, firstRegistration: null, loan: null, note: 'Inherited' }
+const PLOT: Asset = {
+  id: recordIdOf(ASSET_RECORDS, FAKE_PLOT),
+  name: 'Plot by the sea',
+  kind: 'other',
+  bought: null,
+  price: null,
+  region: null,
+  firstRegistration: null,
+  loan: null,
+  note: 'Inherited',
+}
 
 const BOAT_VALUATION: Valuation = { id: fixedId(VALUATION_RECORDS, 10), asset: BOAT.id, date: day('2026-05-01'), value: moneyFromAmount(15_500), note: "The marina broker's guess" }
 

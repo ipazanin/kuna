@@ -2,15 +2,18 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { addCompanyCost } from '../src/apps/spending/company/application/companyFacts'
+import { linkWithExtraPayment } from '../src/apps/spending/entries/application/entryWrites'
 import { addAndLink } from '../src/apps/spending/links/application/linkWithRecord'
+import type { LinkStep } from '../src/apps/spending/links/application/linkWithRecord'
 import { addLoansExtraPayment, addLoansMovement } from '../src/apps/spending/links/application/loanTargets'
 import type { ShownTarget } from '../src/apps/spending/links/application/linkTargets'
-import type { InformalLoanTarget, InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
+import type { ExtraPaymentTarget, InformalLoanTarget, InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { ACCOUNTS, CATEGORIES, OTP, row, wholeItems } from './fixtures/spending'
@@ -123,6 +126,39 @@ describe('adding a movement in Loans from a row', () => {
     if (result.outcome !== 'linked') throw new Error(result.outcome)
     expect(result.record).toMatchObject({ kind: 'extra-payment', loanName: 'Car loan', to: { path: '/loans/bank-loan' } })
     expect(await result.undo()).toEqual({ kept: false })
+    expect(store.state.workbook!.items).toEqual(wholeItems([paid]))
+  })
+
+  it('records an extra payment from a row that pays its instalment too, splits the row into the plan and the extra payment each linked, and one Undo takes back both', async () => {
+    const { store, place, entry } = await fileWithPaid()
+    const instalment: ShownTarget & InstalmentTarget = {
+      kind: 'instalment',
+      interim: false,
+      link: { app: 'loans', kind: 'bank-loan', key: 'made-up-bank-loan', due: on('2026-11-20') },
+      loanName: 'Car loan',
+      lender: 'Example Bank',
+      number: 14,
+      count: 84,
+      due: on('2026-11-20'),
+      youPay: moneyFromAmount(250),
+      interest: moneyFromAmount(50),
+      principal: moneyFromAmount(200),
+      to: { path: '/loans/bank-loan' },
+    }
+    const payment = { day: on('2026-11-20'), amount: moneyFromAmount(50), effect: 'shorter-term' as const }
+    const link: LinkStep<ExtraPaymentTarget> = (unit, records, row, extra, at) => linkWithExtraPayment(unit, records, row, instalment, extra, at)
+    const result = await addAndLink(store, entry, () => addLoansExtraPayment(instalment, payment, 'Extra payment added from Spending'), place, TITLES, link)
+
+    const groceries = CATEGORIES.find((held) => held.name === 'Groceries')!
+    const principal = CATEGORIES.find((held) => held.kind === 'repayment')!
+    expect(store.state.workbook!.items.map((part) => [part.amount, part.category, part.link?.kind])).toEqual([
+      [accountMoneyFromAmount(-50), groceries.id, 'bank-loan'],
+      [accountMoneyFromAmount(-200), principal.id, 'bank-loan'],
+      [accountMoneyFromAmount(-50), principal.id, 'extra-payment'],
+    ])
+    if (result.outcome !== 'linked') throw new Error(result.outcome)
+    expect(await result.undo()).toEqual({ kept: false })
+    expect(loans.undone).toBe(1)
     expect(store.state.workbook!.items).toEqual(wholeItems([paid]))
   })
 

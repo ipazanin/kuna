@@ -13,7 +13,8 @@ import type { ChatReads, FindRecordsInput } from '../src/shared/ai/application/c
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import type { AppReader, ReadableField, ReportFigure } from '../src/shared/app/assistantReader'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
-import { civil } from './fixtures/ledger'
+import { civil, euros } from './fixtures/ledger'
+import type { AssetRow } from '../src/apps/assets/rows/domain/assetMoney'
 import { DESK_LOANS, EXAMPLE_RECORDS, assetsDesk } from './fixtures/assetsDesk'
 import type { AssetsDesk } from './fixtures/assetsDesk'
 import { forgetCaches } from './fixtures/writeBack'
@@ -24,7 +25,7 @@ afterEach(async () => forgetCaches(used))
 const INDEX = houseIndexOfAnswer(FAKE_HOUSE_INDEX_ANSWER)
 
 function readingOf(desk: AssetsDesk, overrides: Partial<AssetsReading> = {}): AssetsReading {
-  return { status: () => 'open', book: () => desk.store.state.workbook, index: () => INDEX, loans: () => [...DESK_LOANS], ...overrides }
+  return { status: () => 'open', book: () => desk.store.state.workbook, index: () => INDEX, loans: () => [...DESK_LOANS], rows: () => [], ...overrides }
 }
 
 function fieldsOf(reader: AppReader, kind: string, id: string): Readonly<Record<string, ReadableField>> {
@@ -130,6 +131,20 @@ describe("Assets' report", () => {
     expect(figureOf(figures, 'other asset bought 2022-06-01: worth, from the valuation of 2026-05-01')).toMatchObject({ cents: 1_550_000 })
     expect(figures.map((figure) => figure.label).join(' ')).not.toMatch(/Flat in Zagreb|Sailing boat/)
     expect(() => worth.figures('July')).toThrow(RangeError)
+  })
+
+  it("names what the rows linked to an asset paid for it and each full year's net with its share of the value, or that they cannot be read", async () => {
+    const desk = await assetsDesk(used)
+    const linked = (date: string, cents: number, counts: AssetRow['counts']): AssetRow => ({ asset: 'asset-boat', day: civil(date), euros: euros(cents / 100), counts })
+    const rows = [linked('2025-02-01', -1_800_000, 'bought'), linked('2025-07-15', 155_000, 'income')]
+    const figures = assetsReader(readingOf(desk, { rows: () => rows })).reports[0]!.figures('2026-07-01')
+
+    expect(figureOf(figures, 'other asset bought 2022-06-01: paid from your accounts by the rows linked as its purchase')).toMatchObject({ cents: 1_800_000 })
+    expect(figureOf(figures, 'other asset bought 2022-06-01: net of the rows linked as its costs and income in 2025')).toMatchObject({ cents: 155_000 })
+    // 2025 has no valuation, so the boat counts at its price of 18,000.00. It is half yours, so 1,550.00 is 17.22% of your 9,000.00.
+    expect(figureOf(figures, 'other asset bought 2022-06-01: that net in 2025 as a share of its value at your part in that year')).toMatchObject({ basisPoints: 1_722 })
+    const unread = assetsReader(readingOf(desk, { rows: () => 'unchecked' })).reports[0]!.figures('2026-07-01')
+    expect(figureOf(unread, 'other asset bought 2022-06-01: rows linked to it in Spending, which cannot be read now')).toMatchObject({ count: 1 })
   })
 
   it('waits for the house price index and says when it failed', async () => {

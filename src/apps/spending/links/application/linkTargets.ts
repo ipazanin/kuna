@@ -1,5 +1,6 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { assetTargets } from './assetTargets'
 import { companyTargets } from './companyTargets'
 import { investmentTargets } from './investmentTargets'
 import { loanApps } from './loanRecords'
@@ -20,6 +21,7 @@ export function allTargets(): readonly ShownApp[] {
     ...loanApps().map((app): ShownApp => ({ ...app, source: 'loans' })),
     ...companyTargets().map((app): ShownApp => ({ ...app, source: 'company' })),
     ...investmentTargets().map((app): ShownApp => ({ ...app, source: 'investments' })),
+    ...assetTargets().map((app): ShownApp => ({ ...app, source: 'assets' })),
   ]
 }
 
@@ -28,9 +30,15 @@ export function targetsOf(app: string): AppTargets<ShownTarget> {
   return targetsIn(allTargets(), app)
 }
 
-/** Which kind of app the app a link names is among the apps on the page. A link to an app none of them is names Loans, the first app rows linked to. */
+/** The kinds of app by the id each kind's first app has, which a link to an app not on the page is read by. */
+const SOURCES_BY_APP: Readonly<Record<string, TargetSource>> = { loans: 'loans', company: 'company', investments: 'investments', assets: 'assets' }
+
+/**
+ * Which kind of app the app a link names is among the apps on the page. A link to an app none of them is reads by its app's
+ * id, and one whose id names no kind reads as Loans', the first app rows linked to.
+ */
 export function sourceIn(apps: readonly ShownApp[], app: string): TargetSource {
-  return apps.find((entry) => entry.app === app)?.source ?? 'loans'
+  return apps.find((entry) => entry.app === app)?.source ?? SOURCES_BY_APP[app] ?? 'loans'
 }
 
 /** Which kind of app the app a link names is. */

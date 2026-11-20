@@ -15,8 +15,8 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   },
   {
     reason:
-      "Recording a row as an extra payment of a bank loan from To review, which writes the extra payment in Loans and then links the row, two files under one Undo. The chat writes one app's file per card, so it links a row to an extra payment already in Loans through link-entry.",
-    paths: ['src/apps/spending/links/application/loanTargets.ts#addLoansExtraPayment'],
+      "Recording a row as an extra payment of a bank loan from To review, which writes the extra payment in Loans and then links the row, split by the instalment it pays too when it pays one, two files under one Undo. The chat writes one app's file per card, so it links a row to an extra payment already in Loans through link-entry.",
+    paths: ['src/apps/spending/links/application/loanTargets.ts#addLoansExtraPayment', 'src/apps/spending/entries/application/entryWrites.ts#linkWithExtraPayment'],
   },
   {
     reason: "Not now on To review's card of past instalments. It only stops that card offering what the person saw on it, and the chat does not show the card.",

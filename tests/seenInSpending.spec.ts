@@ -15,7 +15,7 @@ const OTHER_ROW_ID = '0b5e3c1a-6f0d-4c39-9d5e-2a4b8c7d1e02'
 const ADVANCE_KEY = '0b5e3c1a-6f0d-4c39-9d5e-2a4b8c7d1e03'
 
 function linked(target: PublishedRowLink['target']): PublishedRowLink {
-  return { row: 'row', item: 'row', account: 'account', day: civil('2026-03-04'), amount: accountMoneyOfEuros(euros(2000)), currency: EURO, target }
+  return { row: 'row', item: 'row', account: 'account', day: civil('2026-03-04'), amount: accountMoneyOfEuros(euros(2000)), currency: EURO, euros: euros(2000), counts: 'income', target }
 }
 
 describe('which records Company shows as seen in Spending', () => {

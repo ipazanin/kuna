@@ -5,13 +5,14 @@ import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingF
 import { linkEntries, linkEntry, unlinkEntry, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
-import type { LinkPlace } from '../src/apps/spending/links/domain/instalmentSplit'
+import type { LinkPlace } from '../src/apps/spending/links/domain/linkFiling'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanRecords'
 import { linkLineOf, targetLineOf } from '../src/apps/spending/links/presentation/linkLine'
-import { beyondPlan, linkFiling, linkedEntry, splitByInstalment } from '../src/apps/spending/links/domain/instalmentSplit'
-import type { InstalmentSplit } from '../src/apps/spending/links/domain/instalmentSplit'
+import { beyondPlan, splitByInstalment } from '../src/apps/spending/links/domain/instalmentParts'
+import { linkFiling, linkedEntry, linkedWithExtraPayment } from '../src/apps/spending/links/domain/linkFiling'
+import type { InstalmentSplit } from '../src/apps/spending/links/domain/instalmentParts'
 import { linkStateOf, movementKindsFor, targetsFor, targetsIn } from '../src/apps/spending/links/domain/linkTarget'
-import type { InstalmentTarget, LinkTarget, LoanDirection, MovementKind } from '../src/apps/spending/links/domain/linkTarget'
+import type { ExtraPaymentTarget, InstalmentTarget, LinkTarget, LoanDirection, MovementKind } from '../src/apps/spending/links/domain/linkTarget'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import { holdsLink, linkOfItems, linksOfItems, unlinkedItems, waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
@@ -187,13 +188,35 @@ describe("a Spending row's link", () => {
     expect(targets[4]).toMatchObject({ loan: linkTo('informal-loan', 'b'), loanName: 'From Marko', direction: 'you-owe', movement: 'repaid', amount: moneyFromAmount(300) })
   })
 
-  it('publishes each linked row with its account, day, amount in its own currency and the record it names, and no row without a link', () => {
+  it('publishes each linked row with its account, day, amount in its own currency and in euros, how it counts and the record it names, and no row without a link', () => {
     const link = rowLinkOf(`loans/bank-loan/${LOAN}/2026-11-20`)!
     const linked = row(ACCOUNTS[0]!, '2026-11-20', -650, 'Money and fees/Loan interest', { link })
     const rows = [row(ACCOUNTS[0]!, '2026-11-19', -12, 'Food/Groceries'), linked]
-    const book = { accounts: ACCOUNTS, transactions: rows, items: wholeItems(rows) }
-    expect(rowLinksOf(book)).toEqual([
-      { row: expect.any(String), item: expect.any(String), account: expect.any(String), day: on('2026-11-20'), amount: linked.amount, currency: ACCOUNTS[0]!.currency, target: link },
+    const book = { accounts: ACCOUNTS, transactions: rows, items: wholeItems(rows), categories: CATEGORIES }
+    expect(rowLinksOf(book, NO_RATES)).toEqual([
+      {
+        row: expect.any(String),
+        item: expect.any(String),
+        account: expect.any(String),
+        day: on('2026-11-20'),
+        amount: linked.amount,
+        currency: ACCOUNTS[0]!.currency,
+        euros: moneyFromAmount(-650),
+        counts: 'spending',
+        target: link,
+      },
+    ])
+  })
+
+  it('publishes a linked part under Bought assets as bought, and a part of an account in another currency with no euros while the rates do not reach its day', () => {
+    const link = { app: 'assets', kind: 'asset', key: 'made-up-car', due: null }
+    const bought = row(OTP, '2026-11-20', -9000, null, { category: CATEGORIES.find((held) => held.kind === 'asset')!.id, link })
+    const dollars = row(REVOLUT_USD, '2026-11-20', -100, 'Transport/Fuel', { link })
+    const rows = [bought, dollars]
+    const book = { accounts: ACCOUNTS, transactions: rows, items: wholeItems(rows), categories: CATEGORIES }
+    expect(rowLinksOf(book, NO_RATES).map(({ euros, counts }) => [euros, counts])).toEqual([
+      [moneyFromAmount(-9000), 'bought'],
+      [null, 'spending'],
     ])
   })
 })
@@ -202,6 +225,7 @@ const LOAN_INTEREST = category('Money and fees/Loan interest')
 const GROCERIES = category('Food/Groceries')
 const PRINCIPAL = CATEGORIES.find((held) => held.kind === 'repayment')!
 const NOTES = { interest: 'Interest', difference: 'Difference from the plan' }
+const NO_ASSETS = { apps: [], targets: [] }
 
 /** A made-up instalment due on 20 November: 650.00 you pay, 250.00 of it interest and 400.00 principal. */
 const INSTALMENT: InstalmentTarget = {
@@ -261,7 +285,7 @@ describe('a row linked to a loan instalment', () => {
   it("reads as its instalment with what it paid above or below the plan, on Import as on Entries, and as the instalment alone when it paid the plan's share", () => {
     const shown = [{ ...INSTALMENT, to: '/loans' }]
     const lines = [-652.4, -650, -640].map((amount) => {
-      const paid = { amount: accountMoneyFromAmount(amount), currency: EURO }
+      const paid = { amount: accountMoneyFromAmount(amount), currency: EURO, bought: false }
       return [targetLineOf(INSTALMENT, paid), linkLineOf(INSTALMENT.link, shown, 'loans', paid).text]
     })
 
@@ -330,6 +354,30 @@ describe('a row linked to a loan instalment', () => {
       [recordIdOf(ITEM_RECORDS, 'made-up-part'), accountMoneyFromAmount(-400), PRINCIPAL.id, '', INSTALMENT.link],
     ])
     expect(linked.row.categorisedBy).toBe('person')
+  })
+
+  it('splits one debit that pays the instalment and an extra payment into the plan, the extra payment under Loan principal and what is left over, each linked', () => {
+    const paid = row(OTP, '2026-11-20', -3700, null, { category: LOAN_INTEREST.id })
+    const extra: ExtraPaymentTarget = {
+      kind: 'extra-payment',
+      link: { app: 'loans', kind: 'extra-payment', key: 'e', due: null },
+      loanName: 'Home loan',
+      day: on('2026-11-20'),
+      amount: moneyFromAmount(3000),
+    }
+    const place = { currency: EURO, categories: CATEGORIES, language: 'en' as const, notes: NOTES }
+    const linked = linkedWithExtraPayment(filed(paid), INSTALMENT, extra, place, () => 'made-up-part')
+
+    // 3,700.00 less the plan's 250.00 of interest and 400.00 of principal and the 3,000.00 extra payment leaves 50.00.
+    expect(linked.entry.items.map((part) => [part.amount, part.category, part.note, part.link])).toEqual([
+      [accountMoneyFromAmount(-250), LOAN_INTEREST.id, 'Interest', INSTALMENT.link],
+      [accountMoneyFromAmount(-400), PRINCIPAL.id, '', INSTALMENT.link],
+      [accountMoneyFromAmount(-3000), PRINCIPAL.id, '', extra.link],
+      [accountMoneyFromAmount(-50), LOAN_INTEREST.id, 'Difference from the plan', INSTALMENT.link],
+    ])
+    expect(linked.entry.items.every((part) => part.splitByLink)).toBe(true)
+    expect(linked.entry.row.categorisedBy).toBe('person')
+    expect(linked.added).toEqual([])
   })
 
   it('joins the parts of an entry split by hand into one under Loan principal that keeps every label, when it links to a movement', () => {
@@ -572,7 +620,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     )
     const book = () => store.state.workbook!
     const statement = { label: 'export.csv', rows: [paying('2026-11-21', -650, 'EXAMPLE BANK')], fileNotes: [] }
-    const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES })
+    const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES, assets: NO_ASSETS })
 
     expect(run.lines.map((line) => line.outcome === 'new' && line.pays?.target)).toEqual([INSTALMENT])
     expect(run.lines.map((line) => line.outcome === 'new' && line.pays?.parts.map((part) => part.amount))).toEqual([[accountMoneyFromAmount(-250), accountMoneyFromAmount(-400)]])
@@ -608,7 +656,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     )
     const book = () => store.state.workbook!
     const statement = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'EXAMPLE BANK ZAGREB')], fileNotes: [] }
-    const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES })
+    const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES, assets: NO_ASSETS })
 
     expect(run.receipts).toHaveLength(1)
     expect(run.lines.map((line) => line.outcome === 'new' && [line.category, line.pays])).toEqual([[LOAN_INTEREST.id, undefined]])
@@ -677,7 +725,7 @@ describe('importing a statement against the instalments in Loans', () => {
     const book = spendingBook([], { categories: CATEGORIES })
     const ruled = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'Example Bank', { category: GROCERIES.id })], fileNotes: [] }
     const near = { label: 'export.csv', rows: [paying('2026-11-20', -700, 'Card payment')], fileNotes: [] }
-    const links = { targets: [INSTALMENT], language: 'en' as const, notes: NOTES }
+    const links = { targets: [INSTALMENT], language: 'en' as const, notes: NOTES, assets: NO_ASSETS }
 
     expect(statementDryRun(book, ruled, on('2026-11-25'), links).items.map((part) => part.category)).toEqual([GROCERIES.id, PRINCIPAL.id])
     const nearRun = statementDryRun(book, near, on('2026-11-25'), links)

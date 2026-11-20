@@ -1,8 +1,8 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import type { WholeReason } from '../domain/instalmentSplit'
+import type { WholeReason } from '../domain/linkFiling'
 import type { CompanyMoneyRole } from '../../workbook/domain/category'
-import type { CompanyMoney, ExtraPaymentEffect, InstalmentTarget, LinkState, LinkTarget, MovementKind, OwnerPaymentTarget, TargetSource } from '../domain/linkTarget'
+import type { AssetKind, AssetUse, CompanyMoney, ExtraPaymentEffect, InstalmentTarget, LinkState, LinkTarget, MovementKind, OwnerPaymentTarget, TargetSource } from '../domain/linkTarget'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { language } from '../../../../shared/text/language'
@@ -34,12 +34,12 @@ export const en = {
   remove: 'Remove link',
   removed: 'Link removed',
   pickLabel: 'Link to a record',
-  /** The picker's prompt, naming the apps set up that a row can link to. */
+  /** The picker's prompt, naming the apps set up that a row can link to while there are one or two, so it fits a phone. */
   pick: (sources: readonly TargetSource[]) =>
-    sources.length === 0
+    sources.length === 0 || sources.length > 2
       ? 'Pick a record'
       : `Pick a record in ${listInWords(
-          sources.map((source) => ({ loans: 'Loans', company: 'Company', investments: 'Investments' })[source]),
+          sources.map((source) => ({ loans: 'Loans', company: 'Company', investments: 'Investments', assets: 'Assets' })[source]),
           'or',
         )}`,
   link: 'Link',
@@ -55,6 +55,7 @@ export const en = {
     loans: "The link split this entry into the loan plan's interest and principal. Its amount and account stay as they are, and removing the link leaves the parts.",
     company: 'The link split this entry into the kinds of money in the payment with Company. Its amount and account stay as they are, and removing the link leaves the parts.',
     investments: 'Its link to Investments keeps the parts as they are.',
+    assets: 'Its link to Assets keeps the parts as they are.',
   } satisfies Record<TargetSource, string>,
   /** Why an entry links whole, where a person can link it. */
   whole: {
@@ -63,6 +64,7 @@ export const en = {
     'no-principal': 'It is all interest, so the entry stays whole.',
     principal: '',
     saving: '',
+    bought: '',
     'money-in': '',
     'transfer-leg': '',
     kept: 'The entry keeps its category.',
@@ -154,6 +156,26 @@ export const en = {
     notSetUp: 'Linked to Investments, which is not set up on this device',
     open: 'Open in Investments',
   },
+  /** Something you own in Assets, as a link names it by what the row's money is for it. */
+  assets: {
+    uses: {
+      bought: (asset: string) => `Bought: ${asset}`,
+      cost: (asset: string) => `Cost of: ${asset}`,
+      income: (asset: string) => `Income from: ${asset}`,
+    } satisfies Record<AssetUse, (asset: string) => string>,
+    kinds: { home: 'Home', car: 'Car', other: 'Asset' } satisfies Record<AssetKind, string>,
+    gone: 'No longer in Assets',
+    opening: 'Linked to Assets, which is still opening',
+    failed: 'Linked to Assets, which did not open',
+    notSetUp: 'Linked to Assets, which is not set up on this device',
+    open: 'Open in Assets',
+    parts: 'Parts',
+    pickParts: 'Pick the parts it is for',
+    partsPicked: (picked: number, all: number) => (picked === all ? 'All parts' : `${picked} of ${all} parts`),
+    noCategory: 'No category yet',
+    files: 'Files the entry under the category picked above, so it leaves To review.',
+    partsNote: 'Only the parts you pick are linked.',
+  },
   /** What To review offers for a row that may be a deposit or a withdrawal. */
   investmentsOffer: {
     deposit: (account: string, day: CivilDate) => `the deposit to ${account}, ${dayLabel(day)}`,
@@ -164,11 +186,16 @@ export const en = {
   /** The card of rows a loan's rule filed whole that To review offers to record in Loans as an extra payment, and the form that does it. */
   extra: {
     title: 'Extra payments to record',
-    subtitle: "Rows a loan's rule filed whole, above the instalment another row already pays.",
+    subtitle: "Rows a loan's rule filed whole, more than a tenth above the loan's instalment.",
     caption: (instalment: string) => `Above ${instalment}, which another row pays`,
+    withInstalment: (instalment: string) => `Pays ${instalment}, and more besides`,
+    instalmentToo: (instalment: string, amount: string) =>
+      `This row also pays ${instalment}, ${amount}, which is linked as well. If the amount below is less than what the row pays beyond the instalment, the rest stays with the instalment as the difference from the plan.`,
     record: 'Record as an extra payment',
     dialogTitle: 'Record an extra payment',
     dialogDescription: (loan: string) => `Adds the extra payment to ${loan} in Loans, then files this row whole under Loan principal, linked to it. One Undo takes back both.`,
+    splitDescription: (loan: string) =>
+      `Adds the extra payment to ${loan} in Loans, then splits this row into the instalment's interest and principal and the extra payment under Loan principal, each linked. One Undo takes back both.`,
     effect: 'What the bank does with it',
     effects: { 'shorter-term': 'Shorter term', 'lower-instalment': 'Lower instalment' } satisfies Record<ExtraPaymentEffect, string>,
     save: 'Record and link',
@@ -241,10 +268,10 @@ export const hr: Translation<typeof en> = {
   removed: 'Poveznica uklonjena',
   pickLabel: 'Poveznica sa zapisom',
   pick: (sources) =>
-    sources.length === 0
+    sources.length === 0 || sources.length > 2
       ? 'Odaberi zapis'
       : `Odaberi zapis u ${listInWords(
-          sources.map((source) => ({ loans: 'Kreditima', company: 'Tvrtki', investments: 'Ulaganjima' })[source]),
+          sources.map((source) => ({ loans: 'Kreditima', company: 'Tvrtki', investments: 'Ulaganjima', assets: 'Imovini' })[source]),
           'or',
         )}`,
   link: 'Poveži',
@@ -259,6 +286,7 @@ export const hr: Translation<typeof en> = {
     loans: 'Poveznica je podijelila unos na kamate i glavnicu iz plana kredita. Iznos i račun ostaju kakvi jesu, a kad uklonite poveznicu, dijelovi ostaju.',
     company: 'Poveznica je podijelila unos na vrste novca u plaćanju s Tvrtkom. Iznos i račun ostaju kakvi jesu, a kad uklonite poveznicu, dijelovi ostaju.',
     investments: 'Poveznica s Ulaganjima ne mijenja dijelove.',
+    assets: 'Poveznica s Imovinom ne mijenja dijelove.',
   },
   whole: {
     'not-euro': 'Povezuje se cijeli unos jer je plan u eurima, a račun nije.',
@@ -266,6 +294,7 @@ export const hr: Translation<typeof en> = {
     'no-principal': 'Sve je kamata, pa unos ostaje cijeli.',
     principal: '',
     saving: '',
+    bought: '',
     'money-in': '',
     'transfer-leg': '',
     kept: 'Unos zadržava svoju kategoriju.',
@@ -349,6 +378,25 @@ export const hr: Translation<typeof en> = {
     notSetUp: 'Povezano s Ulaganjima, koja na ovom uređaju nisu postavljena',
     open: 'Otvori u Ulaganjima',
   },
+  assets: {
+    uses: {
+      bought: (asset) => `Kupnja: ${asset}`,
+      cost: (asset) => `Trošak: ${asset}`,
+      income: (asset) => `Prihod: ${asset}`,
+    },
+    kinds: { home: 'Nekretnina', car: 'Auto', other: 'Imovina' },
+    gone: 'Više nije u Imovini',
+    opening: 'Povezano s Imovinom, koja se još otvara',
+    failed: 'Povezano s Imovinom, koja se nije otvorila',
+    notSetUp: 'Povezano s Imovinom, koja na ovom uređaju nije postavljena',
+    open: 'Otvori u Imovini',
+    parts: 'Dijelovi',
+    pickParts: 'Odaberi dijelove na koje se odnosi',
+    partsPicked: (picked, all) => (picked === all ? 'Svi dijelovi' : `${picked} od ${all} dijelova`),
+    noCategory: 'Još bez kategorije',
+    files: 'Unos ide pod kategoriju odabranu iznad, pa izlazi iz pregleda.',
+    partsNote: 'Povezuju se samo dijelovi koje odaberete.',
+  },
   investmentsOffer: {
     deposit: (account, day) => `uplata na račun ${account}, ${dayLabel(day)}`,
     withdrawal: (account, day) => `isplata s računa ${account}, ${dayLabel(day)}`,
@@ -358,11 +406,16 @@ export const hr: Translation<typeof en> = {
   },
   extra: {
     title: 'Prijevremene otplate za upis',
-    subtitle: 'Stavke koje je pravilo kredita razvrstalo cijele, iznad rate koju već plaća druga stavka.',
+    subtitle: 'Stavke koje je pravilo kredita razvrstalo cijele, za više od desetine iznad rate kredita.',
     caption: (instalment) => `Iznad rate: ${instalment}, koju već plaća druga stavka`,
+    withInstalment: (instalment) => `Plaća ratu: ${instalment}, i još nešto povrh nje`,
+    instalmentToo: (instalment, amount) =>
+      `Ova stavka plaća i ratu: ${instalment}, ${amount}, koja se također povezuje. Ako je iznos ispod manji od onoga što stavka plaća povrh rate, ostatak ostaje uz ratu kao razlika prema planu.`,
     record: 'Upiši kao prijevremenu otplatu',
     dialogTitle: 'Upiši prijevremenu otplatu',
     dialogDescription: (loan) => `Dodaje prijevremenu otplatu kreditu ${loan} u Kreditima, a zatim ovu stavku cijelu stavlja u Glavnicu kredita, povezanu s njom. Jedno poništavanje vraća oboje.`,
+    splitDescription: (loan) =>
+      `Dodaje prijevremenu otplatu kreditu ${loan} u Kreditima, a zatim ovu stavku dijeli na kamate i glavnicu rate te prijevremenu otplatu u Glavnici kredita, svaki dio povezan. Jedno poništavanje vraća oboje.`,
     effect: 'Što banka radi s njom',
     effects: { 'shorter-term': 'Kraći rok otplate', 'lower-instalment': 'Isti rok, manja rata' },
     save: 'Upiši i poveži',
@@ -436,6 +489,8 @@ export function choiceText(target: LinkTarget): string {
       return words.company.advance(target.description, target.day)
     case 'cash-movement':
       return (target.movement === 'deposit' ? words.investments.deposit : words.investments.withdrawal)(target.accountName, target.day)
+    case 'asset':
+      return words.assets.uses[target.use ?? 'cost'](target.name)
   }
 }
 
@@ -458,6 +513,6 @@ export function targetText(target: LinkTarget): string {
 /** What a row's link reads as: the record it names, or why that record is not shown, in the words of the kind of app it names. */
 export function linkText(read: LinkState<LinkTarget>, source: TargetSource): string {
   if (read.state === 'there') return targetText(read.target)
-  const said = source === 'company' ? words.company : source === 'investments' ? words.investments : words
+  const said = source === 'company' ? words.company : source === 'investments' ? words.investments : source === 'assets' ? words.assets : words
   return { opening: said.opening, failed: said.failed, 'not-set-up': said.notSetUp, gone: said.gone }[read.state]
 }

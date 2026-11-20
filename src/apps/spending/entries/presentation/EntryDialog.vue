@@ -104,14 +104,13 @@ const lineRefiles = computed(() => lineRefilesOf(categories.value, entryLines.va
 const lineRefusals = computed(() => new Map([...lineRefiles.value.refused].map(([line, refusal]) => [line, words.split.refusals[refusal]])))
 const tried = ref(false)
 
-/** The form's fields as one text, to tell whether the person changed any since the dialog opened. */
+/** The form's fields apart from Category as one text, to tell whether the person changed any since the dialog opened. The link field compares Category itself. */
 const formNow = computed(() =>
   JSON.stringify([
     kind.value,
     amount.value,
     toAmount.value,
     lessArrived.value,
-    category.value,
     account.value,
     toAccount.value,
     date.value,
@@ -125,7 +124,7 @@ const formNow = computed(() =>
   ]),
 )
 const openedAs = ref('')
-/** Whether the form holds changes not saved yet, which leaving for Loans would lose. */
+/** Whether the form holds changes apart from Category not saved yet, which leaving for Loans would lose. */
 const edited = computed(() => formNow.value !== openedAs.value)
 
 /** The entry and its other leg as the file holds them, the money-out leg first. */
@@ -421,6 +420,7 @@ async function remove(): Promise<void> {
       <LabelsAndEventFields v-if="labelling && !split" v-model:labels="labels" v-model:event="event" :kit="kit" :part="null" :filed-under="category" testid="spending-entry" />
       <EntryLinkField
         v-if="entry !== null"
+        v-model:category="category"
         :entry="entry"
         :lines="entryLines"
         :currency="entryCurrency"

@@ -336,6 +336,8 @@ import {
   spendingRuleWithdrawalFlowIn,
   spendingLoanRuleFlowIn,
   spendingExtraPaymentFlowIn,
+  spendingExtraPaymentWithInstalmentFlowIn,
+  spendingAssetLinkFlowIn,
   loansExtraPaymentSeenFlowIn,
   spendingBankSyncFailedFlowIn,
   spendingBankSyncFlowIn,
@@ -725,6 +727,8 @@ function fakePortfolio(variant, pricesVariant) {
 /** The ids of the sample Assets file's flat, linked to the sample Home loan, and its car, `?assets=sample`. */
 const SAMPLE_FLAT = 'fa4e2000-0000-4000-8000-000000000001'
 const SAMPLE_CAR = 'fa4e2000-0000-4000-8000-000000000002'
+/** The sample's inherited plot, whose notary a row of `?spending=assets` paid as part of what it cost. */
+const SAMPLE_PLOT = 'fa4e2000-0000-4000-8000-000000000004'
 /** The flat on the coast of the co-owned Assets set, still yours at a half. */
 const SEASIDE_FLAT = 'fa4e2000-0000-4000-8000-000000000005'
 const FAKE_HOUSE_INDEX = houseIndexOfAnswer(FAKE_HOUSE_INDEX_ANSWER)
@@ -3352,6 +3356,38 @@ const SOURCE_SCREENS = [
     shows: [ASSETS.car.value.english, ASSETS.car.caption, 'First registration'],
   },
   {
+    name: 'assets-car-linked',
+    query: 'assets=sample&loans=sample&spending=assets',
+    hash: `#/assets/asset?asset=${SAMPLE_CAR}`,
+    title: 'Family car',
+    charts: 0,
+    shows: ['What it earned and cost', 'So far this year', 'Of its value'],
+  },
+  {
+    name: 'assets-car-linked-croatian',
+    query: 'assets=sample&loans=sample&spending=assets&lang=hr',
+    hash: `#/assets/asset?asset=${SAMPLE_CAR}`,
+    title: 'Family car',
+    charts: 0,
+    shows: ['Zarada i troškovi', 'Ova godina do sada', 'Od vrijednosti'],
+  },
+  {
+    name: 'assets-plot-paid',
+    query: 'assets=sample&loans=sample&spending=assets',
+    hash: `#/assets/asset?asset=${SAMPLE_PLOT}`,
+    title: 'Plot by the sea',
+    charts: 0,
+    shows: ['Paid from your accounts'],
+  },
+  {
+    name: 'assets-plot-paid-croatian',
+    query: 'assets=sample&loans=sample&spending=assets&lang=hr',
+    hash: `#/assets/asset?asset=${SAMPLE_PLOT}`,
+    title: 'Plot by the sea',
+    charts: 0,
+    shows: ['Plaćeno s vaših računa'],
+  },
+  {
     name: 'assets-car-croatian',
     query: 'assets=sample&loans=sample&lang=hr',
     hash: `#/assets/asset?asset=${SAMPLE_CAR}`,
@@ -3905,6 +3941,22 @@ const SOURCE_SCREENS = [
     title: 'Sorting',
     charts: 0,
     shows: ['Pays Home loan, each row linked to its instalment'],
+  },
+  {
+    name: 'spending-settings-rules-asset-offer',
+    query: 'spending=assets&assets=sample',
+    hash: '#/spending/sorting#rules',
+    title: 'Sorting',
+    charts: 0,
+    shows: ['are for Family car'],
+  },
+  {
+    name: 'spending-settings-rules-asset-offer-croatian',
+    query: 'spending=assets&assets=sample&lang=hr',
+    hash: '#/spending/sorting#rules',
+    title: 'Razvrstavanje',
+    charts: 0,
+    shows: ['odnose se na Family car'],
   },
   {
     name: 'spending-settings-rules-loans-croatian',
@@ -8716,6 +8768,42 @@ const FLOWS = [
     hash: '#/spending/transactions?tab=review',
     title: 'Unosi',
     run: spendingExtraPaymentFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&loans=sample&lang=hr' },
+  },
+  {
+    name: 'spending-asset-link',
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingAssetLinkFlowIn('en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=assets&assets=sample' },
+  },
+  {
+    name: 'spending-asset-link-croatian',
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingAssetLinkFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=assets&assets=sample&lang=hr' },
+  },
+  {
+    name: 'spending-review-extra-payment-with-instalment',
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    hash: '#/spending/transactions?tab=review',
+    title: 'Entries',
+    run: spendingExtraPaymentWithInstalmentFlowIn('en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&loans=sample' },
+  },
+  {
+    name: 'spending-review-extra-payment-with-instalment-croatian',
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    hash: '#/spending/transactions?tab=review',
+    title: 'Unosi',
+    run: spendingExtraPaymentWithInstalmentFlowIn('hr'),
     modes: ['drive'],
     queries: { drive: '&spending=statements&loans=sample&lang=hr' },
   },

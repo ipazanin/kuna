@@ -6,7 +6,7 @@ import { rowsRulesWouldChange, writeRules } from '../application/statementWrites
 import { changesHeldRule } from './ruleAsk'
 import type { RuleAsk } from './ruleAsk'
 import { words } from './words'
-import { loanLinks } from '../../links/presentation/loanLinks'
+import { ruleLinks } from '../../links/presentation/ruleLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { words as spendingWords } from '../../words'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -47,7 +47,7 @@ watch(
   ([opened, asked]) => {
     const current = book.value
     if (!opened || asked === null || current === null) return
-    rowsChanged.value = rowsRulesWouldChange(current, asked.edits, loanLinks())
+    rowsChanged.value = rowsRulesWouldChange(current, asked.edits, ruleLinks())
     changesHeld.value = changesHeldRule(current.rules, asked.edits)
   },
   { immediate: true },
@@ -69,7 +69,7 @@ async function write(refile: boolean): Promise<void> {
     asked.written,
     (unit) => {
       asked.alongside?.(unit)
-      writeRules(unit, current, asked.edits, loanLinks(), refile)
+      writeRules(unit, current, asked.edits, ruleLinks(), refile)
     },
     { key: refile ? 'apply' : 'only-new', failedTitle: spendingWords.form.notSaved },
   )

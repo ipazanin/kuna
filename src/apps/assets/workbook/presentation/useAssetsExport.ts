@@ -1,7 +1,7 @@
 import { useFileExport } from '../../../../shared/storage/presentation/useFileExport'
 import type { FileExport } from '../../../../shared/storage/presentation/useFileExport'
 import { useAssetsBooks } from '../application/assetsStore'
-import { ASSETS_APP } from '../infrastructure/assetsDocument'
+import { ASSETS_APP } from '../domain/assetsApp'
 import { words } from './words'
 
 /** One export button's behaviour, shared by the top bar and the Assets Settings. */

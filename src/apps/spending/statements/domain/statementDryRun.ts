@@ -14,9 +14,9 @@ import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import { cashAccountsFor, isWithdrawal, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { instalmentOffers } from '../../links/domain/instalmentOffers'
-import { linkedEntry, ruleLinking } from '../../links/domain/instalmentSplit'
-import type { InstalmentLinks, LinkedEntry } from '../../links/domain/instalmentSplit'
-import type { InstalmentTarget } from '../../links/domain/linkTarget'
+import { linkedEntry, ruleLinkWaits, ruleLinking } from '../../links/domain/linkFiling'
+import type { RuleLinks, LinkedEntry } from '../../links/domain/linkFiling'
+import type { AssetTarget, InstalmentTarget } from '../../links/domain/linkTarget'
 import { receiptsArriving } from '../../receipts/domain/waitingReceipts'
 import type { PlacedReceipt } from '../../receipts/domain/waitingReceipts'
 import { words as receiptWords } from '../../receipts/domain/words'
@@ -73,8 +73,8 @@ export type DryRunLine =
       readonly category: RecordId | null
       /** For cash taken out, its leg on the cash account, or null while it waits on To review for the account. Null for any other row. */
       readonly withdrawal: { readonly cashLeg: Transaction | null } | null
-      /** The instalment in Loans the row pays, which the import links it to, and the parts the row comes in as. Absent on a row that pays none. */
-      readonly pays?: { readonly target: InstalmentTarget; readonly parts: readonly TransactionItem[] }
+      /** The instalment in Loans the row pays or the asset a rule links it to, which the import links it to, and the parts the row comes in as. Absent on a row linked to neither, or to an asset Assets cannot show now. */
+      readonly pays?: { readonly target: InstalmentTarget | AssetTarget; readonly parts: readonly TransactionItem[] }
     }
   | {
       readonly row: StatementRow
@@ -158,7 +158,7 @@ export interface StatementDryRun {
  * another source instead, and no day belongs to a source for them. A row of the same day, amount and counterparty as one is
  * already in. A row that only looks like one waits, unless the person said to import it.
  */
-export function statementDryRun(book: SpendingBook, statement: StatementRows, day: CivilDate, links: InstalmentLinks | null = null, newKey: () => string = newRecordId): StatementDryRun {
+export function statementDryRun(book: SpendingBook, statement: StatementRows, day: CivilDate, links: RuleLinks | null = null, newKey: () => string = newRecordId): StatementDryRun {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
   const onFile = new Set(book.transactions.filter((row) => row.importKey !== '').map(rowKey))
   const beforeOpening = (row: StatementRow): boolean => {
@@ -179,7 +179,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   /** The category of the rule that files a row, as a new row takes it, and the labels the rules give it. */
   const filingOf = (row: RuledRow): { readonly category: RecordId | null; readonly labels: readonly RecordId[] } => {
     const { filing: rule, labelling } = outcomeOf(row)
-    return { category: rule === null || (rule.link !== null && (links?.targets ?? null) === null) ? null : rule.category, labels: labelling?.labels ?? [] }
+    return { category: rule === null || (rule.link !== null && ruleLinkWaits(rule.link, links)) ? null : rule.category, labels: labelling?.labels ?? [] }
   }
   const booking = pendingBooking(book.transactions, comingAtAll, statement, { itemsOf, filing: filingOf, difference: receiptWords.difference, newKey })
   const bookedBy = new Map(booking.booked.map((booked) => [booked.row, booked.change]))
@@ -275,8 +275,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     return after === undefined || replacements.has(before) ? [] : [{ before, after: after.row, items: after.items }]
   })
   const changed = [...filledRows, ...bookedRows, ...replacedRows, ...pairedOnFile]
-  const linked =
-    links === null || links.targets === null ? null : linkedToInstalments(book, { added: filed, changed, gone: booking.gone, receipts }, { ...links, targets: links.targets }, ruleOf, day, newKey)
+  const linked = links === null ? null : ruleLinkedRows(book, { added: filed, changed, gone: booking.gone, receipts }, links, ruleOf, day, newKey)
   const added = filed.map((itemized) => linked?.rows.get(itemized.row.id)?.entry ?? itemized)
   const categoryOf = (items: readonly TransactionItem[]): RecordId | null => (items.length === 0 ? null : mainCategoryOf(items))
 
@@ -306,7 +305,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
       outcome: 'new',
       category: paying === undefined ? categoryOf(byReceipt.items) : (paying.interest ?? categoryOf(paying.entry.items)),
       withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1].row ?? null } : null,
-      ...(paying === undefined ? {} : { pays: { target: paying.target, parts: paying.entry.items } }),
+      ...(paying?.target == null ? {} : { pays: { target: paying.target, parts: paying.entry.items } }),
     }
   })
   const lookAlikes = fileLines.flatMap((line) => (line.outcome === 'look-alike' ? [line] : []))
@@ -357,23 +356,24 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   }
 }
 
-/** A new row linked to the instalment it pays. */
-type LinkedNewRow = Omit<LinkedEntry, 'added'> & { readonly target: InstalmentTarget }
+/** A new row linked to the instalment it pays or to the asset its rule names, null for an asset Assets cannot show now. */
+type LinkedNewRow = Omit<LinkedEntry, 'added'> & { readonly target: InstalmentTarget | AssetTarget | null }
 
 /**
- * Each new row a rule whose rows pay a loan filed, linked to the instalment it pays as `ruleLinking` says, then each new row
- * Kuna suggests pays an instalment, as `instalmentOffers` reads the file once the dry run is written, linked to it by its id,
- * and the categories the links add, a category the first needs added once. A row and an instalment are linked once, so the
- * rule's link wins where both would link.
+ * Each new row a rule whose rows are linked to a record filed, linked to the asset or the instalment it is as `ruleLinking` says,
+ * then once Loans can be read each new row Kuna suggests pays an instalment, as `instalmentOffers` reads the file once the dry
+ * run is written, linked to it by its id, and the categories the links add, a category the first needs added once. A row and
+ * an instalment are linked once, so the rule's link wins where both would link.
  */
-function linkedToInstalments(
+function ruleLinkedRows(
   book: SpendingBook,
   run: { readonly added: readonly ItemizedRow[]; readonly changed: readonly RowChange[]; readonly gone: readonly Transaction[]; readonly receipts: readonly PlacedReceipt[] },
-  { targets, language, notes }: InstalmentLinks & { readonly targets: NonNullable<InstalmentLinks['targets']> },
+  links: RuleLinks,
   ruleOf: (row: Transaction) => SpendingRule | null,
   day: CivilDate,
   newKey: () => string,
 ): { readonly rows: ReadonlyMap<RecordId, LinkedNewRow>; readonly categories: readonly Category[] } {
+  const { targets, language, notes } = links
   const currencies = new Map(book.accounts.map((account) => [account.id, account.currency]))
   const withReceipt = new Set(run.receipts.map(({ row }) => row.id))
   const linkedRecords = new Set(book.items.flatMap((item) => (item.link === null ? [] : [rowLinkText(item.link)])))
@@ -383,13 +383,14 @@ function linkedToInstalments(
     const link = entry.row.categorisedBy === 'rule' && !withReceipt.has(entry.row.id) ? (ruleOf(entry.row)?.link ?? null) : null
     if (link === null) continue
     const place = { currency: currencies.get(entry.row.account) ?? EURO, categories, language, notes }
-    const paying = ruleLinking(entry, link, targets, linkedRecords, place, newKey)
+    const paying = ruleLinking(entry, link, links, linkedRecords, place, newKey)
     if (paying === null) continue
     const { added, ...linked } = paying
-    linkedRecords.add(rowLinkText(paying.target.link))
+    if (paying.target?.kind === 'instalment') linkedRecords.add(rowLinkText(paying.target.link))
     categories = [...categories, ...added]
     rows.set(entry.row.id, linked)
   }
+  if (targets === null) return { rows, categories: categories.slice(book.categories.length) }
   const ruleLinked = run.added.map((itemized) => rows.get(itemized.row.id)?.entry ?? itemized)
   const comingIn = new Map(ruleLinked.map((itemized) => [itemized.row.id, itemized]))
   const changedItems = new Map(run.changed.flatMap(({ before, items }) => (items === undefined ? [] : [[before.id, items] as const])))

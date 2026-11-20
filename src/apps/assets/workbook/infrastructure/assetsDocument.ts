@@ -1,12 +1,10 @@
 import { codecOfAssetsKind } from '../application/assetsCodecs'
 import type { AssetsBooks } from '../domain/assetsBooks'
+import { ASSETS_APP } from '../domain/assetsApp'
 import { assetsRecordsOf, readAssetBook } from '../domain/readAssetBook'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument, recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
-
-/** The app of the hub whose file this store keeps. */
-export const ASSETS_APP = 'assets'
 
 const ASSETS_SCHEMA: WorkbookDocument['schema'] = { assets: 2 }
 

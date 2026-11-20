@@ -1,3 +1,4 @@
+import type { AssetUse } from '../links/domain/linkTarget'
 import { en as linkEn, hr as linkHr } from '../links/presentation/words'
 import { language } from '../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
@@ -139,6 +140,15 @@ export const en = {
     linkInvestmentsGone: 'a deposit or withdrawal Investments no longer has',
     linkInvestmentsUnknown: 'a deposit or withdrawal of Investments, which cannot be read now',
     linkInvestmentsNotSetUp: 'a deposit or withdrawal of Investments, but Investments is not set up',
+    linkAsset: {
+      bought: (asset: string) => `the purchase of ${asset}, in Assets`,
+      cost: (asset: string) => `a cost of ${asset}, in Assets`,
+      income: (asset: string) => `income from ${asset}, in Assets`,
+    } satisfies Record<AssetUse, (asset: string) => string>,
+    linkRuleAsset: (asset: string) => `${asset} in Assets, each row linked to it whole`,
+    linkAssetsGone: 'an asset Assets no longer has',
+    linkAssetsUnknown: 'an asset of Assets, which cannot be read now',
+    linkAssetsNotSetUp: 'an asset of Assets, but Assets is not set up',
     bankSync: 'Whether the bank sync can bring a new account its rows, which needs a bank sync deployment saved on Settings, Bank sync.',
     payee:
       'Each payee of every entry filed under a spending or an income category, once however its case and accents differ, with the IBANs its bank rows carry and the category its entries usually go under, as the Payees tab lists them. A payee is no record of the file.',
@@ -357,6 +367,15 @@ export const hr: Translation<typeof en> = {
     linkInvestmentsGone: 'uplata ili isplata koju Ulaganja više nemaju',
     linkInvestmentsUnknown: 'uplata ili isplata iz Ulaganja koja se sada ne može pročitati',
     linkInvestmentsNotSetUp: 'uplata ili isplata iz Ulaganja, ali Ulaganja nisu postavljena',
+    linkAsset: {
+      bought: (asset) => `kupnja: ${asset}, u Imovini`,
+      cost: (asset) => `trošak: ${asset}, u Imovini`,
+      income: (asset) => `prihod: ${asset}, u Imovini`,
+    },
+    linkRuleAsset: (asset) => `${asset} u Imovini, svaka stavka povezana s njom cijela`,
+    linkAssetsGone: 'stavka imovine koju Imovina više nema',
+    linkAssetsUnknown: 'stavka imovine iz Imovine koja se sada ne može pročitati',
+    linkAssetsNotSetUp: 'stavka imovine iz Imovine, ali Imovina nije postavljena',
     bankSync: 'Može li sinkronizacija s bankom donositi retke novom računu, za što treba spremiti implementaciju sinkronizacije u Postavkama, na kartici Banke.',
     payee:
       'Svaki primatelj ili platitelj unosa pod kategorijom potrošnje ili prihoda, jednom bez obzira na velika slova i kvačice, s IBAN-ima koje nose njegovi bankovni redovi i kategorijom pod koju mu unosi obično idu, kako ih navodi kartica Primatelji i platitelji. Nije zapis datoteke.',

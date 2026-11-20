@@ -15,10 +15,14 @@ import { changesHeldRule } from './ruleAsk'
 import type { RuleAsk } from './ruleAsk'
 import { conditionTestOf, conditionValuesOf, ruleTestOf, words } from './words'
 import { loanTargets } from '../../links/application/loanRecords'
+import { ruleAssets } from '../../links/application/assetTargets'
+import { assetRuleOffers } from '../../links/domain/assetLinks'
 import { loanRuleOffers } from '../../links/domain/instalmentOffers'
-import type { LoanRuleOffer } from '../../links/domain/instalmentOffers'
+import type { RowLink } from '../../workbook/domain/rowLink'
+import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { paidLoansIn, sameRecord } from '../../links/domain/linkTarget'
-import { loanLinks } from '../../links/presentation/loanLinks'
+import { ruleLinks } from '../../links/presentation/ruleLinks'
 import { categoryIdNamed, labelNamed, SORTING_CARDS } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
@@ -69,20 +73,36 @@ function showEveryRule(): void {
   void router.replace({ query, hash: `#${SORTING_CARDS.rules}` })
 }
 
+/** A rule the card offers: rows to a payee pay a loan, or are linked to an asset, under a category. */
+interface RuleOffer {
+  readonly condition: SpendingRuleCondition
+  readonly category: RecordId
+  readonly link: RowLink
+}
+
+/** The rules each loan and each asset offers, the loans' first. */
 const offers = computed(() => {
   const current = book.value
-  const targets = loans.value
-  if (current === null || targets === null || typeof targets === 'string') return []
+  if (current === null) return []
   const names = new Map(current.categories.map((category) => [category.id, category.name]))
-  return loanRuleOffers(current, targets).map((offer) => {
-    const test = conditionValuesOf(offer.condition, accountName)
-    return { offer, key: `${offer.loan.link.key} ${test}`, title: words.rules.offerTitle(test, offer.loan.loanName), caption: words.rules.offerCaption(names.get(offer.category) ?? '') }
+  const targets = loans.value
+  const forLoans = targets === null || typeof targets === 'string' ? [] : loanRuleOffers(current, targets)
+  const loanOffers = forLoans.map(({ condition, category, loan }) => {
+    const test = conditionValuesOf(condition, accountName)
+    const offer: RuleOffer = { condition, category, link: loan.link }
+    return { offer, key: `${loan.link.key} ${test}`, title: words.rules.offerTitle(test, loan.loanName), caption: words.rules.offerCaption(names.get(category) ?? '') }
   })
+  const assetOffers = assetRuleOffers(current, ruleAssets().targets).map(({ condition, category, asset }) => {
+    const test = conditionValuesOf(condition, accountName)
+    const offer: RuleOffer = { condition, category, link: asset.link }
+    return { offer, key: `${asset.link.key} ${test}`, title: words.rules.assetOfferTitle(test, asset.name), caption: words.rules.assetOfferCaption(names.get(category) ?? '', asset.name) }
+  })
+  return [...loanOffers, ...assetOffers]
 })
 
-/** The rule a loan offers, asked about first when rows already in the book would change. */
-async function makeRule(key: string, title: string, { condition, category, loan }: LoanRuleOffer): Promise<void> {
-  const edits: RuleEdits = { adding: [{ conditions: [condition], category, labels: [], stop: false, withdrawal: null, link: loan.link }] }
+/** The rule a loan or an asset offers, asked about first when rows already in the book would change. */
+async function makeRule(key: string, title: string, { condition, category, link }: RuleOffer): Promise<void> {
+  const edits: RuleEdits = { adding: [{ conditions: [condition], category, labels: [], stop: false, withdrawal: null, link }] }
   const written = book.value !== null && changesHeldRule(book.value.rules, edits) ? words.rules.dialog.changed : words.rules.made
   await writeOrAsk({ edits, choice: 'apply', title: words.rules.apply.title, description: title, written }, `offer-${key}`)
 }
@@ -94,7 +114,12 @@ const rules = computed(() => {
   const labels = new Map(current.labels.map((label) => [label.id, label.name]))
   const targets = loans.value
   const paidLoans = targets === null || typeof targets === 'string' ? null : paidLoansIn(targets)
+  const assets = ruleAssets()
   const goesToOf = ({ withdrawal, link }: SpendingRule): string | null => {
+    if (link !== null && assets.apps.includes(link.app)) {
+      const asset = assets.targets.find((target) => target.kind === 'asset' && sameRecord(target.link, link))
+      return asset?.kind === 'asset' ? words.rules.linksAsset(asset.name) : words.rules.assetUnknown
+    }
     if (link !== null) {
       if (paidLoans === null) return words.rules.paysUnread
       const loan = paidLoans.find((paid) => sameRecord(paid.link, link))
@@ -147,8 +172,8 @@ const askOpen = ref(false)
 async function writeOrAsk(ask: RuleAsk, key: string): Promise<void> {
   const current = book.value
   if (current === null) return
-  if (rowsRulesWouldChange(current, ask.edits, loanLinks()) === 0) {
-    await writes.write(ask.written, (unit) => writeRules(unit, current, ask.edits, loanLinks()), { key, failedTitle: spendingWords.form.notSaved })
+  if (rowsRulesWouldChange(current, ask.edits, ruleLinks()) === 0) {
+    await writes.write(ask.written, (unit) => writeRules(unit, current, ask.edits, ruleLinks()), { key, failedTitle: spendingWords.form.notSaved })
     return
   }
   asked.value = ask

@@ -2,7 +2,7 @@ import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { PartChangeFaults } from '../../../../shared/money/yourPart'
 import { words as assetsWords } from '../../words'
 import { language } from '../../../../shared/text/language'
-import type { Translation } from '../../../../shared/text/translation'
+import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A stavka imovine is feminine, so what refers to it is njezin and ona.
@@ -42,6 +42,24 @@ export const en = {
     price: 'Price paid',
     region: 'Region for the house price index',
     firstRegistration: 'First registration',
+    paid: 'Paid from your accounts',
+    paidUnchecked: 'Spending did not open, so the rows linked as its purchase are not known.',
+    paidUnrated: (count: number): EnglishForms => ({ one: '1 row waits on exchange rates and is left out.', other: `${count} rows wait on exchange rates and are left out.` }),
+  },
+  /** The card of what the rows linked to an asset earned and cost each year. */
+  money: {
+    title: 'What it earned and cost',
+    subtitle: 'What the rows linked to it in Spending came to each year.',
+    year: 'Year',
+    soFar: 'So far this year',
+    earned: 'Earned',
+    cost: 'Cost',
+    net: 'Net',
+    share: 'Of its value',
+    ofValue: "Each share is of its value in that year: the year's last valuation, or the price paid when the year has none.",
+    ofYourPart: "Each share is of your part of its value in that year: the year's last valuation, or the price paid when the year has none.",
+    noShare: 'A year with no valuation and no price paid shows no share.',
+    unrated: (count: number): EnglishForms => ({ one: '1 row waits on exchange rates and is left out.', other: `${count} rows wait on exchange rates and are left out.` }),
   },
   valuations: {
     title: 'Valuations',
@@ -156,6 +174,31 @@ export const hr: Translation<typeof en> = {
     price: 'Plaćena cijena',
     region: 'Područje za indeks cijena stambenih objekata',
     firstRegistration: 'Prva registracija',
+    paid: 'Plaćeno s vaših računa',
+    paidUnchecked: 'Potrošnja se nije otvorila, pa stavke povezane kao kupnja nisu poznate.',
+    paidUnrated: (count) => ({
+      one: `${count} stavka čeka tečaj i nije uračunata.`,
+      few: `${count} stavke čekaju tečaj i nisu uračunate.`,
+      other: `${count} stavki čeka tečaj i nije uračunato.`,
+    }),
+  },
+  money: {
+    title: 'Zarada i troškovi',
+    subtitle: 'Koliko su stavke povezane s njom u Potrošnji iznosile svake godine.',
+    year: 'Godina',
+    soFar: 'Ova godina do sada',
+    earned: 'Zarada',
+    cost: 'Troškovi',
+    net: 'Neto',
+    share: 'Od vrijednosti',
+    ofValue: 'Svaki je udio od njezine vrijednosti te godine: zadnje procjene u godini ili plaćene cijene ako te godine procjene nema.',
+    ofYourPart: 'Svaki je udio od vašeg dijela njezine vrijednosti te godine: zadnje procjene u godini ili plaćene cijene ako te godine procjene nema.',
+    noShare: 'Godina bez procjene i bez plaćene cijene ne prikazuje udio.',
+    unrated: (count) => ({
+      one: `${count} stavka čeka tečaj i nije uračunata.`,
+      few: `${count} stavke čekaju tečaj i nisu uračunate.`,
+      other: `${count} stavki čeka tečaj i nije uračunato.`,
+    }),
   },
   valuations: {
     title: 'Procjene',

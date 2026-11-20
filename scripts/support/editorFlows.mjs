@@ -12981,16 +12981,44 @@ export function spendingExtraPaymentFlowIn(language) {
     await elementSays(page, '[data-testid="spending-review-extra-payments"]', [extra.title, extra.record], 'To review offers no extra payment to record')
     await inspect?.('To review with an extra payment to record')
     await shootAt(page, shoot, '[data-testid="spending-review-extra-payments"]', 'spending-review-extra-payments')
-    await pressSelector(page, press, '[data-testid="spending-review-extra-payment-record"]')
+    await pressSelector(page, press, '[data-testid="spending-review-extra-payment"]:not([data-with-instalment]) [data-testid="spending-review-extra-payment-record"]')
     await page.waitForSelector('[data-testid="spending-extra-payment"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('the dialog that records an extra payment')
     await shoot('spending-extra-payment-dialog')
     await pressSelector(page, press, '[data-testid="spending-extra-payment-save"]')
     await toast(page, extra.done)
-    await page.waitForSelector('[data-testid="spending-review-extra-payments"]', { hidden: true, timeout: 10_000 })
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="spending-review-extra-payment"]:not([data-with-instalment])').length === 0, { timeout: 10_000 })
     await undoIn(page, press, words)
-    await page.waitForSelector('[data-testid="spending-review-extra-payments"]', { visible: true, timeout: 10_000 })
+    await page.waitForSelector('[data-testid="spending-review-extra-payment"]:not([data-with-instalment])', { visible: true, timeout: 10_000 })
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * To review with the statements set and the sample Loans file: the debit that pays the home loan's latest instalment and an
+ * extra payment opens a dialog naming the instalment it links as well, starting at what the row pays beyond it. Saving splits
+ * the row and links both, and Undo brings the offer back.
+ */
+export function spendingExtraPaymentWithInstalmentFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { extra } = words.spendingLinks
+  const OFFER = '[data-testid="spending-review-extra-payment"][data-with-instalment]'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector(OFFER, { visible: true, timeout: 10_000 })
+    await inspect?.('To review with a debit that pays an instalment and an extra payment')
+    await shootAt(page, shoot, OFFER, 'spending-review-extra-payment-with-instalment')
+    await pressSelector(page, press, `${OFFER} [data-testid="spending-review-extra-payment-record"]`)
+    await page.waitForSelector('[data-testid="spending-extra-payment-instalment"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('the dialog that records an extra payment and links the instalment as well')
+    await shoot('spending-extra-payment-with-instalment-dialog')
+    await pressSelector(page, press, '[data-testid="spending-extra-payment-save"]')
+    await toast(page, extra.done)
+    await page.waitForSelector(OFFER, { hidden: true, timeout: 10_000 })
+    await undoIn(page, press, words)
+    await page.waitForSelector(OFFER, { visible: true, timeout: 10_000 })
     await dismissToasts(page)
   }
 }
@@ -13824,5 +13852,69 @@ export function spendingSettingsRecipesFlowIn(language) {
     await undoIn(page, press, words)
     await countOf(page, '[data-testid="spending-recipe"]', 1, 'Undo should bring the recipe back')
     await dismissToasts(page)
+  }
+}
+
+/** Picks the link picker's option whose text holds the words, on the entry dialog open. */
+async function pickLinkTarget(page, press, wanted) {
+  const picker = await page.waitForSelector('[data-testid="spending-entry-link-target"]', { visible: true })
+  await picker.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await press(picker)
+  const option = await page
+    .waitForFunction((text) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.includes(text)) ?? null, { timeout: 5_000 }, wanted)
+    .then((handle) => handle.asElement())
+  await press(option)
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await delay(200)
+}
+
+/**
+ * The assets set beside the sample Assets file: the land registry fee waiting on To review links as the plot's purchase and
+ * leaves under Bought assets, the car's waiting roadside cover links as a cost of the car with the dialog's Category filled
+ * from its last cost while a changed note turns Link off, and the car service split by hand offers its parts once a cost of the car is picked.
+ */
+export function spendingAssetLinkFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const links = words.spendingLinks
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Land registry', -9500)
+    await pickLinkTarget(page, press, links.assets.uses.bought('Plot by the sea'))
+    await waitForTextIn(page, '[data-testid="spending-entry-link-note"]', words.spendingStarter['Bought assets'])
+    await inspect?.('the entry dialog linking a row as the purchase of an asset')
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-asset-bought')
+    await press(await page.waitForSelector('[data-testid="spending-entry-link-add"]:not([disabled])', { visible: true }))
+    await toast(page, links.linked)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, 'Example Insurance', -6240)
+    await pickLinkTarget(page, press, links.assets.uses.cost('Family car'))
+    await waitForTextIn(page, '[data-testid="spending-entry-category"]', words.spendingStarter['Car registration and insurance'])
+    await page.waitForSelector('[data-testid="spending-entry-link-add"]:not([disabled])', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('filling Category from the asset turned Link off')
+    })
+    await inspect?.('the entry dialog linking a waiting row as a cost of an asset, with its Category filled')
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-asset-cost', { block: 'end' })
+    const note = await page.$eval('[data-testid="spending-entry-note"]', (input) => input.value)
+    await fill(page, 'spending-entry-note', `${note} changed`)
+    await page.waitForSelector('[data-testid="spending-entry-link-add"][disabled]', { timeout: 5_000 }).catch(() => {
+      throw new Error('a changed note left Link on')
+    })
+    await fill(page, 'spending-entry-note', note)
+    await press(await page.waitForSelector('[data-testid="spending-entry-link-add"]:not([disabled])', { visible: true }))
+    await toast(page, links.linked)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, 'Example Car Service', -30000)
+    await pickLinkTarget(page, press, links.assets.uses.cost('Family car'))
+    const parts = await page.waitForSelector('[data-testid="spending-entry-link-parts"]', { visible: true, timeout: 5_000 })
+    await inspect?.('the entry dialog linking some parts of a split row to an asset')
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-asset-parts')
+    await press(parts)
+    await page.waitForSelector('[role="listbox"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await shoot('spending-entry-asset-parts-open')
+    await page.keyboard.press('Escape')
+    await delay(200)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
   }
 }

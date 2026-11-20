@@ -5,8 +5,9 @@ import type { RouteLocationRaw } from 'vue-router'
 import { allTargets, sourceIn } from '../application/linkTargets'
 import type { ShownTarget } from '../application/linkTargets'
 import { arrivedBeyond } from '../domain/cashMovementOffers'
-import { beyondPlan, beyondRecord } from '../domain/instalmentSplit'
-import { linkStateOf, targetsIn } from '../domain/linkTarget'
+import { beyondPlan } from '../domain/instalmentParts'
+import { beyondRecord } from '../domain/linkFiling'
+import { assetUseOf, linkStateOf, targetsIn } from '../domain/linkTarget'
 import type { AppTargets, CashMovementTarget, LinkState, LinkTarget, TargetSource } from '../domain/linkTarget'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -42,6 +43,8 @@ const LOOKS: Readonly<Record<LinkState<unknown>['state'], { readonly look: LinkL
 export interface LinkedRow {
   readonly amount: Transaction['amount']
   readonly currency: CurrencyCode
+  /** Whether its linked parts are filed under Bought assets, which reads a link to an asset as its purchase. */
+  readonly bought: boolean
 }
 
 /**
@@ -59,7 +62,8 @@ export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
     ...(record === null || record === 0 ? [] : [(record > 0 ? words.moreThanLoans : words.lessThanLoans)(money(record))]),
     ...(target.kind === 'cash-movement' ? arrivedText(target, row) : []),
   ]
-  return [targetText(target), ...amount, ...differs].join(', ')
+  const named = target.kind === 'asset' ? { ...target, use: assetUseOf(target, row, row.bought) } : target
+  return [targetText(named), ...amount, ...differs].join(', ')
 }
 
 /** How much more or less arrived at or from the broker than left, or nothing when the two are equal or do not compare. */

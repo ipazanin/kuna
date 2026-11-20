@@ -14,7 +14,7 @@ import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { today } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
-import { loanLinks } from '../../links/presentation/loanLinks'
+import { ruleLinks } from '../../links/presentation/ruleLinks'
 
 const store = useSpendingBooks()
 const lastOutcome = shallowRef<BankSyncOutcome | null>(null)
@@ -26,7 +26,7 @@ const importer = bankImporter({
   store,
   asked: (read: BankRead) => saveLastFetch({ problems: bankProblemLines(read), linked: read.linked }),
   day: today,
-  links: loanLinks,
+  links: ruleLinks,
   now: Date.now,
 })
 

@@ -24,6 +24,7 @@ export const en = {
     company: 'For the company',
     repayment: 'Loan principal',
     'informal-loan': 'Loans to and from people',
+    asset: 'Bought assets',
   } satisfies Record<FixedKind, string>,
   /** What money in a category of each kind counts as, where a card names the kind. */
   kinds: {
@@ -34,6 +35,7 @@ export const en = {
     company: 'For the company',
     repayment: 'Loan principal',
     'informal-loan': 'Loans to and from people',
+    asset: 'Bought assets',
   } satisfies Record<CategoryKind, string>,
   /** What each fixed category counts as, under its name. */
   fixedCounts: {
@@ -42,6 +44,7 @@ export const en = {
     company: 'Counted in no spending, income or limit figure',
     repayment: 'Lowers what the loan still owes, not counted as spending',
     'informal-loan': 'Money lent to or borrowed from people, not counted as spending or income',
+    asset: 'Paid for something you own, such as a car or a flat, not counted as spending',
   } satisfies Record<FixedKind, string>,
   dialog: {
     addGroupTitle: 'Add a group',
@@ -93,7 +96,7 @@ export const hr: Translation<typeof en> = {
   moveDown: (name) => `Pomakni „${name}” dolje`,
   edit: (name) => `Uredi „${name}”`,
   fixedHeading: 'Izvan potrošnje i prihoda',
-  fixedKinds: { transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku', repayment: 'Glavnica kredita', 'informal-loan': 'Posudbe' },
+  fixedKinds: { transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku', repayment: 'Glavnica kredita', 'informal-loan': 'Posudbe', asset: 'Kupljena imovina' },
   kinds: {
     spending: 'Potrošnja',
     income: 'Prihodi',
@@ -102,6 +105,7 @@ export const hr: Translation<typeof en> = {
     company: 'Za tvrtku',
     repayment: 'Glavnica kredita',
     'informal-loan': 'Posudbe',
+    asset: 'Kupljena imovina',
   },
   fixedCounts: {
     transfer: 'Ne ulazi ni u potrošnju, ni u prihode, ni u ograničenja',
@@ -109,6 +113,7 @@ export const hr: Translation<typeof en> = {
     company: 'Ne ulazi ni u potrošnju, ni u prihode, ni u ograničenja',
     repayment: 'Smanjuje preostali dug kredita, ne ulazi u potrošnju',
     'informal-loan': 'Novac posuđen ljudima ili od njih, ne ulazi ni u potrošnju ni u prihode',
+    asset: 'Plaćeno za nešto što posjedujete, poput auta ili stana, ne ulazi u potrošnju',
   },
   dialog: {
     addGroupTitle: 'Dodaj skupinu',

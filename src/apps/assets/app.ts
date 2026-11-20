@@ -12,14 +12,17 @@ import { ASSETS_HOME_CARD } from './home/presentation/assetsHomeCard'
 import { assetsHubFigures } from './home/presentation/assetsHubFigures'
 import { startHouseIndex, useHouseIndex } from './houseIndex/presentation/useHouseIndex'
 import { assetLoans } from './loans/application/assetLoans'
-import { ASSET_ROUTE, ASSETS_OVERVIEW_ROUTE, ASSETS_SETTINGS_ROUTE, ASSETS_START_ROUTE } from './overview/presentation/assetLinks'
+import { publishedAssets } from './asset/application/publishedAssets'
+import { assetRows, assetRowsFrom, readAssetRowsThrough } from './rows/application/linkedRows'
+import { ASSET_ROUTE } from './overview/domain/assetRoute'
+import { ASSETS_OVERVIEW_ROUTE, ASSETS_SETTINGS_ROUTE, ASSETS_START_ROUTE } from './overview/presentation/assetLinks'
 import { assetsSetUp } from './overview/presentation/assetsSetUp'
 import { words as overviewWords } from './overview/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { assetsSyncGroup } from './sync/presentation/assetsSyncGroup'
 import { words } from './words'
 import { useAssetsBooks } from './workbook/application/assetsStore'
-import { ASSETS_APP } from './workbook/infrastructure/assetsDocument'
+import { ASSETS_APP } from './workbook/domain/assetsApp'
 import { words as fileWords } from './workbook/presentation/words'
 
 const OVERVIEW: AppScreen = { path: ASSETS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
@@ -33,7 +36,8 @@ export const assetsApp: AppContribution = {
   id: ASSETS_APP,
   name: words.name,
   colour: '--app-assets',
-  async install() {
+  async install(shell) {
+    readAssetRowsThrough(() => assetRowsFrom(shell.linkedRows(), ASSETS_APP))
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeAssets } = await import('./workbook/infrastructure/fake/seedFakeAssets')
@@ -65,7 +69,7 @@ export const assetsApp: AppContribution = {
     const file = browserFileOf(store, { id: 'assets', name: words.name }, () => ({ contents: newAssetsFileContents(store), title: LOCAL_ASSETS_TITLE }))
     const loansToday = () => assetLoans(today())
     return assetsAssistant(
-      { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook, index: () => index.value, loans: assetLoans },
+      { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook, index: () => index.value, loans: assetLoans, rows: assetRows },
       { proposer: assetsProposer(store, loansToday, file), acceptance: assetsAcceptance(store, loansToday, file) },
     )
   },
@@ -77,6 +81,7 @@ export const assetsApp: AppContribution = {
   startPath: ASSETS_START_ROUTE,
   setUpOrder: { after: 'loans', why: words.setUpAfterLoans },
   syncGroup: assetsSyncGroup,
+  assets: publishedAssets,
   asksGoogleOnOpen: () => loadWorkbookChoice(ASSETS_APP)?.source === 'drive' && autoSyncOn.value,
   // The shell hands over only a find or a pick the Assets file asked Google for. The page's sync resumes a sync.
   start(router, googleReturn) {

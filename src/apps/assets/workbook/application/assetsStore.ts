@@ -3,7 +3,8 @@ import type { WorkbookDocument } from '../../../../shared/storage/infrastructure
 import type { DocumentCopy } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import { pageWorkbookStore } from '../../../../shared/storage/infrastructure/pageWorkbookStore'
 import type { AssetsBooks } from '../domain/assetsBooks'
-import { ASSETS_APP, ASSETS_DOCUMENT } from '../infrastructure/assetsDocument'
+import { ASSETS_DOCUMENT } from '../infrastructure/assetsDocument'
+import { ASSETS_APP } from '../domain/assetsApp'
 import { words } from '../../words'
 
 const assetsStore = pageWorkbookStore(ASSETS_APP, ASSETS_DOCUMENT, words.pickFile)

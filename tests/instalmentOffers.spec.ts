@@ -15,6 +15,7 @@ import { FAKE_HOME_LOAN, fakeOverruledLate } from '../src/shared/storage/infrast
 import { statementPaymentsFrom } from '../src/apps/loans/bankLoans/application/statementPayments'
 import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
 import { rowLinksOf } from '../src/apps/spending/facts'
+import { NO_RATES } from '../src/shared/money/rateBook'
 import { decidingRule } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement'
 import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
@@ -174,7 +175,7 @@ describe('the fake books', () => {
     const home = loans.bankLoans.find((entry) => entry.loan.name === 'Home loan')!
     const { due } = fakeOverruledLate(day)
 
-    expect(instalmentStandings(home, statementPaymentsFrom([{ app: 'spending', links: rowLinksOf(spending) }], 'loans'), day).get(due)).toMatchObject({
+    expect(instalmentStandings(home, statementPaymentsFrom([{ app: 'spending', links: rowLinksOf(spending, NO_RATES) }], 'loans'), day).get(due)).toMatchObject({
       standing: 'seen',
       overruled: { due },
     })
@@ -188,7 +189,23 @@ describe('the fake books', () => {
     const ruleOf = decidingRule(spending.rules, spending)
     const offers = extraPaymentOffers(spending, loanTargetsFrom(loanTargetsOf(loans)), (row) => ruleOf(row)?.link ?? null)
 
-    expect(offers.map(({ row, instalment }) => [row.payee, row.amount, instalment.loanName])).toEqual([['Example Bank', accountMoneyFromAmount(-5000), 'Home loan']])
+    expect(offers.filter((offer) => !offer.withInstalment).map(({ row, instalment }) => [row.payee, row.amount, instalment.loanName])).toEqual([
+      ['Example Bank', accountMoneyFromAmount(-5000), 'Home loan'],
+    ])
+  })
+
+  it.each([
+    ['2026-11-20', '2026-11-20'],
+    ['2026-11-04', '2026-10-20'],
+  ])("offer the statements set's debit on the latest due date on %s as paying the home loan's instalment of %s and an extra payment of 3,000.00", (date, due) => {
+    const day = civil(date)
+    const meta = { id: 'extra', source: 'browser' as const, title: 'extra', syncedAt: '2026-11-20T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
+    const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'statements', day) }).workbook
+    const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
+    const ruleOf = decidingRule(spending.rules, spending)
+    const offers = extraPaymentOffers(spending, loanTargetsFrom(loanTargetsOf(loans)), (row) => ruleOf(row)?.link ?? null)
+
+    expect(offers.filter((offer) => offer.withInstalment).map(({ row, instalment, extra }) => [row.date, instalment.due, extra])).toEqual([[civil(due), civil(due), accountMoneyFromAmount(3000)]])
   })
 
   it("give Spending's fake rows what you pay of the home loan's plan in every month", () => {
@@ -214,9 +231,10 @@ describe('the fake books', () => {
       targets: loanTargetsFrom(loanTargetsOf(loans)),
       language: 'en',
       notes: { interest: 'Interest', difference: 'Difference from the plan' },
+      assets: { apps: [], targets: [] },
     })
 
-    expect(run.lines.map((line) => (line.outcome === 'new' ? line.pays?.target.due : line.outcome))).toEqual([latestFakeHomeLoanDue(day)])
+    expect(run.lines.map((line) => (line.outcome === 'new' ? (line.pays?.target.kind === 'instalment' ? line.pays.target.due : undefined) : line.outcome))).toEqual([latestFakeHomeLoanDue(day)])
     expect(run.items.map((part) => part.note)).toEqual(['Interest', ''])
   })
 })

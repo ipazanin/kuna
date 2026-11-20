@@ -1,6 +1,6 @@
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
-import { ruleLinking } from '../../links/domain/instalmentSplit'
-import type { InstalmentLinks } from '../../links/domain/instalmentSplit'
+import { ruleLinkWaits, ruleLinking } from '../../links/domain/linkFiling'
+import type { RuleLinks } from '../../links/domain/linkFiling'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { rowLinkText } from '../../workbook/domain/rowLink'
@@ -212,7 +212,7 @@ export interface RulesRerun {
 /** What a rule change reads besides the rules. */
 export interface RerunChoices {
   /** The loan instalments a rule whose rows pay a loan links them to, or null while Loans cannot be read. */
-  readonly links?: InstalmentLinks | null
+  readonly links?: RuleLinks | null
   /**
    * The rules the person applies to the rows already in the book as they save them. Each reaches every row it decides that does not
    * stand as it files and labels, so a row it skipped before, kept for new rows only or while Loans could not be read, follows it now.
@@ -231,7 +231,7 @@ export interface RerunChoices {
  * the labels as a whole row does. A row the file reader or the pairing filed and a row To review offers as the same money as a typed
  * row stay as they are. A row a rule whose rows pay a loan files is
  * linked to the instalment it pays as `ruleLinking` says, and while Loans cannot be read its filing stays, so a waiting instalment
- * never counts whole under the rule's category.
+ * never counts whole under the rule's category. A row a rule naming an asset files is linked to it whole, whether or not Assets can be read.
  */
 export function rulesRerun(
   book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'items' | 'rules'>,
@@ -267,16 +267,16 @@ export function rulesRerun(
     }
     const labelled = labelledPart(item)
     const filingMoves = followsFiling && (!sameFiling(standing.filing, rule) || (appliedTo(rule) && !filedAs(item, rule)))
-    const payingLoan = filingMoves && rule?.link != null && item.link === null ? rule.link : null
-    const refiles = filingMoves && (payingLoan === null || (links?.targets ?? null) !== null)
+    const ruleLink = filingMoves && rule?.link != null && item.link === null ? rule.link : null
+    const refiles = filingMoves && (ruleLink === null || !ruleLinkWaits(ruleLink, links))
     const category = refiles ? (rule?.category ?? null) : item.category
     const after = refiles ? { ...before, categorisedBy: category === null ? null : ('rule' as const) } : before
     const filed = refiledItems([labelled], category)
-    if (payingLoan !== null && links !== null && links.targets !== null && category !== null) {
+    if (ruleLink !== null && links !== null && refiles && category !== null) {
       const place = { currency: currencies.get(before.account) ?? EURO, categories, language: links.language, notes: links.notes }
-      const paying = ruleLinking({ row: after, items: filed }, payingLoan, links.targets, linked, place, newKey)
+      const paying = ruleLinking({ row: after, items: filed }, ruleLink, links, linked, place, newKey)
       if (paying !== null) {
-        linked.add(rowLinkText(paying.target.link))
+        if (paying.target?.kind === 'instalment') linked.add(rowLinkText(paying.target.link))
         categories = [...categories, ...paying.added]
         return [{ before, after: paying.entry.row, items: paying.entry.items }]
       }

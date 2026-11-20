@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { cashMovementTargetsOf } from '../src/apps/investments/transactions/application/publishedCashMovements'
 import { investmentTargetsFrom } from '../src/apps/spending/links/application/investmentTargets'
 import { CASH_MOVEMENT_NEAR, arrivedBeyond, cashMovementOffers, nearInEuros } from '../src/apps/spending/links/domain/cashMovementOffers'
-import { linkFiling, linkedEntry } from '../src/apps/spending/links/domain/instalmentSplit'
-import { CASH_MOVEMENT_DAYS, mayAddToCompany, movedInTime, targetsFor } from '../src/apps/spending/links/domain/linkTarget'
+import { linkFiling, linkedEntry } from '../src/apps/spending/links/domain/linkFiling'
+import { CASH_MOVEMENT_DAYS, mayAddToCompany, movedInTime, startingCostCategory, targetsFor } from '../src/apps/spending/links/domain/linkTarget'
 import type { CashMovementTarget, LinkTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { wholeItemOf } from '../src/apps/spending/workbook/domain/rowItems'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
@@ -82,7 +82,7 @@ describe('what arrived at or from the broker', () => {
 
   it('names the broker account and the difference on the link line, with no direction of its own', () => {
     const deposit = movement('deposit', '2026-06-04', 997.68)
-    const line = linkLineOf(deposit.link, [{ ...deposit, to: '/investments/transactions' }], 'investments', { amount: accountMoneyFromAmount(-1_000), currency: EURO })
+    const line = linkLineOf(deposit.link, [{ ...deposit, to: '/investments/transactions' }], 'investments', { amount: accountMoneyFromAmount(-1_000), currency: EURO, bought: false })
     expect([line.text, line.look]).toEqual(['Deposit to IBKR, 4 Jun 2026, €2.32 less arrived', 'there'])
   })
 })
@@ -163,6 +163,23 @@ describe('which entries Spending may add to Company as a cost you paid', () => {
   ])('reads %s', (_, amount, currency, linked, may) => {
     const items = [{ link: linked ? movement('deposit', '2026-06-04', 45).link : null }]
     expect(mayAddToCompany({ amount: accountMoneyFromAmount(amount) }, currency, items)).toBe(may)
+  })
+})
+
+describe('the category a cost added to Company starts with', () => {
+  const categories = [
+    { name: 'Office supplies', slug: 'office' },
+    { name: 'Travel', slug: 'travel' },
+  ]
+
+  it("takes that of Company's newest cost you paid, else the one the payee names, else none", () => {
+    const advances = [
+      { day: on('2026-09-01'), categoryName: 'Office supplies' },
+      { day: on('2026-10-01'), categoryName: 'Travel' },
+    ]
+    expect(startingCostCategory(categories, advances, 'Corner market')?.slug).toBe('travel')
+    expect(startingCostCategory(categories, [], 'OFFICE SUPPLIES SHOP')?.slug).toBe('office')
+    expect(startingCostCategory(categories, [{ day: on('2026-10-01'), categoryName: 'Gone since' }], 'Corner market')).toBeNull()
   })
 })
 

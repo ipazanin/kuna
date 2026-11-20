@@ -2,6 +2,7 @@ import { FLAG_OR_NULL, TEXT, TEXT_OR_NULL, flagOf, found, inputOf } from '../../
 import { readLoans } from './linkOperations'
 import { CONDITIONS_ABOUT, RULE_CONDITIONS, RULE_PROBLEMS, conditionsOfStep } from './ruleConditionSteps'
 import { paidLoansIn } from '../../links/domain/linkTarget'
+import { fold } from '../../../../shared/text/fold'
 import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import type { RuleEdits, RuleMove } from '../../statements/application/statementWrites'
 import type { Account } from '../../workbook/domain/account'
@@ -19,7 +20,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 export const RULE_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
-    about: `A rule that files rows into a category, adds a label, or both, tried after the rules there are. A row's payee or IBAN by its ref makes the one condition, else ${CONDITIONS_ABOUT} An alias of a person in values covers every way they were written. stop yes ends the trying for a row it holds for. On Accept the person picks whether rows already in the book follow. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency. pays names a bank loan as Loans lists it: each row is then linked to the instalment it pays and split into its interest under the category and its principal under Loan principal.`,
+    about: `A rule that files rows into a category, adds a label, or both, tried after the rules there are. A row's payee or IBAN by its ref makes the one condition, else ${CONDITIONS_ABOUT} An alias of a person in values covers every way they were written. stop yes ends the trying for a row it holds for. On Accept the person picks whether rows already in the book follow. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency. pays names a bank loan as Loans lists it: each row is then linked to the instalment it pays and split into its interest under the category and its principal under Loan principal. pays may instead name an asset as Assets lists it: each row is then linked to it whole and keeps the category.`,
     input: inputOf({
       row: TEXT_OR_NULL,
       conditions: RULE_CONDITIONS,
@@ -39,7 +40,7 @@ export const RULE_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'change-rule',
     about:
-      'Fixes a rule: conditions in place of its own, or none to keep them, another category, a label in place of its labels, stop, whether it spots cash taken out, the cash account the cash goes to, or the bank loan its rows pay by its name in Loans, none for no loan. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. On Accept the person picks whether rows already in the book follow.',
+      'Fixes a rule: conditions in place of its own, or none to keep them, another category, a label in place of its labels, stop, whether it spots cash taken out, the cash account the cash goes to, or the bank loan its rows pay by its name in Loans or the asset they are for by its name in Assets, none for no link. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. On Accept the person picks whether rows already in the book follow.',
     input: inputOf({
       rule: TEXT,
       conditions: RULE_CONDITIONS,
@@ -99,10 +100,13 @@ export function editsRules(edits: CardRuleEdits): boolean {
   return edits.adding.length + edits.changing.length + edits.deleting.length > 0 || edits.moving !== undefined
 }
 
-/** The bank loan a rule step names by its name in Loans, none on none, or the one kept on null. */
-function paidLoanOf(loans: AppTargets<LinkTarget>, name: string | null, kept: RowLink | null): RowLink | null {
+/** The bank loan a rule step names by its name in Loans or the asset by its name in Assets, none on none, or the one kept on null. */
+function paidLoanOf(loans: AppTargets<LinkTarget>, assets: readonly LinkTarget[], name: string | null, kept: RowLink | null): RowLink | null {
   if (name === null) return kept
   if (name === 'none') return null
+  const asset = assets.filter((target) => target.kind === 'asset' && fold(target.name) === fold(name))
+  if (asset.length > 1) throw new StepRefused(`More than one asset is called ${name}. Rename one in Assets, or set the rule on its dialog.`)
+  if (asset[0] !== undefined) return asset[0].link
   const named = paidLoansIn(readLoans(loans)).filter((loan) => loan.loanName === name)
   if (named.length > 1) throw new StepRefused(`More than one bank loan is called ${name}. Rename one in Loans, or set the rule on its dialog.`)
   if (named[0] === undefined) throw new StepRefused(`${name} is not a bank loan Loans lists with a plan.`)
@@ -131,6 +135,7 @@ export function editRuleStep(
   field: Readonly<Record<string, never>>,
   idOf: (value: unknown) => string,
   loans: AppTargets<LinkTarget>,
+  assets: readonly LinkTarget[],
 ): void {
   const categoryOf = (value: unknown): RecordId => found(book.categories, idOf(value), 'category').id
   const labelOf = (value: unknown): RecordId => found(book.labels, idOf(value), 'label').id
@@ -146,7 +151,7 @@ export function editRuleStep(
         labels: field['label'] === null ? [] : [labelOf(field['label'])],
         stop: flagOf(field['stop'], false),
         withdrawal: withdrawalOf(field['withdrawal'], cashAccount(), null),
-        link: paidLoanOf(loans, field['pays'], null),
+        link: paidLoanOf(loans, assets, field['pays'], null),
       }
       edits.adding.push(draftOf(draft))
       break
@@ -160,7 +165,7 @@ export function editRuleStep(
         labels: field['label'] === null ? rule.labels : [labelOf(field['label'])],
         stop: flagOf(field['stop'], rule.stop),
         withdrawal: withdrawalOf(field['withdrawal'], cashAccount(), rule.withdrawal),
-        link: paidLoanOf(loans, field['pays'], rule.link),
+        link: paidLoanOf(loans, assets, field['pays'], rule.link),
       }
       edits.changing.push({ rule, draft: draftOf(draft) })
       break

@@ -16,7 +16,7 @@ export interface RowPart {
   readonly counted: Money | null
 }
 
-/** The side a category's money counts on. Between my accounts, For the company, Loan principal and Loans to and from people count nowhere. */
+/** The side a category's money counts on. Between my accounts, For the company, Loan principal, Loans to and from people and Bought assets count nowhere. */
 export function sideOf(category: Category | null): Side {
   switch (category?.kind) {
     case 'spending':
@@ -31,7 +31,7 @@ export function sideOf(category: Category | null): Side {
 }
 
 /** Each item's share of the row's euros, a discount item's of the other sign, so the shares add up to the row. */
-function eurosOfItems({ euros, items }: EuroRow): readonly (Money | null)[] {
+export function eurosOfItems({ euros, items }: EuroRow): readonly (Money | null)[] {
   if (euros === null) return items.map(() => null)
   return moneyParts(
     euros,

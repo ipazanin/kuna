@@ -7,6 +7,7 @@ import type { DryRunLine } from '../domain/statementDryRun'
 import { isBankSyncKey } from '../domain/statementRows'
 import { rowCaption, rowTitle } from './rowParts'
 import { words } from './words'
+import { filedAsBought } from '../../links/domain/linkTarget'
 import { targetLineOf } from '../../links/presentation/linkLine'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { partTone } from '../../categories/presentation/amountTone'
@@ -55,7 +56,10 @@ const shown = computed(() => {
       outcome,
       account,
       currency,
-      paid: pays === null ? null : { text: targetLineOf(pays.target, { amount: line.row.amount, currency }), parts: isSplit(pays.parts) ? pays.parts : [] },
+      paid:
+        pays === null
+          ? null
+          : { text: targetLineOf(pays.target, { amount: line.row.amount, currency, bought: filedAsBought(pays.parts, categories.value) }), parts: isSplit(pays.parts) ? pays.parts : [] },
       skipped:
         line.outcome === 'already-in' ||
         line.outcome === 'other-source' ||

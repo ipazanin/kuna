@@ -20,7 +20,7 @@ import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { fiscalQrOn } from '../receipts/domain/fiscalQr'
 import { oibIn } from '../receipts/domain/oib'
 import { placeInPhoto } from '../receipts/domain/photoPlace'
-import { isPayLink, linkStateOf, paidLoansIn, sameRecord } from '../links/domain/linkTarget'
+import { assetUseOf, filedAsBought, isPayLink, linkStateOf, paidLoansIn, sameRecord } from '../links/domain/linkTarget'
 import type { AppTargets, LinkTarget, TargetSource } from '../links/domain/linkTarget'
 import { receiptMatches } from '../receipts/domain/receiptMatch'
 import { waitsForBank } from '../receipts/domain/waitingReceipts'
@@ -176,7 +176,7 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
   kind: {
     exposure: 'plain',
     meaning:
-      'spending, income, saving, transfer, company, repayment, a bank loan principal paid back, or informal-loan, money lent to, borrowed from or paid back between you and a person. Only spending and income count as such in the figures.',
+      'spending, income, saving, transfer, company, repayment, a bank loan principal paid back, informal-loan, money lent to, borrowed from or paid back between you and a person, or asset, money paid for something the person bought to own, such as a car or a flat. Only spending and income count as such in the figures.',
   },
   parent: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The group it sits in, or none for a group.' },
   order: { exposure: 'plain', meaning: 'Its place among its siblings.' },
@@ -189,8 +189,8 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
   },
 }
 
-/** What a part's link names, as the chat reads it, or null for a part with none. */
-function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<LinkTarget>, sourceOf: (app: string) => TargetSource): string | null {
+/** What a part's link names, as the chat reads it, or null for a part with none. An asset's link reads as its purchase when the part is under Bought assets. */
+function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<LinkTarget>, sourceOf: (app: string) => TargetSource, categories: readonly Category[]): string | null {
   if (item.link === null) return null
   const read = linkStateOf(item.link, targetsOf(item.link.app))
   if (read.state === 'there') {
@@ -210,7 +210,12 @@ function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<
         return words.reads.linkCompanyAdvance(target.categoryName, target.day)
       case 'cash-movement':
         return words.reads.linkCashMovement(target.accountName, target.day, target.movement === 'deposit')
+      case 'asset':
+        return words.reads.linkAsset[assetUseOf(target, item, filedAsBought([item], categories))](target.name)
     }
+  }
+  if (sourceOf(item.link.app) === 'assets') {
+    return { gone: words.reads.linkAssetsGone, opening: words.reads.linkAssetsUnknown, failed: words.reads.linkAssetsUnknown, 'not-set-up': words.reads.linkAssetsNotSetUp }[read.state]
   }
   if (sourceOf(item.link.app) === 'investments') {
     return { gone: words.reads.linkInvestmentsGone, opening: words.reads.linkInvestmentsUnknown, failed: words.reads.linkInvestmentsUnknown, 'not-set-up': words.reads.linkInvestmentsNotSetUp }[
@@ -257,6 +262,8 @@ function paidLoanRead(rule: SpendingRule, targetsOf: (app: string) => AppTargets
   if (loans === null) return words.reads.linkNotSetUp
   if (typeof loans === 'string') return words.reads.linkUnknown
   const { link } = rule
+  const asset = loans.find((target) => target.kind === 'asset' && sameRecord(target.link, link))
+  if (asset?.kind === 'asset') return words.reads.linkRuleAsset(asset.name)
   const loan = paidLoansIn(loans).find((paid) => sameRecord(paid.link, link))
   return loan === undefined ? words.reads.linkGone : words.reads.linkBankLoan(loan.loanName)
 }
@@ -322,7 +329,12 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
-const itemFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, sourceOf: (app: string) => TargetSource, events: () => readonly SpendingEvent[]): FieldDocs<TransactionItem> => ({
+const itemFields = (
+  targetsOf: (app: string) => AppTargets<LinkTarget>,
+  sourceOf: (app: string) => TargetSource,
+  events: () => readonly SpendingEvent[],
+  categories: () => readonly Category[],
+): FieldDocs<TransactionItem> => ({
   id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand and for the one part of a whole entry.' },
@@ -333,7 +345,7 @@ const itemFields = (targetsOf: (app: string) => AppTargets<LinkTarget>, sourceOf
   link: {
     exposure: 'free-text',
     meaning: 'The record in another app this money is, such as the loan instalment it pays, or empty. It changes no figure: the part counts by its category.',
-    read: (item) => linkRead(item, targetsOf, sourceOf),
+    read: (item) => linkRead(item, targetsOf, sourceOf, categories()),
   },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
   ruleLabels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'Those of its labels a rule put on, which a rule change may take off.' },
@@ -724,7 +736,12 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({
         kind: ITEM_RECORDS,
         about: words.reads.line,
-        fields: itemFields(reading.linkTargets, reading.linkSource, () => reading.book()?.events ?? []),
+        fields: itemFields(
+          reading.linkTargets,
+          reading.linkSource,
+          () => reading.book()?.events ?? [],
+          () => reading.book()?.categories ?? [],
+        ),
         dated: null,
         rows: () => rows((book) => [...book.transactions.flatMap((row) => itemsOf(book, row)), ...book.items.filter((line) => line.transaction === null)]),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),

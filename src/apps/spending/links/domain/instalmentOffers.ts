@@ -1,4 +1,4 @@
-import { expectedOf } from './instalmentSplit'
+import { expectedOf } from './instalmentParts'
 import { loanLinkOf, paidLoansIn, sameRecord } from './linkTarget'
 import type { InstalmentTarget, LinkTarget, PaidLoan } from './linkTarget'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -9,8 +9,9 @@ import type { InstalmentPutOff } from '../../workbook/domain/spendingSettings'
 import { payeeCondition, sameCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { isNear, matchMoney, nearestTo } from '../../../../shared/app/moneyMatch'
+import { inWindow, isNear, matchMoney, nearestTo } from '../../../../shared/app/moneyMatch'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { ZERO_ACCOUNT_MONEY, absAccountMoney, accountMoneyOfEuros, subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -160,14 +161,20 @@ export function pastInstalments<Target extends InstalmentTarget>(
 /** A row to record in Loans as principal paid back early on the loan its instalment is of. */
 export interface ExtraPaymentOffer<Target extends InstalmentTarget = InstalmentTarget> {
   readonly row: Transaction
-  /** The loan's instalment due nearest the row, which another row pays. */
+  /** The loan's instalment due nearest the row. */
   readonly instalment: Target
+  /** Whether the row pays that instalment too, since no row pays it yet and the row was booked in its window, so it is linked as well. */
+  readonly withInstalment: boolean
+  /** What the row pays beyond the instalment when it pays that too, or all of the row otherwise. Above zero. */
+  readonly extra: AccountMoney
 }
 
 /**
  * The rows a rule whose rows pay a loan filed whole that To review offers to record as an extra payment: money out of a euro
- * account with no link, receipt or other leg, more than a tenth above the share of the loan's instalment due nearest its day,
- * which another row already pays, as a bank books a separate early repayment. `paidLoanOf` gives the loan the rule deciding a row names.
+ * account with no link, receipt or other leg, more than a tenth above the share of the loan's instalment due nearest its day.
+ * When another row pays that instalment, as a bank books a separate early repayment, the row is all extra payment. When no
+ * row pays it yet and the row was booked in its window, the one debit pays the instalment and the extra payment together.
+ * `paidLoanOf` gives the loan the rule deciding a row names.
  */
 export function extraPaymentOffers<Target extends LinkTarget>(
   book: OffersBook,
@@ -187,8 +194,12 @@ export function extraPaymentOffers<Target extends LinkTarget>(
       row.date,
       instalments.filter((target) => sameRecord(loanLinkOf(target.link), loan)).map((target) => ({ date: target.due, target })),
     )?.target
-    if (nearest === undefined || !linked.has(rowLinkText(nearest.link))) return []
+    if (nearest === undefined) return []
     const expected = expectedOf(nearest)
-    return row.amount < expected.amount && !isNear(expected, { date: expected.date, amount: row.amount }) ? [{ row, instalment: nearest }] : []
+    const withInstalment = !linked.has(rowLinkText(nearest.link))
+    if (withInstalment && !inWindow(expected, row)) return []
+    return row.amount < expected.amount && !isNear(expected, { date: expected.date, amount: row.amount })
+      ? [{ row, instalment: nearest, withInstalment, extra: subtractAccountMoney(absAccountMoney(row.amount), withInstalment ? accountMoneyOfEuros(nearest.youPay) : ZERO_ACCOUNT_MONEY) }]
+      : []
   })
 }

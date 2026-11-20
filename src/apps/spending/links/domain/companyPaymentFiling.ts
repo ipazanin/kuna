@@ -1,5 +1,5 @@
 import type { CompanyMoney, CompanyTarget } from './linkTarget'
-import type { LinkedEntry, LinkedOn, LinkFiling, LinkPlace } from './instalmentSplit'
+import type { LinkedEntry, LinkedOn, LinkFiling, LinkPlace } from './linkFiling'
 import { companyMoneyCategoryIn, fixedCategoryIn } from '../../categories/domain/starterCategories'
 import { eventOfLargest, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import type { Category, CompanyMoneyRole } from '../../workbook/domain/category'

@@ -29,7 +29,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   },
   {
     reason: 'A payment between your company and you, which Company works out from its bank rows and publishes with your IBAN and what its money is, so nobody types its fields in Spending.',
-    fields: ['spending: LinkTarget.ownerIban', 'spending: LinkTarget.parts'],
+    fields: ['spending: LinkTarget.ownerIban'],
   },
   {
     reason: 'A cost you paid for your company, which Company publishes with what it was and the name of its category there, so nobody types its fields in Spending.',
@@ -39,6 +39,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     reason:
       "A deposit into a broker's account or a withdrawal from it, which Investments publishes with its account's name and link-entry names by that name and a day, so nobody types it in Spending.",
     fields: ['spending: LinkTarget.accountName'],
+  },
+  {
+    reason: 'Something you own, which Assets publishes with its name, what it is and the day it was bought, and link-entry names by that name, so nobody types its fields in Spending.',
+    fields: ['spending: LinkTarget.assetKind', 'spending: LinkTarget.bought'],
   },
   {
     reason: 'The labels on a part of a quick add, which Settings, Quick add sets. A label goes on the entry the quick add wrote through label-entries.',

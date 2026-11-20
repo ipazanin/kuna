@@ -1,4 +1,5 @@
-import { ASSET_ROUTE, ASSETS_ASSISTANT_LINK, ASSETS_OVERVIEW_ROUTE, ASSETS_SETTINGS_ROUTE } from '../overview/presentation/assetLinks'
+import { ASSET_ROUTE } from '../overview/domain/assetRoute'
+import { ASSETS_ASSISTANT_LINK, ASSETS_OVERVIEW_ROUTE, ASSETS_SETTINGS_ROUTE } from '../overview/presentation/assetLinks'
 import { words as overviewWords } from '../overview/presentation/words'
 import { words as settingsWords } from '../settings/presentation/words'
 import { words as assetWords } from '../asset/presentation/words'

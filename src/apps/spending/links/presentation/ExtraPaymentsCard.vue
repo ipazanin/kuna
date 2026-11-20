@@ -42,12 +42,19 @@ function record(offer: ExtraPaymentOffer<ShownInstalment>): void {
   <AppCard :title="words.extra.title" :subtitle="words.extra.subtitle" data-testid="spending-review-extra-payments">
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <ul class="divide-y divide-default">
-        <ListRow v-for="offer in shown" :key="offer.row.id" :title="rowTitle(offer.row)" :caption="rowCaption(offer.row, accountOf(offer.row))" data-testid="spending-review-extra-payment">
+        <ListRow
+          v-for="offer in shown"
+          :key="offer.row.id"
+          :title="rowTitle(offer.row)"
+          :caption="rowCaption(offer.row, accountOf(offer.row))"
+          :data-with-instalment="offer.withInstalment || undefined"
+          data-testid="spending-review-extra-payment"
+        >
           <template #amount>
             <AccountMoneyText :cents="offer.row.amount" :currency="EURO" tone="flow" />
           </template>
           <template #details>
-            <span class="break-words type-caption">{{ words.extra.caption(instalmentText(offer.instalment)) }}</span>
+            <span class="break-words type-caption">{{ (offer.withInstalment ? words.extra.withInstalment : words.extra.caption)(instalmentText(offer.instalment)) }}</span>
           </template>
           <UButton class="self-start" :label="words.extra.record" icon="i-lucide-banknote" data-testid="spending-review-extra-payment-record" @click="record(offer)" />
         </ListRow>
@@ -56,16 +63,13 @@ function record(offer: ExtraPaymentOffer<ShownInstalment>): void {
         <ShowAllButton v-model:expanded="allShown" :total="offers.length" />
       </div>
     </div>
-    <AppDialog v-model:open="dialogOpen" changes :title="words.extra.dialogTitle" :description="recording === null ? undefined : words.extra.dialogDescription(recording.instalment.loanName)">
-      <ExtraPaymentForm
-        v-if="recording !== null"
-        id="spending-extra-payment-form"
-        :key="recording.row.id"
-        v-model:saving="saving"
-        :entry="recording.row"
-        :instalment="recording.instalment"
-        @recorded="dialogOpen = false"
-      />
+    <AppDialog
+      v-model:open="dialogOpen"
+      changes
+      :title="words.extra.dialogTitle"
+      :description="recording === null ? undefined : (recording.withInstalment ? words.extra.splitDescription : words.extra.dialogDescription)(recording.instalment.loanName)"
+    >
+      <ExtraPaymentForm v-if="recording !== null" id="spending-extra-payment-form" :key="recording.row.id" v-model:saving="saving" :offer="recording" @recorded="dialogOpen = false" />
       <template #end>
         <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" data-testid="spending-extra-payment-cancel" @click="dialogOpen = false" />
         <UButton

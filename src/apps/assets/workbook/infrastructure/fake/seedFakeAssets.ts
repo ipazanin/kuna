@@ -4,7 +4,8 @@ import { createDriveDocument, documentName } from '../../../../../shared/storage
 import { fakeBooksFolder, fakeDriveSession, holdReadsOf } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
-import { ASSETS_APP, emptyAssetsDocument } from '../assetsDocument'
+import { emptyAssetsDocument } from '../assetsDocument'
+import { ASSETS_APP } from '../../domain/assetsApp'
 import { fakeAssetsDocument } from './fakeAssets'
 import type { FakeAssetsSet } from './fakeAssets'
 

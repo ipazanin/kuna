@@ -4,6 +4,9 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { useHouseIndex } from '../../houseIndex/presentation/useHouseIndex'
+import { assetRows } from '../../rows/application/linkedRows'
+import { paidFromAccounts, yearlyNet } from '../../rows/domain/assetMoney'
+import { ASSET_RECORDS } from '../../workbook/domain/assetKinds'
 import { assetLoans } from '../../loans/application/assetLoans'
 import { assetNamed, ASSETS_OVERVIEW_ROUTE } from '../../overview/presentation/assetLinks'
 import { carriedByIndex } from '../../values/domain/assetValue'
@@ -14,6 +17,7 @@ import { useAssetsBooks } from '../../workbook/application/assetsStore'
 import type { AssetShare } from '../../workbook/domain/assetShare'
 import type { Valuation } from '../../workbook/domain/valuation'
 import AssetDialog from './AssetDialog.vue'
+import AssetMoneyCard from './AssetMoneyCard.vue'
 import AssetShareDialog from './AssetShareDialog.vue'
 import ValuationDialog from './ValuationDialog.vue'
 import { words } from './words'
@@ -21,6 +25,8 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { percentText } from '../../../../shared/money/percent'
+import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
+import { plural } from '../../../../shared/text/translation'
 import type { Percent } from '../../../../shared/money/percent'
 import { isShared, isWhole } from '../../../../shared/money/yourPart'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -72,7 +78,24 @@ const facts = computed((): Fact[] => {
     ...(asset.price === null ? [] : [{ label: words.facts.price, value: formatMoney(asset.price) }]),
     ...(asset.region === null ? [] : [{ label: words.facts.region, value: valueWords.regions[asset.region] }]),
     ...(asset.firstRegistration === null ? [] : [{ label: words.facts.firstRegistration, value: dayLabel(asset.firstRegistration) }]),
+    ...paidFact.value,
   ]
+})
+
+/** What the rows linked as its purchase paid from your accounts, a dash while they cannot be read, or nothing while no row is linked as its purchase. */
+const paidFact = computed((): Fact[] => {
+  if (entry.value === null) return []
+  const paid = paidFromAccounts(assetRows(), keyOfRecordId(ASSET_RECORDS, entry.value.asset.id))
+  if (paid === null) return []
+  if (paid === 'unchecked') return [{ label: words.facts.paid, value: '–', caption: words.facts.paidUnchecked }]
+  return [{ label: words.facts.paid, amount: { cents: paid.paid }, ...(paid.unrated === 0 ? {} : { caption: plural(words.facts.paidUnrated(paid.unrated), paid.unrated) }) }]
+})
+
+/** What the rows linked to it earned and cost each year, against your part of its value in that year, or nothing while no row is linked so or they cannot be read. */
+const years = computed(() => {
+  if (entry.value === null) return null
+  const read = yearlyNet(assetRows(), keyOfRecordId(ASSET_RECORDS, entry.value.asset.id), day, entry.value)
+  return read === 'unchecked' ? null : read
 })
 
 /** Each valuation, newest first. */
@@ -199,6 +222,7 @@ function openValuation(key: string | null): void {
           @change="openShare"
         />
       </DashboardGrid>
+      <AssetMoneyCard v-if="years !== null" :years="years" :shared="shared" />
       <AssetDialog v-model:open="editing" :entry="entry" />
       <AssetShareDialog v-model:open="shareOpen" :entry="entry" :editing="editingShare" :today="day" />
       <ValuationDialog v-model:open="valuationOpen" :entry="entry" :editing="editingValuation" :today="day" />

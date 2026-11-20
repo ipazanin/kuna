@@ -392,6 +392,7 @@ export function deskPorts(receipts: ReceiptPorts = receiptPorts(), bankSetup: Ba
     loanTargets: () => DESK_LOAN_TARGETS,
     companyPayments: () => [],
     cashMovements: () => [],
+    assets: () => ({ apps: [], targets: [] }),
   }
 }
 

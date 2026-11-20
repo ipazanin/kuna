@@ -26,7 +26,8 @@ import { SET_STARTING_ACCOUNT, acceptStartingAccount, setsStartingAccount, start
 import type { LastAccountPorts } from './startingAccountOperation'
 import type { BankSetup } from '../../bankSync/application/bankSync'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
-import { instalmentLinksOf } from '../../links/domain/instalmentSplit'
+import { ruleLinksOf } from '../../links/domain/linkFiling'
+import type { RuleAssets } from '../../links/domain/linkFiling'
 import type { AppTargets, LinkTarget, TargetSource } from '../../links/domain/linkTarget'
 import { words as linkWords } from '../../links/presentation/words'
 import { words as statementWords } from '../../statements/presentation/words'
@@ -121,7 +122,7 @@ function plannedSteps(
   if (steps.some((step) => step.operation === ADD_RECEIPT.name) && steps.some((step) => step.operation === 'add-category'))
     throw new StepRefused('A new category goes on a card before the receipt, and the receipt card files into it once that card is accepted.')
   let book = workbook
-  const links = instalmentLinksOf(loans, { language, notes: linkWords.notes })
+  const links = ruleLinksOf(loans, { language, notes: linkWords.notes }, ports.assets())
   const made = new Map<string, string>()
   const edits: CardRuleEdits = { adding: [], changing: [], deleting: [] }
   let imported: CardStatement | null = null
@@ -174,7 +175,7 @@ function plannedSteps(
       continue
     }
     if (isRuleStep(operation)) {
-      editRuleStep(edits, book, operation, field, idOf, loans)
+      editRuleStep(edits, book, operation, field, idOf, loans, ports.assets().targets)
       continue
     }
     if (isLimitStep(operation)) {
@@ -208,7 +209,12 @@ function plannedSteps(
       continue
     }
     if (isLinkStep(operation)) {
-      const linked = writeLinkStep(unit, book, records(), operation, field, idOf, { loans, companyPayments: ports.companyPayments(), cashMovements: ports.cashMovements() })
+      const linked = writeLinkStep(unit, book, records(), operation, field, idOf, {
+        loans,
+        companyPayments: ports.companyPayments(),
+        cashMovements: ports.cashMovements(),
+        assets: ports.assets().targets,
+      })
       if (linked !== null) book = withEntry({ ...book, categories: [...book.categories, ...linked.added] }, linked.entry)
       continue
     }
@@ -311,6 +317,8 @@ export interface SpendingPorts {
   companyPayments(): readonly LinkTarget[]
   /** The deposits and withdrawals of every app with brokers' accounts that is open, which a step names by the account's name and their day. */
   cashMovements(): readonly LinkTarget[]
+  /** The apps that keep assets, and the assets of those that are open, which a step names by the asset's name and a rule's link may name. */
+  assets(): RuleAssets
 }
 
 /**

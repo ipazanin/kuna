@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { assetLink } from './assetLinks'
+import { assetLink } from '../domain/assetRoute'
 import { words } from './words'
 import type { AssetLoan } from '../../loans/application/assetLoans'
 import type { AssetOnDay } from '../../values/domain/assetsOnDay'

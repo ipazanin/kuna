@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { extraPaymentOffers, loanRuleOffers } from '../src/apps/spending/links/domain/instalmentOffers'
-import type { InstalmentLinks } from '../src/apps/spending/links/domain/instalmentSplit'
+import type { RuleLinks } from '../src/apps/spending/links/domain/linkFiling'
 import { paidLoansIn } from '../src/apps/spending/links/domain/linkTarget'
-import type { InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
+import type { AssetTarget, InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
+import { assetRuleOffers } from '../src/apps/spending/links/domain/assetLinks'
 import { rowsRulesWouldChange } from '../src/apps/spending/statements/application/statementWrites'
 import { rulesRerun } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
@@ -42,8 +43,8 @@ function due(date: string): InstalmentTarget {
 }
 
 const TARGETS = [due('2026-10-15'), due('2026-11-15')]
-const LINKS: InstalmentLinks = { targets: TARGETS, language: 'en', notes: NOTES }
-const LOANS_UNREAD: InstalmentLinks = { targets: null, language: 'en', notes: NOTES }
+const LINKS: RuleLinks = { targets: TARGETS, language: 'en', notes: NOTES, assets: { apps: ['assets'], targets: [] } }
+const LOANS_UNREAD: RuleLinks = { targets: null, language: 'en', notes: NOTES, assets: { apps: ['assets'], targets: [] } }
 
 const carRule = (link: RowLink | null = CAR_LOAN): SpendingRule => ({
   id: recordIdOf(RULE_RECORDS, 'rule-car'),
@@ -81,7 +82,7 @@ describe('a rule whose rows pay a loan', () => {
   it("links a new row to the loan's nearest instalment no row is linked to, within a tenth of its share, and splits it into the interest under the rule's category and the principal", () => {
     const run = statementDryRun(spendingBook([], { rules: [carRule()] }), statementOf(statementRow('2026-11-16', -615)), DAY, LINKS)
 
-    expect(run.lines.map((line) => (line.outcome === 'new' ? line.pays?.target.due : null))).toEqual([civil('2026-11-15')])
+    expect(run.lines.map((line) => (line.outcome === 'new' ? (line.pays?.target.kind === 'instalment' ? line.pays.target.due : undefined) : null))).toEqual([civil('2026-11-15')])
     // 615.00 against the plan's 612.20 leaves 2.80 as a part of its own under the rule's category.
     expect(run.items.map((part) => [part.amount, part.category, part.link?.due])).toEqual([
       [accountMoneyFromAmount(-110), interest.id, civil('2026-11-15')],
@@ -169,19 +170,56 @@ describe('the rule the Rules card offers', () => {
   })
 })
 
+describe('a rule whose rows are for an asset', () => {
+  const CAR: AssetTarget = { kind: 'asset', link: { app: 'assets', kind: 'asset', key: 'made-up-car', due: null }, name: 'Family car', assetKind: 'car', bought: null }
+  const insurance = category('Transport/Car registration and insurance')
+  const carCosts = (): SpendingRule => ({ ...carRule(CAR.link), category: insurance.id })
+  const assetsUnread: RuleLinks = { ...LOANS_UNREAD, assets: { apps: ['assets'], targets: [] } }
+
+  it("links each new row it files whole to the asset under the rule's category, while neither Loans nor Assets can be read", () => {
+    const run = statementDryRun(spendingBook([], { rules: [carCosts()] }), statementOf(statementRow('2026-11-16', -420)), DAY, assetsUnread)
+    expect(run.items.map((part) => [part.amount, part.category, part.link])).toEqual([[accountMoneyFromAmount(-420), insurance.id, CAR.link]])
+    expect(run.lines.map((line) => line.outcome === 'new' && line.pays !== undefined)).toEqual([false])
+  })
+
+  it('names the asset on the dry run once Assets can be read, and links rows already in the book as the rule is applied', () => {
+    const known: RuleLinks = { ...LINKS, assets: { apps: ['assets'], targets: [CAR] } }
+    const run = statementDryRun(spendingBook([], { rules: [carCosts()] }), statementOf(statementRow('2026-11-16', -420)), DAY, known)
+    expect(run.lines.map((line) => (line.outcome === 'new' ? line.pays?.target : null))).toEqual([CAR])
+
+    const filed = row(OTP, '2026-10-02', -400, null, { source: 'statement', counterpartyIban: IBAN })
+    const book = spendingBook([filed], { rules: [] })
+    const rerun = rulesRerun(book, [{ ...carCosts(), id: recordIdOf(RULE_RECORDS, 'rule-car') }], { links: assetsUnread, applying: new Set([recordIdOf(RULE_RECORDS, 'rule-car')]) })
+    expect(rerun.changes.flatMap(({ items }) => items ?? []).map((part) => [part.category, part.link])).toEqual([[insurance.id, CAR.link]])
+  })
+
+  it('offers a rule once the two newest rows linked to an asset go to one payee, under the newer category, and not after a single one', () => {
+    const linked = (date: string, path: string) => row(OTP, date, -420, path, { source: 'statement', counterpartyIban: IBAN, link: CAR.link })
+    const two = spendingBook([linked('2025-11-10', 'Transport/Car registration and insurance'), linked('2026-11-10', 'Transport/Car service and repairs')])
+    expect(assetRuleOffers(two, [CAR])).toEqual([{ asset: CAR, condition: { test: 'iban_is', values: [IBAN], not: false }, category: category('Transport/Car service and repairs').id }])
+    expect(assetRuleOffers(spendingBook([linked('2026-11-10', 'Transport/Fuel')]), [CAR])).toEqual([])
+    expect(assetRuleOffers({ ...two, rules: [carCosts()] }, [CAR])).toEqual([])
+  })
+})
+
 describe('the rows To review offers to record as an extra payment', () => {
   const paysNovember = row(OTP, '2026-11-15', -612.2, 'Money and fees/Loan interest', { source: 'statement', counterpartyIban: IBAN, link: { ...CAR_LOAN, due: civil('2026-11-15') } })
   const filed = (date: string, amount: number) => row(OTP, date, amount, 'Money and fees/Loan interest', { source: 'statement', counterpartyIban: IBAN, categorisedBy: 'rule' })
   const offered = (rows: Parameters<typeof spendingBook>[0], paidLoan: RowLink | null = CAR_LOAN) =>
-    extraPaymentOffers(spendingBook(rows), TARGETS, () => paidLoan).map(({ row: offer, instalment }) => [offer.date, instalment.due])
+    extraPaymentOffers(spendingBook(rows), TARGETS, () => paidLoan).map(({ row: offer, instalment, withInstalment, extra }) => [offer.date, instalment.due, withInstalment, extra])
 
-  it("offers a row its loan's rule filed more than a tenth above the share of the nearest instalment, which another row pays", () => {
-    expect(offered([paysNovember, filed('2026-11-18', -5612.2)])).toEqual([[civil('2026-11-18'), civil('2026-11-15')]])
+  it("offers a row its loan's rule filed more than a tenth above the share of the nearest instalment, which another row pays, as all extra payment", () => {
+    expect(offered([paysNovember, filed('2026-11-18', -5612.2)])).toEqual([[civil('2026-11-18'), civil('2026-11-15'), false, accountMoneyFromAmount(5612.2)]])
   })
 
-  it('leaves out a row near the share, one whose instalment no row pays yet, one below the share and a row of a rule that names no loan', () => {
+  it('offers a row booked in the window of an instalment no row pays yet as paying it too, with what it pays beyond the share', () => {
+    expect(offered([filed('2026-11-18', -5612.2)])).toEqual([[civil('2026-11-18'), civil('2026-11-15'), true, accountMoneyFromAmount(5000)]])
+    expect(offered([filed('2026-11-24', -5612.2)])).toEqual([])
+  })
+
+  it('leaves out a row near the share, one below the share and a row of a rule that names no loan', () => {
     expect(offered([paysNovember, filed('2026-11-18', -640)])).toEqual([])
-    expect(offered([filed('2026-11-18', -5612.2)])).toEqual([])
+    expect(offered([filed('2026-11-18', -640)])).toEqual([])
     expect(offered([paysNovember, filed('2026-11-18', -100)])).toEqual([])
     expect(offered([paysNovember, filed('2026-11-18', -5612.2)], null)).toEqual([])
   })

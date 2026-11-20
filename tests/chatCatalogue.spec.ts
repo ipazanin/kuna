@@ -50,7 +50,7 @@ const COMPANY = companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks())
   acceptance: companyAcceptance(NO_STORE, COMPANY_PORTS, FILE_OPEN),
 })
 const ASSETS_ASSISTANT = assetsAssistant(
-  { status: () => 'none', book: () => null, index: () => 'loading', loans: () => null },
+  { status: () => 'none', book: () => null, index: () => 'loading', loans: () => null, rows: () => [] },
   { proposer: assetsProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: assetsAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) },
 )
 const LOANS_ASSISTANT = loansAssistant(

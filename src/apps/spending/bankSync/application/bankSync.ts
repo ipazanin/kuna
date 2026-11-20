@@ -10,7 +10,7 @@ import { words } from '../domain/words'
 import { writeDryRun } from '../../statements/application/statementWrites'
 import { rowsAfterDryRun, statementDryRun } from '../../statements/domain/statementDryRun'
 import type { StatementDryRun } from '../../statements/domain/statementDryRun'
-import type { InstalmentLinks } from '../../links/domain/instalmentSplit'
+import type { RuleLinks } from '../../links/domain/linkFiling'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import type { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -82,7 +82,7 @@ export interface BankImportPorts {
   asked(read: BankRead): void
   day(): CivilDate
   /** The records in Loans the sync links a new row to, as a rule whose rows pay a loan says, or null where nothing links. */
-  links(): InstalmentLinks | null
+  links(): RuleLinks | null
   /** Epoch milliseconds. */
   now(): number
 }

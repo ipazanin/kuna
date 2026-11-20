@@ -42,7 +42,7 @@ const APPS: readonly { readonly id: string; readonly source: string; readonly as
   {
     id: 'assets',
     source: 'src/apps/assets/overview/presentation/assetsSetUp.ts',
-    assistant: assetsAssistant({ status: () => 'none', book: () => null, index: () => 'loading', loans: () => null }),
+    assistant: assetsAssistant({ status: () => 'none', book: () => null, index: () => 'loading', loans: () => null, rows: () => [] }),
     operations: ASSETS_OPERATIONS,
   },
   {

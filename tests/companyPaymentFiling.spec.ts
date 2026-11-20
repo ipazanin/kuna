@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { linkedEntry, linkFiling } from '../src/apps/spending/links/domain/instalmentSplit'
+import { linkedEntry, linkFiling } from '../src/apps/spending/links/domain/linkFiling'
 import { targetsFor } from '../src/apps/spending/links/domain/linkTarget'
 import type { CompanyMoneyPart, LinkTarget, OwnerAdvanceTarget, OwnerPaymentTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { companyMoneyCategoryIn } from '../src/apps/spending/categories/domain/starterCategories'

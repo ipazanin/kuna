@@ -12,7 +12,7 @@
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-assets <sample, house-and-car, loan-gone or co-owned> [--today yyyy-mm-dd]
  *   npm run check:figures -- --spending <path to a Kuna Spending file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-spending <sample, foreign, over, statements, cash, receipts, company or broker> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-spending <sample, foreign, over, statements, cash, receipts, company, broker or assets> [--today yyyy-mm-dd]
  *
  * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
  * company's, in that order. With two or more, two last groups add them up as Net worth does and split them into its two sides. An Investments file
@@ -178,7 +178,14 @@ import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans.ts
 import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/domain/assetsOnDay.ts'
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
+import { assetTargetsOf } from '../src/apps/assets/asset/application/publishedAssets.ts'
+import { assetRowsFrom } from '../src/apps/assets/rows/application/linkedRows.ts'
+import { paidFromAccounts, yearlyNet } from '../src/apps/assets/rows/domain/assetMoney.ts'
+import { ASSETS_APP } from '../src/apps/assets/workbook/domain/assetsApp.ts'
+import { ASSET_RECORDS } from '../src/apps/assets/workbook/domain/assetKinds.ts'
 import { rowLinksOf } from '../src/apps/spending/facts.ts'
+import { NO_RATES } from '../src/shared/money/rateBook.ts'
+import { keyOfRecordId } from '../src/shared/storage/domain/recordId.ts'
 import { accountOnDay, countedAccounts, euroRows } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals.ts'
 import { labelTotals as companyLabelTotals } from '../src/apps/company/labels/domain/labelTotals.ts'
@@ -263,11 +270,11 @@ if (
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal', 'lending', 'co-owned'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone', 'co-owned'].includes(options['fake-assets'])) ||
-  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts', 'company', 'broker'].includes(options['fake-spending'])) ||
+  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts', 'company', 'broker', 'assets'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal, lending or co-owned>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car, loan-gone or co-owned>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash, receipts, company or broker>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal, lending or co-owned>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car, loan-gone or co-owned>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash, receipts, company, broker or assets>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -488,7 +495,7 @@ const loans = loansAsked ? loansGroups(group) : null
 const personal = [
   ...(loans === null ? [] : [{ name: 'Loans', figures: loans.hub }]),
   ...(investmentsAsked ? [{ name: 'Investments', figures: investmentsGroups(group) }] : []),
-  ...(assetsAsked ? [{ name: 'Assets', figures: assetsGroups(group, loans?.book ?? null) }] : []),
+  ...(assetsAsked ? [{ name: 'Assets', figures: assetsGroups(group, loans?.book ?? null, await assetRowsOfRun()) }] : []),
   ...(spendingAsked ? [{ name: 'Spending', figures: await spendingGroups(group, loans?.book ?? null) }] : []),
 ]
 if (personal.length >= 2) {
@@ -600,7 +607,7 @@ function statementsOfRun() {
   if (options.spending === undefined && options.loans !== undefined) return []
   const document = options.spending === undefined ? fakeSpendingDocument(AT, options['fake-spending'], today) : decodeDocument(readFileSync(options.spending, 'utf8'))
   const { workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
-  return statementPaymentsFrom([{ app: SPENDING_APP, links: rowLinksOf(workbook) }], LOANS_APP)
+  return statementPaymentsFrom([{ app: SPENDING_APP, links: rowLinksOf(workbook, NO_RATES) }], LOANS_APP)
 }
 
 /** The prices file of an Investments input: the fake one for the fake set, the one given, or none. */
@@ -707,7 +714,7 @@ function houseIndexOfInput() {
  * its value on the day with how it was reached, and how its loan stands with what is counted and yours, then the total
  * and Net worth's part. Returns how Net worth reads the file.
  */
-function assetsGroups(add, loansBook) {
+function assetsGroups(add, loansBook, linkedRows) {
   const document = options.assets === undefined ? fakeAssetsDocument(AT, options['fake-assets']) : decodeDocument(readFileSync(options.assets, 'utf8'))
   const { records, workbook } = ASSETS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   // The share changes have a group of their own, so a file with none keeps the records' digest.
@@ -720,14 +727,36 @@ function assetsGroups(add, loansBook) {
   for (const [place, asset] of assetsOnDay(workbook, today, index, loans).entries()) {
     add(`assets.asset-${place + 1}.value`, asset.value)
     add(`assets.asset-${place + 1}.equity`, [asset.link, asset.equity])
+    // An asset no row is linked to as its cost or income has no group, so a file with none keeps its digest.
+    const years = yearlyNet(linkedRows, keyOfRecordId(ASSET_RECORDS, asset.asset.id), today, workbook.assets[place])
+    if (years !== null) add(`assets.asset-${place + 1}.yearly`, years)
   }
   add('assets.totals', () => assetsTotal(workbook, today, index, loans))
+  add('assets.published.targets', () => assetTargetsOf(workbook))
+  // An asset no row is linked to as its purchase has no group, so a file with none keeps its digest.
+  for (const [place, { asset }] of workbook.assets.entries()) {
+    const paid = paidFromAccounts(linkedRows, keyOfRecordId(ASSET_RECORDS, asset.id))
+    if (paid !== null) add(`assets.asset-${place + 1}.paid`, paid)
+  }
   const hub = () => {
     const total = assetsTotal(workbook, today, index, loans)
     return total === null || total === 'opening' ? total : { parts: assetsNetWorthParts(total), notes: [] }
   }
   add('assets.hub', hub)
   return hub
+}
+
+/**
+ * The rows linked to assets an Assets run reads: those of the Spending file the run names, or of the fake Spending set, the
+ * assets set unless the run names another, for a fake Assets set, each at the rates of its day.
+ */
+async function assetRowsOfRun() {
+  if (options.spending === undefined && options.assets !== undefined) return []
+  const fake = options.spending === undefined
+  const document = fake ? fakeSpendingDocument(AT, options['fake-spending'] ?? 'assets', today) : decodeDocument(readFileSync(options.spending, 'utf8'))
+  const { workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
+  const rates = await ratesOfInput(ratesNeeded(workbook), fake)
+  return assetRowsFrom([{ app: SPENDING_APP, links: rowLinksOf(workbook, rates.everyday) }], ASSETS_APP)
 }
 
 /** The rates an input needs as the page holds them: the fake ECB's through the rates file for a fake set, else the rates file given, or none. */
@@ -803,7 +832,7 @@ async function spendingGroups(addGroup, loansBook) {
       accounts.records.map(({ record }) => record.cards),
     )
   add('spending.read.problems', workbook.problems)
-  add('spending.published.links', () => rowLinksOf(workbook))
+  add('spending.published.links', () => rowLinksOf(workbook, rates.everyday))
   const rates = await ratesOfInput(ratesNeeded(workbook), options['fake-spending'] !== undefined)
   for (const [place, account] of workbook.accounts.entries()) {
     const { balance, euros } = accountOnDay(account, workbook.transactions, today, rates.everyday)

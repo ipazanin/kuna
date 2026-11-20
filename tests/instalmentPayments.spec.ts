@@ -65,7 +65,7 @@ describe("how a bank loan's instalments stand against your statements", () => {
 
 describe("the statement rows Loans reads from the shell's linked rows", () => {
   function linked(target: PublishedRowLink['target'], day = '2026-03-04'): PublishedRowLink {
-    return { row: 'row', item: 'row', account: 'account', day: civil(day), amount: accountMoneyOfEuros(euros(-100)), currency: EURO, target }
+    return { row: 'row', item: 'row', account: 'account', day: civil(day), amount: accountMoneyOfEuros(euros(-100)), currency: EURO, euros: euros(-100), counts: 'spending', target }
   }
 
   it('takes the rows any app linked to a Loans instalment, each item on its own, and leaves out other targets', () => {

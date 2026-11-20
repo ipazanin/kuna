@@ -29,10 +29,11 @@ const FIXED = [
   ['For the company', 'Za tvrtku', 'company'],
   ['Loan principal', 'Glavnica kredita', 'repayment'],
   ['Loans to and from people', 'Posudbe', 'informal-loan'],
+  ['Bought assets', 'Kupljena imovina', 'asset'],
 ] as const
 
-// Eleven spending groups with 39 children, Income with 7, and the five fixed categories.
-const STARTER_COUNT = 11 + 39 + 1 + 8 + 5
+// Eleven spending groups with 39 children, Income with 8, and the six fixed categories.
+const STARTER_COUNT = 11 + 39 + 1 + 8 + 6
 
 const downloads: { readonly contents: unknown; readonly fileName: string; readonly type: string }[] = []
 
@@ -165,7 +166,7 @@ describe('the starter categories', () => {
     return categories.filter((category) => category.parent === null).map((group) => [group.name, group.kind, categories.filter((child) => child.parent === group.id).map((child) => child.name)])
   }
 
-  it('are eleven spending groups, Income and the five fixed categories, in English for a first run in English', () => {
+  it('are eleven spending groups, Income and the six fixed categories, in English for a first run in English', () => {
     const tree = treeOf('en')
 
     expect(tree.map(([name]) => name)).toEqual([...ENGLISH_GROUPS, ...FIXED.map(([en]) => en)])
@@ -194,7 +195,7 @@ describe('the starter categories', () => {
     const categories = starterCategories('en')
 
     expect(new Set(categories.map((category) => category.id)).size).toBe(categories.length)
-    expect(categories.filter((category) => category.parent === null).map((category) => category.order)).toEqual(Array.from({ length: 17 }, (_, place) => place + 1))
+    expect(categories.filter((category) => category.parent === null).map((category) => category.order)).toEqual(Array.from({ length: 18 }, (_, place) => place + 1))
     expect(categories.filter((category) => category.parent === categories[0]!.id).map((category) => category.order)).toEqual([1, 2, 3])
     expect(categories.every((category) => category.colour === '' && !category.hidden)).toBe(true)
   })

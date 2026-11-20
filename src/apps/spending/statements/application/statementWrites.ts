@@ -5,7 +5,7 @@ import { itemsAtBankAmount } from '../../entries/domain/entrySplit'
 import { filledByBank } from '../domain/bankBooking'
 import { statementDryRun } from '../domain/statementDryRun'
 import type { StatementDryRun } from '../domain/statementDryRun'
-import type { InstalmentLinks } from '../../links/domain/instalmentSplit'
+import type { RuleLinks } from '../../links/domain/linkFiling'
 import { rulesRerun } from '../domain/spendingCategorisation'
 import type { RowChange, RulesRerun } from '../domain/spendingCategorisation'
 import type { StatementRows } from '../domain/statementRows'
@@ -192,12 +192,12 @@ function writeEditedRules(unit: UnitOfWork, { written }: EditedRules): void {
 }
 
 /** What the edits do to the rows already in the book when they are applied. */
-function editsRerun(book: SpendingBook, edited: EditedRules, links: InstalmentLinks | null): RulesRerun {
+function editsRerun(book: SpendingBook, edited: EditedRules, links: RuleLinks | null): RulesRerun {
   return rulesRerun(book, edited.rules, { links, applying: edited.applying })
 }
 
 /** How many rows already in the book the edits would change when applied, for the person to read before they choose, with the instalments `links` names that a loan rule's rows pay. */
-export function rowsRulesWouldChange(book: SpendingBook, edits: RuleEdits, links: InstalmentLinks | null): number {
+export function rowsRulesWouldChange(book: SpendingBook, edits: RuleEdits, links: RuleLinks | null): number {
   return editsRerun(book, editedRules(book.rules, edits), links).changes.length
 }
 
@@ -206,7 +206,7 @@ export function rowsRulesWouldChange(book: SpendingBook, edits: RuleEdits, links
  * same write as `rulesRerun` says, each rule added or changed reaching every row it decides, and a row a rule whose rows pay a loan
  * files is linked to one of the instalments `links` names. Without it, the rules file only rows that come later.
  */
-export function writeRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, links: InstalmentLinks | null, refile = true): void {
+export function writeRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, links: RuleLinks | null, refile = true): void {
   const edited = editedRules(book.rules, edits)
   writeEditedRules(unit, edited)
   if (refile) writeRerun(unit, book, editsRerun(book, edited, links))
@@ -217,7 +217,7 @@ export function writeRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdit
  * rows in its dry run and, with `refile`, re-file the rows on the file as `writeRules` does, and a row both change is written once. A new row
  * that pays one of the instalments `links` names is linked as the Import screen links it. Gives the dry run.
  */
-export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, statement: StatementRows, day: CivilDate, links: InstalmentLinks, refile = true): StatementDryRun {
+export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, statement: StatementRows, day: CivilDate, links: RuleLinks, refile = true): StatementDryRun {
   const editing = (edits.adding?.length ?? 0) + (edits.changing?.length ?? 0) + (edits.deleting?.length ?? 0) > 0
   const edited = editedRules(book.rules, edits)
   if (editing) writeEditedRules(unit, edited)

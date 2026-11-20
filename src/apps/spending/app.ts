@@ -22,6 +22,7 @@ import { sourceOf, targetsOf } from './links/application/linkTargets'
 import { companyTargets, readMoneyWithOwnerThrough } from './links/application/companyTargets'
 import { loanTargets, readLoanTargetsThrough } from './links/application/loanRecords'
 import { investmentTargets, readCashMovementsThrough } from './links/application/investmentTargets'
+import { readAssetsThrough, ruleAssets } from './links/application/assetTargets'
 import { companyOib, oibToMatch } from './company/application/companyFacts'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
 import { ratesNeeded } from './rates/domain/ratesNeeded'
@@ -67,6 +68,7 @@ export const spendingApp: AppContribution = {
     readMoneyWithOwnerThrough(() => shell.moneyWithOwner())
     readLoanTargetsThrough(() => shell.loanTargets())
     readCashMovementsThrough(() => shell.cashMovements())
+    readAssetsThrough(() => shell.assets())
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
@@ -153,6 +155,7 @@ export const spendingApp: AppContribution = {
       loanTargets,
       companyPayments: () => companyTargets().flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets)),
       cashMovements: () => investmentTargets().flatMap(({ targets }) => (targets === null || typeof targets === 'string' ? [] : targets)),
+      assets: ruleAssets,
     }
     return spendingAssistant(
       {
@@ -169,7 +172,7 @@ export const spendingApp: AppContribution = {
   },
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
-  rowLinks: () => homeCardFigures(state, rowLinksOf),
+  rowLinks: () => homeCardFigures(state, (book) => rowLinksOf(book, everydayRates(rates.value))),
   setUpLines: () => (state.workbook === null ? [] : spendingSetUp(state.workbook)),
   data: spendingData,
   firstRun: () => isFirstRun(state),

@@ -4,6 +4,7 @@ import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 
 import { categoryColours } from '../../categories/presentation/categoryColours'
+import { filedAsBought } from '../../links/domain/linkTarget'
 import { useLinkLines } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
@@ -69,7 +70,7 @@ const days = computed(() => {
       colour: `var(${category === null ? '--chart-deemphasis' : colours.value(category)})`,
       details,
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
-      link: entryLink === null ? null : linkLineOf.value(entryLink, { amount: transaction.amount, currency: account.currency }),
+      link: entryLink === null ? null : linkLineOf.value(entryLink, { amount: transaction.amount, currency: account.currency, bought: filedAsBought(row.items, props.categories) }),
       labels: labelsOf(row.items)
         .flatMap((id) => labelNames.value.get(id) ?? [])
         .join(', '),

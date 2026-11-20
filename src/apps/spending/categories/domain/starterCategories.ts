@@ -148,6 +148,7 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
   { name: ['For the company', 'Za tvrtku'], kind: 'company', children: [] },
   { name: ['Loan principal', 'Glavnica kredita'], kind: 'repayment', children: [] },
   { name: ['Loans to and from people', 'Posudbe'], kind: 'informal-loan', children: [] },
+  { name: ['Bought assets', 'Kupljena imovina'], kind: 'asset', children: [] },
 ]
 
 /**
@@ -190,9 +191,9 @@ export function companyMoneyCategoryIn(
 
 /**
  * The categories a new Spending file starts with, named in the first run's language: eleven spending groups with their
- * children, Income, and the five fixed categories. Travel allowances, the last child of Income, comes last in the list, so
+ * children, Income, and the six fixed categories. Travel allowances, the last child of Income, comes last in the list, so
  * the keys a counting `newKey` gave the others before it joined stay theirs. Every one can be renamed, moved, hidden or deleted later, but the
- * fixed five, which can only be renamed. `newKey` makes each category's bare UUID.
+ * fixed six, which can only be renamed. `newKey` makes each category's bare UUID.
  */
 export function starterCategories(language: Language, newKey: () => string = newRecordId): Category[] {
   const categories = STARTER_GROUPS.flatMap((group, groupPlace) => {

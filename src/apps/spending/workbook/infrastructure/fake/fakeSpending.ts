@@ -39,7 +39,7 @@ import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastru
 import type { Transaction } from '../../domain/transaction'
 import type { RowLink } from '../../domain/rowLink'
 import { spendingDocumentOf } from '../spendingDocument'
-import { FAKE_HOME_LOAN_IBAN, fakeHomeLoanShare } from './fakeHomeLoan'
+import { FAKE_HOME_LOAN_IBAN, fakeHomeLoanShare, latestFakeHomeLoanDue } from './fakeHomeLoan'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { recipeStatement } from '../../../statements/domain/recipeStatement'
 import { fakeRecipes } from './fakeRecipes'
@@ -50,9 +50,10 @@ import { BANK_SYNC_KEY_PREFIX, transcribedImportKeys } from '../../../statements
 import { BANK_SYNC_LABEL } from '../../../bankSync/domain/bankSyncRows'
 import { FAKE_HOME_LOAN, FAKE_HOME_LOAN_EXTRA_PAYMENT, FAKE_MARKO_REPAID } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
 import { fakePaidDepositDay } from '../../../../../shared/storage/infrastructure/fake/fakeInvestmentKeys'
+import { FAKE_BOAT, FAKE_CAR, FAKE_PLOT } from '../../../../../shared/storage/infrastructure/fake/fakeAssetKeys'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { addMonths, firstDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
+import { addMonths, firstDayOf, monthKey, monthOf, yearOfMonth } from '../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 import { accountMoneyFromAmount, subtractAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../../shared/money/accountMoney'
 import { EURO, currencyCodeOf } from '../../../../../shared/money/currencyCode'
@@ -80,7 +81,7 @@ import { language } from '../../../../../shared/text/language'
  * holds two events: a trip to Prague of five days that runs over the day, with its rows, a flight bought last month put in it and a
  * subscription on its days taken out, and longer autumn holidays over Prague's days and a fuel row before them. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people' | 'company' | 'company-before-roles' | 'broker'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people' | 'company' | 'company-before-roles' | 'broker' | 'assets'
 
 const GBP = currencyCodeOf('GBP')!
 
@@ -145,6 +146,7 @@ const HOME_DOLLARS = fixedId(ACCOUNT_RECORDS, 1006)
 const TRAVEL_DOLLARS = fixedId(ACCOUNT_RECORDS, 1007)
 const REVOLUT_GBP = fixedId(ACCOUNT_RECORDS, 1008)
 const PERSONAL = fixedId(ACCOUNT_RECORDS, 1009)
+const HOME_ACCOUNT = fixedId(ACCOUNT_RECORDS, 1010)
 
 const BOSTON_TRIP = fixedId(LABEL_RECORDS, 2001)
 const NEW_FLAT = fixedId(LABEL_RECORDS, 2002)
@@ -196,6 +198,7 @@ const BALANCES: Readonly<Record<string, number>> = {
   [TRAVEL_DOLLARS]: 10,
   [REVOLUT_GBP]: 80,
   [PERSONAL]: 4_200,
+  [HOME_ACCOUNT]: 2_600,
 }
 
 /** What each account holds on the day in the over set, whose OTP current has gone 240.00 below zero as well. */
@@ -242,6 +245,68 @@ const PHARMACY_IBAN = 'HR1100000000000000099'
 /** What the broker set adds to the sample: a transfer to a broker waiting on To review, which the fake Investments deposit two days later takes with 2.32 less arrived. */
 function brokerRow(day: CivilDate): FakeRow {
   return statementRow(1740, OTP, addDays(fakePaidDepositDay(day), -2), -1000, 'Example Broker', { description: 'Example Broker deposit' })
+}
+
+/** The account the assets set pays its assets' costs from, opened two years before the day so last year is a full year of rows. */
+function homeAccount(day: CivilDate): Account {
+  return {
+    id: HOME_ACCOUNT,
+    name: 'Home account',
+    kind: 'bank',
+    bank: null,
+    currency: EURO,
+    opening: ZERO_ACCOUNT_MONEY,
+    openedOn: firstDayOf(addMonths(monthOf(day), -24)),
+    rowsFrom: 'by-hand',
+    alsoFrom: [],
+    iban: '',
+    cards: [],
+    closed: false,
+  }
+}
+
+/**
+ * What the assets set adds to the sample on its own account, all made up: last year the car's insurance, charter money the boat
+ * earned and its marina, this year the car's insurance and charter money again, each linked to its asset in the fake Assets file
+ * and filed under its own category, the notary for the plot linked as part of what it cost under Bought assets, a car service
+ * split by hand into the repair and a coffee, and two rows waiting on To review: the car's insurance and the plot's land registry
+ * fee, all three early in the day's month.
+ */
+function assetRows(day: CivilDate, idOf: (path: string) => RecordId): { readonly rows: readonly FakeRow[]; readonly lines: readonly TransactionItem[] } {
+  const year = yearOfMonth(monthOf(day))
+  const on = (yearsBack: number, month: number, dayOfTheMonth: number): CivilDate => dayIn(monthKey(year - yearsBack, month), dayOfTheMonth, day)
+  const asset = (key: string): RowLink => ({ app: 'assets', kind: 'asset', key, due: null })
+  const filed = (place: number, date: CivilDate, amount: number, payee: string, category: string, key: string): FakeRow =>
+    statementRow(place, HOME_ACCOUNT, date, amount, payee, { category: idOf(category), categorisedBy: 'person', link: asset(key) })
+  const service = fixedId(TRANSACTION_RECORDS, 1767)
+  const part = (place: number, amount: number, category: string): TransactionItem => ({
+    id: fixedId(ITEM_RECORDS, place),
+    transaction: service,
+    receipt: null,
+    printed: '',
+    note: '',
+    amount: accountMoneyFromAmount(amount),
+    category: idOf(category),
+    link: null,
+    labels: [],
+    ruleLabels: [],
+    splitByLink: false,
+    event: BY_DAYS,
+  })
+  return {
+    rows: [
+      filed(1760, on(1, 1, 20), -420, 'Example Insurance', 'Transport/Car registration and insurance', FAKE_CAR),
+      filed(1761, on(1, 7, 15), 1_200, 'Charter guests', 'Income/Other income', FAKE_BOAT),
+      filed(1762, on(1, 9, 1), -650, 'Example Marina', 'Other/Other', FAKE_BOAT),
+      filed(1763, on(0, 1, 20), -440, 'Example Insurance', 'Transport/Car registration and insurance', FAKE_CAR),
+      filed(1764, on(0, 6, 10), 900, 'Charter guests', 'Income/Other income', FAKE_BOAT),
+      filed(1765, dayIn(addMonths(monthOf(day), -1), 5, day), -380, 'Example Notary', 'Bought assets', FAKE_PLOT),
+      statementRow(1766, HOME_ACCOUNT, dayIn(monthOf(day), 2, day), -62.4, 'Example Insurance', { description: 'Example Insurance roadside cover' }),
+      statementRow(1767, HOME_ACCOUNT, dayIn(monthOf(day), 1, day), -300, 'Example Car Service', { category: idOf('Transport/Car service and repairs'), categorisedBy: 'person' }),
+      statementRow(1768, HOME_ACCOUNT, dayIn(monthOf(day), 3, day), -95, 'Land registry', { description: 'Land registry fee' }),
+    ],
+    lines: [part(1769, -260, 'Transport/Car service and repairs'), part(1770, -40, 'Food/Eating out')],
+  }
 }
 
 /** What the people set adds to the sample, all made up: a payment to a person, with her IBAN and address in the bank's text, and a row whose text tries to give the assistant orders. */
@@ -392,6 +457,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
  * waiting for a category, and three months back's filed by hand. Neither is linked yet, so To review offers both. Two months
  * back an early repayment to the loan's IBAN, which its rule filed whole above the instalment another row pays, so To review
  * offers to record it as an extra payment.
+ * On the latest due date one debit to the loan's IBAN pays the instalment and an extra payment, which To review offers to record and split.
  */
 function homeLoanRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
   const [lastMonth, threeBack] = [addMonths(monthOf(day), -1), addMonths(monthOf(day), -3)]
@@ -405,6 +471,12 @@ function homeLoanRows(day: CivilDate, idOf: (path: string) => RecordId): readonl
     }),
     statementRow(1732, OTP, dayIn(twoBack, 22, day), -5000, 'Example Bank', {
       description: 'Example Bank early repayment',
+      counterpartyIban: FAKE_HOME_LOAN_IBAN,
+      category: idOf('Money and fees/Loan interest'),
+      categorisedBy: 'rule',
+    }),
+    statementRow(1733, OTP, latestFakeHomeLoanDue(day), -(fakeHomeLoanShare(monthOf(latestFakeHomeLoanDue(day))) + 3000), 'Example Bank', {
+      description: 'Example Bank instalment and early repayment',
       counterpartyIban: FAKE_HOME_LOAN_IBAN,
       category: idOf('Money and fees/Loan interest'),
       categorisedBy: 'rule',
@@ -748,6 +820,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       : []),
     ...(set === 'cash' ? cashSetAccounts(openedOn, rowsFrom) : []),
     ...(set === 'company' || set === 'company-before-roles' ? [personalAccount(rowsFrom)] : []),
+    ...(set === 'assets' ? [homeAccount(day)] : []),
   ]
   const shown = set === 'foreign' ? accounts.filter((account) => account.id === REVOLUT_USD) : accounts
   const rows: Row[] =
@@ -777,6 +850,8 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
   if (set === 'receipts') transactions.push(...receiptRows(day, idOf), ...(bankSync === null ? [] : kioskRows(day, idOf)))
   if (set === 'people') transactions.push(...peopleRows(day, idOf))
   if (set === 'broker') transactions.push(brokerRow(day))
+  const assetEntries = set === 'assets' ? assetRows(day, idOf) : { rows: [], lines: [] }
+  transactions.push(...assetEntries.rows)
   if (set === 'company' || set === 'company-before-roles') transactions.push(...companyRows(day, idOf))
   if (set !== 'foreign') {
     const [out, into] = [fixedId(TRANSACTION_RECORDS, 1501), fixedId(TRANSACTION_RECORDS, 1502)]
@@ -852,7 +927,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
     },
     rows: transactions,
-    lines: [...receipts.lines, ...loanEntries.lines],
+    lines: [...receipts.lines, ...loanEntries.lines, ...assetEntries.lines],
   }
 }
 

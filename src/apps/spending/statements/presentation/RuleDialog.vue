@@ -22,7 +22,8 @@ import { newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
 import { loanTargets } from '../../links/application/loanRecords'
 import { paidLoansIn } from '../../links/domain/linkTarget'
-import { loanLinks } from '../../links/presentation/loanLinks'
+import { ruleLinks } from '../../links/presentation/ruleLinks'
+import { ruleAssets } from '../../links/application/assetTargets'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
@@ -83,18 +84,29 @@ const goesToItems = computed(() => [
   { value: CASH_BY_CURRENCY, label: words.rules.dialog.cashByCurrency },
   ...cashAccounts.value.map((account) => ({ value: account.id, label: account.name, description: account.currency })),
 ])
+/** The assets the rows may be linked to, by name, after the loans. */
+const assetItems = computed(() =>
+  ruleAssets()
+    .targets.flatMap((target) => (target.kind === 'asset' ? [target] : []))
+    .sort((one, other) => one.name.localeCompare(other.name))
+    .map((asset) => ({ value: rowLinkText(asset.link), label: asset.name })),
+)
+
 /**
- * The bank loans Loans has a plan of, and the loan the rule names though Loans no longer has it, so changing the rule does not
- * drop it. While Loans cannot be read the field is left out, and the rule keeps the loan it names.
+ * The bank loans Loans has a plan of, then the assets, and the record the rule names though its app no longer has it, so
+ * changing the rule does not drop it. While neither can be read the field is left out, and the rule keeps the record it names.
  */
-const loanItems = computed(() => {
+const linkItems = computed(() => {
   const targets = loanTargets()
-  if (targets === null || typeof targets === 'string') return []
-  const loans = paidLoansIn(targets)
+  const loans = targets === null || typeof targets === 'string' ? [] : paidLoansIn(targets).map((loan) => ({ value: rowLinkText(loan.link), label: loan.loanName }))
+  const shown = [...loans, ...assetItems.value]
+  if (shown.length === 0) return []
   const named = props.rule?.link ?? null
-  const kept = named === null || loans.some((loan) => rowLinkText(loan.link) === rowLinkText(named)) ? [] : [{ value: rowLinkText(named), label: words.rules.paysGone }]
-  return [...loans.map((loan) => ({ value: rowLinkText(loan.link), label: loan.loanName })), ...kept]
+  const kept = named === null || shown.some((item) => item.value === rowLinkText(named)) ? [] : [{ value: rowLinkText(named), label: words.rules.paysGone }]
+  return [...shown, ...kept]
 })
+/** Whether the record picked is an asset, whose rows keep the category whole. */
+const linksAsset = computed(() => assetItems.value.some((item) => item.value === pays.value))
 const link = computed((): RowLink | null => (pickedCategory.value === null || isTransfer.value || pays.value === NO_LOAN ? null : rowLinkOf(pays.value)))
 const withdrawal = computed((): RuleWithdrawal | null =>
   !isTransfer.value || goesTo.value === ANOTHER_ACCOUNT ? null : { cashAccount: cashAccounts.value.find((account) => account.id === goesTo.value)?.id ?? null },
@@ -178,7 +190,7 @@ async function save(): Promise<void> {
   const added = created.value.filter((label) => labels.value.includes(label.id))
   const alongside = (unit: UnitOfWork): void => added.forEach((label) => addLabel(unit, label))
   const written = rule === null && !changesHeldRule(current.rules, edits) ? words.rules.dialog.saved : words.rules.dialog.changed
-  if (rowsRulesWouldChange(current, edits, loanLinks()) > 0) {
+  if (rowsRulesWouldChange(current, edits, ruleLinks()) > 0) {
     asking.value = { edits, choice: 'apply', title: words.rules.apply.title, written, alongside }
     return
   }
@@ -186,7 +198,7 @@ async function save(): Promise<void> {
     written,
     (unit) => {
       alongside(unit)
-      writeRules(unit, current, edits, loanLinks())
+      writeRules(unit, current, edits, ruleLinks())
     },
     { failedTitle: spendingWords.form.notSaved },
   )
@@ -232,7 +244,7 @@ function removeCondition(place: number): void {
           @click="conditions = [...conditions, conditionField()]"
         />
       </section>
-      <UFormField :label="link === null ? words.rules.dialog.category : words.rules.dialog.interestUnder" :error="(tried && errors.category) || false">
+      <UFormField :label="link === null || linksAsset ? words.rules.dialog.category : words.rules.dialog.interestUnder" :error="(tried && errors.category) || false">
         <USelectMenu v-model="picked" :items="categoryItems" value-key="value" :placeholder="words.rules.dialog.pickCategory" class="w-full" data-testid="spending-rule-dialog-category">
           <template v-if="pickedCategory !== null" #default>
             <span class="truncate">{{ namedWithGroup(pickedCategory) }}</span>
@@ -242,10 +254,14 @@ function removeCondition(place: number): void {
       <UFormField v-if="isTransfer" :label="words.rules.dialog.goesTo" :help="words.rules.dialog.goesToHelp">
         <USelectMenu v-model="goesTo" :items="goesToItems" value-key="value" :search-input="false" class="w-full" data-testid="spending-rule-dialog-goes-to" />
       </UFormField>
-      <UFormField v-if="loanItems.length > 0 && pickedCategory !== null && !isTransfer" :label="words.rules.dialog.pays" :help="link === null ? '' : words.rules.dialog.paysHelp">
+      <UFormField
+        v-if="linkItems.length > 0 && pickedCategory !== null && !isTransfer"
+        :label="words.rules.dialog.pays"
+        :help="link === null ? '' : linksAsset ? words.rules.dialog.assetHelp : words.rules.dialog.paysHelp"
+      >
         <USelectMenu
           v-model="pays"
-          :items="[{ value: NO_LOAN, label: words.rules.dialog.noLoan }, ...loanItems]"
+          :items="[{ value: NO_LOAN, label: words.rules.dialog.noLoan }, ...linkItems]"
           value-key="value"
           :search-input="false"
           class="w-full"

@@ -5,9 +5,12 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { Money } from '../../../../shared/money/money'
 import type { Account } from '../../workbook/domain/account'
+import type { Category } from '../../workbook/domain/category'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { rowLinkText } from '../../workbook/domain/rowLink'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import { holdsLink } from '../../workbook/domain/rowItems'
-import { normaliseIban } from '../../../../shared/text/fold'
+import { fold, normaliseIban } from '../../../../shared/text/fold'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 
@@ -120,6 +123,47 @@ export interface CashMovementTarget {
   readonly amount: Money
 }
 
+/** What an asset in Assets is: a flat or house, a car, or anything else. */
+export type AssetKind = 'home' | 'car' | 'other'
+
+/** What a row's money is for an asset: its purchase, a cost of owning it, or income it earned. */
+export const ASSET_USES = ['bought', 'cost', 'income'] as const
+
+export type AssetUse = (typeof ASSET_USES)[number]
+
+/** Something you own in Assets, which a row can be the purchase of, a cost of or income from. */
+export interface AssetTarget {
+  readonly kind: 'asset'
+  readonly link: RowLink
+  readonly name: string
+  readonly assetKind: AssetKind
+  readonly bought: CivilDate | null
+  /**
+   * What the row's money is for it, as the picker or the chat offers it. Absent on the asset as Assets publishes it and as a
+   * rule names it, where the row's category tells: Bought assets for its purchase, any other for a cost or income.
+   */
+  readonly use?: AssetUse
+  /** For a cost or income, the category a part waiting for one goes under as it links. */
+  readonly category?: RecordId
+  /** For a cost or income on an entry with parts, the parts that link, all of them when absent. */
+  readonly parts?: readonly RecordId[]
+}
+
+/**
+ * What a row's money is for the asset its parts link to: its purchase when the picker or the chat said so or the parts are filed
+ * under Bought assets, else a cost for money out and income for money in.
+ */
+export function assetUseOf(target: AssetTarget, row: Pick<Transaction, 'amount'>, bought: boolean): AssetUse {
+  if (target.use !== undefined) return target.use
+  return bought ? 'bought' : row.amount < 0 ? 'cost' : 'income'
+}
+
+/** Whether any of the parts is filed under Bought assets. */
+export function filedAsBought(items: readonly Pick<TransactionItem, 'category'>[], categories: readonly Pick<Category, 'id' | 'kind'>[]): boolean {
+  const bought = new Set(categories.filter((category) => category.kind === 'asset').map((category) => category.id))
+  return items.some((item) => item.category !== null && bought.has(item.category))
+}
+
 /** The kinds of money from your company that are an employee's pay. A trip's allowances and other tax-free pay are paid for work as salary is. */
 const PAY: ReadonlySet<CompanyMoney> = new Set(['salary', 'travel-allowance', 'tax-free-pay'])
 
@@ -133,13 +177,13 @@ export function isPayLink(read: LinkState<LinkTarget>): boolean {
 }
 
 /** A record in another app that a row can be. */
-export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget | CompanyTarget | CashMovementTarget
+export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget | CompanyTarget | CashMovementTarget | AssetTarget
 
 /** A record in a company app that a row can be: a payment between the company and you, or a cost you paid for it. */
 export type CompanyTarget = OwnerPaymentTarget | OwnerAdvanceTarget
 
-/** Which kind of app a link names: Loans with its loans, a company app with its money with the owner, or Investments with its brokers' accounts. Its words for a link it cannot show depend on it. */
-export type TargetSource = 'loans' | 'company' | 'investments'
+/** Which kind of app a link names: Loans with its loans, a company app with its money with the owner, Investments with its brokers' accounts, or Assets with what you own. Its words for a link it cannot show depend on it. */
+export type TargetSource = 'loans' | 'company' | 'investments' | 'assets'
 
 /** An app's targets, a wait while its file opens, a failure, or null while the app is not set up on this device. */
 export type AppTargets<Target> = readonly Target[] | 'opening' | 'failed' | null
@@ -230,6 +274,23 @@ export function mayAddToCompany(row: Pick<Transaction, 'amount'>, currency: Curr
   return row.amount < 0 && currency === EURO && !holdsLink(items)
 }
 
+/**
+ * The category of Company a cost you add from an entry starts with: that of Company's newest cost you paid, or else the one
+ * whose name the entry's payee holds, or none. The person can still pick another.
+ */
+export function startingCostCategory<Cost extends { readonly name: string }>(
+  costs: readonly Cost[],
+  advances: readonly Pick<OwnerAdvanceTarget, 'day' | 'categoryName'>[],
+  payee: string,
+): Cost | null {
+  // Company publishes its categories to Spending by name alone, so a name is all there is to match by.
+  const newest = [...advances].sort((earlier, later) => later.day.localeCompare(earlier.day))[0]
+  const lastUsed = newest === undefined ? undefined : costs.find((cost) => cost.name === newest.categoryName)
+  if (lastUsed !== undefined) return lastUsed
+  const paidTo = fold(payee)
+  return costs.find((cost) => fold(cost.name) !== '' && paidTo.includes(fold(cost.name))) ?? null
+}
+
 /** The targets within half a month of the day, nearest first. */
 function nearest<Target>(targets: readonly Target[], day: CivilDate, dayOf: (target: Target) => CivilDate): readonly Target[] {
   return targets
@@ -250,6 +311,7 @@ export function maybeCompanyPayment(row: Pick<Transaction, 'amount'>, account: P
  * then the movements its money can be as `movementKindsFor` has it, then for money out of a euro account the extra payments,
  * then the payments between your company and you that `maybeCompanyPayment` lets it be, then for money out the costs you paid
  * for your company, then the deposits for money out and the withdrawals for money in that `movedInTime` lets it be, nearest first.
+ * Last come the assets by name, whatever their day: for money out each as its purchase and as a cost of it, and for money in as income from it.
  */
 export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'date' | 'amount'>, account: Pick<Account, 'currency' | 'iban'>, targets: readonly Target[]): readonly Target[] {
   const { currency } = account
@@ -260,7 +322,7 @@ export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'da
   const payments = targets.filter((target) => target.kind === 'owner-payment' && maybeCompanyPayment(row, account, target))
   const advances = out ? targets.filter((target) => target.kind === 'owner-advance') : []
   const cashMovements = targets.filter((target) => target.kind === 'cash-movement' && movedInTime(row, target))
-  const dayOf = (target: Target): CivilDate => (target.kind === 'instalment' ? target.due : target.kind === 'informal-loan' ? row.date : target.day)
+  const dayOf = (target: Target): CivilDate => (target.kind === 'instalment' ? target.due : target.kind === 'informal-loan' || target.kind === 'asset' ? row.date : target.day)
   return [
     ...nearest(instalments, row.date, dayOf),
     ...nearest(movements, row.date, dayOf),
@@ -268,5 +330,20 @@ export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'da
     ...nearest(payments, row.date, dayOf),
     ...nearest(advances, row.date, dayOf),
     ...nearest(cashMovements, row.date, dayOf),
+    ...assetUses(targets, out),
   ]
+}
+
+/** The assets among the targets by name, each with the uses money out or money in can have for it. */
+function assetUses<Target extends LinkTarget>(targets: readonly Target[], out: boolean): readonly Target[] {
+  const uses: readonly AssetUse[] = out ? ['bought', 'cost'] : ['income']
+  return targets
+    .filter((target) => target.kind === 'asset')
+    .sort((one, other) => (one.kind === 'asset' && other.kind === 'asset' ? one.name.localeCompare(other.name) : 0))
+    .flatMap((target) => uses.map((use): Target => ({ ...target, use })))
+}
+
+/** A key that tells a target apart in a picker, where an asset comes once for each use. */
+export function choiceKeyOf(target: LinkTarget): string {
+  return target.kind === 'asset' && target.use !== undefined ? `${rowLinkText(target.link)}#${target.use}` : rowLinkText(target.link)
 }
