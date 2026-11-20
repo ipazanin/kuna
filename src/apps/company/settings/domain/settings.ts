@@ -59,6 +59,8 @@ export interface Settings {
   readonly invoicing: InvoicingTerms
   /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
   readonly importProfiles: readonly ImportProfile[]
+  /** Whether each sync reads the bank's statement mail, while a sender and a subject are named. Kuna settings can turn it off for every app's mail at once. */
+  readonly statementsMail: boolean
   /** The addresses the bank mails statements from, in lower case. None leaves the bank's mail unread. */
   readonly statementsMailFrom: readonly string[]
   /** The phrase before the statement number in the subject of the bank's statement mail. Blank leaves the bank's mail unread. */
@@ -190,6 +192,7 @@ export const DEFAULT_SETTINGS: Settings = {
     reverseChargeNote: DEFAULT_REVERSE_CHARGE_NOTE,
   },
   importProfiles: [],
+  statementsMail: true,
   statementsMailFrom: [],
   statementsMailSubject: '',
   personPayees: [],
@@ -423,6 +426,9 @@ export const CLIENT_PAYMENTS_PLACED_KEY = 'client_payments_placed'
 /** The key of the Drive folder travel orders are filed under. Only Google's Picker sets it. */
 export const TRIP_FOLDER_KEY = 'trip_folder_id'
 
+/** The key of the switch that reads the bank's statement mail. A blank cell reads as on. */
+export const STATEMENTS_MAIL_KEY = 'statements_mail'
+
 /** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
 export const PERSON_PAYEES_KEY = 'person_payees'
 
@@ -538,6 +544,17 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     type: 'text',
     valueOf: (settings) => settings.tripFolderId,
     apply: (settings, value) => ({ ...settings, tripFolderId: value.trim() }),
+  },
+  {
+    key: STATEMENTS_MAIL_KEY,
+    label: words.settingLabels.statementsMail,
+    note: 'TRUE, or blank, reads the bank’s statement mail on each sync while a sender and a subject are set. FALSE stops it, and Kuna then asks Google for no Gmail access for it.',
+    type: 'flag',
+    valueOf: (settings) => flagText(settings.statementsMail),
+    apply: (settings, value) => {
+      const on = booleanOf(value)
+      return on === null ? words.settings.notAFlag(value) : { ...settings, statementsMail: on }
+    },
   },
   {
     key: 'statements_mail_from',

@@ -16,6 +16,11 @@ import { writeImport } from '../application/importStatements'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import { filedTitle, stillHeld } from '../application/statementSync'
 import DryRunStatementCard from './DryRunStatementCard.vue'
+import { passOverHeldStatement } from '../application/heldStatementWrites'
+import type { DryRunStatement } from '../domain/importDryRun'
+import { isHeldStatement, waitingStatements } from '../../workbook/domain/heldStatements'
+import type { HeldStatement } from '../../workbook/domain/heldStatements'
+import { today } from '../../../../shared/calendar/civilDate'
 import { useDryRun } from './useDryRun'
 import { useStatementSync } from './useStatementSync'
 import { words } from './words'
@@ -27,12 +32,27 @@ const names = useDisplayNames()
 
 const outcome = computed(() => statements.state.outcome)
 
-const heldReadings = computed(() => outcome.value?.held ?? [])
+const heldReadings = statements.waiting
 // The held statements are the bank's own mail, so they go on an account the bank's statements fill, and an account named here takes them.
 const starts = useDryRun(heldReadings, 'automation')
 const { dryRun, started, typedOpenings, accountNames, accountNameProblems } = starts
 
 const held = computed(() => dryRun.value?.statements.filter(stillHeld) ?? [])
+
+/** The record that keeps a held statement in the books, while it waits. */
+function recordOf(statement: DryRunStatement): HeldStatement | null {
+  return waitingStatements(store.state.workbook?.heldStatements ?? []).find((record) => isHeldStatement(record, { attachment: statement.fileName, label: statement.label })) ?? null
+}
+
+/** Passes the statement over, so the card leaves it out and the mail search stops reaching back to it. Undo brings it back. */
+async function passOver(statement: DryRunStatement): Promise<void> {
+  const record = recordOf(statement)
+  if (record === null) return
+  await writes.write(words.mailed.passedOver(statement.label), (unit) => passOverHeldStatement(unit, record, today()), {
+    failedTitle: words.mailed.notPassedOver,
+    key: `pass-over-${record.id}`,
+  })
+}
 
 /** What the last sync filed that is on the ledger still, so Undo takes a statement off the list. */
 const filed = computed(() => {
@@ -94,7 +114,22 @@ async function confirm(): Promise<void> {
       @update:started="starts.start(statement.account, $event)"
       @update:typed-opening="starts.typeOpening(statement.account, $event)"
       @update:account-name="statement.newAccount && starts.nameAccount(statement.newAccount.iban, $event)"
-    />
+    >
+      <template v-if="recordOf(statement)" #actions>
+        <UButton
+          :label="words.mailed.passOver"
+          icon="i-lucide-eye-off"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          :loading="writes.saving(`pass-over-${recordOf(statement)!.id}`)"
+          :disabled="writes.refused.value"
+          :aria-label="words.mailed.passOverNamed(statement.label)"
+          data-testid="mailed-statement-pass-over"
+          @click="passOver(statement)"
+        />
+      </template>
+    </DryRunStatementCard>
 
     <div v-if="held.length && (dryRun?.newRows ?? 0) > 0" class="flex justify-end">
       <UButton

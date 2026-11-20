@@ -5,6 +5,7 @@ import type { BillingItem } from './billingPlan'
 import type { CategoryRecord } from './categoriesReading'
 import type { ClientRecord } from './clientsReading'
 import type { Dismissal } from './dismissals'
+import type { HeldStatement } from './heldStatements'
 import type { LedgerEntry } from './ledgerReading'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
 import type { ItemRecord } from './splitsReading'
@@ -55,6 +56,10 @@ export const ITEM_RECORDS = recordKind<ItemRecord>('item', {
 export const DISMISSAL_RECORDS = recordKind<Dismissal>('dismissal', {
   en: { one: 'dismissed suggestion', many: 'dismissed suggestions', article: 'a' },
   hr: { one: 'odbačeni prijedlog', of: 'odbačenog prijedloga', few: 'odbačena prijedloga', other: 'odbačenih prijedloga', gender: 'masculine' },
+})
+export const HELD_STATEMENT_RECORDS = recordKind<HeldStatement>('held-statement', {
+  en: { one: 'held statement', many: 'held statements', article: 'a' },
+  hr: { one: 'zadržani izvod', of: 'zadržanog izvoda', few: 'zadržana izvoda', other: 'zadržanih izvoda', gender: 'masculine' },
 })
 export const LABEL_RECORDS = recordKind<Label>('label', {
   en: { one: 'label', many: 'labels', article: 'a' },

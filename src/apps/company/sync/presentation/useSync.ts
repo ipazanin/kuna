@@ -6,7 +6,7 @@ import type { AccessNeed } from '../../../../shared/sync/application/syncRun'
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync'
 import { mailDraftsOn } from '../../invoicing/infrastructure/mailDraftSwitch'
-import { mailNeeds, useMailSync } from '../../mail/presentation/useMailSync'
+import { mailNeeds, statementMailStep } from '../../mail/presentation/useMailSync'
 import { BOOKS_FILE_LINK } from '../../settings/presentation/settingsTabs'
 import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbookStatus.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -29,7 +29,7 @@ function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
 export function companySyncGroup(): AppSyncGroup {
   const store = useWorkbook()
   const writes = useRecordWrites(store)
-  const steps = [useMailSync().step, secretsStep(assistAllowedNow)]
+  const steps = [statementMailStep(writes), secretsStep(assistAllowedNow)]
   return {
     store,
     steps: () => steps,

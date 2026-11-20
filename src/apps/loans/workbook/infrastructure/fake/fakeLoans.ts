@@ -338,3 +338,9 @@ export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample')
     },
   }
 }
+
+/** `house-and-car` with the car loan named as the home loan is, so Net worth's debt ring holds two slices of one name, each of which opens its own loan. */
+export function fakeTwinNamedLoansDocument(savedAt: string): WorkbookDocument {
+  const houseAndCar = fakeLoansDocument(savedAt, 'house-and-car')
+  return { ...houseAndCar, records: { ...houseAndCar.records, ...stored(BANK_LOAN_RECORDS, [HOME_LOAN, { ...CAR_LOAN, name: HOME_LOAN.name }]) } }
+}

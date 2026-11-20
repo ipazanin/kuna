@@ -39,10 +39,10 @@ vi.mock('../src/apps/company/workbook/application/workbookStore', () => ({
   }),
 }))
 vi.mock('../src/apps/company/workbook-files/presentation/LocalWorkbookStatus.vue', () => ({ default: {} }))
-vi.mock('../src/apps/company/mail/presentation/useMailSync', () => ({ useMailSync: () => ({ step: { id: 'mail' } }), mailNeeds: () => [] }))
+vi.mock('../src/apps/company/mail/presentation/useMailSync', () => ({ statementMailStep: () => ({ id: 'mail' }), mailNeeds: () => [] }))
 vi.mock('../src/shared/storage/presentation/useRecordWrites', () => ({ useRecordWrites: () => ({ undo: async () => {} }) }))
 vi.mock('../src/apps/investments/prices/presentation/usePrices', () => ({ PRICES_STEP: { id: 'prices' } }))
-vi.mock('../src/apps/investments/mail/presentation/useMailReports', () => ({ MAIL_STEP: { id: 'ibkr-mail', label: 'IBKR report' }, MAIL_SCOPE: 'gmail.readonly' }))
+vi.mock('../src/apps/investments/mail/presentation/useMailReports', () => ({ mailReportStep: () => ({ id: 'ibkr-mail', label: 'IBKR report', scopes: () => [] }) }))
 vi.mock('../src/apps/investments/workbook/presentation/LocalInvestmentsStatus.vue', () => ({ default: {} }))
 vi.mock('../src/apps/loans/workbook/presentation/LocalLoansStatus.vue', () => ({ default: {} }))
 
@@ -120,12 +120,12 @@ describe('Get it from Google on the assistant card', () => {
 })
 
 describe('the Investments part of the sync', () => {
-  it('runs the keys before the prices, so the day fetch has a key another browser saved', () => {
+  it('runs the keys before the prices, so the day fetch has a key another browser saved, and lists IBKR’s mail last', () => {
     expect(
       investmentsSyncGroup()
         .steps()
         .map((step) => step.id),
-    ).toEqual(['secrets', 'prices'])
+    ).toEqual(['secrets', 'prices', 'ibkr-mail'])
   })
 
   it('wants the keys once a holding is priced through a vendor that needs a key', () => {

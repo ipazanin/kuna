@@ -21,6 +21,7 @@ export function emptyCompany(changes: Partial<Workbook> = {}): Workbook {
     labels: [],
     itemLabels: new Map(),
     dismissals: [],
+    heldStatements: [],
     settings: DEFAULT_SETTINGS,
     packParts: {},
     problems: [],

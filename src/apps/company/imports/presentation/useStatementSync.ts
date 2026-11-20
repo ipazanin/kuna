@@ -9,6 +9,8 @@ import { dryRunFor } from '../application/importStatements'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import { fileNewStatements, stillHeld } from '../application/statementSync'
 import type { StatementSyncOutcome, StatementSyncStep } from '../application/statementSync'
+import { notPassedOver } from '../application/heldStatementWrites'
+import type { MailedStatement } from '../application/heldStatementWrites'
 import type { DryRunStatement } from '../domain/importDryRun'
 import type { StatementReading } from '../domain/importedStatement'
 import { REVIEW_LINK } from '../../transactions/presentation/transactionsLinks'
@@ -28,10 +30,12 @@ function lineOf(step: StatementSyncStep): string {
 
 export interface StatementSync {
   readonly state: Readonly<StatementSyncState>
+  /** The statements the last sync held that the person has not passed over since. */
+  readonly waiting: ComputedRef<readonly StatementReading[]>
   /** The statements the last sync held, as they stand against the workbook on screen now, or null. */
   readonly held: ComputedRef<readonly DryRunStatement[] | null>
-  /** Files the statements a sync read, keeps what it did for the page, and says it as the sync step's result, linked to `link` when nothing waits. */
-  file(readings: readonly StatementReading[], report: (line: string) => void, link: StepLink): Promise<StepResult>
+  /** Files the statements a sync read from the mail `mailed` names, keeps what it did for the page, and says it as the sync step's result, linked to `link` when nothing waits. */
+  file(readings: readonly StatementReading[], mailed: readonly MailedStatement[], report: (line: string) => void, link: StepLink): Promise<StepResult>
   /** Forgets what the last sync did, once a sync stopped before it read the statements. */
   forget(): void
 }
@@ -40,9 +44,10 @@ export interface StatementSync {
 export function useStatementSync(): StatementSync {
   const store = useWorkbook()
 
+  const waiting = computed(() => notPassedOver(state.outcome?.held ?? [], store.state.workbook?.heldStatements ?? []))
   const held = computed(() => {
     const books = companyBooksOf(store.state)
-    const readings = state.outcome?.held ?? []
+    const readings = waiting.value
     if (books === null || readings.length === 0) return null
     return dryRunFor(readings, books, new Map(), new Map(), new Map(), true, 'automation').statements.filter(stillHeld)
   })
@@ -73,10 +78,11 @@ export function useStatementSync(): StatementSync {
 
   return {
     state: shallowReadonly(state),
+    waiting,
     held,
-    async file(readings, report, link) {
+    async file(readings, mailed, report, link) {
       try {
-        state.outcome = await fileNewStatements(readings, { store, step: (step) => report(lineOf(step)) })
+        state.outcome = await fileNewStatements(readings, { store, mailed, step: (step) => report(lineOf(step)) })
       } catch (failure) {
         state.outcome = null
         throw failure

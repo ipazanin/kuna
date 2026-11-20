@@ -31,6 +31,7 @@ export const en = {
   },
   sync: {
     syncAgain: 'Not filed. Sync again.',
+    heldKept: 'Kept the statements the sync holds until they are filed or passed over',
     /** "Filed statement 028, 4 rows", "Filed statements 028 and 029, 5 rows", or "Filed 3 statements, 9 rows". */
     filed: (numbers: readonly string[], rows: number) => {
       const which = numbers.length === 1 ? `statement ${numbers[0]}` : numbers.length === 2 ? `statements ${listInWords(numbers)}` : `${numbers.length} statements`
@@ -64,6 +65,7 @@ export const hr: Translation<typeof en> = {
   },
   sync: {
     syncAgain: 'Nije upisano. Sinkronizirajte ponovno.',
+    heldKept: 'Zadržani izvodi čuvaju se dok se ne upišu ili preskoče',
     filed: (numbers, rows) => {
       const count = numbers.length
       const which =

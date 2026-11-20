@@ -13,6 +13,7 @@ import { storesItems } from '../../workbook/domain/rowItems'
 import { proposedInvoicePayments } from '../../receivables/domain/invoicePayments'
 import { startPlacingPayments } from '../../receivables/application/invoicePaymentWrites'
 import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
+import { forgetSettledStatements } from './heldStatementWrites'
 import { installedPack } from '../../packs/packContribution'
 import { readCamtDocument } from '../domain/camtStatement'
 import { importDryRun } from '../domain/importDryRun'
@@ -112,7 +113,8 @@ export function dryRunFor(
  * ledger entries with their items, in the shape the books keep, and what of them pays back the records the pack keeps. A first
  * payment placed on an invoice starts placing the books' client payments. A copied row's items go to the bank's row that takes
  * its place, still paying the invoices they paid, since the two agree on the amount. A copied row the records on screen no longer
- * hold stays, and the ledger then refuses entries that do not run on.
+ * hold stays, and the ledger then refuses entries that do not run on. The books forget each held statement the import files, so
+ * one Undo puts back both.
  */
 export function writeImport(unit: UnitOfWork, run: ImportDryRun, books: CompanyBooks | null): void {
   if (books === null) throw new Error('The books are not read yet, so nothing is imported.')
@@ -129,6 +131,7 @@ export function writeImport(unit: UnitOfWork, run: ImportDryRun, books: CompanyB
   const removed = run.removed.flatMap((copied) => recordWithId(records.ledger, copied.id)?.record ?? [])
   replaceLedgerRows(unit, records, removed, run.added, run.payments)
   installedPack().linkRepayments(unit, records, run.payments)
+  forgetSettledStatements(unit, books, run.statements)
 }
 
 /** "Imported 4 rows", or "Added main and imported 4 rows" when the import adds accounts. */

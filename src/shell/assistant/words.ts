@@ -52,6 +52,8 @@ export const en = {
     neverAnonymise: 'Anonymise and Always allow, for each AI company. They guard what the chat sends.',
     neverHistory: 'Clearing the chat history.',
     neverGoogle: 'Signing out of Google, allowing Google access a sync misses, and deleting all of Kuna. Google’s consent window needs the person.',
+    neverMail:
+      "Stopping every app's mail at once, on Kuna settings, Mail. To stop one app's mail, switch it off through that app's own operation: Company's statements_mail setting set to FALSE, or Investments' IBKR mail reader with on no. Turning mail on again asks Google's consent, so link that app's Settings, General.",
   },
 }
 
@@ -106,6 +108,8 @@ export const hr: Translation<typeof en> = {
     neverAnonymise: 'Anonimiziraj i Uvijek dopusti, za svaku AI tvrtku. Oni čuvaju ono što razgovor šalje.',
     neverHistory: 'Brisanje povijesti razgovora.',
     neverGoogle: 'Odjava s Googlea, dopuštanje Google pristupa koji sinkronizaciji nedostaje i brisanje cijele Kune. Googleov prozor za privolu traži osobu.',
+    neverMail:
+      'Zaustavljanje pošte svih aplikacija odjednom, u Postavkama Kune, Pošta. Poštu jedne aplikacije isključite njezinom operacijom: postavku statements_mail u Tvrtki postavite na FALSE ili čitaču pošte IBKR-a u Ulaganjima stavite on na no. Ponovno uključivanje traži Googleovu privolu, pa dajte poveznicu prema postavkama te aplikacije.',
   },
 }
 

@@ -100,7 +100,7 @@ Each step names the Google scopes it needs and whether the settings turn it on:
 | Step           | Scopes           | On when                                                                                        |
 | -------------- | ---------------- | ---------------------------------------------------------------------------------------------- |
 | Books          | `drive.file`     | Always, for a file on Drive                                                                    |
-| Statement mail | `gmail.readonly` | The bank's mail has a sender and an account takes the bank's statements                        |
+| Statement mail | `gmail.readonly` | Its switch is on, the bank's mail has a sender, and an account takes the bank's statements     |
 | Keys           | `drive.appdata`  | This browser saved or removed a price key, or a holding is priced by a vendor that needs a key |
 | Prices         | `drive.file`     | Always, for an Investments file on Drive                                                       |
 
@@ -161,7 +161,7 @@ silent trip to Google, so the device waits for a tap on Sync.
 
 ### The mail step
 
-`useMailSync` in `src/apps/company/mail/presentation/` makes the step, labelled Statement mail. It
+`statementMailStep` in `src/apps/company/mail/presentation/useMailSync.ts` makes the step, labelled Statement mail. It
 searches Gmail for the bank's statement mail, reads each statement in it as Import reads a camt.053
 file, and files the new ones on the ledger in the same step. Nothing of the mail is kept on Drive.
 The step never marks, labels or moves a mail. `readStatementMail` in
@@ -169,14 +169,17 @@ The step never marks, labels or moves a mail. `readStatementMail` in
 `src/shared/mail/application/mailReading.ts`, and `fileNewStatements` in
 `src/apps/company/imports/application/statementSync.ts` files what it read.
 
-**On and off.** The step is on while `statements_mail_from` names a sender. While no account takes
+**On and off.** The step is on while its switch `statements_mail` is on, which a blank cell reads as,
+and `statements_mail_from` names a sender. Settings, General turns the switch on or off on the Mail card,
+and turning it on asks for `gmail.readonly` in the same tap as Save. While no account takes
 the bank's statements it searches nothing, asks for no Gmail access, and its line says so with a link
 to Settings, Accounts. It asks for `gmail.readonly` alone. The books' own `drive.file` covers the
 write.
 
 **The window.** For each account the bank's statements fill, the step takes the day of its newest row
 from a bank statement on or after its start day, or the start day when it has none. Its search starts
-7 days before the oldest of those days, and never before the earliest start day of those accounts
+7 days before the oldest of those days, or of the day the mail of a held statement came while it waits,
+and never before the earliest start day of those accounts
 (`statementMailReach` in `src/apps/company/workbook/domain/accountIntakes.ts`). Taking the oldest
 keeps a statement held for an account that waits to start inside the search until it is filed. An
 account with no movements for weeks keeps an old newest row, so each sync reads every statement mail
@@ -202,6 +205,22 @@ The dry run leaves the account where it was, so nothing after a held statement i
 account, and other accounts still are. When the write is refused, such as for rows another device's
 sync filed since the read, the step reads the file again and runs the dry run once more. A second
 refusal is shown on Import, and nothing is written.
+
+**Held statements.** The books remember each statement the step holds on the `held-statements` tab:
+the mail's id, the attachment's name, the statement's label and IBAN, the day the mail came, and
+`passed_over_on`, blank while it waits. No rows are stored, since the mail still holds them. A
+statement held for the first time gets its row in the same write as the rows the step files, or in
+a write of its own when it files none. Filing a held statement, from a sync or from Confirm on
+Import, deletes its row in the same write, so one Undo brings both back. Pass over on Import, or
+the chat's `pass-over-held-statement`, writes the day, so the search stops reaching back to it and
+no later sync holds it again.
+
+**Every app's mail.** A sync step that reads Gmail carries `readsMail` on its `SyncStep`: the link to
+its card and a `stop` that turns its source off in its own app's book with that app's toast and Undo.
+Kuna settings' Mail card lists every such step of the apps on Drive, Company's statement mail and
+Investments' IBKR report, with its line from this page's run, and Stop reading mail turns each
+source that is on off in turn, so every device stops after its next read of the books. Each source
+is turned on again in its own app.
 
 **Gmail's limits.** Gmail allows each user 6,000 quota units a minute, and reading a mail in full
 costs 60 of them, a search 5 and an attachment 20. A call Gmail answers with 429, or with 403 and
@@ -519,8 +538,8 @@ take their defaults.
 | `scenarios`      | `scenario`, `label`, `year`, `component`, `amount`, `from` and `to`: rows that share a scenario name make one owner pay mix for one year. `component` is `salary_gross` (a month's gross or `floor`), `nontaxable:<item>` such as `nontaxable:occasional-gift` (a year's amount of a tax-free item), `rent_monthly` (a month's rent), `dividend` (an amount or `max`) or `director_basis` (`employee`, `board-only` or `insured-elsewhere`). `from` and `to` are optional date cells in the scenario's year. A tax-free item is paid with the salary of the month its `from` falls in, January when blank, and a dividend once the year's statements are adopted, so their `to` is not read. The label is read from the rows that give one, and reads blank when they give it differently. A scenario whose rows name two years is reported and left out whole, and the same component for the same days on two rows leaves out both.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `employees`      | `employee`, `name`, `iban`, `residence_city`, `pension_pillar_2`, `dependants`, `birth_year`, `agreed_gross`, `from`, `to` and `director`: one row per person the company pays a salary, for the Croatian d.o.o. pack. `employee` is a short name in lower case. `name` is the person's name as the accountant writes it, by whose words the payroll mail's IP1 forms are matched, regardless of case and diacritics. `iban` is the account or accounts the salary is paid into, separated by commas, and an IBAN two employees name counts for neither. `residence_city` is the city or municipality, such as `Grad Zagreb`, which sets the local income tax rates, read regardless of case, diacritics and a leading `Grad` or `Općina`, with the county in brackets for a name two units share, such as `Općina Privlaka (Zadarska)`. A blank city is reported and the row kept, and the payroll leaves it out. A city the ruleset does not know is reported and the row left out. `pension_pillar_2` and `director` are TRUE or FALSE, blank for FALSE. `dependants` is a whole number from 0 to 20, blank for 0, and `birth_year`, for the youth income tax relief, a year or blank for no relief. `agreed_gross` is the full-time monthly gross of the contract, more than zero, which _Salaries screen_ works each month out on, and blank for a director paid at the floor. `from` (a date cell) is the first day of the employment and required, and `to` the last, blank while it lasts. `director` marks a member of the company who is its director, whose salary has the director floor: the owner, whose pay _Pay scenarios_, _Forecast_ and _Salaries screen_ work out on this row. An employee is listed once, or every row of the name is reported and left out, and so is every director row when more than one row is marked so. |
 
-The rows of `outgoing-plan`, `owner-advances`, `assets`, `year-end`, `plan`, `splits` and
-`dismissed` carry an `id`, the tab's last column: a version 4 UUID the app makes, written as text.
+The rows of `outgoing-plan`, `owner-advances`, `assets`, `year-end`, `plan`, `splits`,
+`dismissed` and `held-statements` carry an `id`, the tab's last column: a version 4 UUID the app makes, written as text.
 Every row the app adds there gets one, and a tab without the column gets it in the same write. A
 row without an id is reported by its label and left out, and so is every row of an id that more
 than one row holds, as a copied row does. A split part left out this way leaves out its whole
@@ -659,6 +678,7 @@ as before.
 | `invoice_file_path`                                                                                                                                                                     | `{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoice.pdf`             | Where under that folder each invoice is filed, with `{yyyy}`, `{yy}`, `{mm}` from the issue date, `{client}` and `{number}`. It must end in `.pdf`.                                                                                                                                                                                                                                                                                  |
 | `invoice_mail_subject`, `invoice_mail_body`                                                                                                                                             | `Invoice {number}, {month}` and a short note signed `{signatory}` | The invoice mail, with `{month}` (the issue month in the client's `mail_language`), `{number}`, `{client}`, `{company}` and `{signatory}`.                                                                                                                                                                                                                                                                                           |
 | `invoice_reverse_charge_note`                                                                                                                                                           | the Croatian VAT law's Article 17 note                            | Printed under the totals, after an asterisk.                                                                                                                                                                                                                                                                                                                                                                                         |
+| `statements_mail`                                                                                                                                                                       | blank                                                             | `TRUE` or blank reads the bank's statement mail on each sync while a sender and a subject are set, and `FALSE` stops it. Onboarding writes `TRUE` with the bank's sender. The chat may set `FALSE`, and only a person turns it on, since that asks Google's consent.                                                                                                                                                                 |
 | `statements_mail_from`                                                                                                                                                                  | blank                                                             | The addresses the bank mails statements from, comma separated, read in lower case. With a subject, each sync's mail step looks for them in Gmail and files their statements on the ledger. An entry that is not a mail address is reported and the list stays blank. Onboarding writes the bank's preset or the address typed in for statements from mail, and blank otherwise.                                                      |
 | `statements_mail_subject`                                                                                                                                                               | blank                                                             | The words before the statement number in the subject of the bank's statement mail, such as `Izvadak`. Settings, General asks for it beside a sender. A double quote, which would end Gmail's phrase, is reported.                                                                                                                                                                                                                    |
 | `hr_company_registered`                                                                                                                                                                 | blank                                                             | The day the company was registered, as a date cell or text such as `2025-05-12`. It starts the first tax period.                                                                                                                                                                                                                                                                                                                     |
@@ -1665,7 +1685,8 @@ With the file on Drive, "From the bank's mail" sits above the file drop, `Mailed
 beside `ImportPanel`. It shows what the last sync did with the statements it read, as _The mail step_ describes: the
 statements it filed, and each one it held with its dry run, the reason, and for an account with no
 rows yet the start at its opening. "Confirm and file" writes what the held statements' dry run then
-accepts, through the same path. The card is gone when there is nothing to say.
+accepts, through the same path, and Pass over on each held statement leaves it out for good, with
+Undo. A held statement stays until it is filed or passed over. The card is gone when there is nothing to say.
 
 **A new account.** A camt statement whose IBAN no account has is read with no account, and the dry
 run offers to add it: the IBAN, its currency, and the balance before the first entry on that

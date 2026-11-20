@@ -6,11 +6,12 @@ import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
 import DeleteDataCard from './DeleteDataCard.vue'
 import FilesHomeCard from './FilesHomeCard.vue'
+import MailCard from './MailCard.vue'
 import PrivacyCard from './PrivacyCard.vue'
 import SyncCard from './SyncCard.vue'
 import { words } from './words'
 
-/** Kuna settings at `#/settings`, for every app on this device: the page's one sync while some app's file is on Drive, where new files go, the assistant, deleting data, then privacy. */
+/** Kuna settings at `#/settings`, for every app on this device: the page's one sync and every app's mail while some app's file is on Drive, where new files go, the assistant, deleting data, then privacy. */
 const sync = usePageSync()
 const { someOnDrive, keysSync } = sync
 
@@ -24,6 +25,7 @@ function fetchKeys(): Promise<string | null> {
     <PageHeader :title="words.menu" :description="words.description" />
     <DashboardGrid>
       <SyncCard v-if="someOnDrive" />
+      <MailCard v-if="someOnDrive" />
       <FilesHomeCard />
       <AiAssistCard :keys-sync="keysSync" :fetch-keys="fetchKeys" />
       <DeleteDataCard />

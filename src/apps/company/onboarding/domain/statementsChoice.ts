@@ -3,6 +3,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
 import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail/domain/mailSource'
 import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
+import { STATEMENTS_MAIL_KEY, flagText } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
 import { proposedStartDay } from '../../../../shared/app/accountSource'
 import { handDaysOf } from '../../workbook/domain/accountIntakes'
@@ -51,10 +52,11 @@ export function statementMailProblems(mail: StatementMail): { readonly from?: St
   return { ...(from === null ? {} : { from }), ...(subjectProblem === null ? {} : { subject: subjectProblem }) }
 }
 
-/** The settings rows that read the bank's statement mail on each sync. */
+/** The settings rows that read the bank's statement mail on each sync, its switch turned on with them. */
 export function mailDeliveryRows(mail: StatementMail): readonly { readonly key: string; readonly value: string }[] {
   const { senders, subject } = mailTermsOf(mail)
   return [
+    { key: STATEMENTS_MAIL_KEY, value: flagText(true) },
     { key: 'statements_mail_from', value: senders.join(', ') },
     { key: 'statements_mail_subject', value: subject },
   ]

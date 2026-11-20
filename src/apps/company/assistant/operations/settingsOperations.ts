@@ -16,7 +16,17 @@ import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, rolesOfText 
 import type { CategoryDraft } from '../../settings/domain/categoryDrafts'
 import { knownRoles } from '../../settings/domain/categoryGuards'
 import type { MadeDraft } from '../../settings/domain/recordDrafts'
-import { CLIENT_PAYMENTS_PLACED_KEY, PERSON_PAYEES_KEY, SETTING_DEFINITIONS, TRIP_FOLDER_KEY, readSettingsTab, settingsErrors, unreadSettingKeys } from '../../settings/domain/settings'
+import {
+  CLIENT_PAYMENTS_PLACED_KEY,
+  PERSON_PAYEES_KEY,
+  SETTING_DEFINITIONS,
+  STATEMENTS_MAIL_KEY,
+  booleanOf,
+  TRIP_FOLDER_KEY,
+  readSettingsTab,
+  settingsErrors,
+  unreadSettingKeys,
+} from '../../settings/domain/settings'
 import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { displayNamesOf } from '../../workbook/domain/displayName'
@@ -44,7 +54,7 @@ const ACCOUNT = ACCOUNT_RECORDS.name
 /**
  * The keys no card sets. Kuna's version marker and the review label are the owner's. The payees flagged as people are the chat's
  * own guard. The invoice and travel orders folders need Google's picker. The bank's mail address needs Google's consent,
- * so the chat links their screen. The subject of the bank's mail needs none, so a card sets it.
+ * so the chat links their screen, and so does turning the bank's mail on, though the chat may turn it off. The subject of the bank's mail needs none, so a card sets it.
  */
 const NEVER_PROPOSED: ReadonlySet<string> = new Set(['template_version', CLIENT_PAYMENTS_PLACED_KEY, 'review_label', PERSON_PAYEES_KEY, 'invoice_folder_id', TRIP_FOLDER_KEY, 'statements_mail_from'])
 
@@ -123,7 +133,7 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
     {
       name: 'set-setting',
       about:
-        "A setting's value on Settings, General or Invoicing, Clients, Billing and invoice terms, for the keys listed here, checked as those forms check it. Blank clears it. billing_client is a client's short name. A card warns on a value that says where money or mail goes, and on currency and number_locale, which change how every amount reads. The invoice folder is picked only in Google's window, so link /company/invoicing?tab=clients for it.",
+        "A setting's value on Settings, General or Invoicing, Clients, Billing and invoice terms, for the keys listed here, checked as those forms check it. Blank clears it. billing_client is a client's short name. A card warns on a value that says where money or mail goes, and on currency and number_locale, which change how every amount reads. The invoice folder is picked only in Google's window, so link /company/invoicing?tab=clients for it. statements_mail may be set to FALSE to stop reading the bank's mail. Turning it on asks Google's consent, so link /company/settings#mail for it.",
       input: inputOf({ key: { type: 'string', enum: [...keys] }, value: TEXT }),
       refs: {},
       creates: null,
@@ -505,6 +515,8 @@ function setSetting(card: CompanyCard, step: ProposalStep): void {
   const key = String(field['key'])
   const value = String(field['value'])
   if (!proposedKeys().includes(key)) throw new StepRefused('Only a person sets that key, on its own screen.')
+  if (key === STATEMENTS_MAIL_KEY && booleanOf(value) !== false)
+    throw new StepRefused("Turning the bank's statement mail on asks Google's consent. Link /company/settings#mail and leave it to the person.")
   setSettings(card.unit, card.records().settings, [{ key, value: value.trim() === '' ? '' : savedValue(card, key, value) }])
   if (key === 'currency' || key === 'number_locale') card.note({ noun: SETTING_RECORDS.noun, note: { label: settingName(key, {}), text: words.everyFigure[key], tone: 'warning' } })
 }

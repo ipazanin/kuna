@@ -18,6 +18,7 @@ import {
   CATEGORY_RECORDS,
   CLIENT_RECORDS,
   DISMISSAL_RECORDS,
+  HELD_STATEMENT_RECORDS,
   INVOICE_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
@@ -27,6 +28,8 @@ import {
   SPLIT_PART_RECORDS,
 } from './coreKinds'
 import type { Dismissal } from './dismissals'
+import type { HeldStatement } from './heldStatements'
+import { readHeldStatements } from './heldStatementsReading'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import { readLabels } from './labelReading'
 import { readDismissals } from './dismissalsReading'
@@ -63,6 +66,7 @@ export interface WorkbookRecordTypes {
   readonly items: ItemRecord
   readonly labels: Label
   readonly dismissed: Dismissal
+  readonly 'held-statements': HeldStatement
 }
 
 /** What a storage holds of every kind of record. */
@@ -85,6 +89,7 @@ const CORE_PARTS: ReadonlyMap<string, keyof WorkbookRecordTypes> = new Map([
   [ITEM_RECORDS.name, 'items'],
   [LABEL_RECORDS.name, 'labels'],
   [DISMISSAL_RECORDS.name, 'dismissed'],
+  [HELD_STATEMENT_RECORDS.name, 'held-statements'],
 ])
 
 /** What the records hold of a kind, core's or the installed pack's. */
@@ -119,6 +124,7 @@ export function workbookRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     items: of(ITEM_RECORDS),
     labels: of(LABEL_RECORDS),
     dismissed: of(DISMISSAL_RECORDS),
+    'held-statements': of(HELD_STATEMENT_RECORDS),
     pack: packRecordsOf(
       (pack?.kinds ?? []).map((rules) => rules.kind),
       (kind) => of(kind),
@@ -232,6 +238,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     splits: splitsOf(transactions, items.itemsByRow),
     rowsKeptWhole: new Map(),
     dismissals: keep('dismissed', readDismissals(records.dismissed)),
+    heldStatements: keep('held-statements', readHeldStatements(records['held-statements'])),
     settings,
     packParts: {},
     problems,

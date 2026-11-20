@@ -23,6 +23,7 @@ export const en = {
     stopped: 'Google turned the mail step away. Sync again to allow it.',
     noAccount: 'No account takes its rows from IBKR report by mail yet. Pick it for an account under Accounts.',
     seeAccounts: 'See the accounts',
+    stoppedTitle: "Stopped reading IBKR's report mail",
   },
   card: {
     title: 'IBKR report by mail',
@@ -86,6 +87,7 @@ export const hr: Translation<typeof en> = {
     stopped: 'Google je odbio korak pošte. Sinkronizirajte ponovno da ga dopustite.',
     noAccount: 'Nijedan račun još ne dobiva retke iz izvješća IBKR-a poštom. Odaberite ga za račun pod Računi.',
     seeAccounts: 'Pogledaj račune',
+    stoppedTitle: 'Pošta s izvješćem IBKR-a više se ne čita',
   },
   card: {
     title: 'Izvješće IBKR-a poštom',

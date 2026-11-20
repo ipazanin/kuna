@@ -127,6 +127,9 @@ const noteLines = computed(() => [...props.statement.notes.map(noteText), ...pro
 
 <template>
   <AppCard :title="statement.label" :subtitle="subtitle" :collapse-id="collapseId" :summary="summary" data-testid="dry-run-statement">
+    <template v-if="$slots.actions" #actions>
+      <slot name="actions" />
+    </template>
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
       <UAlert v-if="statement.refusal" icon="i-lucide-file-x" color="error" variant="subtle" :title="refusalText(statement.refusal)" data-testid="dry-run-refusal" />
 

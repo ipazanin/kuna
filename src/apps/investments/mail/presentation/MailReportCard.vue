@@ -6,13 +6,13 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { heldOrNewReader, writeReader } from '../application/mailReaderWrites'
+import { heldOrNewReader } from '../application/mailReaderWrites'
 import type { ReportMail } from '../application/mailReports'
 import { mailReaderFaults, mailReaderTexts, withMailField } from '../domain/mailReaderTexts'
 import type { MailReaderField } from '../domain/mailReaderTexts'
 import MailReportReview from './MailReportReview.vue'
 import MailReportUpload from './MailReportUpload.vue'
-import { MAIL_SCOPE, misfitLine, useMailReports } from './useMailReports'
+import { MAIL_SCOPE, misfitLine, useMailReports, writeMailReader } from './useMailReports'
 import { mailReaderErrors, words } from './words'
 import { accountIntakes } from '../../imports/domain/accountIntake'
 import { earliestStartDay } from '../../../../shared/app/accountSource'
@@ -58,18 +58,8 @@ const revealed = computed(() => route.hash === '#mail')
 const switchHelp = `${words.card.onHelp} ${words.card.format}`
 
 async function saveReader(after: MailReader, key: string): Promise<void> {
-  const before = reader.value
-  const turningOn = after.on && before?.on !== true
-  await page.saveAllowing(turningOn ? [MAIL_SCOPE] : [], () =>
-    writes.write(
-      words.card.saved,
-      (unit) => {
-        const book = store.state.workbook?.book
-        if (book !== undefined) writeReader(unit, book, before, after)
-      },
-      { key, failedTitle: words.card.notSaved, shownAtOnce: true },
-    ),
-  )
+  const turningOn = after.on && reader.value?.on !== true
+  await page.saveAllowing(turningOn ? [MAIL_SCOPE] : [], () => writeMailReader(writes, after, { key, title: words.card.saved, shownAtOnce: true }))
 }
 
 function changed(field: MailReaderField): MailReader | null {

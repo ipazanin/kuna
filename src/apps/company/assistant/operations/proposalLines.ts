@@ -13,7 +13,18 @@ import { words as ruleFormWords } from '../../rules/presentation/words'
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { conditionInWords } from '../../rules/domain/ruleSummary'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, DISMISSAL_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
+import {
+  ACCOUNT_RECORDS,
+  CATEGORY_RECORDS,
+  DISMISSAL_RECORDS,
+  HELD_STATEMENT_RECORDS,
+  ITEM_RECORDS,
+  LABEL_RECORDS,
+  LEDGER_RECORDS,
+  RULE_RECORDS,
+  SETTING_RECORDS,
+  SPLIT_PART_RECORDS,
+} from '../../workbook/domain/coreKinds'
 import { displayName, displayNamesOf } from '../../workbook/domain/displayName'
 import type { DisplayNames } from '../../workbook/domain/displayName'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
@@ -73,6 +84,8 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if ((isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'amount') return money(record.amount)
   if (isKind(kind, LEDGER_RECORDS, record) && field === 'date') return dayLabel(record.date)
   if (isKind(kind, DISMISSAL_RECORDS, record) && field === 'dismissedOn') return record.dismissedOn === null ? null : dayLabel(record.dismissedOn)
+  if (isKind(kind, HELD_STATEMENT_RECORDS, record) && field === 'mailedOn') return dayLabel(record.mailedOn)
+  if (isKind(kind, HELD_STATEMENT_RECORDS, record) && field === 'passedOverOn') return record.passedOverOn === null ? null : dayLabel(record.passedOverOn)
   if (isKind(kind, LEDGER_RECORDS, record) && field === 'flaggedBy') return filedBy(record.flaggedBy)
   if ((isKind(kind, LEDGER_RECORDS, record) || isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, ITEM_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record)) && field === 'ownerShare') {
     const share = ownerShareText(record.ownerShare)
@@ -117,6 +130,7 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   if (isKind(kind, ACCOUNT_RECORDS, record)) return displayName(record.slug, record.label)
   if (isKind(kind, SETTING_RECORDS, record)) return settingName(record.key, packSettingNames)
   if (isKind(kind, DISMISSAL_RECORDS, record)) return words.suggestion[record.kind]
+  if (isKind(kind, HELD_STATEMENT_RECORDS, record)) return record.label
   if (isKind(kind, RULE_RECORDS, record)) return String(record.fields['rule'] ?? fallback)
   return fallback
 }

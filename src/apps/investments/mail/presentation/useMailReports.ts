@@ -28,7 +28,10 @@ import type { RecipeMisfit } from '../../../../shared/recipes/domain/recipe'
 import type { RecipeRun } from '../../../../shared/recipes/domain/runRecipe'
 import { words as recipeWords } from '../../../../shared/recipes/domain/words'
 import { fileNameFits, readRecipeFile } from '../../../../shared/recipes/infrastructure/recipeFile'
+import type { RecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
+import type { StepResult } from '../../../../shared/sync/application/syncRun'
+import { writeReader } from '../application/mailReaderWrites'
 import { plural } from '../../../../shared/text/translation'
 
 export const MAIL_SCOPE: GoogleScope = 'gmail.readonly'
@@ -131,45 +134,78 @@ export function useMailReports(): MailReports {
   }
 }
 
-/** The mail step of Investments' sync, there only while the reader is on. It reads what is new and writes nothing, since the person accepts it. A file that does not fit fails the step with why. */
-export const MAIL_STEP: SyncStep = {
-  id: 'ibkr-mail',
-  label: words.step.label,
-  scopes: () => [MAIL_SCOPE],
-  startLine: words.step.searching,
-  on: () => true,
-  async run() {
-    const { state: books } = useInvestmentsBooks()
-    const { workbook, choice } = books
-    const reader = ibkrMailReader(workbook?.book)
-    if (workbook === null || reader === null || choice?.source !== 'drive') {
-      return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
-    }
-    const since = earliestStartDay(accountIntakes(workbook.book).values())
-    if (since === null) {
-      state.plan = null
-      return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }
-    }
-    const newest = newestReportDay(workbook.book)
-    const newestDay = newest === null ? null : parseCivilDate(newest)
-    const ports: Omit<MailReportPorts, 'mailbox'> = {
-      recipe: IBKR_FLEX_RECIPE,
-      reader,
-      sinceStart: startOfDayIn(since, deviceTimeZone()),
-      newest: newestDay === null ? null : startOfDayIn(newestDay, deviceTimeZone()),
-      fits: (name) => fileNameFits(IBKR_FLEX_RECIPE, name),
-      readFile: (bytes) => readRecipeFile(IBKR_FLEX_RECIPE, bytes),
-      known,
-    }
-    try {
-      state.plan = await readMailReports({ ...ports, mailbox: await openMailbox() })
-      state.stopped = null
-    } catch (failure) {
-      state.plan = null
-      state.stopped = isUnauthorized(failure) ? words.step.stopped : failure instanceof Error ? failure.message : String(failure)
-      throw failure
-    }
-    const line = planLine(state.plan, reportNews(rowsOfPlan(state.plan, reader, workbook.book), workbook.book, usePortfolio().sources.value?.rates ?? NO_RATES))
-    return state.plan.mails.some((mail) => mail.kind === 'misfit') ? { kind: 'failed', line, link: MAIL_LIST_LINK } : { kind: 'done', line, writeId: null, link: MAIL_LIST_LINK }
-  },
+/** Writes IBKR's reader as `after`, with Undo, as the card's fields and switch and Kuna settings' stop do. Resolves to whether it went through. */
+export function writeMailReader(writes: RecordWrites, after: MailReader, options: { readonly key: string; readonly title: string; readonly shownAtOnce: boolean }): Promise<boolean> {
+  const store = useInvestmentsBooks()
+  const before = ibkrMailReader(store.state.workbook?.book)
+  return writes.write(
+    options.title,
+    (unit) => {
+      const book = store.state.workbook?.book
+      if (book !== undefined) writeReader(unit, book, before, after)
+    },
+    { key: options.key, failedTitle: words.card.notSaved, shownAtOnce: options.shownAtOnce },
+  )
+}
+
+/**
+ * The mail step of Investments' sync, listed while the reader is off too so Kuna settings shows it, and left out of the step list then.
+ * It reads what is new and writes nothing, since the person accepts it. A file that does not fit fails the step with why. `writes` makes
+ * the stop that turns the reader off.
+ */
+export function mailReportStep(writes: RecordWrites): SyncStep {
+  const books = useInvestmentsBooks()
+  return {
+    id: 'ibkr-mail',
+    label: words.step.label,
+    scopes: () => (ibkrMailReader(books.state.workbook?.book)?.on === true ? [MAIL_SCOPE] : []),
+    startLine: words.step.searching,
+    on: () => ibkrMailReader(books.state.workbook?.book)?.on === true,
+    leftOutWhenOff: true,
+    readsMail: {
+      link: MAIL_LIST_LINK,
+      async stop() {
+        const reader = ibkrMailReader(books.state.workbook?.book)
+        if (reader?.on !== true) return
+        await writeMailReader(writes, { ...reader, on: false }, { key: 'mail-stop', title: words.step.stoppedTitle, shownAtOnce: false })
+      },
+    },
+    run: readReports,
+  }
+}
+
+/** Reads what is new in IBKR's mail for the books on screen and says it as the step's line. */
+async function readReports(): Promise<StepResult> {
+  const { state: books } = useInvestmentsBooks()
+  const { workbook, choice } = books
+  const reader = ibkrMailReader(workbook?.book)
+  if (workbook === null || reader === null || choice?.source !== 'drive') {
+    return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
+  }
+  const since = earliestStartDay(accountIntakes(workbook.book).values())
+  if (since === null) {
+    state.plan = null
+    return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }
+  }
+  const newest = newestReportDay(workbook.book)
+  const newestDay = newest === null ? null : parseCivilDate(newest)
+  const ports: Omit<MailReportPorts, 'mailbox'> = {
+    recipe: IBKR_FLEX_RECIPE,
+    reader,
+    sinceStart: startOfDayIn(since, deviceTimeZone()),
+    newest: newestDay === null ? null : startOfDayIn(newestDay, deviceTimeZone()),
+    fits: (name) => fileNameFits(IBKR_FLEX_RECIPE, name),
+    readFile: (bytes) => readRecipeFile(IBKR_FLEX_RECIPE, bytes),
+    known,
+  }
+  try {
+    state.plan = await readMailReports({ ...ports, mailbox: await openMailbox() })
+    state.stopped = null
+  } catch (failure) {
+    state.plan = null
+    state.stopped = isUnauthorized(failure) ? words.step.stopped : failure instanceof Error ? failure.message : String(failure)
+    throw failure
+  }
+  const line = planLine(state.plan, reportNews(rowsOfPlan(state.plan, reader, workbook.book), workbook.book, usePortfolio().sources.value?.rates ?? NO_RATES))
+  return state.plan.mails.some((mail) => mail.kind === 'misfit') ? { kind: 'failed', line, link: MAIL_LIST_LINK } : { kind: 'done', line, writeId: null, link: MAIL_LIST_LINK }
 }

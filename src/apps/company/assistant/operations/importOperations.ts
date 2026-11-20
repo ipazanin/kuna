@@ -9,7 +9,10 @@ import { factText, noteText, refusalText, transcribedRefusalText } from '../../i
 import type { StatementReading } from '../../imports/domain/importedStatement'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { heldSettingValue } from '../../settings/domain/settings'
-import { ACCOUNT_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, HELD_STATEMENT_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
+import { passOverHeldStatement } from '../../imports/application/heldStatementWrites'
+import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
+import { today } from '../../../../shared/calendar/civilDate'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { COPY_THE_FILE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
@@ -85,6 +88,16 @@ const OPERATIONS: readonly AssistantOperation[] = [
     creates: null,
     alone: false,
     example: { newAccount: null, part: 1 },
+  },
+  {
+    name: 'pass-over-held-statement',
+    about:
+      "Passes over a statement the sync of the bank's mail holds, as the Pass over button on Import does: it stays in the held statements with the day, the mail search stops reaching back to it, and no later sync holds it again.",
+    input: inputOf({ statement: TEXT }),
+    refs: { statement: HELD_STATEMENT_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { statement: 'held-statement-1' },
   },
   {
     name: 'save-import-profile',
@@ -289,6 +302,14 @@ function fileHeldStatements(card: CompanyCard, step: ProposalStep, held: HeldSta
   writeStatements(card, upToPart(readings, part), field['newAccount'], null, 'automation', (part - 1) * ROWS_A_PART)
 }
 
+function passOverHeldStatementOf(card: CompanyCard, step: ProposalStep): void {
+  const id = card.idOf(fieldsOf(step)['statement'])
+  const stored = recordsOf(card.records()['held-statements']).find((held) => held.id === id)
+  if (stored === undefined) throw new StepRefused('That held statement is no longer in the books.')
+  if (stored.passedOverOn !== null) throw new StepRefused('That statement is passed over already.')
+  passOverHeldStatement(card.unit, stored, today())
+}
+
 function saveImportProfile(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const text = (name: string): string => String(field[name]).trim()
@@ -325,6 +346,7 @@ export function importOperations(held: HeldStatements): CompanyOperationSet {
   const plans: Readonly<Record<string, (card: CompanyCard, step: ProposalStep) => void>> = {
     'import-statement': importStatement,
     'file-held-statements': (card, step) => fileHeldStatements(card, step, held),
+    'pass-over-held-statement': passOverHeldStatementOf,
     'save-import-profile': saveImportProfile,
     'delete-import-profile': deleteImportProfile,
   }

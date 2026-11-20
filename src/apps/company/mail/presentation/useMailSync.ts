@@ -1,7 +1,7 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
 import { earliestStartDay } from '../../../../shared/app/accountSource'
-import { deviceTimeZone, startOfDayIn } from '../../../../shared/calendar/civilDate'
+import { civilDateIn, deviceTimeZone, startOfDayIn } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { currentToken } from '../../../../shared/google/googleAuth'
 import type { GoogleScope } from '../../../../shared/google/googleScopes'
@@ -9,10 +9,14 @@ import type { Mailbox } from '../../../../shared/mail/application/mailReading'
 import { mailWindow } from '../../../../shared/mail/domain/mailSource'
 import type { MailSearch } from '../../../../shared/mail/domain/mailSource'
 import { gmailMailbox } from '../../../../shared/mail/infrastructure/gmailMailbox'
+import type { RecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
 import type { AccessNeed } from '../../../../shared/sync/application/syncRun'
 import { useStatementSync } from '../../imports/presentation/useStatementSync'
 import { loadImportFile } from '../../imports/infrastructure/importFiles'
+import { setSettings } from '../../settings/application/settingWrites'
+import { STATEMENTS_MAIL_KEY, flagText } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { statementMailReach } from '../../workbook/domain/accountIntakes'
@@ -44,12 +48,12 @@ const known = new Map<string, KnownAttachment>()
 /** This device's time zone, which the accounts' days are read in. */
 const DEVICE_TIME_ZONE = deviceTimeZone()
 
-/** What the bank's statement mail is searched by, or null while no sender is named, which leaves the mail unread. */
+/** What the bank's statement mail is searched by, or null while its switch is off or no sender is named, which leaves the mail unread. */
 function statementSearch(settings: Settings): MailSearch | null {
-  return settings.statementsMailFrom.length === 0 ? null : { senders: settings.statementsMailFrom, subject: settings.statementsMailSubject }
+  return !settings.statementsMail || settings.statementsMailFrom.length === 0 ? null : { senders: settings.statementsMailFrom, subject: settings.statementsMailSubject }
 }
 
-/** Gmail read while a sender is named and some account takes the bank's statements, and nothing otherwise. Before the books are read it counts as needed. */
+/** Gmail read while the switch is on, a sender is named and some account takes the bank's statements, and nothing otherwise. Before the books are read it counts as needed. */
 function mailScopes(workbook: Workbook | null): GoogleScope[] {
   if (workbook === null) return [MAIL_SCOPE]
   return statementSearch(workbook.settings) === null || earliestStartDay(workbook.accounts.map((account) => account.intake)) === null ? [] : [MAIL_SCOPE]
@@ -73,59 +77,67 @@ async function openMailbox(): Promise<Mailbox> {
   return gmailMailbox(token)
 }
 
-export interface MailSync {
-  readonly state: Readonly<MailSyncState>
-  /** The mail step of a sync: reads the bank's statement mail and files the statements the ledger lacks. */
-  readonly step: SyncStep
+/** What the mail step last found, shared by the whole page. */
+export function useMailSync(): { readonly state: Readonly<MailSyncState> } {
+  return { state: shallowReadonly(state) }
 }
 
 /**
- * The mail step and what it last found, shared by the whole page. It searches Gmail from a week before the oldest of the
+ * The mail step of a sync, which reads the bank's statement mail and files the statements the ledger lacks. It searches Gmail from a week before the oldest of the
  * newest statement days of the accounts the mail fills, reads each statement it finds, and files what is new in one write.
- * Nothing is kept on Drive. Gmail still asking to slow down fails it with that alone.
+ * Nothing is kept on Drive. Gmail still asking to slow down fails it with that alone. `writes` makes the stop that turns the mail off.
  */
-export function useMailSync(): MailSync {
+export function statementMailStep(writes: RecordWrites): SyncStep {
   const store = useWorkbook()
   const statements = useStatementSync()
+
+  /** Turns the statement mail off in the books, with Undo, unless it is off already. */
+  async function stop(): Promise<void> {
+    if (store.state.workbook?.settings.statementsMail !== true) return
+    await writes.write(words.step.stoppedTitle, (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: STATEMENTS_MAIL_KEY, value: flagText(false) }]), {
+      failedTitle: words.step.notStopped,
+      key: 'mail-stop',
+    })
+  }
+
   return {
-    state: shallowReadonly(state),
-    step: {
-      id: 'mail',
-      label: MAIL_LABEL,
-      scopes: () => mailScopes(store.state.workbook),
-      startLine: words.step.searching,
-      on: () => store.state.workbook === null || statementSearch(store.state.workbook.settings) !== null,
-      async run(report) {
-        const { workbook, choice } = store.state
-        if (workbook === null || choice?.source !== 'drive') {
-          return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
-        }
-        const search = statementSearch(workbook.settings)
-        const since = earliestStartDay(workbook.accounts.map((account) => account.intake))
-        const reach = statementMailReach(workbook.accounts, workbook.transactions)
-        if (search === null || since === null || reach === null) {
-          state.plan = null
-          statements.forget()
-          return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }
-        }
-        try {
-          state.plan = await readStatementMail({
-            mailbox: await openMailbox(),
-            search,
-            window: mailWindow(startOfDayIn(reach, DEVICE_TIME_ZONE), startOfDayIn(since, DEVICE_TIME_ZONE)),
-            workbook,
-            load: loadImportFile,
-            known,
-          })
-          state.stopped = null
-        } catch (failure) {
-          state.plan = null
-          state.stopped = isUnauthorized(failure) ? words.step.stopped : failure instanceof Error ? failure.message : String(failure)
-          statements.forget()
-          throw failure
-        }
-        return statements.file(state.plan.readings, report, MAIL_LIST_LINK)
-      },
+    id: 'mail',
+    label: MAIL_LABEL,
+    scopes: () => mailScopes(store.state.workbook),
+    startLine: words.step.searching,
+    on: () => store.state.workbook === null || statementSearch(store.state.workbook.settings) !== null,
+    readsMail: { link: MAIL_LIST_LINK, stop },
+    async run(report) {
+      const { workbook, choice } = store.state
+      if (workbook === null || choice?.source !== 'drive') {
+        return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
+      }
+      const search = statementSearch(workbook.settings)
+      const since = earliestStartDay(workbook.accounts.map((account) => account.intake))
+      const reach = statementMailReach(workbook.accounts, workbook.transactions, workbook.heldStatements)
+      if (search === null || since === null || reach === null) {
+        state.plan = null
+        statements.forget()
+        return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }
+      }
+      try {
+        state.plan = await readStatementMail({
+          mailbox: await openMailbox(),
+          search,
+          window: mailWindow(startOfDayIn(reach, DEVICE_TIME_ZONE), startOfDayIn(since, DEVICE_TIME_ZONE)),
+          workbook,
+          load: loadImportFile,
+          known,
+        })
+        state.stopped = null
+      } catch (failure) {
+        state.plan = null
+        state.stopped = isUnauthorized(failure) ? words.step.stopped : failure instanceof Error ? failure.message : String(failure)
+        statements.forget()
+        throw failure
+      }
+      const mailed = state.plan.origins.map(({ mailId, mailedAt, attachment, label }) => ({ mailId, mailedOn: civilDateIn(mailedAt, DEVICE_TIME_ZONE), attachment, label }))
+      return statements.file(state.plan.readings, mailed, report, MAIL_LIST_LINK)
     },
   }
 }

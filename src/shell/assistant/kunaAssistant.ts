@@ -69,6 +69,7 @@ export function kunaAssistant(): AppAssistant {
       { key: 'anonymise', note: words.settings.neverAnonymise, neverPropose: true },
       { key: 'chat_history', note: words.settings.neverHistory, neverPropose: true },
       { key: 'google_sign_in', note: words.settings.neverGoogle, neverPropose: true },
+      { key: 'mail_reading', note: words.settings.neverMail, neverPropose: true },
     ],
     guides: [],
     automations: [],

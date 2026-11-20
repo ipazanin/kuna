@@ -1,6 +1,8 @@
 import { isBankStatementRow } from './rowOrigin'
 import type { AccountRecord } from './accountsReading'
 import type { Account, CompanyIntake, Transaction } from './workbook'
+import { waitingStatements } from './heldStatements'
+import type { HeldStatement } from './heldStatements'
 import { BY_HAND } from '../../../../shared/app/accountSource'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -50,9 +52,14 @@ export function accountsWithIntakes(accounts: readonly Omit<AccountRecord, 'id'>
 /**
  * The day the bank's statement mail must still reach back to: for each account the mail fills, the day of its newest row from a
  * bank statement, or its start day when it has none on or after it, and the oldest of those. Null while the mail fills no account.
- * The oldest keeps a statement the sync held, such as one whose account waits to start, inside the search until it is filed.
+ * The oldest keeps a statement the sync held, such as one whose account waits to start, inside the search until it is filed. A
+ * statement the books remember as held and waiting, such as one of an IBAN no account has, reaches it back to the day its mail came.
  */
-export function statementMailReach(accounts: readonly Pick<Account, 'slug' | 'intake'>[], ledger: readonly Pick<Transaction, 'account' | 'date' | 'statement' | 'reference'>[]): CivilDate | null {
+export function statementMailReach(
+  accounts: readonly Pick<Account, 'slug' | 'intake'>[],
+  ledger: readonly Pick<Transaction, 'account' | 'date' | 'statement' | 'reference'>[],
+  held: readonly Pick<HeldStatement, 'mailedOn' | 'passedOverOn'>[],
+): CivilDate | null {
   const days = accounts.flatMap((account) => {
     if (account.intake.rowsFrom !== 'mail') return []
     const { startsOn } = account.intake
@@ -61,5 +68,6 @@ export function statementMailReach(accounts: readonly Pick<Account, 'slug' | 'in
       .reduce<CivilDate>((last, row) => (row.date > last ? row.date : last), startsOn)
     return [newest]
   })
-  return days.length === 0 ? null : days.reduce((oldest, day) => (day < oldest ? day : oldest))
+  if (days.length === 0) return null
+  return [...days, ...waitingStatements(held).map((statement) => statement.mailedOn)].reduce((oldest, day) => (day < oldest ? day : oldest))
 }

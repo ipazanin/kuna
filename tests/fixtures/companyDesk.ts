@@ -73,6 +73,10 @@ function deskGrids(): Record<string, CellValue[][]> {
       ['kind', 'key', 'category', 'dismissed_on', 'id'],
       ['not-covered', 'name:DESK CO', 'equipment', 46302, 'dismissal-1'],
     ],
+    'held-statements': [
+      ['mail_id', 'attachment', 'label', 'iban', 'mailed_on', 'passed_over_on', 'id'],
+      ['mail-1', 'IZV_1.xml', '2026-10-06-statement-001', '', 46302, '', 'held-statement-1'],
+    ],
   }
 }
 

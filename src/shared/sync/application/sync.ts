@@ -3,10 +3,18 @@ import { shallowReactive, shallowReadonly } from 'vue'
 import { isUnauthorized } from '../../google/googleApi'
 import type { GoogleScope } from '../../google/googleScopes'
 import { accessLostFrom, finishedRun, needsAccess, replanned, skippedAfter, startedRun, stepsNeedingAccess, withStep } from './syncRun'
-import type { PlannedStep, StepResult, SyncRun } from './syncRun'
+import type { PlannedStep, StepLink, StepResult, SyncRun } from './syncRun'
 
 /** Whether a step that leaves a source alone for a while after it answered, as the banks' step does for six hours, waits until that is over or asks now. */
 export type SyncAsking = 'due' | 'now'
+
+/** A step that reads Gmail, as Kuna settings lists it among every app's mail. */
+export interface MailSource {
+  /** The card on the app's Settings that sets up its search and turns it on again. */
+  readonly link: StepLink
+  /** Turns the source off in its app's book, with that app's own toast and Undo, so every device stops after its next read. */
+  stop(): Promise<void>
+}
 
 /** One step of a sync, which an app contributes. It reads its own app's books on screen for its scopes and its switch. */
 export interface SyncStep {
@@ -21,6 +29,8 @@ export interface SyncStep {
   on(): boolean
   /** True for a step that is off because the file has nothing for it, such as rates with no foreign account, so the step list leaves it out. Without it an off step shows as Off in Settings. */
   readonly leftOutWhenOff?: boolean
+  /** Set on a step that reads Gmail. */
+  readonly readsMail?: MailSource
   /** Runs the step and says what it did. `report` changes the line it shows while it runs, `startedAt` names the run, which every group's steps share, and `asking` is the run's. */
   run(report: (line: string) => void, startedAt: string, asking: SyncAsking): Promise<StepResult>
 }

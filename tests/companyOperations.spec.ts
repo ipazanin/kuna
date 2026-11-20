@@ -1,3 +1,4 @@
+import { HELD_STATEMENT_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import 'fake-indexeddb/auto'
 import { FILE_OPEN } from './fixtures/browserFile'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -74,6 +75,7 @@ function exampleRecords(desk: CompanyDesk): Readonly<Record<string, string>> {
     account: 'main',
     'account-unused': 'fresh',
     rule: 'merchant-model',
+    'held-statement-1': desk.store.state.workbook!.heldStatements[0]!.id,
   }
 }
 
@@ -571,6 +573,33 @@ describe('settings, categories and accounts', () => {
 
     expect(answer.isError, answer.text).toBe(false)
     expect(desk.cards[0]!.groups.flatMap((group) => group.lines).map((line) => line.label)).toEqual(['Subject words'])
+  })
+
+  it("switches the bank's statement mail off, and leaves turning it on to the person, since that asks Google's consent", async () => {
+    const desk = await companyDesk(used)
+    for (const value of ['TRUE', '']) {
+      const refused = await desk.propose([{ op: 'set-setting', input: { key: 'statements_mail', value } }])
+      expect(refused.isError, value).toBe(true)
+      expect(refused.text).toContain('/company/settings#mail')
+    }
+
+    const answer = await desk.propose([{ op: 'set-setting', input: { key: 'statements_mail', value: 'FALSE' } }])
+
+    expect(answer.isError, answer.text).toBe(false)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.lines).map((line) => line.label)).toEqual(["Read the bank's statement mail"])
+  })
+
+  it('passes over a held statement once, which the chat then reads among the waiting ones no more', async () => {
+    const desk = await companyDesk(used)
+    const held = desk.store.state.workbook!.heldStatements[0]!
+    const statement = desk.ref(HELD_STATEMENT_RECORDS.name, held.id)
+
+    const answer = await desk.propose([{ op: 'pass-over-held-statement', input: { statement } }])
+    expect(answer.isError, answer.text).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(desk.store.state.workbook!.heldStatements[0]!.passedOverOn).not.toBeNull()
+    expect((await desk.propose([{ op: 'pass-over-held-statement', input: { statement } }])).isError).toBe(true)
   })
 
   it('refuses the retired statement sync switch and mail-since day, since each account says how its rows come in and from which day', async () => {

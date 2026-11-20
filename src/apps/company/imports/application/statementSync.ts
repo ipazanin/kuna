@@ -6,13 +6,17 @@ import { WorkbookWriteRefused } from '../../../../shared/storage/application/wor
 import type { DryRunStatement } from '../domain/importDryRun'
 import type { StatementReading } from '../domain/importedStatement'
 import { dryRunFor, writeImport } from './importStatements'
+import { HELD_STATEMENT_WRITES, forgetSettledStatements, heldStatementOfMail, isSettled, waitsForPerson } from './heldStatementWrites'
+import type { MailedStatement } from './heldStatementWrites'
+import { isHeldStatement } from '../../workbook/domain/heldStatements'
+import type { HeldStatement } from '../../workbook/domain/heldStatements'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import { words } from './words'
 
 /** What filing a sync's statements is doing: checking them against the ledger, or filing this many rows. */
 export type StatementSyncStep = { readonly kind: 'looking' } | { readonly kind: 'filing'; readonly rows: number }
 
-/** What one sync did with the statements it read. It is held by the page and never stored. */
+/** What one sync did with the statements it read. The page keeps it, and the books remember each statement it held until it is filed or passed over. */
 export interface StatementSyncOutcome {
   /** Why the statements were not filed, or null. */
   readonly problem: string | null
@@ -28,6 +32,8 @@ export const NOTHING_FILED: StatementSyncOutcome = { problem: null, held: [], fi
 
 export interface StatementSyncPorts {
   readonly store: Pick<WorkbookStore<CompanyBooks>, 'state' | 'sync' | 'write'>
+  /** The mail each reading came in, by its attachment and label. */
+  readonly mailed: readonly MailedStatement[]
   step(step: StatementSyncStep): void
 }
 
@@ -35,8 +41,10 @@ export interface StatementSyncPorts {
  * Files the statements a sync read from the bank's mail: one dry run takes them all, and one write adds every statement it
  * accepts through the ledger's write rules, as Import does. Only an account the bank's statements fill takes them, from its
  * start day. A statement it refuses, such as one of an account kept by hand or one before that day, one that waits for its
- * account to start, or one whose IBAN no account has, is held, and nothing after it is written for that account. A sync whose
- * statements the ledger holds already writes nothing. Google turning the token away throws, so the sync can ask for access.
+ * account to start, or one whose IBAN no account has, is held, and nothing after it is written for that account. The books remember
+ * a statement held for the first time in the same write, or in a write of their own when nothing is filed, and forget one the ledger
+ * now holds. A statement the person passed over is not held again. A sync whose statements the ledger holds already, and that holds
+ * nothing new, writes nothing. Google turning the token away throws, so the sync can ask for access.
  */
 export async function fileNewStatements(readings: readonly StatementReading[], ports: StatementSyncPorts): Promise<StatementSyncOutcome> {
   if (ports.store.state.workbook === null || readings.length === 0) {
@@ -53,17 +61,26 @@ export async function fileNewStatements(readings: readonly StatementReading[], p
 async function fileReadings(readings: readonly StatementReading[], ports: StatementSyncPorts, mayRetry: boolean): Promise<StatementSyncOutcome> {
   const { store } = ports
   const books = companyBooksOf(store.state)!
+  const remembered = books.workbook.heldStatements
   const run = dryRunFor(readings, books, new Map(), new Map(), new Map(), false, 'automation')
   const filed = run.statements.filter(isFiled)
   const kept = new Set(run.statements.filter(waitsForPerson).map(statementKey))
-  const held = readings.filter((reading) => kept.has(readingKey(reading)))
-  if (run.added.length === 0) {
+  const held = readings.filter((reading) => kept.has(readingKey(reading)) && !remembered.some((record) => record.passedOverOn !== null && isHeldStatement(record, keyOfReading(reading))))
+  const newlyHeld = held.flatMap((reading) => recordOfNewlyHeld(reading, ports.mailed, remembered))
+  const settles = remembered.some((record) => run.statements.some((statement) => isSettled(statement) && isHeldStatement(record, { attachment: statement.fileName, label: statement.label })))
+  if (run.added.length === 0 && newlyHeld.length === 0 && !settles) {
     return { ...NOTHING_FILED, held }
   }
-  ports.step({ kind: 'filing', rows: run.newRows })
+  if (run.added.length > 0) ports.step({ kind: 'filing', rows: run.newRows })
   try {
-    const receipt = await store.write(filedTitle(filed, run.newRows), (unit) => writeImport(unit, run, companyBooksOf(store.state)))
-    return { problem: null, held, filed: receipt === null ? [] : filed, receipt }
+    const title = run.added.length > 0 ? filedTitle(filed, run.newRows) : words.sync.heldKept
+    const receipt = await store.write(title, (unit) => {
+      const now = companyBooksOf(store.state)
+      if (run.added.length > 0) writeImport(unit, run, now)
+      else if (now !== null) forgetSettledStatements(unit, now, run.statements)
+      for (const record of newlyHeld) unit.of(HELD_STATEMENT_WRITES).add(record)
+    })
+    return run.added.length === 0 ? { ...NOTHING_FILED, held } : { problem: null, held, filed: receipt === null ? [] : filed, receipt }
   } catch (failure) {
     if (!(failure instanceof WorkbookWriteRefused) || !mayRetry) {
       const unwritten = new Set(filed.map(statementKey))
@@ -88,11 +105,6 @@ function isFiled(statement: DryRunStatement): boolean {
   return !waitsForPerson(statement) && statement.rows.some((row) => row.verdict !== null)
 }
 
-/** A statement the person has to look at: refused, its account waits to be started, or its IBAN names an account to add. */
-function waitsForPerson(statement: DryRunStatement): boolean {
-  return statement.refusal !== null || statement.start !== null || statement.newAccount !== null
-}
-
 /** A held statement the ledger still lacks, as its dry run now says: refused, waiting for its account, or with rows to add. */
 export function stillHeld(statement: DryRunStatement): boolean {
   return waitsForPerson(statement) || statement.rows.some((row) => !row.inLedger)
@@ -104,6 +116,20 @@ function statementKey(statement: Pick<DryRunStatement, 'fileName' | 'label'>): s
 
 function readingKey(reading: StatementReading): string {
   return statementKey('statement' in reading ? reading.statement : reading)
+}
+
+function keyOfReading(reading: StatementReading): { readonly attachment: string; readonly label: string } {
+  const { fileName, label } = 'statement' in reading ? reading.statement : reading
+  return { attachment: fileName, label }
+}
+
+/** The record a statement held for the first time gets, or none for one the books remember already or one no mail names. */
+function recordOfNewlyHeld(reading: StatementReading, mailed: readonly MailedStatement[], remembered: readonly HeldStatement[]): HeldStatement[] {
+  const key = keyOfReading(reading)
+  const mail = mailed.find((candidate) => isHeldStatement(candidate, key))
+  if (mail === undefined || remembered.some((record) => isHeldStatement(record, key))) return []
+  const iban = 'newAccount' in reading ? reading.newAccount.iban : 'statement' in reading && reading.statement.source.kind === 'camt' ? reading.statement.source.iban : ''
+  return [heldStatementOfMail(mail, iban)]
 }
 
 /** "Filed statement 028, 4 rows", "Filed statements 028 and 029, 5 rows", or "Filed 3 statements, 9 rows". */

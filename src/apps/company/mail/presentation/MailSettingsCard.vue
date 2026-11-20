@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-
+import USwitch from '@nuxt/ui/components/Switch.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -20,8 +20,8 @@ import { ACCOUNTS_LINK, useMailSync } from './useMailSync'
 import { words } from './words'
 
 /**
- * The mail card of Settings, General: where each sync looks in Gmail for the bank's statements,
- * edited in the settings form's draft and saved by its Save, the accounts those statements fill
+ * The mail card of Settings, General: whether and where each sync looks in Gmail for the bank's statements,
+ * edited in the settings form's draft and saved by its Save, which asks Google for Gmail read in the same tap when it turns the mail on, the accounts those statements fill
  * from their start day, and what the last sync's mail step read of them. A link to
  * `#mail`, as the mail step's line gives, opens it.
  */
@@ -56,7 +56,8 @@ const filled = computed(() => {
 })
 
 const summary = computed(() => {
-  const { statementsMailFrom } = props.saved
+  const { statementsMail, statementsMailFrom } = props.saved
+  if (!statementsMail) return words.card.off
   return statementsMailFrom.length === 0
     ? words.card.notRead
     : words.card.readFrom(
@@ -87,6 +88,7 @@ function updateSenders(text: string): void {
 <template>
   <AppCard id="mail" :title="words.card.title" :subtitle="words.card.subtitle" collapse-id="settings.mail" start-collapsed :summary="summary" :reveal="revealed" data-testid="mail-settings">
     <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
+      <USwitch :model-value="settings.statementsMail" :label="words.card.on" :description="words.card.onHelp" data-testid="statements-mail-on" @update:model-value="update('statementsMail', $event)" />
       <FormGrid>
         <UFormField :label="words.card.senders" :error="errors.statementsMailFrom ?? false" :help="words.card.sendersHelp" class="sm:col-span-2" data-testid="statements-mail-from">
           <UInput

@@ -16,6 +16,7 @@ import type { Bucket, DefinedBucket } from './bucket'
 import type { CategoryColour } from './categoryColour'
 import { CATEGORY_RECORDS } from './coreKinds'
 import type { Dismissal } from './dismissals'
+import type { HeldStatement } from './heldStatements'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordProblem, WorkbookSource } from '../../../../shared/storage/domain/recordsRead'
@@ -219,6 +220,7 @@ export interface WorkbookProblem extends RecordProblem {
     | 'items'
     | 'labels'
     | 'dismissed'
+    | 'held-statements'
 }
 
 /** A tab's record problems as the workbook lists them. */
@@ -264,6 +266,8 @@ export interface Workbook {
   readonly itemLabels: ReadonlyMap<RecordId, readonly RecordId[]>
   /** The suggestions on the Category rules tab a person dismissed, in the order the tab holds them. */
   readonly dismissals: readonly Dismissal[]
+  /** The statements the sync read from the bank's mail and holds for the person, in the order the tab holds them. */
+  readonly heldStatements: readonly HeldStatement[]
   readonly settings: Settings
   /** Each pack's part, by its key's name, which `packPart` reads. */
   readonly packParts: Readonly<Record<string, unknown>>

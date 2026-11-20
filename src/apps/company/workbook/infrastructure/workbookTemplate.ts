@@ -220,6 +220,15 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'dismissed_on', note: 'The day it was dismissed, as a date cell. Optional.' },
     ID_TEMPLATE_COLUMN,
   ],
+  'held-statements': [
+    { name: 'mail_id', note: "Gmail's id of the bank's mail the statement came in. Kuna writes it as the sync holds the statement. Required." },
+    { name: 'attachment', note: 'The name of the attachment the statement was read from. Required.' },
+    { name: 'label', note: 'What the ledger’s statement column would say for its rows. Required.' },
+    { name: 'iban', note: 'The account the statement is of, as an IBAN. Optional.' },
+    { name: 'mailed_on', note: 'The day the mail came, as a date cell. Each sync searches the mail back to it while the statement waits. Required.' },
+    { name: 'passed_over_on', note: 'The day the person passed the statement over, as a date cell. Blank while it waits on Import. Filing it deletes the row. Optional.' },
+    ID_TEMPLATE_COLUMN,
+  ],
 }
 
 /** The columns of a tab, core's or the installed pack's, in export order. Throws for a pack tab no installed pack maps. */

@@ -323,6 +323,7 @@ import {
   chatAttachRefusedFlow,
   chatConsentCellsFlow,
 } from './support/editorFlows.mjs'
+import { heldPassOverFlowIn, kunaMailFlowIn } from './support/mailFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { tripDriveFilingFlowIn, tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
 import { companyChatAcceptLapsedFlowIn, companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
@@ -1755,6 +1756,10 @@ async function checkWidth(browser, width) {
     ['statements-sync', '', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-held-croatian', '&fake=held-statement&lang=hr', heldStatementFlowIn('hr'), '#/company', overviewCroatian.title],
+    ['statements-held-pass-over', '&fake=held-statement', heldPassOverFlowIn('en')],
+    ['statements-held-pass-over-croatian', '&fake=held-statement&lang=hr', heldPassOverFlowIn('hr'), '#/company', overviewCroatian.title],
+    ['kuna-mail', '&investments=sample', kunaMailFlowIn('en'), '#/settings', settingsEnglish.menu],
+    ['kuna-mail-croatian', '&investments=sample&lang=hr', kunaMailFlowIn('hr'), '#/settings', settingsCroatian.menu],
     ['sync-running', '&fake=slow-statements', syncRunningFlow],
     ['saves-waiting', '&fake=slow-writes', savesWaitingFlow, '#/company/settings', 'Settings'],
     ['saves-waiting-benchmark', '&fake=slow-writes&investments=sample', savesWaitingBenchmarkFlow, '#/investments/settings', 'Settings'],

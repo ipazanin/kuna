@@ -105,8 +105,9 @@ describe('the onboarding steps', () => {
 })
 
 describe('how later statements arrive', () => {
-  it('reads the bank’s mail by the preset bank’s sender and subject words, and makes no folder', () => {
+  it('switches the bank’s mail on and reads it by the preset bank’s sender and subject words, and makes no folder', () => {
     expect(mailDeliveryRows(ERSTE)).toEqual([
+      { key: 'statements_mail', value: 'TRUE' },
       { key: 'statements_mail_from', value: 'netbanking.support@erstebank.hr' },
       { key: 'statements_mail_subject', value: 'ERSTE Izvadak' },
     ])

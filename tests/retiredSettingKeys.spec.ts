@@ -51,6 +51,7 @@ const KEYS_EVER_READ: Readonly<Record<string, readonly string[]>> = {
     'invoice_reverse_charge_note',
     'statements_folder',
     'statements_sync',
+    'statements_mail',
     'statements_mail_from',
     'statements_mail_subject',
     'mail_since',

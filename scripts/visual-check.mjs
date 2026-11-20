@@ -186,6 +186,8 @@
  * on the fake Drive with statements from mail name the bank. An xlsx file
  * moves to the fake Drive through its summary, Settings, Books file moves a workbook kept in this
  * browser there asking for the books file alone, and a row confirmed on the To review tab while another device files the other row keeps both.
+ * Kuna settings' Mail card lists Company's statement mail, stops it with Company's toast and Undo, a held statement on Import is passed over and back,
+ * and on Net worth each of two debt slices that share a name opens its own loan.
  *
  * Run on the fake build, which `--serve fake` serves on a free port for the run and stops after:
  *   npm run build:fake && npm run check:visual -- --serve fake
@@ -605,6 +607,8 @@ import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
 import { SAMPLE_DAY, writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { chatResizeFlow, menuLitFlow, quickJumpFlowIn, shellSqueezeFlow, sidebarRoomWarningFlowIn, sidebarStateFlowIn, skipLinkFlow } from './support/shellFlows.mjs'
+import { twinDebtSlicesFlow } from './support/shellFlows.mjs'
+import { heldPassOverFlowIn, kunaMailFlowIn } from './support/mailFlows.mjs'
 import { cutSidebarFlowIn, cutTextFlow, transactionGroupsFlowIn } from './support/cutTextFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
@@ -7923,6 +7927,25 @@ const FLOWS = [
   { name: 'mail-rate-limited', hash: '#/company', title: 'Overview', run: mailRateLimitedFlow, modes: ['drive'], queries: { drive: '&fake=mail-rate-limited' } },
   { name: 'set-up-in-other-tab', hash: '#/', title: homeEnglish.title, run: setUpInOtherTabFlow, modes: ['drive'] },
   { name: 'mail-window', hash: '#/company', title: 'Overview', run: mailWindowFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
+  ...['en', 'hr'].map((language) => ({
+    name: language === 'en' ? 'kuna-mail' : 'kuna-mail-croatian',
+    hash: '#/settings',
+    title: (language === 'en' ? kunaSettingsEnglish : kunaSettingsCroatian).menu,
+    run: kunaMailFlowIn(language),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: language === 'en' ? '&investments=sample' : '&investments=sample&lang=hr' },
+  })),
+  ...['en', 'hr'].map((language) => ({
+    name: language === 'en' ? 'statements-held-pass-over' : 'statements-held-pass-over-croatian',
+    hash: '#/company',
+    title: language === 'en' ? 'Overview' : 'Pregled',
+    run: heldPassOverFlowIn(language),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: language === 'en' ? '&fake=held-statement' : '&fake=held-statement&lang=hr' },
+  })),
+  { name: 'net-worth-twin-debts', hash: '#/overview', title: 'Net worth', run: twinDebtSlicesFlow, viewports: ['desktop'], modes: ['drive'], queries: { drive: '&loans=twin-names' } },
   { name: 'sync-access-closed', hash: '#/company', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
   ...[
     { name: 'statements-sync-croatian', variant: '' },

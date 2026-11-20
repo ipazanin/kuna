@@ -166,6 +166,14 @@ describe('statements_folder', () => {
 })
 
 describe('the mail keys', () => {
+  it("reads the bank's statement mail switch as on while its cell is blank or missing, and off only when it says so", () => {
+    expect(DEFAULT_SETTINGS.statementsMail).toBe(true)
+    expect(parseSettings(rows(['statements_mail', ''])).settings.statementsMail).toBe(true)
+    expect(parseSettings(rows(['statements_mail', 'FALSE'])).settings.statementsMail).toBe(false)
+    expect(parseSettings(rows(['statements_mail', 'no'])).settings.statementsMail).toBe(false)
+    expect(parseSettings(rows(['statements_mail', 'maybe'])).problems).toHaveLength(1)
+  })
+
   it('read no bank mail by default, both listed blank in the template', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ statementsMailFrom: [], statementsMailSubject: '' })
     expect(settingsTabEntries(DEFAULT_SETTINGS, null).filter((entry) => ['statements_mail_from', 'statements_mail_subject'].includes(entry.key))).toEqual([

@@ -33,6 +33,7 @@ export const WORKBOOK_TABS = [
   'items',
   'labels',
   'dismissed',
+  'held-statements',
 ] as const
 
 export type WorkbookTab = (typeof WORKBOOK_TABS)[number]
@@ -71,6 +72,7 @@ export const EMPTY_TABS: WorkbookTabs = {
   items: [],
   labels: [],
   dismissed: [],
+  'held-statements': [],
 }
 
 /** Turns a tab's value grid, header row first, into rows keyed by header. A short row lacks the later headers. */

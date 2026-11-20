@@ -6,7 +6,7 @@ import type { Translation } from '../../shared/text/translation'
 export const en = {
   menu: 'Kuna settings',
   description:
-    "Sync, the assistant with its Always allow and Anonymise switches for each AI company, and deleting data, for every app on this device. Theme and language are in their menu at the top of the sidebar or of the navigation. Where an app keeps its books is on that app's Settings.",
+    "Sync, the assistant with its Always allow and Anonymise switches for each AI company, the mail each app reads, and deleting data, for every app on this device. Theme and language are in their menu at the top of the sidebar or of the navigation. Where an app keeps its books is on that app's Settings.",
   privacy: {
     title: 'Privacy',
     note: "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices, to the price vendors for Investments, and to the AI company of your key, when you use the assistant.",
@@ -29,6 +29,21 @@ export const en = {
     signOut: 'Sign out of Google',
     signedOut: 'Signed out of Google',
     signedOutNote: 'The chat in this browser is cleared, and the next sync asks Google to sign you in again.',
+  },
+  mail: {
+    title: 'Mail',
+    subtitle: 'Each app that reads your Gmail, what its last read on this page found, and where it is set up. Kuna only reads mail, and never marks, moves or sends one.',
+    none: 'No app here reads mail.',
+    off: 'Off',
+    notRun: 'Not run yet on this page',
+    stop: 'Stop reading mail',
+    stopTitle: 'Stop reading mail?',
+    stopDescription:
+      "Each source below is turned off in its own app's file, so every device stops after its next sync. Each is turned on again on its own app's Settings, and each app's change has its own Undo.",
+    settingsOf: (app: string) => `${app} Settings`,
+    cancel: 'Cancel',
+    stopConfirm: 'Stop reading',
+    allOff: "No app reads mail now. Each source is turned on again on its own app's Settings.",
   },
   deleteData: {
     title: 'Delete data',
@@ -75,7 +90,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   menu: 'Postavke Kune',
   description:
-    'Sinkronizacija, asistent s prekidačima Uvijek dopusti i Anonimiziraj za svaku AI tvrtku i brisanje podataka, za sve aplikacije na ovom uređaju. Temu i jezik birate u njihovu izborniku pri vrhu bočne trake ili navigacije. Gdje aplikacija čuva svoju datoteku, piše u postavkama te aplikacije.',
+    'Sinkronizacija, asistent s prekidačima Uvijek dopusti i Anonimiziraj za svaku AI tvrtku, pošta koju aplikacije čitaju i brisanje podataka, za sve aplikacije na ovom uređaju. Temu i jezik birate u njihovu izborniku pri vrhu bočne trake ili navigacije. Gdje aplikacija čuva svoju datoteku, piše u postavkama te aplikacije.',
   privacy: {
     title: 'Privatnost',
     note: 'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i AI tvrtki vašeg ključa kad koristite asistenta.',
@@ -98,6 +113,22 @@ export const hr: Translation<typeof en> = {
     signOut: 'Odjava s Googlea',
     signedOut: 'Odjavljeni ste s Googlea',
     signedOutNote: 'Razgovor u ovom pregledniku je obrisan, a sljedeća sinkronizacija traži od Googlea da vas ponovno prijavi.',
+  },
+  mail: {
+    title: 'Pošta',
+    subtitle:
+      'Svaka aplikacija koja čita vaš Gmail, što je pronašlo njezino zadnje čitanje na ovoj stranici i gdje se postavlja. Kuna poštu samo čita i nikad je ne označava, ne premješta i ne šalje.',
+    none: 'Nijedna aplikacija ovdje ne čita poštu.',
+    off: 'Isključeno',
+    notRun: 'Još nije pokrenuto na ovoj stranici',
+    stop: 'Prestani čitati poštu',
+    stopTitle: 'Prestati čitati poštu?',
+    stopDescription:
+      'Svaki izvor ispod isključuje se u datoteci svoje aplikacije, pa svaki uređaj prestaje nakon sljedeće sinkronizacije. Svaki se ponovno uključuje u postavkama svoje aplikacije, a promjenu svake aplikacije možete poništiti.',
+    settingsOf: (app) => `Postavke aplikacije ${app}`,
+    cancel: 'Odustani',
+    stopConfirm: 'Prestani čitati',
+    allOff: 'Nijedna aplikacija sada ne čita poštu. Svaki izvor ponovno uključujete u postavkama njegove aplikacije.',
   },
   deleteData: {
     title: 'Brisanje podataka',

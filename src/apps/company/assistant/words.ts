@@ -41,6 +41,7 @@ export const en = {
     billingItem: 'What is to be invoiced and when, from the billing plan.',
     label: "The company's labels, each grouping parts of ledger rows across categories and months, such as a conference or an office fit-out.",
     setting: "The settings that say how the company's figures and invoices read.",
+    heldStatement: "The statements the sync of the bank's mail holds for the person, which wait on Import until they are filed or passed over.",
   },
   reports: {
     month: {
@@ -118,6 +119,7 @@ export const hr: Translation<typeof en> = {
     billingItem: 'Što treba fakturirati i kada, iz plana fakturiranja.',
     label: 'Oznake tvrtke, svaka skuplja dijelove redaka evidencije preko kategorija i mjeseci, poput konferencije ili uređenja ureda.',
     setting: 'Postavke koje određuju kako se čitaju iznosi i računi tvrtke.',
+    heldStatement: 'Izvodi koje sinkronizacija pošte banke zadržava za osobu i koji čekaju na Uvozu dok se ne upišu ili preskoče.',
   },
   reports: {
     month: {

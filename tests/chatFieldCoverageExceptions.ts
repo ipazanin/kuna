@@ -360,6 +360,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'shared: src/shared/secrets/infrastructure/browserSecrets.ts#keepSecretChanges',
       'company: src/shared/google/googleAuth.ts#requestAccess',
       'company: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
+      'kuna: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
       'shared: src/shared/google/googleAuth.ts#requestAccess',
       'shared: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
       'spending: src/shared/google/withGoogleAccess.ts#withGoogleAccess',

@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { decodeDocument, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
 
-import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
+import { dryRunFor, statementReadings, writeImport } from '../src/apps/company/imports/application/importStatements'
+import { passOverHeldStatement } from '../src/apps/company/imports/application/heldStatementWrites'
 import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWrites'
 import { NOTHING_FILED, fileNewStatements, filedTitle } from '../src/apps/company/imports/application/statementSync'
@@ -97,7 +98,10 @@ async function syncOf(store: WorkbookStore<CompanyBooks, DocumentCopy>, texts: r
   const readings = await Promise.all(
     texts.map(async (text, index) => statementReadings(await loadImportFile(`IZV_${index}.xml`, new TextEncoder().encode(text).buffer as ArrayBuffer), store.state.workbook!, null)),
   )
-  return fileNewStatements(readings.flat(), { store, step: (step) => steps.push(step) })
+  const mailed = readings.flatMap((read, index) =>
+    read.map((reading) => ({ mailId: `mail-${index}`, mailedOn: civil('2026-10-08'), attachment: `IZV_${index}.xml`, label: 'statement' in reading ? reading.statement.label : reading.label })),
+  )
+  return fileNewStatements(readings.flat(), { store, mailed, step: (step) => steps.push(step) })
 }
 
 const MAIN_003 = camt(MAIN_IBAN, 3, '2026-10-06', 100_000, [{ reference: 'M3-1', cents: 10_000 }])
@@ -191,7 +195,56 @@ describe.each([
       { kind: 'before-start', account: 'main', startsOn: '2026-10-07', first: '2026-10-06' },
       { kind: 'kept-by-hand', account: 'savings' },
     ])
-    expect(store.state.writes).toEqual([])
+    expect(store.state.writes.map((write) => write.receipt.title)).toEqual(['Kept the statements the sync holds until they are filed or passed over'])
+    expect(store.state.workbook!.heldStatements.map((statement) => [statement.mailId, statement.label, statement.iban, statement.passedOverOn])).toEqual([
+      ['mail-0', '2026-10-06-statement-003', MAIN_IBAN, null],
+      ['mail-1', '2026-10-06-statement-002', SAVINGS_IBAN, null],
+    ])
+  })
+
+  it('remembers a held statement once, so a later sync that holds it again writes nothing', async () => {
+    const harness = await harnessOf(used, grids())
+    const { store } = harness
+    const reserve = camt(RESERVE_IBAN, 1, '2026-10-06', 5_000, [{ reference: 'R1-1', cents: 2_000 }])
+    await syncOf(store, [reserve])
+    const saves = writesTo(harness)
+
+    const again = await syncOf(store, [reserve])
+
+    expect(again.held).toHaveLength(1)
+    expect(store.state.writes).toHaveLength(1)
+    expect(writesTo(harness)).toBe(saves)
+  })
+
+  it('forgets a held statement in the write that files it, so one Undo brings both back', async () => {
+    const { store } = await harnessOf(used, grids())
+    const reserve = camt(RESERVE_IBAN, 1, '2026-10-06', 5_000, [{ reference: 'R1-1', cents: 2_000 }])
+    const outcome = await syncOf(store, [reserve])
+    const started = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map([['reserve', moneyFromCents(5_000)]]), new Map(), new Map(), true, 'automation')
+
+    await store.write('Filed', (unit) => writeImport(unit, started, companyBooksOf(store.state)))
+
+    expect(store.state.workbook!.heldStatements).toEqual([])
+    expect(ledgerOf(store, 'reserve')).toEqual(['2026-10-06 R1-1 7000'])
+    await store.undo(store.state.writes[0]!)
+    expect(store.state.workbook!.heldStatements.map((statement) => statement.label)).toEqual(['2026-10-06-statement-001'])
+    expect(ledgerOf(store, 'reserve')).toEqual([])
+  })
+
+  it('holds a statement the person passed over no more, and writes nothing for it', async () => {
+    const harness = await harnessOf(used, grids())
+    const { store } = harness
+    const reserve = camt(RESERVE_IBAN, 1, '2026-10-06', 5_000, [{ reference: 'R1-1', cents: 2_000 }])
+    await syncOf(store, [reserve])
+    const held = store.state.workbook!.heldStatements[0]!
+    await store.write('Passed over', (unit) => passOverHeldStatement(unit, held, civil('2026-11-20')))
+    const saves = writesTo(harness)
+
+    const again = await syncOf(store, [reserve])
+
+    expect(again.held).toEqual([])
+    expect(store.state.workbook!.heldStatements.map((statement) => statement.passedOverOn)).toEqual(['2026-11-20'])
+    expect(writesTo(harness)).toBe(saves)
   })
 
   it('writes nothing and adds nothing to the session when the mail held no statement', async () => {
@@ -224,7 +277,7 @@ describe.each([
 
     expect(outcome.filed).toEqual([])
     expect(outcome.receipt).toBeNull()
-    expect(store.state.writes).toEqual([])
+    expect(store.state.workbook!.heldStatements.map((statement) => statement.label)).toEqual(['2026-10-06-statement-001'])
     const waiting = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map(), new Map(), new Map(), true, 'automation')
     expect(waiting.statements[0]).toMatchObject({ refusal: null, start: { account: 'reserve', opening: moneyFromCents(5_000), date: '2026-10-06' } })
     expect(waiting.newRows).toBe(0)
@@ -311,5 +364,9 @@ describe('the statement mail step of a sync', () => {
     const filling = { ...named, accounts: [BY_HAND_TOO, BY_MAIL] }
     expect(mailNeeds(filling).map((need) => need.scope)).toEqual(['gmail.readonly'])
     expect(mailNeeds({ ...filling, settings: { ...filling.settings, statementsMailFrom: [] } })).toEqual([])
+  })
+
+  it('asks Google for nothing while its switch is off, whatever the sender and the accounts say', () => {
+    expect(mailNeeds({ ...named, accounts: [BY_MAIL], settings: { ...named.settings, statementsMail: false } })).toEqual([])
   })
 })

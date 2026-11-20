@@ -115,7 +115,7 @@ export const companyApp: AppContribution = {
     const file = browserFileOf(store, { id: 'company', name: words.name }, newCompanyBooks)
     const statementSync = useStatementSync()
     const ports = {
-      heldStatements: () => statementSync.state.outcome?.held ?? [],
+      heldStatements: () => statementSync.waiting.value,
       // The answers are kept per file on this device, as the set-up card keeps them, so with no file open none is given.
       setUpAnswers: {
         given: (answer: string) => state.choice !== null && hasSetUpAnswer(state.choice.id, answer),

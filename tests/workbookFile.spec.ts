@@ -68,6 +68,7 @@ describe('the template', () => {
       'items',
       'labels',
       'dismissed',
+      'held-statements',
     ])
     for (const name of book.SheetNames) {
       const sheet = book.Sheets[name]!
@@ -174,6 +175,7 @@ describe('reading an xlsx file', () => {
       'trip-costs',
       'splits',
       'dismissed',
+      'held-statements',
     ])
     expect(contents.tabs.ledger.map((row) => row.sheetRow)).toEqual([2, 4])
     expect(contents.tabs.ledger[0]?.cells.note).toBe('kept')
@@ -227,6 +229,7 @@ describe('reading an xlsx file', () => {
         'trip-costs',
         'splits',
         'dismissed',
+        'held-statements',
       ],
       refusal: null,
     })

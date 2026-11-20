@@ -16,6 +16,7 @@ import {
   BILLING_RECORDS,
   CATEGORY_RECORDS,
   CLIENT_RECORDS,
+  HELD_STATEMENT_RECORDS,
   INVOICE_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
@@ -27,6 +28,7 @@ import { displayName, displayNamesOf } from '../workbook/domain/displayName'
 import { isHumanConfirmed, needsReview, reviewCount } from '../workbook/domain/needsReview'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import { rowItemsOf } from '../workbook/domain/splits'
+import { waitingStatements } from '../workbook/domain/heldStatements'
 import type { SplitPart } from '../workbook/domain/splits'
 import type { Category, CompanyIntake, Transaction, Workbook } from '../workbook/domain/workbook'
 import type { BillingItem } from '../workbook/domain/billingPlan'
@@ -115,7 +117,7 @@ const READ_SETTING_KEYS: ReadonlySet<string> = new Set([
 ])
 
 /** The settings that are a switch, read as written. */
-const SWITCH_SETTING_KEYS: ReadonlySet<string> = new Set(['owner_pay_module'])
+const SWITCH_SETTING_KEYS: ReadonlySet<string> = new Set(['owner_pay_module', 'statements_mail'])
 /** The settings that hold IBANs or a tax number, comma separated, each read as an identifier. */
 const IDENTIFIER_SETTING_KEYS: ReadonlySet<string> = new Set(['card_settlement_ibans', 'invoice_oib'])
 
@@ -254,6 +256,21 @@ const SPLIT_PART_FIELDS: FieldDocs<SplitPartView> = {
   ownerShare: { exposure: 'plain', meaning: "The owner's private share of it in percent, or empty for none." },
   invoice: { exposure: 'ref', to: INVOICE_RECORDS.name, meaning: 'The invoice a revenue part pays, in books that store it, or empty for none.' },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels the part carries, which change no figure of its category.' },
+}
+
+/** A statement the sync of the bank's mail holds and the person has not filed or passed over, as the chat reads it. */
+interface HeldStatementView {
+  readonly id: string
+  readonly label: string
+  readonly iban: string
+  readonly mailedOn: string
+}
+
+const HELD_STATEMENT_FIELDS: FieldDocs<HeldStatementView> = {
+  id: { exposure: 'ref', to: HELD_STATEMENT_RECORDS.name, meaning: 'The held statement, which pass-over-held-statement names.' },
+  label: { exposure: 'plain', meaning: "What the ledger's statement column would say for its rows." },
+  iban: { exposure: 'identifier', meaning: 'The account the statement is of, or empty when it names none.' },
+  mailedOn: { exposure: 'plain', meaning: 'The day the bank mailed it. Each sync searches the mail back to it while it waits.' },
 }
 
 const LABEL_FIELDS: FieldDocs<Label> = {
@@ -603,6 +620,14 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
             const itemsOf = rowItemsOf(workbook.splits)
             return workbook.transactions.flatMap((row) => itemsOf(row).map((part) => splitPartOf(row, part, workbook)))
           }),
+        currencyOf: currency,
+      }),
+      readableKind({
+        kind: HELD_STATEMENT_RECORDS,
+        about: words.reads.heldStatement,
+        fields: HELD_STATEMENT_FIELDS,
+        dated: 'mailedOn',
+        rows: () => rows((workbook) => waitingStatements(workbook.heldStatements).map(({ id, label, iban, mailedOn }) => ({ id, label, iban, mailedOn }))),
         currencyOf: currency,
       }),
       readableKind({ kind: LABEL_RECORDS, about: words.reads.label, fields: LABEL_FIELDS, dated: null, rows: () => rows((workbook) => workbook.labels), currencyOf: currency }),

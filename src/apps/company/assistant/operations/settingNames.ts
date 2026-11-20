@@ -42,6 +42,7 @@ function coreSettingNames(): Readonly<Record<string, string>> {
     owner_pay_module: general.ownerPay,
     review_label: general.reviewLabel,
     card_settlement_ibans: general.cardIbans,
+    statements_mail: mailWords.card.on,
     statements_mail_from: mailWords.card.senders,
     statements_mail_subject: mailWords.card.subject,
     billing_monthly_amount: terms.monthlyFee,

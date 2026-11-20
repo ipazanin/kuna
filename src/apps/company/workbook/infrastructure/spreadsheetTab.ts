@@ -10,6 +10,7 @@ import {
   CATEGORY_RECORDS,
   CLIENT_RECORDS,
   DISMISSAL_RECORDS,
+  HELD_STATEMENT_RECORDS,
   INVOICE_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
@@ -75,6 +76,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
   },
   items: { tab: 'items', kind: ITEM_RECORDS, formatOf: byColumn({ date: 'date', amount: 'amount', owner_share: 'number' }) },
   dismissed: { tab: 'dismissed', kind: DISMISSAL_RECORDS, formatOf: byColumn({ dismissed_on: 'date' }) },
+  'held-statements': { tab: 'held-statements', kind: HELD_STATEMENT_RECORDS, formatOf: byColumn({ mailed_on: 'date', passed_over_on: 'date' }) },
   labels: { tab: 'labels', kind: LABEL_RECORDS, formatOf: byColumn({}) },
 }
 

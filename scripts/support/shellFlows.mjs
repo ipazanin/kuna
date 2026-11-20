@@ -6,6 +6,7 @@
 
 import { en as appEnglish, hr as appCroatian } from '../../src/shared/app/words.ts'
 import { FAKE_HOME_LOAN } from '../../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
+import { FAKE_CAR_LOAN } from '../../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
 import { CHAT_MIN_WIDTH } from '../../src/shared/ai/presentation/chatDock.ts'
 import { PAGE_LEAST_WIDTH, PHONE_BELOW } from '../../src/shared/layout/viewport.ts'
 import { layoutOf, roomEffectOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
@@ -611,5 +612,63 @@ export function quickJumpFlowIn(language = 'en') {
     } finally {
       await forgetChoices(page)
     }
+  }
+}
+
+/**
+ * Net worth's debt ring with two loans of one name: a click on each of the two slices that share the name opens that slice's own
+ * loan, the home loan for the first and the car loan for the second, never the first loan of that name for both.
+ */
+export async function twinDebtSlicesFlow(page, { shoot, inspect }) {
+  const canvas = await page.waitForSelector('[data-testid="overview-ring"][data-side="owes"] .ring-chart canvas', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Net worth shows no ring of what you owe')
+  })
+  await delay(800)
+  await canvas.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(300)
+  const box = await canvas.boundingBox()
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  const radius = (Math.min(box.width, box.height) / 2) * 0.83
+  const pointAt = (degrees) => ({ x: centre.x + radius * Math.sin((degrees * Math.PI) / 180), y: centre.y - radius * Math.cos((degrees * Math.PI) / 180) })
+  const tooltipText = () =>
+    page.$eval(
+      '[data-testid="overview-ring"][data-side="owes"] .ring-chart',
+      (element) =>
+        [...element.querySelectorAll('div')]
+          .filter((part) => part.querySelector('canvas') === null && getComputedStyle(part).display !== 'none' && getComputedStyle(part).opacity !== '0')
+          .map((part) => part.textContent?.trim() ?? '')
+          .find((text) => text !== '') ?? '',
+    )
+  // The ring starts at the top and runs clockwise, so a sweep of the pointer finds each slice as a run of angles under one tooltip.
+  const runs = []
+  for (let degrees = 2; degrees < 360; degrees += 4) {
+    const point = pointAt(degrees)
+    await page.mouse.move(point.x, point.y)
+    await delay(60)
+    const text = await tooltipText()
+    const last = runs[runs.length - 1]
+    if (last !== undefined && last.text === text) last.to = degrees
+    else runs.push({ text, from: degrees, to: degrees })
+  }
+  const twins = runs.filter((run) => run.text.startsWith('Home loan'))
+  if (new Set(twins.map((run) => run.text)).size !== 2) throw new Error(`the debt ring does not show two slices named Home loan, the pointer found: ${runs.map((run) => run.text).join(' | ')}`)
+  await inspect?.('the debt ring with two slices of one name')
+  await shoot('twin-debt-slices')
+  const opened = []
+  for (const run of twins) {
+    const point = pointAt((run.from + run.to) / 2)
+    await page.mouse.click(point.x, point.y)
+    await page
+      .waitForFunction(() => !window.location.hash.startsWith('#/overview'), { timeout: 5_000 })
+      .catch(() => {
+        throw new Error(`a click on the slice "${run.text}" opened nothing`)
+      })
+    opened.push(await page.evaluate(() => window.location.hash))
+    await page.goBack()
+    await page.waitForSelector('[data-testid="overview-ring"][data-side="owes"] .ring-chart canvas', { visible: true, timeout: 10_000 })
+    await delay(800)
+  }
+  if (!opened[0]?.includes(FAKE_HOME_LOAN) || !opened[1]?.includes(FAKE_CAR_LOAN)) {
+    throw new Error(`the two slices named Home loan open ${opened.join(' and ')}, not the home loan and then the car loan`)
   }
 }

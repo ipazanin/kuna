@@ -45,6 +45,7 @@ const MAIL_PLAN: StatementMailPlan = {
     { kind: 'not-read', mail: TERMS_MAIL, attachment: 'Opći uvjeti poslovanja.xml', reason: 'It is not a camt.053 statement with a creation day and a number.' },
   ],
   readings: [],
+  origins: [],
 }
 
 const STOPPED = 'Gmail asked us to slow down. Sync again in a minute.'

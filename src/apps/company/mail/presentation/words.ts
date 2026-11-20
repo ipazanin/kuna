@@ -19,10 +19,15 @@ export const en = {
     stopped: 'The last sync stopped before it finished with the mail. The sync control says what it needs.',
     noAccount: "No account takes the bank's statements yet. Pick them for an account under Accounts.",
     seeAccounts: 'See the accounts',
+    stoppedTitle: "Stopped reading the bank's statement mail",
+    notStopped: "The bank's statement mail was not turned off",
   },
   card: {
     title: 'Mail',
     subtitle: "Where each sync looks in Gmail for the bank's statements, which it reads and files into the ledger. Nothing is kept on Drive.",
+    on: settingsEn.settingLabels.statementsMail,
+    onHelp: 'Each sync searches your mail for the sender and subject below. Kuna only reads it, and never marks, moves or files a mail. Off asks Google for no Gmail access.',
+    off: 'Off',
     notRead: 'Bank mail is not read.',
     readFrom: (senders: readonly string[], fills: readonly string[]) =>
       fills.length === 0 ? `Bank mail from ${senders.join(', ')}, for no account yet.` : `Bank mail from ${senders.join(', ')}, for ${listInWords(fills)}.`,
@@ -53,10 +58,16 @@ export const hr: Translation<typeof en> = {
     stopped: 'Zadnja sinkronizacija zaustavila se prije nego što je završila s poštom. Gumb za sinkronizaciju kaže što joj treba.',
     noAccount: 'Nijedan račun još ne uzima izvode banke. Odaberite ih za račun pod Računi u banci.',
     seeAccounts: 'Pogledaj račune',
+    stoppedTitle: 'Pošta banke s izvodima više se ne čita',
+    notStopped: 'Pošta banke s izvodima nije isključena',
   },
   card: {
     title: 'Pošta',
     subtitle: 'Gdje svaka sinkronizacija u Gmailu traži izvode banke, koje čita i upisuje u evidenciju. Ništa se ne sprema na Drive.',
+    on: settingsHr.settingLabels.statementsMail,
+    onHelp:
+      'Svaka sinkronizacija u pošti traži pošiljatelja i predmet ispod. Kuna poštu samo čita i nikad je ne označava, ne premješta i ne sprema. Kad je isključeno, od Googlea se ne traži pristup Gmailu.',
+    off: 'Isključeno',
     notRead: 'Pošta banke se ne čita.',
     readFrom: (senders, fills) =>
       withFullStop(`Pošta banke ${listed({ one: 's adrese', other: 's adresa' }, senders.length)} ${senders.join(', ')}, ${fills.length === 0 ? 'još ni za jedan račun' : `za ${listInWords(fills)}`}`),

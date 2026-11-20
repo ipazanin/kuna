@@ -47,7 +47,7 @@ describe("the day the bank's statement mail reaches back to", () => {
   it('is the oldest of the newest statement day of each account the mail fills, so an account furthest behind keeps its statements in the search', () => {
     const ledger = [row('main', '2026-10-01', '2026-10-01-statement-010'), row('main', '2026-11-10', '2026-11-10-statement-030'), row('savings', '2026-10-20', '2026-10-20-statement-004')]
 
-    expect(statementMailReach([mail('main', '2026-09-01'), mail('savings', '2026-09-01')], ledger)).toBe('2026-10-20')
+    expect(statementMailReach([mail('main', '2026-09-01'), mail('savings', '2026-09-01')], ledger, [])).toBe('2026-10-20')
   })
 
   it('is the start day of an account with no statement row on or after it, and leaves out rows by hand and accounts kept by hand', () => {
@@ -58,11 +58,20 @@ describe("the day the bank's statement mail reaches back to", () => {
       row('hand', '2026-01-01', '2026-01-01-statement-001'),
     ]
 
-    expect(statementMailReach([mail('main', '2026-09-01'), mail('reserve', '2026-11-05'), { slug: 'hand', intake: BY_HAND }], ledger)).toBe('2026-11-05')
+    expect(statementMailReach([mail('main', '2026-09-01'), mail('reserve', '2026-11-05'), { slug: 'hand', intake: BY_HAND }], ledger, [])).toBe('2026-11-05')
   })
 
   it('is null while the mail fills no account', () => {
-    expect(statementMailReach([{ slug: 'hand', intake: BY_HAND }], [])).toBeNull()
+    expect(statementMailReach([{ slug: 'hand', intake: BY_HAND }], [], [])).toBeNull()
+  })
+
+  it('reaches back to the mail of a held statement that waits, and no longer once the person passed it over', () => {
+    const ledger = [row('main', '2026-11-10', '2026-11-10-statement-030')]
+    const waiting = { mailedOn: day('2026-10-02'), passedOverOn: null }
+
+    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [waiting])).toBe('2026-10-02')
+    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [{ ...waiting, passedOverOn: day('2026-11-15') }])).toBe('2026-11-10')
+    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [{ ...waiting, mailedOn: day('2026-11-18') }])).toBe('2026-11-10')
   })
 })
 

@@ -38,6 +38,8 @@ export interface PageSyncGroup extends AppSyncGroup {
 export interface PageSync {
   /** Each installed app's part, in install order. */
   readonly groups: readonly PageSyncGroup[]
+  /** The parts of the apps whose file is on Drive, which a sync runs, in install order. */
+  driveGroups(): readonly PageSyncGroup[]
   /** The last run of this page, with a failed read of an app's books outside a run, such as a find, shown as its books step. */
   readonly run: ComputedRef<SyncRun | null>
   readonly control: ComputedRef<SyncControl>
@@ -160,6 +162,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
 
   pageSync = {
     groups,
+    driveGroups,
     run,
     control,
     someOnDrive: computed(() => driveGroups().length > 0),

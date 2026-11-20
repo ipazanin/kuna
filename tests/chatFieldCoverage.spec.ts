@@ -178,6 +178,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/settings/application/namedRecordWrites.ts#deleteCategoryInto', from: ['into'], operations: ['delete-category'] },
   { path: 'src/apps/company/transactions/application/fileRows.ts#fileRows', from: ['verdicts'], operations: [{ name: 'file-row', renames: { 'verdict.category': 'category' } }] },
   { path: 'src/apps/company/settings/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
+  { path: 'src/apps/company/imports/application/heldStatementWrites.ts#passOverHeldStatement', from: [], operations: ['pass-over-held-statement'] },
   {
     path: 'src/apps/company/transactions/application/splitWrites.ts#writeSplit',
     from: ['drafts'],

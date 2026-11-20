@@ -6,7 +6,7 @@ import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/cho
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { LOANS_APP } from '../../domain/loansApp'
 import { emptyLoansDocument } from '../loansDocument'
-import { fakeLoansDocument } from './fakeLoans'
+import { fakeLoansDocument, fakeTwinNamedLoansDocument } from './fakeLoans'
 
 /**
  * The id of the Loans file the fake build keeps in this browser, apart from the company's so the two
@@ -21,7 +21,7 @@ const DAY = 86_400_000
  * and `browser` one kept in this browser with changes nine days past their last export, each chosen
  * on this device, `sample` a chosen file on the fake Drive holding made-up loans of both kinds,
  * `one-loan` the same with the bank loan alone, `house-and-car` the home loan beside a car loan that
- * ends earlier and an informal loan you owe on an expected plan, `equal-principal` one equal principal bank loan alone, `lending` informal loans alone
+ * ends earlier and an informal loan you owe on an expected plan, `twin-names` the same with the car loan named as the home loan, `equal-principal` one equal principal bank loan alone, `lending` informal loans alone
  * that leave you owed more than you owe, `other-device` an empty file on the fake Drive that
  * another device made, which this device has not chosen, `opening` the sample chosen on the fake
  * Drive with nothing in this browser and every read of it held, so the Loans screens stay opening, and
@@ -38,13 +38,16 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
       ? fakeLoansDocument(savedAt)
       : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal' || variant === 'lending' || variant === 'co-owned'
         ? fakeLoansDocument(savedAt, variant)
-        : emptyLoansDocument(savedAt)
+        : variant === 'twin-names'
+          ? fakeTwinNamedLoansDocument(savedAt)
+          : emptyLoansDocument(savedAt)
   const text = encodeDocument(document)
   if (
     variant === 'drive' ||
     variant === 'sample' ||
     variant === 'one-loan' ||
     variant === 'house-and-car' ||
+    variant === 'twin-names' ||
     variant === 'equal-principal' ||
     variant === 'lending' ||
     variant === 'co-owned' ||
