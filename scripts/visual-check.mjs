@@ -3567,6 +3567,7 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="newer-file-notice"]',
     shows: 'A newer version of Kuna saved this file',
+    cards: false,
   },
   {
     name: 'spending-settings-newer-croatian',
@@ -3576,6 +3577,7 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="newer-file-notice"]',
     shows: 'Ovu je datoteku spremila novija verzija',
+    cards: false,
   },
   {
     name: 'spending-overview-empty',
@@ -4272,6 +4274,7 @@ const SOURCE_SCREENS = [
     title: 'Settings',
     charts: 0,
     shows: ['Spending file', 'Fake Spending file', 'Some changes are in no exported file yet'],
+    cards: false,
   },
   {
     name: 'spending-settings-browser-croatian',
@@ -4280,6 +4283,7 @@ const SOURCE_SCREENS = [
     title: 'Postavke',
     charts: 0,
     shows: ['Datoteka potrošnje', 'Fake Spending file', 'Neke promjene još nisu ni u jednoj izvezenoj datoteci'],
+    cards: false,
   },
   { name: 'spending-opening', query: 'spending=opening', hash: '#/spending', title: 'Overview', charts: 0, ready: '[data-testid="spending-loading"]', cards: false },
   { name: 'spending-opening-croatian', query: 'spending=opening&lang=hr', hash: '#/spending', title: 'Pregled', charts: 0, ready: '[data-testid="spending-loading"]', cards: false },
