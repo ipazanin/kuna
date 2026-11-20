@@ -32,6 +32,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['spending: LinkTarget.ownerIban', 'spending: LinkTarget.parts'],
   },
   {
+    reason: 'A cost you paid for your company, which Company publishes with what it was and the name of its category there, so nobody types its fields in Spending.',
+    fields: ['spending: LinkTarget.description', 'spending: LinkTarget.categoryName'],
+  },
+  {
     reason: 'The labels on a part of a quick add, which Settings, Quick add sets. A label goes on the entry the quick add wrote through label-entries.',
     fields: ['spending: ShortcutPart.labels'],
   },
@@ -237,6 +241,11 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
   {
     reason: "Link all on To review's card of past instalments, which links each row as link-entry does and takes no field of its own.",
     paths: ['src/apps/spending/entries/application/entryWrites.ts#linkEntries'],
+  },
+  {
+    reason:
+      "Adding a cost you paid for your company from an entry's dialog, which hands what was typed to Company's own write of an owner advance, whose fields Company's add-owner-advance takes. Spending stores none of them.",
+    paths: ['src/apps/spending/company/application/companyFacts.ts#addCompanyCost'],
   },
   {
     reason: 'Linking a row to the record it just added in Loans, which links it as link-entry does and takes no field of its own. The record itself is written by the Loans write it is handed.',

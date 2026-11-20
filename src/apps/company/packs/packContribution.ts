@@ -22,6 +22,7 @@ import type { Category, Transaction, Workbook } from '../workbook/domain/workboo
 import type { UnitOfWork } from '../../../shared/storage/application/repository'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 import type { RecordId } from '../../../shared/storage/domain/recordId'
+import type { RecordKind } from '../../../shared/storage/domain/recordKind'
 import type { WriteRules } from '../../../shared/storage/domain/writeRules'
 import type { Money } from '../../../shared/money/money'
 import type { RateBook } from '../../../shared/money/rateBook'
@@ -93,6 +94,16 @@ export interface OwnerPayment {
   readonly parts: readonly OwnerPaymentPart[]
 }
 
+/** A cost the owner paid privately that another app adds, such as a purchase on the owner's own card. */
+export interface NewOwnerAdvance {
+  readonly date: CivilDate
+  /** Above zero. */
+  readonly amount: Money
+  readonly description: string
+  /** The slug of a category in a bucket an advance may count in. */
+  readonly category: string
+}
+
 /** How the categories editor explains a class: its name, what Kuna counts with it, and where the rule behind it shows. */
 export interface CategoryClassHelp {
   readonly name: string
@@ -151,6 +162,10 @@ export interface PackContribution {
   moneyWithOwner(workbook: Workbook): readonly OwnerPayment[]
   /** Whether a tax-free payment, by the ruleset's key of it, is one a trip pays, such as a per diem or kilometres. None without a pack. */
   paysForTrip(payment: string): boolean
+  /** The kind the pack keeps the costs the owner paid privately in, which a link from another app names. Null without a pack, which keeps none. */
+  readonly ownerAdvanceRecords: RecordKind | null
+  /** Adds a cost the owner paid privately in the write given, with its category's share and no labels, and gives its id. Throws without a pack. */
+  addOwnerAdvance(unit: UnitOfWork, records: WorkbookRecords, categories: readonly Category[], advance: NewOwnerAdvance): RecordId
   /** The VAT the company owes beyond a shared row for the owner's private share of it, which the owner's part carries. None without a pack. */
   readonly vatOnPrivateShare: VatOnPrivateShare
   /** The ECB rates the pack's figures need, each currency from the first day it is needed. Empty without a pack. */
@@ -203,6 +218,10 @@ const NO_PACK: PackContribution = {
   ownerTakeOut: () => null,
   moneyWithOwner: () => [],
   paysForTrip: () => false,
+  ownerAdvanceRecords: null,
+  addOwnerAdvance: () => {
+    throw new Error('Company keeps no costs the owner paid without its pack.')
+  },
   vatOnPrivateShare: NO_VAT_ON_PRIVATE_SHARE,
   ratesDemand: () => new Map(),
   reviewCards: [],

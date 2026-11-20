@@ -127,6 +127,7 @@ export const en = {
     linkNotSetUp: 'a record of Loans, but Loans is not set up',
     linkCompanyPayment: (kinds: string, day: string, toYou: boolean) =>
       toYou ? `the payment from your company on ${day}, of ${kinds}, in Company` : `the payment to your company on ${day}, of ${kinds}, in Company`,
+    linkCompanyAdvance: (category: string, day: string) => `the cost you paid for your company on ${day}, under ${category}, in Company`,
     linkCompanyGone: 'a payment Company no longer has',
     linkCompanyUnknown: 'a payment of Company, which cannot be read now',
     linkCompanyNotSetUp: 'a payment of Company, but Company is not set up or keeps no owner pay',
@@ -336,6 +337,7 @@ export const hr: Translation<typeof en> = {
     linkGone: 'zapis kojeg Krediti više nemaju',
     linkUnknown: 'zapis iz Kredita koji se sada ne može pročitati',
     linkNotSetUp: 'zapis iz Kredita, ali Krediti nisu postavljeni',
+    linkCompanyAdvance: (category, day) => `trošak koji ste platili za svoju tvrtku na dan ${day}, pod ${category}, u Tvrtki`,
     linkCompanyPayment: (kinds, day, toYou) => (toYou ? `isplata vaše tvrtke na dan ${day}, ${kinds}, u Tvrtki` : `uplata vašoj tvrtki na dan ${day}, ${kinds}, u Tvrtki`),
     linkCompanyGone: 'isplata koju Tvrtka više nema',
     linkCompanyUnknown: 'isplata iz Tvrtke koja se sada ne može pročitati',

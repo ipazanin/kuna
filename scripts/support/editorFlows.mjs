@@ -6913,6 +6913,42 @@ export function spendingCompanyLinkFlowIn(language) {
   }
 }
 
+/**
+ * The company set's office supplies of last month, money out the owner paid privately: Add to Company opens from the entry's link
+ * field, adds the cost to Company as an owner advance in one write and links the entry under For the company in another, and one
+ * Undo takes both back. Last, September's printer paper, linked to the cost Company keeps.
+ */
+export function spendingAddToCompanyFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const links = words.spendingLinks
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Office supplies shop', -4500)
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-company-cost-offer')
+    await press(await page.waitForSelector('[data-testid="spending-entry-add-to-company"]:not([disabled])', { visible: true }))
+    const category = await page.waitForSelector('[data-testid="spending-add-to-company-category"]', { visible: true })
+    if (await page.$('[data-testid="spending-entry-save"]')) throw new Error('the entry dialog still offers its own Save while it adds a cost to Company')
+    await category.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(category)
+    const option = await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 })
+    await press(option)
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await shootAt(page, shoot, '[data-testid="spending-add-to-company"]', 'spending-entry-add-to-company')
+    await press(await page.waitForSelector('[data-testid="spending-add-to-company-save"]:not([disabled])', { visible: true }))
+    await toast(page, links.company.add.done)
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+
+    await page.evaluate(() => (location.hash = '#/spending/transactions?month=2026-09'))
+    await openSpendingRow(page, press, 'Office supplies shop', -3420)
+    await waitForTextIn(page, '[data-testid="spending-entry-link"]', 'Printer paper')
+    await shootAt(page, shoot, '[data-testid="spending-entry-link"]', 'spending-entry-company-cost-link')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
 /** Link on the company set's waiting trip payout on To review, which links it to Company's payment and takes it off the queue. */
 export function spendingCompanyReviewLinkFlowIn(language) {
   const words = SCREEN_WORDS[language]

@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { addCompanyCost } from '../src/apps/spending/company/application/companyFacts'
 import { addAndLink } from '../src/apps/spending/links/application/linkWithRecord'
 import { addLoansExtraPayment, addLoansMovement } from '../src/apps/spending/links/application/loanTargets'
 import type { ShownTarget } from '../src/apps/spending/links/application/linkTargets'
@@ -35,6 +36,15 @@ vi.mock('../src/apps/loans/facts', async (original) => ({
   },
 }))
 
+const company = vi.hoisted(() => ({ added: [] as unknown[], undone: 0 }))
+vi.mock('../src/apps/company/facts', async (original) => ({
+  ...(await original<typeof import('../src/apps/company/facts')>()),
+  addOwnerAdvance: async (advance: unknown) => {
+    company.added.push(advance)
+    return { link: { app: 'company', kind: 'hr-doo.owner-advance', key: 'made-up-advance', due: null }, to: { path: '/company/transactions' }, undo: async () => void (company.undone += 1) }
+  },
+}))
+
 const on = (date: string) => parseCivilDate(date)!
 const MARKO: ShownTarget & InformalLoanTarget = {
   kind: 'informal-loan',
@@ -45,12 +55,13 @@ const MARKO: ShownTarget & InformalLoanTarget = {
   to: { path: '/loans' },
 }
 const LENT = { day: on('2026-11-20'), kind: 'borrowed' as const, amount: moneyFromAmount(300), note: '' }
-const TITLES = { inLoans: 'Movement added from Spending', linked: 'Entry linked' }
+const TITLES = { added: 'Movement added from Spending', linked: 'Entry linked' }
 
 describe('adding a movement in Loans from a row', () => {
   const used = new Set<string>()
   afterEach(async () => {
     Object.assign(loans, { added: [], undone: 0, refuse: null, refuseUndo: null })
+    Object.assign(company, { added: [], undone: 0 })
     await forgetCaches(used)
   })
 
@@ -75,7 +86,7 @@ describe('adding a movement in Loans from a row', () => {
 
   it('adds the movement first, links the row to it under Loans to and from people, and one Undo takes back the link and then the movement', async () => {
     const { store, place, entry } = await fileWithPaid()
-    const result = await addAndLink(store, entry, () => addLoansMovement(MARKO, LENT, TITLES.inLoans), place, TITLES)
+    const result = await addAndLink(store, entry, () => addLoansMovement(MARKO, LENT, TITLES.added), place, TITLES)
 
     expect(loans.added).toEqual([{ loan: 'made-up-loan', day: LENT.day, kind: 'borrowed', amount: LENT.amount, note: '' }])
     const lent = CATEGORIES.find((held) => held.kind === 'informal-loan')!
@@ -115,10 +126,25 @@ describe('adding a movement in Loans from a row', () => {
     expect(store.state.workbook!.items).toEqual(wholeItems([paid]))
   })
 
+  it('adds a cost you paid to Company first, files the row whole under For the company linked to it, and one Undo takes back both', async () => {
+    const { store, place, entry } = await fileWithPaid()
+    const cost = { day: on('2026-11-20'), amount: moneyFromAmount(300), description: 'Printer', category: { slug: 'office-supplies', name: 'Office supplies' } }
+    const result = await addAndLink(store, entry, () => addCompanyCost(cost, 'Owner advance added from Spending'), place, { added: 'Owner advance added from Spending', linked: 'Entry linked' })
+
+    expect(company.added).toEqual([{ day: cost.day, amount: cost.amount, description: 'Printer', category: 'office-supplies' }])
+    const forCompany = store.state.workbook!.categories.find((held) => held.kind === 'company')!
+    expect(store.state.workbook!.items.map((part) => [part.category, part.amount, part.link?.kind])).toEqual([[forCompany.id, entry.amount, 'hr-doo.owner-advance']])
+    if (result.outcome !== 'linked') throw new Error(result.outcome)
+    expect(result.record).toMatchObject({ kind: 'owner-advance', categoryName: 'Office supplies', to: { path: '/company/transactions' } })
+    expect(await result.undo()).toEqual({ kept: false })
+    expect(company.undone).toBe(1)
+    expect(store.state.workbook!.items).toEqual(wholeItems([paid]))
+  })
+
   it('writes nothing when Loans refuses the movement', async () => {
     const { store, place, entry } = await fileWithPaid()
     loans.refuse = 'Loans is not open.'
-    const result = await addAndLink(store, entry, () => addLoansMovement(MARKO, LENT, TITLES.inLoans), place, TITLES)
+    const result = await addAndLink(store, entry, () => addLoansMovement(MARKO, LENT, TITLES.added), place, TITLES)
 
     expect(result).toMatchObject({ outcome: 'not-added' })
     expect(store.state.writes).toEqual([])
@@ -127,17 +153,17 @@ describe('adding a movement in Loans from a row', () => {
   it('keeps the movement in Loans when the link fails, with Undo for the movement alone', async () => {
     const { store, place } = await fileWithPaid()
     const gone = row(OTP, '2026-11-21', -300, 'Food/Groceries')
-    const result = await addAndLink(store, gone, () => addLoansMovement(MARKO, LENT, TITLES.inLoans), place, TITLES)
+    const result = await addAndLink(store, gone, () => addLoansMovement(MARKO, LENT, TITLES.added), place, TITLES)
 
     if (result.outcome !== 'not-linked') throw new Error(result.outcome)
     expect(loans.added).toHaveLength(1)
-    await result.undoInLoans()
+    await result.undoAdded()
     expect(loans.undone).toBe(1)
   })
 
   it('takes the link off and says why the movement stays when Loans refuses its Undo', async () => {
     const { store, place, entry } = await fileWithPaid()
-    const result = await addAndLink(store, entry, () => addLoansMovement(MARKO, LENT, TITLES.inLoans), place, TITLES)
+    const result = await addAndLink(store, entry, () => addLoansMovement(MARKO, LENT, TITLES.added), place, TITLES)
     if (result.outcome !== 'linked') throw new Error(result.outcome)
     loans.refuseUndo = 'The movement was changed in Loans.'
 

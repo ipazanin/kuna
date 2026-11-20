@@ -24,6 +24,8 @@ import { listedOwnerPart, partPlace, pickedRecordOf, withPartHeadings } from '..
 import type { ListedBankRow, ListedRow } from '../domain/listedRows'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { TransactionGroup } from '../domain/transactionGroups'
+import { isLinkedElsewhere, linkedElsewhere } from '../application/spendingSightings'
+import SeenInSpending from './SeenInSpending.vue'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
@@ -61,6 +63,7 @@ const emit = defineEmits<{
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 const colours = useCategoryColours()
+const seenRows = computed(linkedElsewhere)
 
 /** One untitled section when ungrouped, so both forms share the card markup. A split or shared payment heads its parts. */
 const sections = computed(() =>
@@ -142,6 +145,7 @@ function ownerPartNote(row: ListedRow): string | null {
                   >{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ accountOf(entry.whole) }}</template></span
                 >
               </span>
+              <SeenInSpending v-if="isLinkedElsewhere(seenRows, entry.whole)" as="span" />
             </span>
             <span class="flex shrink-0">
               <UButton
@@ -176,6 +180,7 @@ function ownerPartNote(row: ListedRow): string | null {
                   >{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ names.account(entry.whole.account) }}</template></span
                 >
               </span>
+              <SeenInSpending v-if="isLinkedElsewhere(seenRows, entry.whole)" as="span" />
             </span>
             <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" :aria-label="words.editSplit(entry.whole.counterparty)" data-testid="edit-split" @click="emit('split', entry.whole)" />
           </li>
@@ -209,6 +214,7 @@ function ownerPartNote(row: ListedRow): string | null {
                   </span>
                 </span>
                 <NoteLine v-if="labelsOf(entry.row) !== ''" as="span" tone="muted" icon="i-lucide-tag" data-testid="company-row-labels">{{ labelsOf(entry.row) }}</NoteLine>
+                <SeenInSpending v-if="partLabel(entry.row) === null && isLinkedElsewhere(seenRows, entry.row)" as="span" />
               </span>
             </button>
             <div v-if="picked === null && openRows.has(entry.row.key)" class="card-details" data-testid="transaction-details">

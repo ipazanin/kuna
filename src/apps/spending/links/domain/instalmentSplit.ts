@@ -109,12 +109,12 @@ export function beyondRecord(target: LinkTarget, row: Pick<Transaction, 'amount'
  * with no category, and its principal, which goes under Loan principal and counts as no spending. A part the entry already
  * had gives way to them. An extra payment is all principal, so the whole entry goes under Loan principal, and an informal
  * loan or its movement goes whole under Loans to and from people. A transfer's leg and a receipt's row keep their parts. A payment
- * from or to your company files as `companyPaymentFiling` says.
+ * from or to your company, or a cost you paid for it, files as `companyPaymentFiling` says.
  */
 export function linkFiling(entry: ItemizedRow, target: LoanTarget, on: LinkedOn): LoanFiling
 export function linkFiling(entry: ItemizedRow, target: LinkTarget, on: LinkedOn): LinkFiling
 export function linkFiling({ row, items }: ItemizedRow, target: LinkTarget, on: LinkedOn): LinkFiling {
-  if (target.kind === 'owner-payment') return companyPaymentFiling({ row, items }, target, on)
+  if (target.kind === 'owner-payment' || target.kind === 'owner-advance') return companyPaymentFiling({ row, items }, target, on)
   const whole = (why: WholeReason): LoanFiling => ({ split: false, why })
   if (row.pair !== null || filedAsTransfer(on.categories)(items)) return whole('transfer-leg')
   if (on.receipt) return whole('receipt')
@@ -196,7 +196,7 @@ export interface LinkedEntry {
  * fixed category and filed by you, its parts joined into one that keeps every label, or each item as it is with the link on it.
  */
 export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkPlace & Pick<LinkedOn, 'receipt'>, newKey: () => string = newRecordId): LinkedEntry {
-  if (target.kind === 'owner-payment') return companyLinkedEntry(entry, target, place, newKey)
+  if (target.kind === 'owner-payment' || target.kind === 'owner-advance') return companyLinkedEntry(entry, target, place, newKey)
   const filing = linkFiling(entry, target, place)
   if (!filing.split && filing.why !== 'principal') return { entry: { row: entry.row, items: linkedItems(entry.items, target.link) }, interest: null, added: [] }
   const principal = fixedCategoryIn(place.categories, filing.split ? 'repayment' : wholeLoanKindOf(target), place.language, newKey)

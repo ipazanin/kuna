@@ -22,7 +22,7 @@ export const LINK_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'link-entry',
     about:
-      "Links an entry to the record in Loans it is, in place of any link it had, by the loan's name as Loans lists it and a day: a bank loan's instalment or interim interest by its due date, or an extra payment or an informal loan's movement by its day. A movement or an extra payment must be in Loans already. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. An extra payment files the whole entry under Loan principal, and an informal loan or its movement under Loans to and from people. With Company as the loan, it links a payment between the person's company and them on that day the way the entry's money went, filed by what its money is.",
+      "Links an entry to the record in Loans it is, in place of any link it had, by the loan's name as Loans lists it and a day: a bank loan's instalment or interim interest by its due date, or an extra payment or an informal loan's movement by its day. A movement or an extra payment must be in Loans already. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. An extra payment files the whole entry under Loan principal, and an informal loan or its movement under Loans to and from people. With Company as the loan, it links a payment between the person's company and them on that day the way the entry's money went, filed by what its money is, or for money out a cost they paid for the company that day, filed under For the company.",
     input: inputOf({
       entry: TEXT,
       loan: TEXT,
@@ -62,7 +62,7 @@ export function readLoans(loans: AppTargets<LinkTarget>): readonly LinkTarget[] 
 /** The record in Loans a step names by its loan's name: an instalment by its due date, or a movement or an extra payment by its day. */
 function linkedTarget(loans: AppTargets<LinkTarget>, name: string, due: CivilDate): LinkTarget {
   const named = readLoans(loans)
-    .filter((target) => target.kind !== 'informal-loan' && target.kind !== 'owner-payment')
+    .filter((target) => target.kind !== 'informal-loan' && target.kind !== 'owner-payment' && target.kind !== 'owner-advance')
     .filter((target) => target.loanName === name && (target.kind === 'instalment' ? target.due : target.day) === due)
   if (named.length > 1) throw new StepRefused(`More than one record of a loan called ${name} falls on that day. Rename one in Loans, or link it on the entry's dialog.`)
   const [target] = named
@@ -73,13 +73,20 @@ function linkedTarget(loans: AppTargets<LinkTarget>, name: string, due: CivilDat
 /** The name a step gives in place of a loan's to link a payment between the person's company and them. */
 const COMPANY = 'COMPANY'
 
-/** The payment between the person's company and them on the day that the entry on the account can be, as the entry dialog offers it. */
+/**
+ * The payment between the person's company and them on the day that the entry on the account can be, or for money out a cost
+ * they paid for the company on that day, as the entry dialog offers them.
+ */
 function companyPaymentOf(payments: readonly LinkTarget[], row: Transaction, account: Pick<Account, 'currency' | 'iban'>, day: CivilDate): LinkTarget {
-  const named = payments.filter((target) => target.kind === 'owner-payment' && target.day === day && maybeCompanyPayment(row, account, target))
-  if (named.length > 1) throw new StepRefused("More than one payment from or to Company that day can be this entry. The person links it on the entry's dialog.")
+  const named = payments.filter(
+    (target) => (target.kind === 'owner-payment' && target.day === day && maybeCompanyPayment(row, account, target)) || (target.kind === 'owner-advance' && target.day === day && row.amount < 0),
+  )
+  if (named.length > 1) throw new StepRefused("More than one payment or cost in Company that day can be this entry. The person links it on the entry's dialog.")
   const [payment] = named
   if (payment !== undefined) return payment
-  throw new StepRefused(`Company has no payment on ${day} that this entry can be: it is paid to or from the account's IBAN, in euros, the way the entry's money went. Company may not be open.`)
+  throw new StepRefused(
+    `Company has no payment or cost on ${day} that this entry can be: a payment is paid to or from the account's IBAN, in euros, the way the entry's money went, and a cost the person paid for the company is money out. Company may not be open.`,
+  )
 }
 
 /** Writes a link step through the writes the entry dialog uses, and gives the linked entry when it links one. */

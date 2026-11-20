@@ -33,3 +33,12 @@ export interface AppLinkedRows {
   readonly app: string
   readonly links: AppRowLinks
 }
+
+/**
+ * Every installed app's linked rows that name a record of the given app, so the reader never spells which apps link. An app
+ * still opening or not set up gives none, and an app that failed to open makes the whole read `unchecked`, since its links are unknown.
+ */
+export function linksNaming(linked: readonly AppLinkedRows[], app: string): readonly PublishedRowLink[] | 'unchecked' {
+  if (linked.some(({ links }) => links === 'failed')) return 'unchecked'
+  return linked.flatMap(({ links }) => (links === null || typeof links === 'string' ? [] : links.filter(({ target }) => target.app === app)))
+}

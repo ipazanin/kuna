@@ -93,6 +93,18 @@ export interface OwnerPaymentTarget {
   readonly parts: readonly CompanyMoneyPart[]
 }
 
+/** A cost you paid privately for your company, kept in Company as an owner advance, which a row of money out can be. */
+export interface OwnerAdvanceTarget {
+  readonly kind: 'owner-advance'
+  readonly link: RowLink
+  readonly day: CivilDate
+  /** Above zero. */
+  readonly amount: Money
+  readonly description: string
+  /** The name of the company's category it counts in. */
+  readonly categoryName: string
+}
+
 /** The kinds of money from your company that are an employee's pay. A trip's allowances and other tax-free pay are paid for work as salary is. */
 const PAY: ReadonlySet<CompanyMoney> = new Set(['salary', 'travel-allowance', 'tax-free-pay'])
 
@@ -106,12 +118,15 @@ export function isPayLink(read: LinkState<LinkTarget>): boolean {
 }
 
 /** A record in another app that a row can be. */
-export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget | OwnerPaymentTarget
+export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget | CompanyTarget
+
+/** A record in a company app that a row can be: a payment between the company and you, or a cost you paid for it. */
+export type CompanyTarget = OwnerPaymentTarget | OwnerAdvanceTarget
 
 /** A record in Loans that a row can be. */
-export type LoanTarget = Exclude<LinkTarget, OwnerPaymentTarget>
+export type LoanTarget = Exclude<LinkTarget, CompanyTarget>
 
-/** Which kind of app a link names: Loans with its loans, or a company app with its payments with the owner. Its words for a link it cannot show depend on it. */
+/** Which kind of app a link names: Loans with its loans, or a company app with its money with the owner. Its words for a link it cannot show depend on it. */
 export type TargetSource = 'loans' | 'company'
 
 /** An app's targets, a wait while its file opens, a failure, or null while the app is not set up on this device. */
@@ -199,7 +214,7 @@ export function maybeCompanyPayment(row: Pick<Transaction, 'amount'>, account: P
 /**
  * The records an entry can be linked to, each kind nearest its day first within half a month: for money out the instalments,
  * then the movements its money can be as `movementKindsFor` has it, then for money out of a euro account the extra payments,
- * then the payments between your company and you that `maybeCompanyPayment` lets it be.
+ * then the payments between your company and you that `maybeCompanyPayment` lets it be, then for money out the costs you paid for your company.
  */
 export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'date' | 'amount'>, account: Pick<Account, 'currency' | 'iban'>, targets: readonly Target[]): readonly Target[] {
   const { currency } = account
@@ -208,6 +223,13 @@ export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'da
   const movements = targets.filter((target) => target.kind === 'movement' && movementKindsFor(row.amount, target.direction).includes(target.movement))
   const extraPayments = out && currency === EURO ? targets.filter((target) => target.kind === 'extra-payment') : []
   const payments = targets.filter((target) => target.kind === 'owner-payment' && maybeCompanyPayment(row, account, target))
+  const advances = out ? targets.filter((target) => target.kind === 'owner-advance') : []
   const dayOf = (target: Target): CivilDate => (target.kind === 'instalment' ? target.due : target.kind === 'informal-loan' ? row.date : target.day)
-  return [...nearest(instalments, row.date, dayOf), ...nearest(movements, row.date, dayOf), ...nearest(extraPayments, row.date, dayOf), ...nearest(payments, row.date, dayOf)]
+  return [
+    ...nearest(instalments, row.date, dayOf),
+    ...nearest(movements, row.date, dayOf),
+    ...nearest(extraPayments, row.date, dayOf),
+    ...nearest(payments, row.date, dayOf),
+    ...nearest(advances, row.date, dayOf),
+  ]
 }

@@ -1,6 +1,7 @@
 import { addExtraPayment, addMovement } from '../../../loans/facts'
-import type { ExtraPaymentEffect, ExtraPaymentTarget, InformalLoanTarget, InstalmentTarget, LinkTarget, MovementKind, MovementTarget } from '../domain/linkTarget'
+import type { ExtraPaymentEffect, ExtraPaymentTarget, InformalLoanTarget, InstalmentTarget, MovementKind, MovementTarget } from '../domain/linkTarget'
 import type { ShownTarget } from './linkTargets'
+import type { AddedInApp } from './linkWithRecord'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 
@@ -12,14 +13,8 @@ export interface NewMovement {
   readonly note: string
 }
 
-/** A record added in Loans from a row, as Spending links to it, with the Undo of Loans' write. */
-export interface AddedInLoans<Target extends LinkTarget> {
-  readonly target: ShownTarget & Target
-  undo(): Promise<void>
-}
-
 /** Adds the movement to the informal loan in Loans, under the title Spending gives the write. Throws with the reason when Loans refuses it. */
-export async function addLoansMovement(loan: ShownTarget & InformalLoanTarget, movement: NewMovement, title: string): Promise<AddedInLoans<MovementTarget>> {
+export async function addLoansMovement(loan: ShownTarget & InformalLoanTarget, movement: NewMovement, title: string): Promise<AddedInApp<MovementTarget>> {
   const added = await addMovement({ loan: loan.link.key, day: movement.day, kind: movement.kind, amount: movement.amount, note: movement.note }, title)
   return {
     target: {
@@ -46,7 +41,7 @@ export interface NewExtraPayment {
 }
 
 /** Adds the extra payment to the bank loan whose instalment is given, under the title Spending gives the write. Throws with the reason when Loans refuses it. */
-export async function addLoansExtraPayment(instalment: ShownTarget & InstalmentTarget, payment: NewExtraPayment, title: string): Promise<AddedInLoans<ExtraPaymentTarget>> {
+export async function addLoansExtraPayment(instalment: ShownTarget & InstalmentTarget, payment: NewExtraPayment, title: string): Promise<AddedInApp<ExtraPaymentTarget>> {
   const added = await addExtraPayment({ loan: instalment.link.key, day: payment.day, amount: payment.amount, effect: payment.effect }, title)
   return {
     target: { kind: 'extra-payment', link: added.link, loanName: instalment.loanName, day: payment.day, amount: payment.amount, to: instalment.to },

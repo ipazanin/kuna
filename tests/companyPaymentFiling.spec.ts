@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { linkedEntry, linkFiling } from '../src/apps/spending/links/domain/instalmentSplit'
 import { targetsFor } from '../src/apps/spending/links/domain/linkTarget'
-import type { CompanyMoneyPart, LinkTarget, OwnerPaymentTarget } from '../src/apps/spending/links/domain/linkTarget'
+import type { CompanyMoneyPart, LinkTarget, OwnerAdvanceTarget, OwnerPaymentTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { companyMoneyCategoryIn } from '../src/apps/spending/categories/domain/starterCategories'
 import type { Category } from '../src/apps/spending/workbook/domain/category'
 import { wholeItemOf } from '../src/apps/spending/workbook/domain/rowItems'
@@ -123,5 +123,49 @@ describe('filing a row linked to a payment between your company and you', () => 
     expect(offered(-500, OTP)).toEqual(['owner-loan'])
     expect(offered(2_000, REVOLUT_EUR)).toEqual([])
     expect(offered(2_000, { currency: REVOLUT_USD.currency, iban: OTP.iban })).toEqual([])
+  })
+})
+
+describe('filing a row linked to a cost you paid for your company', () => {
+  function advance(amount: number, day = '2026-11-05'): OwnerAdvanceTarget {
+    return {
+      kind: 'owner-advance',
+      link: { app: 'company', kind: 'hr-doo.owner-advance', key: `advance-${day}`, due: null },
+      day: on(day),
+      amount: moneyFromAmount(amount),
+      description: 'Printer',
+      categoryName: 'Office supplies',
+    }
+  }
+
+  it('files the whole row under For the company, linked to the cost, and never under Loan principal', () => {
+    const linked = linkedEntry(entry(row(OTP, '2026-11-05', -120, 'Food/Groceries')), advance(120), PLACE)
+
+    expect(filedUnder(linked)).toEqual([[accountMoneyFromAmount(-120), 'For the company']])
+    expect(linked.entry.items.map((item) => item.link?.kind)).toEqual(['hr-doo.owner-advance'])
+    expect(linked.entry.row.categorisedBy).toBe('person')
+  })
+
+  it('keeps what the row paid beyond the cost as a part of its own under the category the row had', () => {
+    // The row paid 130.00 and Company keeps 120.00 of it as the cost, so 10.00 stays under Groceries.
+    const linked = linkedEntry(entry(row(OTP, '2026-11-05', -130, 'Food/Groceries')), advance(120), PLACE, () => 'made-up-part')
+
+    expect(filedUnder(linked)).toEqual([
+      [accountMoneyFromAmount(-120), 'For the company'],
+      [accountMoneyFromAmount(-10), 'Groceries'],
+    ])
+  })
+
+  it('offers a cost for money out on any account within half a month, and never for money in', () => {
+    const costs: readonly LinkTarget[] = [advance(120, '2026-11-05'), advance(50, '2026-12-30')]
+
+    expect(targetsFor(row(REVOLUT_USD, '2026-11-08', -120, null), REVOLUT_USD, costs)).toEqual([costs[0]])
+    expect(targetsFor(row(OTP, '2026-11-08', 120, null), OTP, costs)).toEqual([])
+  })
+
+  it('keeps a row on an account not in euros whole, with the link only', () => {
+    const filing = linkFiling(entry(row(REVOLUT_USD, '2026-11-05', -120, 'Food/Groceries')), advance(120), { ...PLACE, currency: REVOLUT_USD.currency })
+
+    expect(filing).toEqual({ split: false, why: 'not-euro' })
   })
 })

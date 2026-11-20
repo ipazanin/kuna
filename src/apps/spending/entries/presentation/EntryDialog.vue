@@ -17,9 +17,9 @@ import { useLabelsAndEvents } from './useLabelsAndEvents'
 import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
 import { sourceOf } from '../../links/application/linkTargets'
-import type { ShownTarget } from '../../links/application/linkTargets'
-import type { InformalLoanTarget } from '../../links/domain/linkTarget'
-import AddToLoansForm from '../../links/presentation/AddToLoansForm.vue'
+import { addInAppWords } from '../../links/presentation/addInApp'
+import type { AddInApp } from '../../links/presentation/addInApp'
+import AddInAppForm from '../../links/presentation/AddInAppForm.vue'
 import EntryLinkField from '../../links/presentation/EntryLinkField.vue'
 import { words as linkWords } from '../../links/presentation/words'
 import PayeeField from '../../payees/presentation/PayeeField.vue'
@@ -153,9 +153,9 @@ const splitNote = computed(() => {
   return link === null ? words.split.note : linkWords.splitNote[sourceOf(link.app)]
 })
 
-/** While set, the dialog adds a movement to one of these informal loans from the saved entry, and its footer goes back or adds and links. */
-const loansToAddTo = ref<readonly (ShownTarget & InformalLoanTarget)[] | null>(null)
-const addingToLoans = computed(() => loansToAddTo.value !== null)
+/** While set, the dialog adds a record in Loans or Company from the saved entry, and its footer goes back or adds and links. */
+const adding = ref<AddInApp | null>(null)
+const addingWords = computed(() => (adding.value === null ? null : addInAppWords(adding.value)))
 const addingSaving = ref(false)
 
 /** The open accounts kept by hand, and the ones the entry is already on, closed or filled by the bank. */
@@ -207,7 +207,7 @@ watch(open, (opened) => {
   start(entryLines.value.map((line) => ({ part: line.id, labels: line.labels, event: line.event })))
   lineFilings.value = Object.fromEntries(entryLines.value.flatMap((line) => (line.receipt === null ? [] : [[line.id, { category: line.category ?? '', note: line.note }]])))
   tried.value = false
-  loansToAddTo.value = null
+  adding.value = null
   memory.filled.value = false
   openedAs.value = formNow.value
 })
@@ -352,20 +352,15 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    changes
-    :title="addingToLoans ? linkWords.add.open : entry === null ? words.dialog.addTitle : words.dialog.changeTitle"
-    :description="addingToLoans ? linkWords.add.help : words.dialog.description"
-  >
-    <AddToLoansForm
-      v-if="loansToAddTo !== null && entry !== null"
-      id="spending-add-to-loans-form"
+  <AppDialog v-model:open="open" changes :title="addingWords?.open ?? (entry === null ? words.dialog.addTitle : words.dialog.changeTitle)" :description="addingWords?.help ?? words.dialog.description">
+    <AddInAppForm
+      v-if="adding !== null && entry !== null"
+      id="spending-add-in-app-form"
       v-model:saving="addingSaving"
       :entry="entry"
       :split="split"
       :currency="entryCurrency"
-      :loans="loansToAddTo"
+      :adding="adding"
       :categories="categories"
       @linked="open = false"
     />
@@ -437,7 +432,7 @@ async function remove(): Promise<void> {
         :linkable="legs === null && kind !== 'transfer'"
         :edited="edited"
         @done="open = false"
-        @add-to-loans="loansToAddTo = $event"
+        @add="adding = $event"
       />
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ splitNote }}</p>
@@ -505,7 +500,7 @@ async function remove(): Promise<void> {
     <EntrySplitDialog v-if="entry !== null" v-model:open="splitOpen" :entry="entry" :currency="from?.currency ?? EURO" @saved="open = false" />
     <template #start>
       <UButton
-        v-if="entry !== null && !addingToLoans"
+        v-if="entry !== null && adding === null"
         :label="words.dialog.delete"
         icon="i-lucide-trash-2"
         color="error"
@@ -516,16 +511,16 @@ async function remove(): Promise<void> {
         @click="remove"
       />
     </template>
-    <template v-if="addingToLoans" #end>
-      <UButton :label="uiWords.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :disabled="addingSaving" data-testid="spending-add-to-loans-back" @click="loansToAddTo = null" />
+    <template v-if="adding !== null" #end>
+      <UButton :label="uiWords.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :disabled="addingSaving" :data-testid="`spending-add-to-${adding.app}-back`" @click="adding = null" />
       <UButton
         type="submit"
-        form="spending-add-to-loans-form"
-        :label="linkWords.add.save"
+        form="spending-add-in-app-form"
+        :label="addInAppWords(adding).save"
         icon="i-lucide-link"
         :loading="addingSaving"
         :disabled="addingSaving || writes.refused.value"
-        data-testid="spending-add-to-loans-save"
+        :data-testid="`spending-add-to-${adding.app}-save`"
       />
     </template>
     <template v-else #end>

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { words } from './words'
-import { COMPANY_OIB_PAGE, companyOib } from '../application/companyOib'
+import { COMPANY_OIB_PAGE, companyOib } from '../../company/application/companyFacts'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import type { Tone } from '../../../../shared/ui/toneText'

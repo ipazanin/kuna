@@ -122,6 +122,8 @@ export const en = {
   unclassified: 'Unclassified',
   noRule: 'No rule',
   ownerAdvance: 'Owner advance',
+  /** On a row a row of your own statements links to. */
+  seenInSpending: 'Seen in Spending',
   splitInParts: (count: number): EnglishForms => ({ one: `Split in ${count} parts`, other: `Split in ${count} parts` }),
   sharedWithOwner: (share: number) => `Shared with the owner, ${share}%`,
   part: (number: number, count: number) => `Part ${number} of ${count}`,
@@ -349,6 +351,7 @@ export const hr: Translation<typeof en> = {
   unclassified: 'Nerazvrstano',
   noRule: 'Bez pravila',
   ownerAdvance: 'Predujam vlasnika',
+  seenInSpending: 'Vidljivo u Potrošnji',
   splitInParts: (count) => ({ one: `Podijeljeno na ${count} dio`, few: `Podijeljeno na ${count} dijela`, other: `Podijeljeno na ${count} dijelova` }),
   sharedWithOwner: (share) => `Dijeli se s vlasnikom, ${share}\u00a0%`,
   part: (number, count) => `Dio ${number} od ${count}`,

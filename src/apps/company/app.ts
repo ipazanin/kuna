@@ -38,6 +38,7 @@ import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
 import { REVIEW_LINK } from './transactions/presentation/transactionsLinks'
 import { publishedMoneyWithOwner } from './transactions/application/publishedMoneyWithOwner'
+import { readSightingsThrough } from './transactions/application/spendingSightings'
 
 const CORE_SCREENS: readonly AppScreen[] = [
   { path: '/company', title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
@@ -60,7 +61,8 @@ export const companyApp: AppContribution = {
   id: COMPANY_APP,
   name: words.name,
   colour: '--app-company',
-  async install() {
+  async install(shell) {
+    readSightingsThrough(() => shell.linkedRows(), COMPANY_APP)
     installPack(hrDooPack)
     installPackTabs(HR_DOO_TABS)
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.

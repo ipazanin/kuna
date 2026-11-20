@@ -23,8 +23,8 @@ describe("the fake Spending set paid by the fake Company's owner pay", () => {
   })
 
   it('links a row to a ledger row Company with one employee pays its owner, on the day and of the amount of that payment', () => {
-    const payments = publishedMoneyWithOwner(company) ?? []
-    const linked = spending.items.filter((item) => item.link?.app === 'company')
+    const payments = publishedMoneyWithOwner(company)?.payments ?? []
+    const linked = spending.items.filter((item) => item.link?.app === 'company' && item.link.kind === 'ledger-row')
 
     expect(linked).toHaveLength(1)
     for (const item of linked) {
@@ -32,6 +32,19 @@ describe("the fake Spending set paid by the fake Company's owner pay", () => {
       const row = spending.transactions.find((candidate) => candidate.id === item.transaction)
       expect(payment?.day).toBe(row?.date)
       expect(payment?.amount).toBe(row?.amount)
+    }
+  })
+
+  it('links money out to a cost Company with one employee keeps as an owner advance, on its day and of its amount', () => {
+    const advances = publishedMoneyWithOwner(company)?.advances ?? []
+    const linked = spending.items.filter((item) => item.link?.kind === 'hr-doo.owner-advance')
+
+    expect(linked).toHaveLength(1)
+    for (const item of linked) {
+      const advance = advances.find((candidate) => candidate.link.key === item.link?.key)
+      const row = spending.transactions.find((candidate) => candidate.id === item.transaction)
+      expect(advance?.day).toBe(row?.date)
+      expect(advance?.amount).toBe(-(row?.amount ?? 0))
     }
   })
 })

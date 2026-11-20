@@ -24,15 +24,15 @@ function appOf(
 describe('what the shell lets an app read of the others', () => {
   it('gathers the linked rows and the money with the owner of each app that hands any over, by app, afresh at each call', async () => {
     const kept: { shell: ShellReads | null } = { shell: null }
-    let payments: AppMoneyWithOwner = 'opening'
+    let money: AppMoneyWithOwner = 'opening'
     await installApp(appOf('spending', { rowLinks: () => [] }, kept))
-    await installApp(appOf('company', { moneyWithOwner: () => payments }, kept))
+    await installApp(appOf('company', { moneyWithOwner: () => money }, kept))
     await installApp(appOf('assets', {}, kept))
 
     expect(kept.shell?.linkedRows()).toEqual([{ app: 'spending', links: [] }])
-    expect(kept.shell?.moneyWithOwner()).toEqual([{ app: 'company', payments: 'opening' }])
-    payments = null
-    expect(kept.shell?.moneyWithOwner()).toEqual([{ app: 'company', payments: null }])
+    expect(kept.shell?.moneyWithOwner()).toEqual([{ app: 'company', money: 'opening' }])
+    money = null
+    expect(kept.shell?.moneyWithOwner()).toEqual([{ app: 'company', money: null }])
   })
 
   it('gathers the loan records of each app that keeps loans, by app, afresh at each call', async () => {

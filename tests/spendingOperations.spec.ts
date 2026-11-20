@@ -801,7 +801,7 @@ describe('an entry’s link to Loans', () => {
     }
     const desk = await spendingDesk(used, { ...deskPorts(), companyPayments: () => [repaid] })
     const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
-    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Company', due: '2026-10-13' })])).text).toContain('Company has no payment on 2026-10-13')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Company', due: '2026-10-13' })])).text).toContain('Company has no payment or cost on 2026-10-13')
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Company', due: '2026-10-12' })])
     expect((await desk.accept()).kind).toBe('done')
     const loans = bookOf(desk).categories.find((held) => held.kind === 'informal-loan')
@@ -810,6 +810,27 @@ describe('an entry’s link to Loans', () => {
         .items.filter((part) => part.transaction === EXAMPLE_RECORDS['transaction'])
         .map((part) => [part.amount, part.category, part.link]),
     ).toEqual([[accountMoneyFromAmount(-45.3), loans?.id, repaid.link]])
+  })
+
+  it('links money out to a cost the person paid for their company by Company and its day, filed under For the company', async () => {
+    const cost: LinkTarget = {
+      kind: 'owner-advance',
+      link: { app: 'company', kind: 'hr-doo.owner-advance', key: 'made-up-advance', due: null },
+      day: parseCivilDate('2026-10-12')!,
+      amount: moneyFromAmount(45.3),
+      description: 'Printer paper',
+      categoryName: 'Office supplies',
+    }
+    const desk = await spendingDesk(used, { ...deskPorts(), companyPayments: () => [cost] })
+    const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Company', due: '2026-10-12' })])
+    expect((await desk.accept()).kind).toBe('done')
+    const forCompany = bookOf(desk).categories.find((held) => held.kind === 'company')
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === EXAMPLE_RECORDS['transaction'])
+        .map((part) => [part.amount, part.category, part.link]),
+    ).toEqual([[accountMoneyFromAmount(-45.3), forCompany?.id, cost.link]])
   })
 
   it('tells the chat what a link names, or that Loans no longer has it', async () => {

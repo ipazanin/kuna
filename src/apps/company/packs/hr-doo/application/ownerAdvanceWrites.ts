@@ -21,7 +21,7 @@ import type { RepaymentChoice } from '../domain/advanceRepayments'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
-import type { LabelCarrier } from '../../packContribution'
+import type { LabelCarrier, NewOwnerAdvance } from '../../packContribution'
 
 /** A cost the owner paid privately, as the advance form gives it. */
 export interface OwnerAdvanceDraft {
@@ -48,6 +48,13 @@ export function ownerAdvanceOfDraft(draft: OwnerAdvanceDraft, categories: readon
       ? filedIn({ ...described, category: '', ownerShare: null, id: recordIdOf(OWNER_ADVANCE_RECORDS, newRecordId()) }, category, categories)
       : movedTo({ ...before, ...described }, category, categories)
   return draft.labels === undefined ? filed : ADVANCE_LABELS.withLabels(filed, draft.labels)
+}
+
+/** Adds a cost the owner paid that another app hands over, as the advance form adds a new one with no payment back and no labels, and gives its id. */
+export function addOwnerAdvance(unit: UnitOfWork, records: WorkbookRecords, categories: readonly ShareDefault[], added: NewOwnerAdvance): RecordId {
+  const advance = ownerAdvanceOfDraft(added, categories)
+  writeOwnerAdvance(unit, records, null, advance, [])
+  return advance.id
 }
 
 /** Has each advance the new rows pay back name the items that pay it, after those it names already. */

@@ -74,7 +74,7 @@ export const en = {
   },
   /** The form that adds a movement in Loans from an entry and links the entry to it. */
   add: {
-    open: 'Add a movement to an informal loan',
+    open: 'Add to Loans',
     help: 'Adds the movement to the informal loan in Loans, then links this entry to it under Loan principal. One Undo takes back both.',
     loan: 'Informal loan',
     pickLoan: 'Pick a loan',
@@ -87,9 +87,9 @@ export const en = {
     done: 'Added in Loans and linked',
     notAdded: 'Not added to Loans',
     notLinked: 'Added in Loans, not linked',
-    staysInLoans: (reason: string) => `The movement stays in Loans, where you can see and delete it. ${reason}`,
+    staysAdded: (reason: string) => `The movement stays in Loans, where you can see and delete it. ${reason}`,
     undone: 'The link and the movement are taken back.',
-    keptInLoans: (reason: string) => `The link is off, and the movement stays in Loans. ${reason}`,
+    keptAdded: (reason: string) => `The link is off, and the movement stays in Loans. ${reason}`,
   },
   notUndone: 'Not undone',
   /** A payment between your company and you in Company, as a link names it. */
@@ -106,6 +106,8 @@ export const en = {
     } satisfies Record<CompanyMoney, string>,
     toYou: (what: string, day: CivilDate) => `${capitalised(what)} from Company, paid ${dayLabel(day)}`,
     fromYou: (what: string, day: CivilDate) => `${capitalised(what)} to Company, paid ${dayLabel(day)}`,
+    /** A cost you paid for your company, kept in Company as an owner advance, by what it was and its day. */
+    advance: (description: string, day: CivilDate) => `${description === '' ? 'A cost' : description} you paid for Company, ${dayLabel(day)}`,
     gone: 'No longer in Company',
     opening: 'Linked to Company, which is still opening',
     failed: 'Linked to Company, which did not open',
@@ -117,6 +119,25 @@ export const en = {
     files: (parts: string) => `Files the entry as ${parts}.`,
     more: (amount: string) => `The entry is ${amount} more than the payment, and the difference stays as a part of its own.`,
     less: (amount: string) => `The entry is ${amount} less than the payment, and the difference stays as a part of its own.`,
+    /** The form that adds a cost you paid for your company to Company from an entry and links the entry to it. */
+    add: {
+      open: 'Add to Company',
+      help: 'Adds the cost to Company as an owner advance, which the company owes you, then files this entry under For the company, linked to it. One Undo takes back both.',
+      category: 'Category in Company',
+      categoryHelp: 'Operating costs and taxes only.',
+      pickCategory: 'Pick a category',
+      description: 'What it was',
+      amount: 'Amount in EUR',
+      anAmount: 'An amount above zero',
+      save: 'Add and link',
+      inCompany: 'Owner advance added from Spending',
+      done: 'Added in Company and linked',
+      notAdded: 'Not added to Company',
+      notLinked: 'Added in Company, not linked',
+      staysAdded: (reason: string) => `The cost stays in Company, where you can see and delete it. ${reason}`,
+      undone: 'The link and the cost are taken back.',
+      keptAdded: (reason: string) => `The link is off, and the cost stays in Company. ${reason}`,
+    },
   },
   /** The card of rows a loan's rule filed whole that To review offers to record in Loans as an extra payment, and the form that does it. */
   extra: {
@@ -133,9 +154,9 @@ export const en = {
     done: 'Recorded in Loans and linked',
     notAdded: 'Not recorded in Loans',
     notLinked: 'Recorded in Loans, not linked',
-    staysInLoans: (reason: string) => `The extra payment stays in Loans, where you can see and delete it. ${reason}`,
+    staysAdded: (reason: string) => `The extra payment stays in Loans, where you can see and delete it. ${reason}`,
     undone: 'The link and the extra payment are taken back.',
-    keptInLoans: (reason: string) => `The link is off, and the extra payment stays in Loans. ${reason}`,
+    keptAdded: (reason: string) => `The link is off, and the extra payment stays in Loans. ${reason}`,
   },
   /** The card of rows filed already that are payments between your company and you. */
   payments: {
@@ -231,7 +252,7 @@ export const hr: Translation<typeof en> = {
     mayPayAnotherDay: (instalment) => `Je li ovo možda ${instalment}?`,
   },
   add: {
-    open: 'Dodaj promjenu pozajmici',
+    open: 'Dodaj u Kredite',
     help: 'Dodaje promjenu pozajmici u Kreditima, a zatim ovaj unos povezuje s njom pod glavnicom kredita. Jedno poništavanje vraća oboje.',
     loan: 'Pozajmica',
     pickLoan: 'Odaberi pozajmicu',
@@ -244,9 +265,9 @@ export const hr: Translation<typeof en> = {
     done: 'Dodano u Kredite i povezano',
     notAdded: 'Nije dodano u Kredite',
     notLinked: 'Dodano u Kredite, nije povezano',
-    staysInLoans: (reason) => `Promjena ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
+    staysAdded: (reason) => `Promjena ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
     undone: 'Poveznica i promjena su vraćene.',
-    keptInLoans: (reason) => `Poveznica je uklonjena, a promjena ostaje u Kreditima. ${reason}`,
+    keptAdded: (reason) => `Poveznica je uklonjena, a promjena ostaje u Kreditima. ${reason}`,
   },
   notUndone: 'Nije poništeno',
   company: {
@@ -262,6 +283,7 @@ export const hr: Translation<typeof en> = {
     },
     toYou: (what, day) => `${capitalised(what)} iz Tvrtke, isplaćeno ${dayLabel(day)}`,
     fromYou: (what, day) => `${capitalised(what)} Tvrtki, uplaćeno ${dayLabel(day)}`,
+    advance: (description, day) => `${description === '' ? 'Trošak' : description} koji ste platili za Tvrtku, ${dayLabel(day)}`,
     gone: 'Više nije u Tvrtki',
     opening: 'Povezano s Tvrtkom, koja se još otvara',
     failed: 'Povezano s Tvrtkom, koja se nije otvorila',
@@ -272,6 +294,24 @@ export const hr: Translation<typeof en> = {
     files: (parts) => `Unos se razvrstava kao ${parts}.`,
     more: (amount) => `Unos je ${amount} veći od isplate, a razlika ostaje kao zaseban dio.`,
     less: (amount) => `Unos je ${amount} manji od isplate, a razlika ostaje kao zaseban dio.`,
+    add: {
+      open: 'Dodaj u Tvrtku',
+      help: 'Dodaje trošak u Tvrtku kao predujam vlasnika, koji vam tvrtka duguje, a zatim ovaj unos razvrstava pod Za tvrtku i povezuje s njim. Jedno poništavanje vraća oboje.',
+      category: 'Kategorija u Tvrtki',
+      categoryHelp: 'Samo poslovni rashodi i porezi.',
+      pickCategory: 'Odaberi kategoriju',
+      description: 'Što je plaćeno',
+      amount: 'Iznos u EUR',
+      anAmount: 'Iznos veći od nule',
+      save: 'Dodaj i poveži',
+      inCompany: 'Predujam vlasnika dodan iz Potrošnje',
+      done: 'Dodano u Tvrtku i povezano',
+      notAdded: 'Nije dodano u Tvrtku',
+      notLinked: 'Dodano u Tvrtku, nije povezano',
+      staysAdded: (reason) => `Trošak ostaje u Tvrtki, gdje ga možete vidjeti i obrisati. ${reason}`,
+      undone: 'Poveznica i trošak su vraćeni.',
+      keptAdded: (reason) => `Poveznica je uklonjena, a trošak ostaje u Tvrtki. ${reason}`,
+    },
   },
   extra: {
     title: 'Prijevremene otplate za upis',
@@ -287,9 +327,9 @@ export const hr: Translation<typeof en> = {
     done: 'Upisano u Kredite i povezano',
     notAdded: 'Nije upisano u Kredite',
     notLinked: 'Upisano u Kredite, nije povezano',
-    staysInLoans: (reason) => `Prijevremena otplata ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
+    staysAdded: (reason) => `Prijevremena otplata ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
     undone: 'Poveznica i prijevremena otplata su vraćene.',
-    keptInLoans: (reason) => `Poveznica je uklonjena, a prijevremena otplata ostaje u Kreditima. ${reason}`,
+    keptAdded: (reason) => `Poveznica je uklonjena, a prijevremena otplata ostaje u Kreditima. ${reason}`,
   },
   payments: {
     title: 'Plaćanja s Tvrtkom',
@@ -349,6 +389,8 @@ export function choiceText(target: LinkTarget): string {
       return words.extraPayment(target.loanName, target.day)
     case 'owner-payment':
       return companyPaymentText(target)
+    case 'owner-advance':
+      return words.company.advance(target.description, target.day)
   }
 }
 

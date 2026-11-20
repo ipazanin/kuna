@@ -32,11 +32,29 @@ export interface PublishedOwnerPayment {
   readonly to: RouteLocationRaw
 }
 
-/** An app's payments with its owner, a wait while its file opens, a failure, or null while the app is not set up or keeps no owner pay. */
-export type AppMoneyWithOwner = readonly PublishedOwnerPayment[] | 'opening' | 'failed' | null
+/** A cost the owner paid privately for the company, which a row of the owner's own account can be, with the link that names it and the page that shows it. */
+export interface PublishedOwnerAdvance {
+  readonly link: PublishedLinkTarget
+  readonly day: CivilDate
+  /** Above zero. */
+  readonly amount: Money
+  readonly description: string
+  /** The name of the company's category it counts in. */
+  readonly categoryName: string
+  readonly to: RouteLocationRaw
+}
 
-/** The payments with its owner one app publishes, under the app's id. */
-export interface AppOwnerPayments {
+/** The money between a company and its owner: the bank rows between them and the costs the owner paid privately. */
+export interface PublishedMoneyWithOwner {
+  readonly payments: readonly PublishedOwnerPayment[]
+  readonly advances: readonly PublishedOwnerAdvance[]
+}
+
+/** An app's money with its owner, a wait while its file opens, a failure, or null while the app is not set up or keeps no owner pay. */
+export type AppMoneyWithOwner = PublishedMoneyWithOwner | 'opening' | 'failed' | null
+
+/** The money with its owner one app publishes, under the app's id. */
+export interface MoneyWithOwnerOfApp {
   readonly app: string
-  readonly payments: AppMoneyWithOwner
+  readonly money: AppMoneyWithOwner
 }

@@ -1,4 +1,4 @@
-import type { CompanyMoney, OwnerPaymentTarget } from './linkTarget'
+import type { CompanyMoney, CompanyTarget } from './linkTarget'
 import type { LinkedEntry, LinkedOn, LinkFiling, LinkPlace } from './instalmentSplit'
 import { companyMoneyCategoryIn, fixedCategoryIn } from '../../categories/domain/starterCategories'
 import { eventOfLargest, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
@@ -50,8 +50,12 @@ export interface CompanyPaymentSplit {
   readonly rowCategory: RecordId | null
 }
 
-/** The payment's parts as money of a euro account, credits for money to you and debits for money from you, with parts of the same home joined. */
-function paymentParts(target: OwnerPaymentTarget): readonly CompanyPart[] {
+/**
+ * The record's parts as money of a euro account, credits for money to you and debits for money from you, with parts of the same
+ * home joined. A cost you paid for your company is one part under For the company, paid out of your account.
+ */
+function paymentParts(target: CompanyTarget): readonly CompanyPart[] {
+  if (target.kind === 'owner-advance') return [{ home: 'company', amount: negateAccountMoney(accountMoneyOfEuros(target.amount)) }]
   const parts: { home: CompanyMoneyHome; amount: AccountMoney }[] = []
   for (const part of target.parts) {
     const amount = target.direction === 'to-owner' ? accountMoneyOfEuros(part.amount) : negateAccountMoney(accountMoneyOfEuros(part.amount))
@@ -64,11 +68,11 @@ function paymentParts(target: OwnerPaymentTarget): readonly CompanyPart[] {
 }
 
 /**
- * How linking the row to a payment from or to your company files it. A transfer's leg, a receipt's row and a row on an account
- * not in euros keep their parts. Any other row is filed in the payment's parts by what each part's money is, and what the row
- * moved beyond the payment stays as a part of its own under the row's category.
+ * How linking the row to a payment from or to your company, or to a cost you paid for it, files it. A transfer's leg, a receipt's
+ * row and a row on an account not in euros keep their parts. Any other row is filed in the record's parts by what each part's
+ * money is, and what the row moved beyond the record stays as a part of its own under the row's category.
  */
-export function companyPaymentFiling({ row, items }: ItemizedRow, target: OwnerPaymentTarget, on: LinkedOn): LinkFiling {
+export function companyPaymentFiling({ row, items }: ItemizedRow, target: CompanyTarget, on: LinkedOn): LinkFiling {
   if (row.pair !== null || filedAsTransfer(on.categories)(items)) return { split: false, why: 'transfer-leg' }
   if (on.receipt) return { split: false, why: 'receipt' }
   if (on.currency !== EURO) return { split: false, why: 'not-euro' }
@@ -108,11 +112,11 @@ function partCategories(filing: CompanyPaymentSplit, place: Pick<LinkPlace, 'cat
 }
 
 /**
- * The row linked to the payment, filed as `companyPaymentFiling` says: its items replaced by one item per part, each linked
+ * The row linked to the payment or the cost, filed as `companyPaymentFiling` says: its items replaced by one item per part, each linked
  * to the payment and carrying every label of the row, the first keeping the id of the row's first item, and filed by you.
  * One part files the row whole. A row that keeps its parts only takes the link.
  */
-export function companyLinkedEntry(entry: ItemizedRow, target: OwnerPaymentTarget, place: LinkPlace & Pick<LinkedOn, 'receipt'>, newKey: () => string = newRecordId): LinkedEntry {
+export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, place: LinkPlace & Pick<LinkedOn, 'receipt'>, newKey: () => string = newRecordId): LinkedEntry {
   const filing = companyPaymentFiling(entry, target, place)
   if (filing.split !== 'payment') return { entry: { row: entry.row, items: linkedItems(entry.items, target.link) }, interest: null, added: [] }
   const { ids, added } = partCategories(filing, place, newKey)

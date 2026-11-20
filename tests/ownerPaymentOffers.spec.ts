@@ -17,7 +17,7 @@ const SYNCED = '2026-11-18T08:00:00.000Z'
 const meta = { id: 'fake', source: 'browser' as const, title: 'Fake', syncedAt: SYNCED, lastExportedAt: null, unexportedSince: null }
 const company = readDocument(meta, fakeWorkbookDocument(SYNCED, 'browser', fakeStaffOf('one-employee'))).workbook
 const book = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(SYNCED, 'company', civil('2026-11-18')) }).workbook
-const payments: readonly LinkTarget[] = companyTargetsFrom([{ app: 'company', payments: publishedMoneyWithOwner(company) }]).flatMap(({ targets }) => (Array.isArray(targets) ? targets : []))
+const payments: readonly LinkTarget[] = companyTargetsFrom([{ app: 'company', money: publishedMoneyWithOwner(company) }]).flatMap(({ targets }) => (Array.isArray(targets) ? targets : []))
 const descriptionOf = (id: string) => book.transactions.find((row) => row.id === id)?.description
 
 describe('the rows To review offers as payments between your company and you', () => {

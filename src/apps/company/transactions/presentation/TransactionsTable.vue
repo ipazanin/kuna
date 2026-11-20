@@ -32,6 +32,8 @@ import { categoryChangeOf } from '../domain/categoryChange'
 import { listedOwnerPart, partPlace, pickedRecordOf, withPartHeadings } from '../domain/listedRows'
 import type { ListedAdvanceRow, ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
 import type { TransactionGroup } from '../domain/transactionGroups'
+import { isLinkedElsewhere, linkedElsewhere } from '../application/spendingSightings'
+import SeenInSpending from './SeenInSpending.vue'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
 import { words } from './words'
 
@@ -65,6 +67,7 @@ const sorting = defineModel<SortingState>('sorting', { required: true })
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 const colours = useCategoryColours()
+const seenRows = computed(linkedElsewhere)
 
 /** The table's rows: each group's heading, then its rows unless it is collapsed, a split or shared payment's parts under the payment. */
 type TableEntry = { readonly kind: 'group'; readonly group: TransactionGroup } | ListedEntry
@@ -140,6 +143,11 @@ function categoryOf(listed: ListedRow) {
 function labelLine(listed: ListedRow) {
   const named = props.labelsOf(listed)
   return named === '' ? null : h(NoteLine, { tone: 'muted', icon: 'i-lucide-tag', 'data-testid': 'company-row-labels' }, () => named)
+}
+
+/** A bank row or a cost the owner paid linked in Spending says so on a line of its own. A part leaves it to the heading above it. */
+function seenLine(row: ListedRow | Transaction) {
+  return isLinkedElsewhere(seenRows.value, row) ? h(SeenInSpending) : null
 }
 
 /** A bank row's counterparty opens its rows. An advance has no counterparty in the ledger, so a counterparty filter would leave it out. */
@@ -228,6 +236,7 @@ const COLUMNS: TableColumn<TableEntry>[] = [
         return h('div', { class: 'min-w-40 max-w-48 @3xl:max-w-56 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex flex-wrap items-center gap-2 text-highlighted' }, [counterpartyName(whole), headingBadge(entry)]),
           whole.description === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => whole.description),
+          seenLine(whole),
         ])
       }
       const listed = entry.row
@@ -248,6 +257,7 @@ const COLUMNS: TableColumn<TableEntry>[] = [
         counterpartyName(listed),
         listed.description === '' ? null : h(CutText, { as: 'p', class: 'text-xs text-muted' }, () => listed.description),
         labelLine(listed),
+        seenLine(listed),
         categoryBelowName(listed),
       ])
     },

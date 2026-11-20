@@ -205,6 +205,8 @@ function linkRead(item: TransactionItem, targetsOf: (app: string) => AppTargets<
         return words.reads.linkExtraPayment(target.loanName, target.day)
       case 'owner-payment':
         return words.reads.linkCompanyPayment(target.parts.map((part) => part.kind).join(', '), target.day, target.direction === 'to-owner')
+      case 'owner-advance':
+        return words.reads.linkCompanyAdvance(target.categoryName, target.day)
     }
   }
   if (sourceOf(item.link.app) === 'company') {

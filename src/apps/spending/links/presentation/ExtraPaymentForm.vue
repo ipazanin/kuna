@@ -7,7 +7,7 @@ import { addAndLink } from '../application/linkWithRecord'
 import { addLoansExtraPayment } from '../application/loanTargets'
 import type { ShownInstalment } from '../application/linkReview'
 import type { ExtraPaymentEffect } from '../domain/linkTarget'
-import { toastLinkedInLoans } from './linkedInLoansToasts'
+import { toastAddedAndLinked } from './addedAndLinkedToasts'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -64,10 +64,10 @@ async function save(): Promise<void> {
   saving.value = true
   try {
     const place = { currency: EURO, categories: book.categories, language, notes: words.notes }
-    const titles = { inLoans: words.extra.inLoans, linked: words.linked }
+    const titles = { added: words.extra.inLoans, linked: words.linked }
     const payment = { day: on, amount: euros, effect: effect.value }
-    const result = await addAndLink(store, props.entry, () => addLoansExtraPayment(props.instalment, payment, titles.inLoans), place, titles)
-    if (toastLinkedInLoans(toast, result, words.extra)) emit('recorded')
+    const result = await addAndLink(store, props.entry, () => addLoansExtraPayment(props.instalment, payment, titles.added), place, titles)
+    if (toastAddedAndLinked(toast, result, words.extra)) emit('recorded')
   } finally {
     saving.value = false
   }

@@ -6,10 +6,10 @@ import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { linkAssetsToRows } from './application/assetLinkWrites'
 import { linkPackToItems } from './application/itemLinkWrites'
-import { ADVANCE_LABELS, linkRepayments } from './application/ownerAdvanceWrites'
+import { ADVANCE_LABELS, addOwnerAdvance, linkRepayments } from './application/ownerAdvanceWrites'
 import { proposedRepayments } from './domain/advanceRepayments'
 import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
-import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
+import { EMPLOYEE_RECORDS, OWNER_ADVANCE_RECORDS } from './domain/hrDooKinds'
 import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { tripRatesDemand } from './domain/trips/tripSettlement'
 import { paysForTrip } from './domain/trips/tripPayments'
@@ -48,6 +48,8 @@ export const hrDooPack: PackContribution = {
   ownerTakeOut: (workbook, asOf) => ownerTakeOut(hrDooWorkbook(workbook), asOf),
   moneyWithOwner: (workbook) => publishedOwnerPayments(ownerPayments(hrDooWorkbook(workbook))),
   paysForTrip,
+  ownerAdvanceRecords: OWNER_ADVANCE_RECORDS,
+  addOwnerAdvance,
   vatOnPrivateShare,
   ratesDemand: (workbook) =>
     tripRatesDemand(

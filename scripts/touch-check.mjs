@@ -237,6 +237,7 @@ import {
   spendingReviewFlowIn,
   spendingInstalmentOffersFlowIn,
   spendingAddToLoansFlowIn,
+  spendingAddToCompanyFlowIn,
   spendingRuleFlowIn,
   spendingReviewSelectFlowIn,
   spendingReviewPickAllFlowIn,
@@ -3518,6 +3519,7 @@ async function checkWidth(browser, width) {
     ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-instalment-offers', 'drive&spending=statements&loans=sample', spendingInstalmentOffersFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    ['spending-add-to-company', 'drive&spending=company&fake=one-employee', spendingAddToCompanyFlowIn('en'), `#/spending/transactions?month=${addMonths(monthOf(today()), -1)}`, 'Entries'],
     [
       'spending-add-to-loans',
       'drive&spending=sample&loans=sample',

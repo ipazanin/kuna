@@ -10,7 +10,7 @@ import { addLoansMovement } from '../application/loanTargets'
 import type { ShownTarget } from '../application/linkTargets'
 import { movementKindsFor } from '../domain/linkTarget'
 import type { InformalLoanTarget, MovementKind } from '../domain/linkTarget'
-import { toastLinkedInLoans } from './linkedInLoansToasts'
+import { toastAddedAndLinked } from './addedAndLinkedToasts'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Category } from '../../workbook/domain/category'
@@ -92,10 +92,10 @@ async function save(): Promise<void> {
   saving.value = true
   try {
     const place = { currency: props.currency, categories: props.categories, language, notes: words.notes }
-    const titles = { inLoans: words.add.inLoans, linked: words.linked }
+    const titles = { added: words.add.inLoans, linked: words.linked }
     const movement = { day: on, kind: kind.value, amount: euros, note: note.value.trim() }
-    const result = await addAndLink(store, props.entry, () => addLoansMovement(picked, movement, titles.inLoans), place, titles)
-    if (toastLinkedInLoans(toast, result, words.add)) emit('linked')
+    const result = await addAndLink(store, props.entry, () => addLoansMovement(picked, movement, titles.added), place, titles)
+    if (toastAddedAndLinked(toast, result, words.add)) emit('linked')
   } finally {
     saving.value = false
   }

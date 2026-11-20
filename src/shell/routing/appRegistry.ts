@@ -1,6 +1,6 @@
 import type { AppContribution } from '../../shared/app/appContribution'
 import type { AppLinkedRows } from '../../shared/app/rowLinks'
-import type { AppOwnerPayments } from '../../shared/app/moneyWithOwner'
+import type { MoneyWithOwnerOfApp } from '../../shared/app/moneyWithOwner'
 import type { LoanTargetsOfApp } from '../../shared/app/loanTargets'
 
 const installed: AppContribution[] = []
@@ -32,9 +32,9 @@ function linkedRows(): readonly AppLinkedRows[] {
   return installed.flatMap((app) => (app.rowLinks === undefined ? [] : [{ app: app.id, links: app.rowLinks() }]))
 }
 
-/** The payments between a company and its owner each installed app keeps, by app, which each app reads through the `ShellReads` it installed with. */
-function moneyWithOwner(): readonly AppOwnerPayments[] {
-  return installed.flatMap((app) => (app.moneyWithOwner === undefined ? [] : [{ app: app.id, payments: app.moneyWithOwner() }]))
+/** The money between a company and its owner each installed app keeps, by app, which each app reads through the `ShellReads` it installed with. */
+function moneyWithOwner(): readonly MoneyWithOwnerOfApp[] {
+  return installed.flatMap((app) => (app.moneyWithOwner === undefined ? [] : [{ app: app.id, money: app.moneyWithOwner() }]))
 }
 
 /** The loan records each installed app publishes, by app, which each app reads through the `ShellReads` it installed with. */

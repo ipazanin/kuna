@@ -1,4 +1,4 @@
-import type { AppOwnerPayments, PublishedOwnerPayment } from '../../../../shared/app/moneyWithOwner'
+import type { MoneyWithOwnerOfApp, PublishedMoneyWithOwner, PublishedOwnerAdvance, PublishedOwnerPayment } from '../../../../shared/app/moneyWithOwner'
 import type { AppTargets, TargetsOfApp } from '../domain/linkTarget'
 import type { ShownTarget } from './linkTargets'
 
@@ -7,22 +7,31 @@ function companyTargetOf({ link, day, amount, direction, ownerIban, parts, to }:
   return { kind: 'owner-payment', link, day, amount, direction, ownerIban, parts, to }
 }
 
-/** Each app's payments with its owner as records a row can link to, under the app's id, each with its own wait, failure or not set up. */
-export function companyTargetsFrom(published: readonly AppOwnerPayments[]): readonly TargetsOfApp<ShownTarget>[] {
-  return published.map(({ app, payments }): TargetsOfApp<ShownTarget> => {
-    const targets: AppTargets<ShownTarget> = payments === null || typeof payments === 'string' ? payments : payments.map(companyTargetOf)
+/** A cost you paid for your company as Spending reads it, with the link and the page Company gives it. */
+export function advanceTargetOf({ link, day, amount, description, categoryName, to }: PublishedOwnerAdvance): ShownTarget {
+  return { kind: 'owner-advance', link, day, amount, description, categoryName, to }
+}
+
+function targetsOfMoney({ payments, advances }: PublishedMoneyWithOwner): readonly ShownTarget[] {
+  return [...payments.map(companyTargetOf), ...advances.map(advanceTargetOf)]
+}
+
+/** Each app's money with its owner as records a row can link to, under the app's id, each with its own wait, failure or not set up. */
+export function companyTargetsFrom(published: readonly MoneyWithOwnerOfApp[]): readonly TargetsOfApp<ShownTarget>[] {
+  return published.map(({ app, money }): TargetsOfApp<ShownTarget> => {
+    const targets: AppTargets<ShownTarget> = money === null || typeof money === 'string' ? money : targetsOfMoney(money)
     return { app, targets }
   })
 }
 
-let readMoneyWithOwner: () => readonly AppOwnerPayments[] = () => []
+let readMoneyWithOwner: () => readonly MoneyWithOwnerOfApp[] = () => []
 
-/** Keeps how Spending reads the payments between a company and its owner, which `app.ts` takes from what the shell hands over as Spending installs. */
-export function readMoneyWithOwnerThrough(read: () => readonly AppOwnerPayments[]): void {
+/** Keeps how Spending reads the money between a company and its owner, which `app.ts` takes from what the shell hands over as Spending installs. */
+export function readMoneyWithOwnerThrough(read: () => readonly MoneyWithOwnerOfApp[]): void {
   readMoneyWithOwner = read
 }
 
-/** The payments of every app that keeps any, as records a row can link to. */
+/** The payments and costs of every app that keeps any, as records a row can link to. */
 export function companyTargets(): readonly TargetsOfApp<ShownTarget>[] {
   return companyTargetsFrom(readMoneyWithOwner())
 }

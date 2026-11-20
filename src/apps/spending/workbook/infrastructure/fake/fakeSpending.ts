@@ -279,10 +279,16 @@ function companyRow(key: string): RowLink {
   return { app: 'company', kind: 'ledger-row', key: `00000000-0000-4000-8000-${key}`, due: null }
 }
 
+/** The link of a cost the owner paid that the fake Company keeps, by the end of its fixed id. */
+function companyAdvance(key: string): RowLink {
+  return { app: 'company', kind: 'hr-doo.owner-advance', key: `00000000-0000-4000-8000-${key}`, due: null }
+}
+
 /**
  * What the company set adds to the sample, on the days the fake Company with one employee (`?fake=one-employee`) pays its
  * owner: September's salary linked to its ledger row, August's salary a payee rule filed, a trip's payout of per diems,
  * kilometres and costs waiting for a category, and an owner loan repaid to the company filed under Other. Rows after the day are left out.
+ * Printer paper paid on the owner's own account is linked to the cost Company keeps as an owner advance, under For the company.
  */
 function companyRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
   const on = (date: string): CivilDate => parseCivilDate(date)!
@@ -292,6 +298,12 @@ function companyRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
     statementRow(1702, PERSONAL, on('2026-05-19'), -3_000, studio, { description: 'Loan repayment', category: idOf('Other/Other'), categorisedBy: 'person' }),
     statementRow(1703, PERSONAL, on('2026-08-12'), 1_036.26, studio, { description: 'Salary 2026-07', category: idOf('Income/Salary'), categorisedBy: 'rule' }),
     statementRow(1704, PERSONAL, on('2026-09-12'), 1_036.26, studio, { description: 'Salary 2026-08', category: idOf('Income/Salary'), categorisedBy: 'person', link: companyRow('000800000017') }),
+    statementRow(1705, PERSONAL, on('2026-09-30'), -34.2, 'Office supplies shop', {
+      description: 'Printer paper',
+      category: idOf('For the company'),
+      categorisedBy: 'person',
+      link: companyAdvance('000200000003'),
+    }),
   ].filter((row) => row.date <= day)
 }
 

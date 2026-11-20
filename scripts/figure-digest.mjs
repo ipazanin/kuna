@@ -290,7 +290,7 @@ let companyPayments = []
 
 if (companyAsked) {
   const { records, workbook: read } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
-  companyPayments = publishedMoneyWithOwner(read) ?? []
+  companyPayments = publishedMoneyWithOwner(read)?.payments ?? []
   // company.labels hashes the labels the costs the owner paid carry, so every other group reads the advances without them.
   const raw = { ...read, ownerAdvances: withoutAdvanceLabels(read.ownerAdvances), packParts: withoutAdvanceLabels(read.packParts) }
   const labelled = withOwnerParts(presentedWorkbook(read), vatOnPrivateShare)
@@ -805,7 +805,7 @@ async function spendingGroups(addGroup, loansBook) {
       const offers = instalmentOffers(workbook, loanTargetsFrom(loanTargetsOf(offeredLoans)), today)
       const loanOffers = [offers, pastInstalments(workbook, offers, workbook.settings.instalmentsPutOff)]
       if (companyPayments.length === 0) return loanOffers
-      const payments = companyTargetsFrom([{ app: 'company', payments: companyPayments }]).flatMap(({ targets }) => targets)
+      const payments = companyTargetsFrom([{ app: 'company', money: { payments: companyPayments, advances: [] } }]).flatMap(({ targets }) => targets)
       const owner = ownerPaymentOffers(workbook, payments)
       return [...loanOffers, owner, pastOwnerPayments(workbook, owner, workbook.settings.companyPaymentsPutOff)]
     })

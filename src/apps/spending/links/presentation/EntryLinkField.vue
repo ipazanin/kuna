@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { linkEntry, unlinkEntry } from '../../entries/application/entryWrites'
+import { companyCostCategories } from '../../company/application/companyFacts'
 import { allTargets } from '../application/linkTargets'
 import type { ShownTarget } from '../application/linkTargets'
 import { categoryOfHome } from '../domain/companyPaymentFiling'
@@ -12,6 +13,7 @@ import type { CompanyPaymentSplit } from '../domain/companyPaymentFiling'
 import { beyondPlan, linkFiling, wholeLoanKindOf } from '../domain/instalmentSplit'
 import { targetsFor } from '../domain/linkTarget'
 import type { InformalLoanTarget } from '../domain/linkTarget'
+import type { AddInApp } from './addInApp'
 import { LINK_TONE, useLinkLines } from './linkLine'
 import { choiceText, words } from './words'
 import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
@@ -25,6 +27,7 @@ import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { words as spendingWords } from '../../words'
 import { absAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -32,7 +35,7 @@ import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
 
-/** A saved entry's links to records in other apps: each record its parts name with Remove, or a picker of Loans' records and Company's payments to link it to, with Add to Loans. */
+/** A saved entry's links to records in other apps: each record its parts name with Remove, or a picker of Loans' records and Company's payments and costs to link it to, with Add to Loans and, for money out, Add to Company. */
 const props = defineProps<{
   entry: Transaction
   /** The entry's items as the file holds them. */
@@ -51,8 +54,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** The link was added or taken off, so the dialog closes. */
   done: []
-  /** Add to Loans was picked, with the informal loans a movement can be added to. */
-  addToLoans: [loans: readonly (ShownTarget & InformalLoanTarget)[]]
+  /** Add to Loans or Add to Company was picked, with the informal loans a movement can be added to or the categories a cost can go under. */
+  add: [adding: AddInApp]
 }>()
 
 const store = useSpendingBooks()
@@ -80,6 +83,8 @@ const openTargets = computed((): readonly ShownTarget[] =>
 const account = computed(() => ({ currency: props.currency, iban: store.state.workbook?.accounts.find((held) => held.id === props.entry.account)?.iban ?? '' }))
 const linkTargets = computed(() => targetsFor(props.entry, account.value, openTargets.value))
 const informalLoans = computed(() => openTargets.value.filter((target): target is ShownTarget & InformalLoanTarget => target.kind === 'informal-loan'))
+/** The categories a cost you paid for your company may go under in Company, for money out of a euro account that has no link while Company is open with owner pay. */
+const costCategories = computed(() => (!props.linkable || entryLinks.value.length > 0 || props.entry.amount >= 0 || props.currency !== EURO ? [] : companyCostCategories()))
 
 /** What the picker says under each record: an instalment's share, or a movement's or extra payment's amount. */
 function choiceDetail(target: (typeof linkTargets.value)[number]): string {
@@ -110,7 +115,7 @@ const linkNote = computed(() => {
   if (props.edited) return words.saveFirst
   const filing = linkFiling({ row: props.entry, items: props.lines }, target, { currency: props.currency, receipt: props.receipt, categories: props.categories })
   if (filing.split === 'payment') return paymentNote(filing)
-  if (target.kind === 'owner-payment') return filing.split ? '' : words.whole[filing.why]
+  if (target.kind === 'owner-payment' || target.kind === 'owner-advance') return filing.split ? '' : words.whole[filing.why]
   if (!filing.split && filing.why === 'principal')
     return [words.filesWhole(fixedCategoryIn(props.categories, wholeLoanKindOf(target), language).category.name), ...(split.value ? [words.replacesParts] : [])].join(' ')
   if (!filing.split) return words.whole[filing.why]
@@ -168,7 +173,7 @@ async function removeLink(link: RowLink): Promise<void> {
       </div>
     </UFormField>
   </template>
-  <UFormField v-else-if="linkItems.length > 0 || informalLoans.length > 0" :label="words.pickLabel" class="sm:col-span-2" data-testid="spending-entry-link-pick">
+  <UFormField v-else-if="linkItems.length > 0 || informalLoans.length > 0 || costCategories.length > 0" :label="words.pickLabel" class="sm:col-span-2" data-testid="spending-entry-link-pick">
     <div class="flex flex-col items-start gap-2">
       <USelectMenu
         v-if="linkItems.length > 0"
@@ -199,7 +204,17 @@ async function removeLink(link: RowLink): Promise<void> {
           variant="ghost"
           :disabled="edited || writes.refused.value"
           data-testid="spending-entry-add-to-loans"
-          @click="emit('addToLoans', informalLoans)"
+          @click="emit('add', { app: 'loans', loans: informalLoans })"
+        />
+        <UButton
+          v-if="costCategories.length > 0"
+          :label="words.company.add.open"
+          icon="i-lucide-plus"
+          color="neutral"
+          variant="ghost"
+          :disabled="edited || writes.refused.value"
+          data-testid="spending-entry-add-to-company"
+          @click="emit('add', { app: 'company', costCategories })"
         />
       </div>
       <p v-if="linkNote !== ''" class="type-caption" data-testid="spending-entry-link-note">{{ linkNote }}</p>

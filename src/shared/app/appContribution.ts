@@ -7,7 +7,7 @@ import type { MoneyFormat, MoneyLook } from '../money/moneyFormat'
 import type { AppData } from '../storage/application/appData'
 import type { RatesDemand } from '../rates/domain/ratesDemand'
 import type { AppLinkedRows, AppRowLinks } from './rowLinks'
-import type { AppMoneyWithOwner, AppOwnerPayments } from './moneyWithOwner'
+import type { AppMoneyWithOwner, MoneyWithOwnerOfApp } from './moneyWithOwner'
 import type { AppLoanTargets, LoanTargetsOfApp } from './loanTargets'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
@@ -204,8 +204,8 @@ export interface SetUpOrder {
 export interface ShellReads {
   /** The rows each installed app has linked to records in other apps, by app, read afresh at each call. */
   linkedRows(): readonly AppLinkedRows[]
-  /** The payments between a company and its owner each installed app keeps, by app, read afresh at each call. */
-  moneyWithOwner(): readonly AppOwnerPayments[]
+  /** The money between a company and its owner each installed app keeps, its bank rows and the costs the owner paid, by app, read afresh at each call. */
+  moneyWithOwner(): readonly MoneyWithOwnerOfApp[]
   /** The loan records each installed app publishes for payments to name, by app, read afresh at each call. */
   loanTargets(): readonly LoanTargetsOfApp[]
 }
@@ -254,7 +254,7 @@ export interface AppContribution {
   readonly assistant: () => Promise<AppAssistant>
   /** The rows the app has linked to records in other apps, for an app that links any, which the shell gathers for matching across apps. */
   readonly rowLinks?: () => AppRowLinks
-  /** The payments between the company and its owner, for an app that keeps any, which the shell gathers for matching across apps. */
+  /** The money between the company and its owner, its bank rows and the costs the owner paid, for an app that keeps any, which the shell gathers for matching across apps. */
   readonly moneyWithOwner?: () => AppMoneyWithOwner
   /** The loan records a payment in another app may name, for an app that keeps loans, which the shell gathers for matching across apps. */
   readonly loanTargets?: () => AppLoanTargets

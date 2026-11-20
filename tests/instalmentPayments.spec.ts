@@ -68,7 +68,7 @@ describe("the statement rows Loans reads from the shell's linked rows", () => {
     return { row: 'row', item: 'row', account: 'account', day: civil(day), amount: accountMoneyOfEuros(euros(-100)), currency: EURO, target }
   }
 
-  it("takes Spending's rows linked to a Loans instalment, each item on its own, and leaves out other targets", () => {
+  it('takes the rows any app linked to a Loans instalment, each item on its own, and leaves out other targets', () => {
     const instalment = linked({ app: 'loans', kind: 'bank-loan', key: LOAN_UUID, due: civil('2026-03-05') })
     const links = [
       instalment,
@@ -80,8 +80,8 @@ describe("the statement rows Loans reads from the shell's linked rows", () => {
     expect(
       statementPaymentsFrom(
         [
-          { app: 'company', links: 'failed' },
-          { app: 'spending', links },
+          { app: 'company', links: null },
+          { app: 'statements', links },
         ],
         'loans',
       ),
@@ -99,6 +99,26 @@ describe("the statement rows Loans reads from the shell's linked rows", () => {
     expect([...seenExtraPaymentDays({ extraPayments: [early] }, payments)]).toEqual([civil('2026-06-10')])
     expect([...seenExtraPaymentDays({ extraPayments: [early] }, 'unchecked')]).toEqual([])
     expect(instalmentStandings({ loan, plan, lateInstalments: [] }, payments, civil('2026-12-31')).get(civil('2026-03-05'))).toEqual({ standing: 'as-planned' })
+  })
+
+  it('reads the linked rows of an app under any id, so Loans spells no other app', () => {
+    const links = [linked({ app: 'loans', kind: 'bank-loan', key: LOAN_UUID, due: civil('2026-03-05') })]
+
+    expect(statementPaymentsFrom([{ app: 'personal-statements', links }], 'loans')).toEqual([paid('2026-03-05', '2026-03-04')])
+  })
+
+  it('leaves the instalments unchecked when any app that links rows failed to open, since its links are unknown', () => {
+    const links = [linked({ app: 'loans', kind: 'bank-loan', key: LOAN_UUID, due: civil('2026-03-05') })]
+
+    expect(
+      statementPaymentsFrom(
+        [
+          { app: 'spending', links },
+          { app: 'company', links: 'failed' },
+        ],
+        'loans',
+      ),
+    ).toBe('unchecked')
   })
 
   it('gives no rows while Spending opens or is not set up, and leaves the instalments unchecked when it failed to open', () => {

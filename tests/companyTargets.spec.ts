@@ -19,7 +19,7 @@ const workbook = readDocument({ id: 'fake', source: 'browser', title: 'Fake work
 
 describe("Company's payments with the owner as other apps read them", () => {
   it('names each by its ledger row id and opens Transactions on its day', () => {
-    const published = publishedMoneyWithOwner(workbook) ?? []
+    const published = publishedMoneyWithOwner(workbook)?.payments ?? []
     const rowIds = installedPack()
       .moneyWithOwner(workbook)
       .map((payment) => payment.rowId)
@@ -29,7 +29,7 @@ describe("Company's payments with the owner as other apps read them", () => {
   })
 
   it("files a net salary as salary, and a trip's per diems and kilometres as travel allowances apart from its costs paid back", () => {
-    const published = publishedMoneyWithOwner(workbook) ?? []
+    const published = publishedMoneyWithOwner(workbook)?.payments ?? []
 
     expect(published.find((payment) => payment.day === civil('2026-07-12') && payment.parts[0]?.kind === 'salary')).toBeDefined()
     expect(published.find((payment) => payment.day === civil('2026-03-20'))?.parts.map((part) => part.kind)).toEqual(['travel-allowance', 'travel-allowance', 'cost-refund'])
@@ -43,16 +43,27 @@ describe("Company's payments with the owner as other apps read them", () => {
     expect(shownPack({ ownerPayModule: false }).paysForTrip('foreign-per-diem')).toBe(false)
   })
 
+  it("publishes each cost the owner paid by its id in the pack's kind, with its category's name, opening Transactions on its day", () => {
+    const advances = publishedMoneyWithOwner(workbook)?.advances ?? []
+    const [first] = workbook.ownerAdvances
+
+    expect(advances).toHaveLength(workbook.ownerAdvances.length)
+    expect(advances[0]).toMatchObject({ link: { app: 'company', kind: 'hr-doo.owner-advance', due: null }, day: first?.date, amount: first?.amount, description: first?.description })
+    expect(advances[0]?.categoryName).not.toBe('')
+    expect(advances[0]?.to).toEqual({ path: '/company/transactions', query: { p: `${first?.date}..${first?.date}` } })
+  })
+
   it('publishes none while the owner-pay switch is off, so Spending reads it as not set up rather than as no payments', () => {
     expect(publishedMoneyWithOwner({ ...workbook, settings: { ...workbook.settings, ownerPayModule: false } })).toBeNull()
   })
 })
 
 describe("Spending's reading of the payments", () => {
-  const payments = publishedMoneyWithOwner(workbook) ?? []
+  const money = publishedMoneyWithOwner(workbook)
+  const payments = money?.payments ?? []
 
   it('turns each into a record a row can link to, under the app that published it', () => {
-    const [company] = companyTargetsFrom([{ app: 'company', payments }])
+    const [company] = companyTargetsFrom([{ app: 'company', money: money === null ? null : { payments, advances: [] } }])
     const targets = company?.targets
 
     expect(company?.app).toBe('company')
@@ -60,12 +71,21 @@ describe("Spending's reading of the payments", () => {
     expect(Array.isArray(targets) && targets.length).toBe(payments.length)
   })
 
+  it('turns each cost the owner paid into a record a row can link to, named by what it was and its day', () => {
+    const [company] = companyTargetsFrom([{ app: 'company', money }])
+    const advances = Array.isArray(company?.targets) ? company.targets.filter((target) => target.kind === 'owner-advance') : []
+    const [first] = advances
+
+    expect(advances).toHaveLength(money?.advances.length ?? -1)
+    expect(first !== undefined && choiceText(first)).toBe(first?.kind === 'owner-advance' && `${first.description} you paid for Company, ${dayLabel(first.day)}`)
+  })
+
   it('keeps each app wait, failure and not set up, which a link to it then reads as', () => {
     const link = { app: 'company', kind: 'ledger-row', key: 'row', due: null }
     const read = companyTargetsFrom([
-      { app: 'opening', payments: 'opening' },
-      { app: 'failed', payments: 'failed' },
-      { app: 'none', payments: null },
+      { app: 'opening', money: 'opening' },
+      { app: 'failed', money: 'failed' },
+      { app: 'none', money: null },
     ]).map((app) => linkStateOf(link, app.targets).state)
 
     expect(read).toEqual(['opening', 'failed', 'not-set-up'])
