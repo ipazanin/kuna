@@ -31,6 +31,11 @@ export const SPENDING_SORTING_ROUTE = '/spending/sorting'
 export const SORTING_CARDS = { categories: 'categories', labels: 'labels', rules: 'rules' } as const
 export const SPENDING_EVENTS_ROUTE = '/spending/events'
 export const SPENDING_PAYEES_ROUTE = '/spending/payees'
+/** Spending's money over any span, grouped, over time, year against year and what stays, each tab in `?tab=`. */
+export const SPENDING_ANALYSIS_ROUTE = '/spending/analysis'
+/** The tabs of Analysis, Breakdown first, which stays out of the address. */
+export const ANALYSIS_TABS = ['breakdown', 'over-time', 'year', 'savings'] as const
+export type AnalysisTab = (typeof ANALYSIS_TABS)[number]
 /** The value of `?month=` that shows every month at once, as a label's and an event's entries do. */
 export const ALL_MONTHS = 'all'
 /** The value of `?month=` that shows the twelve whole months up to this one, as the Payees tab counts them. */
@@ -83,6 +88,11 @@ export function entriesLink(months: EntriesMonths | DateRange | null, group: Ent
 export function entriesSpanNamed(from: unknown, to: unknown): DateRange | null {
   const [first, last] = [typeof from === 'string' ? parseCivilDate(from) : null, typeof to === 'string' ? parseCivilDate(to) : null]
   return first === null || last === null || first > last ? null : { from: first, to: last }
+}
+
+/** A tab of Analysis that reads one category, named by its bare UUID in `?category=`. No category is what was spent in all. */
+export function analysisCategoryLink(tab: Extract<AnalysisTab, 'over-time' | 'year'>, category: Category | null): RouteLocationRaw {
+  return { path: SPENDING_ANALYSIS_ROUTE, query: { tab, ...(category === null ? {} : { category: keyOfRecordId(CATEGORY_RECORDS, category.id) }) } }
 }
 
 /** Transactions filtered to a month and, when given, a category and its children. */

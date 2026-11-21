@@ -5,6 +5,7 @@ import { spendingHubFigures } from './home/presentation/spendingHubFigures'
 import {
   SPENDING_ACCOUNT_ROUTE,
   SPENDING_ACCOUNTS_ROUTE,
+  SPENDING_ANALYSIS_ROUTE,
   SPENDING_BUDGETS_ROUTE,
   SPENDING_EVENTS_ROUTE,
   SPENDING_OVERVIEW_ROUTE,
@@ -52,6 +53,7 @@ const BUDGETS: AppScreen = { path: SPENDING_BUDGETS_ROUTE, title: screenWords.li
 const SORTING: AppScreen = { path: SPENDING_SORTING_ROUTE, title: screenWords.sorting, icon: 'i-lucide-tags', component: () => import('./sorting/presentation/SortingScreen.vue') }
 const EVENTS: AppScreen = { path: SPENDING_EVENTS_ROUTE, title: screenWords.events, icon: 'i-lucide-calendar-range', component: () => import('./events/presentation/EventsScreen.vue') }
 const PAYEES: AppScreen = { path: SPENDING_PAYEES_ROUTE, title: screenWords.payees, icon: 'i-lucide-users-round', component: () => import('./payees/presentation/PayeesScreen.vue') }
+const ANALYSIS: AppScreen = { path: SPENDING_ANALYSIS_ROUTE, title: screenWords.analysis, icon: 'i-lucide-chart-bar', component: () => import('./analytics/presentation/AnalysisScreen.vue') }
 const ACCOUNTS: AppScreen = { path: SPENDING_ACCOUNTS_ROUTE, title: screenWords.accounts, icon: 'i-lucide-landmark', component: () => import('./accounts/presentation/AccountsScreen.vue') }
 const SETTINGS: AppScreen = { path: SPENDING_SETTINGS_ROUTE, title: screenWords.settings, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
@@ -93,6 +95,7 @@ export const spendingApp: AppContribution = {
     SORTING,
     EVENTS,
     PAYEES,
+    ANALYSIS,
     ACCOUNTS,
     {
       path: SPENDING_ACCOUNT_ROUTE,
@@ -106,7 +109,7 @@ export const spendingApp: AppContribution = {
     { path: SPENDING_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
   moved: SPENDING_MOVED_SCREENS,
-  menu: () => [OVERVIEW, TRANSACTIONS, BUDGETS, SORTING, EVENTS, PAYEES, ACCOUNTS],
+  menu: () => [OVERVIEW, TRANSACTIONS, BUDGETS, SORTING, EVENTS, PAYEES, ANALYSIS, ACCOUNTS],
   settings: SETTINGS,
   menuCount: (screen) => {
     const count = screen.path === SPENDING_TRANSACTIONS_ROUTE && state.workbook !== null ? toReviewCount(state.workbook, today()) : 0

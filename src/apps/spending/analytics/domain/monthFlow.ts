@@ -1,6 +1,6 @@
 import type { MonthTotals } from './monthTotals'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { ratioOf, subtractMoney } from '../../../../shared/money/money'
+import { ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { Share } from '../../../../shared/money/percent'
 
@@ -22,4 +22,10 @@ export function monthFlow(totals: readonly MonthTotals[]): MonthFlow[] {
     saved: month.saved,
     savingsRate: month.income > 0 ? ratioOf(subtractMoney(month.income, month.spent), month.income) : null,
   }))
+}
+
+/** The savings rate of the months taken together, their income less their spending over their income, as an average month gives it. Null with no income. */
+export function savingsRateOver(totals: readonly Pick<MonthTotals, 'income' | 'spent'>[]): Share | null {
+  const income = sumMoney(totals.map((month) => month.income))
+  return income > 0 ? ratioOf(subtractMoney(income, sumMoney(totals.map((month) => month.spent))), income) : null
 }

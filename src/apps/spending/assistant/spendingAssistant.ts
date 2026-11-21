@@ -1,7 +1,9 @@
+import { words as analysisWords } from '../analytics/presentation/words'
 import { words as bankSyncWords } from '../bankSync/presentation/words'
 import {
   SPENDING_ACCOUNT_ROUTE,
   SPENDING_ACCOUNTS_ROUTE,
+  SPENDING_ANALYSIS_ROUTE,
   SPENDING_ASSISTANT_LINK,
   SPENDING_BANK_SYNC_LINK,
   SPENDING_BUDGETS_ROUTE,
@@ -37,15 +39,19 @@ const PLACES: readonly AssistantPlace[] = [
   { route: SPENDING_BANK_SYNC_LINK, title: settingsWords.tabs.bankSync },
   { route: RECEIPTS_LINK, title: settingsWords.tabs.receipts },
   { route: SPENDING_ASSISTANT_LINK, title: settingsWords.tabs.assistant },
+  { route: `${SPENDING_ANALYSIS_ROUTE}?tab=over-time`, title: analysisWords.analysis.tabs.overTime, params: { category: { kind: CATEGORY_RECORDS.name } } },
+  { route: `${SPENDING_ANALYSIS_ROUTE}?tab=year`, title: analysisWords.analysis.tabs.year, params: { category: { kind: CATEGORY_RECORDS.name }, year: 'year' } },
+  { route: `${SPENDING_ANALYSIS_ROUTE}?tab=savings`, title: analysisWords.analysis.tabs.savings },
   { route: SPENDING_OVERVIEW_ROUTE, title: screenWords.overview, params: { group: { kind: CATEGORY_RECORDS.name } } },
   {
     route: SPENDING_TRANSACTIONS_ROUTE,
     title: screenWords.entries,
-    params: { month: 'month', account: { kind: ACCOUNT_RECORDS.name }, category: { kind: CATEGORY_RECORDS.name }, payee: { kind: PAYEE_LINES.name } },
+    params: { month: 'month', from: 'day', to: 'day', account: { kind: ACCOUNT_RECORDS.name }, category: { kind: CATEGORY_RECORDS.name }, payee: { kind: PAYEE_LINES.name } },
   },
   { route: SPENDING_BUDGETS_ROUTE, title: screenWords.limits, params: { month: 'month' } },
   { route: SPENDING_SORTING_ROUTE, title: screenWords.sorting },
   { route: SPENDING_PAYEES_ROUTE, title: screenWords.payees },
+  { route: SPENDING_ANALYSIS_ROUTE, title: screenWords.analysis, params: { period: 'period' } },
   { route: SPENDING_ACCOUNTS_ROUTE, title: screenWords.accounts },
   { route: SPENDING_ACCOUNT_ROUTE, title: screenWords.account, params: { account: { kind: ACCOUNT_RECORDS.name } } },
   { route: SPENDING_SETTINGS_ROUTE, title: screenWords.settings },

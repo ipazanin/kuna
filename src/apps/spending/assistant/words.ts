@@ -158,7 +158,15 @@ export const en = {
       "Each currency of each account the linked banks gave at this page's last bank sync, against your Spending accounts, as Settings, Bank sync lists them. A new sync or a reload changes them, and after a reload no rows are held.",
   },
   reports: {
-    month: { title: "a month's totals", about: "A month's spending, income, money saved and savings rate, as the Overview shows them." },
+    month: {
+      title: "a month's totals",
+      about: "A month's spending, income, money saved and savings rate, as the Overview shows them, and what was kept, split as Analysis, Savings and trends splits it.",
+    },
+    trends: {
+      title: 'the growing and shrinking categories',
+      about: 'The categories whose last 3 whole months before the month moved from the 12 before by 10 percent and 25 EUR a month, as Analysis lists them.',
+    },
+    year: { title: 'the year against last year', about: "The month's year so far against the same days a year before, for all spending and each group, as Analysis shows it." },
     categories: { title: 'spending by category', about: 'What each group and category counted in a month, the month before and the change, for asking why a month was higher.' },
     limits: { title: 'the monthly limits', about: 'Each limited category in a month: its limit, what carried in, what it spent and what is left.' },
     balances: { title: 'the account balances', about: 'What each account holds at the end of a day, and all of them in euros.' },
@@ -387,7 +395,15 @@ export const hr: Translation<typeof en> = {
       'Svaka valuta svakog računa koji su povezane banke dale pri zadnjoj sinkronizaciji na ovoj stranici, uz vaše račune u Potrošnji, kako ih navodi Postavke, Sinkronizacija s bankom. Nova sinkronizacija ili ponovno učitavanje ih mijenja, a nakon ponovnog učitavanja nijedan redak nije zadržan.',
   },
   reports: {
-    month: { title: 'zbroj mjeseca', about: 'Potrošnja, prihodi, ušteđeni novac i stopa štednje u mjesecu, kako ih prikazuje Pregled.' },
+    month: {
+      title: 'zbroj mjeseca',
+      about: 'Potrošnja, prihodi, ušteđeni novac i stopa štednje u mjesecu, kako ih prikazuje Pregled, i što je ostalo, podijeljeno kao u Analizi, Štednja i trendovi.',
+    },
+    trends: {
+      title: 'kategorije koje rastu i padaju',
+      about: 'Kategorije čija su se zadnja 3 cijela mjeseca prije mjeseca pomaknula od 12 prije njih za 10 posto i 25 EUR mjesečno, kako ih navodi Analiza.',
+    },
+    year: { title: 'godina prema prošloj', about: 'Godina mjeseca dosad prema istim danima godinu prije, za svu potrošnju i svaku skupinu, kako je prikazuje Analiza.' },
     categories: { title: 'potrošnja po kategorijama', about: 'Koliko je svaka skupina i kategorija brojala u mjesecu, u mjesecu prije i razlika, za pitanja zašto je mjesec bio viši.' },
     limits: { title: 'mjesečna ograničenja', about: 'Svaka ograničena kategorija u mjesecu: ograničenje, preneseno, potrošeno i preostalo.' },
     balances: { title: 'stanja računa', about: 'Koliko svaki račun ima na kraju dana i svi zajedno u eurima.' },

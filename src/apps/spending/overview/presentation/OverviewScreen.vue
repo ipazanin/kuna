@@ -12,6 +12,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { monthFlow } from '../../analytics/domain/monthFlow'
 import { groupMonthsChart } from '../../analytics/presentation/groupMonthsChart'
 import { monthFlowChart } from '../../analytics/presentation/monthFlowChart'
+import MonthFlowCard from '../../analytics/presentation/MonthFlowCard.vue'
 import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { words as figureWords } from '../../analytics/presentation/words'
 import { holdsMonthlyLimit, leftToSpend, limitsUnrated } from '../../budgets/domain/budgetCarry'
@@ -29,7 +30,7 @@ import AccountsCard from './AccountsCard.vue'
 import EventCards from './EventCards.vue'
 import LatestEntriesCard from './LatestEntriesCard.vue'
 import LimitsCard from './LimitsCard.vue'
-import { SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
+import { SPENDING_ANALYSIS_ROUTE, SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import { bankLinkOffered } from '../../workbook/domain/account'
 import type { SpendingSource } from '../../workbook/domain/account'
@@ -241,40 +242,21 @@ function openGroupMonth(selection: ChartPointSelection): void {
             @select="openGroupMonth"
           >
             <template #legend><ChartLegend :entries="groupsChart.legend" /></template>
-          </ChartCard>
-          <ChartCard
-            :title="words.flow.title"
-            :subtitle="words.flow.subtitle"
-            :description="flowChart.description"
-            :option="flowChart.option"
-            :loading="waiting"
-            :height="300"
-            :phone-height="260"
-            data-testid="spending-flow"
-          >
-            <template #legend><ChartLegend :entries="flowChart.legend" /></template>
-            <template #table>
-              <caption class="sr-only">
-                {{
-                  words.flow.title
-                }}
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col" class="text-start">
-                    <span class="sr-only">{{ figureWords.flow.monthHeading }}</span>
-                  </th>
-                  <th v-for="column in flowChart.table.columns" :key="column" scope="col" class="text-end">{{ column }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in flowChart.table.rows" :key="row.month">
-                  <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
-                  <td v-for="(cell, index) in row.cells" :key="index" class="figure text-end">{{ cell }}</td>
-                </tr>
-              </tbody>
+            <template #footer>
+              <div class="px-4 pb-4 sm:px-5">
+                <UButton
+                  :to="SPENDING_ANALYSIS_ROUTE"
+                  :label="words.months.allAnalysis"
+                  trailing-icon="i-lucide-arrow-right"
+                  color="neutral"
+                  variant="link"
+                  class="px-0"
+                  data-testid="spending-months-analysis"
+                />
+              </div>
             </template>
           </ChartCard>
+          <MonthFlowCard :title="words.flow.title" :subtitle="words.flow.subtitle" :chart="flowChart" :loading="waiting" data-testid="spending-flow" />
           <AccountsCard :book="state.workbook" :rates="rates" :day="day" />
         </DashboardGrid>
       </template>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { carriedLabels, labelCalled, labelNameProblem, labelOrder, labelsOf, withLabel, withoutLabel } from '../src/shared/categorising/domain/labels'
+import { carriedLabels, labelCalled, labelNameProblem, labelOrder, labelsOf, pickedWith, typedLabel, withLabel, withoutLabel } from '../src/shared/categorising/domain/labels'
 import type { Label } from '../src/shared/categorising/domain/labels'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { LABEL_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -21,6 +21,21 @@ describe("a label's name", () => {
     expect(labelCalled(' PRAGUE ', [PRAGUE])).toBe(PRAGUE)
     expect(labelCalled('Praha', [PRAGUE])).toBeNull()
     expect(labelCalled('  ', [PRAGUE])).toBeNull()
+  })
+})
+
+describe('a name typed into a labels field', () => {
+  const made = (name: string): Label => ({ id: recordIdOf(LABEL_RECORDS, 'made'), name: name.trim() })
+
+  it('picks the label that has it once folded, makes one for a new name and says why a blank one makes none', () => {
+    expect(typedLabel(' prague ', [PRAGUE], made)).toEqual({ label: PRAGUE, made: false })
+    expect(typedLabel(' Praha ', [PRAGUE], made)).toEqual({ label: { id: recordIdOf(LABEL_RECORDS, 'made'), name: 'Praha' }, made: true })
+    expect(typedLabel('  ', [PRAGUE], made)).toEqual({ problem: 'blank' })
+  })
+
+  it('adds the label to the picked ones only where it is not picked already', () => {
+    expect(pickedWith([FLAT.id], PRAGUE)).toEqual([FLAT.id, PRAGUE.id])
+    expect(pickedWith([PRAGUE.id], PRAGUE)).toEqual([PRAGUE.id])
   })
 })
 

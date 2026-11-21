@@ -11,6 +11,8 @@ import type { Category } from '../../workbook/domain/category'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
+import { sumMoney } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** What Analysis groups a span's money by. */
@@ -87,4 +89,18 @@ export function spanBreakdown(
     }
   })()
   return { total: rangeTotals(inSpan, book.categories, range), lines: lines.sort(byMoney) }
+}
+
+/** The lines that spent the most, at most `shown` of them, and what the other lines that spent anything spent together. */
+export interface SpendingRanked {
+  readonly top: readonly BreakdownLine[]
+  /** Null when no other line spent anything. */
+  readonly rest: { readonly spent: Money; readonly lines: number } | null
+}
+
+/** The lines that spent anything, the most first, cut after `shown`. */
+export function spendingRanked(lines: readonly BreakdownLine[], shown: number): SpendingRanked {
+  const spending = lines.filter((line) => line.spent > 0).sort((one, other) => other.spent - one.spent)
+  const others = spending.slice(shown)
+  return { top: spending.slice(0, shown), rest: others.length === 0 ? null : { spent: sumMoney(others.map((line) => line.spent)), lines: others.length } }
 }

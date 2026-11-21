@@ -25,6 +25,10 @@ describe('periodInWords', () => {
     expect(periodInWords({ preset: 'all' }, window)).toBe('Jun 2025 – Oct 2026, Jun in part and Oct so far')
   })
 
+  it('notes only the month so far when the ledger starts in it', () => {
+    expect(periodInWords({ preset: 'all' }, windowOf('2026-10-05', '2026-10-16'))).toBe('Oct 2026, Oct so far')
+  })
+
   it('names whole months when a custom range starts and ends on their edges', () => {
     expect(periodInWords({ preset: 'custom', range: { from: civil('2024-10-01'), to: civil('2025-09-30') } }, window)).toBe('Oct 2024 – Sep 2025, Jun in part')
   })

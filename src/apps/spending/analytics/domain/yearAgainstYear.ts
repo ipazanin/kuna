@@ -4,9 +4,12 @@ import type { MonthTotals } from './monthTotals'
 import type { Category } from '../../workbook/domain/category'
 import { civilDate, dayOfMonth, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { lastDayOf, monthKey, monthNumber, monthOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import { absMoney, ratioOf, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { Share } from '../../../../shared/money/percent'
 
 /** One month of a year beside the same month a year before. */
 export interface MonthAgainstYear {
@@ -16,8 +19,9 @@ export interface MonthAgainstYear {
   readonly lastYear: Money
 }
 
-/** What a category counted in a span, and its rows there the rates do not reach. */
+/** What a category counted over some days, and its rows there the rates do not reach. */
 export interface SpanCount {
+  readonly days: DateRange
   readonly counted: Money
   readonly unrated: number
 }
@@ -54,11 +58,17 @@ export function yearAgainstYear(
     lastYear: categoryTotal(totalsOf(monthKey(year - 1, monthNumber(month))), category).counted,
   }))
   const to = year < yearOf(day) ? civilDate(year, 12, 31) : day
-  const spanCount = (from: CivilDate, until: CivilDate): SpanCount => categoryTotal(rangeTotals(rows, categories, { from, to: until }), category)
+  const spanCount = (from: CivilDate, until: CivilDate): SpanCount => ({ days: { from, to: until }, ...categoryTotal(rangeTotals(rows, categories, { from, to: until }), category) })
   return {
     year,
     months,
     toDate: spanCount(civilDate(year, 1, 1), to),
     lastYearToDate: spanCount(civilDate(year - 1, 1, 1), dayAYearBefore(to)),
   }
+}
+
+/** How far the year so far moved from the same days a year before, in money and as a share of then, null while then was zero. */
+export function yearChange({ toDate, lastYearToDate }: Pick<YearAgainstYear, 'toDate' | 'lastYearToDate'>): { readonly change: Money; readonly share: Share | null } {
+  const change = subtractMoney(toDate.counted, lastYearToDate.counted)
+  return { change, share: ratioOf(change, absMoney(lastYearToDate.counted)) }
 }

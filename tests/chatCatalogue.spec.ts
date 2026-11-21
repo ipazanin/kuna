@@ -86,6 +86,7 @@ const APPS: readonly CatalogueApp[] = [
     '/spending/budgets',
     '/spending/sorting',
     '/spending/payees',
+    '/spending/analysis',
     '/spending/accounts',
     '/spending/account',
     '/spending/settings',
@@ -307,6 +308,7 @@ describe('the catalogue', () => {
       '/loans/settings': 'src/apps/loans/settings/presentation',
       '/spending/settings': 'src/apps/spending/settings/presentation',
       '/spending/transactions': 'src/apps/spending/entries/presentation',
+      '/spending/analysis': 'src/apps/spending/analytics/presentation',
     }
     for (const app of APPS) {
       for (const place of app.assistant.places) {

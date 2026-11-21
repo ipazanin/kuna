@@ -350,6 +350,7 @@ import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLo
 import { today } from '../src/shared/calendar/civilDate.ts'
 import { addDays } from '../src/shared/calendar/civilDate.ts'
 import { addMonths, monthOf } from '../src/shared/calendar/monthKey.ts'
+import { spendingAnalysisFlowIn } from './support/analysisFlows.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 /** The ids of the sample Loans file's informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
@@ -3385,6 +3386,8 @@ async function checkWidth(browser, width) {
     ['spending-entries-span', 'drive&spending=sample', spendingEntriesSpanFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-payees', 'drive&spending=sample', spendingPayeesFlowIn('en'), '#/spending/payees', 'Payees'],
     ['spending-payees-croatian', 'drive&spending=sample&lang=hr', spendingPayeesFlowIn('hr'), '#/spending/payees', 'Primatelji i platitelji'],
+    ['spending-analysis-flow', 'drive&spending=years', spendingAnalysisFlowIn('en'), '#/spending/analysis', 'Analysis'],
+    ['spending-analysis-flow-croatian', 'drive&spending=years&lang=hr', spendingAnalysisFlowIn('hr'), '#/spending/analysis', 'Analiza'],
     ['spending-payee-new', 'drive&spending=sample', spendingPayeeNewFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-payee-new-croatian', 'drive&spending=sample&lang=hr', spendingPayeeNewFlowIn('hr'), '#/spending/transactions', 'Unosi'],
     ['spending-payee-memory', 'drive&spending=sample', spendingPayeeMemoryFlowIn('en'), '#/spending/transactions', 'Entries'],

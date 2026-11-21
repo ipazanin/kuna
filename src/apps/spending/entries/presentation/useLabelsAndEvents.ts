@@ -11,7 +11,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
 import type { EventChoice } from '../../workbook/domain/event'
-import { labelCalled, labelNameProblem } from '../../../../shared/categorising/domain/labels'
+import { pickedWith, typedLabel } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -47,14 +47,11 @@ export function useLabelsAndEvents(day: () => CivilDate | null) {
 
   /** The labels with the one a typed name names: a label the file or the dialog has under it, or a new one. A name that cannot be a label's adds none and says why. */
   function withTyped(picked: readonly RecordId[], name: string, part: PartKey | null = null): readonly RecordId[] {
-    const held = labelCalled(name, labelChoices.value)
-    const problem = held === null ? labelNameProblem(name, labelChoices.value, null) : null
-    labelRefused.value = problem === null ? null : { part, text: uiWords.labelName[problem] }
-    if (held !== null) return picked.includes(held.id) ? picked : [...picked, held.id]
-    if (problem !== null) return picked
-    const label = newLabel(name)
-    created.value = [...created.value, label]
-    return [...picked, label.id]
+    const typed = typedLabel(name, labelChoices.value, newLabel)
+    labelRefused.value = 'problem' in typed ? { part, text: uiWords.labelName[typed.problem] } : null
+    if ('problem' in typed) return picked
+    if (typed.made) created.value = [...created.value, typed.label]
+    return pickedWith(picked, typed.label)
   }
 
   function labelPart(part: PartKey, picked: readonly RecordId[]): void {

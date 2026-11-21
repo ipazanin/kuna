@@ -58,6 +58,7 @@ export const en = {
   months: {
     title: 'Twelve months by group',
     subtitle: 'What you spent each month, by group.',
+    allAnalysis: 'All analysis',
   },
   flow: {
     title: 'Income, spending and saved to investments',
@@ -142,6 +143,7 @@ export const hr: Translation<typeof en> = {
   months: {
     title: 'Dvanaest mjeseci po skupinama',
     subtitle: 'Potrošnja svakog mjeseca, po skupinama.',
+    allAnalysis: 'Cijela analiza',
   },
   flow: {
     title: 'Prihodi, potrošnja i prijenos u ulaganja',

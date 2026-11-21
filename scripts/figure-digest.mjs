@@ -883,6 +883,14 @@ async function spendingGroups(addGroup, loansBook) {
     )
     add('spending.payees.all', () => payeeTotals(countedRows(workbook, rates.everyday), workbook.categories))
   }
+  // Analysis over the twelve months up to the day, by every grouping, and each category's average month, trend, year against last year and the months' kept money.
+  const analysisMonths = monthsFrom(addMonths(thisMonth, -11), thisMonth)
+  const analysisRange = { from: `${analysisMonths[0]}-01`, to: today }
+  add('spending.analysis', () => ['category', 'payee', 'label', 'account'].map((grouping) => figures.breakdownOf(analysisRange, grouping)))
+  add('spending.average', () => [null, ...workbook.categories].map((category) => figures.averageOf(category, today)))
+  add('spending.trends', () => figures.trendsOn(today))
+  add('spending.year-against-year', () => [null, ...workbook.categories].map((category) => figures.yearAgainstYearOf(category, yearOf(today), today)))
+  add('spending.kept', () => figures.keptIn(analysisMonths))
   if (options['fake-spending'] === 'statements') {
     const reading = recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook, statementWords.feeOn)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))

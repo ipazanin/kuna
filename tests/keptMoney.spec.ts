@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
-import { keptMoney } from '../src/apps/spending/analytics/domain/keptMoney'
-import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow'
+import { keptMoney, keptOver } from '../src/apps/spending/analytics/domain/keptMoney'
+import { monthFlow, savingsRateOver } from '../src/apps/spending/analytics/domain/monthFlow'
 import { monthTotals } from '../src/apps/spending/analytics/domain/monthTotals'
 import { subtractMoney, sumMoney } from '../src/shared/money/money'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
@@ -37,5 +37,17 @@ describe('what a month kept', () => {
 
     expect(october!.kept).toBe(subtractMoney(flow!.income, flow!.spent))
     expect(sumMoney([october!.investments, october!.loanPrincipal, october!.assets, october!.rest])).toBe(october!.kept)
+  })
+
+  it('adds months together part by part, so the parts still add up to what was kept', () => {
+    const months = keptMoney(rows, CATEGORIES, totalsOf, [month('2026-09'), month('2026-10')])
+
+    expect(keptOver(months)).toEqual({ kept: euros(1_550), investments: euros(300), loanPrincipal: euros(180), assets: euros(500), rest: euros(570), unrated: 1 })
+  })
+
+  it('gives months taken together one savings rate, their income less their spending over their income', () => {
+    // September has no income and nothing spent, so October's 1,550 of 2,400 stands for both.
+    expect(savingsRateOver([totalsOf(month('2026-09')), totalsOf(month('2026-10'))])).toBeCloseTo(1_550 / 2_400)
+    expect(savingsRateOver([totalsOf(month('2026-09'))])).toBeNull()
   })
 })

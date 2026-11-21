@@ -626,6 +626,7 @@ import { servePreview } from './support/servePreview.mjs'
 import { shotIndex } from './support/shotIndex.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
+import { spendingAnalysisFlowIn } from './support/analysisFlows.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
@@ -4082,6 +4083,73 @@ const SOURCE_SCREENS = [
   },
   { name: 'spending-payees-all-time', query: 'spending=statements', hash: '#/spending/payees?period=all', title: 'Payees', charts: 0, shows: ['All time', 'Example Bank', 'HR55 2340'], cards: false },
   { name: 'spending-payees-empty', query: 'spending=drive', hash: '#/spending/payees', title: 'Payees', charts: 0, shows: ['No payees yet'], cards: false },
+  { name: 'spending-analysis', query: 'spending=years', hash: '#/spending/analysis', title: 'Analysis', charts: 1, shows: ['Where the money went', 'By category', 'Total'], cards: false },
+  {
+    name: 'spending-analysis-croatian',
+    query: 'spending=years&lang=hr',
+    hash: '#/spending/analysis',
+    title: 'Analiza',
+    charts: 1,
+    shows: ['Kamo je novac otišao', 'Po kategoriji', 'Ukupno'],
+    cards: false,
+  },
+  {
+    name: 'spending-analysis-labels',
+    query: 'spending=years',
+    hash: '#/spending/analysis?grouping=label&period=l12',
+    title: 'Analysis',
+    charts: 1,
+    shows: ['By label', 'can add up to more than was spent'],
+    cards: false,
+  },
+  {
+    name: 'spending-analysis-over-time',
+    query: 'spending=years',
+    hash: '#/spending/analysis?tab=over-time',
+    title: 'Analysis',
+    charts: 1,
+    shows: ['Average month', 'This month so far'],
+    cards: false,
+  },
+  {
+    name: 'spending-analysis-over-time-croatian',
+    query: 'spending=years&lang=hr',
+    hash: '#/spending/analysis?tab=over-time',
+    title: 'Analiza',
+    charts: 1,
+    shows: ['Prosječan mjesec', 'Ovaj mjesec dosad'],
+    cards: false,
+  },
+  { name: 'spending-analysis-year', query: 'spending=years', hash: '#/spending/analysis?tab=year', title: 'Analysis', charts: 1, shows: ['so far', 'Same days of'], cards: false },
+  { name: 'spending-analysis-year-croatian', query: 'spending=years&lang=hr', hash: '#/spending/analysis?tab=year', title: 'Analiza', charts: 1, shows: ['dosad', 'Isto razdoblje'], cards: false },
+  {
+    name: 'spending-analysis-savings',
+    query: 'spending=years',
+    hash: '#/spending/analysis?tab=savings',
+    title: 'Analysis',
+    charts: 2,
+    shows: ['Savings rate', 'What you kept became', 'Growing'],
+    cards: false,
+  },
+  {
+    name: 'spending-analysis-savings-croatian',
+    query: 'spending=years&lang=hr',
+    hash: '#/spending/analysis?tab=savings',
+    title: 'Analiza',
+    charts: 2,
+    shows: ['Stopa štednje', 'Rastu'],
+    cards: false,
+  },
+  {
+    name: 'spending-analysis-young',
+    query: 'spending=sample',
+    hash: '#/spending/analysis?tab=savings',
+    title: 'Analysis',
+    charts: 2,
+    shows: ['Trends show once the book has six whole months.'],
+    cards: false,
+  },
+  { name: 'spending-analysis-empty', query: 'spending=drive', hash: '#/spending/analysis', title: 'Analysis', charts: 0, shows: ['Nothing to look into yet'], cards: false },
   {
     name: 'spending-transactions-payee',
     query: 'spending=sample',
@@ -6391,6 +6459,24 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=statements&banksync=linked&lang=hr' },
+  },
+  {
+    name: 'spending-analysis-flow',
+    hash: '#/spending/analysis',
+    title: 'Analysis',
+    run: spendingAnalysisFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=years' },
+  },
+  {
+    name: 'spending-analysis-flow-croatian',
+    hash: '#/spending/analysis',
+    title: 'Analiza',
+    run: spendingAnalysisFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=years&lang=hr' },
   },
   {
     name: 'spending-payees',

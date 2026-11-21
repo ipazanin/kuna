@@ -1,4 +1,5 @@
 import { spendingFigures } from '../analytics/domain/spendingFigures'
+import { ANALYSIS_REPORTS, keptFigures } from './analysisReports'
 import { normaliseIban } from '../../../shared/text/fold'
 import type { Label } from '../../../shared/categorising/domain/labels'
 import { monthFlow } from '../analytics/domain/monthFlow'
@@ -413,6 +414,7 @@ function monthReport(book: SpendingBook, rates: RateBook, period: string | null)
     ...(savingsRate === null ? [] : [{ label: 'savings rate', basisPoints: nearestBasisPoints(pointsOfShare(savingsRate)) }]),
     { label: 'rows left out because no exchange rate reaches them yet', count: totals.unrated },
     { label: 'rows waiting on To review, of any month', count: reviewCount(book) },
+    ...keptFigures(book, rates, month),
   ]
 }
 
@@ -803,6 +805,8 @@ export function spendingReader(reading: SpendingReading): AppReader {
       { id: 'labels', title: words.reports.labels.title, about: words.reports.labels.about, period: 'day', figures: report(labelsReport) },
       { id: 'events', title: words.reports.events.title, about: words.reports.events.about, period: 'day', figures: report(eventsReport) },
       { id: 'payees', title: words.reports.payees.title, about: words.reports.payees.about, period: 'day', figures: report(payeesReport) },
+      { id: 'trends', title: words.reports.trends.title, about: words.reports.trends.about, period: 'month', figures: report(ANALYSIS_REPORTS.trends) },
+      { id: 'year', title: words.reports.year.title, about: words.reports.year.about, period: 'month', figures: report(ANALYSIS_REPORTS.year) },
     ],
     bookings: {
       kind: TRANSACTION_RECORDS.name,

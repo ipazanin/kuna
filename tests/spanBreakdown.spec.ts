@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Label } from '../src/shared/categorising/domain/labels'
 
 import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
-import { spanBreakdown } from '../src/apps/spending/analytics/domain/spanBreakdown'
+import { spanBreakdown, spendingRanked } from '../src/apps/spending/analytics/domain/spanBreakdown'
 import type { Grouping } from '../src/apps/spending/analytics/domain/spanBreakdown'
 import { LABEL_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
@@ -89,5 +89,14 @@ describe("a span's breakdown", () => {
       ['OTP current', euros(140), euros(2_000), 5],
       ['Revolut EUR', euros(0), euros(0), 1],
     ])
+  })
+
+  it('ranks the lines that spent, cut after the ones shown, with what the rest spent together', () => {
+    const { top, rest } = spendingRanked(breakdown('payee').lines, 1)
+
+    // Corner market 80 after its refund, then Harbour bistro 60. The salary and the top-up spent nothing.
+    expect(top.map((line) => [line.name, line.spent])).toEqual([['Corner market', euros(80)]])
+    expect(rest).toEqual({ spent: euros(60), lines: 1 })
+    expect(spendingRanked(breakdown('payee').lines, 5).rest).toBeNull()
   })
 })

@@ -1,4 +1,4 @@
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { periodOfText, periodText } from '../../../../shared/calendar/periodText'
 import { amountOf, moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { isBucket } from '../../workbook/domain/bucket'
@@ -8,7 +8,6 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { DEFAULT_FILTERS } from './filterState'
 import type { FilterState, Period } from './filterState'
-import type { Quarter } from '../../../../shared/calendar/period'
 
 /** A query value as the router hands it over: absent, one value, or a repeated key. */
 export type QueryValue = string | null | readonly (string | null)[] | undefined
@@ -35,18 +34,14 @@ const KEYS = {
 
 export const FILTER_QUERY_KEYS: readonly string[] = Object.values(KEYS)
 
-const YEAR_PATTERN = /^(\d{4})$/
-const QUARTER_PATTERN = /^(\d{4})q([1-4])$/
-const CUSTOM_PATTERN = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/
-
 /**
  * The query for a filter state. Fields left at their default are omitted, except the period when
  * `explicitPeriod` asks for it, which a link that must reproduce its rows does.
  */
 export function encodeFilters(filters: FilterState, { explicitPeriod = false } = {}): Record<string, string | string[]> {
   const query: Record<string, string | string[]> = {}
-  const period = encodePeriod(filters.period)
-  if (explicitPeriod || period !== encodePeriod(DEFAULT_FILTERS.period)) {
+  const period = periodText(filters.period)
+  if (explicitPeriod || period !== periodText(DEFAULT_FILTERS.period)) {
     query[KEYS.period] = period
   }
   const lists = [
@@ -107,45 +102,10 @@ export function withoutFilterKeys<Query extends FilterQuery>(query: Query): Part
   return Object.fromEntries(Object.entries(query).filter(([key]) => !FILTER_QUERY_KEYS.includes(key))) as Partial<Query>
 }
 
-function encodePeriod(period: Period): string {
-  switch (period.preset) {
-    case 'l3':
-    case 'l12':
-    case 'all':
-      return period.preset
-    case 'year':
-      return String(period.year)
-    case 'quarter':
-      return `${period.year}q${period.quarter}`
-    case 'custom':
-      return `${period.range.from}..${period.range.to}`
-  }
-}
-
+/** Company names no single month, so an address that does reads as no period. */
 function decodePeriod(text: string | null): Period | null {
-  if (text === 'l3' || text === 'l12' || text === 'all') {
-    return { preset: text }
-  }
-  if (text === null) {
-    return null
-  }
-  const year = YEAR_PATTERN.exec(text)
-  if (year !== null) {
-    return { preset: 'year', year: Number(year[1]) }
-  }
-  const quarter = QUARTER_PATTERN.exec(text)
-  if (quarter !== null) {
-    return { preset: 'quarter', year: Number(quarter[1]), quarter: Number(quarter[2]) as Quarter }
-  }
-  const custom = CUSTOM_PATTERN.exec(text)
-  if (custom !== null) {
-    const from = parseCivilDate(custom[1])
-    const to = parseCivilDate(custom[2])
-    if (from !== null && to !== null && from <= to) {
-      return { preset: 'custom', range: { from, to } }
-    }
-  }
-  return null
+  const period = periodOfText(text)
+  return period?.preset === 'month' ? null : period
 }
 
 function firstValue(value: QueryValue): string | null {

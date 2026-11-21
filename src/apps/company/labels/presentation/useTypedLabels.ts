@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 
-import { labelCalled, labelNameProblem } from '../../../../shared/categorising/domain/labels'
+import { pickedWith, typedLabel } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -33,14 +33,11 @@ export function useTypedLabels(): TypedLabels {
     choices,
     refused,
     withTyped(picked, name) {
-      const held = labelCalled(name, choices.value)
-      const problem = held === null ? labelNameProblem(name, choices.value, null) : null
-      refused.value = problem === null ? null : uiWords.labelName[problem]
-      if (held !== null) return picked.includes(held.id) ? picked : [...picked, held.id]
-      if (problem !== null) return picked
-      const label = newLabel(name)
-      created.value = [...created.value, label]
-      return [...picked, label.id]
+      const typed = typedLabel(name, choices.value, newLabel)
+      refused.value = 'problem' in typed ? uiWords.labelName[typed.problem] : null
+      if ('problem' in typed) return picked
+      if (typed.made) created.value = [...created.value, typed.label]
+      return pickedWith(picked, typed.label)
     },
     addCarried(unit, carried) {
       created.value.filter((label) => carried.has(label.id)).forEach((label) => addLabel(unit, label))

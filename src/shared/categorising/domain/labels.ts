@@ -32,6 +32,22 @@ export function labelNameProblem(name: string, labels: readonly Label[], own: Re
   return labels.some((label) => label.id !== own && fold(label.name) === folded) ? 'taken' : null
 }
 
+/** What a name typed into a labels field picks: the label that has it, a new label made with it, or why it cannot be a label's. */
+export type TypedLabel = { readonly label: Label; readonly made: boolean } | { readonly problem: LabelNameProblem }
+
+/** The label a typed name picks among the labels on offer, made by the app's own `make` when none has the name. */
+export function typedLabel(name: string, labels: readonly Label[], make: (name: string) => Label): TypedLabel {
+  const held = labelCalled(name, labels)
+  if (held !== null) return { label: held, made: false }
+  const problem = labelNameProblem(name, labels, null)
+  return problem === null ? { label: make(name), made: true } : { problem }
+}
+
+/** The picked labels with the one typed added, where it is not picked already. */
+export function pickedWith(picked: readonly RecordId[], label: Label): readonly RecordId[] {
+  return picked.includes(label.id) ? picked : [...picked, label.id]
+}
+
 /** The parts with the label on each, where it is not already. */
 export function withLabel<Part extends Labelled>(parts: readonly Part[], label: RecordId): readonly Part[] {
   return parts.map((part) => (part.labels.includes(label) ? part : { ...part, labels: [...part.labels, label] }))

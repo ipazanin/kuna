@@ -4,7 +4,7 @@ import { rowSide } from '../../categories/domain/rowSide'
 import type { Category, CategoryKind } from '../../workbook/domain/category'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { ZERO, addMoney, subtractMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
 /**
@@ -50,4 +50,17 @@ export function keptMoney(rows: readonly CountedRow[], categories: readonly Cate
     const rest = subtractMoney(subtractMoney(subtractMoney(kept, went.investments), went.loanPrincipal), went.assets)
     return { month, kept, ...went, rest, unrated }
   })
+}
+
+/** What the months kept together and what it became, each part the sum of the months' parts, so the four still add up to what was kept. */
+export function keptOver(months: readonly KeptMonth[]): Omit<KeptMonth, 'month'> {
+  const sum = (part: (month: KeptMonth) => Money): Money => sumMoney(months.map(part))
+  return {
+    kept: sum((month) => month.kept),
+    investments: sum((month) => month.investments),
+    loanPrincipal: sum((month) => month.loanPrincipal),
+    assets: sum((month) => month.assets),
+    rest: sum((month) => month.rest),
+    unrated: months.reduce((count, month) => count + month.unrated, 0),
+  }
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import { monthTotals } from '../src/apps/spending/analytics/domain/monthTotals'
-import { yearAgainstYear } from '../src/apps/spending/analytics/domain/yearAgainstYear'
+import { yearChange, yearAgainstYear } from '../src/apps/spending/analytics/domain/yearAgainstYear'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { civil, euros } from './fixtures/ledger'
@@ -43,5 +43,16 @@ describe('a year against the year before', () => {
 
     expect([fuel.toDate.counted, fuel.lastYearToDate.counted]).toEqual([euros(210), euros(0)])
     expect(fuel.months.every((shown) => shown.counted !== null)).toBe(true)
+  })
+
+  it('names the days each count reads and how far the year moved from them', () => {
+    const fuel = yearAgainstYear(rows, CATEGORIES, totalsOf, category('Transport'), 2026, civil('2026-03-10'))
+
+    expect([fuel.toDate.days, fuel.lastYearToDate.days]).toEqual([
+      { from: civil('2026-01-01'), to: civil('2026-03-10') },
+      { from: civil('2025-01-01'), to: civil('2025-03-10') },
+    ])
+    // 90 against 90, so no change.
+    expect(yearChange(fuel)).toEqual({ change: euros(0), share: 0 })
   })
 })
