@@ -16,6 +16,12 @@ import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { beforeStartDay } from './account'
+import type { Account } from './account'
+import { rowKey } from './transaction'
+import { readEach } from '../../../../shared/storage/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
 /** A row's amount, which is never zero. */
 function amountOf(fields: StoredFields): Transaction['amount'] {
@@ -121,3 +127,55 @@ export const DROPPED_ROW_CODEC: RecordCodec<DroppedRow> = withIdField(DROPPED_RO
     filing: dropped.filing,
   }),
 )
+
+/** Why a row of an account is not on it: the account is not in the file, or the row is from before the account's start day. */
+function accountReason(accounts: ReadonlyMap<string, Account>, row: Pick<Transaction, 'account' | 'date'>): string | null {
+  const account = accounts.get(row.account)
+  if (account === undefined) return words.noAccount
+  return beforeStartDay(account, row.date) ? words.beforeStartDay(account.openedOn) : null
+}
+
+/** The rows, of which a file from before items checks the category each keeps on itself. */
+export function readTransactions(read: RecordsRead<StoredRow>, accounts: ReadonlyMap<string, Account>, categories: ReadonlySet<string>, beforeItems: boolean): Reading<StoredRow> {
+  const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
+  const sharingKey = sharedKeys(
+    read.records.filter((stored) => stored.record.importKey !== ''),
+    (stored) => rowKey(stored.record),
+  )
+  const reading = readEach(read, ({ record: transaction }) => {
+    const onAccount = accountReason(accounts, transaction)
+    if (onAccount !== null) return [onAccount]
+    if (transaction.importKey !== '' && sharingKey.has(rowKey(transaction))) return [words.importKeyShared(transaction.importKey)]
+    if (beforeItems && transaction.category !== null && !categories.has(transaction.category)) return [words.noCategory]
+    if (transaction.pair === null) return []
+    const other = byId.get(transaction.pair)
+    if (other?.pair !== transaction.id) return [words.pairNotBack]
+    return other.account === transaction.account ? [words.pairOnSameAccount] : []
+  })
+  return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.date.localeCompare(later.date)) }
+}
+
+/**
+ * Why a bank row on hold does not count: it carries no import key, it names an account that does not count or is from before
+ * that account's start day, or an entry or another held row of its account already has its import key. One whose look-alike
+ * is gone still counts, and To review says so. The write of a held row reads the same.
+ */
+export function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, Account>, transactions: readonly Transaction[]): Reading<HeldBankRow> {
+  const booked = new Set(transactions.filter((row) => row.importKey !== '').map(rowKey))
+  const sharingKey = sharedKeys(read.records, (stored) => rowKey(stored.record))
+  return readEach(read, ({ record: held }) => {
+    if (held.importKey === '') return [words.heldRowNoKey]
+    const onAccount = accountReason(accounts, held)
+    if (onAccount !== null) return [onAccount]
+    if (booked.has(rowKey(held))) return [words.heldRowBooked(held.importKey)]
+    return sharingKey.has(rowKey(held)) ? [words.heldRowShared(held.importKey)] : []
+  })
+}
+
+/** Why a payment the bank dropped does not count: it names an account that does not count or is from before that account's start day. */
+export function readDropped(read: RecordsRead<DroppedRow>, accounts: ReadonlyMap<string, Account>): Reading<DroppedRow> {
+  return readEach(read, ({ record }) => {
+    const onAccount = accountReason(accounts, record)
+    return onAccount === null ? [] : [onAccount]
+  })
+}

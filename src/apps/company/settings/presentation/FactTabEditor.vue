@@ -5,7 +5,7 @@ import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { ibanListOf } from '../../workbook/domain/iban'
+import { ibanListOf } from '../../../../shared/text/iban'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'

@@ -18,6 +18,12 @@ import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { idsOf, idsText, ownId, refuse, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import type { Account } from './account'
+import { isTransferCategory } from './category'
+import type { Category } from './category'
+import type { Label } from '../../../../shared/categorising/domain/labels'
+import { readEach } from '../../../../shared/storage/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 
 /** The fields a file from before conditions holds a rule's one test in, read as payee contains and IBAN is. */
 const OLDER_TESTS = { counterparty_contains: 'payee_contains', counterparty_iban: 'iban_is' } as const
@@ -132,3 +138,24 @@ export const RULE_CODEC: RecordCodec<SpendingRule> = withIdField(RULE_RECORDS, w
     link: rule.link === null ? null : rowLinkText(rule.link),
   }),
 )
+
+/**
+ * Why a rule does not count: it names a category, a label or an account that does not count, or it spots a withdrawal off Between
+ * my accounts or into an account that is not cash.
+ */
+export function readRules(read: RecordsRead<SpendingRule>, categories: readonly Category[], accounts: readonly Account[], labels: readonly Label[]): Reading<SpendingRule> {
+  const categoryOf = new Map(categories.map((category) => [category.id, category]))
+  const cash = new Set(accounts.filter((account) => account.kind === 'cash').map((account) => account.id))
+  const accountIds = new Set(accounts.map((account) => account.id))
+  const labelIds = new Set(labels.map((label) => label.id))
+  const reading = readEach(read, ({ record: rule }) => {
+    const category = rule.category === null ? null : categoryOf.get(rule.category)
+    if (category === undefined) return [words.noCategory]
+    if (rule.labels.some((label) => !labelIds.has(label))) return [words.shortcutNoLabel]
+    if (rule.conditions.some((condition) => 'accounts' in condition && condition.accounts.some((account) => !accountIds.has(account)))) return [words.noAccount]
+    if (rule.withdrawal === null) return []
+    if (category === null || !isTransferCategory(category)) return [words.withdrawalNotTransfer]
+    return rule.withdrawal.cashAccount === null || cash.has(rule.withdrawal.cashAccount) ? [] : [words.withdrawalNotCash]
+  })
+  return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
+}

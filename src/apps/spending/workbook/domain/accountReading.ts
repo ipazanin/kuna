@@ -13,6 +13,10 @@ import { EXTRA_ORIGINS } from '../../../../shared/app/accountSource'
 import { choiceList, ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
+import { bankLinkWithoutIban } from './account'
+import { doubted, readEach } from '../../../../shared/storage/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import { listInWords } from '../../../../shared/text/listInWords'
 
 /** An IBAN as Kuna compares it: in capitals, without spaces. */
 export function ibanKey(text: string): string {
@@ -81,3 +85,18 @@ export const ACCOUNT_CODEC: RecordCodec<Account> = withIdField(
       closed: account.closed ? true : null,
     }),
 )
+
+/** Accounts count, but one that shares its IBAN and currency with another, or takes its rows from a bank link with no IBAN, is doubted. */
+export function readAccounts(read: RecordsRead<Account>): Reading<Account> {
+  const ibanOf = (account: Account): string | null => (account.iban === '' ? null : `${ibanKey(account.iban)} ${account.currency}`)
+  return doubted(
+    readEach(read, () => []),
+    read,
+    (account) => {
+      if (bankLinkWithoutIban(account)) return words.bankLinkWithoutIban
+      const key = ibanOf(account)
+      const others = key === null ? [] : read.records.filter((stored) => stored.record !== account && ibanOf(stored.record) === key).map((stored) => stored.record.name.trim())
+      return others.length === 0 ? null : words.ibanShared(listInWords(others), ibanKey(account.iban), account.currency)
+    },
+  )
+}

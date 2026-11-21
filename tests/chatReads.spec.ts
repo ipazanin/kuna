@@ -325,11 +325,11 @@ describe('the figures of a read', () => {
 })
 
 describe('what Spending lets the chat read', () => {
-  it('names every kind it stores, as read or as kept out, and reads the bank set-up list, the bank sync line and the payees beside them', () => {
+  it('names every kind it stores, as read or as kept out, reads payees as the Payees tab lists them, and reads the bank set-up list and the bank sync line beside them', () => {
     const reader = spendingReader(CHAT_READING)
-    const lines = [BANK_ACCOUNT_LINES.name, BANK_SYNC_LINES.name, PAYEE_LINES.name]
+    const lines = [BANK_ACCOUNT_LINES.name, BANK_SYNC_LINES.name]
     const stored = reader.kinds.map((kind) => kind.name).filter((name) => !lines.includes(name))
-    expect(reader.kinds.map((kind) => kind.name)).toEqual(expect.arrayContaining(lines))
+    expect(reader.kinds.map((kind) => kind.name)).toEqual(expect.arrayContaining([...lines, PAYEE_LINES.name]))
     expect([...stored, ...UNREAD_KINDS].sort()).toEqual(
       Object.values(spendingKinds)
         .map((kind) => kind.name)

@@ -3,6 +3,7 @@ import { BUDGET_CODEC } from '../domain/budgetReading'
 import { CATEGORY_CODEC } from '../domain/categoryReading'
 import { EVENT_CODEC } from '../domain/eventReading'
 import { LABEL_CODEC } from '../domain/labelReading'
+import { PAYEE_CODEC } from '../domain/payeeReading'
 import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
@@ -67,6 +68,7 @@ const SPENDING_CODECS = [
   HELD_ROW_CODEC,
   DROPPED_ROW_CODEC,
   RECIPE_CODEC,
+  PAYEE_CODEC,
   SETTING_CODEC,
 ] as readonly RecordCodec<unknown>[]
 

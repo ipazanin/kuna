@@ -14,7 +14,7 @@ import {
 import { counted, countedBy, countsBy, usesOf } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { readAccounts } from '../../workbook/domain/accountsReading'
-import { ibanListOf } from '../../workbook/domain/iban'
+import { ibanListOf } from '../../../../shared/text/iban'
 import { readCategories } from '../../workbook/domain/categoriesReading'
 import { readClients } from '../../workbook/domain/clientsReading'
 import { slugListOf, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'

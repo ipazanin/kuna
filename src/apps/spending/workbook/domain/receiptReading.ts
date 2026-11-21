@@ -11,6 +11,10 @@ import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, refuse, requiredMoney, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import type { Account } from './account'
+import { readEach } from '../../../../shared/storage/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
 const ISSUED_AT = /^(\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?$/
 
@@ -62,3 +66,21 @@ export const RECEIPT_CODEC: RecordCodec<Receipt> = withIdField(RECEIPT_RECORDS, 
     longitude: receipt.longitude,
   }),
 )
+
+export function readReceipts(read: RecordsRead<Receipt>, transactions: ReadonlySet<string>, accounts: ReadonlyMap<string, Account>): Reading<Receipt> {
+  const sharingRow = sharedKeys(
+    read.records.filter((stored) => stored.record.transaction !== null),
+    (stored) => stored.record.transaction ?? '',
+  )
+  const codes = read.records.flatMap(({ record }) => [record.jir, record.zki].filter((code) => code !== ''))
+  const sharingCode = sharedKeys(codes, (code) => code)
+  return readEach(read, ({ record: receipt }) => {
+    if (receipt.transaction === null) {
+      if (receipt.account === null || !accounts.has(receipt.account)) return [words.waitingOnNoAccount]
+    } else {
+      if (!transactions.has(receipt.transaction)) return [words.noEntry]
+      if (sharingRow.has(receipt.transaction)) return [words.entryHasReceipt]
+    }
+    return sharingCode.has(receipt.jir) || sharingCode.has(receipt.zki) ? [words.fiscalCodeShared] : []
+  })
+}

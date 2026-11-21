@@ -8,6 +8,7 @@ import type { HeldBankRow } from './heldBankRow'
 import type { DroppedRow } from './droppedRow'
 import type { Receipt } from './receipt'
 import type { SavedRecipe } from './savedRecipe'
+import type { Payee } from './payee'
 import type { SpendingRule } from './spendingRule'
 import type { Shortcut, ShortcutPart } from './shortcut'
 import type { StoredLine } from './beforeItems'
@@ -80,6 +81,10 @@ export const DROPPED_ROW_RECORDS = recordKind<DroppedRow>('dropped-row', {
 export const RECIPE_RECORDS = recordKind<SavedRecipe>('recipe', {
   en: { one: 'recipe', many: 'recipes', article: 'a' },
   hr: { one: 'recept', of: 'recepta', few: 'recepta', other: 'recepata', gender: 'masculine' },
+})
+export const PAYEE_RECORDS = recordKind<Payee>('payee', {
+  en: { one: 'payee', many: 'payees', article: 'a' },
+  hr: { one: 'primatelj ili platitelj', of: 'primatelja ili platitelja', few: 'primatelja ili platitelja', other: 'primatelja ili platitelja', gender: 'masculine' },
 })
 export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
   en: { one: 'setting', many: 'settings', article: 'a' },

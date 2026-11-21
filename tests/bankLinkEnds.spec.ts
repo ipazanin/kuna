@@ -19,7 +19,6 @@ function settings(
     bankSyncApplication: application,
     bankLinks: { otp: until(otpIn), revolut: until(revolutIn) },
     bankFetchedAt: fetchedAt,
-    personPayees: [],
     bankAccountsNotInKuna: [],
     bankAccountsKeepMine: [],
     instalmentsPutOff: [],

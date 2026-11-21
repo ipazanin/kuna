@@ -1,6 +1,6 @@
 import { filledKey, labelWords } from '../../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../../shared/storage/domain/recordCodec'
-import { ibanListOf } from '../../../../workbook/domain/iban'
+import { ibanListOf } from '../../../../../../shared/text/iban'
 import { amountText, filledFields } from '../../../../../../shared/storage/domain/recordFields'
 import { recordIdOf } from '../../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'

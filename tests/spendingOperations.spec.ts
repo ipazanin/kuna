@@ -22,7 +22,7 @@ import { forgetCaches } from './fixtures/writeBack'
 import { addEntries, filedRows } from './fixtures/spending'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
-import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY, PERSON_PAYEES_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
 import { CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -812,8 +812,27 @@ describe('an entry’s receipt and payee', () => {
     const flag = stepOf(SPENDING_OPERATIONS, 'flag-person', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })
     await desk.propose([flag])
     expect((await desk.accept()).kind).toBe('done')
-    expect(bookOf(desk).settings.personPayees).toContain('Corner market')
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Corner market'], party: 'person' }])
     expect((await desk.propose([flag])).isError).toBe(true)
+  })
+
+  it('moves the old person setting onto payees when it flags a payee, and one Undo takes back the flag and the move', async () => {
+    const desk = await spendingDesk(used)
+    await desk.store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], PERSON_PAYEES_KEY, 'Ana Horvat'))
+    const marked = () => bookOf(desk).readings.settings.facts.filter((row) => row.key === PERSON_PAYEES_KEY)
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'flag-person', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })])
+    const result = await desk.accept()
+
+    expect(result.kind).toBe('done')
+    expect(bookOf(desk).payees).toMatchObject([
+      { names: ['Ana Horvat'], party: 'person' },
+      { names: ['Corner market'], party: 'person' },
+    ])
+    expect(marked()).toEqual([])
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).payees).toEqual([])
+    expect(marked()).toMatchObject([{ value: 'Ana Horvat' }])
   })
 })
 

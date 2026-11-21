@@ -22,12 +22,12 @@ describe("the person flag on Spending's entry", () => {
   })
 
   it('reads as its reverse once the payee is flagged, by the same words in any order', () => {
-    expect(dialog).toContain('flaggedAsPerson(store.state.workbook?.settings.personPayees ?? [], savedPayee.value)')
+    expect(dialog).toContain('isPerson(payeeDirectory(book.payees, book.readings.settings.facts), savedPayee.value, savedIban.value)')
     expect(dialog).toContain(':label="payeeIsPerson ? words.dialog.asCompany : words.dialog.asPerson"')
   })
 
   it('writes the flag with its own key, through the write that keeps an Undo, and says each other spelling needs its own', () => {
-    expect(dialog).toMatch(/async function treatPayee[\s\S]*?writes\.write\([\s\S]*?treatPayeeAsPerson\(unit, recordsOf\(records\.settings\), payeeName, asPerson\)[\s\S]*?key: 'person-payee'/)
+    expect(dialog).toMatch(/async function treatPayee[\s\S]*?writes\.write\([\s\S]*?setPayeeParty\(unit, records, payeeName, asPerson \? 'person' : null, iban\)[\s\S]*?key: 'person-payee'/)
     expect(dialog).toContain('{{ words.dialog.asPersonHelp }}')
     expect(spending.en.dialog.asPersonHelp).toContain('Flag each other spelling too')
     expect(spending.hr.dialog.asPersonHelp).toContain('svaki drugi način pisanja')

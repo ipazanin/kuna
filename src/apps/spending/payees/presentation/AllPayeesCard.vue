@@ -8,7 +8,6 @@ import type { PayeeTotals } from '../domain/payeeTotals'
 import type { PayeePeriod } from '../domain/payeePeriod'
 import { payeeLink } from '../../overview/presentation/spendingLinks'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { groupedIban } from '../../../../shared/text/iban'
 import { plural } from '../../../../shared/text/translation'
@@ -20,8 +19,8 @@ import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.
 const props = defineProps<{
   totals: readonly PayeeTotals[]
   period: PayeePeriod
-  /** The payees you marked as people. */
-  people: readonly string[]
+  /** The keys of the payees who are people. */
+  people: ReadonlySet<string>
 }>()
 
 const find = ref('')
@@ -36,11 +35,9 @@ const found = computed(() => {
 const lines = computed(() =>
   (allShown.value ? found.value : found.value.slice(0, FIRST_SHOWN)).map((payee) => ({
     payee,
-    caption: [
-      ...(flaggedAsPerson(props.people, payee.name) ? [words.person] : []),
-      plural(words.entries(payee.rows), payee.rows),
-      ...(payee.latest === null ? [] : [words.newest(dayLabel(payee.latest))]),
-    ].join(' · '),
+    caption: [...(props.people.has(payee.key) ? [words.person] : []), plural(words.entries(payee.rows), payee.rows), ...(payee.latest === null ? [] : [words.newest(dayLabel(payee.latest))])].join(
+      ' · ',
+    ),
     ibans: payee.ibans.map(groupedIban),
   })),
 )

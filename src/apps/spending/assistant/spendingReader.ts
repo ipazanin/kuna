@@ -47,6 +47,7 @@ import {
   LABEL_RECORDS,
   RECEIPT_RECORDS,
   RECIPE_RECORDS,
+  PAYEE_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SHORTCUT_PART_RECORDS,
@@ -530,13 +531,7 @@ interface PayeeLine {
 }
 
 /** The payees of the book, as the Payees tab lists them. */
-export const PAYEE_LINES: Pick<RecordKind, 'name' | 'noun'> = {
-  name: 'payee',
-  noun: {
-    en: { one: 'payee', many: 'payees', article: 'a' },
-    hr: { one: 'primatelj ili platitelj', of: 'primatelja ili platitelja', few: 'primatelja ili platitelja', other: 'primatelja ili platitelja', gender: 'masculine' },
-  },
-}
+export const PAYEE_LINES: Pick<RecordKind, 'name' | 'noun'> = { name: PAYEE_RECORDS.name, noun: PAYEE_RECORDS.noun }
 
 const PAYEE_FIELDS: FieldDocs<PayeeLine> = {
   id: { exposure: 'ref', to: PAYEE_LINES.name, meaning: 'The payee.' },

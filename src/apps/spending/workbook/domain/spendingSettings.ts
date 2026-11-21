@@ -2,7 +2,6 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { settingValue } from '../../../../shared/storage/domain/settingRows'
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
-import { personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
 
 /** The banks the bank sync can link. */
 export const LINKABLE_BANKS = ['otp', 'revolut'] as const
@@ -17,8 +16,6 @@ export interface SpendingSettings {
   readonly bankLinks: Readonly<Record<LinkableBank, CivilDate | null>>
   /** When any device last got an answer from each bank, in epoch milliseconds, or null for one never asked. */
   readonly bankFetchedAt: Readonly<Record<LinkableBank, number | null>>
-  /** The payees the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
-  readonly personPayees: readonly string[]
   /** The bank accounts the owner said Kuna does not keep, each as its IBAN and currency, so the bank sync neither offers nor reads them. */
   readonly bankAccountsNotInKuna: readonly string[]
   /** The bank accounts whose Spending account keeps its own bank and kind, so the bank sync stops offering the bank's. Named as in `bankAccountsNotInKuna`. */
@@ -39,6 +36,7 @@ export interface InstalmentPutOff {
 }
 
 export const BANK_SYNC_APPLICATION_KEY = 'bank_sync_application'
+/** The payees an older file marks as people, one per line, which the first payee write moves onto payees. */
 export const PERSON_PAYEES_KEY = 'person_payees'
 export const BANK_ACCOUNTS_NOT_IN_KUNA_KEY = 'bank_sync_not_in_kuna'
 export const BANK_ACCOUNTS_KEEP_MINE_KEY = 'bank_sync_keep_mine'
@@ -111,7 +109,6 @@ export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSetting
     bankSyncApplication: settingValue(rows, BANK_SYNC_APPLICATION_KEY),
     bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') },
     bankFetchedAt: { otp: fetchedOf('otp'), revolut: fetchedOf('revolut') },
-    personPayees: personPayeesOf(settingValue(rows, PERSON_PAYEES_KEY)),
     bankAccountsNotInKuna: linesOf(settingValue(rows, BANK_ACCOUNTS_NOT_IN_KUNA_KEY)),
     bankAccountsKeepMine: linesOf(settingValue(rows, BANK_ACCOUNTS_KEEP_MINE_KEY)),
     instalmentsPutOff: linesOf(settingValue(rows, INSTALMENTS_PUT_OFF_KEY)).flatMap((line) => instalmentPutOffOf(line) ?? []),

@@ -5,7 +5,7 @@ import { moveToItems } from '../../entries/application/rowRecords'
 import { newEntry, removeEntry, writeEntry } from '../../entries/application/entryWrites'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { fileRows } from '../../statements/application/statementWrites'
-import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
+import { setPayeeParty } from '../../payees/application/payeeWrites'
 import type { Account } from '../../workbook/domain/account'
 import { isBeforeItems, moveBlockers } from '../../workbook/domain/beforeItems'
 import type { Category } from '../../workbook/domain/category'
@@ -170,9 +170,9 @@ export function writeEntryStep(
       removeEntry(unit, records, rowOf(field['entry']))
       return null
     case 'flag-person': {
-      const payee = rowOf(field['entry']).payee.trim()
-      if (payee === '') throw new StepRefused('That entry has no payee to flag.')
-      treatPayeeAsPerson(unit, book.readings.settings.facts, payee, true)
+      const entry = rowOf(field['entry'])
+      if (entry.payee.trim() === '') throw new StepRefused('That entry has no payee to flag.')
+      setPayeeParty(unit, records, entry.payee.trim(), 'person', entry.counterpartyIban)
       return null
     }
     default: {

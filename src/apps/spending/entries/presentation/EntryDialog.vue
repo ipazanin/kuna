@@ -33,7 +33,8 @@ import ReceiptLineFiling from '../../receipts/presentation/ReceiptLineFiling.vue
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
 import { shortcutOffer } from '../../shortcuts/presentation/shortcutOffer'
-import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
+import { setPayeeParty } from '../../payees/application/payeeWrites'
+import { isPerson, payeeDirectory } from '../../payees/domain/payeeDirectory'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { fixedByBank } from '../domain/bankRows'
 import { beforeStartDay, takesNewRowsByHand } from '../../workbook/domain/account'
@@ -46,14 +47,12 @@ import { isSplit, itemizedRow, rowItemsOf } from '../../workbook/domain/rowItems
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 import { absAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
@@ -322,14 +321,19 @@ function transferWrite(): ((unit: UnitOfWork) => void) | null {
 
 /** The payee as the file holds it, which the person flag names, or blank for an entry with none. */
 const savedPayee = computed(() => props.entry?.payee.trim() ?? '')
-const payeeIsPerson = computed(() => flaggedAsPerson(store.state.workbook?.settings.personPayees ?? [], savedPayee.value))
+const savedIban = computed(() => props.entry?.counterpartyIban ?? '')
+const payeeIsPerson = computed(() => {
+  const book = store.state.workbook
+  return book !== null && savedPayee.value !== '' && isPerson(payeeDirectory(book.payees, book.readings.settings.facts), savedPayee.value, savedIban.value)
+})
 
 async function treatPayee(): Promise<void> {
   const records = store.state.records
   const payeeName = savedPayee.value
+  const iban = savedIban.value
   if (records === null || payeeName === '') return
   const asPerson = !payeeIsPerson.value
-  await writes.write(asPerson ? words.dialog.treatedAsPerson : words.dialog.treatedAsCompany, (unit) => treatPayeeAsPerson(unit, recordsOf(records.settings), payeeName, asPerson), {
+  await writes.write(asPerson ? words.dialog.treatedAsPerson : words.dialog.treatedAsCompany, (unit) => setPayeeParty(unit, records, payeeName, asPerson ? 'person' : null, iban), {
     key: 'person-payee',
     description: payeeName,
     failedTitle: spendingWords.form.notSaved,

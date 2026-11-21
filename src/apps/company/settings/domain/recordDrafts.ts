@@ -1,6 +1,6 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { shareFromPercent, writtenPercentOfFraction } from '../../../../shared/money/percent'
-import { ibanListOf } from '../../workbook/domain/iban'
+import { ibanListOf } from '../../../../shared/text/iban'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'

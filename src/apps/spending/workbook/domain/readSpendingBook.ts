@@ -1,20 +1,22 @@
-import { bankLinkWithoutIban, beforeStartDay } from './account'
 import { labelNameProblem } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import type { Account } from './account'
-import { ibanKey } from './accountReading'
+import { readAccounts } from './accountReading'
 import type { Budget } from './budget'
+import { readBudgets } from './budgetReading'
 import type { Category } from './category'
-import { isFixedKind, isTransferCategory } from './category'
+import { readCategories } from './categoryReading'
 import type { TransactionItem } from './transactionItem'
-import { isBeforeItems, itemOfWaitingLine, itemsOfStoredRow } from './beforeItems'
+import { itemsBeforeItems, readParts, withItems, withKnownNames } from './transactionItemReading'
+import { isBeforeItems } from './beforeItems'
 import type { StoredLine } from './beforeItems'
 import type { HeldBankRow } from './heldBankRow'
 import type { DroppedRow } from './droppedRow'
 import type { SavedRecipe } from './savedRecipe'
-import { eventPutIn } from './event'
+import type { Payee } from './payee'
 import type { SpendingEvent } from './event'
 import type { Receipt } from './receipt'
+import { readReceipts } from './receiptReading'
 import {
   ACCOUNT_RECORDS,
   BUDGET_RECORDS,
@@ -24,6 +26,7 @@ import {
   DROPPED_ROW_RECORDS,
   RECIPE_RECORDS,
   ITEM_RECORDS,
+  PAYEE_RECORDS,
   LABEL_RECORDS,
   LINE_RECORDS,
   RECEIPT_RECORDS,
@@ -34,6 +37,7 @@ import {
   TRANSACTION_RECORDS,
 } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
+import { readRules } from './ruleReading'
 import type { Shortcut, ShortcutPart } from './shortcut'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
@@ -53,27 +57,21 @@ import {
   utcTimeOf,
 } from './spendingSettings'
 import type { SpendingSettings } from './spendingSettings'
-import { rowKey } from './transaction'
 import type { StoredRow, Transaction } from './transaction'
+import { readDropped, readHeld, readTransactions } from './transactionReading'
 import { words } from './words'
-import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
 import { eventProblem } from '../../events/domain/events'
 import { shortcutPartProblem } from '../../shortcuts/domain/shortcuts'
-import { accountMoneyOfEuros, negateAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
-import type { AccountMoney } from '../../../../shared/money/accountMoney'
-import { restOfWhole } from '../../../../shared/money/partsOfWhole'
-import { plainAmount } from '../../../../shared/money/money'
+import { payeeProblem } from '../../payees/domain/payeeDetails'
+import { oldMarksCount } from '../../payees/domain/payeeDirectory'
+import type { PayeeProblem } from '../../payees/domain/payeeDetails'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
-import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
+import { doubted, problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
-import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ANY_VALUE, readSettingRows } from '../../../../shared/storage/domain/settingRows'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
 import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
-import { listInWords } from '../../../../shared/text/listInWords'
 
 function bankAccountLinesCheck(key: string): SettingValueCheck {
   return (value: string) => linesOf(value).flatMap((line) => (isBankAccountLine(line) ? [] : [words.settingNotABankAccount(key, line)]))
@@ -82,7 +80,6 @@ function bankAccountLinesCheck(key: string): SettingValueCheck {
 /** Each key Spending knows, a bank's link ending only on a day, and a bank's last fetch only at a UTC time. */
 export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingValueCheck>([
   [BANK_SYNC_APPLICATION_KEY, ANY_VALUE],
-  [PERSON_PAYEES_KEY, ANY_VALUE],
   [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
   [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY)],
   [INSTALMENTS_PUT_OFF_KEY, (value: string) => linesOf(value).flatMap((line) => (instalmentPutOffOf(line) === null ? [words.settingNotAPutOff(INSTALMENTS_PUT_OFF_KEY, line)] : []))],
@@ -92,8 +89,11 @@ export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingVal
   ...LINKABLE_BANKS.map(bankFetchedKey).map((key) => [key, (value: string) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])] as const),
 ])
 
-/** Keys Spending no longer reads that older files may still hold. Company's OIB is read from Company now, and the bank sync script is built in. */
-export const SPENDING_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['company_oib', 'bank_sync_deployment'])
+/**
+ * Keys Spending no longer reads that older files may still hold. Company's OIB is read from Company now, the bank sync script is
+ * built in, and the payees marked as people are read only until the first payee write moves them onto payees.
+ */
+export const SPENDING_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['company_oib', 'bank_sync_deployment', PERSON_PAYEES_KEY])
 
 /** What the Spending file holds of each kind. */
 export interface SpendingRecords {
@@ -114,6 +114,7 @@ export interface SpendingRecords {
   readonly held: RecordsRead<HeldBankRow>
   readonly dropped: RecordsRead<DroppedRow>
   readonly recipes: RecordsRead<SavedRecipe>
+  readonly payees: RecordsRead<Payee>
   readonly settings: RecordsRead<SettingRow>
 }
 
@@ -134,6 +135,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   held: HELD_ROW_RECORDS,
   dropped: DROPPED_ROW_RECORDS,
   recipes: RECIPE_RECORDS,
+  payees: PAYEE_RECORDS,
   settings: SETTING_RECORDS,
 }
 
@@ -155,6 +157,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     held: of(SPENDING_PARTS.held),
     dropped: of(SPENDING_PARTS.dropped),
     recipes: of(SPENDING_PARTS.recipes),
+    payees: of(SPENDING_PARTS.payees),
     settings: of(SPENDING_PARTS.settings),
   }
 }
@@ -194,52 +197,14 @@ export interface SpendingBook {
   readonly dropped: readonly DroppedRow[]
   /** The recipes kept for a bank's statement files, in the order of the file. */
   readonly recipes: readonly SavedRecipe[]
+  /** The payees you keep details of, in the order of the file. */
+  readonly payees: readonly Payee[]
   readonly settings: SpendingSettings
   /** The rows, lines and items as the file stores them, which a write of rows starts from. */
   readonly stored: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly SpendingProblem[]
-}
-
-/** Records that count but are doubted: each keeps counting, with a problem that says why. */
-function doubted<R>(reading: Reading<R>, read: RecordsRead<R>, reasonOf: (record: R) => string | null): Reading<R> {
-  const problems = read.records.flatMap((stored) => {
-    const reason = reading.facts.includes(stored.record) ? reasonOf(stored.record) : null
-    return reason === null ? [] : [problemOf(stored, reason)]
-  })
-  return { facts: reading.facts, problems: [...reading.problems, ...problems] }
-}
-
-/** Accounts count, but one that shares its IBAN and currency with another, or takes its rows from a bank link with no IBAN, is doubted. */
-function readAccounts(read: RecordsRead<Account>): Reading<Account> {
-  const ibanOf = (account: Account): string | null => (account.iban === '' ? null : `${ibanKey(account.iban)} ${account.currency}`)
-  return doubted(
-    readEach(read, () => []),
-    read,
-    (account) => {
-      if (bankLinkWithoutIban(account)) return words.bankLinkWithoutIban
-      const key = ibanOf(account)
-      const others = key === null ? [] : read.records.filter((stored) => stored.record !== account && ibanOf(stored.record) === key).map((stored) => stored.record.name.trim())
-      return others.length === 0 ? null : words.ibanShared(listInWords(others), ibanKey(account.iban), account.currency)
-    },
-  )
-}
-
-function readCategories(read: RecordsRead<Category>): Reading<Category> {
-  const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
-  const fixedShared = sharedKeys(
-    read.records.filter((stored) => isFixedKind(stored.record.kind)),
-    (stored) => stored.record.kind,
-  )
-  const reading = readEach(read, ({ record: category }) => {
-    if (category.parent === null) return []
-    const parent = byId.get(category.parent)
-    if (parent === undefined) return [words.noParent]
-    if (parent.parent !== null) return [words.parentHasParent]
-    return parent.kind === category.kind ? [] : [words.parentOfOtherKind]
-  })
-  return doubted(reading, read, (category) => (isFixedKind(category.kind) && fixedShared.has(category.kind) ? words.fixedShared(category.kind) : null))
 }
 
 /** Labels count, but one whose name another label has once folded is doubted, since the two read as one. */
@@ -252,19 +217,6 @@ function readLabels(read: RecordsRead<Label>): Reading<Label> {
   )
 }
 
-/**
- * Items that count keep counting when they name a label or an event the file lacks, doubted for it. The screens show them under
- * no label, and in the event their day falls in.
- */
-function withKnownNames(reading: Reading<TransactionItem>, read: RecordsRead<TransactionItem>, labels: ReadonlySet<RecordId>, events: ReadonlySet<RecordId>): Reading<TransactionItem> {
-  return doubted(reading, read, (item) => {
-    const unknown = item.labels.find((label) => !labels.has(label))
-    if (unknown !== undefined) return words.noLabel(keyOfRecordId(LABEL_RECORDS, unknown))
-    const event = eventPutIn(item.event)
-    return event === null || events.has(event) ? null : words.noEvent(keyOfRecordId(EVENT_RECORDS, event))
-  })
-}
-
 /** Events count when their name is not blank and their last day is not before their first. Names may repeat. */
 function readEvents(read: RecordsRead<SpendingEvent>): Reading<SpendingEvent> {
   return readEach(read, ({ record: event }) => {
@@ -272,73 +224,6 @@ function readEvents(read: RecordsRead<SpendingEvent>): Reading<SpendingEvent> {
     if (problem === null) return []
     return [problem === 'blank' ? words.eventNameBlank : words.eventEndsBefore]
   })
-}
-
-/** Why a row of an account is not on it: the account is not in the file, or the row is from before the account's start day. */
-function accountReason(accounts: ReadonlyMap<string, Account>, row: Pick<Transaction, 'account' | 'date'>): string | null {
-  const account = accounts.get(row.account)
-  if (account === undefined) return words.noAccount
-  return beforeStartDay(account, row.date) ? words.beforeStartDay(account.openedOn) : null
-}
-
-/** The rows, of which a file from before items checks the category each keeps on itself. */
-function readTransactions(read: RecordsRead<StoredRow>, accounts: ReadonlyMap<string, Account>, categories: ReadonlySet<string>, beforeItems: boolean): Reading<StoredRow> {
-  const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
-  const sharingKey = sharedKeys(
-    read.records.filter((stored) => stored.record.importKey !== ''),
-    (stored) => rowKey(stored.record),
-  )
-  const reading = readEach(read, ({ record: transaction }) => {
-    const onAccount = accountReason(accounts, transaction)
-    if (onAccount !== null) return [onAccount]
-    if (transaction.importKey !== '' && sharingKey.has(rowKey(transaction))) return [words.importKeyShared(transaction.importKey)]
-    if (beforeItems && transaction.category !== null && !categories.has(transaction.category)) return [words.noCategory]
-    if (transaction.pair === null) return []
-    const other = byId.get(transaction.pair)
-    if (other?.pair !== transaction.id) return [words.pairNotBack]
-    return other.account === transaction.account ? [words.pairOnSameAccount] : []
-  })
-  return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.date.localeCompare(later.date)) }
-}
-
-function readBudgets(read: RecordsRead<Budget>, categories: readonly Category[]): Reading<Budget> {
-  const byId = new Map(categories.map((category) => [category.id, category]))
-  const sharingMonth = sharedKeys(read.records, (stored) => `${stored.record.category} ${stored.record.from}`)
-  const onSpending = read.records.map((stored) => stored.record).filter((budget) => byId.get(budget.category)?.kind === 'spending')
-  const overlapsKin = (budget: Budget): boolean => {
-    const category = byId.get(budget.category)!
-    const kin = categories.filter((other) => other.id === category.parent || other.parent === category.id)
-    const ownRuns = limitRuns(onSpending, category.id)
-    return kin.some((other) => limitRuns(onSpending, other.id).some((theirs) => ownRuns.some((own) => runsOverlap(own, theirs))))
-  }
-  return readEach(read, ({ record: budget }) => {
-    const category = byId.get(budget.category)
-    if (category === undefined) return [words.noCategory]
-    if (category.kind !== 'spending') return [words.notSpending]
-    if (sharingMonth.has(`${budget.category} ${budget.from}`)) return [words.budgetSharesMonth(budget.from)]
-    return overlapsKin(budget) ? [words.budgetOnGroupAndChild] : []
-  })
-}
-
-/**
- * Why a rule does not count: it names a category, a label or an account that does not count, or it spots a withdrawal off Between
- * my accounts or into an account that is not cash.
- */
-function readRules(read: RecordsRead<SpendingRule>, categories: readonly Category[], accounts: readonly Account[], labels: readonly Label[]): Reading<SpendingRule> {
-  const categoryOf = new Map(categories.map((category) => [category.id, category]))
-  const cash = new Set(accounts.filter((account) => account.kind === 'cash').map((account) => account.id))
-  const accountIds = new Set(accounts.map((account) => account.id))
-  const labelIds = new Set(labels.map((label) => label.id))
-  const reading = readEach(read, ({ record: rule }) => {
-    const category = rule.category === null ? null : categoryOf.get(rule.category)
-    if (category === undefined) return [words.noCategory]
-    if (rule.labels.some((label) => !labelIds.has(label))) return [words.shortcutNoLabel]
-    if (rule.conditions.some((condition) => 'accounts' in condition && condition.accounts.some((account) => !accountIds.has(account)))) return [words.noAccount]
-    if (rule.withdrawal === null) return []
-    if (category === null || !isTransferCategory(category)) return [words.withdrawalNotTransfer]
-    return rule.withdrawal.cashAccount === null || cash.has(rule.withdrawal.cashAccount) ? [] : [words.withdrawalNotCash]
-  })
-  return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
 }
 
 /** Why a shortcut does not count: it names no account in the file. */
@@ -381,119 +266,35 @@ function withParts(reading: Reading<Shortcut>, read: RecordsRead<Shortcut>, part
   }
 }
 
-function readReceipts(read: RecordsRead<Receipt>, transactions: ReadonlySet<string>, accounts: ReadonlyMap<string, Account>): Reading<Receipt> {
-  const sharingRow = sharedKeys(
-    read.records.filter((stored) => stored.record.transaction !== null),
-    (stored) => stored.record.transaction ?? '',
-  )
-  const codes = read.records.flatMap(({ record }) => [record.jir, record.zki].filter((code) => code !== ''))
-  const sharingCode = sharedKeys(codes, (code) => code)
-  return readEach(read, ({ record: receipt }) => {
-    if (receipt.transaction === null) {
-      if (receipt.account === null || !accounts.has(receipt.account)) return [words.waitingOnNoAccount]
-    } else {
-      if (!transactions.has(receipt.transaction)) return [words.noEntry]
-      if (sharingRow.has(receipt.transaction)) return [words.entryHasReceipt]
-    }
-    return sharingCode.has(receipt.jir) || sharingCode.has(receipt.zki) ? [words.fiscalCodeShared] : []
+/** A payee's problem in the words of the file's problems. */
+function payeeReason(problem: PayeeProblem): string {
+  switch (problem.kind) {
+    case 'no-name':
+      return words.payeeNoName
+    case 'name-taken':
+      return words.payeeNameTaken(problem.name, problem.holder)
+    case 'not-an-iban':
+      return words.payeeNotAnIban(problem.iban)
+    case 'iban-taken':
+      return words.payeeIbanTaken(problem.iban, problem.holder)
+    case 'not-an-oib':
+      return words.payeeNotAnOib(problem.taxId)
+  }
+}
+
+/** Payees count as `payeeProblem` says, each against every other stored payee, so two that share a name or an IBAN both stay out. */
+function readPayees(read: RecordsRead<Payee>): Reading<Payee> {
+  const payees = read.records.map((stored) => stored.record)
+  return readEach(read, ({ record: payee }) => {
+    const problem = payeeProblem(payee, payees)
+    return problem === null ? [] : [payeeReason(problem)]
   })
 }
 
-/** What the parts of an entry add up to: the entry's amount, or for the lines of a receipt that waits, minus its total. */
-function wholeOfParts(transactions: readonly Transaction[], receipts: readonly Receipt[]): ReadonlyMap<RecordId, AccountMoney> {
-  return new Map<RecordId, AccountMoney>([
-    ...transactions.map((row) => [row.id, row.amount] as const),
-    ...receipts.flatMap((receipt) => (receipt.transaction === null ? [[receipt.id, negateAccountMoney(accountMoneyOfEuros(receipt.total))] as const] : [])),
-  ])
-}
-
-/** A part as both shapes of the file hold it, which the add-up rule reads. */
-type Part = Pick<TransactionItem, 'transaction' | 'receipt' | 'amount' | 'category'>
-
-/**
- * The parts of entries and the lines of waiting receipts. A part names a whole that counts, and when a receipt split it, that
- * entry's receipt, and a category that counts. The parts of a whole add up to it and count all or none. A file moved to items
- * also lets only the one item of a row waiting on review go without a category, and never splits a transfer's leg.
- */
-function readParts<P extends Part>(read: RecordsRead<P>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>, beforeItems: boolean): Reading<P> {
-  const wholes = wholeOfParts(transactions, receipts)
-  const receiptOf = new Map(receipts.map((receipt) => [receipt.id, receipt]))
-  const legs = new Set(transactions.filter((row) => row.pair !== null).map((row) => row.id))
-  /** The entry the part is of, or the waiting receipt whose line it is, which its siblings share. */
-  const wholeOf = (part: Part): RecordId | null => part.transaction ?? part.receipt
-  const siblings = new Map<RecordId | null, Part[]>()
-  for (const { record: part } of read.records) siblings.set(wholeOf(part), [...(siblings.get(wholeOf(part)) ?? []), part])
-  const ownReason = (part: Part): string | null => {
-    const whole = wholeOf(part)
-    if (whole === null || !wholes.has(whole)) return part.transaction === null ? words.noReceipt : words.noEntry
-    if (part.receipt !== null && receiptOf.get(part.receipt)?.transaction !== part.transaction) return words.noReceipt
-    const many = (siblings.get(whole)?.length ?? 0) > 1
-    if (!beforeItems && many && part.transaction !== null && legs.has(part.transaction)) return words.transferLegSplit
-    if (part.category === null) return beforeItems || many || part.transaction === null ? words.uncategorisedNotAlone : null
-    return categories.has(part.category) ? null : words.noCategory
-  }
-  const brokenWholes = new Set<RecordId | null>()
-  for (const { record: part } of read.records) {
-    if (ownReason(part) !== null) brokenWholes.add(wholeOf(part))
-  }
-  return readEach(read, ({ record: part }) => {
-    const own = ownReason(part)
-    if (own !== null) return [own]
-    // All or none, since parts left counting without their sibling would drop its money from every figure.
-    if (brokenWholes.has(wholeOf(part))) return [beforeItems ? words.siblingPartLeftOut : words.itemLeftOut]
-    const amounts = (siblings.get(wholeOf(part)) ?? []).map((sibling) => sibling.amount)
-    const whole = wholes.get(wholeOf(part)!)!
-    return restOfWhole(whole, amounts) === 0 ? [] : [words.partsDoNotAddUp(plainAmount(sumAccountMoney(amounts)), plainAmount(whole))]
-  })
-}
-
-/** Every row and waiting receipt's items as a file from before items holds them, in the order of the file's rows and then of its lines. */
-function itemsBeforeItems(read: RecordsRead<StoredRow>, rows: readonly StoredRow[], lines: readonly StoredLine[]): readonly TransactionItem[] {
-  const counted = new Set(rows)
-  const linesOf = new Map<RecordId, StoredLine[]>()
-  for (const line of lines) {
-    if (line.transaction !== null) linesOf.set(line.transaction, [...(linesOf.get(line.transaction) ?? []), line])
-  }
-  return [
-    ...read.records.flatMap(({ record: row }) => (counted.has(row) ? itemsOfStoredRow(row, linesOf.get(row.id) ?? []) : [])),
-    ...lines.filter((line) => line.transaction === null).map(itemOfWaitingLine),
-  ]
-}
-
-/**
- * The rows of a file moved to items that have an item that counts, and those without as left out: for the reason their items
- * are, or for having none.
- */
-function withItems(reading: Reading<StoredRow>, read: RecordsRead<StoredRow>, items: Reading<TransactionItem>, stored: RecordsRead<TransactionItem>): Reading<StoredRow> {
-  const itemized = new Set(items.facts.map((item) => item.transaction))
-  const reasonOf = new Map<RecordId | null, string>()
-  for (const { id, record } of stored.records) {
-    const reason = items.problems.find((problem) => problem.id === id)?.reason
-    if (reason !== undefined && !reasonOf.has(record.transaction)) reasonOf.set(record.transaction, reason)
-  }
-  const kept = new Set(reading.facts.filter((row) => itemized.has(row.id)))
-  const left = read.records.filter((stored) => reading.facts.includes(stored.record) && !kept.has(stored.record))
-  return {
-    facts: reading.facts.filter((row) => kept.has(row)),
-    problems: [...reading.problems, ...left.map((stored) => problemOf(stored, reasonOf.get(stored.record.id) ?? words.entryWithoutPart))],
-  }
-}
-
-/**
- * Why a bank row on hold does not count: it carries no import key, it names an account that does not count or is from before
- * that account's start day, or an entry or another held row of its account already has its import key. One whose look-alike
- * is gone still counts, and To review says so. The write of a held row reads the same.
- */
-function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, Account>, transactions: readonly Transaction[]): Reading<HeldBankRow> {
-  const booked = new Set(transactions.filter((row) => row.importKey !== '').map(rowKey))
-  const sharingKey = sharedKeys(read.records, (stored) => rowKey(stored.record))
-  return readEach(read, ({ record: held }) => {
-    if (held.importKey === '') return [words.heldRowNoKey]
-    const onAccount = accountReason(accounts, held)
-    if (onAccount !== null) return [onAccount]
-    if (booked.has(rowKey(held))) return [words.heldRowBooked(held.importKey)]
-    return sharingKey.has(rowKey(held)) ? [words.heldRowShared(held.importKey)] : []
-  })
+/** The settings, of which the old marks of payees as people are doubted once payees count, since the payees say it now. */
+function readSettings(read: RecordsRead<SettingRow>, payees: readonly Payee[]): Reading<SettingRow> {
+  const reading = readSettingRows(read, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
+  return oldMarksCount(payees) ? reading : doubted(reading, read, (row) => (row.key === PERSON_PAYEES_KEY ? words.personPayeesMoved : null))
 }
 
 /**
@@ -505,7 +306,7 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, 
  * A file from before items keeps an entry's category, note and link on the entry while it is not split, which then names a category that counts, and its
  * parts as lines, and is read as the items they make. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, a second category of a fixed
  * kind, a label named as another is once folded and an item that names a label or an event the file lacks count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
- * `readHeld` refuses.
+ * `readHeld` refuses. A payee keeps a name, and no other payee holds any of its names once folded or any of its IBANs.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const beforeItems = isBeforeItems(records)
@@ -531,13 +332,11 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   )
   const transactions = beforeItems ? rows : withItems(rows, records.transactions, items, records.items)
   const held = readHeld(records.held, accountsById, transactions.facts)
-  const dropped = readEach(records.dropped, ({ record }) => {
-    const onAccount = accountReason(accountsById, record)
-    return onAccount === null ? [] : [onAccount]
-  })
+  const dropped = readDropped(records.dropped, accountsById)
   const recipes = readEach(records.recipes, () => [])
-  const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, dropped, recipes, settings }
+  const payees = readPayees(records.payees)
+  const settings = readSettings(records.settings, payees.facts)
+  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, dropped, recipes, payees, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -553,6 +352,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     held: held.facts,
     dropped: dropped.facts,
     recipes: recipes.facts,
+    payees: payees.facts,
     settings: spendingSettingsOf(settings.facts),
     stored: { transactions: records.transactions, lines: records.lines, items: records.items },
     readings,

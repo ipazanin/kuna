@@ -562,6 +562,7 @@ describe('reading receipts and lines', () => {
       held: read([]),
       dropped: read([]),
       recipes: read([]),
+      payees: read([]),
       settings: read([]),
     })
 

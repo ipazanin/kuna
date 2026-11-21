@@ -11,6 +11,9 @@ import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, refuse, requiredChoice, requiredText, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { doubted, readEach } from '../../../../shared/storage/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
 /** The names Kuna's own spending categories had in either language before a file stored their roles, from every starter set. */
 const NAMES_BEFORE_ROLES: Readonly<Record<CategoryRole, readonly string[]>> = {
@@ -53,3 +56,19 @@ export const CATEGORY_CODEC: RecordCodec<Category> = withIdField(
       role: category.role,
     }),
 )
+
+export function readCategories(read: RecordsRead<Category>): Reading<Category> {
+  const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
+  const fixedShared = sharedKeys(
+    read.records.filter((stored) => isFixedKind(stored.record.kind)),
+    (stored) => stored.record.kind,
+  )
+  const reading = readEach(read, ({ record: category }) => {
+    if (category.parent === null) return []
+    const parent = byId.get(category.parent)
+    if (parent === undefined) return [words.noParent]
+    if (parent.parent !== null) return [words.parentHasParent]
+    return parent.kind === category.kind ? [] : [words.parentOfOtherKind]
+  })
+  return doubted(reading, read, (category) => (isFixedKind(category.kind) && fixedShared.has(category.kind) ? words.fixedShared(category.kind) : null))
+}

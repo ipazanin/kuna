@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import UInputTags from '@nuxt/ui/components/InputTags.vue'
 
-import { ibanListOf } from '../../workbook/domain/iban'
+import { ibanListOf } from '../../../../shared/text/iban'
 import { words } from './words'
 
 /**

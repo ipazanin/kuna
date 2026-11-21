@@ -198,10 +198,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: [
       'company: treatPayeeAsPerson.payee',
       'company: treatPayeeAsPerson.asPerson',
-      'spending: treatPayeeAsPerson.payee',
-      'spending: treatPayeeAsPerson.asPerson',
+      'spending: setPayeeParty.name',
+      'spending: setPayeeParty.party',
+      'spending: setPayeeParty.iban',
       'company: Setting.person_payees',
-      'spending: Setting.person_payees',
     ],
   },
   {

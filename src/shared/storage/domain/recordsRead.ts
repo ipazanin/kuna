@@ -123,6 +123,15 @@ export function readEach<R>(read: RecordsRead<R>, reasonsOf: (stored: ReadRecord
   return { facts, problems }
 }
 
+/** Records that count but are doubted: each keeps counting, with a problem that says why. */
+export function doubted<R>(reading: Reading<R>, read: RecordsRead<R>, reasonOf: (record: R) => string | null): Reading<R> {
+  const problems = read.records.flatMap((stored) => {
+    const reason = reading.facts.includes(stored.record) ? reasonOf(stored.record) : null
+    return reason === null ? [] : [problemOf(stored, reason)]
+  })
+  return { facts: reading.facts, problems: [...reading.problems, ...problems] }
+}
+
 /** Whether two records hold the same values, field for field and item for item, a missing field as an undefined one. */
 export function sameRecord(left: unknown, right: unknown): boolean {
   if (left === right) {

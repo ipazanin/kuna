@@ -1,5 +1,5 @@
 import { CLIENT_RECORDS } from './coreKinds'
-import { ibanListOf } from './iban'
+import { ibanListOf } from '../../../../shared/text/iban'
 import { filledKey, labelWords } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'

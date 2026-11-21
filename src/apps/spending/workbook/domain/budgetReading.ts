@@ -12,6 +12,11 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, refuse, requiredMoney, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
+import type { Category } from './category'
+import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
+import { readEach } from '../../../../shared/storage/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
 export function budgetOf(fields: StoredFields, id: RecordId | null): Budget {
   const fromText = textOf(fields.from)
@@ -30,3 +35,22 @@ export function budgetOf(fields: StoredFields, id: RecordId | null): Budget {
 export const BUDGET_CODEC: RecordCodec<Budget> = withIdField(BUDGET_RECORDS, words.budgetLabel, budgetOf, (budget) =>
   filledFields({ category: keyOfRecordId(CATEGORY_RECORDS, budget.category), from: budget.from, amount: amountText(budget.amount), due: budget.due }),
 )
+
+export function readBudgets(read: RecordsRead<Budget>, categories: readonly Category[]): Reading<Budget> {
+  const byId = new Map(categories.map((category) => [category.id, category]))
+  const sharingMonth = sharedKeys(read.records, (stored) => `${stored.record.category} ${stored.record.from}`)
+  const onSpending = read.records.map((stored) => stored.record).filter((budget) => byId.get(budget.category)?.kind === 'spending')
+  const overlapsKin = (budget: Budget): boolean => {
+    const category = byId.get(budget.category)!
+    const kin = categories.filter((other) => other.id === category.parent || other.parent === category.id)
+    const ownRuns = limitRuns(onSpending, category.id)
+    return kin.some((other) => limitRuns(onSpending, other.id).some((theirs) => ownRuns.some((own) => runsOverlap(own, theirs))))
+  }
+  return readEach(read, ({ record: budget }) => {
+    const category = byId.get(budget.category)
+    if (category === undefined) return [words.noCategory]
+    if (category.kind !== 'spending') return [words.notSpending]
+    if (sharingMonth.has(`${budget.category} ${budget.from}`)) return [words.budgetSharesMonth(budget.from)]
+    return overlapsKin(budget) ? [words.budgetOnGroupAndChild] : []
+  })
+}

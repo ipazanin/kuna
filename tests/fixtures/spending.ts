@@ -210,6 +210,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     held: [],
     dropped: [],
     recipes: [],
+    payees: [],
     stored: given.items === undefined ? storedBeforeItems(transactions) : storedWithItems(transactions, given.items),
     ...given,
   }
@@ -235,6 +236,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
       held: counting(book.held),
       dropped: counting(book.dropped),
       recipes: counting(book.recipes),
+      payees: counting(book.payees),
       settings: counting(settingRows),
     },
     problems: [],

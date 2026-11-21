@@ -7,6 +7,7 @@ import RankedPayeesCard from './RankedPayeesCard.vue'
 import { words } from './words'
 import { PAYEE_PERIODS, inPeriod, periodNamed } from '../domain/payeePeriod'
 import type { PayeePeriod } from '../domain/payeePeriod'
+import { isPerson, payeeDirectory } from '../domain/payeeDirectory'
 import { payeeTotals } from '../domain/payeeTotals'
 import { payeesLink } from '../../overview/presentation/spendingLinks'
 import { countedRows } from '../../analytics/domain/countedRow'
@@ -54,7 +55,12 @@ const subtitle = computed(() => {
   if (waiting.value) return rateWords.loading
   return unratedNote(totals.value.reduce((sum, payee) => sum + payee.unrated, 0))
 })
-const people = computed(() => state.workbook?.settings.personPayees ?? [])
+const people = computed(() => {
+  const book = state.workbook
+  if (book === null) return new Set<string>()
+  const directory = payeeDirectory(book.payees, book.readings.settings.facts)
+  return new Set(totals.value.filter((payee) => isPerson(directory, payee.name)).map((payee) => payee.key))
+})
 </script>
 
 <template>

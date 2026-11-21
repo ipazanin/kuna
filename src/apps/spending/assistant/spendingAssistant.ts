@@ -12,6 +12,7 @@ import {
   SPENDING_SORTING_ROUTE,
   SPENDING_TRANSACTIONS_ROUTE,
 } from '../overview/presentation/spendingLinks'
+import { payeeDirectory, personPayees } from '../payees/domain/payeeDirectory'
 import { words as receiptWords } from '../receipts/presentation/words'
 import { words as screenWords } from '../screenWords'
 import { words as settingsWords } from '../settings/presentation/words'
@@ -89,5 +90,9 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
   proposer: changes?.proposer ?? null,
   acceptance: changes?.acceptance ?? null,
   quickActions: [words.quickActions.sort, words.quickActions.rules, words.quickActions.higher],
-  persons: () => (reading.book()?.settings.personPayees ?? []).map((name) => ({ name, employee: false, ibans: [] })),
+  persons: () => {
+    const book = reading.book()
+    if (book === null) return []
+    return personPayees(payeeDirectory(book.payees, book.readings.settings.facts)).flatMap((payee) => payee.names.map((name) => ({ name, employee: false, ibans: payee.ibans })))
+  },
 })

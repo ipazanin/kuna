@@ -6,9 +6,8 @@ import { SETTING_WRITES as COMPANY_SETTING_WRITES, treatPayeeAsPerson as treatCo
 import { DEFAULT_SETTINGS, PERSON_PAYEES_KEY as COMPANY_PERSON_PAYEES_KEY, parseSettings, settingsTabEntries } from '../src/apps/company/settings/domain/settings'
 import { SETTING_RECORDS as COMPANY_SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
-import { treatPayeeAsPerson } from '../src/apps/spending/workbook/application/settingWrites'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
-import { PERSON_PAYEES_KEY, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { PERSON_PAYEES_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { SPENDING_RETIRED_SETTING_KEYS, SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { flaggedAsPerson, personPayeesOf, withPayeeAsPerson } from '../src/shared/privacy/domain/personPayees'
 import { changesOf } from '../src/shared/storage/application/recordWrites'
@@ -48,42 +47,14 @@ describe('the payees flagged as people', () => {
 })
 
 describe("Spending's person_payees setting", () => {
-  it('reads one payee per line with blank lines dropped, and none by default', () => {
+  it('is a retired key that reads silently, while a key it does not know is still refused', () => {
     const rows = [settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\n\nMarko Kovač\n')]
+    expect(readSettingRows(spendingRead(rows), SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)).toEqual({ facts: rows, problems: [] })
+    expect(SPENDING_SETTING_CHECKS.has(PERSON_PAYEES_KEY)).toBe(false)
 
-    expect(readSettingRows(spendingRead(rows), SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown).problems).toEqual([])
-    expect(spendingSettingsOf(rows).personPayees).toEqual(['Ana Horvat', 'Marko Kovač'])
-    expect(spendingSettingsOf([]).personPayees).toEqual([])
-  })
-
-  it('still refuses a key it does not know', () => {
     const reading = readSettingRows(spendingRead([settingRow(SETTING_RECORDS, 'person_payee', 'Ana Horvat')]), SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-
     expect(reading.facts).toEqual([])
     expect(reading.problems.map((problem) => problem.reason)).toEqual(['this Kuna knows no setting person_payee'])
-  })
-
-  it('adds a payee to the list, and a first one as a new row', () => {
-    const first = changesOf((unit) => treatPayeeAsPerson(unit, [], 'Ana Horvat', true))
-    expect(first.map(({ change }) => change)).toMatchObject([{ verb: 'add', after: settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat') }])
-
-    const held = settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat')
-    const second = changesOf((unit) => treatPayeeAsPerson(unit, [held], 'Marko Kovač', true))
-    expect(second.map(({ change }) => change)).toMatchObject([{ verb: 'change', before: held, after: settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\nMarko Kovač') }])
-  })
-
-  it('writes nothing for a payee already flagged under another spelling', () => {
-    expect(changesOf((unit) => treatPayeeAsPerson(unit, [settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat')], 'HORVAT ANA', true))).toEqual([])
-  })
-
-  it('removes a payee by the same words, and the row with the last one', () => {
-    const two = settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\nMarko Kovač')
-    expect(changesOf((unit) => treatPayeeAsPerson(unit, [two], 'KOVAČ MARKO', false)).map(({ change }) => change)).toMatchObject([
-      { verb: 'change', before: two, after: settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat') },
-    ])
-
-    const one = settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat')
-    expect(changesOf((unit) => treatPayeeAsPerson(unit, [one], 'horvat ana', false)).map(({ change }) => change)).toMatchObject([{ verb: 'remove', before: one }])
   })
 
   it('is no key the chat may propose', () => {
