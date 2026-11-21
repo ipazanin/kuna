@@ -575,7 +575,7 @@ const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
   },
 }
 
-/** Whether a new account can take its rows from a bank link, as one line for the chat. The deployment itself stays with the person. */
+/** Whether a new account can take its rows from a bank link, as one line for the chat. The key itself stays with the person. */
 interface BankSyncLine {
   readonly id: string
   readonly bankLinkOffered: boolean
@@ -594,7 +594,7 @@ const BANK_SYNC_FIELDS: FieldDocs<BankSyncLine> = {
   id: { exposure: 'plain', meaning: 'The one line.' },
   bankLinkOffered: {
     exposure: 'plain',
-    meaning: 'Whether a bank sync deployment is saved, so a new bank or savings account can take rowsFrom bank-link. Without it, add-account takes by-hand.',
+    meaning: 'Whether an Enable Banking application is set up for the bank sync, so a new bank or savings account can take rowsFrom bank-link. Without it, add-account takes by-hand.',
   },
 }
 

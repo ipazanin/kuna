@@ -7534,21 +7534,45 @@ async function bankSyncSettled(page, press, selector) {
 }
 
 /**
- * On Settings, Bank sync with nothing saved: no link and no way to sync. Save a made-up deployment, link Revolut, come back
- * on the fake return with the code taken out of the address, read the synced rows on Entries, then Undo the import.
+ * On Settings, Bank sync with nothing set up: the set-up's four steps and no link. Walk through them, bring a made-up key
+ * and Check it, which the fake twin answers with an active application, link Revolut, come back on the fake return with the
+ * code taken out of the address, read the synced rows on Entries, then Undo the import.
  */
 export function spendingBankSyncFlowIn(language) {
   const words = SCREEN_WORDS[language]
   const bank = words.spendingBankSync
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await page.waitForSelector('[data-testid="spending-bank-sync-deployment"] input', { visible: true, timeout: 10_000 })
-    if ((await page.$('[data-testid="spending-bank-link"]')) !== null) throw new Error('Bank sync offers a link with no script saved')
-    await page.type('[data-testid="spending-bank-sync-deployment"] input', 'AKfycb-made-up')
-    await pressSelector(page, press, '[data-testid="spending-bank-sync-save"]')
-    await page.waitForSelector('[data-testid="spending-bank-link-revolut"]', { visible: true, timeout: 10_000 })
+    await page.waitForSelector('[data-testid="spending-bank-sync-setup"] [data-step="start"]', { visible: true, timeout: 10_000 })
+    if ((await page.$('[data-testid="spending-bank-link"]')) !== null) throw new Error('Bank sync offers a link with no application set up')
     await delay(300)
-    await inspect?.('the bank sync with a script saved')
+    await inspect?.('the first step of the bank sync set-up')
+    await shoot('spending-bank-sync-setup-start')
+    await pressSelector(page, press, '[data-testid="spending-bank-setup-next"]')
+    await page.waitForSelector('[data-testid="spending-bank-setup-values"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('the values the Enable Banking form asks for')
+    await shoot('spending-bank-sync-setup-make')
+    await pressSelector(page, press, '[data-testid="spending-bank-setup-next"]')
+    await page.waitForSelector('[data-testid="spending-bank-key-pem"] textarea', { visible: true, timeout: 5_000 })
+    await page.type('[data-testid="spending-bank-key-pem"] textarea', '-----BEGIN PRIVATE KEY-----\nbWFkZS11cA==\n-----END PRIVATE KEY-----')
+    await page.type('[data-testid="spending-bank-key-application"] input', '00000000-0000-4000-8000-00000000fa4e')
+    await delay(300)
+    await inspect?.('the key brought, before Check')
+    await shoot('spending-bank-sync-setup-key')
+    await pressSelector(page, press, '[data-testid="spending-bank-key-check"]')
+    await page.waitForSelector('[data-testid="spending-bank-setup-ready"]', { visible: true, timeout: 10_000 })
+    await toast(page, bank.key.saved)
+    await noUndoOffered(page, words, bank.key.saved)
+    await delay(300)
+    await inspect?.('the application checked and active')
+    await shoot('spending-bank-sync-setup-active')
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="spending-bank-setup-done"]')
+    await page.waitForSelector('[data-testid="spending-bank-link-revolut"]', { visible: true, timeout: 10_000 })
+    await waitForTextIn(page, '[data-testid="spending-bank-application-name"]', bank.application.named('Kuna'))
+    await delay(300)
+    await inspect?.('the bank sync with an application set up')
     await shoot('spending-settings-bank-sync-saved')
     await dismissToasts(page)
     await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30_000 }), pressSelector(page, press, '[data-testid="spending-bank-link-revolut"]')])
@@ -7860,6 +7884,56 @@ export function spendingBankSyncFailedFlowIn(language) {
   }
 }
 
+/**
+ * On Settings, Bank sync with an application whose accounts are not linked in Enable Banking's panel: Check again says it is not
+ * active yet, Replace key opens the key form beside the kept one, and an id of another application warns that the links end.
+ */
+export function spendingBankApplicationFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const bank = words.spendingBankSync
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-bank-application-check"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-bank-application-check"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-application-problem"]', bank.application.problems['not-active'])
+    await delay(300)
+    await inspect?.('the application checked and not active yet')
+    await shoot('spending-bank-sync-application-inactive')
+    await pressSelector(page, press, '[data-testid="spending-bank-key-replace"]')
+    await page.waitForSelector('[data-testid="spending-bank-key-application"] input', { visible: true, timeout: 5_000 })
+    await page.type('[data-testid="spending-bank-key-application"] input', '00000000-0000-4000-8000-000000000001')
+    await page.waitForSelector('[data-testid="spending-bank-key-other"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('replacing the key with one of another application')
+    await shoot('spending-bank-sync-key-replace')
+    await pressSelector(page, press, '[data-testid="spending-bank-key-cancel"]')
+    await pressSelector(page, press, '[data-testid="spending-bank-sync-remove"]')
+    await page.waitForSelector('[data-testid="spending-bank-sync-remove-dialog"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('Remove bank sync asking first')
+    await shoot('spending-bank-sync-remove-ask')
+    await pressSelector(page, press, '[data-testid="spending-bank-sync-remove-confirm"]')
+    await toast(page, bank.application.removed)
+    await noUndoOffered(page, words, bank.application.removed)
+    await page.waitForSelector('[data-testid="spending-bank-sync-setup"]', { visible: true, timeout: 10_000 })
+    await dismissToasts(page)
+  }
+}
+
+/** Fails when the toast under the title offers Undo, as a write that went with a change Undo cannot reach must not. */
+async function noUndoOffered(page, words, title) {
+  const offered = await page.evaluate(
+    (selector, wanted, label) =>
+      [...document.querySelectorAll(selector)]
+        .filter((shown) => shown.querySelector('[data-slot="title"]')?.textContent?.trim() === wanted)
+        .some((shown) => [...shown.querySelectorAll('button')].some((button) => button.textContent?.trim() === label)),
+    TOAST,
+    title,
+    words.writes.undo,
+  )
+  if (offered) throw new Error(`the "${title}" toast offers ${words.writes.undo}, which cannot reach the key or the bank's links`)
+}
+
 /** On Spending's Import: the export without a Fee column is refused, naming the column, with no dry run. */
 export function spendingImportRefusedFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
@@ -7911,7 +7985,7 @@ export function spendingImportMissingFlowIn(language, paths) {
 }
 
 /**
- * With a bank sync deployment saved, the offer for the accounts an export needs asks how each one's rows come in. Each draft
+ * With the bank sync set up, the offer for the accounts an export needs asks how each one's rows come in. Each draft
  * starts linked to the bank under the IBAN the file's Revolut account holds. A cleared IBAN stops Add with the reason under it,
  * and the IBAN typed back adds both.
  */
@@ -12521,7 +12595,7 @@ export async function spendingAccountOpensTodayFlow(page, { press }) {
 }
 
 /**
- * A new Spending file with a bank sync deployment saved offers Link a bank beside Add by hand. Link a bank opens the account
+ * A new Spending file with the bank sync set up offers Link a bank beside Add by hand. Link a bank opens the account
  * dialog with its rows from the bank, and Add asks for the IBAN the bank sync finds the account by.
  */
 export function spendingFirstAccountBankFlowIn(language) {
@@ -12531,7 +12605,7 @@ export function spendingFirstAccountBankFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await page.waitForSelector('[data-testid="spending-empty"]', { visible: true, timeout: 10_000 })
     await delay(300)
-    await inspect?.('the empty Overview with a bank sync deployment saved')
+    await inspect?.('the empty Overview with the bank sync set up')
     await shoot('spending-first-account-bank-empty')
     await pressSelector(page, press, '[data-testid="spending-overview-link-bank"]')
     await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { visible: true, timeout: 10_000 })

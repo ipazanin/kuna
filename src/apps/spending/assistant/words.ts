@@ -15,7 +15,7 @@ export interface GuideLabels {
   readonly sorting: string
   readonly bankSync: string
   readonly limits: string
-  readonly deployment: string
+  readonly application: string
   readonly addReceipt: string
 }
 
@@ -28,7 +28,7 @@ export const en = {
     },
   },
   settings: {
-    bankSyncDeployment: `${workbookEn.settingLabels.deployment}, the bank sync script's API executable deployment. Blank leaves the whole sync off.`,
+    bankSyncApplication: `${workbookEn.settingLabels.application}, the person's own Enable Banking application, whose key stays in their browser and their Google account. Blank leaves the whole sync off.`,
     bankLink: (bank: string) => `The day the approval for ${bank} runs out, set by linking the bank.`,
   },
   proposals: {
@@ -149,7 +149,7 @@ export const en = {
     linkAssetsGone: 'an asset Assets no longer has',
     linkAssetsUnknown: 'an asset of Assets, which cannot be read now',
     linkAssetsNotSetUp: 'an asset of Assets, but Assets is not set up',
-    bankSync: 'Whether the bank sync can bring a new account its rows, which needs a bank sync deployment saved on Settings, Bank sync.',
+    bankSync: 'Whether the bank sync can bring a new account its rows, which needs an Enable Banking key brought on Settings, Bank sync.',
     payee:
       'Each payee of every entry filed under a spending or an income category, once however its case and accents differ, with the IBANs its bank rows carry and the category its entries usually go under, as the Payees tab lists them. A payee is no record of the file.',
     bankAccount:
@@ -183,7 +183,7 @@ export const en = {
       body: [
         'Have a statement of each account ready. Every statement, a Revolut export included, goes to the AI company as text cell by cell, as a PDF or as a photo.',
         'The cards, in this order:',
-        '1. The accounts, on one card, each with the opening balance, the day the statement prints and whether its rows come from a linked bank or by hand. A linked bank needs the IBAN and a bank sync deployment saved on Settings, Bank sync.',
+        '1. The accounts, on one card, each with the opening balance, the day the statement prints and whether its rows come from a linked bank or by hand. A linked bank needs the IBAN and an Enable Banking key brought on Settings, Bank sync.',
         '2. Each new category, on a card of its own.',
         '3. The rules and the import together, in parts of 150 rows.',
         'Linking a bank stays with the person, on Settings, Bank sync. Limits wait until a month of entries is in.',
@@ -214,8 +214,8 @@ export const en = {
       title: 'Link a bank',
       body: (labels: GuideLabels) =>
         [
-          `The bank sync brings booked rows from OTP and Revolut through a script of your own, into the same review as a statement. It lives on ${labels.settings}, ${labels.bankSync}.`,
-          `1. Deploy the script and save its ${labels.deployment} there. Without it the sync stays off.`,
+          `The bank sync brings booked rows from OTP and Revolut through an Enable Banking application of your own, into the same review as a statement. It lives on ${labels.settings}, ${labels.bankSync}.`,
+          `1. Open your own Enable Banking application and bring its key there, which also saves its ${labels.application}. Without it the sync stays off. The chat never takes the key.`,
           '2. Link each bank. Its approval runs out on a date the card shows, and then you link it again.',
           "3. After a sync, Bank accounts there lists every account the banks give. Add each, update it, keep yours or leave it out there, or ask the chat, which can also fix an opening the bank's balance disagrees with.",
         ].join('\n'),
@@ -253,7 +253,7 @@ export const hr: Translation<typeof en> = {
     },
   },
   settings: {
-    bankSyncDeployment: `${workbookHr.settingLabels.deployment}. Ako je prazno, sinkronizacija je isključena.`,
+    bankSyncApplication: `${workbookHr.settingLabels.application}, vlastite aplikacije Enable Banking, čiji ključ ostaje u pregledniku i Google računu. Ako je prazno, sinkronizacija je isključena.`,
     bankLink: (bank) => `Datum isteka odobrenja za ${bank}. Postavlja se povezivanjem banke.`,
   },
   proposals: {
@@ -441,8 +441,8 @@ export const hr: Translation<typeof en> = {
       title: 'Poveži banku',
       body: (labels) =>
         [
-          `Sinkronizacija s bankom donosi proknjižene retke iz OTP-a i Revoluta preko vaše vlastite skripte, u isti pregled kao i izvod. Nalazi se na zaslonu ${labels.settings}, na kartici ${labels.bankSync}.`,
-          `1. Objavite skriptu (Deploy u uređivaču skripte) pa tamo spremite ${labels.deployment}. Bez toga sinkronizacija ostaje isključena.`,
+          `Sinkronizacija s bankom donosi proknjižene retke iz OTP-a i Revoluta preko vaše vlastite aplikacije Enable Banking, u isti pregled kao i izvod. Nalazi se na zaslonu ${labels.settings}, na kartici ${labels.bankSync}.`,
+          `1. Otvorite vlastitu aplikaciju Enable Banking i ondje donesite njezin ključ, čime se sprema i ${labels.application}. Bez toga sinkronizacija ostaje isključena. Razgovor nikad ne prima ključ.`,
           '2. Povežite svaku banku. Odobrenje istječe na datum s kartice i tada banku ponovno povežite.',
           '3. Nakon sinkronizacije ondje Bankovni računi navode svaki račun koji banke daju. Svaki ondje dodajte, ažurirajte, zadržite svoje podatke ili ga izostavite, ili zamolite razgovor, koji može i ispraviti početno stanje s kojim se stanje u banci ne slaže.',
         ].join('\n'),

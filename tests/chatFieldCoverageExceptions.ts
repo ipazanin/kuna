@@ -202,8 +202,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
-    reason: 'Secrets and key-holding settings. The bank sync deployment is typed by the person and never passes through the chat.',
-    fields: ['spending: Setting.bank_sync_deployment'],
+    reason: "Secrets and key-holding settings. The bank sync's application is set by the person's own key on Settings, Bank sync, and never passes through the chat.",
+    fields: ['spending: Setting.bank_sync_application'],
   },
   {
     reason: "What the bank sync keeps. A bank's approval needs its own page, a sync writes when each bank last answered, and the person keeps accounts out or as their own on the bank's account list.",

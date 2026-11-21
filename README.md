@@ -3067,12 +3067,19 @@ fake Drive this device has not chosen, `opening`, which holds every read, and `f
 is in the fake Drive's bin (`workbook/infrastructure/fake/fakeSpending.ts`). Without it Spending
 starts on its first run.
 
-The bank sync (`bankSync/`) is a second source into the statements' dry run. It calls a script of the
-owner's own (`apps-script/bank-sync`, with its how-to) through the Apps Script API, and the script holds
-the Enable Banking key in Script Properties and keeps no bank data. With no deployment ID saved on
-Settings, Bank sync, it asks Google for nothing more, sends nothing and shows no sync step. A row's key comes from the bank's `entry_reference` with its day and amount, and a row the other of a file and the sync brought on the same day is
+The bank sync (`bankSync/`) is a second source into the statements' dry run. Each person reads their
+own banks through an Enable Banking application of their own, which Settings, Bank sync walks them
+through. Its key and each bank's session are secrets like the AI keys, kept in this browser and in
+`kuna-secrets.json` in the person's Google account, so every device that syncs holds them. The page
+signs each call with the key through WebCrypto (`enableBankingToken.ts`) and calls Kuna's one relay
+script (`apps-script/bank-sync`, with the owner's deployment note) through the Apps Script API, whose
+deployment id is built in as `VITE_BANK_SYNC_DEPLOYMENT`. The script relays and keeps nothing. The book
+keeps only the application id, as `bank_sync_application`. Without one it asks Google for nothing more,
+sends nothing and shows no sync step. A row's key comes from the bank's `entry_reference` with its day and amount, and a row the other of a file and the sync brought on the same day is
 skipped by `sameBooking`. The fake build's twin answers from the page, as `?banksync=` names it: `saved`,
-`linked`, `ending`, `failed`, `unknown-account`, `otp-failed` or `ended`.
+`linked`, `ending`, `failed`, `unknown-account`, `otp-failed` or `ended`, `inactive` for an application
+not active yet, `refused` for a key Enable Banking does not accept, and `no-key` for a browser that holds
+no key. Without it the book has no application, and the set-up's Check finds an active one.
 
 Receipts (`receipts/`) split the bank payment they match. Add a receipt on Entries takes a photo, and `qrDecode.ts` reads its
 QR code with `jsqr` in the browser, since Firefox has no `BarcodeDetector`. `fiscalQr` reads `jir` or `zki`, `datv` and `izn` from
@@ -3424,7 +3431,7 @@ requests go only to these hosts:
 | `www.googleapis.com`           | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, uploading an invoice PDF and a receipt photo you keep (`/upload/drive/v3`), and the secrets file in the app's hidden folder             |
 | `gmail.googleapis.com`         | The invoice mail draft, only once the user turned it on, and the mail step's search, mails and attachments, only while a kind of mail has a sender                                                                                      |
 | `openidconnect.googleapis.com` | The userinfo endpoint                                                                                                                                                                                                                   |
-| `script.googleapis.com`        | The Apps Script API's `scripts.run`, for Spending's bank sync script, only once you saved its deployment                                                                                                                                |
+| `script.googleapis.com`        | The Apps Script API's `scripts.run`, for Spending's bank sync relay, only once you bring your Enable Banking key                                                                                                                        |
 | `oauth2.googleapis.com`        | Token revocation, where `google.accounts.oauth2.revoke` posts                                                                                                                                                                           |
 | `api.anthropic.com`            | The chat's requests, receipt photos among them, only after a yes on the chat's card or with Always allow on for Anthropic, and only while Anthropic is the company in use. The free key test on Save or Test, for the company on screen |
 | `api.openai.com`               | The same, while OpenAI is the company in use, and its key test on Save or Test                                                                                                                                                          |

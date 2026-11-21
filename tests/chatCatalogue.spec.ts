@@ -274,8 +274,8 @@ describe('the catalogue', () => {
 
   it('never offers a setting that routes bank data, and says who sets it', () => {
     const spending = catalogue.pages.get('spending')!
-    expect(spending).toContain('- bank_sync_deployment: ')
-    expect(spending.split('- bank_sync_deployment: ')[1]!.split('\n')[0]).toContain('Only a person sets it')
+    expect(spending).toContain('- bank_sync_application: ')
+    expect(spending.split('- bank_sync_application: ')[1]!.split('\n')[0]).toContain('Only a person sets it')
   })
 
   it('holds no secret, however the code spells a key', () => {
@@ -359,7 +359,7 @@ describe('the catalogue', () => {
   it('calls things in a guide what the screen calls them, in both languages', () => {
     const guide = catalogue.pages.get('spending/guide/first-rules')!
     expect(guide).toContain(statementWords.review.always)
-    const labels = { entries: 'E', review: 'R', import: 'I', always: 'A', settings: 'S', sorting: 'U', bankSync: 'B', limits: 'L', deployment: 'D', addReceipt: 'R1' }
+    const labels = { entries: 'E', review: 'R', import: 'I', always: 'A', settings: 'S', sorting: 'U', bankSync: 'B', limits: 'L', application: 'D', addReceipt: 'R1' }
     for (const words of [spendingWords, spendingCroatian]) {
       expect(words.guides.rules.body(labels)).toContain('A')
       expect(Object.keys(words.guides)).toEqual(['setUp', 'rules', 'import', 'bankSync', 'limits', 'categories', 'receipts'])

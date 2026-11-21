@@ -1,3 +1,4 @@
+import { bankRedirectUrl } from '../bankBrowserState'
 import { BankScriptFailure } from '../../application/bankSync'
 import type { BankSyncPort } from '../../application/bankSync'
 import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../../domain/bankAnswer'
@@ -159,13 +160,20 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
  * Revolut's euro account do so with none, `pending-books` has OTP book
  * the bakery payment that was pending, `unlisted-pending` has OTP hold a transfer to Revolut it does not list while Revolut has booked it, `iban-blank` reaches the dollar account the fake file keeps without an IBAN,
  * `exchange` and `pocket` bring a move between your accounts, `look-alike` books the file's Old Town Bookshop three days later
- * under a longer name, and a link's trip comes straight back to this address.
+ * under a longer name, and a link's trip comes straight back to this address. Its application is active in production with
+ * this address as its redirect, `inactive` one whose accounts are not linked in Enable Banking's panel yet, and `refused`
+ * one Enable Banking does not know by the key, as a key from another application gives.
  */
 export function fakeBankSync(variant: string | null, day: CivilDate): BankSyncPort {
   const failed = (): void => {
     if (variant === 'failed') throw new BankScriptFailure(words.didNotAnswer('HTTP 503'))
   }
   return {
+    application: async () => {
+      failed()
+      if (variant === 'refused') throw new BankScriptFailure(words.didNotAnswer('Enable Banking answered 401: UNAUTHORIZED'))
+      return { name: 'Kuna', environment: 'PRODUCTION', redirectUrls: [bankRedirectUrl()], active: variant !== 'inactive' }
+    },
     startLink: async (_bankName, _redirectUrl, state) => {
       failed()
       const url = new URL(window.location.href)
@@ -177,14 +185,21 @@ export function fakeBankSync(variant: string | null, day: CivilDate): BankSyncPo
     },
     finishLink: async () => {
       failed()
-      return `${addDays(day, 180)}T12:00:00.000000+00:00`
+      return { sessionId: 'fake-session', validUntil: `${addDays(day, 180)}T12:00:00.000000+00:00` }
     },
+    closeSession: async () => undefined,
     sessions: async () => {
       failed()
       return fakeBankSessions(variant)
     },
     transactions: async (accountUid) => fakeBankTransactions(accountUid, day, variant),
     balances: async (accountUid) => fakeBalances(accountUid, variant),
+    bankFields: async () =>
+      fakeBankSessions(variant).map((session) => ({
+        bank: session.bank,
+        session: { status: 1, 'accounts[]': session.accounts.length },
+        accounts: session.accounts.map(() => ({ details: { singleCurrency: true, hasIban: true }, transactions: { count: 4, codes: { 'status BOOK': 4 } } })),
+      })),
   }
 }
 

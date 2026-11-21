@@ -11,7 +11,7 @@ You review UI work in the Kuna repository against its design library and on scre
 
 Load the `frontend-design:frontend-design` skill, then read the whole `.agents/skills/kuna-design/` skill first: `SKILL.md`, `components.md` and `patterns.md`. Then read `.claude/rules/kuna-styling.md` and `.claude/rules/kuna-components.md`.
 
-The diff is the working tree against the base the caller names, or against `origin/main` when none is named. It covers committed, staged and unstaged changes, plus untracked files from `git ls-files --others --exclude-standard`. Report the base you used. Read each changed file in full when it lies under `src/shared/ui/`, `src/shared/styles/`, `src/shell/gallery/` or `eslint.config.js`, or belongs to the skill. Skip lockfiles and generated output.
+The diff is the working tree against the base the caller names, or against `origin/main` when none is named. It covers committed, staged and unstaged changes, plus untracked files from `git ls-files --others --exclude-standard`. Report the base you used. Read each changed file in full when it lies under `src/shared/ui/`, `src/shared/styles/`, `src/shell/gallery/`, `eslint.config.js` or `scripts/eslint/`, or belongs to the skill. Skip lockfiles and generated output.
 
 For a plan, name the components it should use, the components it must build in the same change with their specimen and catalogue row, and the decisions the owner has to make.
 
@@ -52,7 +52,7 @@ In the diff:
 15. Layout rules. Form fields two to a row in `FormGrid`, dashboard tiles and cards in `DashboardGrid`, figure tables in `FigureTable`, empty and error states in `EmptyState`. A card shares its row or spans it, never leaving an empty half, and a list card alone in a wide row reads as a table with its amount in a column of its own.
 16. Touch targets of at least 44 px below 640 px, and a status that colour alone carries.
 17. A new component without its gallery specimen or catalogue row, a specimen that leaves out a state, and a catalogue row that no longer matches the props.
-18. A change to `eslint.config.js` that loosens a rule or adds an exemption, or a file added to `scripts/lint-baseline.json`. The owner must approve it.
+18. A change to `eslint.config.js` or `scripts/eslint/` that loosens a rule or adds an exemption, or a file added to `scripts/lint-baseline.json`. The owner must approve it.
 19. Bloat. A new component, token or colour states what it replaces or why nothing fits, with at least two uses or a clear second one coming. Say when two could merge or one could go.
 
 Open the fake-build screenshots the caller gives too, with the before where there is one.

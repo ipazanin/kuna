@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { googleConfig } from '../src/shared/google/googleConfig'
+import { bankSyncDeployment, googleConfig } from '../src/shared/google/googleConfig'
 
 function configure(clientId: string, apiKey: string, projectNumber: string): void {
   vi.stubEnv('VITE_GOOGLE_CLIENT_ID', clientId)
@@ -31,5 +31,14 @@ describe('googleConfig', () => {
     configure(clientId, apiKey, projectNumber)
 
     expect(() => googleConfig()).toThrow(new RegExp(`^${missing} is not set`))
+  })
+})
+
+describe('bankSyncDeployment', () => {
+  it('gives the built-in deployment id, trimmed, or null for a build without one', () => {
+    vi.stubEnv('VITE_BANK_SYNC_DEPLOYMENT', ' AKfycb-made-up ')
+    expect(bankSyncDeployment()).toBe('AKfycb-made-up')
+    vi.stubEnv('VITE_BANK_SYNC_DEPLOYMENT', '  ')
+    expect(bankSyncDeployment()).toBeNull()
   })
 })

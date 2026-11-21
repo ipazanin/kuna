@@ -13,7 +13,7 @@ import { forgetCaches } from './fixtures/writeBack'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/rowRecords'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
-import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { stepOf } from './fixtures/operationSteps'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
@@ -123,7 +123,7 @@ describe('a receipt from the chat', () => {
     const desk = await spendingDesk(used)
     const current = bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
     await desk.store.write('Linked', (unit) => {
-      setSetting(unit, SETTING_WRITES, bookOf(desk).readings.settings.facts, BANK_SYNC_DEPLOYMENT_KEY, 'made-up-deployment')
+      setSetting(unit, SETTING_WRITES, bookOf(desk).readings.settings.facts, BANK_SYNC_APPLICATION_KEY, 'made-up-application')
       unit.of(ACCOUNT_WRITES).change(current, { ...current, rowsFrom: 'bank-link' })
     })
     const before = bookOf(desk).transactions

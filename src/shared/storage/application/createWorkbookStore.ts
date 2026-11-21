@@ -30,6 +30,8 @@ export interface SessionWrite {
   readonly keys: readonly string[]
   /** Whether a one-tap control's value carried it, so its toast needs no line under the title. */
   readonly shownAtOnce: boolean
+  /** False when it went with a change outside the file, which Undo cannot put back. */
+  readonly undoable: boolean
 }
 
 /** Whether the write put back what an earlier one of the session changed. */
@@ -42,9 +44,9 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
   return writes.some((later) => later.undid === write.receipt)
 }
 
-/** Whether Undo can put back what a write changed: records of kinds that keep Undo, unless it is an undo itself or was undone since. */
+/** Whether Undo can put back what a write changed: records of kinds that keep Undo, unless the write went with a change outside the file, is an undo itself or was undone since. */
 export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
-  return isUndoable(write.receipt.records) && !isUndo(write) && !wasUndone(write, writes)
+  return write.undoable && isUndoable(write.receipt.records) && !isUndo(write) && !wasUndone(write, writes)
 }
 
 /** What an app reads from a copy: the records it holds of each kind and the workbook they make. */
@@ -475,13 +477,13 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
    * Queues a write at the tap. A write with no books on screen is refused straight away, and so is one shown at once that the checks refuse on what
    * the screen shows. That check reads only memory and finishes in microtasks, so the next tap cannot pass it, and the change never reaches the screen.
    */
-  function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null, keys: readonly string[], shownAtOnce: boolean): Promise<WriteReceipt | null> {
+  function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null, keys: readonly string[], shownAtOnce: boolean, undoable: boolean): Promise<WriteReceipt | null> {
     return trackWrite(async () => {
       const current = booksToWrite()
       if (shownAtOnce && (await checkOnScreen(current, title, changes, undid !== null)) === null) {
         return null
       }
-      const queued: QueuedWrite = { id: nextWriteId++, title, keys, shownAtOnce, workbookId: current.meta.id, changes, undid }
+      const queued: QueuedWrite = { id: nextWriteId++, title, keys, shownAtOnce, undoable, workbookId: current.meta.id, changes, undid }
       const asked = askDuringTap(current)
       state.waiting = [...state.waiting, queued]
       if (shownAtOnce) show(state.snapshot ?? current)
@@ -496,7 +498,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
    * then failed reads it again where it can.
    */
   async function writeInTurn(queued: QueuedWrite, asked: Promise<unknown>): Promise<WriteReceipt | null> {
-    const { title, changes, undid, keys, shownAtOnce } = queued
+    const { title, changes, undid, keys, shownAtOnce, undoable } = queued
     const options = { undoing: undid !== null }
     let storage: CopyStorage<Copy> | null = null
     let sent = false
@@ -523,7 +525,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
           const after = await storage.read(checked.kinds)
           await keep(readBack(storage, state.snapshot ?? current), queued)
           const receipt = receiptOf(checked, after)
-          state.writes = [{ receipt, undid, id: state.writes.length + 1, at: ports.now(), workbookId: current.meta.id, keys, shownAtOnce }, ...state.writes]
+          state.writes = [{ receipt, undid, id: state.writes.length + 1, at: ports.now(), workbookId: current.meta.id, keys, shownAtOnce, undoable }, ...state.writes]
           return receipt
         }
         sent = false
@@ -739,7 +741,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     },
 
     async write(title, work, options) {
-      return await writeRecords(title, changesOf(work), null, options?.key === undefined ? [] : [options.key], options?.shownAtOnce === true)
+      return await writeRecords(title, changesOf(work), null, options?.key === undefined ? [] : [options.key], options?.shownAtOnce === true, options?.undoable !== false)
     },
 
     async check(title, work) {
@@ -758,7 +760,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       if (!canUndo(write, state.writes) || state.waiting.some((queued) => queued.undid === write.receipt)) {
         throw new WorkbookWriteRefused(words.notUndoable)
       }
-      await writeRecords(words.undone, undoOf(write.receipt), write.receipt, [`undo-${write.id}`, ...write.keys], true)
+      await writeRecords(words.undone, undoOf(write.receipt), write.receipt, [`undo-${write.id}`, ...write.keys], true, false)
     },
 
     async settled() {

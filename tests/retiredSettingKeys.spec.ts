@@ -62,6 +62,7 @@ const KEYS_EVER_READ: Readonly<Record<string, readonly string[]>> = {
   investments: ['surtax_city_2023'],
   spending: [
     'bank_sync_deployment',
+    'bank_sync_application',
     'person_payees',
     'bank_sync_not_in_kuna',
     'bank_sync_keep_mine',

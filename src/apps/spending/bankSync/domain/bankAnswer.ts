@@ -51,7 +51,7 @@ export interface LinkedAccount {
   readonly identificationHash: string | null
 }
 
-/** One bank's approval as the script holds it. */
+/** One bank's approval as the script reads it from the session this browser keeps. */
 export interface BankSession {
   /** The bank's name at Enable Banking. */
   readonly bank: string
@@ -79,3 +79,37 @@ export const ENABLE_BANKING_NAMES: Readonly<Record<LinkableBank, string>> = { ot
 
 /** The currency Enable Banking gives an account that holds several, or that names none. */
 export const NO_SINGLE_CURRENCY = 'XXX'
+
+/** An Enable Banking application as the script answers it, cut down from `GET /application`. */
+export interface BankApplication {
+  readonly name: string
+  /** `PRODUCTION` or `SANDBOX`. */
+  readonly environment: string
+  readonly redirectUrls: readonly string[]
+  /** False until every account is linked in Enable Banking's Control Panel. */
+  readonly active: boolean
+}
+
+/** The application id a key file names, as Enable Banking downloads it: `<application id>.pem`. */
+export function applicationIdOfFileName(name: string): string {
+  return name.replace(/\.pem$/i, '').trim()
+}
+
+/** Why an application cannot link a real bank back to Kuna yet. */
+export type ApplicationProblem = 'sandbox' | 'redirect-missing' | 'not-active'
+
+/** What keeps the application from linking a real bank back to this address, in the order a person fixes them. */
+export function applicationProblems(application: BankApplication, redirectUrl: string): readonly ApplicationProblem[] {
+  return [
+    ...(application.environment.toUpperCase() === 'PRODUCTION' ? [] : ['sandbox' as const]),
+    ...(application.redirectUrls.includes(redirectUrl) ? [] : ['redirect-missing' as const]),
+    ...(application.active ? [] : ['not-active' as const]),
+  ]
+}
+
+/** What one bank's session and accounts send, as field names, counts and fixed codes, never a value. Shown as it came, for a person to copy. */
+export interface BankFields {
+  readonly bank: string
+  readonly session: Readonly<Record<string, number>>
+  readonly accounts: readonly unknown[]
+}

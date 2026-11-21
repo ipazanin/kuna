@@ -210,6 +210,7 @@ import {
   spendingEntryLabelsFlowIn,
   spendingReceiptRefileFlowIn,
   spendingBankSyncFlowIn,
+  spendingBankApplicationFlowIn,
   spendingBankSyncSetupFlowIn,
   spendingBankSyncStartDayFlowIn,
   spendingImportFlowIn,
@@ -3393,6 +3394,7 @@ async function checkWidth(browser, width) {
     ['spending-credit-transfer', 'drive&spending=sample', spendingCreditToTransferFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-delete-note', 'drive&spending=statements', spendingDeleteNoteFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-bank-sync', 'drive&spending=statements', spendingBankSyncFlowIn('en'), '#/spending/settings?tab=bank-sync', 'Settings'],
+    ['spending-bank-sync-application', 'drive&spending=statements&banksync=inactive', spendingBankApplicationFlowIn('en'), '#/spending/settings?tab=bank-sync', 'Settings'],
     [
       'spending-bank-sync-add',
       'drive&spending=statements&banksync=new-accounts',

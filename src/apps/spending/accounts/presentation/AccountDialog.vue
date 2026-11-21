@@ -130,7 +130,7 @@ const shownCutover = computed(() => {
 })
 const earlierFromBank = computed(() => move.value?.direction === 'earlier' && kind.value !== 'cash')
 
-const settings = computed(() => store.state.workbook?.settings ?? { bankSyncDeployment: '' })
+const settings = computed(() => store.state.workbook?.settings ?? { bankSyncApplication: '' })
 const offersBankLink = computed(() => bankLinkOffered(kind.value, props.account, settings.value))
 /** By hand wherever the choice is not offered, as on cash. */
 const pickedRowsFrom = computed<RowsFrom>(() => (offersBankLink.value ? rowsFrom.value : 'by-hand'))

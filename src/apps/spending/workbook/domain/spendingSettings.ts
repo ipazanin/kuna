@@ -11,8 +11,8 @@ export type LinkableBank = (typeof LINKABLE_BANKS)[number]
 
 /** What the Spending file keeps besides its records. */
 export interface SpendingSettings {
-  /** The bank sync script's API executable deployment, blank until you save one, which leaves the whole sync off. */
-  readonly bankSyncDeployment: string
+  /** The id of the Enable Banking application whose key signs the bank sync's calls, blank until a key is checked, which leaves the whole sync off. */
+  readonly bankSyncApplication: string
   /** The day each bank's approval runs out, or null for a bank not linked. */
   readonly bankLinks: Readonly<Record<LinkableBank, CivilDate | null>>
   /** When any device last got an answer from each bank, in epoch milliseconds, or null for one never asked. */
@@ -38,7 +38,7 @@ export interface InstalmentPutOff {
   readonly through: CivilDate
 }
 
-export const BANK_SYNC_DEPLOYMENT_KEY = 'bank_sync_deployment'
+export const BANK_SYNC_APPLICATION_KEY = 'bank_sync_application'
 export const PERSON_PAYEES_KEY = 'person_payees'
 export const BANK_ACCOUNTS_NOT_IN_KUNA_KEY = 'bank_sync_not_in_kuna'
 export const BANK_ACCOUNTS_KEEP_MINE_KEY = 'bank_sync_keep_mine'
@@ -98,12 +98,17 @@ export function utcTimeOf(value: string): number | null {
   return Number.isFinite(time) ? time : null
 }
 
+/** Whether the book uses bank sync: an application is kept, whose key every device fetches with the other secrets. */
+export function bankSyncSetUp(settings: Pick<SpendingSettings, 'bankSyncApplication'>): boolean {
+  return settings.bankSyncApplication !== ''
+}
+
 /** The settings the rows that count hold, and the defaults for the rest. */
 export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSettings {
   const linkOf = (bank: LinkableBank): CivilDate | null => parseCivilDate(settingValue(rows, bankLinkKey(bank)))
   const fetchedOf = (bank: LinkableBank): number | null => utcTimeOf(settingValue(rows, bankFetchedKey(bank)))
   return {
-    bankSyncDeployment: settingValue(rows, BANK_SYNC_DEPLOYMENT_KEY),
+    bankSyncApplication: settingValue(rows, BANK_SYNC_APPLICATION_KEY),
     bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') },
     bankFetchedAt: { otp: fetchedOf('otp'), revolut: fetchedOf('revolut') },
     personPayees: personPayeesOf(settingValue(rows, PERSON_PAYEES_KEY)),

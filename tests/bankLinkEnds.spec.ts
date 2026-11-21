@@ -8,10 +8,15 @@ import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
 
-function settings(otpIn: number | null, revolutIn: number | null = null, deployment = 'AKfycb-made-up', fetchedAt: SpendingSettings['bankFetchedAt'] = { otp: null, revolut: null }): SpendingSettings {
+function settings(
+  otpIn: number | null,
+  revolutIn: number | null = null,
+  application = 'made-up-application',
+  fetchedAt: SpendingSettings['bankFetchedAt'] = { otp: null, revolut: null },
+): SpendingSettings {
   const until = (days: number | null) => (days === null ? null : addDays(DAY, days))
   return {
-    bankSyncDeployment: deployment,
+    bankSyncApplication: application,
     bankLinks: { otp: until(otpIn), revolut: until(revolutIn) },
     bankFetchedAt: fetchedAt,
     personPayees: [],

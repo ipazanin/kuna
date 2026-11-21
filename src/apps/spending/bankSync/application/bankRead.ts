@@ -12,6 +12,7 @@ import type { FileNote, StatementRow, StatementRows } from '../../statements/dom
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
+import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -84,7 +85,8 @@ function currenciesLeft(linked: LinkedAccount, kept: readonly Account[], answer:
  * after a link. One you said is not in Kuna is not fetched unless you keep an account under its IBAN. One whose accounts in
  * Kuna all take their rows by hand is neither fetched nor drafted, since those accounts keep it. A bank or an account that
  * fails is a problem line and leaves the others' rows. Google turning the token away ends it all, since no later call
- * would go through. `freshLinks` are the banks linked just before this fetch, whose missing older rows a new link cannot bring.
+ * would go through. A bank whose link the file says is live but whose session this browser does not hold is a problem
+ * line too, since only fetching the keys brings it here. `freshLinks` are the banks linked just before this fetch, whose missing older rows a new link cannot bring.
  * `leftAlone` are banks asked too recently, whose accounts are listed from the session and none of them read.
  */
 export async function readBanks(
@@ -110,7 +112,10 @@ export async function readBanks(
     ended.add(bank)
     problems.push(words.sessionEnded(name))
   }
-  for (const session of await port.sessions()) {
+  const sessions = await port.sessions()
+  const answered = new Set(sessions.map((session) => linkableBankNamed(session.bank)))
+  LINKABLE_BANKS.filter((bank) => (book.settings.bankLinks[bank] ?? '') >= day && !answered.has(bank)).forEach((bank) => problems.push(words.sessionNotHere(words.banks[bank])))
+  for (const session of sessions) {
     const bank = linkableBankNamed(session.bank)
     if (bank === null) continue
     if (sessionEnded(session)) {

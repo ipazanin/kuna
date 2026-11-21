@@ -27,7 +27,7 @@ import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
-import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { readSpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
@@ -255,7 +255,7 @@ describe('a receipt read into lines', () => {
     const older = settingRow(SETTING_RECORDS, 'company_oib', '11111111119')
     const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, ACCOUNTS_BY_HAND), ...stored(CATEGORY_RECORDS, CATEGORIES), ...stored(SETTING_RECORDS, [older]) })
     const { store } = await browserHarness(used, document, SPENDING)
-    await store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, recordsOf(store.state.records!.settings), BANK_SYNC_DEPLOYMENT_KEY, 'AKfy-made-up'))
+    await store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, recordsOf(store.state.records!.settings), BANK_SYNC_APPLICATION_KEY, 'made-up-application'))
 
     expect(recordsOf(store.state.records!.settings)).toContainEqual(older)
     expect(store.state.workbook!.settings).not.toHaveProperty('companyOib')

@@ -11,7 +11,7 @@ import { SETTING_RECORDS } from '../domain/spendingKinds'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
   BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
-  BANK_SYNC_DEPLOYMENT_KEY,
+  BANK_SYNC_APPLICATION_KEY,
   INSTALMENTS_PUT_OFF_KEY,
   COMPANY_ROLES_PUT_OFF_KEY,
   COMPANY_PAYMENTS_PUT_OFF_KEY,
@@ -32,7 +32,7 @@ import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 function settingLabel(key: string): string {
   const labels = words.settingLabels
   const named: Readonly<Record<string, string>> = {
-    [BANK_SYNC_DEPLOYMENT_KEY]: labels.deployment,
+    [BANK_SYNC_APPLICATION_KEY]: labels.application,
     [PERSON_PAYEES_KEY]: labels.personPayees,
     [BANK_ACCOUNTS_NOT_IN_KUNA_KEY]: labels.notInKuna,
     [BANK_ACCOUNTS_KEEP_MINE_KEY]: labels.keepMine,

@@ -32,7 +32,7 @@ import { rowItemsOf, wholeItemOf } from '../../domain/rowItems'
 import type { WholeFiling } from '../../domain/rowItems'
 import type { SpendingRule } from '../../domain/spendingRule'
 import type { Shortcut, ShortcutPart } from '../../domain/shortcut'
-import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
+import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_APPLICATION_KEY, bankLinkKey } from '../../domain/spendingSettings'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../domain/transaction'
 import type { DroppedRow } from '../../domain/droppedRow'
 import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
@@ -717,17 +717,23 @@ const LINKED_VARIANTS: readonly string[] = [
   'settled',
 ]
 
+/** The made-up Enable Banking application id the fake book's bank sync uses. */
+export const FAKE_BANK_APPLICATION = '00000000-0000-4000-8000-00000000fa4e'
+
+/** The variants with an application set up and no bank linked. */
+const UNLINKED_VARIANTS: readonly string[] = ['saved', 'inactive', 'refused', 'no-key']
+
 /**
- * The bank sync's settings as `?banksync=` names them: `saved` a saved script with no link, each of `LINKED_VARIANTS` both
+ * The bank sync's settings as `?banksync=` names them: `saved`, `inactive`, `refused` and `no-key` an application set up with no link, each of `LINKED_VARIANTS` both
  * banks linked for months yet, `not-in-kuna` with the dollar account `new-accounts` adds left out, and `ending` OTP's link
  * with 13 days left. Any other variant holds none.
  */
 function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly SettingRow[] {
-  if (variant === null || (variant !== 'saved' && variant !== 'ending' && !LINKED_VARIANTS.includes(variant))) return []
-  const deployment = settingRow(SETTING_RECORDS, BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-fake-deployment')
-  if (variant === 'saved') return [deployment]
+  if (variant === null || (!UNLINKED_VARIANTS.includes(variant) && variant !== 'ending' && !LINKED_VARIANTS.includes(variant))) return []
+  const application = settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, FAKE_BANK_APPLICATION)
+  if (UNLINKED_VARIANTS.includes(variant)) return [application]
   return [
-    deployment,
+    application,
     settingRow(SETTING_RECORDS, bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)),
     settingRow(SETTING_RECORDS, bankLinkKey('revolut'), addDays(day, 120)),
     ...(variant === 'not-in-kuna' ? [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${FAKE_NEW_USD_IBAN} USD`)] : []),

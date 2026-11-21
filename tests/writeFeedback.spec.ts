@@ -157,7 +157,7 @@ describe('what a toast says of a write', () => {
       state,
       write: async () => {
         if ('fails' in outcome) throw outcome.fails
-        state.writes = [{ receipt, undid: null, id: 1, keys: [], shownAtOnce: outcome.shownAtOnce }]
+        state.writes = [{ receipt, undid: null, id: 1, keys: [], shownAtOnce: outcome.shownAtOnce, undoable: true }]
         return receipt
       },
       undo: async () => {},

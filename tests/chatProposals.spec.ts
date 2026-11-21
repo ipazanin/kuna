@@ -254,10 +254,10 @@ describe('a proposal', () => {
 
   it('can never set a setting', async () => {
     const d = await desk()
-    const answer = await d.propose([{ op: 'set-setting', input: { key: 'bank_sync_deployment', value: 'AKfycbxAttacker' } }])
+    const answer = await d.propose([{ op: 'set-setting', input: { key: 'bank_sync_application', value: 'made-up-attacker-application' } }])
     expect(answer.isError).toBe(true)
     expect(d.cards).toEqual([])
-    expect(bookOf(d).settings.bankSyncDeployment).toBe('')
+    expect(bookOf(d).settings.bankSyncApplication).toBe('')
   })
 
   it('refuses a quick add on a closed account, and writing one that shows no button', async () => {

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { BANK_SYNC_DEPLOYMENT_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { spendingBook } from './fixtures/spending'
 
@@ -44,7 +44,7 @@ function stubStorage(): void {
 function openedWithOtpFetchedAt(fetchedAt: number): void {
   vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
   const settingRows = [
-    settingRow(SETTING_RECORDS, BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-made-up'),
+    settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-application'),
     settingRow(SETTING_RECORDS, bankLinkKey('otp'), '2027-01-01'),
     settingRow(SETTING_RECORDS, bankFetchedKey('otp'), new Date(fetchedAt).toISOString()),
   ]

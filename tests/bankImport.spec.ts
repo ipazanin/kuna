@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { BankRead } from '../src/apps/spending/bankSync/application/bankRead'
 import { proposeAccount } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
+import type { BankSecretStore } from '../src/apps/spending/bankSync/application/bankSecrets'
 import { bankImporter, BankScriptFailure, finishBankLink } from '../src/apps/spending/bankSync/application/bankSync'
 import type { BankImportPorts, BankSyncPort, PendingLinks } from '../src/apps/spending/bankSync/application/bankSync'
 import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
@@ -10,7 +11,7 @@ import { bankHeldResult, bankStepResult } from '../src/apps/spending/bankSync/pr
 import { hr } from '../src/apps/spending/bankSync/presentation/words'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { BANK_SYNC_DEPLOYMENT_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
@@ -42,7 +43,7 @@ const HOUR = 3_600_000
 
 function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01', otpFetchedAt: number | null = null): SpendingWorkbook {
   const settingRows = [
-    settingRow(SETTING_RECORDS, BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-made-up'),
+    settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-application'),
     ...(otpLink === null ? [] : [settingRow(SETTING_RECORDS, bankLinkKey('otp'), otpLink)]),
     ...(otpFetchedAt === null ? [] : [settingRow(SETTING_RECORDS, bankFetchedKey('otp'), new Date(otpFetchedAt).toISOString())]),
   ]
@@ -86,7 +87,17 @@ function linked(uid: string, iban: string, currency: string): LinkedAccount {
 const OTP_SESSION = { bank: 'OTP banka', status: 'AUTHORIZED', accounts: [linked('otp', OTP.iban, 'EUR')] }
 
 function portOf(fields: Partial<BankSyncPort> = {}): BankSyncPort {
-  return { startLink: async () => '', finishLink: async () => '2027-05-03T12:00:00+00:00', sessions: async () => [OTP_SESSION], transactions: async () => [BANK], balances: async () => [], ...fields }
+  return {
+    application: async () => ({ name: 'Kuna', environment: 'PRODUCTION', redirectUrls: [], active: true }),
+    startLink: async () => '',
+    finishLink: async () => ({ sessionId: 'made-up-session', validUntil: '2027-05-03T12:00:00+00:00' }),
+    closeSession: async () => undefined,
+    sessions: async () => [OTP_SESSION],
+    transactions: async () => [BANK],
+    balances: async () => [],
+    bankFields: async () => [],
+    ...fields,
+  }
 }
 
 function importerOver(port: BankSyncPort, store: BankImportPorts['store'], asked: (read: BankRead) => void = () => undefined) {
@@ -286,23 +297,49 @@ describe('finishing a link', () => {
   }
   const WAITING: PendingLink = { bank: 'revolut', state: 'one-time', code: 'made-up', validUntil: null }
 
-  it('writes the day and forgets the link', async () => {
+  /** This browser's secrets, kept in a map. */
+  function secretsOver(first: Record<string, string> = {}): BankSecretStore & { readonly kept: Map<string, string> } {
+    const kept = new Map(Object.entries(first))
+    return {
+      kept,
+      read: (id) => kept.get(id) ?? null,
+      write: (id, value) => (value === null ? kept.delete(id) : kept.set(id, value)),
+    }
+  }
+
+  it('keeps the session as a secret, writes the day and forgets the link', async () => {
     const fake = storeOver(bookOf([], null))
     const pending = pendingOver(WAITING)
-    await finishBankLink({ script: portOf(), pending, store: fake.store })
+    const secrets = secretsOver()
+    await finishBankLink({ script: portOf(), pending, store: fake.store, secrets, usage: 'personal' })
     expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_revolut', value: '2027-05-03' })])
+    expect(secrets.kept).toEqual(new Map([['enable-banking-session personal revolut', 'made-up-session']]))
     expect(pending.held()).toBeNull()
+  })
+
+  it('closes the session a new link replaces, and links even when the close fails', async () => {
+    const fake = storeOver(bookOf([], null))
+    const secrets = secretsOver({ 'enable-banking-session personal revolut': 'old-session' })
+    const closeSession = vi.fn(async () => {
+      throw new Error('The bank sync script did not answer: Failed to fetch')
+    })
+    await finishBankLink({ script: portOf({ closeSession }), pending: pendingOver(WAITING), store: fake.store, secrets, usage: 'personal' })
+    expect(closeSession).toHaveBeenCalledWith('old-session')
+    expect(secrets.read('enable-banking-session personal revolut')).toBe('made-up-session')
+    expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_revolut', value: '2027-05-03' })])
   })
 
   it('keeps what the code was traded for when the write fails, and a retry only writes', async () => {
     const fake = storeOver(bookOf([], null))
     const pending = pendingOver(WAITING)
-    const finishLink = vi.fn(async () => '2027-05-03T12:00:00+00:00')
-    const ports = { script: portOf({ finishLink }), pending, store: fake.store }
+    const finishLink = vi.fn(async () => ({ sessionId: 'made-up-session', validUntil: '2027-05-03T12:00:00+00:00' }))
+    const secrets = secretsOver()
+    const ports = { script: portOf({ finishLink }), pending, store: fake.store, secrets, usage: 'personal' as const }
     vi.mocked(fake.store.write).mockRejectedValueOnce(new Error('The file is being read'))
 
     await expect(finishBankLink(ports)).rejects.toThrow('being read')
     expect(pending.held()).toMatchObject({ code: 'made-up', validUntil: '2027-05-03T12:00:00+00:00' })
+    expect(secrets.read('enable-banking-session personal revolut')).toBe('made-up-session')
 
     await finishBankLink(ports)
     expect(finishLink).toHaveBeenCalledOnce()
@@ -318,7 +355,7 @@ describe('finishing a link', () => {
         throw new BankScriptFailure('The bank sync script did not answer: EXPIRED_AUTHORIZATION_CODE')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
+    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver(), usage: 'personal' })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
     expect(pending.held()).toBeNull()
   })
 
@@ -330,7 +367,7 @@ describe('finishing a link', () => {
         throw new Error('The bank sync script did not answer: Failed to fetch')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store })).rejects.toThrow('Failed to fetch')
+    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver(), usage: 'personal' })).rejects.toThrow('Failed to fetch')
     expect(pending.held()?.code).toBe('made-up')
   })
 })
@@ -458,6 +495,15 @@ describe('the six hours every device shares', () => {
       },
     })
     await importerOver(failing, fake.store).run(false)
+    expect(fake.settings).toEqual([])
+  })
+})
+
+describe('a link whose session this browser does not hold', () => {
+  it('says so for a bank the file says is linked, and writes no end to its link', async () => {
+    const fake = storeOver(bookOf([]))
+    const outcome = await importerOver(portOf({ sessions: async () => [] }), fake.store).run(true)
+    expect(outcome.problems).toEqual(['This browser does not hold the link to OTP. Get it from Google on Settings, Bank sync, or link it again.'])
     expect(fake.settings).toEqual([])
   })
 })

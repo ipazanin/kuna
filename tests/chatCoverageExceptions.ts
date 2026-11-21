@@ -48,11 +48,12 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     paths: ['src/apps/spending/statements/application/ruleRecords.ts#DROPPED_ROW_WRITES.remove'],
   },
   {
-    reason: 'Secrets and key-holding settings. AI keys, price vendor keys and the bank sync deployment are typed by the person and never pass through the chat.',
+    reason: "Secrets and key-holding settings. AI keys, price vendor keys and the bank sync's key and sessions are brought by the person and never pass through the chat.",
     paths: [
       'shared: src/shared/secrets/infrastructure/browserSecrets.ts#storeSecret',
       'shared: src/shared/secrets/infrastructure/browserSecrets.ts#forgetBrowserSecrets',
-      'src/apps/spending/bankSync/application/bankSync.ts#saveDeployment',
+      'src/apps/spending/bankSync/application/bankSync.ts#saveApplicationId',
+      'src/apps/spending/bankSync/application/bankSync.ts#forgetBankSync',
     ],
   },
   {

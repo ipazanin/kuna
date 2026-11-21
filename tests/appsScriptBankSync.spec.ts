@@ -19,7 +19,14 @@ function stubScript(answer: Response | (() => Response)): { url: string; init: R
   return requests
 }
 
-const port = appsScriptBankSync('AKfycb-made-up', () => 'script-token')
+const SESSIONS = [{ bank: 'revolut', sessionId: 'made-up-session' }] as const
+
+/** The adapter over the made-up deployment, signing with a made-up token. */
+function adapter(psuUserAgent: string | null = null, sessions: readonly { readonly bank: 'otp' | 'revolut'; readonly sessionId: string }[] = SESSIONS) {
+  return appsScriptBankSync({ deployment: 'AKfycb-made-up', googleToken: () => 'script-token', bankToken: async () => 'signed-token', sessions: () => sessions }, psuUserAgent)
+}
+
+const port = adapter()
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -33,6 +40,8 @@ describe('a run of the script that never answers', () => {
   it('gives up after seven minutes, past the six Apps Script allows a run, and says Google did not answer in time', async () => {
     const google = hangingFetch()
     const sessions = port.sessions()
+    // The call leaves once the page has signed its token.
+    await vi.waitFor(() => expect(google.waits).toHaveLength(1))
     google.giveUp()
 
     await expect(sessions).rejects.toThrow(googleWords.googleTimedOut)
@@ -41,7 +50,7 @@ describe('a run of the script that never answers', () => {
 })
 
 describe('appsScriptBankSync', () => {
-  it("posts to the deployment's run address with the page's token and the function's name and parameters", async () => {
+  it("posts to the deployment's run address with the page's token and the function's name, the signed token first", async () => {
     const requests = stubScript(Response.json({ done: true, response: { result: { url: 'https://example.invalid/approve' } } }))
 
     await expect(port.startLink('Revolut', 'https://example.invalid/kuna/', 'one-time-state')).resolves.toBe('https://example.invalid/approve')
@@ -52,7 +61,7 @@ describe('appsScriptBankSync', () => {
     const headers = new Headers(requests[0]?.init.headers)
     expect(headers.get('Authorization')).toBe('Bearer script-token')
     expect(headers.get('Content-Type')).toBe('application/json')
-    expect(JSON.parse(String(requests[0]?.init.body))).toEqual({ function: 'startLink', parameters: ['Revolut', 'https://example.invalid/kuna/', 'one-time-state'] })
+    expect(JSON.parse(String(requests[0]?.init.body))).toEqual({ function: 'startLink', parameters: ['signed-token', 'Revolut', 'https://example.invalid/kuna/', 'one-time-state'] })
   })
 
   it('asks for the longest history on the first fetch of an account and the default later', async () => {
@@ -62,13 +71,13 @@ describe('appsScriptBankSync', () => {
     await port.transactions('account-uid', civil('2026-10-20'), false)
 
     expect(requests.map(({ init }) => JSON.parse(String(init.body)))).toEqual([
-      { function: 'transactions', parameters: ['account-uid', '2026-10-01', 'longest'] },
-      { function: 'transactions', parameters: ['account-uid', '2026-10-20', 'default'] },
+      { function: 'transactions', parameters: ['signed-token', 'account-uid', '2026-10-01', 'longest'] },
+      { function: 'transactions', parameters: ['signed-token', 'account-uid', '2026-10-20', 'default'] },
     ])
   })
 
   it("sends the browser's user agent with each call that reads a bank when a person started the fetch", async () => {
-    const present = appsScriptBankSync('AKfycb-made-up', () => 'script-token', 'made-up browser')
+    const present = adapter('made-up browser')
     const requests = stubScript(() => Response.json({ done: true, response: { result: [] } }))
 
     await present.sessions()
@@ -76,9 +85,9 @@ describe('appsScriptBankSync', () => {
     await present.balances('account-uid')
 
     expect(requests.map(({ init }) => JSON.parse(String(init.body)))).toEqual([
-      { function: 'accounts', parameters: ['made-up browser'] },
-      { function: 'transactions', parameters: ['account-uid', '2026-10-20', 'default', 'made-up browser'] },
-      { function: 'balances', parameters: ['account-uid', 'made-up browser'] },
+      { function: 'accounts', parameters: ['signed-token', [{ bank: 'Revolut', sessionId: 'made-up-session' }], 'made-up browser'] },
+      { function: 'transactions', parameters: ['signed-token', 'account-uid', '2026-10-20', 'default', 'made-up browser'] },
+      { function: 'balances', parameters: ['signed-token', 'account-uid', 'made-up browser'] },
     ])
   })
 
@@ -89,14 +98,14 @@ describe('appsScriptBankSync', () => {
     await port.balances('account-uid')
 
     expect(requests.map(({ init }) => JSON.parse(String(init.body)))).toEqual([
-      { function: 'accounts', parameters: [] },
-      { function: 'balances', parameters: ['account-uid'] },
+      { function: 'accounts', parameters: ['signed-token', [{ bank: 'Revolut', sessionId: 'made-up-session' }]] },
+      { function: 'balances', parameters: ['signed-token', 'account-uid'] },
     ])
   })
 
   it('returns what `finishLink` and `accounts` answer', async () => {
-    stubScript(() => Response.json({ done: true, response: { result: { validUntil: '2027-05-03T12:00:00+00:00' } } }))
-    await expect(port.finishLink('made-up-code')).resolves.toBe('2027-05-03T12:00:00+00:00')
+    stubScript(() => Response.json({ done: true, response: { result: { sessionId: 'made-up-session', bank: 'Revolut', validUntil: '2027-05-03T12:00:00+00:00' } } }))
+    await expect(port.finishLink('made-up-code')).resolves.toEqual({ sessionId: 'made-up-session', validUntil: '2027-05-03T12:00:00+00:00' })
     stubScript(() => Response.json({ done: true, response: { result: [] } }))
     await expect(port.sessions()).resolves.toEqual([])
   })
@@ -106,6 +115,24 @@ describe('appsScriptBankSync', () => {
     stubScript(() => Response.json({ done: true, response: { result: [session] } }))
     await expect(port.sessions()).resolves.toEqual([
       { ...session, accounts: [{ uid: 'u', iban: 'LT000000000000000001', currency: 'USD', product: null, details: null, cashAccountType: null, usage: null, identificationHash: null }] },
+    ])
+  })
+
+  it('asks the script nothing for the sessions when none is kept here', async () => {
+    const requests = stubScript(() => Response.json({ done: true, response: { result: [] } }))
+    await expect(adapter(null, []).sessions()).resolves.toEqual([])
+    await expect(adapter(null, []).bankFields()).resolves.toEqual([])
+    expect(requests).toEqual([])
+  })
+
+  it('asks for the application and closes a session with the signed token', async () => {
+    const application = { name: 'Kuna', environment: 'PRODUCTION', redirectUrls: ['https://example.invalid/kuna/'], active: true }
+    const requests = stubScript(() => Response.json({ done: true, response: { result: application } }))
+    await expect(port.application()).resolves.toEqual(application)
+    await port.closeSession('old-session')
+    expect(requests.map(({ init }) => JSON.parse(String(init.body)))).toEqual([
+      { function: 'application', parameters: ['signed-token'] },
+      { function: 'closeSession', parameters: ['signed-token', 'old-session'] },
     ])
   })
 

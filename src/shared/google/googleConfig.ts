@@ -16,6 +16,12 @@ export function googleConfig(): GoogleConfig {
   }
 }
 
+/** The deployment id of Kuna's bank sync script, or null for a build made without one, which then offers no bank sync. */
+export function bankSyncDeployment(): string | null {
+  const configured = import.meta.env.VITE_BANK_SYNC_DEPLOYMENT?.trim() ?? ''
+  return configured === '' ? null : configured
+}
+
 function required(name: string, configured: string | undefined): string {
   const trimmed = configured?.trim() ?? ''
   if (trimmed === '') {

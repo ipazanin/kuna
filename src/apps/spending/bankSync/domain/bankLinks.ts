@@ -3,7 +3,7 @@ import type { LinkedAccount } from './bankAnswer'
 import { isBankSyncKey } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
-import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
+import { LINKABLE_BANKS, bankSyncSetUp } from '../../workbook/domain/spendingSettings'
 import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spendingSettings'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
@@ -36,9 +36,9 @@ export function endingLinks(settings: SpendingSettings, day: CivilDate): readonl
   })
 }
 
-/** Whether a sync has anything to ask: a saved deployment and a link still good on the day. */
+/** Whether a sync has anything to ask: an application set up and a link still good on the day. */
 export function hasLiveLink(settings: SpendingSettings, day: CivilDate): boolean {
-  return settings.bankSyncDeployment !== '' && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day)
+  return bankSyncSetUp(settings) && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day)
 }
 
 /** The banks any device sharing the file asked within the last six hours, which the step leaves alone. */
@@ -52,7 +52,7 @@ export function heldBanks(settings: SpendingSettings, now: number): readonly Lin
 /** Whether the step has a bank to ask by itself: a live link that no device asked within the last six hours. */
 export function hasDueLink(settings: SpendingSettings, day: CivilDate, now: number): boolean {
   const held = heldBanks(settings, now)
-  return settings.bankSyncDeployment !== '' && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day && !held.includes(bank))
+  return bankSyncSetUp(settings) && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day && !held.includes(bank))
 }
 
 /** The link a session of Enable Banking belongs to, or null for a bank Kuna does not link. */

@@ -21,7 +21,7 @@ const CARDS_INPUT: StrictSchema = {
 }
 
 const ROWS_FROM_ABOUT =
-  "rowsFrom is by-hand when the person types its rows, imports its files or adds them through the chat, or bank-link when the bank sync fetches them. Ask the person which. bank-link needs an IBAN and a saved bank sync deployment, which the bank-sync line tells, and cash is always by-hand. A bank-link account takes no typed or copied row, and the bank's statement file only with alsoFrom provider-file."
+  "rowsFrom is by-hand when the person types its rows, imports its files or adds them through the chat, or bank-link when the bank sync fetches them. Ask the person which. bank-link needs an IBAN and the bank sync set up, which the bank-sync line tells, and cash is always by-hand. A bank-link account takes no typed or copied row, and the bank's statement file only with alsoFrom provider-file."
 
 /** What Accounts does: add, change and delete an account. */
 export const ACCOUNT_OPERATIONS: readonly AssistantOperation[] = [
@@ -106,7 +106,7 @@ function bankNameOf(typed: unknown): string | null {
 }
 
 function refuseRowsFrom(refusal: RowsFromRefusal | null): void {
-  if (refusal === 'bank-link-not-offered') throw new StepRefused('A bank link is for a bank or savings account, once the person saves a bank sync deployment on Settings, Bank sync. Make it by-hand.')
+  if (refusal === 'bank-link-not-offered') throw new StepRefused('A bank link is for a bank or savings account, once the person brings an Enable Banking key on Settings, Bank sync. Make it by-hand.')
   if (refusal === 'bank-link-without-iban') throw new StepRefused("A bank link needs the account's IBAN, since the bank sync finds the account by it.")
 }
 

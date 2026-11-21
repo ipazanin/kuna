@@ -8,6 +8,8 @@ export interface WriteOptions {
   readonly key?: string
   /** For a one-tap control whose value is on it. The screen shows the change from the tap, and without it from when the write lands. */
   readonly shownAtOnce?: boolean
+  /** False for a write that goes with a change outside the file, which Undo cannot put back, so it offers none. */
+  readonly undoable?: boolean
 }
 
 /** A write waiting its turn on the file, or running. */
@@ -18,6 +20,7 @@ export interface QueuedWrite {
   /** What names it to `saving(key)`: the control that started it, and for an undo the undo and the control of the write it undoes. */
   readonly keys: readonly string[]
   readonly shownAtOnce: boolean
+  readonly undoable: boolean
   /** The workbook on screen when it was asked for. Its turn refuses it on any other. */
   readonly workbookId: string
   readonly changes: readonly RuledChange[]

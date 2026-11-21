@@ -28,6 +28,8 @@ export interface RecordWriteOptions {
   readonly shownAtOnce?: boolean
   /** Names the control that started the write, so `saving(key)` is true for that control alone while it waits or runs. Unique within the file. Defaults to `save`, which is this composable's own. */
   readonly key?: string
+  /** False for a write that goes with a change outside the file, such as a key kept in the browser, which Undo cannot put back. Its toast offers no Undo. */
+  readonly undoable?: boolean
 }
 
 /** Whether the write that the key names is waiting or running. */
@@ -138,7 +140,9 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
   async function write(title: string, work: (unit: UnitOfWork) => void, options: RecordWriteOptions = {}): Promise<boolean> {
     running.value += 1
     try {
-      const receipt = await withGoogleAccess([], () => store.write(title, work, { key: queueKey(options.key ?? SAVE_KEY), shownAtOnce: options.shownAtOnce ?? false }))
+      const receipt = await withGoogleAccess([], () =>
+        store.write(title, work, { key: queueKey(options.key ?? SAVE_KEY), shownAtOnce: options.shownAtOnce ?? false, undoable: options.undoable ?? true }),
+      )
       if (receipt === null) {
         toast.add({ title: words.nothingChanged, description: words.alreadyHeld, icon: 'i-lucide-info', color: 'neutral' })
         return true

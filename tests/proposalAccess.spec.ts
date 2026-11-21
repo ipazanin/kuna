@@ -32,7 +32,7 @@ function failingStore(writeFailures: unknown[], undoFailures: unknown[] = []) {
       calls.write += 1
       const failure = writeFailures.shift()
       if (failure !== undefined) throw failure
-      writes.push({ id: 1, at: '2026-11-09T10:00:00.000Z', workbookId: 'books', receipt: RECEIPT, undid: null } as unknown as SessionWrite)
+      writes.push({ id: 1, at: '2026-11-09T10:00:00.000Z', workbookId: 'books', receipt: RECEIPT, undid: null, undoable: true } as unknown as SessionWrite)
       return RECEIPT
     },
     async undo() {

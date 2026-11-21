@@ -2,15 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UFormField from '@nuxt/ui/components/FormField.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 
-import { saveDeployment } from '../application/bankSync'
 import type { BankSyncOutcome } from '../application/bankSync'
 import { loadPendingLink } from '../infrastructure/bankBrowserState'
 import { notedBankReturn } from './bankReturnOnOpen'
 import BankAccountsSetup from './BankAccountsSetup.vue'
-import { BANK_SYNC_SCOPE } from './bankSyncPort'
+import BankApplicationPanel from './BankApplicationPanel.vue'
+import BankFieldsCard from './BankFieldsCard.vue'
+import BankSyncSetup from './BankSyncSetup.vue'
+import { BANK_SYNC_SCOPE, bankSyncBuiltIn } from './bankSyncPort'
 import { heldBankSetup, useBankSync } from './useBankSync'
 import { words } from './words'
 import { useHeldRows } from './useHeldRows'
@@ -21,34 +21,31 @@ import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
+import { LINKABLE_BANKS, bankSyncSetUp } from '../../workbook/domain/spendingSettings'
 import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { currentToken } from '../../../../shared/google/googleAuth'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
-/** Settings' Bank sync tab: the script's deployment, a link per bank, and what the last fetch did. With no deployment saved it shows the field and nothing else. */
+/**
+ * Settings' Bank sync tab: the person's own Enable Banking application, a link per bank, and what the last fetch did. With
+ * no application set up it walks the person through making one and bringing its key, and shows nothing else.
+ */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
-const page = usePageSync()
 const sync = useBankSync()
+const builtIn = bankSyncBuiltIn()
 
 /** The rows this fetch put on hold, asked about here as on To review. */
 const held = useHeldRows((key) => sync.lastOutcome.value?.dryRun.lines.some((line) => line.outcome === 'look-alike' && rowKey(line.row) === key) ?? false)
 
 const settings = computed(() => store.state.workbook?.settings ?? null)
-const deployment = ref(settings.value?.bankSyncDeployment ?? '')
-watch(
-  () => settings.value?.bankSyncDeployment,
-  (saved) => {
-    deployment.value = saved ?? ''
-  },
-)
-const saved = computed(() => (settings.value?.bankSyncDeployment ?? '') !== '')
-const unchanged = computed(() => deployment.value.trim() === (settings.value?.bankSyncDeployment ?? ''))
+const saved = computed(() => settings.value !== null && bankSyncSetUp(settings.value))
+/** The walk-through stays open from its Check until Done, so its last step can say whether the application is active. */
+const finishing = ref(false)
+const walking = computed(() => settings.value !== null && (!saved.value || finishing.value))
 
 const banks = computed(() =>
   LINKABLE_BANKS.map((bank) => {
@@ -81,16 +78,6 @@ function announced(outcome: BankSyncOutcome | null): void {
   if (outcome?.receipt) writes.announce(outcome.receipt)
 }
 
-async function save(): Promise<void> {
-  const typed = deployment.value.trim()
-  const book = store.state.workbook
-  if (book === null) return
-  // Called first in the tap, so Google's window may open. Only a first deployment asks, and a blank one asks for nothing.
-  await page.saveAllowing(typed === '' || saved.value ? [] : [BANK_SYNC_SCOPE], () =>
-    writes.write(words.saved, (unit) => saveDeployment(unit, book, typed), { key: 'deployment', failedTitle: words.notSaved }),
-  )
-}
-
 async function finish(): Promise<void> {
   announced(await sync.finishLink())
   pendingCode.value = loadPendingLink()?.code != null
@@ -116,17 +103,14 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <AppCard :title="words.title" :subtitle="words.subtitle" data-testid="spending-bank-sync">
+    <BankSyncSetup v-if="builtIn && walking" @holding="finishing = true" @done="finishing = false" />
+    <AppCard v-else :title="words.title" :subtitle="words.subtitle" data-testid="spending-bank-sync">
       <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
-        <FormGrid>
-          <UFormField :label="words.deployment" :help="words.deploymentHelp" class="sm:col-span-2" data-testid="spending-bank-sync-deployment">
-            <UInput v-model="deployment" class="w-full" autocomplete="off" spellcheck="false" />
-          </UFormField>
-        </FormGrid>
-        <UButton class="self-start" :label="words.save" icon="i-lucide-save" :disabled="unchanged" :loading="writes.saving('deployment')" data-testid="spending-bank-sync-save" @click="save" />
+        <NoteLine v-if="!builtIn" tone="info" size="body" data-testid="spending-bank-sync-no-script">{{ words.noScript }}</NoteLine>
+        <BankApplicationPanel v-else :application-id="settings?.bankSyncApplication ?? ''" />
         <UAlert v-if="returnLine !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="returnLine" data-testid="spending-bank-sync-return" />
         <UAlert v-if="sync.failure.value !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="sync.failure.value" data-testid="spending-bank-sync-failed" />
-        <template v-if="saved">
+        <template v-if="builtIn && saved">
           <ul class="divide-y divide-default rounded-control border border-default">
             <li v-for="{ bank, name, line, action } in banks" :key="bank" class="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="spending-bank-link">
               <span class="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -143,6 +127,7 @@ onMounted(() => {
         </template>
       </div>
     </AppCard>
+    <BankFieldsCard v-if="builtIn && saved && banks.some(({ until }) => until !== null)" :application-id="settings?.bankSyncApplication ?? ''" />
     <BankAccountsSetup v-if="setup !== null && setup.linked.length > 0" :outcome="setup" />
     <AppCard v-if="sync.lastOutcome.value !== null" :title="words.lastSync" data-testid="spending-bank-sync-result">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">

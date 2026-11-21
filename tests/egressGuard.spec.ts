@@ -109,6 +109,26 @@ describe('the egress guard', () => {
     expect(await refuses(modelNoting(), requestWith('x', { turns: result('{"id":"a1","kind":"photo"}') }), [])).toBe(false)
   })
 
+  it("refuses a kept bank key by any one of its lines, and a kept bank session, which a model's request writes inside JSON", async () => {
+    const pem = [
+      '-----BEGIN PRIVATE KEY-----',
+      'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDmadeUpMadeUp01',
+      'bWFkZS11cC1rZXktbGluZS10d28tb2YtYS1wcml2YXRlLWtleS1tYWRlLXVwLTAy',
+      '-----END PRIVATE KEY-----',
+    ].join('\n')
+    const kept = [pem, 'made-up-bank-session-7f3a']
+    expect(await refuses(modelNoting(), requestWith(`Here is my key: ${pem}`), kept)).toBe(true)
+    expect(await refuses(modelNoting(), requestWith('One line: bWFkZS11cC1rZXktbGluZS10d28tb2YtYS1wcml2YXRlLWtleS1tYWRlLXVwLTAy'), kept)).toBe(true)
+    expect(
+      await refuses(
+        modelNoting(),
+        requestWith('x', { turns: [{ role: 'tool-results', results: [{ callId: 'a', text: '{"session":"made-up-bank-session-7f3a"}', parts: [], isError: false }] }] }),
+        kept,
+      ),
+    ).toBe(true)
+    expect(await refuses(modelNoting(), requestWith('Row 4: Tisak, 3.20 EUR'), kept)).toBe(false)
+  })
+
   it('turns away a request whatever else it asks, and reads a secret saved after it was built', async () => {
     const stored: string[] = []
     const guarded = guardedModel(modelNoting(), () => stored)

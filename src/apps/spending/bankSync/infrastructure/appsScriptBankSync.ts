@@ -1,6 +1,8 @@
 import { BankScriptFailure } from '../application/bankSync'
-import type { BankSyncPort } from '../application/bankSync'
-import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
+import type { BankLinkMade, BankSyncPort } from '../application/bankSync'
+import type { KeptSession } from '../application/bankSecrets'
+import type { BankApplication, BankBalance, BankFields, BankSession, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
+import { ENABLE_BANKING_NAMES } from '../domain/bankAnswer'
 import { words } from '../domain/words'
 import { googleRequest, isUnauthorized } from '../../../../shared/google/googleApi'
 
@@ -36,17 +38,29 @@ function sessionOf({ accounts, ...session }: AnsweredSession): BankSession {
 /** How long a run of the script waits. Apps Script stops a run after 6 minutes, so its own answer of that comes first. */
 const RUN_WAIT_MS = 7 * 60_000
 
-/** The bank sync script, called with the page's Google token through the Apps Script API. `psuUserAgent` is the browser's on a fetch a person started, and goes with each call that reads a bank. */
-export function appsScriptBankSync(deployment: string, tokenFor: () => string, psuUserAgent: string | null = null): BankSyncPort {
+/** What the adapter is given: the script, the page's Google token, the person's signed Enable Banking token and the sessions kept here. */
+export interface BankScriptAccess {
+  readonly deployment: string
+  googleToken(): string
+  bankToken(): Promise<string>
+  sessions(): readonly KeptSession[]
+}
+
+/**
+ * The bank sync script, called with the page's Google token through the Apps Script API, each call with the person's signed
+ * token first. `psuUserAgent` is the browser's on a fetch a person started, and goes with each call that reads a bank.
+ */
+export function appsScriptBankSync({ deployment, googleToken, bankToken, sessions }: BankScriptAccess, psuUserAgent: string | null = null): BankSyncPort {
   const present = psuUserAgent === null ? [] : [psuUserAgent]
 
   async function run<Answer>(name: string, parameters: readonly unknown[]): Promise<Answer> {
+    const token = await bankToken()
     let answer: RunAnswer
     try {
       answer = await googleRequest(
         `${SCRIPT_API}/${encodeURIComponent(deployment)}:run`,
-        tokenFor(),
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ function: name, parameters }) },
+        googleToken(),
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ function: name, parameters: [token, ...parameters] }) },
         (response) => response.json() as Promise<RunAnswer>,
         RUN_WAIT_MS,
       )
@@ -58,11 +72,27 @@ export function appsScriptBankSync(deployment: string, tokenFor: () => string, p
     return answer.response?.result as Answer
   }
 
+  const kept = (): readonly { readonly bank: string; readonly sessionId: string }[] => sessions().map(({ bank, sessionId }) => ({ bank: ENABLE_BANKING_NAMES[bank], sessionId }))
+
   return {
+    application: () => run<BankApplication>('application', []),
     startLink: async (bankName, redirectUrl, state) => (await run<{ readonly url: string }>('startLink', [bankName, redirectUrl, state])).url,
-    finishLink: async (code) => (await run<{ readonly validUntil: string }>('finishLink', [code])).validUntil,
+    finishLink: async (code) => {
+      const { sessionId, validUntil } = await run<BankLinkMade>('finishLink', [code])
+      return { sessionId, validUntil }
+    },
+    closeSession: async (sessionId) => {
+      await run<null>('closeSession', [sessionId])
+    },
     // Google's page does not say whether an empty list comes back as `[]` or as no result at all.
-    sessions: async () => ((await run<readonly AnsweredSession[] | undefined>('accounts', present)) ?? []).map(sessionOf),
+    sessions: async () => {
+      const asked = kept()
+      return asked.length === 0 ? [] : ((await run<readonly AnsweredSession[] | undefined>('accounts', [asked, ...present])) ?? []).map(sessionOf)
+    },
+    bankFields: async () => {
+      const asked = kept()
+      return asked.length === 0 ? [] : ((await run<readonly BankFields[] | undefined>('bankFields', [asked])) ?? [])
+    },
     transactions: async (accountUid, from, longest) => (await run<readonly BankTransaction[] | undefined>('transactions', [accountUid, from, longest ? 'longest' : 'default', ...present])) ?? [],
     balances: async (accountUid) => (await run<readonly BankBalance[] | undefined>('balances', [accountUid, ...present])) ?? [],
   }

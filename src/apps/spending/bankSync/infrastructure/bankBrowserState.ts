@@ -19,6 +19,11 @@ function pendingLinkOf(parsed: unknown): PendingLink | null {
 const PENDING = jsonChoice('kuna.bank-link', pendingLinkOf)
 const RETURN = jsonChoice('kuna.bank-return', (parsed) => parsed as BankReturnNote | null)
 
+/** Where a bank sends the tab back: this page's address without its route, which the application must list among its redirect URLs. */
+export function bankRedirectUrl(): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}`
+}
+
 export function loadPendingLink(): PendingLink | null {
   return PENDING.read()
 }

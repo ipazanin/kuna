@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { InjectionKey, Ref } from 'vue'
 
-/** Where a first run stands, which its screen hands to the step cards it shows. */
+/** Where a set-up a screen walks through stands, such as a first run, which the screen hands to the step cards it shows. */
 export interface StepFlow {
   /** The step on screen, which the card names in `data-step`. */
   readonly step: Readonly<Ref<string>>
@@ -19,7 +19,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import AppCard from './AppCard.vue'
 import { words } from './words'
 
-/** One step of a first run as one card: what it asks, then Back beside the step's buttons. The first step has no Back. */
+/** One step of a set-up a screen walks through as one card: what it asks, then Back beside the step's buttons. The first step has no Back. */
 defineProps<{
   title: string
   subtitle?: string | undefined
@@ -27,7 +27,7 @@ defineProps<{
 
 const flow = inject(STEP_FLOW)
 if (flow === undefined) {
-  throw new Error('A step card needs the screen of its first run to provide STEP_FLOW.')
+  throw new Error('A step card needs the screen that walks through its set-up to provide STEP_FLOW.')
 }
 </script>
 

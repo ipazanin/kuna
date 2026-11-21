@@ -1,7 +1,8 @@
 /**
- * Calls Enable Banking for Kuna, which runs in a browser and may hold no private key. Kuna calls the five functions below
- * through the Apps Script API. Script Properties hold the application id, the private key and one session id per bank.
- * Nothing a bank answers is stored here, and only `logBankFields`, run by hand, logs anything: names and counts, no values.
+ * Relays Kuna's calls to Enable Banking, since a page cannot reach api.enablebanking.com itself. Kuna signs each call with
+ * the person's own key and passes the token first, with the session ids a call needs. The script keeps nothing: no key, no
+ * session and nothing a bank answers. It cuts each answer down to the fields Kuna reads, and `bankFields` answers names
+ * and counts, never a value.
  *
  * `psuUserAgent` is the browser's user agent on a fetch a person started. Any such header tells the bank the person is
  * there, which lifts the limit of four unattended reads a day.
@@ -9,68 +10,66 @@
 
 const API = 'https://api.enablebanking.com'
 const COUNTRY = 'HR'
-const TOKEN_SECONDS = 3600
-const SESSION_PREFIX = 'SESSION '
 const MAX_PAGES = 500
-const DAYS_LOGGED = 89
-const EDITOR_USER_AGENT = 'Kuna bank sync script editor'
+const DAYS_COUNTED = 89
+const FIELDS_USER_AGENT = 'Kuna bank sync, what your banks send'
 
-/** The fixed codes `logBankFields` counts by name. Anything else counts as other, so no text from a bank reaches the log. */
-const LOGGED_CODES = {
+/** The fixed codes `bankFields` counts by name. Anything else counts as other, so no text from a bank reaches the answer. */
+const COUNTED_CODES = {
   status: ['BOOK', 'PDNG', 'HOLD', 'CNCL', 'OTHR', 'RJCT', 'SCHD'],
   credit_debit_indicator: ['CRDT', 'DBIT'],
   balance_type: ['CLAV', 'CLBD', 'FWAV', 'INFO', 'ITAV', 'ITBD', 'OPAV', 'OPBD', 'OTHR', 'PRCD', 'VALU', 'XPCD'],
   cash_account_type: ['CACC', 'CARD', 'CASH', 'LOAN', 'OTHR', 'SVGS'],
 }
 
+/** The application the token was signed for, as Kuna checks it before keeping its key. */
+function application(token) {
+  const found = call_(token, 'get', '/application')
+  return { name: found.name ?? '', environment: found.environment ?? '', redirectUrls: found.redirect_urls ?? [], active: found.active === true }
+}
+
 /** Starts a bank's approval for as long as the bank allows, and says where to send the tab. */
-function startLink(bank, redirectUrl, state) {
-  const aspsp = call_('get', `/aspsps?country=${COUNTRY}`).aspsps.find((candidate) => candidate.name === bank)
+function startLink(token, bank, redirectUrl, state) {
+  const aspsp = call_(token, 'get', `/aspsps?country=${COUNTRY}`).aspsps.find((candidate) => candidate.name === bank)
   if (aspsp === undefined) throw new Error(`Enable Banking lists no ${bank} in ${COUNTRY}`)
   const validUntil = new Date(Date.now() + (aspsp.maximum_consent_validity - 60) * 1000).toISOString()
-  const started = call_('post', '/auth', { body: { access: { valid_until: validUntil }, aspsp: { name: bank, country: COUNTRY }, state, redirect_url: redirectUrl, psu_type: 'personal' } })
+  const started = call_(token, 'post', '/auth', { body: { access: { valid_until: validUntil }, aspsp: { name: bank, country: COUNTRY }, state, redirect_url: redirectUrl, psu_type: 'personal' } })
   return { url: started.url }
 }
 
-/** Trades the code the bank came back with for a session, and keeps only the session's id. The session it replaces is closed, since nothing could reach it afterwards. */
-function finishLink(code) {
-  const session = call_('post', '/sessions', { body: { code } })
-  const properties = PropertiesService.getScriptProperties()
-  const key = SESSION_PREFIX + session.aspsp.name
-  const replaced = properties.getProperty(key)
-  properties.setProperty(key, session.session_id)
-  if (replaced !== null && replaced !== session.session_id) closeSession_(replaced)
-  return { validUntil: session.access.valid_until }
+/** Trades the code the bank came back with for a session, and answers only its id, its bank and how long it lasts. Kuna closes the session it replaces. */
+function finishLink(token, code) {
+  const session = call_(token, 'post', '/sessions', { body: { code } })
+  return { sessionId: session.session_id, bank: session.aspsp.name, validUntil: session.access.valid_until }
 }
 
 /** A bank that allows one session has already ended the old one, so a refusal here changes nothing. */
-function closeSession_(sessionId) {
+function closeSession(token, sessionId) {
   try {
-    call_('delete', `/sessions/${sessionId}`)
+    call_(token, 'delete', `/sessions/${sessionId}`)
   } catch (refusal) {
     return
   }
 }
 
-/** Each bank's session with the accounts it reaches, which restricted mode cuts down to the accounts linked in Enable Banking's panel. One bank failing is that bank's answer, and leaves the others theirs. */
-function accounts(psuUserAgent) {
-  const properties = PropertiesService.getScriptProperties().getProperties()
-  return Object.keys(properties)
-    .filter((key) => key.startsWith(SESSION_PREFIX))
-    .map((key) => {
-      const bank = key.slice(SESSION_PREFIX.length)
-      try {
-        const session = call_('get', `/sessions/${properties[key]}`)
-        return { bank, status: session.status, accounts: session.status === 'AUTHORIZED' ? session.accounts.map((uid) => accountOf_(uid, psuUserAgent)) : [] }
-      } catch (failure) {
-        return { bank, status: 'FAILED', reason: failure.message, accounts: [] }
-      }
-    })
+/**
+ * Each session's accounts, which restricted mode cuts down to the accounts linked in Enable Banking's panel. `sessions` are
+ * Kuna's, as `[{ bank, sessionId }]`. One bank failing is that bank's answer, and leaves the others theirs.
+ */
+function accounts(token, sessions, psuUserAgent) {
+  return sessions.map(({ bank, sessionId }) => {
+    try {
+      const session = call_(token, 'get', `/sessions/${sessionId}`)
+      return { bank, status: session.status, accounts: session.status === 'AUTHORIZED' ? session.accounts.map((uid) => accountOf_(token, uid, psuUserAgent)) : [] }
+    } catch (failure) {
+      return { bank, status: 'FAILED', reason: failure.message, accounts: [] }
+    }
+  })
 }
 
 /** What Kuna drafts an account from. Never `name`, which Enable Banking fills with the holder's own name. */
-function accountOf_(uid, psuUserAgent) {
-  const details = call_('get', `/accounts/${uid}/details`, { psuUserAgent })
+function accountOf_(token, uid, psuUserAgent) {
+  const details = call_(token, 'get', `/accounts/${uid}/details`, { psuUserAgent })
   return {
     uid,
     iban: details.account_id?.iban ?? '',
@@ -84,16 +83,16 @@ function accountOf_(uid, psuUserAgent) {
 }
 
 /** Every page of an account's transactions from the day. A page may be empty and still name a next one, so only a missing key ends the list. */
-function transactions(accountUid, from, strategy, psuUserAgent) {
-  return bankRows_(accountUid, from, strategy, psuUserAgent).map(transactionOf_)
+function transactions(token, accountUid, from, strategy, psuUserAgent) {
+  return bankRows_(token, accountUid, from, strategy, psuUserAgent).map(transactionOf_)
 }
 
-function bankRows_(accountUid, from, strategy, psuUserAgent) {
+function bankRows_(token, accountUid, from, strategy, psuUserAgent) {
   const found = []
   let continuationKey = null
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const query = [`date_from=${from}`, `strategy=${strategy}`, ...(continuationKey === null ? [] : [`continuation_key=${encodeURIComponent(continuationKey)}`])]
-    const answer = call_('get', `/accounts/${accountUid}/transactions?${query.join('&')}`, { psuUserAgent })
+    const answer = call_(token, 'get', `/accounts/${accountUid}/transactions?${query.join('&')}`, { psuUserAgent })
     found.push(...(answer.transactions ?? []))
     continuationKey = answer.continuation_key ?? null
     if (continuationKey === null) return found
@@ -102,8 +101,8 @@ function bankRows_(accountUid, from, strategy, psuUserAgent) {
 }
 
 /** What the bank says an account holds, one line for each kind of balance it keeps. */
-function balances(accountUid, psuUserAgent) {
-  return (call_('get', `/accounts/${accountUid}/balances`, { psuUserAgent }).balances ?? []).map((balance) => ({
+function balances(token, accountUid, psuUserAgent) {
+  return (call_(token, 'get', `/accounts/${accountUid}/balances`, { psuUserAgent }).balances ?? []).map((balance) => ({
     amount: balance.balance_amount?.amount ?? '',
     currency: balance.balance_amount?.currency ?? '',
     type: balance.balance_type ?? '',
@@ -130,33 +129,28 @@ function transactionOf_(transaction) {
 }
 
 /**
- * Run this from the script editor once a bank is linked. For each linked account it logs the names of the fields Enable
- * Banking returns and how many records carry each, for the last 89 days. It never logs an amount, a name, an IBAN, an id or
- * any text from a bank, only counts and the fixed codes in `LOGGED_CODES`.
+ * For each session, the names of the fields Enable Banking returns and how many records carry each, for each account's
+ * last 89 days. It never answers an amount, a name, an IBAN, an id or any text from a bank, only counts and the fixed codes
+ * in `COUNTED_CODES`.
  */
-function logBankFields() {
-  const properties = PropertiesService.getScriptProperties().getProperties()
-  Object.keys(properties)
-    .filter((key) => key.startsWith(SESSION_PREFIX))
-    .forEach((key) => {
-      const bank = key.slice(SESSION_PREFIX.length)
-      const session = call_('get', `/sessions/${properties[key]}`)
-      Logger.log(`${bank} session: ${JSON.stringify(fieldCounts_([session]))}`)
-      ;(session.accounts ?? []).forEach((uid, place) => logAccountFields_(`${bank} account ${place + 1}`, uid))
-    })
+function bankFields(token, sessions) {
+  return sessions.map(({ bank, sessionId }) => {
+    const session = call_(token, 'get', `/sessions/${sessionId}`)
+    return { bank, session: fieldCounts_([session]), accounts: (session.accounts ?? []).map((uid) => accountFields_(token, uid)) }
+  })
 }
 
-function logAccountFields_(label, uid) {
-  const options = { psuUserAgent: EDITOR_USER_AGENT }
-  const details = call_('get', `/accounts/${uid}/details`, options)
-  const balanceRows = call_('get', `/accounts/${uid}/balances`, options).balances ?? []
-  const from = new Date(Date.now() - DAYS_LOGGED * 86400000).toISOString().slice(0, 10)
-  const rows = bankRows_(uid, from, 'default', EDITOR_USER_AGENT)
-  Logger.log(
-    `${label} details: ${JSON.stringify({ singleCurrency: details.currency !== 'XXX', hasIban: Boolean(details.account_id?.iban), fields: fieldCounts_([details]), codes: codeCounts_([details]) })}`,
-  )
-  Logger.log(`${label} balances: ${JSON.stringify({ count: balanceRows.length, fields: fieldCounts_(balanceRows), codes: codeCounts_(balanceRows) })}`)
-  Logger.log(`${label} transactions: ${JSON.stringify({ count: rows.length, fields: fieldCounts_(rows), codes: codeCounts_(rows), days: dayCounts_(rows) })}`)
+function accountFields_(token, uid) {
+  const options = { psuUserAgent: FIELDS_USER_AGENT }
+  const details = call_(token, 'get', `/accounts/${uid}/details`, options)
+  const balanceRows = call_(token, 'get', `/accounts/${uid}/balances`, options).balances ?? []
+  const from = new Date(Date.now() - DAYS_COUNTED * 86400000).toISOString().slice(0, 10)
+  const rows = bankRows_(token, uid, from, 'default', FIELDS_USER_AGENT)
+  return {
+    details: { singleCurrency: details.currency !== 'XXX', hasIban: Boolean(details.account_id?.iban), fields: fieldCounts_([details]), codes: codeCounts_([details]) },
+    balances: { count: balanceRows.length, fields: fieldCounts_(balanceRows), codes: codeCounts_(balanceRows) },
+    transactions: { count: rows.length, fields: fieldCounts_(rows), codes: codeCounts_(rows), days: dayCounts_(rows) },
+  }
 }
 
 /** How many of the records carry each field, nested fields as `parent.child` and lists as `name[]`, with empty fields left out. */
@@ -176,10 +170,10 @@ function fieldCounts_(records) {
 function codeCounts_(records) {
   const counts = {}
   records.forEach((record) =>
-    Object.keys(LOGGED_CODES)
+    Object.keys(COUNTED_CODES)
       .filter((field) => record[field] !== undefined && record[field] !== null)
       .forEach((field) => {
-        const name = `${field} ${LOGGED_CODES[field].includes(record[field]) ? record[field] : 'other'}`
+        const name = `${field} ${COUNTED_CODES[field].includes(record[field]) ? record[field] : 'other'}`
         counts[name] = (counts[name] ?? 0) + 1
       }),
   )
@@ -193,30 +187,15 @@ function dayCounts_(rows) {
   return { bookingDateWithTime: withTime('booking_date'), transactionDateWithTime: withTime('transaction_date'), valueDateWithTime: withTime('value_date'), madeOnAnotherDay }
 }
 
-function call_(method, path, { body, psuUserAgent } = {}) {
+function call_(token, method, path, { body, psuUserAgent } = {}) {
   const response = UrlFetchApp.fetch(API + path, {
     method,
     muteHttpExceptions: true,
-    headers: { Authorization: `Bearer ${token_()}`, Accept: 'application/json', ...(psuUserAgent ? { 'Psu-User-Agent': psuUserAgent } : {}) },
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(psuUserAgent ? { 'Psu-User-Agent': psuUserAgent } : {}) },
     ...(body === undefined ? {} : { contentType: 'application/json', payload: JSON.stringify(body) }),
   })
   const status = response.getResponseCode()
   const answer = JSON.parse(response.getContentText() || '{}')
   if (status >= 400) throw new Error(`Enable Banking answered ${status}: ${answer.error ?? ''} ${answer.message ?? ''}`.trim())
   return answer
-}
-
-/** A signed token for one call. A JWT takes base64url without padding, which `base64EncodeWebSafe` may add. */
-function token_() {
-  const properties = PropertiesService.getScriptProperties()
-  const applicationId = properties.getProperty('ENABLE_BANKING_APP_ID')
-  const privateKey = properties.getProperty('ENABLE_BANKING_PRIVATE_KEY')
-  if (!applicationId || !privateKey) throw new Error('Script Properties lack ENABLE_BANKING_APP_ID or ENABLE_BANKING_PRIVATE_KEY')
-  const base64 = (data) => Utilities.base64EncodeWebSafe(data).replace(/=+$/, '')
-  const now = Math.floor(Date.now() / 1000)
-  const signed = [
-    base64(JSON.stringify({ typ: 'JWT', alg: 'RS256', kid: applicationId })),
-    base64(JSON.stringify({ iss: 'enablebanking.com', aud: 'api.enablebanking.com', iat: now, exp: now + TOKEN_SECONDS })),
-  ].join('.')
-  return `${signed}.${base64(Utilities.computeRsaSha256Signature(signed, privateKey.replace(/\\n/g, '\n')))}`
 }

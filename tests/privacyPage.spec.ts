@@ -30,8 +30,13 @@ describe('the privacy page', () => {
   })
 
   it('says removing Kuna does not end a bank link, and how to', () => {
-    expect(section('How to revoke access')).toContain('Script')
+    expect(section('How to revoke access')).toContain('Remove bank sync')
     expect(section('How to revoke access')).toContain('at your bank')
+  })
+
+  it('says the bank key and sessions stay with you and the script keeps nothing', () => {
+    expect(page).toContain('The script keeps nothing')
+    expect(section('Where your data goes')).toContain('kuna-secrets.json')
   })
 
   it('names what the browser keeps for a link', () => {

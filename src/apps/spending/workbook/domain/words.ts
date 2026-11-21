@@ -132,7 +132,7 @@ export const en = {
   settingNotAPutOff: (key: string, line: string) => `${key} line "${line}" is not a loan's key and a day such as fa4e0000-0000-4000-8000-000000000001 2026-10-20`,
   /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
   settingLabels: {
-    deployment: 'Script deployment ID',
+    application: 'Enable Banking application ID',
     personPayees: 'Payees who are people',
     notInKuna: 'Bank accounts not in Kuna',
     keepMine: 'Accounts that keep their own bank and kind',
@@ -238,7 +238,7 @@ export const hr: Translation<typeof en> = {
   settingNotABankAccount: (key, line) => `${key} redak „${line}” nije IBAN i valuta kao LT000000000000000001 USD`,
   settingNotAPutOff: (key, line) => `${key} redak „${line}” nije ključ kredita i dan kao fa4e0000-0000-4000-8000-000000000001 2026-10-20`,
   settingLabels: {
-    deployment: 'ID implementacije skripte',
+    application: 'ID aplikacije Enable Banking',
     personPayees: 'Primatelji koji su osobe',
     notInKuna: 'Bankovni računi koji nisu u Kuni',
     keepMine: 'Računi koji zadržavaju svoju banku i vrstu',

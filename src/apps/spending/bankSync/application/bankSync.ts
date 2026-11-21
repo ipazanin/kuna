@@ -1,7 +1,9 @@
+import { keepSession } from './bankSecrets'
+import type { BankSecretStore, BankUsage } from './bankSecrets'
 import { readBanks } from './bankRead'
 import type { BankRead, OlderRowsMissing } from './bankRead'
 import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
-import type { BankBalance, BankSession, BankTransaction } from '../domain/bankAnswer'
+import type { BankApplication, BankBalance, BankFields, BankSession, BankTransaction } from '../domain/bankAnswer'
 import { balanceDifferences } from '../domain/bankBalance'
 import type { BalanceDifference, StatedBalance } from '../domain/bankBalance'
 import { heldBanks } from '../domain/bankLinks'
@@ -15,23 +17,36 @@ import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import type { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { BANK_SYNC_DEPLOYMENT_KEY, bankFetchedKey, bankLinkKey } from '../../workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY, LINKABLE_BANKS, bankFetchedKey, bankLinkKey } from '../../workbook/domain/spendingSettings'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { WriteReceipt } from '../../../../shared/storage/application/recordWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 
-/** What Spending asks of the bank sync script, in the script's five functions. */
+/** A bank's new session, which this browser keeps as a secret, and until when it lasts. */
+export interface BankLinkMade {
+  readonly sessionId: string
+  readonly validUntil: string
+}
+
+/** What Spending asks of the bank sync script, each call signed in the page with the person's own key. */
 export interface BankSyncPort {
+  /** The application the key belongs to, which also proves the key signs. */
+  application(): Promise<BankApplication>
   /** Starts a bank's approval and says where to send the tab. */
   startLink(bankName: string, redirectUrl: string, state: string): Promise<string>
-  /** Trades the code a bank came back with for a session the script holds, and says until when it lasts. */
-  finishLink(code: string): Promise<string>
+  /** Trades the code a bank came back with for a session. */
+  finishLink(code: string): Promise<BankLinkMade>
+  /** Ends a session at Enable Banking. One the bank already ended is no failure. */
+  closeSession(sessionId: string): Promise<void>
+  /** Each kept session with the accounts it reaches. */
   sessions(): Promise<readonly BankSession[]>
   /** Every page of an account's transactions from the day. `longest` asks for what the bank has from there, where a plain fetch asks for exactly that period and a bank may refuse it. */
   transactions(accountUid: string, from: CivilDate, longest: boolean): Promise<readonly BankTransaction[]>
   balances(accountUid: string): Promise<readonly BankBalance[]>
+  /** The names and counts of what each kept session's bank sends, never a value. */
+  bankFields(): Promise<readonly BankFields[]>
 }
 
 /** The script ran and threw, as opposed to the call never reaching it. */
@@ -39,9 +54,29 @@ export class BankScriptFailure extends Error {
   override readonly name = 'BankScriptFailure'
 }
 
-/** The script's deployment saved, or cleared by a blank one, which turns the sync off. */
-export function saveDeployment(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>, deployment: string): void {
-  setSetting(unit, SETTING_WRITES, book.readings.settings.facts, BANK_SYNC_DEPLOYMENT_KEY, deployment.trim())
+function forgetBankLinks(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>): void {
+  const facts = book.readings.settings.facts
+  LINKABLE_BANKS.forEach((bank) => {
+    setSetting(unit, SETTING_WRITES, facts, bankLinkKey(bank), '')
+    setSetting(unit, SETTING_WRITES, facts, bankFetchedKey(bank), '')
+  })
+}
+
+/**
+ * The Enable Banking application the book's bank sync uses, which every device reads to fetch its key. Another application
+ * than the one before also clears each bank's link end and last fetch, since a session belongs to the application that opened it.
+ */
+export function saveApplicationId(unit: UnitOfWork, book: Pick<SpendingBook, 'readings' | 'settings'>, applicationId: string): void {
+  const id = applicationId.trim()
+  const before = book.settings.bankSyncApplication
+  setSetting(unit, SETTING_WRITES, book.readings.settings.facts, BANK_SYNC_APPLICATION_KEY, id)
+  if (before !== '' && before !== id) forgetBankLinks(unit, book)
+}
+
+/** Turns the bank sync off: no application, and no bank's link end or last fetch. */
+export function forgetBankSync(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>): void {
+  setSetting(unit, SETTING_WRITES, book.readings.settings.facts, BANK_SYNC_APPLICATION_KEY, '')
+  forgetBankLinks(unit, book)
 }
 
 /** When a bank last answered, which every device sharing the file reads to leave it alone for six hours. */
@@ -76,7 +111,7 @@ export type BankSetup = Pick<BankSyncOutcome, 'linked' | 'proposals' | 'differen
 
 export interface BankImportPorts {
   /** The script, told when a person started the fetch, which lifts the banks' limit on unattended reads. */
-  script(deployment: string, personHere: boolean): Promise<BankSyncPort>
+  script(applicationId: string, personHere: boolean): Promise<BankSyncPort>
   readonly store: SpendingStore
   /** The banks answered, with what this device keeps to repeat while the step holds back. A call that never reached them keeps nothing. */
   asked(read: BankRead): void
@@ -110,7 +145,7 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
     const day = ports.day()
     const asking = openBook(store)
     const held = personHere ? [] : heldBanks(asking.settings, ports.now())
-    const read = await readBanks(await ports.script(asking.settings.bankSyncDeployment, personHere), asking, day, freshLink === undefined ? [] : [freshLink], undefined, held)
+    const read = await readBanks(await ports.script(asking.settings.bankSyncApplication, personHere), asking, day, freshLink === undefined ? [] : [freshLink], undefined, held)
     const answeredAt = ports.now()
     ports.asked(read)
     await store.settled()
@@ -158,24 +193,32 @@ export interface BankLinkPorts {
   readonly script: BankSyncPort
   readonly pending: PendingLinks
   readonly store: SpendingStore
+  readonly secrets: BankSecretStore
+  readonly usage: BankUsage
 }
 
 /**
- * Trades the code a bank came back with and writes down the day the link ends. A code works once, so what it was traded for
- * is kept until the write lands and a retry only writes. A code the script refuses is forgotten, since it will never work.
+ * Trades the code a bank came back with, keeps the session as a secret and writes down the day the link ends. The session
+ * it replaces is closed, since nothing could reach it afterwards. A code works once, so the session is kept at once and
+ * the day until the write lands, and a retry only writes. A code the script refuses is forgotten, since it will never work.
  */
-export async function finishBankLink({ script, pending, store }: BankLinkPorts): Promise<void> {
+export async function finishBankLink({ script, pending, store, secrets, usage }: BankLinkPorts): Promise<void> {
   const held = pending.load()
   if (held === null || held.code === null) return
   let validUntil = held.validUntil
   if (validUntil === null) {
+    let made: BankLinkMade
     try {
-      validUntil = await script.finishLink(held.code)
+      made = await script.finishLink(held.code)
     } catch (failure) {
       if (failure instanceof BankScriptFailure) pending.save(null)
       throw failure
     }
+    const replaced = keepSession(secrets, usage, held.bank, made.sessionId)
+    validUntil = made.validUntil
     pending.save({ ...held, validUntil })
+    // The old session is no longer kept anywhere, so failing to close it leaves nothing to undo and the link stands.
+    if (replaced !== null) await script.closeSession(replaced).catch(() => undefined)
   }
   const book = openBook(store)
   const until = validUntil

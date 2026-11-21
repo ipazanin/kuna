@@ -28,9 +28,17 @@ export function guardedModel(model: ModelPort, secrets: () => readonly string[])
   }
 }
 
+/**
+ * The parts of a secret the request is searched for: each of its lines, so a key kept over several lines, such as a bank's
+ * private key, is found by any one of them, and its breaks, which the request's JSON writes as `\n`, do not hide it.
+ */
+function partsOf(secrets: readonly string[]): readonly string[] {
+  return secrets.flatMap((secret) => secret.split(/\r?\n/).map((line) => line.trim())).filter((part) => part.length >= SHORTEST_SECRET)
+}
+
 function holdsSecret(modelName: string, request: ModelRequest, secrets: readonly string[]): boolean {
   const whole = JSON.stringify([modelName, request.system, request.turns, request.tools])
-  return secrets.some((secret) => secret.length >= SHORTEST_SECRET && whole.includes(secret)) || readableText(modelName, request).some((text) => KEY_SHAPE.test(text))
+  return partsOf(secrets).some((part) => whole.includes(part)) || readableText(modelName, request).some((text) => KEY_SHAPE.test(text))
 }
 
 /**

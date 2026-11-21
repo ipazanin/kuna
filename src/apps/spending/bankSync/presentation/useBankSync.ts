@@ -6,15 +6,16 @@ import type { BankSetup, BankSyncOutcome } from '../application/bankSync'
 import { withOlderHistory } from '../domain/bankAccountSetup'
 import { ENABLE_BANKING_NAMES } from '../domain/bankAnswer'
 import { hasLiveLink } from '../domain/bankLinks'
-import { loadLastFetch, loadPendingLink, saveLastFetch, savePendingLink } from '../infrastructure/bankBrowserState'
+import { bankRedirectUrl, loadLastFetch, loadPendingLink, saveLastFetch, savePendingLink } from '../infrastructure/bankBrowserState'
 import { bankProblemLines } from './bankStepResult'
-import { BANK_SYNC_SCOPE, bankSyncPort } from './bankSyncPort'
+import { BANK_SYNC_SCOPE, BANK_USAGE, bankSyncPort } from './bankSyncPort'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { today } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import { ruleLinks } from '../../links/presentation/ruleLinks'
+import { PAGE_SECRET_STORE } from '../../../../shared/secrets/presentation/pageSecrets'
 
 const store = useSpendingBooks()
 const lastOutcome = shallowRef<BankSyncOutcome | null>(null)
@@ -69,8 +70,8 @@ export function useBankSync() {
     try {
       await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
         const state = crypto.randomUUID()
-        const port = await bankSyncPort(book.settings.bankSyncDeployment)
-        const url = await port.startLink(ENABLE_BANKING_NAMES[bank], `${window.location.origin}${import.meta.env.BASE_URL}`, state)
+        const port = await bankSyncPort(book.settings.bankSyncApplication)
+        const url = await port.startLink(ENABLE_BANKING_NAMES[bank], bankRedirectUrl(), state)
         savePendingLink({ bank, state, code: null, validUntil: null })
         window.location.assign(url)
       })
@@ -89,7 +90,13 @@ export function useBankSync() {
     busy.value = true
     try {
       return await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
-        await finishBankLink({ script: await bankSyncPort(book.settings.bankSyncDeployment), pending: { load: loadPendingLink, save: savePendingLink }, store })
+        await finishBankLink({
+          script: await bankSyncPort(book.settings.bankSyncApplication),
+          pending: { load: loadPendingLink, save: savePendingLink },
+          store,
+          secrets: PAGE_SECRET_STORE,
+          usage: BANK_USAGE,
+        })
         return await fetchAndImport(true, pending.bank)
       })
     } catch (reason) {

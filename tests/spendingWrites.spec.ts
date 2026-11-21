@@ -552,19 +552,19 @@ describe('Spending account writes', () => {
     )
   })
 
-  it('offers a bank link once a bank sync deployment is saved, or to an account linked already, and never to cash', () => {
-    const [none, saved] = [{ bankSyncDeployment: '' }, { bankSyncDeployment: 'AKfy-deployment' }]
+  it('offers a bank link once the bank sync is set up, or to an account linked already, and never to cash', () => {
+    const [none, saved] = [{ bankSyncApplication: '' }, { bankSyncApplication: 'made-up-application' }]
     expect([bankLinkOffered('bank', null, none), bankLinkOffered('bank', null, saved), bankLinkOffered('cash', null, saved)]).toEqual([false, true, false])
     expect(bankLinkOffered('savings', { rowsFrom: 'bank-link' }, none)).toBe(true)
     expect(bankLinkOffered('bank', { rowsFrom: 'by-hand' }, none)).toBe(false)
   })
 
   it('refuses a bank link that is not offered or has no IBAN, and never refuses by hand', () => {
-    const saved = { bankSyncDeployment: 'AKfy-deployment' }
-    expect(rowsFromRefusal({ ...OTP, rowsFrom: 'bank-link' }, null, { bankSyncDeployment: '' })).toBe('bank-link-not-offered')
+    const saved = { bankSyncApplication: 'made-up-application' }
+    expect(rowsFromRefusal({ ...OTP, rowsFrom: 'bank-link' }, null, { bankSyncApplication: '' })).toBe('bank-link-not-offered')
     expect(rowsFromRefusal({ ...OTP, iban: ' ', rowsFrom: 'bank-link' }, null, saved)).toBe('bank-link-without-iban')
     expect(rowsFromRefusal({ ...OTP, rowsFrom: 'bank-link' }, null, saved)).toBeNull()
-    expect(rowsFromRefusal({ ...OTP, kind: 'cash', iban: '', rowsFrom: 'by-hand' }, null, { bankSyncDeployment: '' })).toBeNull()
+    expect(rowsFromRefusal({ ...OTP, kind: 'cash', iban: '', rowsFrom: 'by-hand' }, null, { bankSyncApplication: '' })).toBeNull()
   })
 
   it('refuses a new currency on an account its entries name, and allows it on one without entries', async () => {

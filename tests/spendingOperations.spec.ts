@@ -22,7 +22,7 @@ import { forgetCaches } from './fixtures/writeBack'
 import { addEntries, filedRows } from './fixtures/spending'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
-import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
 import { CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -267,13 +267,13 @@ describe('an entry’s day and account', () => {
 describe('where an account takes its rows from', () => {
   const added = (name: string, kind: string, iban: string | null, rowsFrom: string) =>
     stepOf(SPENDING_OPERATIONS, 'add-account', { name, kind, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban, rowsFrom })
-  const saveDeployment = (desk: SpendingDesk) => desk.store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], BANK_SYNC_DEPLOYMENT_KEY, 'AKfy-deployment'))
+  const setUpBankSync = (desk: SpendingDesk) => desk.store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], BANK_SYNC_APPLICATION_KEY, 'made-up-application'))
   const rowsFromOf = (desk: SpendingDesk, name: string) => bookOf(desk).accounts.find((account) => account.name === name)?.rowsFrom
 
-  it('refuses a bank link until a bank sync deployment is saved, then takes one with an IBAN', async () => {
+  it('refuses a bank link until the bank sync is set up, then takes one with an IBAN', async () => {
     const desk = await spendingDesk(used)
-    expect((await desk.propose([added('Card', 'bank', 'HR1723600001101234565', 'bank-link')])).text).toContain('once the person saves a bank sync deployment')
-    await saveDeployment(desk)
+    expect((await desk.propose([added('Card', 'bank', 'HR1723600001101234565', 'bank-link')])).text).toContain('once the person brings an Enable Banking key')
+    await setUpBankSync(desk)
     expect((await desk.propose([added('Card', 'bank', null, 'bank-link')])).text).toContain("needs the account's IBAN")
     expect((await desk.propose([added('Jar', 'cash', null, 'bank-link')])).isError).toBe(true)
     await desk.propose([added('Card', 'bank', 'HR1723600001101234565', 'bank-link'), added('Typed card', 'bank', 'HR1723600001101234566', 'by-hand')])
@@ -281,7 +281,7 @@ describe('where an account takes its rows from', () => {
     expect(['Card', 'Typed card'].map((name) => rowsFromOf(desk, name))).toEqual(['bank-link', 'by-hand'])
   })
 
-  it('tells the chat whether a bank link is offered, and never the deployment', async () => {
+  it('tells the chat whether a bank link is offered, and never the application', async () => {
     const desk = await spendingDesk(used)
     const offered = () => {
       const reader = spendingReader({
@@ -299,14 +299,14 @@ describe('where an account takes its rows from', () => {
         .fields.find((field) => field.name === 'bankLinkOffered')
     }
     expect(offered()).toMatchObject({ value: false })
-    await saveDeployment(desk)
+    await setUpBankSync(desk)
     expect(offered()).toMatchObject({ value: true })
-    expect(JSON.stringify(offered())).not.toContain('AKfy-deployment')
+    expect(JSON.stringify(offered())).not.toContain('made-up-application')
   })
 
   it("keeps the date and amount of the bank's row on an account the bank fills, and files it all the same", async () => {
     const desk = await spendingDesk(used)
-    await saveDeployment(desk)
+    await setUpBankSync(desk)
     const current = bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
     const synced = {
       ...rowOf(desk, EXAMPLE_RECORDS['transaction']!)!,
@@ -331,12 +331,12 @@ describe('where an account takes its rows from', () => {
     expect(rowOf(desk, synced.id)).toMatchObject({ note: 'Checked', amount: synced.amount, date: synced.date })
   })
 
-  it('switches an account typed by hand to a bank link only while a deployment is saved, and back to by hand', async () => {
+  it('switches an account typed by hand to a bank link only while the bank sync is set up, and back to by hand', async () => {
     const desk = await spendingDesk(used)
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
     const change = (rowsFrom: string) => stepOf(SPENDING_OPERATIONS, 'change-account', { account: current, rowsFrom })
     expect((await desk.propose([change('bank-link')])).isError).toBe(true)
-    await saveDeployment(desk)
+    await setUpBankSync(desk)
     await desk.propose([change('bank-link')])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowsFromOf(desk, 'Current')).toBe('bank-link')

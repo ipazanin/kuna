@@ -213,6 +213,15 @@ describe.each([
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'rules')).toEqual([])
   })
 
+  it('offers no Undo for a write that went with a change outside the file, and refuses one asked for', async () => {
+    const { store } = await harnessOf(used)
+
+    const receipt = await store.write('Settings saved', (unit) => setSettings(unit, store.state.records!.settings, [{ key: 'review_label', value: 'anna' }]), { undoable: false })
+
+    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
+    await expect(undo(store, receipt)).rejects.toThrow(WorkbookWriteRefused)
+  })
+
   it('undoes an added rule, a changed one and a deleted one, each back to what the tab held', async () => {
     const { store } = await harnessOf(used)
     const read = ruleFields(store, 'merchant-model')

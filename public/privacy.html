@@ -187,11 +187,11 @@
               sends mail, although Google's wording for this permission includes sending.
             </li>
             <li>
-              <code>script.external_request</code>, which lets a script of yours reach other sites. Asked only while you saved the deployment of a bank sync script in Spending's settings. The app
-              calls that script, which runs in your own Google account, through <code>script.googleapis.com</code>. The script holds your Enable Banking key and calls
-              <code>api.enablebanking.com</code>, which brings the booked rows of the banks you linked into your Spending file and reads each account's balance to check them against. On a fetch you
-              start, the app also passes your browser's user agent, which tells the bank you are there. The script stores only one session id per bank and no bank data. Nothing leaves your browser for
-              this while no script is saved.
+              <code>script.external_request</code>, which lets Kuna's bank sync script reach other sites. Asked only once you bring the key of your own Enable Banking application in Spending's
+              settings. The app signs each call with your key in this browser and sends it, with the session of the bank it reads, to Kuna's script through <code>script.googleapis.com</code>. The
+              script passes the call on to <code>api.enablebanking.com</code>, which brings the booked rows of the banks you linked into your Spending file and reads each account's balance to check
+              them against. On a fetch you start, the app also passes your browser's user agent, which tells the bank you are there. The script keeps nothing: no key, no session and no bank data.
+              Nothing leaves your browser for this while no key is brought.
             </li>
             <li>
               <code>openid</code> and <code>email</code>, "Associate you with your personal info on Google" and "See your primary Google Account email address". Always asked. They tell the app which
@@ -227,7 +227,8 @@
             vendors again. The file holds no key.
           </p>
           <p>
-            With a file of yours on Drive, each sync writes your keys, for the price vendors and for the assistant, and when you last saved or removed each one, into
+            With a file of yours on Drive, each sync writes your keys, for the price vendors, for the assistant and for your Enable Banking application with each bank's session, and when you last
+            saved or removed each one, into
             <code>kuna-secrets.json</code> in Kuna's hidden app folder in your Drive. A key you remove in one browser is removed from the others on their next sync. Drive may keep earlier versions of
             that file, which only Kuna can read, for about 30 days, as it does for other files.
           </p>
@@ -257,9 +258,10 @@
             third-party scripts beyond Google's sign-in and file picker.
           </p>
           <p>
-            For Spending's bank sync, once you saved a script of yours and linked a bank, the booked rows of your linked accounts, with their amounts, dates, descriptions, and the names and IBANs of
-            who paid or was paid, come from your bank through Enable Banking (<code>api.enablebanking.com</code>) to that script in your own Google account, and from there to this page, which saves
-            them in your Spending file. Neither Kuna nor the script keeps a copy elsewhere. Enable Banking's own terms cover what it does, and you approve it at your bank for each bank you link.
+            For Spending's bank sync, once you brought your Enable Banking key and linked a bank, the booked rows of your linked accounts, with their amounts, dates, descriptions, and the names and
+            IBANs of who paid or was paid, come from your bank through Enable Banking (<code>api.enablebanking.com</code>) and Kuna's bank sync script to this page, which saves them in your Spending
+            file. Neither Kuna nor the script keeps a copy elsewhere. Your Enable Banking key and each bank's session stay in this browser and in <code>kuna-secrets.json</code> in your own Google
+            account, so every device that syncs holds them. Enable Banking's own terms cover what it does, and you approve it at your bank for each bank you link.
           </p>
           <p>
             For Investments, the page also asks the price vendors named in the Investments Settings for daily closes and exchange rates: Twelve Data, Alpha Vantage and the European Central Bank. It
@@ -391,8 +393,9 @@
             browser's settings.
           </p>
           <p>
-            Removing Kuna does not end a bank link. To end one, withdraw the consent at your bank or in Enable Banking's Control Panel, and delete the session rows and the key from the script's Script
-            Properties, or delete the script.
+            Removing Kuna does not end a bank link. Remove bank sync, on Spending's Bank sync settings, closes each session and deletes your Enable Banking key and sessions from this browser and from
+            your Google account. Delete my keys from my Google account, in Kuna settings, deletes them there too. A link also ends when you withdraw the consent at your bank or in Enable Banking's
+            Control Panel.
           </p>
         </section>
         <section>

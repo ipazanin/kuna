@@ -34,7 +34,7 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
 const ROWS_FROM_OPTIONS = ROWS_FROM.map((rowsFrom) => ({ value: rowsFrom, label: accountWords.rowsFrom[rowsFrom] }))
-const settings = computed(() => store.state.workbook?.settings ?? { bankSyncDeployment: '' })
+const settings = computed(() => store.state.workbook?.settings ?? { bankSyncApplication: '' })
 
 /** The start day typed for each draft, by its kind and currency. One not typed starts on the earliest day its rows allow. */
 const typedStarts = ref<Readonly<Record<string, string>>>({})

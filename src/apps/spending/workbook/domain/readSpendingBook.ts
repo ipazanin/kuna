@@ -38,7 +38,7 @@ import type { Shortcut, ShortcutPart } from './shortcut'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
   BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
-  BANK_SYNC_DEPLOYMENT_KEY,
+  BANK_SYNC_APPLICATION_KEY,
   INSTALMENTS_PUT_OFF_KEY,
   COMPANY_ROLES_PUT_OFF_KEY,
   COMPANY_PAYMENTS_PUT_OFF_KEY,
@@ -81,7 +81,7 @@ function bankAccountLinesCheck(key: string): SettingValueCheck {
 
 /** Each key Spending knows, a bank's link ending only on a day, and a bank's last fetch only at a UTC time. */
 export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingValueCheck>([
-  [BANK_SYNC_DEPLOYMENT_KEY, ANY_VALUE],
+  [BANK_SYNC_APPLICATION_KEY, ANY_VALUE],
   [PERSON_PAYEES_KEY, ANY_VALUE],
   [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
   [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY)],
@@ -92,8 +92,8 @@ export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingVal
   ...LINKABLE_BANKS.map(bankFetchedKey).map((key) => [key, (value: string) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])] as const),
 ])
 
-/** Keys Spending no longer reads that older files may still hold. Company's OIB is read from Company now. */
-export const SPENDING_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['company_oib'])
+/** Keys Spending no longer reads that older files may still hold. Company's OIB is read from Company now, and the bank sync script is built in. */
+export const SPENDING_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['company_oib', 'bank_sync_deployment'])
 
 /** What the Spending file holds of each kind. */
 export interface SpendingRecords {
