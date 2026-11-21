@@ -457,11 +457,14 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
  * waiting for a category, and three months back's filed by hand. Neither is linked yet, so To review offers both. Two months
  * back an early repayment to the loan's IBAN, which its rule filed whole above the instalment another row pays, so To review
  * offers to record it as an extra payment.
- * On the latest due date one debit to the loan's IBAN pays the instalment and an extra payment, which To review offers to record and split.
+ * On the latest due date up to two days back, where the file's transfer to Revolut ends OTP's file days, one debit to the loan's IBAN
+ * pays the instalment and an extra payment, which To review offers to record and split. A later day would leave the bank sync's
+ * newer OTP rows to the file.
  */
 function homeLoanRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
   const [lastMonth, threeBack] = [addMonths(monthOf(day), -1), addMonths(monthOf(day), -3)]
   const twoBack = addMonths(monthOf(day), -2)
+  const withExtra = latestFakeHomeLoanDue(addDays(day, -2))
   return [
     statementRow(1730, OTP, dayIn(lastMonth, 23, day), -fakeHomeLoanShare(lastMonth), 'Example Bank', { description: 'Example Bank instalment' }),
     statementRow(1731, OTP, dayIn(threeBack, 20, day), -fakeHomeLoanShare(threeBack), 'Example Bank', {
@@ -475,7 +478,7 @@ function homeLoanRows(day: CivilDate, idOf: (path: string) => RecordId): readonl
       category: idOf('Money and fees/Loan interest'),
       categorisedBy: 'rule',
     }),
-    statementRow(1733, OTP, latestFakeHomeLoanDue(day), -(fakeHomeLoanShare(monthOf(latestFakeHomeLoanDue(day))) + 3000), 'Example Bank', {
+    statementRow(1733, OTP, withExtra, -(fakeHomeLoanShare(monthOf(withExtra)) + 3000), 'Example Bank', {
       description: 'Example Bank instalment and early repayment',
       counterpartyIban: FAKE_HOME_LOAN_IBAN,
       category: idOf('Money and fees/Loan interest'),

@@ -7,6 +7,7 @@ import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolu
 import { en as statementWords } from '../src/apps/spending/statements/domain/words'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
+import { sourceDaysOf } from '../src/apps/spending/statements/domain/sourceDays'
 import {
   SAMPLE_MISSING_FILE_NAME,
   SAMPLE_REVOLUT_FILE_NAME,
@@ -22,7 +23,7 @@ import type { WorkbookDocument } from '../src/shared/storage/infrastructure/docu
 import { monthOf } from '../src/shared/calendar/monthKey'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { civil, euros, month } from './fixtures/ledger'
-import { today } from '../src/shared/calendar/civilDate'
+import { addDays, today } from '../src/shared/calendar/civilDate'
 import { SAMPLE_DAY } from '../scripts/support/importSampleFiles.mjs'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 
@@ -41,6 +42,13 @@ const SETS: readonly FakeSpendingSet[] = ['sample', 'foreign', 'over', 'statemen
 describe("the fake build's Spending sets", () => {
   it.each(SETS.flatMap((set) => ['2026-11-04', '2026-12-01', '2027-03-31', '2027-06-01'].map((day) => [set, day] as const)))('read the %s set on %s with no problems', (set, day) => {
     expect(bookOf(fakeSpendingDocument(SAVED_AT, set, civil(day))).problems).toEqual([])
+  })
+
+  it.each(['2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22', '2026-11-23'])("end the statements set's OTP file days two days before %s, so the fake bank sync brings OTP's newer rows", (day) => {
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day), 'unlisted-pending'))
+    const otp = book.accounts.find((account) => account.name === 'OTP current')!
+
+    expect(sourceDaysOf(book.transactions).get(otp.id)?.lastFileDay).toEqual(addDays(civil(day), -2))
   })
 
   it("leave the sample's four accounts on the day with the worked example's balances, whatever the day", () => {

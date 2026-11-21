@@ -35,8 +35,8 @@ const notes = (): readonly string[] => [
       <thead>
         <tr>
           <th scope="col" class="text-start">{{ words.money.year }}</th>
-          <th scope="col" class="hidden text-end @sm:table-cell">{{ words.money.earned }}</th>
-          <th scope="col" class="hidden text-end @sm:table-cell">{{ words.money.cost }}</th>
+          <th scope="col" class="hidden text-end @md:table-cell">{{ words.money.earned }}</th>
+          <th scope="col" class="hidden text-end @md:table-cell">{{ words.money.cost }}</th>
           <th scope="col" class="text-end">{{ words.money.net }}</th>
           <th scope="col" class="text-end">{{ words.money.share }}</th>
         </tr>
@@ -44,8 +44,8 @@ const notes = (): readonly string[] => [
       <tbody>
         <tr v-for="line in lines()" :key="line.key" data-testid="asset-money-year">
           <th scope="row" class="text-start font-normal">{{ line.label }}</th>
-          <td class="hidden text-end @sm:table-cell"><MoneyText :cents="line.year.earned" /></td>
-          <td class="hidden text-end @sm:table-cell"><MoneyText :cents="line.year.cost" sign="magnitude" /></td>
+          <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.year.earned" /></td>
+          <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.year.cost" sign="magnitude" /></td>
           <td class="text-end"><MoneyText :cents="line.year.net" tone="outcome" /></td>
           <td class="figure text-end">
             <span v-if="line.year.share !== null" :class="moneyToneClass(percentAsShown(line.year.share), 'outcome')">{{ formatPercent(line.year.share, 'always') }}</span>

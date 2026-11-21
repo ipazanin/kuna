@@ -195,9 +195,10 @@ describe('the fake books', () => {
   })
 
   it.each([
-    ['2026-11-20', '2026-11-20'],
+    ['2026-11-22', '2026-11-20'],
+    ['2026-11-21', '2026-10-20'],
     ['2026-11-04', '2026-10-20'],
-  ])("offer the statements set's debit on the latest due date on %s as paying the home loan's instalment of %s and an extra payment of 3,000.00", (date, due) => {
+  ])("offer the statements set's debit on the latest due date up to two days before %s as paying the home loan's instalment of %s and an extra payment of 3,000.00", (date, due) => {
     const day = civil(date)
     const meta = { id: 'extra', source: 'browser' as const, title: 'extra', syncedAt: '2026-11-20T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
     const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'statements', day) }).workbook
