@@ -2,7 +2,7 @@
 
 Five apps over files of their own, computed in the browser: Company's finance dashboards over a
 workbook of bank transactions, Loans, Investments, Assets and Spending. Company's workbook is one JSON document,
-`kuna-company.json`, in a Google Drive folder the user picks, or the same document kept in this browser. There is no backend. It deploys to GitHub Pages at
+`kuna-company.json`, in the `company` folder of the person's Kuna folder on Google Drive, or the same document kept in this browser. Each app keeps its file in a folder of its own there. There is no backend. It deploys to GitHub Pages at
 `https://ipazanin.github.io/kuna/`, with a privacy page at `privacy.html` and a terms page at `terms.html`.
 
 With the file on Drive, the app asks Google for `drive.file`, which covers files the user picks in
@@ -3315,9 +3315,9 @@ two devices saving at the same moment.
 
 ### The file on Drive
 
-The document is one file, `kuna-company.json`, in a Drive folder the person picks, made with
+The document is one file, `kuna-company.json`, in the `company` folder of the person's Kuna folder, made with
 `drive.file` and marked with the `appProperties` `kuna=company`, so a second device finds it
-by search. Drive refuses no stale upload, so the home in `driveDocument.ts` checks the revision
+by search. A file made before the Kuna folder moves there from Settings, Books file, with the daily backups the app made. Drive lets the app take a file it made out of a folder it was never given, and it leaves any file the app did not make. Drive refuses no stale upload, so the home in `driveDocument.ts` checks the revision
 itself. One home serves a file for as long as the page holds it, with a token getter rather than a
 token, so it remembers the day's backup. A save:
 

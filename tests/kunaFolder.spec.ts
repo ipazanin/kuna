@@ -127,7 +127,7 @@ describe('moving a file into the Kuna folder', () => {
     expect(drive.requests).not.toContain('move')
   })
 
-  it('tries the file first, so a refusal moves nothing and says what Google did not document', async () => {
+  it('tries the file first, so a refusal moves nothing and says what Google answered', async () => {
     const { drive, fileId, folder, photo, receipts, backup, backups } = await spendingFolder()
     const before = await drive.headRevision(fileId)
     const refusing: FakeDrive = {
@@ -141,7 +141,7 @@ describe('moving a file into the Kuna folder', () => {
     const failure = await moveDriveDocument(refusing, fileId, 'spending', BESIDE, null).catch((refused: unknown) => refused)
 
     expect(failure).toBeInstanceOf(DriveMoveRefused)
-    expect((failure as Error).message).toContain("Google's docs do not say")
+    expect((failure as Error).message).toContain('nothing moved')
     expect((failure as Error).message).toContain('403')
     expect(drive.file(fileId).parents).toEqual([folder])
     expect(drive.file(photo).parents).toEqual([receipts])
