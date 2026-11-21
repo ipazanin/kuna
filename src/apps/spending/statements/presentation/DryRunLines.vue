@@ -60,13 +60,7 @@ const shown = computed(() => {
         pays === null
           ? null
           : { text: targetLineOf(pays.target, { amount: line.row.amount, currency, bought: filedAsBought(pays.parts, categories.value) }), parts: isSplit(pays.parts) ? pays.parts : [] },
-      skipped:
-        line.outcome === 'already-in' ||
-        line.outcome === 'other-source' ||
-        line.outcome === 'outside-days' ||
-        line.outcome === 'before-opening' ||
-        line.outcome === 'not-taken' ||
-        line.outcome === 'look-alike',
+      skipped: line.outcome === 'already-in' || line.outcome === 'outside-days' || line.outcome === 'before-opening' || line.outcome === 'not-taken' || line.outcome === 'look-alike',
       tone,
     }
   })
@@ -79,8 +73,6 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
   switch (line.outcome) {
     case 'already-in':
       return { label: words.import.outcome.alreadyIn, color: 'neutral' }
-    case 'other-source':
-      return { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.coveredByFile : words.import.outcome.coveredBySync, color: 'neutral' }
     case 'look-alike':
       if (line.row.pending) return { label: words.import.outcome.waitsToBook, color: 'neutral' }
       return { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.lookAlikeSynced : words.import.outcome.lookAlike, color: 'info' }

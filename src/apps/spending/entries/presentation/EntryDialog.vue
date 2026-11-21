@@ -158,10 +158,10 @@ const adding = ref<AddInApp | null>(null)
 const addingWords = computed(() => (adding.value === null ? null : addInAppWords(adding.value)))
 const addingSaving = ref(false)
 
-/** The open accounts kept by hand, and the ones the entry is already on, closed or filled by the bank. */
+/** The open accounts that take typed rows on the entry's day, and the ones the entry is already on, closed or filled by the bank or its file. */
 const choosable = computed(() => {
   const own = new Set([props.entry?.account, ...(legs.value ?? []).map((leg) => leg.account)])
-  return accounts.value.filter((candidate) => takesNewRowsByHand(candidate) || own.has(candidate.id))
+  return accounts.value.filter((candidate) => takesNewRowsByHand(candidate, day.value ?? today()) || own.has(candidate.id))
 })
 const accountItems = computed(() => choosable.value.map((candidate) => ({ label: candidate.name, value: candidate.id as string, description: candidate.currency })))
 
@@ -191,7 +191,7 @@ watch(open, (opened) => {
   if (!opened) return
   const entry = props.entry
   const pair = legs.value
-  const first = startingAccount(accounts.value)
+  const first = startingAccount(accounts.value, props.entry?.date ?? today())
   kind.value = pair !== null ? 'transfer' : entry === null || entry.amount < 0 ? 'out' : 'in'
   account.value = (pair?.[0] ?? entry)?.account ?? first?.id ?? ''
   toAccount.value = pair?.[1].account ?? choosable.value.find((candidate) => candidate.id !== account.value)?.id ?? ''
@@ -239,7 +239,7 @@ function bookedByBank(row: Transaction | null): boolean {
 }
 const fromBooked = computed(() => bookedByBank(rowOnFrom.value))
 const toBooked = computed(() => bookedByBank(rowOnTo.value))
-const { twoCurrencies, feeOn, draft, fee, arrivedError } = useTransferTyping({ kind, from, to, rowOnFrom, rowOnTo, sent: amount, arrived: toAmount, lessArrived })
+const { twoCurrencies, feeOn, draft, fee, arrivedError } = useTransferTyping({ kind, from, to, rowOnFrom, rowOnTo, sent: amount, arrived: toAmount, lessArrived, day })
 
 const bankNote = computed(() => (rowOnFrom.value?.pending === true || rowOnTo.value?.pending === true ? words.dialog.pending : fromBooked.value || toBooked.value ? words.dialog.bookedByBank : null))
 /** Where the entry came from, said once under its kind: what the bank fixed on it or that it has not booked it yet, and that a statement brings it back once deleted. */

@@ -31,7 +31,8 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized, spendingBook, wholeItems, wholeReceiptLines } from './fixtures/spending'
+import type { Account } from '../src/apps/spending/workbook/domain/account'
+import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized, spendingBook, wholeItems, wholeReceiptLines, ACCOUNTS_FROM_FILES } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -46,8 +47,8 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]) {
 }
 
 /** The fixture's accounts as they are, so OTP current is one the bank fills. */
-async function spendingStore(): Promise<WorkbookStore<SpendingBooks>> {
-  const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, ACCOUNTS), ...stored(CATEGORY_RECORDS, CATEGORIES) })
+async function spendingStore(accounts: readonly Account[] = ACCOUNTS): Promise<WorkbookStore<SpendingBooks>> {
+  const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, accounts), ...stored(CATEGORY_RECORDS, CATEGORIES) })
   const { store } = await browserHarness(used, document, SPENDING)
   return store
 }
@@ -148,8 +149,8 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(waitingReceipts(book)).toEqual([])
   })
 
-  it('goes on the row a file brings the same way', async () => {
-    const store = await spendingStore()
+  it("goes on the row a file brings the same way, on an account the bank's statement files fill", async () => {
+    const store = await spendingStore(ACCOUNTS_FROM_FILES)
     await waiting(store)
     await store.write('Imported', (unit) =>
       writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, fromFile(bankRow('file-1', '2026-11-05', -23.49, 'Corner market d.o.o.')), DAY)),

@@ -1,5 +1,5 @@
 import { isBankSyncKey, isTranscribedKey } from '../../statements/domain/statementRows'
-import { takesRowFrom } from '../../../../shared/app/accountSource'
+import { takesRowOn } from '../../../../shared/app/accountSource'
 import type { RowOrigin } from '../../../../shared/app/accountSource'
 import { takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
@@ -20,15 +20,15 @@ export function originOf(row: Pick<Transaction, 'importKey'>): RowOrigin {
 }
 
 /**
- * Whether a new row may not go on the account: one the bank link fills takes the sync's rows, the bank's statement file only
- * when the account allows it, and never a row a person typed, a receipt made or the chat copied. A receipt there waits for the
- * bank's row instead.
+ * Whether a new row may not go on the account: a row is taken only when it comes from the source of the period its day falls
+ * in. A day the bank link or the statement file fills takes no row a person typed, a receipt made or the chat copied, and a
+ * receipt there waits for the bank's row instead.
  */
-export function refusedOnAccount(row: Pick<Transaction, 'importKey'>, account: Pick<Account, 'rowsFrom' | 'alsoFrom'>): boolean {
-  return !takesRowFrom(account.rowsFrom, account.alsoFrom, originOf(row))
+export function refusedOnAccount(row: Pick<Transaction, 'importKey' | 'date'>, account: Pick<Account, 'sources'>): boolean {
+  return !takesRowOn(account.sources, row.date, originOf(row))
 }
 
-/** Whether the bank fixed the row's amount and day: a row it brought onto an account it fills, whose balance it checks against them. */
-export function fixedByBank(row: Pick<Transaction, 'importKey'>, account: Pick<Account, 'rowsFrom'>): boolean {
-  return !takesRowsByHand(account) && !madeByHand(row)
+/** Whether the bank fixed the row's amount and day: a row it brought on a day the bank or its file fills, whose balance it checks against them. */
+export function fixedByBank(row: Pick<Transaction, 'importKey' | 'date'>, account: Pick<Account, 'sources'>): boolean {
+  return !takesRowsByHand(account, row.date) && !madeByHand(row)
 }

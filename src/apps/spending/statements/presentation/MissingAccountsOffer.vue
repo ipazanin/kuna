@@ -11,12 +11,11 @@ import { openingOn, startDays, startsWithin } from '../../accounts/domain/bankOp
 import { words as accountWords } from '../../accounts/presentation/words'
 import type { DraftedAccount } from '../domain/statementRows'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { ROWS_FROM, bankLinkOffered, rowsFromRefusal } from '../../workbook/domain/account'
-import type { Account, RowsFrom } from '../../workbook/domain/account'
+import { bankLinkOffered, sourcesRefusal } from '../../workbook/domain/account'
+import type { Account, SpendingSource } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
-import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
+import { addDays, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { ExtraOrigin } from '../../../../shared/app/accountSource'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -33,13 +32,14 @@ const props = defineProps<{ title: string; missing: readonly DraftedAccount[] }>
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
-const ROWS_FROM_OPTIONS = ROWS_FROM.map((rowsFrom) => ({ value: rowsFrom, label: accountWords.rowsFrom[rowsFrom] }))
+/** A draft takes the file it is made from, and the bank link may take over after it. */
+const ROWS_FROM_OPTIONS = (['provider-file', 'bank-link'] as const).map((source) => ({ value: source, label: accountWords.rowsFrom[source] }))
 const settings = computed(() => store.state.workbook?.settings ?? { bankSyncApplication: '' })
 
 /** The start day typed for each draft, by its kind and currency. One not typed starts on the earliest day its rows allow. */
 const typedStarts = ref<Readonly<Record<string, string>>>({})
 /** How each draft's rows come in, and the IBAN typed for one linked to a bank, by its kind and currency. One not picked comes in as its draft says while a bank link is offered. */
-const pickedRowsFrom = ref<Readonly<Record<string, RowsFrom>>>({})
+const pickedRowsFrom = ref<Readonly<Record<string, SpendingSource>>>({})
 const typedIbans = ref<Readonly<Record<string, string>>>({})
 const tried = ref(false)
 
@@ -59,11 +59,12 @@ function offersBankLink({ account }: DraftedAccount): boolean {
   return bankLinkOffered(account.kind, null, settings.value)
 }
 
-function rowsFromOf(drafted: DraftedAccount): RowsFrom {
-  return offersBankLink(drafted) ? (pickedRowsFrom.value[keyOf(drafted)] ?? drafted.account.rowsFrom) : 'by-hand'
+function rowsFromOf(drafted: DraftedAccount): SpendingSource {
+  const drafts = drafted.account.sources[0]?.source ?? 'provider-file'
+  return offersBankLink(drafted) ? (pickedRowsFrom.value[keyOf(drafted)] ?? drafts) : drafts
 }
 
-function pickRowsFrom(drafted: DraftedAccount, rowsFrom: RowsFrom): void {
+function pickRowsFrom(drafted: DraftedAccount, rowsFrom: SpendingSource): void {
   pickedRowsFrom.value = { ...pickedRowsFrom.value, [keyOf(drafted)]: rowsFrom }
 }
 
@@ -76,14 +77,21 @@ function typeIban(drafted: DraftedAccount, typed: string): void {
 }
 
 /**
- * The draft's IBAN and how its rows come in, or null while it is linked to a bank with no IBAN typed. A linked draft also takes
- * the statement file it is made from, and one kept by hand takes rows from anywhere.
+ * The draft's IBAN and where its rows come from, or null while it is linked to a bank with no IBAN typed. A draft takes the
+ * statement file it is made from, and a linked one the bank link from the day after the file's newest row.
  */
-function sourceOf(drafted: DraftedAccount): Pick<Account, 'iban' | 'rowsFrom' | 'alsoFrom'> | null {
+function sourceOf(drafted: DraftedAccount): Pick<Account, 'iban' | 'sources'> | null {
   const rowsFrom = rowsFromOf(drafted)
   const iban = rowsFrom === 'bank-link' ? typedIban(drafted) : drafted.account.iban
-  const alsoFrom: readonly ExtraOrigin[] = rowsFrom === 'bank-link' ? ['provider-file'] : []
-  return rowsFromRefusal({ kind: drafted.account.kind, iban, rowsFrom }, null, settings.value) === null ? { iban, rowsFrom, alsoFrom } : null
+  const newest = drafted.evidence.rows.map((row) => row.date).reduce<CivilDate | null>((last, date) => (last === null || date > last ? date : last), null)
+  const sources: Account['sources'] =
+    rowsFrom === 'bank-link'
+      ? [
+          { source: 'provider-file', from: null },
+          { source: 'bank-link', from: addDays(newest ?? today(), 1) },
+        ]
+      : drafted.account.sources
+  return sourcesRefusal({ kind: drafted.account.kind, iban, sources }, null, settings.value) === null ? { iban, sources } : null
 }
 
 /** The typed day, or null while it is not one the draft can start on, which runs to today. */
@@ -148,7 +156,7 @@ async function add(): Promise<void> {
           <UFormField
             v-if="offersBankLink(drafted)"
             :label="accountWords.rowsFromChoice.label"
-            :help="rowsFrom === 'bank-link' ? accountWords.rowsFromChoice.bankLinkHelp(accountWords.startDay.label) : accountWords.rowsFromChoice.byHandHelp"
+            :help="rowsFrom === 'bank-link' ? accountWords.rowsFromChoice.fileThenBank : accountWords.rowsFromChoice.statementFileHelp"
             data-testid="spending-import-missing-account-rows-from-field"
           >
             <ChoiceButtons

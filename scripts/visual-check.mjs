@@ -358,6 +358,8 @@ import {
   spendingImportInstalmentFlowIn,
   spendingImportMissingFlowIn,
   spendingImportMissingBankFlowIn,
+  spendingAccountHandoverFlowIn,
+  spendingImportGiveDaysFlowIn,
   spendingImportLookAlikeFlowIn,
   spendingImportSyncedLookAlikeFlowIn,
   spendingImportMissingSavingsFlowIn,
@@ -4177,7 +4179,6 @@ const SOURCE_SCREENS = [
     title: 'OTP current',
     charts: 0,
     shows: ['Balance today', 'Transfer to Revolut'],
-    cards: false,
   },
   {
     name: 'spending-account-transfers-croatian',
@@ -4186,7 +4187,6 @@ const SOURCE_SCREENS = [
     title: 'OTP current',
     charts: 0,
     shows: ['Transfer to Revolut'],
-    cards: false,
   },
   {
     name: 'spending-account-usd',
@@ -4195,7 +4195,6 @@ const SOURCE_SCREENS = [
     title: 'Revolut USD',
     charts: 0,
     shows: ['Balance today', SPENDING.dollars.balance.english, SPENDING.dollars.euros.english, SPENDING.dollars.rateLine],
-    cards: false,
   },
   {
     name: 'spending-account-usd-croatian',
@@ -4204,7 +4203,6 @@ const SOURCE_SCREENS = [
     title: 'Revolut USD',
     charts: 0,
     shows: ['Stanje danas', SPENDING.dollars.balance.croatian, SPENDING.dollars.euros.croatian, 'Po tečaju ESB-a od'],
-    cards: false,
   },
   {
     name: 'spending-accounts-by-hand',
@@ -4231,7 +4229,6 @@ const SOURCE_SCREENS = [
     title: 'Revolut USD',
     charts: 0,
     shows: ['Balance today', 'By hand'],
-    cards: false,
   },
   {
     name: 'spending-account-usd-by-hand-croatian',
@@ -4240,6 +4237,25 @@ const SOURCE_SCREENS = [
     title: 'Revolut USD',
     charts: 0,
     shows: ['Stanje danas', 'Ručno'],
+  },
+  {
+    name: 'spending-account-cash',
+    query: 'spending=sample',
+    hash: '#/spending/account?account=fa4e3000-0000-4000-8000-000000001004',
+    title: 'Cash',
+    charts: 0,
+    shows: ['Balance today', 'By hand'],
+    lacks: ['Where rows come from'],
+    cards: false,
+  },
+  {
+    name: 'spending-account-cash-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending/account?account=fa4e3000-0000-4000-8000-000000001004',
+    title: 'Cash',
+    charts: 0,
+    shows: ['Stanje danas', 'Ručno'],
+    lacks: ['Odakle dolaze retci'],
     cards: false,
   },
   {
@@ -6340,6 +6356,42 @@ const DESIGN_REVIEW_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'deskto
 
 /** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
+  {
+    name: 'spending-account-handover',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountHandoverFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements&banksync=linked' },
+  },
+  {
+    name: 'spending-import-give-days',
+    hash: '#/spending/transactions?tab=import',
+    title: 'Entries',
+    run: spendingImportGiveDaysFlowIn('en', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements&banksync=linked' },
+  },
+  {
+    name: 'spending-account-handover-croatian',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountHandoverFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements&banksync=linked&lang=hr' },
+  },
+  {
+    name: 'spending-import-give-days-croatian',
+    hash: '#/spending/transactions?tab=import',
+    title: 'Unosi',
+    run: spendingImportGiveDaysFlowIn('hr', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements&banksync=linked&lang=hr' },
+  },
   {
     name: 'spending-payees',
     hash: '#/spending/payees',

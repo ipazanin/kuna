@@ -29,6 +29,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import { today } from '../../../../shared/calendar/civilDate'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as uiWords } from '../../../../shared/ui/words'
@@ -69,7 +70,7 @@ const categories = computed(() => book.value?.categories ?? [])
 const labelChoices = computed(() => [...(book.value?.labels ?? []), ...created.value])
 const accountItems = computed(() =>
   (book.value?.accounts ?? [])
-    .filter((candidate) => takesNewRowsByHand(candidate) || candidate.id === props.held?.shortcut.account)
+    .filter((candidate) => takesNewRowsByHand(candidate, today()) || candidate.id === props.held?.shortcut.account)
     .map((candidate) => ({ label: candidate.name, value: candidate.id as string, description: candidate.currency })),
 )
 const currency = computed(() => book.value?.accounts.find((candidate) => candidate.id === account.value)?.currency ?? '')

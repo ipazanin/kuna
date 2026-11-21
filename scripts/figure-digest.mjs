@@ -825,7 +825,7 @@ async function spendingGroups(addGroup, loansBook) {
   })
   add(
     'spending.read.sources',
-    accounts.records.map(({ record }) => record.rowsFrom),
+    workbook.accounts.map((account) => account.sources),
   )
   // A file whose accounts hold no card keeps this digest without the group.
   if (accounts.records.some(({ record }) => record.cards.length > 0))

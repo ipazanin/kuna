@@ -17,6 +17,7 @@ import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { sourceOfDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { today } from '../../../../shared/calendar/civilDate'
 import { roomAtLeast } from '../../../../shared/layout/pageRoom'
@@ -72,9 +73,9 @@ const table = roomAtLeast(42)
 
 const unconverted = computed(() => (state.workbook === null || rates.value === 'loading' ? 0 : unconvertedCount(countedAccounts(state.workbook, day, everydayRates(rates.value)))))
 
-/** The account's kind, bank and currency, and By hand only on a bank or savings account kept by hand, since that is the exception. */
+/** The account's kind, bank and currency, and By hand only on a bank or savings account kept by hand today, since that is the exception. */
 function kindParts(account: Account): readonly string[] {
-  const byHand = account.kind !== 'cash' && account.rowsFrom === 'by-hand' ? words.rowsFrom['by-hand'] : ''
+  const byHand = account.kind !== 'cash' && sourceOfDay(account, day) === 'by-hand' ? words.rowsFrom['by-hand'] : ''
   return [words.kinds[account.kind], account.bank ?? '', account.currency, byHand].filter((part) => part !== '')
 }
 

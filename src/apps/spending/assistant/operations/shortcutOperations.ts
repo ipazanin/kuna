@@ -96,7 +96,8 @@ function heldShortcut(book: SpendingBook, ref: unknown, idOf: (value: unknown) =
 /** The draft refused with the chat's words when an account or a part cannot take it, as the reader would. */
 function checked(book: SpendingBook, draft: ShortcutDraft): ShortcutDraft {
   const account = found(book.accounts, draft.account, 'account')
-  if (!takesNewRowsByHand(account)) throw new StepRefused('A quick add goes on an open account whose rows you type, never one that is closed or one the bank fills.')
+  if (!takesNewRowsByHand(account, today()))
+    throw new StepRefused('A quick add goes on an open account whose rows you type today, never one that is closed or one whose rows of today come from the bank or its statement file.')
   if (draft.parts.length === 0) throw new StepRefused('A quick add needs at least one part.')
   const problem = draft.parts.map((part) => shortcutPartProblem(part, draft.parts, book)).find((found) => found !== null) ?? null
   if (problem !== null) throw new StepRefused(REFUSALS[problem])
@@ -157,7 +158,8 @@ export function writeShortcutStep(
       return null
     default: {
       const held = heldShortcut(book, field['shortcut'], idOf)
-      if (!shortcutsShown(book).some(({ shortcut }) => shortcut.id === held.shortcut.id)) throw new StepRefused('That quick add shows no button, since its account is closed or the bank fills it.')
+      if (!shortcutsShown(book, today()).some(({ shortcut }) => shortcut.id === held.shortcut.id))
+        throw new StepRefused('That quick add shows no button, since its account is closed or its rows of today come from the bank or its statement file.')
       const [only] = held.parts
       if (field['amount'] !== null && (held.parts.length !== 1 || only === undefined)) throw new StepRefused('Only a quick add of one part takes another amount. change-entry fixes the entry after.')
       const amount = field['amount'] === null || only === undefined ? null : absAccountMoney(accountMoneyFromAmount(field['amount']))

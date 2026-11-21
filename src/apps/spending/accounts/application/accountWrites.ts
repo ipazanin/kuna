@@ -1,22 +1,32 @@
 import { words } from './words'
-import { loneLeg } from '../domain/startDayMove'
+import { loneLeg } from '../domain/goingRows'
 import type { StartDayMove } from '../domain/startDayMove'
-import { writeRows } from '../../entries/application/rowRecords'
+import type { SourceHandover } from '../domain/sourceHandover'
+import { heldItemsOf, writeRows } from '../../entries/application/rowRecords'
+import type { WaitingLines } from '../../entries/application/rowRecords'
+import { originOf } from '../../entries/domain/bankRows'
+import { itemsAtBankAmount } from '../../entries/domain/entrySplit'
+import { words as receiptWords } from '../../receipts/domain/words'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { HELD_ROW_WRITES } from '../../statements/application/ruleRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
-import { bankLinkWithoutIban } from '../../workbook/domain/account'
+import { BY_HAND_SOURCES, bankLinkWithoutIban } from '../../workbook/domain/account'
+import { periodsChangeRefusal, periodsSince } from '../../../../shared/app/accountSource'
+import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { Account } from '../../workbook/domain/account'
+import { readSpendingBook, spendingRecordsOf } from '../../workbook/domain/readSpendingBook'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
-import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
+import type { FreshRecords, KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
 
 /**
  * An account keeps the entries that name it, so one with entries is closed rather than deleted, and keeps the currency their
- * amounts are in. A cash account a rule names stays cash, and one the bank fills holds the IBAN the bank sync finds it by.
+ * amounts are in. A cash account a rule names stays cash, and one the bank fills holds the IBAN the bank sync finds it by. A
+ * change of where its rows come from leaves no row on a day whose new source would not take it, so the write that gives days
+ * to another source carries those rows out, and an Undo after the new source brought rows there is refused.
  */
 export const ACCOUNT_WRITES: WriteRules<Account> = {
   kind: ACCOUNT_RECORDS,
@@ -31,11 +41,27 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
         : [],
     )
     const withoutIban = change.edits.flatMap((edit) => (edit.after !== null && 'record' in edit.after && bankLinkWithoutIban(edit.after.record) ? [words.bankLinkWithoutIban(edit.after.label)] : []))
-    return [...currencyChanged, ...withoutIban, ...dependentRefusals(['transactions', 'held', 'rules', 'shortcuts'], fresh, after)]
+    return [...currencyChanged, ...withoutIban, ...handedRowsLeft(change, fresh, after), ...dependentRefusals(['transactions', 'held', 'rules', 'shortcuts'], fresh, after)]
   },
 }
 
-/** An account as the file keeps it: its text trimmed, and cash by hand with no bank, no IBAN and no card. */
+/** Each account whose new periods leave a row on a day its new source would not take, as `periodsChangeRefusal` says. */
+function handedRowsLeft(change: KindChange<Account>, fresh: FreshRecords, after: FreshRecords): readonly string[] {
+  const edits = change.edits.flatMap((edit) => (edit.before !== null && edit.after !== null && 'record' in edit.after ? [edit.after] : []))
+  if (edits.length === 0) return []
+  const before = new Map(readSpendingBook(spendingRecordsOf((kind) => fresh.of(kind))).accounts.map((account) => [account.id, account]))
+  const rows = recordsOf(after.of(TRANSACTION_RECORDS))
+  return edits.flatMap(({ record, label }) => {
+    const was = before.get(record.id)
+    if (was === undefined) return []
+    const dated = rows.filter((row) => row.account === record.id).map((row) => ({ date: row.date, origin: originOf(row) }))
+    const refusal = periodsChangeRefusal(was.sources, record.sources, dated, null)
+    if (refusal?.kind !== 'rows-of-another-source') return []
+    return [change.undoing ? words.undoAfterHandover(label) : words.rowsOfAnotherSource(label, refusal.count)]
+  })
+}
+
+/** An account as the file keeps it: its text trimmed, its periods from its start day, and cash by hand with no bank, no IBAN and no card. */
 export function keptAccount(account: Account): Account {
   const cash = account.kind === 'cash'
   return {
@@ -44,7 +70,7 @@ export function keptAccount(account: Account): Account {
     bank: cash ? null : account.bank,
     iban: cash ? '' : account.iban.trim(),
     cards: cash ? [] : account.cards,
-    rowsFrom: cash ? 'by-hand' : account.rowsFrom,
+    sources: cash ? BY_HAND_SOURCES : periodsSince(account.sources, account.openedOn),
   }
 }
 
@@ -55,12 +81,33 @@ export function newAccount(account: Omit<Account, 'id'>): Account {
 
 /**
  * The account as typed over the one on the file, in one write with one Undo. When its start day moved later, what came before
- * the new day goes in the same write, and each transfer's other leg stays with no pair.
+ * the new day goes in the same write. When it gives days to another source, the rows there that source would not take go too,
+ * and each receipt on them waits again for the new source's row. Each transfer's other leg stays with no pair.
  */
-export function changeAccount(unit: UnitOfWork, records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>, before: Account, after: Account, move: StartDayMove | null): void {
+export function changeAccount(
+  unit: UnitOfWork,
+  records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>,
+  before: Account,
+  after: Account,
+  move: StartDayMove | null,
+  handover: SourceHandover | null = null,
+): void {
   unit.of(ACCOUNT_WRITES).change(before, after)
-  if (move === null) return
-  move.receipts.forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
-  move.held.forEach((held) => unit.of(HELD_ROW_WRITES).remove(held))
-  writeRows(unit, records, [...move.rows.map((row) => ({ before: row, after: null })), ...move.loneLegs.map((leg) => ({ before: leg, after: loneLeg(leg) }))])
+  const going = [move, handover].filter((one): one is StartDayMove | SourceHandover => one !== null)
+  if (going.length === 0) return
+  const rows = [...new Set(going.flatMap((one) => one.rows))]
+  const ids = new Set(rows.map((row) => row.id))
+  const legs = [...new Set(going.flatMap((one) => one.loneLegs))].filter((leg) => !ids.has(leg.id))
+  const waitingAgain = new Set(handover?.receipts ?? [])
+  const itemsOf = heldItemsOf(records)
+  const waiting = [...waitingAgain].flatMap((receipt): WaitingLines[] => {
+    const row = rows.find((one) => one.id === receipt.transaction)
+    if (row === undefined) return []
+    const lines = itemsAtBankAmount(itemsOf(row), negateAccountMoney(accountMoneyOfEuros(receipt.total)), receiptWords.difference)
+    return [{ receipt: receipt.id, lines: lines.map((line) => ({ ...line, transaction: null, receipt: receipt.id })) }]
+  })
+  move?.receipts.filter((receipt) => !waitingAgain.has(receipt)).forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
+  waitingAgain.forEach((receipt) => unit.of(RECEIPT_WRITES).change(receipt, { ...receipt, transaction: null, account: after.id }))
+  new Set(going.flatMap((one) => one.held)).forEach((held) => unit.of(HELD_ROW_WRITES).remove(held))
+  writeRows(unit, records, [...rows.map((row) => ({ before: row, after: null })), ...legs.map((leg) => ({ before: leg, after: loneLeg(leg) }))], waiting)
 }

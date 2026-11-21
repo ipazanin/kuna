@@ -7,7 +7,7 @@ import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolu
 import { en as statementWords } from '../src/apps/spending/statements/domain/words'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
-import { sourceDaysOf } from '../src/apps/spending/statements/domain/sourceDays'
+import { isBankSyncKey } from '../src/apps/spending/statements/domain/statementRows'
 import {
   SAMPLE_MISSING_FILE_NAME,
   SAMPLE_REVOLUT_FILE_NAME,
@@ -48,7 +48,8 @@ describe("the fake build's Spending sets", () => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day), 'unlisted-pending'))
     const otp = book.accounts.find((account) => account.name === 'OTP current')!
 
-    expect(sourceDaysOf(book.transactions).get(otp.id)?.lastFileDay).toEqual(addDays(civil(day), -2))
+    const fileDays = book.transactions.filter((row) => row.account === otp.id && row.importKey !== '' && !isBankSyncKey(row.importKey) && !row.pending).map((row) => row.date)
+    expect(fileDays.sort().at(-1)).toEqual(addDays(civil(day), -2))
   })
 
   it("leave the sample's four accounts on the day with the worked example's balances, whatever the day", () => {
@@ -65,7 +66,8 @@ describe("the fake build's Spending sets", () => {
   })
 
   it('keep every account by hand without the bank sync, take the bank accounts from the bank with it, and keep the dollar account by hand in the by-hand, by-hand-savings and iban-blank variants', () => {
-    const rowsFrom = (bankSync: string | null) => bookOf(fakeSpendingDocument(SAVED_AT, 'cash', civil('2026-11-04'), bankSync)).accounts.map((account) => [account.name, account.rowsFrom])
+    const rowsFrom = (bankSync: string | null) =>
+      bookOf(fakeSpendingDocument(SAVED_AT, 'cash', civil('2026-11-04'), bankSync)).accounts.map((account) => [account.name, account.sources.at(-1)?.source])
     expect(new Set(rowsFrom(null).map(([, from]) => from))).toEqual(new Set(['by-hand']))
     expect(rowsFrom('saved')).toEqual([
       ['OTP current', 'bank-link'],

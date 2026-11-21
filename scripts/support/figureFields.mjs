@@ -1,7 +1,7 @@
 /**
  * The fields of a record that hold no figure, as its parsed record names them and as its stored cells do. A Spending row's are
  * the bank's words and marks, which spending.read.statements hashes, who filed the row, and its link, which spending.published.links
- * hashes, and so is the link of a Spending row's item, whose labels spending.labels hashes, which of them a rule put on, and whose event spending.events hashes, and whether a link split it off. A Spending account's are where its rows come from, which spending.read.sources hashes, what else it takes rows from, and its cards, which spending.read.cards hashes, and so is an Investments account's,
+ * hashes, and so is the link of a Spending row's item, whose labels spending.labels hashes, which of them a rule put on, and whose event spending.events hashes, and whether a link split it off. A Spending account's are where its rows come from on which days, which spending.read.sources hashes, the cells a file from before periods kept that in, and its cards, which spending.read.cards hashes, and so is an Investments account's,
  * with its start day, which investments.read.sources hashes. A Company ledger row's are the bank's words and marks and who flagged it, which read.workbook hashes, and a Company account's are how its rows come in, which read.sources hashes.
  */
 export const SPENDING_ROW = {
@@ -9,7 +9,7 @@ export const SPENDING_ROW = {
   cells: new Set(['description', 'counterparty_iban', 'import_key', 'statement', 'categorised_by', 'moved_at', 'pocket', 'cash_withdrawal', 'pending', 'link']),
 }
 export const SPENDING_ITEM = { record: new Set(['link', 'labels', 'ruleLabels', 'event', 'splitByLink']), cells: new Set(['link', 'labels', 'rule_labels', 'event', 'split_by_link']) }
-export const SPENDING_ACCOUNT = { record: new Set(['rowsFrom', 'alsoFrom', 'cards']), cells: new Set(['rows_from', 'also_from', 'cards']) }
+export const SPENDING_ACCOUNT = { record: new Set(['sources', 'cards']), cells: new Set(['sources', 'rows_from', 'also_from', 'cards']) }
 export const INVESTMENT_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on', 'also_from']) }
 /** A Company item leaves out its labels, which company.labels hashes. Its invoice is a figure, since what an invoice is owed reads it. */
 export const COMPANY_ITEM = { record: new Set(['labels']), cells: new Set(['label_ids']) }
@@ -25,7 +25,7 @@ export const COMPANY_LEDGER_ROW = {
 export function spendingKindOf(record) {
   if (Object.hasOwn(record, 'importKey')) return SPENDING_ROW
   if (Object.hasOwn(record, 'printed')) return SPENDING_ITEM
-  if (Object.hasOwn(record, 'rowsFrom')) return SPENDING_ACCOUNT
+  if (Object.hasOwn(record, 'sources')) return SPENDING_ACCOUNT
   return null
 }
 

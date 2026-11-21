@@ -85,8 +85,9 @@ function typedTransfer(
   const transfer = transferCategoryOf(book.categories)
   if (transfer === null) throw new StepRefused('The file has no Between my accounts category to file a transfer under.')
   if (from.id === to.id) throw new StepRefused('A transfer moves money between two different accounts.')
-  const draft = { from: { account: from, row: sides.rowOnFrom }, to: { account: to, row: sides.rowOnTo }, sent, arrived }
-  const typed = newTransfer(draft, { date: openedBy(day, [from, to]), note, category: transfer.id }, book.categories, entryWords.dialog.fee)
+  const date = openedBy(day, [from, to])
+  const draft = { from: { account: from, row: sides.rowOnFrom, day: date }, to: { account: to, row: sides.rowOnTo, day: date }, sent, arrived }
+  const typed = newTransfer(draft, { date, note, category: transfer.id }, book.categories, entryWords.dialog.fee)
   if ('refused' in typed) throw new StepRefused(REFUSALS[typed.refused])
   return typed
 }

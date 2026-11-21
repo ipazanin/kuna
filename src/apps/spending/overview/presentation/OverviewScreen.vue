@@ -32,7 +32,7 @@ import LimitsCard from './LimitsCard.vue'
 import { SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import { bankLinkOffered } from '../../workbook/domain/account'
-import type { RowsFrom } from '../../workbook/domain/account'
+import type { SpendingSource } from '../../workbook/domain/account'
 import { spendingRing } from './spendingRing'
 import { spendingSetUp } from './spendingSetUp'
 import { words } from './words'
@@ -70,11 +70,11 @@ const month = monthOf(day)
 
 const addingAccount = ref(false)
 /** How the rows of the account the empty file adds come in, as the button that opened the dialog says. */
-const addingRowsFrom = ref<RowsFrom>('by-hand')
+const addingSource = ref<SpendingSource>('by-hand')
 const offersBankLink = computed(() => state.workbook !== null && bankLinkOffered('bank', null, state.workbook.settings))
 
-function addAccount(rowsFrom: RowsFrom): void {
-  addingRowsFrom.value = rowsFrom
+function addAccount(source: SpendingSource): void {
+  addingSource.value = source
   addingAccount.value = true
 }
 
@@ -279,6 +279,6 @@ function openGroupMonth(selection: ChartPointSelection): void {
         </DashboardGrid>
       </template>
     </template>
-    <AccountDialog v-model:open="addingAccount" :account="null" :opening-day="firstDayOf(month)" :starting-rows-from="addingRowsFrom" />
+    <AccountDialog v-model:open="addingAccount" :account="null" :opening-day="firstDayOf(month)" :starting-source="addingSource" />
   </section>
 </template>

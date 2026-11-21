@@ -1,7 +1,6 @@
 import { rulesOutcome, spendingCategorisationContext } from './spendingCategorisation'
 import type { RuledRow } from './spendingCategorisation'
 import type { RowChange } from './spendingCategorisation'
-import { coveredByOtherSource, sourceDaysOf } from './sourceDays'
 import { leftOutOf } from './leftOut'
 import type { LeftOut } from './leftOut'
 import { isBankSyncKey } from './statementRows'
@@ -25,6 +24,7 @@ import { refusedOnAccount } from '../../entries/domain/bankRows'
 import { beforeStartDay } from '../../workbook/domain/account'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
+import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import { droppedRowOf } from '../../workbook/domain/droppedRow'
@@ -52,12 +52,12 @@ import { plural } from '../../../../shared/text/translation'
 const PAIRING_DAYS = 30
 
 /**
- * What happens to a row: `before-opening` is left out, `not-taken` left out since its account takes no row from where it came, `already-in` skipped, `outside-days` left out since the person named days
- * the file brings that leave it out, `other-source` skipped since the other of a file and the bank sync covers its day, `look-alike` waits since it looks like a row on the file from another source, `filled` joins a
+ * What happens to a row: `before-opening` is left out, `not-taken` left out since another source fills its day on its account, `already-in` skipped, `outside-days` left out since the person named days
+ * the file brings that leave it out, `look-alike` waits since it looks like a row on the file from another source, `filled` joins a
  * typed row, `booked` takes the place of a row on the file the bank had not booked yet, `replaced` takes the place of such a row on the person's word, `new` is added, and `refiled` is a row already on the file that
  * the pairing changes.
  */
-export type DryRunOutcome = 'before-opening' | 'not-taken' | 'already-in' | 'outside-days' | 'other-source' | 'look-alike' | 'filled' | 'booked' | 'replaced' | 'new' | 'refiled'
+export type DryRunOutcome = 'before-opening' | 'not-taken' | 'already-in' | 'outside-days' | 'look-alike' | 'filled' | 'booked' | 'replaced' | 'new' | 'refiled'
 
 export type DryRunLine =
   | {
@@ -126,14 +126,16 @@ export interface StatementDryRun {
   readonly fileNotes: readonly FileNote[]
   /** The rows the dry run leaves out, per account and why. */
   readonly leftOut: readonly LeftOut[]
+  /** The accounts it adds rows to whose periods the book worked out from a file from before periods, which the import stores with its rows. */
+  readonly sourcesStored: readonly Account[]
   readonly notes: readonly string[]
 }
 
 /**
  * Works out a statement against the file, row by row: a row before its account opened is left out, as the entry dialog
- * refuses one, and a row whose key is on the account is skipped. Each account's days belong to one source, so a bank sync
- * row on or before the last day a file covers is left out, and so is a file's row from the sync's first day on, since a sync
- * may hold a file's fee inside a row. Past those days a file's or a sync's row is matched against the rows of the other two
+ * refuses one, and a row whose key is on the account is skipped. Each day of an account takes its rows from the source of its
+ * period, so a row from any other source is left out, as a sync may hold a file's fee inside a row. A left-out row of the file
+ * or the sync still claims its twin first. A file's or a sync's row taken is matched against the rows of the other two
  * sources, as copied rows are below, since two sources may date one booking on different days. One of the same day, amount and
  * counterparty is already in. One that only looks like one waits for the person to say whether to keep both or let the file's
  * row take the other's place, keeping its id, category and note, or keeping the bank's key when the other came from the sync.
@@ -184,12 +186,10 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const booking = pendingBooking(book.transactions, comingAtAll, statement, { itemsOf, filing: filingOf, difference: receiptWords.difference, newKey })
   const bookedBy = new Map(booking.booked.map((booked) => [booked.row, booked.change]))
   const notOnFile = comingAtAll.filter((row) => !bookedBy.has(row))
-  const sourceDays = sourceDaysOf(book.transactions)
   const { transcribed } = statement
-  const otherSource = new Set<StatementRow>(transcribed === undefined && days === undefined ? notOnFile.filter((row) => coveredByOtherSource(sourceDays, row)) : [])
-  const toMatch = notOnFile.filter((row) => !otherSource.has(row))
-  const { questions, outcomeOf: twinOutcomeOf, twinOf, likeOf } = twinRowsOf([...otherSource], toMatch, book, statement)
-  const coming = toMatch.filter((row) => twinOutcomeOf(row) === null)
+  const otherSource = transcribed === undefined && days === undefined ? statement.rows.filter((row) => !beforeOpening(row) && notTaken(row) && !alreadyIn(row)) : []
+  const { questions, outcomeOf: twinOutcomeOf, twinOf, likeOf } = twinRowsOf(otherSource, notOnFile, book, statement)
+  const coming = notOnFile.filter((row) => twinOutcomeOf(row) === null)
 
   const context = spendingCategorisationContext(book)
   const transfer = transferCategoryOf(book.categories)?.id ?? null
@@ -230,7 +230,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const newItemsOf = new Map([...[...newRowOf.values()].map(({ row, items }) => [row.id, items] as const), ...booking.booked.map(({ change }) => [change.after.id, change.items] as const)])
   const itemsAt = (row: Transaction): readonly TransactionItem[] => newItemsOf.get(row.id) ?? itemsOf(row)
 
-  const replacing = toMatch.filter((row) => twinOutcomeOf(row) === 'replaced' || twinOutcomeOf(row) === 'kept')
+  const replacing = notOnFile.filter((row) => twinOutcomeOf(row) === 'replaced' || twinOutcomeOf(row) === 'kept')
   const replacedOf = new Map(
     replacing.map((row) => {
       const booked = twinOf(row)
@@ -281,13 +281,13 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
 
   const fileLines = statement.rows.map((row): DryRunLine => {
     if (beforeOpening(row)) return { row, outcome: 'before-opening', category: null }
-    if (notTaken(row)) return { row, outcome: 'not-taken', category: null }
+    const byItsTwin = twinOutcomeOf(row)
+    const twinIn = alreadyIn(row) || byItsTwin === 'already-in' || byItsTwin === 'kept'
+    if (notTaken(row)) return { row, outcome: twinIn ? 'already-in' : 'not-taken', category: null }
     const booked = bookedBy.get(row)
     if (booked !== undefined) return { row, outcome: 'booked', category: categoryOf(bookedRows.find(({ before }) => before === booked.before)?.items ?? booked.items) }
-    const byItsTwin = twinOutcomeOf(row)
-    if (alreadyIn(row) || byItsTwin === 'already-in' || byItsTwin === 'kept') return { row, outcome: 'already-in', category: null }
+    if (twinIn) return { row, outcome: 'already-in', category: null }
     if (outsideDays(row)) return { row, outcome: 'outside-days', category: null }
-    if (otherSource.has(row)) return { row, outcome: 'other-source', category: null }
     if (byItsTwin === 'look-alike') return { row, outcome: 'look-alike', category: null, like: likeOf(row) }
     if (byItsTwin === 'replaced') {
       const like = twinOf(row)
@@ -345,7 +345,8 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     alreadyIn: lines.filter((line) => line.outcome === 'already-in').length,
     filled: filledRows.length,
     fileNotes: statement.fileNotes,
-    leftOut: leftOutOf({ beforeOpening: rowsOf('before-opening'), notTaken: rowsOf('not-taken'), outsideDays: rowsOf('outside-days'), otherSource: [...otherSource] }, accounts, days, sourceDays),
+    leftOut: leftOutOf({ beforeOpening: rowsOf('before-opening'), notTaken: rowsOf('not-taken'), outsideDays: rowsOf('outside-days') }, accounts, days),
+    sourcesStored: book.sourcesWorkedOut.filter((account) => added.some(({ row }) => row.account === account.id)),
     notes: [
       ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)]),
       ...(wantingCash === 0 ? [] : [plural(words.withdrawalsWaiting(wantingCash), wantingCash)]),

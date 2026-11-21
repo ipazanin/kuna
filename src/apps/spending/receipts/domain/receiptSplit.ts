@@ -59,7 +59,7 @@ export function typedReceiptLines(
  * The row a receipt splits with the items it holds, or the account of the new row it makes. On an account the bank fills it
  * makes no row and waits for the bank's.
  */
-export type ReceiptPlace = { readonly row: Transaction; readonly held: readonly TransactionItem[] } | { readonly account: Pick<Account, 'id' | 'kind' | 'rowsFrom' | 'openedOn'> }
+export type ReceiptPlace = { readonly row: Transaction; readonly held: readonly TransactionItem[] } | { readonly account: Pick<Account, 'id' | 'kind' | 'sources' | 'openedOn'> }
 
 /** The row as a receipt's place, with the items the book holds of it, which the receipt's lines replace. */
 export function rowPlace(row: Transaction, items: readonly TransactionItem[]): Extract<ReceiptPlace, { readonly row: Transaction }> {
@@ -110,7 +110,7 @@ export function rowFiledBy(row: Transaction, merchant: string): Transaction {
 
 /**
  * A confirmed receipt: the row it splits, a new row, of source `receipt` a later statement fills, or typed on a cash account,
- * which no statement fills, or on an account the bank fills no row at all, as it waits for the bank's. Its lines go in place of
+ * which no statement fills, or on a day the bank or its statement file fills no row at all, as it waits for the bank's. Its lines go in place of
  * any parts the row was split into by hand. When they do not add up to the row, or to minus the total of a receipt that
  * waits, as with a tip or a misread line, one Difference line in the main category shows what is left, and no line you confirmed changes.
  * Every line takes the row's link when its items named one record, and none when they named several or none. A line takes the
@@ -121,7 +121,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
   const category = mainCategoryOf(parts)
   const before = 'row' in place ? place.row : null
   const amount = negateAccountMoney(accountMoneyOfEuros(draft.total))
-  const waitsOn = 'account' in place && !takesRowsByHand(place.account) ? place.account.id : null
+  const waitsOn = 'account' in place && !takesRowsByHand(place.account, draft.issuedOn) ? place.account.id : null
   const row: Transaction | null =
     'row' in place
       ? rowFiledBy(place.row, merchant)

@@ -46,7 +46,7 @@ function linked(uid: string, iban: string, currency: string, described: Partial<
 
 const revolut = (account: LinkedAccount): LinkedOfBank => ({ bank: 'revolut', account })
 const fromEarliest = (proposals: readonly AccountProposal[]) => proposals.map((proposal) => ({ proposal, startsOn: startDays(proposal).earliest }))
-const book = (accounts = ACCOUNTS, transactions: readonly Pick<Transaction, 'account'>[] = [], marks: { notInKuna?: readonly string[]; keepMine?: readonly string[] } = {}) => ({
+const book = (accounts = ACCOUNTS, transactions: readonly Pick<Transaction, 'account' | 'date'>[] = [], marks: { notInKuna?: readonly string[]; keepMine?: readonly string[] } = {}) => ({
   accounts,
   transactions,
   settings: { bankAccountsNotInKuna: marks.notInKuna ?? [], bankAccountsKeepMine: marks.keepMine ?? [] },
@@ -93,16 +93,16 @@ describe('the setup list', () => {
   })
 
   it('offers an account of the bank and currency typed without an IBAN the bank details, rather than a second account', () => {
-    const typed = { ...REVOLUT_USD, iban: '', rowsFrom: 'by-hand' as const, alsoFrom: [] }
+    const typed = { ...REVOLUT_USD, iban: '', sources: [{ source: 'by-hand' as const, from: null }] }
     const [line] = setupLines([revolut(linked('usd', REVOLUT_EUR.iban, 'USD'))], [], book([OTP, REVOLUT_EUR, typed]))
-    expect(line).toMatchObject({ kind: 'fits', account: typed, update: { ...typed, iban: REVOLUT_EUR.iban, rowsFrom: 'bank-link' } })
+    expect(line).toMatchObject({ kind: 'fits', account: typed, update: { ...typed, iban: REVOLUT_EUR.iban, sources: [{ source: 'bank-link', from: null }] } })
   })
 
   it('offers to have the bank bring the rows of an account kept by hand, and stops once you keep it by hand', () => {
-    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const, alsoFrom: [] }
+    const byHand = { ...REVOLUT_USD, sources: [{ source: 'by-hand' as const, from: null }] }
     const usd = revolut(linked('usd', REVOLUT_USD.iban, 'USD'))
     const [line] = setupLines([usd], [], book([OTP, REVOLUT_EUR, byHand]))
-    expect(line).toMatchObject({ kind: 'kept', account: byHand, update: { ...byHand, rowsFrom: 'bank-link' }, keptMine: false })
+    expect(line).toMatchObject({ kind: 'kept', account: byHand, update: { ...byHand, sources: [{ source: 'bank-link', from: null }] }, keptMine: false })
     expect(line === undefined ? [] : setupActions(line)).toEqual(['update', 'keep-mine'])
     expect(setupLines([usd], [], book([OTP, REVOLUT_EUR, byHand], [], { keepMine: [`${REVOLUT_USD.iban} USD`] }))[0]).toMatchObject({ kind: 'kept', update: null, keptMine: true })
   })
@@ -111,7 +111,7 @@ describe('the setup list', () => {
     const lone = { ...REVOLUT_EUR, name: 'Revolut' }
     const linkedUsd = [revolut(linked('usd', REVOLUT_EUR.iban, 'USD'))]
     expect(setupLines(linkedUsd, [], book([lone]))[0]).toMatchObject({ kind: 'fits', update: { currency: 'USD' } })
-    expect(setupLines(linkedUsd, [], book([lone], [{ account: lone.id }]))[0]?.kind).toBe('missing')
+    expect(setupLines(linkedUsd, [], book([lone], [{ account: lone.id, date: lone.openedOn }]))[0]?.kind).toBe('missing')
   })
 
   it('never offers a closed account or cash', () => {
@@ -252,8 +252,7 @@ describe('a drafted account', () => {
       currency: USD,
       opening: 0,
       openedOn: DAY,
-      rowsFrom: 'bank-link',
-      alsoFrom: [],
+      sources: [{ source: 'bank-link', from: null }],
       iban: 'LT001',
       cards: [],
       closed: false,
@@ -339,7 +338,7 @@ describe('the setup writes', () => {
   })
 
   it("gives an account the bank's details and its held rows in one write, keeping its name and opening, and from then on the bank brings its rows", async () => {
-    const typed = { ...REVOLUT_USD, iban: '', rowsFrom: 'by-hand' as const, alsoFrom: [] }
+    const typed = { ...REVOLUT_USD, iban: '', sources: [{ source: 'by-hand' as const, from: null }] }
     const store = await spendingStore([OTP, REVOLUT_EUR, typed])
     const usd = linked('usd', REVOLUT_EUR.iban, 'USD')
     const proposal = proposeAccount(usd, 'revolut', USD, [bankRow({})], [], recordIdOf(ACCOUNT_RECORDS, 'never-written'), DAY, [])
@@ -348,7 +347,7 @@ describe('the setup writes', () => {
 
     await store.write('Account updated', (unit) => takeBankDetails(unit, store.state.workbook!, line.account, line.update, line.proposal, DAY))
 
-    expect(store.state.workbook!.accounts.find((account) => account.id === typed.id)).toEqual({ ...typed, iban: REVOLUT_EUR.iban, rowsFrom: 'bank-link' })
+    expect(store.state.workbook!.accounts.find((account) => account.id === typed.id)).toEqual({ ...typed, iban: REVOLUT_EUR.iban, sources: [{ source: 'bank-link', from: null }] })
     expect(store.state.workbook!.transactions.map((each) => [each.account, each.amount])).toEqual([[typed.id, accountMoneyFromAmount(10)]])
   })
 
@@ -371,7 +370,7 @@ describe('the setup writes', () => {
   })
 
   it('neither fetches nor drafts a linked account whose account in Kuna is kept by hand, and reads the rest', async () => {
-    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const, alsoFrom: [] }
+    const byHand = { ...REVOLUT_USD, sources: [{ source: 'by-hand' as const, from: null }] }
     const asked: string[] = []
     const port = fakeBankSync('linked', DAY)
     const read = await readBanks(

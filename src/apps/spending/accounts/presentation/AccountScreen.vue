@@ -21,6 +21,13 @@ import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { addDays, daysBetween, today } from '../../../../shared/calendar/civilDate'
+import { sourceOfDay } from '../../workbook/domain/account'
+import { sourceTallies } from '../domain/sourceTallies'
+import ChangeListCard from '../../../../shared/ui/ChangeListCard.vue'
+import type { ChangeLine } from '../../../../shared/ui/ChangeListCard.vue'
+import type { RowOrigin } from '../../../../shared/app/accountSource'
+import { plural } from '../../../../shared/text/translation'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
@@ -51,10 +58,15 @@ const balanceCaption = computed(() => {
   return `${euro.value.euros} · ${euro.value.caption}`
 })
 
+/** The origins in the order a source line counts them. */
+const ORIGINS: readonly RowOrigin[] = ['automation', 'provider-file', 'by-hand']
+
 const description = computed(() => {
   const shown = account.value
   if (shown === null) return ''
-  return [words.kinds[shown.kind], shown.bank ?? '', shown.currency, shown.iban, words.rowsFrom[shown.rowsFrom], shown.closed ? words.closed : ''].filter((part) => part !== '').join(' · ')
+  return [words.kinds[shown.kind], shown.bank ?? '', shown.currency, shown.iban, words.rowsFrom[sourceOfDay(shown, today())], shown.closed ? words.closed : '']
+    .filter((part) => part !== '')
+    .join(' · ')
 })
 
 const trendFrom = computed(() => {
@@ -78,12 +90,32 @@ const rows = computed(() => {
 const expanded = ref(false)
 const listed = computed(() => (expanded.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))
 
+/** One line for each source of the account's rows, with its days and how many rows each origin brought on them. */
+const sourceLines = computed((): readonly ChangeLine[] => {
+  const shown = account.value
+  if (shown === null) return []
+  return sourceTallies(shown, transactions.value).map(({ period, to, counts }, place) => {
+    const from = dayLabel(period.from ?? shown.openedOn)
+    const span = to === null ? words.sources.onwards(from) : words.sources.span(from, dayLabel(to))
+    const brought = ORIGINS.filter((origin) => counts[origin] > 0).map((origin) => plural(words.sources.counts[origin](counts[origin]), counts[origin]))
+    const title = words.rowsFrom[period.source]
+    return { key: String(place), title, label: `${title}, ${span}`, detail: [span, ...(brought.length === 0 ? [words.sources.noRows] : brought)].join(' · ') }
+  })
+})
+
 const editing = ref(false)
+/** The place of the period whose Change opened the dialog, or null when Edit did. */
+const changingPeriod = ref<number | null>(null)
 const entryOpen = ref(false)
 const entry = ref<Transaction | null>(null)
 
 const takesReceipt = useReceiptRows()
 const receiptPicker = useTemplateRef('receiptPicker')
+
+function edit(period: number | null): void {
+  changingPeriod.value = period
+  editing.value = true
+}
 
 function openEntry(picked: Transaction): void {
   entry.value = picked
@@ -97,7 +129,7 @@ function openEntry(picked: Transaction): void {
     <template v-if="account !== null && onDay !== null">
       <PageHeader :title="account.name" :description="description">
         <template #actions>
-          <UButton :label="words.edit" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="spending-account-edit" @click="editing = true" />
+          <UButton :label="words.edit" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="spending-account-edit" @click="edit(null)" />
         </template>
       </PageHeader>
       <DashboardGrid layout="tiles">
@@ -118,6 +150,17 @@ function openEntry(picked: Transaction): void {
           <SparkLine :points="trend" fill :height="56" zero-line />
         </div>
       </AppCard>
+      <ChangeListCard
+        v-if="account.kind !== 'cash'"
+        :title="words.sources.title"
+        :subtitle="words.sources.subtitle"
+        :lines="sourceLines"
+        :empty="words.sources.empty"
+        :can-add="false"
+        collapse-id="spending-account-sources"
+        data-testid="spending-account-sources-card"
+        @change="edit(Number($event))"
+      />
       <AppCard :title="words.entries" :subtitle="words.entriesSubtitle" data-testid="spending-account-entries">
         <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5">{{ words.noEntries }}</p>
         <template v-else>
@@ -134,7 +177,7 @@ function openEntry(picked: Transaction): void {
           <ShowAllButton v-if="rows.length > FIRST_SHOWN" v-model:expanded="expanded" :total="rows.length" class="px-4 pb-4 sm:px-5" />
         </template>
       </AppCard>
-      <AccountDialog v-model:open="editing" :account="account" />
+      <AccountDialog v-model:open="editing" :account="account" v-bind="changingPeriod === null ? {} : { period: changingPeriod }" />
       <EntryDialog v-model:open="entryOpen" :entry="entry" />
       <ReceiptPhotoPicker v-if="assistKeyKept" ref="receiptPicker" />
     </template>

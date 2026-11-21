@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
+import { today } from '../src/shared/calendar/civilDate'
 
 import { KEPT_BY_KUNA, defaultsOnAdd } from '../src/apps/spending/assistant/operations/proposalLines'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
@@ -24,7 +25,8 @@ import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import { BANK_SYNC_APPLICATION_KEY, PERSON_PAYEES_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
-import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
+import { changeAccount } from '../src/apps/spending/accounts/application/accountWrites'
+import { sourceHandover } from '../src/apps/spending/accounts/domain/sourceHandover'
 import { CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
@@ -257,7 +259,7 @@ describe('an entry’s day and account', () => {
   it('refuses another account that opened after the day the entry keeps', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
-      stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'New card', kind: 'bank', currency: 'EUR', opening: 0, openedOn: '2026-11-01', rowsFrom: 'by-hand' }, '$card'),
+      stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'New card', kind: 'bank', currency: 'EUR', opening: 0, openedOn: '2026-11-01', sources: null }, '$card'),
       changeEntry(desk, EXAMPLE_RECORDS['transaction']!, { account: '$card' }),
     ])
     expect(answer.isError).toBe(true)
@@ -267,9 +269,12 @@ describe('an entry’s day and account', () => {
 
 describe('where an account takes its rows from', () => {
   const added = (name: string, kind: string, iban: string | null, rowsFrom: string) =>
-    stepOf(SPENDING_OPERATIONS, 'add-account', { name, kind, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban, rowsFrom })
+    stepOf(SPENDING_OPERATIONS, 'add-account', { name, kind, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban, sources: rowsFrom })
   const setUpBankSync = (desk: SpendingDesk) => desk.store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], BANK_SYNC_APPLICATION_KEY, 'made-up-application'))
-  const rowsFromOf = (desk: SpendingDesk, name: string) => bookOf(desk).accounts.find((account) => account.name === name)?.rowsFrom
+  const rowsFromOf = (desk: SpendingDesk, name: string) =>
+    bookOf(desk)
+      .accounts.find((account) => account.name === name)
+      ?.sources.at(-1)?.source
 
   it('refuses a bank link until the bank sync is set up, then takes one with an IBAN', async () => {
     const desk = await spendingDesk(used)
@@ -318,7 +323,8 @@ describe('where an account takes its rows from', () => {
       pair: null,
     }
     await desk.store.write('Linked', (unit) => {
-      unit.of(ACCOUNT_WRITES).change(current, { ...current, rowsFrom: 'bank-link' })
+      const sources = [{ source: 'bank-link' as const, from: null }]
+      changeAccount(unit, desk.store.state.records!, current, { ...current, sources }, null, sourceHandover(bookOf(desk), current, sources))
       addEntries(unit, desk.store.state.records!, [synced])
     })
     const change = (fields: Record<string, unknown>) => ({
@@ -335,7 +341,7 @@ describe('where an account takes its rows from', () => {
   it('switches an account typed by hand to a bank link only while the bank sync is set up, and back to by hand', async () => {
     const desk = await spendingDesk(used)
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
-    const change = (rowsFrom: string) => stepOf(SPENDING_OPERATIONS, 'change-account', { account: current, rowsFrom })
+    const change = (rowsFrom: string) => stepOf(SPENDING_OPERATIONS, 'change-account', { account: current, sources: rowsFrom })
     expect((await desk.propose([change('bank-link')])).isError).toBe(true)
     await setUpBankSync(desk)
     await desk.propose([change('bank-link')])
@@ -527,7 +533,7 @@ describe('categories and accounts', () => {
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
     const change = (fields: Record<string, unknown>) => ({
       op: 'change-account',
-      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, cards: null, rowsFrom: null, alsoFrom: null, closed: null, ...fields },
+      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, cards: null, sources: null, closed: null, ...fields },
     })
     expect((await desk.propose([change({ currency: 'USD' })])).isError).toBe(true)
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'delete-account', { account: current })])).isError).toBe(true)
@@ -1084,7 +1090,7 @@ describe('bank account set-up', () => {
     expect(lines.map((line) => line.id)).toEqual([EXAMPLE_RECORDS['bank-account-missing'], EXAMPLE_RECORDS['bank-account-update'], EXAMPLE_RECORDS['bank-account-left-out']])
     expect([0, 1, 2].map((at) => fieldOf(at, 'offers'))).toMatchObject([{ value: ['add', 'leave-out'] }, { value: ['update', 'keep-mine'] }, { value: ['bring-back'] }])
     expect(fieldOf(1, 'account')).toMatchObject({ exposure: 'ref', ids: [DESK_ACCOUNTS.CURRENT.id] })
-    expect(fieldOf(1, 'takesRowsFrom')).toMatchObject({ value: 'bank-link' })
+    expect(fieldOf(1, 'takesSources')).toMatchObject({ value: expect.stringContaining('bank-link') })
     expect(fieldOf(1, 'fixedOpening')).toMatchObject({ cents: 90000, currency: 'EUR' })
   })
 
@@ -1098,7 +1104,8 @@ describe('bank account set-up', () => {
     expect((await desk.accept()).kind).toBe('done')
     const current = () => bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
     expect(bookOf(desk).accounts.map((account) => account.currency)).toContain('GBP')
-    expect(current()).toMatchObject({ kind: 'savings', rowsFrom: 'bank-link', name: 'Current', opening: DESK_ACCOUNTS.CURRENT.opening })
+    expect(current()).toMatchObject({ kind: 'savings', name: 'Current', opening: DESK_ACCOUNTS.CURRENT.opening })
+    expect(current().sources.at(-1)?.source).toBe('bank-link')
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'fix-opening', { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(current().opening).toBe(90000)
@@ -1127,7 +1134,7 @@ describe('the account a new entry starts on', () => {
     await desk.propose([{ op: SET_STARTING_ACCOUNT.name, input: { account: savings } }])
     expect(desk.cards[0]!.groups[0]!.lines[0]!.fields[0]).toMatchObject({ before: 'Current', after: 'Savings' })
     const result = await desk.accept()
-    expect(startingAccount(bookOf(desk).accounts)?.id).toBe(DESK_ACCOUNTS.SAVINGS.id)
+    expect(startingAccount(bookOf(desk).accounts, today())?.id).toBe(DESK_ACCOUNTS.SAVINGS.id)
     if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
     expect(lastAccountId()).toBeNull()
   })

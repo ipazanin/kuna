@@ -42,12 +42,14 @@ export function bookingOf<Row extends Pick<Transaction, 'date' | 'amount' | 'pay
 
 /**
  * Each row's twin among the rows on the file from another source, but for those the statement's own keys hit and those of the
- * statement itself, such as its other parts. A copied row looks among every row an import brought, and a file's or a sync's row
+ * statement itself, such as its other parts. A row that took the statement's words but kept the bank sync's key is still a twin. A copied row looks among every row an import brought, and a file's or a sync's row
  * among the rows of the other two sources. The rows are matched in order, so those given first take their twins first.
  */
 function twinsOnFile(rows: readonly StatementRow[], book: SpendingBook, statement: StatementRows): ReadonlyMap<StatementRow, BookedTwin<Transaction>> {
   const keysHit = new Set(statement.rows.map(rowKey))
-  const others = book.transactions.filter((row) => row.importKey !== '' && row.statement !== statement.label && !keysHit.has(rowKey(row)))
+  // A row of this statement that kept the bank sync's key is no part of it, so it stays a twin to find.
+  const ownParts = (row: Transaction): boolean => row.statement === statement.label && !isBankSyncKey(row.importKey)
+  const others = book.transactions.filter((row) => row.importKey !== '' && !ownParts(row) && !keysHit.has(rowKey(row)))
   const twins = new Map<StatementRow, BookedTwin<Transaction>>()
   const sourceOfRow = (row: Pick<StatementRow, 'importKey'>) => (statement.transcribed !== undefined ? 'copied' : isBankSyncKey(row.importKey) ? 'sync' : 'file')
   for (const group of new Set(rows.map((row) => `${row.account} ${sourceOfRow(row)}`))) {

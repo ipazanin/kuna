@@ -191,7 +191,7 @@ export function pickAnsweredReply({ request, tokens, typed }: FakeChatTurn): Mod
   const categories = recordsIn(answers[0]!.text)
   const refOf = (names: readonly string[]): string => categories.find((category) => names.includes(category.name ?? ''))?.ref ?? ''
   const found = recordsIn(answers[1]!.text)
-  const byHand = found.find((account) => account.kind === 'bank' && account.currency === 'EUR' && account.rowsFrom !== 'bank-link' && account.closed !== true)
+  const byHand = found.find((account) => account.kind === 'bank' && account.currency === 'EUR' && !/bank-link( \S+)?$/.test(account.sources ?? '') && account.closed !== true)
   const place = none ? { entry: null, account: byHand?.ref ?? null } : { entry: found[0]?.ref ?? null, account: null }
   const step = proposedStep(SPENDING_OPERATIONS, 'add-receipt', {
     photo,
@@ -298,7 +298,7 @@ export function cashReceiptReply({ request, tokens, typed }: FakeChatTurn): Mode
   if (answers.length > 3) return answered(request, cash.length === 0 ? says.cashAccountFirst : says.cashProposed, tokens)
   const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
   const receipt = (account: string | null) => receiptOf17(photo, 'cash', groceries, { entry: null, account })
-  const account = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.cashName, kind: 'cash', currency: 'EUR', opening, openedOn: fakeSpendingDayHere(), rowsFrom: 'by-hand' }, '$cash')
+  const account = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.cashName, kind: 'cash', currency: 'EUR', opening, openedOn: fakeSpendingDayHere(), sources: null }, '$cash')
   const steps = cash.length === 0 ? [account, receipt('$cash')] : [receipt(null)]
   return lookup(3, 'propose_changes', { app: 'spending', title: says.cashTitle, steps, next: false }, tokens)
 }
@@ -331,7 +331,7 @@ export function cardReceiptReply({ request, tokens }: FakeChatTurn): ModelReply 
   if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
   if (answers.length === 2) return lookup(2, 'find_records', findRecordsArgs('spending', 'account'), tokens)
   if (answers.length > 3) return answered(request, says.cardProposed, tokens)
-  const account = recordsIn(answers[2]!.text).find((found) => found.kind === 'bank' && found.currency === 'EUR' && found.rowsFrom === 'bank-link' && found.closed !== true)
+  const account = recordsIn(answers[2]!.text).find((found) => found.kind === 'bank' && found.currency === 'EUR' && /bank-link( \S+)?$/.test(found.sources ?? '') && found.closed !== true)
   if (account === undefined) return answered(request, says.noCardAccount, tokens)
   const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
   const step = receiptOf17(photo, 'card', groceries, { entry: null, account: account.ref })

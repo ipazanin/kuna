@@ -68,8 +68,8 @@ function unreviewed(id: number, fields: RecordFields): RecordFields {
 describe('the Spending file', () => {
   it('writes every kind back field for field as it read it', () => {
     const kinds: [RecordKind<unknown>, RecordFields][] = [
-      [ACCOUNT_RECORDS, { ...ACCOUNTS[0]!, rows_from: 'bank-link', closed: true }],
-      [ACCOUNT_RECORDS, { ...ACCOUNTS[3]!, rows_from: 'by-hand' }],
+      [ACCOUNT_RECORDS, { ...ACCOUNTS[0]!, sources: 'provider-file, bank-link 2026-10-01', closed: true }],
+      [ACCOUNT_RECORDS, { ...ACCOUNTS[3]!, sources: 'by-hand' }],
       [CATEGORY_RECORDS, { ...CATEGORIES[1]!, colour: '#d4e8ff', hidden: true }],
       [CATEGORY_RECORDS, CATEGORIES[5]!],
       [TRANSACTION_RECORDS, entry(101, { note: 'Weekly shop' })],
@@ -149,7 +149,7 @@ describe("where a Spending account's rows come from", () => {
     })
 
     expect(book.problems).toEqual([])
-    expect(book.accounts.map((account) => [account.name, account.rowsFrom])).toEqual([
+    expect(book.accounts.map((account) => [account.name, account.sources[0]?.source])).toEqual([
       ['OTP current', 'bank-link'],
       ['Revolut EUR', 'bank-link'],
       ['Revolut USD', 'bank-link'],
@@ -185,7 +185,7 @@ describe("where a Spending account's rows come from", () => {
       ],
     })
 
-    expect(book.accounts.map((account) => account.rowsFrom)).toEqual(['by-hand', 'bank-link'])
+    expect(book.accounts.map((account) => account.sources)).toEqual([[{ source: 'by-hand', from: null }], [{ source: 'bank-link', from: null }]])
   })
 
   it('refuses a bank link on cash or a way it does not know, and doubts a bank link with no IBAN, which the sync cannot find', () => {
@@ -198,7 +198,7 @@ describe("where a Spending account's rows come from", () => {
         ],
       }),
     ).toEqual([
-      ['account', 'Cash', 'rows_from bank-link is for a bank or savings account, since cash comes in by hand'],
+      ['account', 'Cash', 'sources on cash is by-hand, since cash comes in by hand'],
       ['account', 'By mail', '"mail" is not a way its rows come in. Use bank-link, by-hand'],
       ['account', 'Lost IBAN', 'takes its rows from a bank link but has no IBAN, so the bank sync cannot find it'],
     ])

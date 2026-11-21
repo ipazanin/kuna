@@ -11,6 +11,7 @@ import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Shortcut } from '../../workbook/domain/shortcut'
 import { words as spendingWords } from '../../words'
+import { today } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -25,7 +26,7 @@ const writes = useRecordWrites(store)
 const rows = computed(() => {
   const book = store.state.workbook
   if (book === null) return []
-  const shown = new Set(shortcutsShown(book).map(({ shortcut }) => shortcut.id))
+  const shown = new Set(shortcutsShown(book, today()).map(({ shortcut }) => shortcut.id))
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
   const categories = new Map(book.categories.map((category) => [category.id, category.name]))
   return shortcutsWithParts(book).map((held) => {

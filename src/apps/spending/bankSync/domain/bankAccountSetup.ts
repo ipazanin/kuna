@@ -13,7 +13,9 @@ import type { Account, AccountKind } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spendingSettings'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { periodsFrom, periodsText } from '../../../../shared/app/accountSource'
 import { ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -138,12 +140,19 @@ export function proposeAccount(
 }
 
 /** The account with the bank's details: its bank, IBAN and currency, its kind where the bank states one, and its rows from the bank. Its name and opening stay. */
-export function withBankDetails(account: Account, linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode): Account {
-  return { ...account, bank: ENABLE_BANKING_NAMES[bank], iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind, rowsFrom: 'bank-link' }
+export function withBankDetails(account: Account, linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode, rows: readonly Pick<Transaction, 'account' | 'date'>[]): Account {
+  return { ...account, bank: ENABLE_BANKING_NAMES[bank], iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind, sources: bankLinkedSources(account, rows) }
+}
+
+/** The account's periods once the bank brings its rows: as they are when it brings them now, or with the bank link from the day after its newest row on, or from its start while it has none. */
+function bankLinkedSources(account: Account, rows: readonly Pick<Transaction, 'account' | 'date'>[]): Account['sources'] {
+  if (account.sources[account.sources.length - 1]?.source === 'bank-link') return account.sources
+  const newest = rows.filter((row) => row.account === account.id).reduce<CivilDate | null>((last, row) => (last === null || row.date > last ? row.date : last), null)
+  return periodsFrom(account.sources, 'bank-link', newest === null ? null : addDays(newest, 1))
 }
 
 function sameDetails(one: Account, other: Account): boolean {
-  return sameBank(one.bank, other.bank) && one.iban === other.iban && one.currency === other.currency && one.kind === other.kind && one.rowsFrom === other.rowsFrom
+  return sameBank(one.bank, other.bank) && one.iban === other.iban && one.currency === other.currency && one.kind === other.kind && periodsText(one.sources) === periodsText(other.sources)
 }
 
 /**
@@ -221,7 +230,7 @@ export function setupLines(
   proposals: readonly AccountProposal[],
   book: {
     readonly accounts: readonly Account[]
-    readonly transactions: readonly Pick<Transaction, 'account'>[]
+    readonly transactions: readonly Pick<Transaction, 'account' | 'date'>[]
     readonly settings: Pick<SpendingSettings, 'bankAccountsNotInKuna' | 'bankAccountsKeepMine'>
   },
 ): readonly SetupLine[] {
@@ -235,7 +244,7 @@ export function setupLines(
       const proposal = proposals.find((held) => held.linked.uid === linkedAccount.uid && held.account.currency === currency) ?? null
       const account = kept.find((each) => each.currency === currency)
       if (account !== undefined) {
-        const update = withBankDetails(account, linkedAccount, bank, account.currency)
+        const update = withBankDetails(account, linkedAccount, bank, account.currency, book.transactions)
         const declined = key !== null && keepMine.includes(key)
         return { kind: 'kept', bank, linked: linkedAccount, account, update: declined || sameDetails(account, update) ? null : update, keptMine: declined }
       }
@@ -243,7 +252,7 @@ export function setupLines(
       const fitting = code === null ? null : fittingAccount(linkedAccount, bank, code, book.accounts, claimed, book.transactions)
       if (fitting === null || code === null) return { kind: 'missing', bank, linked: linkedAccount, currency, proposal }
       claimed.add(fitting.id)
-      return { kind: 'fits', bank, linked: linkedAccount, account: fitting, update: withBankDetails(fitting, linkedAccount, bank, code), proposal }
+      return { kind: 'fits', bank, linked: linkedAccount, account: fitting, update: withBankDetails(fitting, linkedAccount, bank, code, book.transactions), proposal }
     })
   })
 }

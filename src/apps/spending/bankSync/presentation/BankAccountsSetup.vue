@@ -17,7 +17,7 @@ import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
 import { words as spendingWords } from '../../words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { sameBank } from '../../workbook/domain/account'
+import { bankLinked, sameBank } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -111,7 +111,7 @@ function heldLine(account: StartedAccount): string {
 
 /** Whether a line offers to have the bank bring the rows of an account kept by hand. */
 function offersSync(line: SetupLine): boolean {
-  return line.kind === 'kept' && line.account.rowsFrom === 'by-hand' && line.update?.rowsFrom === 'bank-link'
+  return line.kind === 'kept' && !bankLinked(line.account) && line.update !== null && bankLinked(line.update)
 }
 
 /** What Update account or Switch to bank changes, and why the IBAN is one another account already has when the bank gives one IBAN for every currency. */
@@ -129,7 +129,7 @@ function changes(line: Extract<SetupLine, { kind: 'kept' | 'fits' }> & { readonl
 }
 
 function stateLine(line: SetupLine): string {
-  if (line.kind === 'kept') return line.account.rowsFrom === 'by-hand' ? words.setup.keptByHand(line.account.name) : words.setup.keptAs(line.account.name)
+  if (line.kind === 'kept') return !bankLinked(line.account) ? words.setup.keptByHand(line.account.name) : words.setup.keptAs(line.account.name)
   if (line.kind === 'fits') return changes(line)
   return words.setup.notKept
 }
@@ -331,7 +331,7 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
         </span>
         <UButton
           v-if="setupActions(line).includes('bring-back-mine')"
-          :label="line.account.rowsFrom === 'by-hand' ? words.setup.offerBankAgain : words.setup.bringBack"
+          :label="!bankLinked(line.account) ? words.setup.offerBankAgain : words.setup.bringBack"
           color="neutral"
           variant="ghost"
           size="sm"

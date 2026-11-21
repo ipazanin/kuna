@@ -7,11 +7,13 @@ import type { AcceptResult, AssistantOperation, CheckedProposal, ProposalStep } 
 import { TEXT, found, inputOf } from '../../../../shared/app/operationInput'
 import { words as sharedWords } from '../../../../shared/app/words'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { today } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 
 /** The account a new entry starts on, which this browser keeps, read and set the way the entry and receipt dialogs do. */
 export interface LastAccountPorts {
   lastAccountId(): RecordId | null
-  startingAccount(accounts: readonly Account[]): Account | null
+  startingAccount(accounts: readonly Account[], day: CivilDate): Account | null
   rememberLastAccount(account: Account): void
   forgetLastAccount(): void
 }
@@ -48,8 +50,8 @@ export function startingAccountCheck(title: string, steps: readonly ProposalStep
   if (steps.length > 1) return { refused: [`${SET_STARTING_ACCOUNT.name} changes this device and not the books, so it goes on a card of its own.`] }
   const after = found(accounts, String(steps[0]!.input['account']), 'account')
   if (after.closed) return { refused: ['A new entry starts only on an open account.'] }
-  if (!takesRowsByHand(after)) return { refused: ['That account takes its rows from the bank, so a new entry never starts on it.'] }
-  const before = ports.startingAccount(accounts)
+  if (!takesRowsByHand(after, today())) return { refused: ['That account takes the rows of today from the bank or its statement file, so a new entry never starts on it.'] }
+  const before = ports.startingAccount(accounts, today())
   if (before?.id === after.id) return { refused: ['New entries already start on that account.'] }
   const kept = ports.lastAccountId()
   const held: HeldStartingAccount = { kept, keptAccount: accounts.find((account) => account.id === kept) ?? null, after }

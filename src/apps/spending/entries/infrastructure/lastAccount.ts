@@ -1,5 +1,6 @@
 import { takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -22,9 +23,9 @@ export function lastUsedAccount(accounts: readonly Account[]): Account | null {
   return open.find((account) => account.id === last) ?? open[0] ?? null
 }
 
-/** The account a new entry starts on: the last used of those kept by hand. */
-export function startingAccount(accounts: readonly Account[]): Account | null {
-  return lastUsedAccount(accounts.filter(takesRowsByHand))
+/** The account a new entry of the day starts on: the last used of those that take typed rows on it. */
+export function startingAccount(accounts: readonly Account[], day: CivilDate): Account | null {
+  return lastUsedAccount(accounts.filter((account) => takesRowsByHand(account, day)))
 }
 
 /** Where storage is denied the next entry starts on the first open account. */

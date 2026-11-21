@@ -11,7 +11,22 @@ import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domai
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
-import { account, ACCOUNTS, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, storedBeforeItems, transactionId, filedDryRun, filedChanges, refiled, rulesInto, spendingBook } from './fixtures/spending'
+import {
+  account,
+  ACCOUNTS_FROM_FILES,
+  category,
+  OTP,
+  REVOLUT_EUR,
+  REVOLUT_USD,
+  row,
+  storedBeforeItems,
+  transactionId,
+  filedDryRun,
+  filedChanges,
+  refiled,
+  rulesInto,
+  fileBook,
+} from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 import { dryRunNotes } from '../src/apps/spending/statements/presentation/readingLines'
 import { dayLabel } from '../src/shared/calendar/dayLabel'
@@ -58,7 +73,7 @@ const onFile = (on: typeof OTP, date: string, amount: number, fields: Partial<St
 describe('the dry run of a statement', () => {
   it('skips a row whose key is on the account already', () => {
     const held = onFile(OTP, '2026-10-20', -5, { importKey: 'held' })
-    const run = filedDryRun(spendingBook([held]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee', { importKey: 'held' })), DAY)
+    const run = filedDryRun(fileBook([held]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee', { importKey: 'held' })), DAY)
 
     expect(run).toMatchObject({ newRows: 0, alreadyIn: 1, filled: 0, added: [], changed: [] })
   })
@@ -66,20 +81,20 @@ describe('the dry run of a statement', () => {
   it('takes the same key on another account as a new row', () => {
     const held = onFile(REVOLUT_EUR, '2026-10-20', -5, { importKey: 'held' })
 
-    expect(filedDryRun(spendingBook([held]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee', { importKey: 'held' })), DAY).newRows).toBe(1)
+    expect(filedDryRun(fileBook([held]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee', { importKey: 'held' })), DAY).newRows).toBe(1)
   })
 
   it('leaves a row before its account opened out with a note, as the entry dialog refuses one', () => {
-    const run = filedDryRun(spendingBook([]), statementOf(statementRow(OTP, '2026-08-31', -5, 'Coffee')), DAY)
+    const run = filedDryRun(fileBook([]), statementOf(statementRow(OTP, '2026-08-31', -5, 'Coffee')), DAY)
 
     expect(run).toMatchObject({ newRows: 0, added: [], leftOut: [{ kind: 'before-opening', account: OTP.id, count: 1, openedOn: OTP.openedOn }] })
-    expect(dryRunNotes(run, ACCOUNTS)).toEqual([`1 row of OTP current left out, since it is dated before the account opened on ${dayLabel(OTP.openedOn)}.`])
+    expect(dryRunNotes(run, ACCOUNTS_FROM_FILES)).toEqual([`1 row of OTP current left out, since it is dated before the account opened on ${dayLabel(OTP.openedOn)}.`])
     expect(run.lines[0]?.outcome).toBe('before-opening')
   })
 
   it("fills a typed row of the same money with the bank's facts, and keeps its id, category, note and payee", () => {
     const typed = row(OTP, '2026-10-19', -5, 'Food/Eating out', { payee: 'My coffee', note: 'With Ana', categorisedBy: 'person' })
-    const run = filedDryRun(spendingBook([typed]), statementOf(statementRow(OTP, '2026-10-20', -5, 'CAFE 123', { counterpartyIban: 'HR2200000000000000022' })), DAY)
+    const run = filedDryRun(fileBook([typed]), statementOf(statementRow(OTP, '2026-10-20', -5, 'CAFE 123', { counterpartyIban: 'HR2200000000000000022' })), DAY)
 
     expect(run).toMatchObject({ newRows: 0, filled: 1, added: [] })
     expect(run.changed).toEqual([
@@ -100,30 +115,30 @@ describe('the dry run of a statement', () => {
   it('does not fill a row a statement already filled', () => {
     const filled = row(OTP, '2026-10-19', -5, 'Food/Eating out', { importKey: 'earlier' })
 
-    expect(filedDryRun(spendingBook([filled]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee')), DAY).filled).toBe(0)
+    expect(filedDryRun(fileBook([filled]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee')), DAY).filled).toBe(0)
   })
 
   it('files a new row by the first rule that holds', () => {
     const rules = [ruleOf({ test: 'payee_contains', values: ['Corner market'], not: false }, 'Food/Groceries')]
-    const run = filedDryRun(spendingBook([], { rules }), statementOf(statementRow(OTP, '2026-10-20', -5, 'CORNER MARKET 12')), DAY, counting())
+    const run = filedDryRun(fileBook([], { rules }), statementOf(statementRow(OTP, '2026-10-20', -5, 'CORNER MARKET 12')), DAY, counting())
 
     expect(run.added).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule', source: 'statement', statement: 'export.csv' }])
   })
 
   it('files by the IBAN too, however it is grouped', () => {
     const rules = [ruleOf({ test: 'iban_is', values: ['HR2200000000000000022'], not: false }, 'Food/Groceries')]
-    const run = filedDryRun(spendingBook([], { rules }), statementOf(statementRow(OTP, '2026-10-20', -5, 'Shop', { counterpartyIban: 'HR22 0000 0000 0000 0002 2' })), DAY)
+    const run = filedDryRun(fileBook([], { rules }), statementOf(statementRow(OTP, '2026-10-20', -5, 'Shop', { counterpartyIban: 'HR22 0000 0000 0000 0002 2' })), DAY)
 
     expect(run.added[0]?.category).toBe(category('Food/Groceries').id)
   })
 
   it('leaves a new row no rule decides waiting on review', () => {
-    expect(filedDryRun(spendingBook([]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Shop')), DAY).added).toMatchObject([{ category: null, categorisedBy: null }])
+    expect(filedDryRun(fileBook([]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Shop')), DAY).added).toMatchObject([{ category: null, categorisedBy: null }])
   })
 
   it("keeps the category a reader gave, with no rule's mark, so a rule change leaves it", () => {
     const fees = category('Money and fees/Bank fees').id
-    const run = filedDryRun(spendingBook([]), statementOf(statementRow(OTP, '2026-10-20', -1, 'Revolut', { category: fees })), DAY)
+    const run = filedDryRun(fileBook([]), statementOf(statementRow(OTP, '2026-10-20', -1, 'Revolut', { category: fees })), DAY)
 
     expect(run.added).toMatchObject([{ category: fees, categorisedBy: null }])
   })
@@ -131,27 +146,27 @@ describe('the dry run of a statement', () => {
   it('pairs a new credit with a lone leg on the file, within the last 30 days', () => {
     const between = category('Between my accounts').id
     const lone = onFile(OTP, '2026-10-20', -75, { category: between, counterpartyIban: REVOLUT_EUR.iban })
-    const run = filedDryRun(spendingBook([lone]), statementOf(statementRow(REVOLUT_EUR, '2026-10-21', 75, 'Top-up')), DAY, counting())
+    const run = filedDryRun(fileBook([lone]), statementOf(statementRow(REVOLUT_EUR, '2026-10-21', 75, 'Top-up')), DAY, counting())
 
     expect(run.added).toMatchObject([{ category: between, pair: lone.id }])
     expect(run.changed).toEqual([refiled(lone, { ...lone, pair: run.added[0]!.id, categorisedBy: null })])
   })
 
   it('pairs a top-up that names an OTP card with the OTP debit waiting on the file, and files a lone one as a transfer', () => {
-    const accounts = [{ ...OTP, cards: ['3670'] }, REVOLUT_EUR, REVOLUT_USD]
+    const accounts = [{ ...ACCOUNTS_FROM_FILES[0]!, cards: ['3670'] }, ACCOUNTS_FROM_FILES[1]!, ACCOUNTS_FROM_FILES[2]!]
     const between = category('Between my accounts').id
     const waiting = onFile(OTP, '2026-10-20', -50, { payee: 'Revolut' })
     const topUp = statementRow(REVOLUT_EUR, '2026-10-21', 50, 'Top-Up by *3670')
-    const run = filedDryRun(spendingBook([waiting], { accounts }), statementOf(topUp), DAY, counting())
+    const run = filedDryRun(fileBook([waiting], { accounts }), statementOf(topUp), DAY, counting())
 
     expect(run.added).toMatchObject([{ category: between, pair: waiting.id }])
-    expect(filedDryRun(spendingBook([], { accounts }), statementOf(topUp), DAY).added).toMatchObject([{ category: between, pair: null }])
+    expect(filedDryRun(fileBook([], { accounts }), statementOf(topUp), DAY).added).toMatchObject([{ category: between, pair: null }])
   })
 
   it('offers on To review two waiting rows that would pair by a card, as a card typed in after they came in', () => {
     const debit = onFile(OTP, '2026-10-20', -50, { payee: 'Revolut' })
     const credit = onFile(REVOLUT_EUR, '2026-10-21', 50, { payee: 'Top-Up by *3670' })
-    const book = spendingBook([debit, credit], { accounts: [{ ...OTP, cards: ['3670'] }, REVOLUT_EUR, REVOLUT_USD] })
+    const book = fileBook([debit, credit], { accounts: [{ ...ACCOUNTS_FROM_FILES[0]!, cards: ['3670'] }, ACCOUNTS_FROM_FILES[1]!, ACCOUNTS_FROM_FILES[2]!] })
 
     expect(reviewQueue(book, DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([
       { debit, credit },
@@ -162,15 +177,15 @@ describe('the dry run of a statement', () => {
   it('does not touch a lone leg more than 30 days before today and before the oldest new row', () => {
     const old = onFile(OTP, '2026-09-20', -75, { category: category('Between my accounts').id, counterpartyIban: REVOLUT_EUR.iban })
 
-    expect(filedDryRun(spendingBook([old]), statementOf(statementRow(REVOLUT_EUR, '2026-10-21', 75, 'Top-up')), civil('2026-10-21')).changed).toEqual([])
+    expect(filedDryRun(fileBook([old]), statementOf(statementRow(REVOLUT_EUR, '2026-10-21', 75, 'Top-up')), civil('2026-10-21')).changed).toEqual([])
   })
 
   it("pairs an old exchange across two imports, reaching back from the statement's own rows", () => {
     const at = '2026-03-10 09:00:00'
     const between = category('Between my accounts').id
-    const onSept = (date: string) => ACCOUNTS.map((held) => ({ ...held, openedOn: civil(date) }))
+    const onSept = (date: string) => ACCOUNTS_FROM_FILES.map((held) => ({ ...held, openedOn: civil(date) }))
     const leg = onFile(REVOLUT_EUR, '2026-03-10', -54, { category: between, movedAt: at })
-    const run = filedDryRun({ ...spendingBook([leg]), accounts: onSept('2026-01-01') }, statementOf(statementRow(REVOLUT_USD, '2026-03-10', 58, 'From EUR', { movedAt: at })), DAY)
+    const run = filedDryRun({ ...fileBook([leg]), accounts: onSept('2026-01-01') }, statementOf(statementRow(REVOLUT_USD, '2026-03-10', 58, 'From EUR', { movedAt: at })), DAY)
 
     expect(run.added[0]?.pair).toBe(leg.id)
     expect(run.changed).toHaveLength(1)
@@ -179,7 +194,7 @@ describe('the dry run of a statement', () => {
   it('shows a row on the file the pairing changes as a line of its own', () => {
     const filedByRule = onFile(OTP, '2026-10-20', -30, { payee: 'Corner', category: category('Food/Groceries').id, categorisedBy: 'rule', counterpartyIban: REVOLUT_EUR.iban, importKey: 'held' })
     const statement = statementOf(statementRow(OTP, '2026-10-20', -30, 'Corner', { importKey: 'held' }))
-    const run = filedDryRun(spendingBook([filedByRule]), statement, DAY)
+    const run = filedDryRun(fileBook([filedByRule]), statement, DAY)
 
     expect(run).toMatchObject({ newRows: 0, alreadyIn: 1 })
     expect(run.changed).toHaveLength(1)
@@ -199,13 +214,13 @@ describe('the dry run of a statement', () => {
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
-      rowsFrom: 'by-hand',
+      sources: [{ source: 'by-hand', from: null }],
       iban: '',
       closed: false,
     })
     const currentLeg = statementRow(REVOLUT_EUR, '2026-10-20', -20, 'Pocket Summer trip', { movedAt: at, pocket: true })
     const savingsLeg = statementRow(pocket, '2026-10-20', 20, 'From current', { movedAt: at, pocket: true })
-    const withPocket = (transactions: readonly Transaction[] = []) => ({ ...spendingBook(transactions), accounts: [...ACCOUNTS, pocket] })
+    const withPocket = (transactions: readonly Transaction[] = []) => ({ ...fileBook(transactions), accounts: [...ACCOUNTS_FROM_FILES, pocket] })
 
     it('pairs as a transfer with a savings account', () => {
       const { added, notes } = filedDryRun(withPocket(), statementOf(currentLeg, savingsLeg), DAY, counting())
@@ -218,11 +233,11 @@ describe('the dry run of a statement', () => {
     })
 
     it('counts as a transfer and waits with no savings account, saying it wants one, in the dry run and on To review', () => {
-      const run = filedDryRun(spendingBook([]), statementOf(currentLeg), DAY)
+      const run = filedDryRun(fileBook([]), statementOf(currentLeg), DAY)
 
       expect(run.added).toMatchObject([{ category: between, pair: null, pocket: true, categorisedBy: null }])
       expect(run.notes).toEqual(['1 pocket move counts as a transfer and waits for a Revolut savings account.'])
-      const queue = reviewQueue(spendingBook(run.added), DAY)
+      const queue = reviewQueue(fileBook(run.added), DAY)
       expect(queue.loneLegs).toEqual(run.added)
       expect(queue.wantingSavings).toBe(1)
       expect(queue.waiting).toEqual([])
@@ -232,12 +247,12 @@ describe('the dry run of a statement', () => {
       const exchange = onFile(REVOLUT_EUR, '2026-10-20', -5, { category: between, movedAt: at })
       const paired = onFile(REVOLUT_EUR, '2026-10-20', -6, { category: between, movedAt: at, pocket: true, pair: transactionId(80) })
 
-      expect(reviewQueue(spendingBook([exchange, paired]), DAY).wantingSavings).toBe(0)
+      expect(reviewQueue(fileBook([exchange, paired]), DAY).wantingSavings).toBe(0)
     })
 
     it('pairs the lone leg once a savings account exists and the file is imported again, however old', () => {
       const old = statementRow(REVOLUT_EUR, '2026-10-20', -20, 'Pocket Summer trip', { movedAt: at, pocket: true })
-      const first = filedDryRun(spendingBook([]), statementOf(old), DAY, counting())
+      const first = filedDryRun(fileBook([]), statementOf(old), DAY, counting())
       const second = filedDryRun(withPocket(first.added), statementOf(old, savingsLeg), civil('2027-06-01'), counting())
 
       expect(second).toMatchObject({ newRows: 1, alreadyIn: 1 })
@@ -248,7 +263,7 @@ describe('the dry run of a statement', () => {
     it('does not fill a typed purchase of the same money', () => {
       const typed = row(REVOLUT_EUR, '2026-10-20', -20, 'Food/Groceries')
 
-      expect(filedDryRun(spendingBook([typed]), statementOf(currentLeg), DAY).filled).toBe(0)
+      expect(filedDryRun(fileBook([typed]), statementOf(currentLeg), DAY).filled).toBe(0)
     })
 
     it('adds nothing on a second import of the same file', () => {
@@ -269,7 +284,7 @@ describe('the dry run of a statement', () => {
     const typedShop = () => row(REVOLUT_EUR, '2026-10-20', -54, 'Food/Groceries', { payee: 'Big shop' })
 
     it('not an exchange leg, which stays a transfer', () => {
-      const run = filedDryRun(spendingBook([typedShop()]), statementOf(statementRow(REVOLUT_EUR, '2026-10-20', -54, 'To USD', { movedAt: '2026-10-20 09:00:00' })), DAY)
+      const run = filedDryRun(fileBook([typedShop()]), statementOf(statementRow(REVOLUT_EUR, '2026-10-20', -54, 'To USD', { movedAt: '2026-10-20 09:00:00' })), DAY)
 
       expect(run).toMatchObject({ filled: 0, newRows: 1, added: [{ category: category('Between my accounts').id }] })
     })
@@ -277,20 +292,20 @@ describe('the dry run of a statement', () => {
     it('not a debit to an own IBAN', () => {
       const typed = row(OTP, '2026-10-20', -54, 'Food/Groceries')
 
-      expect(filedDryRun(spendingBook([typed]), statementOf(statementRow(OTP, '2026-10-20', -54, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY).filled).toBe(0)
+      expect(filedDryRun(fileBook([typed]), statementOf(statementRow(OTP, '2026-10-20', -54, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY).filled).toBe(0)
     })
 
     it('not a fee the reader filed', () => {
       const fee = statementRow(REVOLUT_EUR, '2026-10-20', -54, 'Revolut', { category: category('Money and fees/Bank fees').id })
 
-      expect(filedDryRun(spendingBook([typedShop()]), statementOf(fee), DAY).filled).toBe(0)
+      expect(filedDryRun(fileBook([typedShop()]), statementOf(fee), DAY).filled).toBe(0)
     })
 
     it('but a debit to an own IBAN fills a typed transfer leg', () => {
       const between = category('Between my accounts').id
       const [out, into] = [transactionId(70), transactionId(71)]
       const legs = [row(OTP, '2026-10-20', -75, 'Between my accounts', { id: out, pair: into }), row(REVOLUT_EUR, '2026-10-20', 75, 'Between my accounts', { id: into, pair: out })]
-      const run = filedDryRun(spendingBook(legs), statementOf(statementRow(OTP, '2026-10-21', -75, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY)
+      const run = filedDryRun(fileBook(legs), statementOf(statementRow(OTP, '2026-10-21', -75, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY)
 
       expect(run).toMatchObject({ filled: 1, newRows: 0 })
       expect(run.changed[0]?.after).toMatchObject({ id: out, pair: into, category: between, importKey: 'key-To Revolut-2026-10-21' })
@@ -300,20 +315,20 @@ describe('the dry run of a statement', () => {
       const [out, into] = [transactionId(72), transactionId(73)]
       const legs = [row(OTP, '2026-10-20', -60, 'Between my accounts', { id: out, pair: into }), row(REVOLUT_EUR, '2026-10-20', 60, 'Between my accounts', { id: into, pair: out })]
 
-      expect(filedDryRun(spendingBook(legs), statementOf(statementRow(OTP, '2026-10-20', -60, 'Card top-up')), DAY).filled).toBe(1)
+      expect(filedDryRun(fileBook(legs), statementOf(statementRow(OTP, '2026-10-20', -60, 'Card top-up')), DAY).filled).toBe(1)
     })
   })
 
   it('does not pair a row you sent back with Not a pair', () => {
     const sentBack = onFile(OTP, '2026-10-20', -75, { categorisedBy: 'person', counterpartyIban: REVOLUT_EUR.iban })
-    const run = filedDryRun(spendingBook([sentBack]), statementOf(statementRow(REVOLUT_EUR, '2026-10-21', 75, 'Top-up')), DAY)
+    const run = filedDryRun(fileBook([sentBack]), statementOf(statementRow(REVOLUT_EUR, '2026-10-21', 75, 'Top-up')), DAY)
 
     expect(run.changed).toEqual([])
     expect(run.added[0]?.pair).toBeNull()
   })
 
   it('files a lone debit to an own IBAN under Between my accounts, waiting', () => {
-    const run = filedDryRun(spendingBook([]), statementOf(statementRow(OTP, '2026-10-20', -75, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY)
+    const run = filedDryRun(fileBook([]), statementOf(statementRow(OTP, '2026-10-20', -75, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY)
 
     expect(run.added).toMatchObject([{ category: category('Between my accounts').id, pair: null, categorisedBy: null }])
   })
@@ -321,7 +336,7 @@ describe('the dry run of a statement', () => {
   it("pairs an exchange's legs inside one file", () => {
     const at = '2026-10-20 09:00:00'
     const run = filedDryRun(
-      spendingBook([]),
+      fileBook([]),
       statementOf(statementRow(REVOLUT_EUR, '2026-10-20', -54, 'To USD', { movedAt: at }), statementRow(REVOLUT_USD, '2026-10-20', 58, 'From EUR', { movedAt: at })),
       DAY,
     )
@@ -332,9 +347,9 @@ describe('the dry run of a statement', () => {
 
   it('reads a statement twice as all in, once its rows are written', () => {
     const statement = statementOf(statementRow(OTP, '2026-10-20', -5, 'Shop'))
-    const { added } = filedDryRun(spendingBook([]), statement, DAY)
+    const { added } = filedDryRun(fileBook([]), statement, DAY)
 
-    expect(filedDryRun(spendingBook(added), statement, DAY)).toMatchObject({ newRows: 0, alreadyIn: 1, changed: [] })
+    expect(filedDryRun(fileBook(added), statement, DAY)).toMatchObject({ newRows: 0, alreadyIn: 1, changed: [] })
   })
 })
 
@@ -363,7 +378,7 @@ describe('a rule change', () => {
     const byOldRule = onFile(OTP, '2026-10-22', -3, { payee: 'Corner', category: category('Food/Eating out').id, categorisedBy: 'rule' })
     const typedBlank = row(OTP, '2026-10-23', -4, 'Food/Eating out', { payee: 'Corner' })
 
-    const book = spendingBook([yours, waiting, byOldRule, typedBlank])
+    const book = fileBook([yours, waiting, byOldRule, typedBlank])
     expect(filedChanges(rulesRerun(book, [ruleOf(corner, 'Food/Groceries')]).changes, book)).toEqual([
       refiled(waiting, { ...waiting, category: groceries, categorisedBy: 'rule' }),
       refiled(byOldRule, { ...byOldRule, category: groceries, categorisedBy: 'rule' }),
@@ -375,7 +390,7 @@ describe('a rule change', () => {
     const filed = onFile(OTP, '2026-10-22', -3, { payee: 'Corner', category: groceries, categorisedBy: 'rule' })
     const { unit, changed, removed } = noting()
 
-    writeRules(unit, spendingBook([filed], { rules: [rule] }), { deleting: [rule] }, null)
+    writeRules(unit, fileBook([filed], { rules: [rule] }), { deleting: [rule] }, null)
 
     expect(removed).toEqual([rule])
     expect(changed).toEqual([[filed, { ...filed, category: null, categorisedBy: null }]])
@@ -383,7 +398,7 @@ describe('a rule change', () => {
 
   it('holds a rule on an income category for money in only, so a later purchase from that payee waits on review', () => {
     const rules = [ruleOf({ test: 'payee_contains', values: ['Zara'], not: false }, 'Income/Other income')]
-    const run = filedDryRun(spendingBook([], { rules }), statementOf(statementRow(OTP, '2026-10-20', -50, 'Zara'), statementRow(OTP, '2026-10-21', 50, 'Zara')), DAY)
+    const run = filedDryRun(fileBook([], { rules }), statementOf(statementRow(OTP, '2026-10-20', -50, 'Zara'), statementRow(OTP, '2026-10-21', 50, 'Zara')), DAY)
 
     expect(run.added.map((row) => [row.amount, row.category, row.categorisedBy])).toEqual([
       [accountMoneyFromAmount(-50), null, null],
@@ -396,16 +411,16 @@ describe('a rule change', () => {
     const spending = ruleOf({ test: 'payee_contains', values: ['Zara'], not: false }, 'Personal/Clothes and shoes', 2)
     const purchase = onFile(OTP, '2026-10-20', -50, { payee: 'Zara' })
     const filed = onFile(OTP, '2026-10-21', -60, { payee: 'Zara', category: category('Personal/Clothes and shoes').id, categorisedBy: 'rule' })
-    const filedBook = spendingBook([filed], { rules: [spending] })
+    const filedBook = fileBook([filed], { rules: [spending] })
 
-    expect(rulesRerun(spendingBook([purchase]), [income, spending]).changes[0]?.items?.[0]?.category).toBe(category('Personal/Clothes and shoes').id)
+    expect(rulesRerun(fileBook([purchase]), [income, spending]).changes[0]?.items?.[0]?.category).toBe(category('Personal/Clothes and shoes').id)
     expect(filedChanges(rulesRerun(filedBook, [{ ...spending, category: income.category }]).changes, filedBook)).toEqual([refiled(filed, { ...filed, category: null, categorisedBy: null })])
   })
 
   it('leaves a spending rule on money in, where it is a refund', () => {
     const refund = onFile(OTP, '2026-10-20', 40, { payee: 'Zara' })
 
-    expect(rulesRerun(spendingBook([refund]), [ruleOf({ test: 'payee_contains', values: ['Zara'], not: false }, 'Personal/Clothes and shoes')]).changes[0]?.items?.[0]?.category).toBe(
+    expect(rulesRerun(fileBook([refund]), [ruleOf({ test: 'payee_contains', values: ['Zara'], not: false }, 'Personal/Clothes and shoes')]).changes[0]?.items?.[0]?.category).toBe(
       category('Personal/Clothes and shoes').id,
     )
   })
@@ -415,15 +430,15 @@ describe('a rule change', () => {
     const yours = onFile(OTP, '2026-10-23', -4, { payee: 'Corner', category: category('Food/Eating out').id, categorisedBy: 'person' })
     const held = ruleOf(corner, 'Food/Eating out')
 
-    expect(rowsRulesWouldChange(spendingBook([...waiting, yours]), rulesInto([corner], groceries), null)).toBe(2)
-    expect(rowsRulesWouldChange(spendingBook([...waiting, yours], { rules: [held] }), rulesInto([corner], groceries), null)).toBe(2)
-    expect(rowsRulesWouldChange(spendingBook([yours]), rulesInto([corner], groceries), null)).toBe(0)
+    expect(rowsRulesWouldChange(fileBook([...waiting, yours]), rulesInto([corner], groceries), null)).toBe(2)
+    expect(rowsRulesWouldChange(fileBook([...waiting, yours], { rules: [held] }), rulesInto([corner], groceries), null)).toBe(2)
+    expect(rowsRulesWouldChange(fileBook([yours]), rulesInto([corner], groceries), null)).toBe(0)
   })
 
   it('leaves a row you sent back with Not a pair waiting, whatever the rules say', () => {
     const sentBack = onFile(OTP, '2026-10-22', -3, { payee: 'Corner', categorisedBy: 'person' })
 
-    expect(rulesRerun(spendingBook([sentBack]), [ruleOf(corner, 'Food/Groceries')]).changes).toEqual([])
+    expect(rulesRerun(fileBook([sentBack]), [ruleOf(corner, 'Food/Groceries')]).changes).toEqual([])
   })
 
   it('leaves a lone leg, a pair and a reader-filed fee where they are, even when a rule fits their payee', () => {
@@ -432,14 +447,14 @@ describe('a rule change', () => {
     const paired = onFile(OTP, '2026-10-23', -4, { payee: 'Corner', category: between, pair: transactionId(74) })
     const fee = onFile(OTP, '2026-10-24', -1, { payee: 'Corner', category: category('Money and fees/Bank fees').id })
 
-    expect(rulesRerun(spendingBook([leg, paired, fee]), [ruleOf(corner, 'Food/Groceries')]).changes).toEqual([])
+    expect(rulesRerun(fileBook([leg, paired, fee]), [ruleOf(corner, 'Food/Groceries')]).changes).toEqual([])
   })
 
   it('moves the rule it already has to the new category, rather than adding a second', () => {
     const rule = ruleOf(corner, 'Food/Eating out')
     const { unit, added, changed } = noting()
 
-    writeRules(unit, spendingBook([], { rules: [rule] }), rulesInto([corner], groceries), null)
+    writeRules(unit, fileBook([], { rules: [rule] }), rulesInto([corner], groceries), null)
 
     expect(added).toEqual([])
     expect(changed).toEqual([[rule, { ...rule, category: groceries }]])
@@ -448,7 +463,7 @@ describe('a rule change', () => {
   it('adds a new rule last', () => {
     const { unit, added } = noting()
 
-    writeRules(unit, spendingBook([], { rules: [ruleOf({ test: 'iban_is', values: ['HR1'], not: false }, 'Food/Eating out', 4)] }), rulesInto([corner], groceries), null)
+    writeRules(unit, fileBook([], { rules: [ruleOf({ test: 'iban_is', values: ['HR1'], not: false }, 'Food/Eating out', 4)] }), rulesInto([corner], groceries), null)
 
     expect(added).toMatchObject([{ order: 5, conditions: [corner], category: groceries }])
   })
@@ -457,7 +472,7 @@ describe('a rule change', () => {
     const { unit, added } = noting()
     const typed = ['Ina Split', 'Ina Pleternica', 'Ina Kozjak Sjever'].map((fragment): SpendingRuleCondition => ({ test: 'payee_contains', values: [fragment], not: false }))
 
-    writeRules(unit, spendingBook([], { rules: [ruleOf({ test: 'iban_is', values: ['HR1'], not: false }, 'Food/Eating out', 4)] }), rulesInto(typed, groceries), null)
+    writeRules(unit, fileBook([], { rules: [ruleOf({ test: 'iban_is', values: ['HR1'], not: false }, 'Food/Eating out', 4)] }), rulesInto(typed, groceries), null)
 
     expect(added).toMatchObject(typed.map((condition, place) => ({ order: 5 + place, conditions: [condition], category: groceries })))
   })
@@ -467,7 +482,7 @@ describe('a rule change', () => {
     const { unit, added, changed } = noting()
 
     const draft = { conditions: [{ test: 'payee_contains', values: ['Corner market'], not: false }], category: groceries, labels: [], stop: false, withdrawal: null, link: null } as const
-    writeRules(unit, spendingBook([], { rules: [rule] }), { changing: [{ rule, draft }] }, null)
+    writeRules(unit, fileBook([], { rules: [rule] }), { changing: [{ rule, draft }] }, null)
 
     expect(added).toEqual([])
     expect(changed).toEqual([[rule, { ...rule, conditions: [{ test: 'payee_contains', values: ['Corner market'], not: false }], labels: [], stop: false, category: groceries }]])
@@ -480,15 +495,15 @@ describe('a rule change', () => {
   })
 
   it('states the accounts as own and fills the fields Spending has no use for', () => {
-    expect(spendingCategorisationContext({ accounts: ACCOUNTS })).toMatchObject({ clientIbans: new Set(), cardSettlementIbans: new Set(), defaultCurrency: 'EUR' })
-    expect(spendingCategorisationContext({ accounts: ACCOUNTS }).ownIbans.has(OTP.iban)).toBe(true)
+    expect(spendingCategorisationContext({ accounts: ACCOUNTS_FROM_FILES })).toMatchObject({ clientIbans: new Set(), cardSettlementIbans: new Set(), defaultCurrency: 'EUR' })
+    expect(spendingCategorisationContext({ accounts: ACCOUNTS_FROM_FILES }).ownIbans.has(OTP.iban)).toBe(true)
   })
 })
 
 describe('To review', () => {
   it('counts the rows with no category, and lists them newest first', () => {
     const [older, newer] = [onFile(OTP, '2026-10-20', -1), onFile(OTP, '2026-10-21', -2)]
-    const book = spendingBook([older, newer, row(OTP, '2026-10-22', -3, 'Food/Eating out')])
+    const book = fileBook([older, newer, row(OTP, '2026-10-22', -3, 'Food/Eating out')])
 
     expect(reviewCount(book)).toBe(2)
     expect(reviewQueue(book, DAY).waiting.map(({ row: waiting }) => waiting)).toEqual([newer, older])
@@ -497,33 +512,33 @@ describe('To review', () => {
   it('never offers a typed row waiting on review against itself', () => {
     const typedLeg = row(OTP, '2026-10-21', 30, null)
 
-    expect(reviewQueue(spendingBook([typedLeg]), DAY).waiting[0]?.maybeTyped).toBeNull()
+    expect(reviewQueue(fileBook([typedLeg]), DAY).waiting[0]?.maybeTyped).toBeNull()
   })
 
   it('offers a near typed row on the waiting row', () => {
     const typed = row(OTP, '2026-10-20', -10, 'Food/Eating out')
     const bank = onFile(OTP, '2026-10-21', -10.5)
 
-    expect(reviewQueue(spendingBook([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: accountMoneyFromAmount(-0.5) })
+    expect(reviewQueue(fileBook([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: accountMoneyFromAmount(-0.5) })
   })
 
   it('offers a typed row of the same money too, since one typed after the import never met a dry run', () => {
     const typed = row(OTP, '2026-10-20', -10, 'Food/Eating out')
     const bank = onFile(OTP, '2026-10-21', -10)
 
-    expect(reviewQueue(spendingBook([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: accountMoneyFromAmount(0) })
+    expect(reviewQueue(fileBook([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: accountMoneyFromAmount(0) })
   })
 
   it('offers an amount and date alone as a transfer on both rows, and stops once you said no', () => {
     const debit = onFile(OTP, '2026-10-20', -60)
     const credit = onFile(REVOLUT_EUR, '2026-10-21', 60)
-    const offered = reviewQueue(spendingBook([debit, credit]), DAY).waiting.map((waiting) => waiting.maybeTransfer)
+    const offered = reviewQueue(fileBook([debit, credit]), DAY).waiting.map((waiting) => waiting.maybeTransfer)
 
     expect(offered).toEqual([
       { debit, credit },
       { debit, credit },
     ])
-    expect(reviewQueue(spendingBook([{ ...debit, categorisedBy: 'person' }, credit]), DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([null, null])
+    expect(reviewQueue(fileBook([{ ...debit, categorisedBy: 'person' }, credit]), DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([null, null])
   })
 
   it('offers a waiting row with a lone leg a rule filed as a transfer a day later, and not with one filed under another category', () => {
@@ -531,8 +546,8 @@ describe('To review', () => {
     const topUp = onFile(REVOLUT_EUR, '2026-10-21', 60, { payee: 'Top-up', category: category('Between my accounts').id, categorisedBy: 'rule' })
     const shop = onFile(REVOLUT_EUR, '2026-10-21', 60, { payee: 'Refund', category: category('Food/Groceries').id, categorisedBy: 'rule' })
 
-    expect(reviewQueue(spendingBook([debit, topUp]), DAY).waiting.map((waiting) => [waiting.row, waiting.maybeTransfer])).toEqual([[debit, { debit, credit: topUp }]])
-    expect(reviewQueue(spendingBook([debit, shop]), DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([null])
+    expect(reviewQueue(fileBook([debit, topUp]), DAY).waiting.map((waiting) => [waiting.row, waiting.maybeTransfer])).toEqual([[debit, { debit, credit: topUp }]])
+    expect(reviewQueue(fileBook([debit, shop]), DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([null])
   })
 
   it('lists a pair of the last 30 days once, the typed kind and older ones left out, and a lone leg apart', () => {
@@ -543,7 +558,7 @@ describe('To review', () => {
     const lone = onFile(OTP, '2026-10-25', -20, { category: between })
     const [typedOut, typedIn] = [transactionId(52), transactionId(53)]
     const typed = [row(OTP, '2026-10-21', -5, 'Between my accounts', { id: typedOut, pair: typedIn }), row(REVOLUT_EUR, '2026-10-21', 5, 'Between my accounts', { id: typedIn, pair: typedOut })]
-    const queue = reviewQueue(spendingBook([debit, credit, lone, ...typed]), DAY)
+    const queue = reviewQueue(fileBook([debit, credit, lone, ...typed]), DAY)
 
     expect(queue.pairs).toEqual([{ debit, credit }])
     expect(queue.loneLegs).toEqual([lone])
@@ -555,7 +570,7 @@ describe('what To review and the import write', () => {
 
   it('writes a dry run in one unit', () => {
     const typed = row(OTP, '2026-10-19', -5, 'Food/Eating out')
-    const run = filedDryRun(spendingBook([typed]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee'), statementRow(OTP, '2026-10-21', -7, 'Shop')), DAY)
+    const run = filedDryRun(fileBook([typed]), statementOf(statementRow(OTP, '2026-10-20', -5, 'Coffee'), statementRow(OTP, '2026-10-21', -7, 'Shop')), DAY)
     const { unit, added, changed } = noting()
 
     writeDryRun(unit, storedBeforeItems([typed]), run)
@@ -581,7 +596,7 @@ describe('what To review and the import write', () => {
 
     fileRows(unit, storedBeforeItems([topUp]), [topUp], category('Between my accounts'))
     const filed = changed[0]![1] as StoredRow
-    const run = filedDryRun(spendingBook([filed]), statementOf(statementRow(OTP, '2026-10-21', -75, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY)
+    const run = filedDryRun(fileBook([filed]), statementOf(statementRow(OTP, '2026-10-21', -75, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY)
 
     expect(filed).toMatchObject({ category: between, categorisedBy: null })
     expect(run.added[0]?.pair).toBe(filed.id)
@@ -603,15 +618,15 @@ describe('a rule-filed bank row near a typed row', () => {
   const typed = row(OTP, '2026-10-20', -23.49, 'Food/Groceries', { source: 'receipt', categorisedBy: 'person' })
 
   it('waits on review, with no category and no rule mark, so the money does not count twice', () => {
-    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
+    const run = filedDryRun(fileBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
 
     expect(run.added).toMatchObject([{ category: null, categorisedBy: null, payee: 'KONZUM' }])
     expect(run.lines[0]).toMatchObject({ outcome: 'new', category: null })
   })
 
   it('is offered on To review as maybe the same money', () => {
-    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
-    const [waiting] = reviewQueue(spendingBook([typed, ...run.added], { rules: [rule] }), DAY).waiting
+    const run = filedDryRun(fileBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
+    const [waiting] = reviewQueue(fileBook([typed, ...run.added], { rules: [rule] }), DAY).waiting
 
     expect(waiting?.maybeTyped).toMatchObject({ typed, difference: accountMoneyFromAmount(-2.35) })
   })
@@ -620,17 +635,17 @@ describe('a rule-filed bank row near a typed row', () => {
     const waiting = row(OTP, '2026-10-21', -25.84, null, { source: 'statement', payee: 'KONZUM', description: 'KONZUM', importKey: 'key-1' })
     const alone = row(OTP, '2026-10-21', -40, null, { source: 'statement', payee: 'KONZUM', description: 'KONZUM', importKey: 'key-2' })
 
-    expect(rulesRerun(spendingBook([typed, waiting, alone]), [rule]).changes.map(({ before }) => before)).toEqual([alone])
+    expect(rulesRerun(fileBook([typed, waiting, alone]), [rule]).changes.map(({ before }) => before)).toEqual([alone])
   })
 
   it('is filed by the rule when no typed row is near', () => {
-    const run = filedDryRun(spendingBook([], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
+    const run = filedDryRun(fileBook([], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], fileNotes: [] }, DAY)
 
     expect(run.added).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
   })
 
   it('still fills a typed row of the same money', () => {
-    const run = filedDryRun(spendingBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -23.49, 'KONZUM')], fileNotes: [] }, DAY)
+    const run = filedDryRun(fileBook([typed], { rules: [rule] }), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -23.49, 'KONZUM')], fileNotes: [] }, DAY)
 
     expect([run.filled, run.newRows]).toEqual([1, 0])
   })

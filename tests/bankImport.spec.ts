@@ -122,7 +122,7 @@ describe('a fetch', () => {
     const { dryRun, receipt } = await importerOver(port, fake.store).run(false)
 
     expect(dryRun.added).toEqual([])
-    expect(dryRun.lines.map((line) => line.outcome)).toEqual(['other-source'])
+    expect(dryRun.lines.map((line) => line.outcome)).toEqual(['already-in'])
     expect(receipt).toBeNull()
   })
 
@@ -418,7 +418,7 @@ describe('what the step says', () => {
   })
 
   it('stays quiet about a linked account kept by hand, which the person chose', () => {
-    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const, alsoFrom: [] }
+    const byHand = { ...REVOLUT_USD, sources: [{ source: 'by-hand' as const, from: null }] }
     const book = { ...bookNow(), accounts: [...bookNow().accounts.filter((account) => account.id !== REVOLUT_USD.id), byHand] }
     expect(bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: linked('usd', REVOLUT_USD.iban, 'USD') }] }, book, null, 0)).toMatchObject({ kind: 'done' })
   })

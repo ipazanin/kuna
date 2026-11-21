@@ -23,7 +23,7 @@ import { WorkbookWriteRefused } from '../src/shared/storage/application/workbook
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { account, cashMovement, cashTransfer, dividend, exchange, instrument, trade, USD } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
-import { ACCOUNTS, CASH, CATEGORIES, OTP, addEntries, row } from './fixtures/spending'
+import { ACCOUNTS, CASH, CATEGORIES, OTP, addEntries, row, FILE_THEN_LINK } from './fixtures/spending'
 import { COMPANY, INVESTMENTS, SPENDING, browserHarness, forgetCaches, workbookGrids } from './fixtures/writeBack'
 import { writeGraph } from './support/writePaths'
 import type { WriteGraph } from './support/writePaths'
@@ -152,10 +152,10 @@ describe('Spending rows', () => {
     expect(store.state.workbook!.transactions).toEqual([])
   })
 
-  it("takes the bank sync's row, the bank's file once the account allows it, and a typed row on cash", async () => {
-    const store = await storeOf(ACCOUNTS)
+  it("takes the bank's file on its days, the bank sync's row from the day its link starts, and a typed row on cash", async () => {
+    const store = await storeOf([FILE_THEN_LINK, ...ACCOUNTS.slice(1)])
     const added = [
-      row(OTP, '2026-10-12', -7, 'Food/Groceries', { source: 'statement', importKey: 'bank-otp-1' }),
+      row(OTP, '2026-10-29', -7, 'Food/Groceries', { source: 'statement', importKey: 'bank-otp-1' }),
       row(OTP, '2026-10-13', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-1' }),
       row(CASH, '2026-10-13', -3, 'Food/Groceries'),
     ]

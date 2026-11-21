@@ -34,7 +34,7 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { rowLinksOf } from '../src/apps/spending/facts'
 import { DESK_LOAN_TARGETS } from './fixtures/spendingDesk'
-import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, category, row, spendingBook, wholeItems } from './fixtures/spending'
+import { ACCOUNTS_FROM_FILES, CATEGORIES, OTP, REVOLUT_USD, category, row, fileBook, wholeItems } from './fixtures/spending'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -190,9 +190,9 @@ describe("a Spending row's link", () => {
 
   it('publishes each linked row with its account, day, amount in its own currency and in euros, how it counts and the record it names, and no row without a link', () => {
     const link = rowLinkOf(`loans/bank-loan/${LOAN}/2026-11-20`)!
-    const linked = row(ACCOUNTS[0]!, '2026-11-20', -650, 'Money and fees/Loan interest', { link })
-    const rows = [row(ACCOUNTS[0]!, '2026-11-19', -12, 'Food/Groceries'), linked]
-    const book = { accounts: ACCOUNTS, transactions: rows, items: wholeItems(rows), categories: CATEGORIES }
+    const linked = row(ACCOUNTS_FROM_FILES[0]!, '2026-11-20', -650, 'Money and fees/Loan interest', { link })
+    const rows = [row(ACCOUNTS_FROM_FILES[0]!, '2026-11-19', -12, 'Food/Groceries'), linked]
+    const book = { accounts: ACCOUNTS_FROM_FILES, transactions: rows, items: wholeItems(rows), categories: CATEGORIES }
     expect(rowLinksOf(book, NO_RATES)).toEqual([
       {
         row: expect.any(String),
@@ -200,7 +200,7 @@ describe("a Spending row's link", () => {
         account: expect.any(String),
         day: on('2026-11-20'),
         amount: linked.amount,
-        currency: ACCOUNTS[0]!.currency,
+        currency: ACCOUNTS_FROM_FILES[0]!.currency,
         euros: moneyFromAmount(-650),
         counts: 'spending',
         target: link,
@@ -213,7 +213,7 @@ describe("a Spending row's link", () => {
     const bought = row(OTP, '2026-11-20', -9000, null, { category: CATEGORIES.find((held) => held.kind === 'asset')!.id, link })
     const dollars = row(REVOLUT_USD, '2026-11-20', -100, 'Transport/Fuel', { link })
     const rows = [bought, dollars]
-    const book = { accounts: ACCOUNTS, transactions: rows, items: wholeItems(rows), categories: CATEGORIES }
+    const book = { accounts: ACCOUNTS_FROM_FILES, transactions: rows, items: wholeItems(rows), categories: CATEGORIES }
     expect(rowLinksOf(book, NO_RATES).map(({ euros, counts }) => [euros, counts])).toEqual([
       [moneyFromAmount(-9000), 'bought'],
       [null, 'spending'],
@@ -470,7 +470,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
             ...stored(ITEM_RECORDS, wholeItems(rows)),
           }
     const document = spendingDocumentOf('2026-11-20T09:00:00.000Z', {
-      ...stored(ACCOUNT_RECORDS, ACCOUNTS),
+      ...stored(ACCOUNT_RECORDS, ACCOUNTS_FROM_FILES),
       ...stored(CATEGORY_RECORDS, categories),
       ...entries,
     })
@@ -722,7 +722,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
 
 describe('importing a statement against the instalments in Loans', () => {
   it("files an imported row's interest under the category its rule gives, and leaves a row only near the plan, and every row of a sync, unlinked for To review", () => {
-    const book = spendingBook([], { categories: CATEGORIES })
+    const book = fileBook([], { categories: CATEGORIES })
     const ruled = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'Example Bank', { category: GROCERIES.id })], fileNotes: [] }
     const near = { label: 'export.csv', rows: [paying('2026-11-20', -700, 'Card payment')], fileNotes: [] }
     const links = { targets: [INSTALMENT], language: 'en' as const, notes: NOTES, assets: NO_ASSETS }

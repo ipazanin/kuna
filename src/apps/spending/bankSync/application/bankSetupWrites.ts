@@ -40,12 +40,12 @@ export function takeBankDetails(
   unit: UnitOfWork,
   book: SpendingBook,
   account: Account,
-  bankDetails: Pick<Account, 'bank' | 'iban' | 'currency' | 'kind' | 'rowsFrom'>,
+  bankDetails: Pick<Account, 'bank' | 'iban' | 'currency' | 'kind' | 'sources'>,
   proposal: AccountProposal | null,
   day: CivilDate,
 ): void {
-  const { bank, iban, currency, kind, rowsFrom } = bankDetails
-  const update = { ...account, bank, iban, currency, kind, rowsFrom }
+  const { bank, iban, currency, kind, sources } = bankDetails
+  const update = { ...account, bank, iban, currency, kind, sources }
   unit.of(ACCOUNT_WRITES).change(account, update)
   writeHeldRows(unit, book, [{ account: update, rows: proposal?.rows.rows ?? [] }], day)
 }

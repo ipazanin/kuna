@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { ACCOUNT_WRITES, keptAccount } from '../src/apps/spending/accounts/application/accountWrites'
-import { bankLinkOffered, rowsFromRefusal } from '../src/apps/spending/workbook/domain/account'
+import { bankLinkOffered, sourcesRefusal } from '../src/apps/spending/workbook/domain/account'
 import { setLimit } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
 import { newTransfer } from '../src/apps/spending/entries/domain/transfer'
@@ -27,7 +27,7 @@ import { recordsChangeInWords } from '../src/shared/storage/presentation/records
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, DAY, addEntries, category, filedRows, refileEntry, row, rulesInto } from './fixtures/spending'
+import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, DAY, FILE_THEN_LINK, addEntries, category, filedRows, refileEntry, row, rulesInto } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 /** The fixture's accounts kept by hand, since these checks type rows, which an account the bank fills refuses. */
@@ -62,7 +62,12 @@ const FEE_WORDS = { bankNames: { otp: 'OTP', revolut: 'Revolut' }, description: 
 
 function topUp(amount = 200, into = REVOLUT_EUR, received = amount) {
   const typed = newTransfer(
-    { from: { account: OTP, row: null }, to: { account: into, row: null }, sent: accountMoneyFromAmount(amount), arrived: accountMoneyFromAmount(received) },
+    {
+      from: { account: OTP, row: null, day: civil('2026-10-03') },
+      to: { account: into, row: null, day: civil('2026-10-03') },
+      sent: accountMoneyFromAmount(amount),
+      arrived: accountMoneyFromAmount(received),
+    },
     { date: civil('2026-10-03'), note: '', category: BETWEEN.id },
     CATEGORIES,
     FEE_WORDS,
@@ -421,6 +426,18 @@ describe('a statement in the Spending file', () => {
   })
 })
 
+/** OTP with its rows from the bank's statement files until the bank link takes over on 28 October 2026. */
+const HOLD_ACCOUNTS: readonly Account[] = [
+  {
+    ...OTP,
+    sources: [
+      { source: 'provider-file', from: null },
+      { source: 'bank-link', from: civil('2026-10-28') },
+    ],
+  },
+  ...ACCOUNTS.slice(1),
+]
+
 describe('a bank row on hold', () => {
   const FILE_ROW = {
     account: OTP.id,
@@ -448,7 +465,7 @@ describe('a bank row on hold', () => {
   }
 
   it('waits on To review, and keeping both books it and takes the hold off in one write that one Undo puts back', async () => {
-    const store = await spendingStore()
+    const store = await spendingStore(HOLD_ACCOUNTS)
     const { held } = await withHold(store)
     expect(store.state.workbook!.transactions).toHaveLength(1)
     expect(reviewCount(store.state.workbook!)).toBe(2)
@@ -461,14 +478,14 @@ describe('a bank row on hold', () => {
   })
 
   it("gives the row Kuna has the bank's key when the person keeps it, so neither a later sync nor the file read again asks", async () => {
-    const store = await spendingStore()
+    const store = await spendingStore(HOLD_ACCOUNTS)
     const { held } = await withHold(store)
     await store.write('Kept mine', (unit) => answerHeldRow(unit, store.state.workbook!, held, 'kept', civil('2026-10-30')))
     const book = store.state.workbook!
     expect(book.transactions.map((row) => [row.date, row.payee, row.importKey])).toEqual([[civil('2026-10-27'), 'Corner bakery', 'bank-ref-1']])
     expect(book.held).toEqual([])
     expect(statementDryRun(book, { label: 'Enable Banking', rows: [SYNCED], fileNotes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['already-in'])
-    expect(statementDryRun(book, { label: 'export.csv', rows: [FILE_ROW], fileNotes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['other-source'])
+    expect(statementDryRun(book, { label: 'export.csv', rows: [FILE_ROW], fileNotes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['already-in'])
   })
 })
 
@@ -502,7 +519,7 @@ describe('a bank row on hold whose look-alike is gone', () => {
   }
 
   it('still counts on To review, so the count and the card agree', async () => {
-    const store = await spendingStore()
+    const store = await spendingStore(HOLD_ACCOUNTS)
     await withLoneHold(store)
     expect(store.state.workbook!.transactions).toEqual([])
     expect(store.state.workbook!.held).toHaveLength(1)
@@ -511,12 +528,12 @@ describe('a bank row on hold whose look-alike is gone', () => {
   })
 
   it('books the row when the person keeps it, and drops only the hold when they leave it out', async () => {
-    const keeping = await spendingStore()
+    const keeping = await spendingStore(HOLD_ACCOUNTS)
     const held = await withLoneHold(keeping)
     await keeping.write('Kept it', (unit) => answerHeldRow(unit, keeping.state.workbook!, held, 'both', civil('2026-10-30')))
     expect(keeping.state.workbook!.transactions.map((row) => row.importKey)).toEqual(['bank-ref-1'])
     expect(keeping.state.workbook!.held).toEqual([])
-    const leaving = await spendingStore()
+    const leaving = await spendingStore(HOLD_ACCOUNTS)
     const other = await withLoneHold(leaving)
     await leaving.write('Left out', (unit) => answerHeldRow(unit, leaving.state.workbook!, other, 'kept', civil('2026-10-30')))
     expect([leaving.state.workbook!.transactions, leaving.state.workbook!.held]).toEqual([[], []])
@@ -537,17 +554,17 @@ describe('Spending account writes', () => {
   })
 
   it('keeps a cash account by hand, with no bank and no IBAN, whatever it held before', () => {
-    expect(keptAccount({ ...OTP, kind: 'cash', rowsFrom: 'bank-link' })).toMatchObject({ kind: 'cash', bank: null, iban: '', rowsFrom: 'by-hand' })
+    expect(keptAccount({ ...OTP, kind: 'cash', sources: [{ source: 'bank-link', from: null }] })).toMatchObject({ kind: 'cash', bank: null, iban: '', sources: [{ source: 'by-hand', from: null }] })
   })
 
   it('keeps where an account takes its rows from, with its IBAN trimmed', () => {
-    expect(keptAccount({ ...OTP, iban: '  ', rowsFrom: 'bank-link' })).toMatchObject({ iban: '', rowsFrom: 'bank-link' })
-    expect(keptAccount(OTP).rowsFrom).toBe('by-hand')
+    expect(keptAccount({ ...OTP, iban: '  ', sources: [{ source: 'bank-link', from: null }] })).toMatchObject({ iban: '', sources: [{ source: 'bank-link', from: null }] })
+    expect(keptAccount(OTP).sources).toEqual(OTP.sources)
   })
 
   it('refuses an account the bank fills with no IBAN, since the bank sync finds an account by it', async () => {
     const store = await spendingStore()
-    await expect(store.write('Changed', (unit) => unit.of(ACCOUNT_WRITES).change(OTP, keptAccount({ ...OTP, iban: ' ', rowsFrom: 'bank-link' })))).rejects.toThrow(
+    await expect(store.write('Changed', (unit) => unit.of(ACCOUNT_WRITES).change(OTP, keptAccount({ ...OTP, iban: ' ', sources: [{ source: 'bank-link', from: null }] })))).rejects.toThrow(
       '"OTP current" takes its rows from the bank, so it needs the IBAN the bank sync finds it by',
     )
   })
@@ -555,16 +572,16 @@ describe('Spending account writes', () => {
   it('offers a bank link once the bank sync is set up, or to an account linked already, and never to cash', () => {
     const [none, saved] = [{ bankSyncApplication: '' }, { bankSyncApplication: 'made-up-application' }]
     expect([bankLinkOffered('bank', null, none), bankLinkOffered('bank', null, saved), bankLinkOffered('cash', null, saved)]).toEqual([false, true, false])
-    expect(bankLinkOffered('savings', { rowsFrom: 'bank-link' }, none)).toBe(true)
-    expect(bankLinkOffered('bank', { rowsFrom: 'by-hand' }, none)).toBe(false)
+    expect(bankLinkOffered('savings', { sources: [{ source: 'bank-link', from: null }] }, none)).toBe(true)
+    expect(bankLinkOffered('bank', { sources: [{ source: 'by-hand', from: null }] }, none)).toBe(false)
   })
 
   it('refuses a bank link that is not offered or has no IBAN, and never refuses by hand', () => {
     const saved = { bankSyncApplication: 'made-up-application' }
-    expect(rowsFromRefusal({ ...OTP, rowsFrom: 'bank-link' }, null, { bankSyncApplication: '' })).toBe('bank-link-not-offered')
-    expect(rowsFromRefusal({ ...OTP, iban: ' ', rowsFrom: 'bank-link' }, null, saved)).toBe('bank-link-without-iban')
-    expect(rowsFromRefusal({ ...OTP, rowsFrom: 'bank-link' }, null, saved)).toBeNull()
-    expect(rowsFromRefusal({ ...OTP, kind: 'cash', iban: '', rowsFrom: 'by-hand' }, null, { bankSyncApplication: '' })).toBeNull()
+    expect(sourcesRefusal({ ...OTP, sources: [{ source: 'bank-link', from: null }] }, null, { bankSyncApplication: '' })).toBe('bank-link-not-offered')
+    expect(sourcesRefusal({ ...OTP, iban: ' ', sources: [{ source: 'bank-link', from: null }] }, null, saved)).toBe('bank-link-without-iban')
+    expect(sourcesRefusal({ ...OTP, sources: [{ source: 'bank-link', from: null }] }, null, saved)).toBeNull()
+    expect(sourcesRefusal({ ...OTP, kind: 'cash', iban: '', sources: [{ source: 'by-hand', from: null }] }, null, { bankSyncApplication: '' })).toBeNull()
   })
 
   it('refuses a new currency on an account its entries name, and allows it on one without entries', async () => {
@@ -702,25 +719,26 @@ describe('an account the bank fills', () => {
   const typedOn = (account: Account) =>
     newEntry({ account: account.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-12), payee: 'Kiosk', category: category('Food/Groceries').id, note: '', labels: [] })
 
-  it("refuses a typed or copied row, takes the bank sync's and a file's it allows, and still takes a typed row on cash", async () => {
+  it("refuses a typed, copied or file's row on a bank link day, takes the bank sync's, and still takes a typed row on cash", async () => {
     const store = await spendingStore(ACCOUNTS)
-    const refusal = 'OTP current takes its rows from the bank link, so a typed or copied row, or a row of a file it does not allow, cannot go on it'
+    const refusal = 'OTP current takes the rows of that day from another source, so this row cannot go on it'
     await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [typedOn(bankOtp!)]))).rejects.toThrow(refusal)
     const copied = row(bankOtp!, '2026-10-11', -5, 'Food/Groceries', { source: 'statement', importKey: 'read-otp-1' })
     await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [copied]))).rejects.toThrow(refusal)
-    const synced = row(bankOtp!, '2026-10-12', -7, 'Food/Groceries', { source: 'statement', importKey: 'bank-otp-1' })
     const filed = row(bankOtp!, '2026-10-13', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-1' })
-    await store.write('Added', (unit) => [synced, filed, typedOn(CASH)].forEach((added) => addEntries(unit, store.state.records!, [added])))
-    expect(store.state.workbook!.transactions).toHaveLength(3)
+    await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [filed]))).rejects.toThrow(refusal)
+    const synced = row(bankOtp!, '2026-10-12', -7, 'Food/Groceries', { source: 'statement', importKey: 'bank-otp-1' })
+    await store.write('Added', (unit) => [synced, typedOn(CASH)].forEach((added) => addEntries(unit, store.state.records!, [added])))
+    expect(store.state.workbook!.transactions).toHaveLength(2)
   })
 
-  it("refuses a file's row on an account that takes the bank sync's rows alone", async () => {
-    const syncOnly = { ...bankOtp!, alsoFrom: [] }
-    const store = await spendingStore([syncOnly, ...ACCOUNTS.slice(1)])
-    const filed = row(syncOnly, '2026-10-13', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-1' })
-    await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [filed]))).rejects.toThrow('a row of a file it does not allow')
-    const synced = row(syncOnly, '2026-10-12', -7, 'Food/Groceries', { source: 'statement', importKey: 'bank-otp-1' })
-    await store.write('Added', (unit) => addEntries(unit, store.state.records!, [synced]))
+  it("takes a file's row on a statement file day and refuses a typed one there, as the bank link's days do", async () => {
+    const store = await spendingStore([FILE_THEN_LINK, ...ACCOUNTS.slice(1)])
+    const filed = row(FILE_THEN_LINK, '2026-10-13', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-1' })
+    await store.write('Added', (unit) => addEntries(unit, store.state.records!, [filed]))
+    await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [typedOn(FILE_THEN_LINK)]))).rejects.toThrow('takes the rows of that day from another source')
+    const lateFile = row(FILE_THEN_LINK, '2026-10-29', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-2' })
+    await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [lateFile]))).rejects.toThrow('takes the rows of that day from another source')
     expect(store.state.workbook!.transactions).toHaveLength(1)
   })
 
@@ -736,7 +754,7 @@ describe('an account the bank fills', () => {
     expect(store.state.records!.transactions.records.find(({ record }) => record.id === typed.id)?.record).toMatchObject({ category: category('Food/Eating out').id, note: 'Lunch' })
     const onCash = store.state.workbook!.transactions.find((kept) => kept.account === CASH.id)!
     await expect(store.write('Moved', (unit) => writeRows(unit, store.state.records!, [{ before: onCash, after: { ...onCash, account: bankOtp!.id } }]))).rejects.toThrow(
-      'takes its rows from the bank',
+      'takes the rows of that day from another source',
     )
   })
 
@@ -746,6 +764,6 @@ describe('an account the bank fills', () => {
   })
 
   it('never starts a new entry on it', () => {
-    expect(startingAccount(ACCOUNTS)?.id).toBe(CASH.id)
+    expect(startingAccount(ACCOUNTS, civil('2026-10-20'))?.id).toBe(CASH.id)
   })
 })

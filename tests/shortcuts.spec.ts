@@ -160,8 +160,8 @@ describe('quick adds shown on Entries', () => {
     const onBank = { ...COFFEE_SHORTCUT, id: recordIdOf(SHORTCUT_RECORDS, '5e000000-0000-4000-8000-000000009203'), account: OTP.id }
     const book = spendingBook([], { accounts: [OTP, CASH], shortcuts: [COFFEE_SHORTCUT, onBank], shortcutParts: [COFFEE_PART, { ...COFFEE_PART, shortcut: onBank.id }] })
 
-    expect(shortcutsShown(book).map(({ shortcut }) => shortcut.id)).toEqual([COFFEE_SHORTCUT.id])
-    expect(shortcutsShown({ ...book, accounts: [OTP, { ...CASH, closed: true }] })).toEqual([])
+    expect(shortcutsShown(book, civil('2026-10-20')).map(({ shortcut }) => shortcut.id)).toEqual([COFFEE_SHORTCUT.id])
+    expect(shortcutsShown({ ...book, accounts: [OTP, { ...CASH, closed: true }] }, civil('2026-10-20'))).toEqual([])
   })
 })
 

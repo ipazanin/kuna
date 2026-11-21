@@ -10,11 +10,12 @@ const [OTP, REVOLUT_EUR, REVOLUT_USD] = ACCOUNTS_BY_HAND
 const [OTP_LINKED, REVOLUT_LINKED] = ACCOUNTS
 const BANK_FEES = category('Money and fees/Bank fees')
 const FEE_WORDS = { bankNames: { otp: 'OTP', revolut: 'Revolut' }, description: 'Fee on a transfer' }
-const TYPED = { importKey: '' }
-const BANKS_ROW = { importKey: 'statement-row' }
+const DAY = civil('2026-10-03')
+const TYPED = { importKey: '', date: DAY }
+const BANKS_ROW = { importKey: 'statement-row', date: DAY }
 
 function side(account: TransferSide['account'], row: TransferSide['row'] = null): TransferSide {
-  return { account, row }
+  return { account, row, day: DAY }
 }
 
 function draft(from: TransferSide, to: TransferSide, sent: number, arrived: number | null): TransferDraft {

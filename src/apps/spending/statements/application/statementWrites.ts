@@ -4,6 +4,8 @@ import type { RowWrite } from '../../entries/application/rowRecords'
 import { itemsAtBankAmount } from '../../entries/domain/entrySplit'
 import { filledByBank } from '../domain/bankBooking'
 import { statementDryRun } from '../domain/statementDryRun'
+import type { GivenDays } from '../domain/givenDays'
+import { ACCOUNT_WRITES, changeAccount } from '../../accounts/application/accountWrites'
 import type { StatementDryRun } from '../domain/statementDryRun'
 import type { RuleLinks } from '../../links/domain/linkFiling'
 import { rulesRerun } from '../domain/spendingCategorisation'
@@ -34,13 +36,18 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 /** The rows and items a statement write reads of the file. */
 type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
 
+/** What of a dry run its write takes. */
+type WrittenRun = Pick<StatementDryRun, 'added' | 'items' | 'changed' | 'pending' | 'held' | 'receipts' | 'categories' | 'sourcesStored'>
+
 /**
  * Everything the import does in one write, with the waiting receipts that go on its rows and the categories its links need, so one
  * Undo takes it all back. A row the bank no longer lists goes with its items and its receipts, as deleting the entry does, and
- * leaves a note on To review when you had filed it.
+ * leaves a note on To review when you had filed it. An account whose periods the book worked out from a file from before periods
+ * keeps them from now on, so a later file cannot move them.
  */
-export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<StatementDryRun, 'added' | 'items' | 'changed' | 'pending' | 'held' | 'receipts' | 'categories'>): void {
+export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: WrittenRun): void {
   const itemsOf = rowItemsOf(run)
+  run.sourcesStored.forEach((account) => unit.of(ACCOUNT_WRITES).change(account, account))
   run.categories?.forEach((category) => unit.of(CATEGORY_WRITES).add(category))
   writeRows(unit, records, [
     ...run.added.map((row): RowWrite => ({ before: null, after: row, items: itemsOf(row) })),
@@ -51,6 +58,12 @@ export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<S
   run.pending?.dropped.forEach((dropped) => unit.of(DROPPED_ROW_WRITES).add(dropped))
   run.held.forEach((held) => unit.of(HELD_ROW_WRITES).add(held))
   run.receipts.forEach(({ receipt }) => unit.of(RECEIPT_WRITES).change(receipt.before, receipt.after))
+}
+
+/** The import with the days of each account it gives to the statement file, in one write with one Undo. The run is worked out on the book with those days given. */
+export function importGivingDays(unit: UnitOfWork, records: EntryRecords, given: readonly GivenDays[], run: WrittenRun): void {
+  given.forEach(({ account, sources, handover }) => changeAccount(unit, records, account, { ...account, sources }, null, handover))
+  writeDryRun(unit, records, run)
 }
 
 /** Each row's items under the category you picked, in one write, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */

@@ -7086,25 +7086,17 @@ export function spendingImportLookAlikeFlowIn(language, paths) {
 }
 
 /**
- * On Spending's Import with the synced set: the bank sync brought a row on the export's last day, so the dry run names the days
- * before it as the days the file brings and leaves out the rows of that day, which show so. The export's Corner market looks like the synced
- * row a day later, so the dry run asks about it above its rows, naming that synced row. Use the file's row makes it take the
- * synced row's place. Nothing is imported.
+ * On Spending's Import with the synced set: the export's Corner market looks like the row the bank sync brought a day later,
+ * so the dry run asks about it above its rows, naming that synced row. Use the file's row makes it take the synced row's place.
+ * Nothing is imported.
  */
 export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
   const panel = words.spendingStatements.import
-  return async (page, { press, shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.revolut)
     await elementSays(page, '[data-testid="question"]', ['CORNER MARKET D.O.O.'], 'the question does not name the synced row the file row looks like')
-    await page.waitForSelector('[data-testid="spending-import-days-from"]', { visible: true, timeout: 10_000 })
-    await shootAt(page, shoot, '[data-testid="spending-import-days"]', 'spending-import-gap-days')
-    if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
-    await centreOn(page, '[data-testid="spending-dry-run-row"]', panel.outcome.outsideDays)
-    await delay(300)
-    await inspect?.('a row of the export outside the days the file brings')
-    await shoot('spending-import-outside-days')
     await shootAt(page, shoot, '[data-testid="questions"]', 'spending-import-synced-lookalike')
     await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replacedSynced], "the file's row does not say it takes the synced row's place")
@@ -7610,7 +7602,7 @@ export function spendingBankSyncRowsFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingFileReading.leftOut.coveredByFile(1, 'OTP current', '').one)
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingFileReading.leftOut.notTaken(1, 'OTP current', '', '').one.split(' from ')[0].split(' od ')[0])
     await page.waitForSelector('[data-testid="spending-bank-account"][data-kind="missing"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('the bank sync with rows a file brought')
@@ -7985,8 +7977,8 @@ export function spendingImportMissingFlowIn(language, paths) {
 
 /**
  * With the bank sync set up, the offer for the accounts an export needs asks how each one's rows come in. Each draft
- * starts linked to the bank under the IBAN the file's Revolut account holds. A cleared IBAN stops Add with the reason under it,
- * and the IBAN typed back adds both.
+ * starts on the statement file it is made from, and From the bank links it after the file under the IBAN the file's Revolut
+ * account holds. A cleared IBAN stops Add with the reason under it, and the IBAN typed back adds both.
  */
 export function spendingImportMissingBankFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
@@ -7998,7 +7990,11 @@ export function spendingImportMissingBankFlowIn(language, paths) {
     await dropSpendingFile(page, paths.missing)
     await countOf(page, '[data-testid="spending-import-missing-account-rows-from"]', 2, 'the choice of how each missing account takes its rows')
     const picked = await page.$$eval('[data-testid="spending-import-missing-account-rows-from"] [aria-pressed="true"]', (buttons) => buttons.map((button) => button.textContent?.trim() ?? ''))
-    if (picked.some((label) => label !== words.spendingAccounts.rowsFrom['bank-link'])) throw new Error(`the drafts start as ${picked.join(', ')}, not linked to the bank`)
+    if (picked.some((label) => label !== words.spendingAccounts.rowsFrom['provider-file'])) throw new Error(`the drafts start as ${picked.join(', ')}, not on the statement file`)
+    for (const choice of await page.$$('[data-testid="spending-import-missing-account-rows-from"] [data-value="bank-link"]')) {
+      await choice.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await press(choice)
+    }
     const filled = await page.$$eval(`input${ibans}, ${ibans} input`, (inputs) => inputs.map((input) => input.value))
     if (filled.length !== 2 || filled.some((iban) => iban !== 'LT000000000000000001')) throw new Error(`the drafts do not share the Revolut account's IBAN: ${filled.join(', ')}`)
     await fill(page, 'spending-import-missing-account-iban', '')
@@ -12617,11 +12613,12 @@ export function spendingFirstAccountBankFlowIn(language) {
     await delay(300)
     await inspect?.('the account dialog linked to a bank with no IBAN')
     await shoot('spending-first-account-bank')
-    // The switch that lets a linked account take the bank's statement file too, with its help under it.
-    await page.waitForSelector('[data-testid="spending-account-statement-file"]', { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error("an account linked to a bank offers no switch for the bank's statement file")
+    // A later source, such as the statement file for days a lapsed link missed, is added under the first.
+    await pressSelector(page, press, '[data-testid="spending-account-source-add"]')
+    await page.waitForSelector('[data-testid="spending-account-source-from"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('Add a later source shows no day it starts on')
     })
-    await scrollIntoDialogView(page, '[data-testid="spending-account-statement-file"]')
+    await scrollIntoDialogView(page, '[data-testid="spending-account-sources"]')
     await delay(300)
     await shoot('spending-first-account-bank-statement-file')
   }
@@ -14120,5 +14117,72 @@ export function spendingRecipeEditFlowIn(language, paths) {
     await delay(400)
     await inspect?.('the file read with the changed recipe')
     await shoot('spending-recipe-fixed')
+  }
+}
+
+/** Waits for the focus to sit inside the element the selector finds. */
+async function focusIsIn(page, selector, problem) {
+  await page
+    .waitForFunction((within) => document.activeElement?.closest(within) != null, { timeout: 5_000 }, selector)
+    .catch(() => {
+      throw new Error(problem)
+    })
+}
+
+/**
+ * On OTP's page in the statements set with the bank sync linked: the card of where its rows come from lists the statement file
+ * and then the bank. Each Change opens the account dialog with that period's first day focused, the start day for the first,
+ * and giving every day to the bank link warns which file rows go first.
+ */
+export function spendingAccountHandoverFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-account-sources-card"]', { visible: true, timeout: 10_000 })
+    await waitForTextIn(page, '[data-testid="spending-account-sources-card"]', words.spendingAccounts.rowsFrom['provider-file'])
+    await shootAt(page, shoot, '[data-testid="spending-account-sources-card"]', 'spending-account-sources')
+    await pressSelector(page, press, '[data-testid="spending-account-sources-card"] [data-testid="change-line"]:nth-child(2) [data-testid="change-edit"]')
+    await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { visible: true, timeout: 10_000 })
+    await focusIsIn(page, '[data-testid="spending-account-source-from"]', "the bank link's Change does not focus the day it starts on")
+    await page.keyboard.press('Escape')
+    await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { hidden: true, timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="spending-account-sources-card"] [data-testid="change-edit"]')
+    await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { visible: true, timeout: 10_000 })
+    await focusIsIn(page, '[data-testid="spending-account-opened-on"]', "the statement file's Change does not focus the start day")
+    await pressSelector(page, press, '[data-testid="spending-account-source-remove"]')
+    await pressSelector(page, press, '[data-testid="spending-account-rows-from"] [data-value="bank-link"]')
+    await page.waitForSelector('[data-testid="spending-account-handover"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('giving the statement file days to the bank link shows no warning of the rows that go')
+    })
+    const save = await page.$eval('[data-testid="spending-account-save"]', (button) => button.textContent?.trim() ?? '')
+    if (save !== words.spendingAccounts.dialog.cutover.save) throw new Error(`the dialog saves the handover with "${save}"`)
+    await scrollIntoDialogView(page, '[data-testid="spending-account-handover"]')
+    await delay(300)
+    await inspect?.('the account dialog warning which rows go when the bank link takes the statement file days')
+    await shoot('spending-account-handover')
+  }
+}
+
+/**
+ * On Import in the statements set with the bank sync linked: the export's rows on days the bank link fills are left out, and
+ * the note offers to give those days to the statement file. Giving them says the import takes them, and Keep puts the offer back.
+ */
+export function spendingImportGiveDaysFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropSpendingFile(page, paths.revolut)
+    await page.waitForSelector('[data-testid="spending-dry-run-give-days"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error("the export's rows on the bank link's days offer no way to give those days to the statement file")
+    })
+    await shootAt(page, shoot, '[data-testid="spending-dry-run-notes"]', 'spending-import-give-days')
+    await pressSelector(page, press, '[data-testid="spending-dry-run-give-days"]')
+    await page.waitForSelector('[data-testid="spending-dry-run-keep-days"]', { visible: true, timeout: 5_000 })
+    await waitForTextIn(page, '[data-testid="spending-dry-run-notes"]', words.spendingStatements.import.keepSource)
+    await delay(300)
+    await inspect?.('the import with the days given to the statement file')
+    await shootAt(page, shoot, '[data-testid="spending-dry-run"]', 'spending-import-given-days')
+    await pressSelector(page, press, '[data-testid="spending-dry-run-keep-days"]')
+    await page.waitForSelector('[data-testid="spending-dry-run-give-days"]', { visible: true, timeout: 5_000 })
   }
 }

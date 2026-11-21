@@ -15,7 +15,7 @@ import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domai
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil } from './fixtures/ledger'
-import { CASH, CATEGORIES, OTP, REVOLUT_EUR, category, row, spendingBook, wholeItems } from './fixtures/spending'
+import { CASH, CATEGORIES, OTP, REVOLUT_EUR, category, row, fileBook, wholeItems } from './fixtures/spending'
 
 const DAY = civil('2026-10-30')
 const FIRST = category('Between my accounts')
@@ -35,7 +35,7 @@ const SECOND: Category = {
 const CATEGORIES_WITH_SECOND: readonly Category[] = [...CATEGORIES, SECOND]
 
 function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRule[] = []): SpendingBook {
-  return spendingBook(transactions, { categories: CATEGORIES_WITH_SECOND, rules })
+  return fileBook(transactions, { categories: CATEGORIES_WITH_SECOND, rules })
 }
 
 const underSecond = (on: typeof OTP, amount: number, payee: string, fields: Partial<StoredRow> = {}): StoredRow =>

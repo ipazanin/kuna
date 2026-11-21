@@ -216,8 +216,8 @@ const heldRow = computed(() => book.value?.transactions.find((row) => row.id ===
 
 const newAccount = computed(() => euroAccounts.value.find((candidate) => candidate.id === account.value) ?? null)
 const newEntryPlaced = computed(() => place.value === NEW_ENTRY)
-/** On an account the bank fills, a receipt with no payment yet waits for the bank's row instead of making one. */
-const waits = computed(() => newAccount.value !== null && !takesRowsByHand(newAccount.value))
+/** On a day the bank or its statement file fills, a receipt with no payment yet waits for that row instead of making one. */
+const waits = computed(() => newAccount.value !== null && !takesRowsByHand(newAccount.value, issuedOn.value ?? today()))
 
 const errors = computed(() => ({
   held: heldReceipt.value === null ? null : heldRow.value === null ? words.alreadyWaiting : words.alreadyHeld(heldRow.value.date, formatAccountMoney(heldRow.value.amount, EURO)),

@@ -99,9 +99,9 @@ describe('a copied statement over the bank sync', () => {
     expect(outcomes(byHandBook(SYNC_ROWS), statement)).toEqual(['already-in', 'look-alike', 'new'])
   })
 
-  it('still leaves out a parsed file’s rows on the days the sync covers', () => {
+  it('takes a parsed file’s row on an account kept by hand, since its days are by hand whatever the sync once brought', () => {
     const { transcribed: _, ...parsed } = copied(OTP.id, [['2026-10-17', -5, 'Parking']])
-    expect(outcomes(byHandBook(SYNC_ROWS), parsed)).toEqual(['other-source'])
+    expect(outcomes(byHandBook(SYNC_ROWS), parsed)).toEqual(['new'])
   })
 })
 
@@ -117,9 +117,9 @@ describe('a bank sync over rows the AI copied', () => {
     return { ...statement, label: 'Enable Banking', rows: statement.rows.map((fields, at) => ({ ...fields, importKey: `bank-ref-${at}` })) }
   }
 
-  it('matches them row by row, since the copied days belong to no source, and puts a look-alike on hold', () => {
+  it('matches them row by row on an account the bank link fills, and puts a look-alike on hold', () => {
     const run = statementDryRun(
-      byHandBook(COPIED_OTP),
+      spendingBook(COPIED_OTP),
       synced([
         ['2026-10-12', -45.3, 'Konzum'],
         ['2026-10-18', -8, 'Kiosk'],

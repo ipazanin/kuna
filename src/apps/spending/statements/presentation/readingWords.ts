@@ -45,21 +45,15 @@ export const en = {
       one: `1 row of ${account} left out, since it is dated before the account opened on ${day}.`,
       other: `${count} rows of ${account} left out, since they are dated before the account opened on ${day}.`,
     }),
-    notTaken: (count: number, account: string): EnglishForms => ({
-      one: `1 row of ${account} left out, since it takes its rows from the bank link.`,
-      other: `${count} rows of ${account} left out, since it takes its rows from the bank link.`,
+    notTaken: (count: number, account: string, days: string, source: string): EnglishForms => ({
+      one: `1 row of ${account} from ${days} left out, since its rows of those days come ${source}.`,
+      other: `${count} rows of ${account} from ${days} left out, since its rows of those days come ${source}.`,
     }),
+    /** Where an account's rows of a day come from, as the end of a sentence. */
+    sourceOfDays: { 'bank-link': 'from the bank link', 'provider-file': 'from its statement file', 'by-hand': 'by hand' },
     outsideDays: (count: number, from: string, to: string): EnglishForms => ({
       one: `1 row left out, since the file brings only the days from ${from} to ${to}.`,
       other: `${count} rows left out, since the file brings only the days from ${from} to ${to}.`,
-    }),
-    coveredByFile: (count: number, account: string, day: string): EnglishForms => ({
-      one: `1 row of ${account} left out, since a file covers the days up to ${day}.`,
-      other: `${count} rows of ${account} left out, since a file covers the days up to ${day}.`,
-    }),
-    coveredBySync: (count: number, account: string, day: string): EnglishForms => ({
-      one: `1 row of ${account} left out, since the bank sync covers the days from ${day}.`,
-      other: `${count} rows of ${account} left out, since the bank sync covers the days from ${day}.`,
     }),
   },
 }
@@ -130,25 +124,16 @@ export const hr: Translation<typeof en> = {
       few: `Izostavljeno redaka računa ${account}: ${count}, jer su prije otvaranja računa ${day}`,
       other: `Izostavljeno redaka računa ${account}: ${count}, jer su prije otvaranja računa ${day}`,
     }),
-    notTaken: (count, account): CroatianForms => ({
-      one: `Izostavljeno redaka računa ${account}: ${count}, jer retke dobiva iz veze s bankom.`,
-      few: `Izostavljeno redaka računa ${account}: ${count}, jer retke dobiva iz veze s bankom.`,
-      other: `Izostavljeno redaka računa ${account}: ${count}, jer retke dobiva iz veze s bankom.`,
+    notTaken: (count, account, days, source): CroatianForms => ({
+      one: `Izostavljeno redaka računa ${account} od ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
+      few: `Izostavljeno redaka računa ${account} od ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
+      other: `Izostavljeno redaka računa ${account} od ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
     }),
+    sourceOfDays: { 'bank-link': 'iz veze s bankom', 'provider-file': 'iz datoteke izvoda', 'by-hand': 'ručnim unosom' },
     outsideDays: (count, from, to): CroatianForms => ({
       one: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
       few: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
       other: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
-    }),
-    coveredByFile: (count, account, day): CroatianForms => ({
-      one: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
-      few: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
-      other: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
-    }),
-    coveredBySync: (count, account, day): CroatianForms => ({
-      one: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
-      few: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
-      other: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
     }),
   },
 }

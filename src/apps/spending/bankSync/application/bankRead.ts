@@ -9,6 +9,7 @@ import { accountsOfLinked, fetchFrom, linkableBankNamed, olderRowsMissing } from
 import { BANK_SYNC_LABEL, bankSyncRows, rowsWithMoves } from '../domain/bankSyncRows'
 import { words } from '../domain/words'
 import type { FileNote, StatementRow, StatementRows } from '../../statements/domain/statementRows'
+import { sourceOfDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -57,14 +58,14 @@ function reasonOf(failure: unknown): string {
   return failure instanceof Error ? failure.message : String(failure)
 }
 
-/** The accounts whose rows come from a bank link, which are the only ones the sync reads. */
-function readByBank(accounts: readonly Account[]): readonly Account[] {
-  return accounts.filter((account) => account.rowsFrom === 'bank-link')
+/** The accounts whose rows come from a bank link today, which are the only ones the sync reads. */
+function readByBank(accounts: readonly Account[], day: CivilDate): readonly Account[] {
+  return accounts.filter((account) => sourceOfDay(account, day) === 'bank-link')
 }
 
 /** The bank-linked accounts more than one linked account of a session fits, as when a pocket comes under the current account's IBAN. Which one is which cannot be told, so neither is read. */
-function accountsFitTwice(linkedAccounts: readonly LinkedAccount[], accounts: readonly Account[]): ReadonlySet<Account> {
-  const fits = linkedAccounts.flatMap((linked) => readByBank(accountsOfLinked(linked, accounts)))
+function accountsFitTwice(linkedAccounts: readonly LinkedAccount[], accounts: readonly Account[], day: CivilDate): ReadonlySet<Account> {
+  const fits = linkedAccounts.flatMap((linked) => readByBank(accountsOfLinked(linked, accounts), day))
   return new Set(fits.filter((account) => fits.indexOf(account) !== fits.lastIndexOf(account)))
 }
 
@@ -129,11 +130,11 @@ export async function readBanks(
     linkedAll.push(...session.accounts.map((account) => ({ bank, account })))
     if (leftAlone.includes(bank)) continue
     const offered = session.accounts.filter((linked) => !leftOutOfKuna(linked, book.accounts, book.settings.bankAccountsNotInKuna))
-    const fitTwice = accountsFitTwice(offered, book.accounts)
+    const fitTwice = accountsFitTwice(offered, book.accounts, day)
     fitTwice.forEach((account) => problems.push(words.sameAccountTwice(session.bank, account.name)))
     for (const linked of offered) {
       const kept = accountsOfLinked(linked, book.accounts)
-      const accounts = readByBank(kept)
+      const accounts = readByBank(kept, day)
       if (accounts.some((account) => fitTwice.has(account)) || (kept.length > 0 && accounts.length === 0)) continue
       const starts = accounts.map((account) => fetchFrom(account, book.transactions, day))
       const latest = addDays(day, -1)
@@ -163,7 +164,7 @@ export async function readBanks(
         const { zero, unreadable } = statement.leftOut
         if (zero > 0) fileNotes.push({ kind: 'zero-left-out', count: zero, account: account.name })
         if (unreadable > 0) fileNotes.push({ kind: 'unreadable-left-out', count: unreadable, account: account.name })
-        const missing = freshLinks.includes(bank) ? null : olderRowsMissing(account, starts[place]!, statement.rows, book.transactions, day)
+        const missing = freshLinks.includes(bank) ? null : olderRowsMissing(starts[place]!, statement.rows, day)
         if (missing !== null) olderRows.push({ bank, account, reached: missing.reached })
       })
       let balances: readonly BankBalance[] = []

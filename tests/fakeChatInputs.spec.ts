@@ -44,8 +44,8 @@ const RECORDS: Readonly<Record<string, readonly object[]>> = {
     { ref: 'category-4', name: 'Pharmacy', kind: 'spending' },
   ],
   'spending/account': [
-    { ref: 'account-1', name: 'OTP', kind: 'bank', bank: 'otp', currency: 'EUR', rowsFrom: 'bank-link' },
-    { ref: 'account-2', name: 'Revolut', kind: 'bank', bank: 'revolut', currency: 'EUR', rowsFrom: 'by-hand' },
+    { ref: 'account-1', name: 'OTP', kind: 'bank', bank: 'otp', currency: 'EUR', sources: 'bank-link' },
+    { ref: 'account-2', name: 'Revolut', kind: 'bank', bank: 'revolut', currency: 'EUR', sources: 'by-hand' },
   ],
   'company/ledger-row/waiting': [
     { ref: 'ledger-row-1', counterparty: 'GADGET CORNER' },

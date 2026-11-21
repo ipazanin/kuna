@@ -1,31 +1,22 @@
 import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
-import type { TransactionItem } from '../../workbook/domain/transactionItem'
-import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { goingRows } from './goingRows'
+import type { GoingRows } from './goingRows'
 
 /**
  * What moving an account's start day to another day does. Moving it later deletes what the account holds from before the
  * new day: its rows with their receipts and parts, and its bank rows on hold. A transfer's other leg is on an account that
  * keeps its history, so it stays as a lone leg. Moving it earlier deletes nothing.
  */
-export interface StartDayMove {
+export interface StartDayMove extends GoingRows {
   readonly account: Account
   readonly startsOn: CivilDate
   readonly direction: 'later' | 'earlier'
-  readonly rows: readonly Transaction[]
-  readonly receipts: readonly Receipt[]
-  /** The parts of the split rows that go, a receipt's lines and parts split by hand alike. */
-  readonly parts: readonly TransactionItem[]
-  readonly held: readonly HeldBankRow[]
-  /** The other legs of the transfers among the rows, as they are now, which stay with no pair. */
-  readonly loneLegs: readonly Transaction[]
   /** What the account held at the start of the new day, so its balance from that day on stays. Moving earlier keeps the opening. */
   readonly opening: AccountMoney
 }
@@ -35,29 +26,17 @@ export function startDayMove(book: Pick<SpendingBook, 'transactions' | 'receipts
   if (startsOn === account.openedOn) return null
   const moved = { ...account, openedOn: startsOn }
   const goes = (row: Pick<Transaction, 'account' | 'date'>): boolean => row.account === account.id && beforeStartDay(moved, row.date)
-  const rows = book.transactions.filter(goes)
-  const ids = new Set(rows.map((row) => row.id))
-  const itemsOf = rowItemsOf(book)
-  const pairs = new Set(rows.flatMap((row) => (row.pair === null ? [] : [row.pair])))
+  const going = goingRows(book, goes, goes)
   return {
+    ...going,
     account,
     startsOn,
     direction: beforeStartDay(account, startsOn) ? 'earlier' : 'later',
-    rows,
-    receipts: book.receipts.filter((receipt) => receipt.transaction !== null && ids.has(receipt.transaction)),
-    parts: rows.flatMap((row) => (isSplit(itemsOf(row)) ? itemsOf(row) : [])),
-    held: book.held.filter(goes),
-    loneLegs: book.transactions.filter((row) => pairs.has(row.id) && !ids.has(row.id)),
-    opening: addAccountMoney(account.opening, sumAccountMoney(rows.map((row) => row.amount))),
+    opening: addAccountMoney(account.opening, sumAccountMoney(going.rows.map((row) => row.amount))),
   }
 }
 
 /** Whether the move deletes anything, so the person sees what goes before it is written. */
-export function deletesRecords(move: StartDayMove): boolean {
+export function deletesRecords(move: GoingRows): boolean {
   return move.rows.length + move.held.length > 0
-}
-
-/** A transfer's other leg once its leg on the moved account is gone: the same row with no pair, still under its category. */
-export function loneLeg(leg: Transaction): Transaction {
-  return { ...leg, pair: null }
 }

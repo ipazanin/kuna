@@ -5,6 +5,9 @@ import type { SpendingEvent } from '../../workbook/domain/event'
 import { sideOf } from '../../categories/domain/rowSide'
 import { eventMembership } from '../../events/domain/eventMembership'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
+import type { SourceHandover } from '../../accounts/domain/sourceHandover'
+import { handoverWords } from '../../accounts/presentation/sourceHandoverWords'
+import { sourcesInWords } from '../../accounts/presentation/sourcesInWords'
 import { cutoverWords } from '../../accounts/presentation/startDayMoveWords'
 import { words as accountWords } from '../../accounts/presentation/words'
 import { words as cardWords } from '../../../../shared/app/words'
@@ -37,6 +40,7 @@ import type { CheckedWrite } from '../../../../shared/storage/application/record
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { BOOKING_LOOK_ALIKE, copiedInKunaText, copiedStatementRowsWarning, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { today } from '../../../../shared/calendar/civilDate'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 
@@ -110,7 +114,7 @@ function shownValue(
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
   if (isKind(kind, RECIPE_RECORDS, record) && field === 'recipe') return recipeInWords(record)
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank
-  if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'rowsFrom') return accountWords.rowsFrom[record.rowsFrom]
+  if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'sources') return sourcesInWords(record.sources)
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'cards') return record.cards.length === 0 ? null : cardsText(record.cards)
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   if (isKind(kind, RULE_RECORDS, record) && field === 'conditions') return record.conditions.map((condition) => conditionTestOf(condition, (id) => namesOf.get(id) ?? '')).join(' · ')
@@ -182,7 +186,7 @@ export interface StatementLeftOut {
 export function statementLeftOut({ statement, copied }: CardStatement, run: Pick<StatementDryRun, 'lines'>): StatementLeftOut {
   return {
     label: statement.label,
-    rows: run.lines.filter((line) => line.outcome === 'before-opening' || line.outcome === 'not-taken' || line.outcome === 'other-source' || line.outcome === 'outside-days').length,
+    rows: run.lines.filter((line) => line.outcome === 'before-opening' || line.outcome === 'not-taken' || line.outcome === 'outside-days').length,
     copied,
     inKuna: run.lines.filter((line) => line.outcome === 'already-in').length,
     lookAlikes: run.lines.flatMap((line) => (line.outcome === 'look-alike' ? [{ number: statement.rows.indexOf(line.row) + 1, line }] : [])),
@@ -219,12 +223,14 @@ export interface CardWarnings {
   /** Each on the group it belongs to, the receipts or the entry a receipt makes or fills. */
   readonly receipts: readonly CardNote[]
   readonly moves: readonly StartDayMove[]
+  /** Each change of an account's sources that gives days to another source. */
+  readonly handovers: readonly SourceHandover[]
   /** How many rows already in the book the card's rule changes change, none when they are kept for new rows only. */
   readonly refiled: number
 }
 
 /** A card that warns on nothing beyond its changes. */
-export const NO_WARNINGS: CardWarnings = { leftOut: null, receipts: [], moves: [], refiled: 0 }
+export const NO_WARNINGS: CardWarnings = { leftOut: null, receipts: [], moves: [], handovers: [], refiled: 0 }
 
 /** What moving an account's start day does, as the account dialog says it: what goes and the opening worked out, or that the bank reaches back only about 90 days. */
 function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | null {
@@ -233,6 +239,13 @@ function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | nu
   if (!deletesRecords(move)) return null
   const { title, goes, loneLegs, opening } = cutoverWords(move, book)
   return { label, text: [`${title}: ${listInWords(goes)}.`, ...(loneLegs === null ? [] : [loneLegs]), opening].join(' '), tone: 'warning' }
+}
+
+/** What giving an account's days to another source deletes, as the account dialog warns, or null when it deletes nothing. */
+function handoverNote(handover: SourceHandover, book: SpendingBook): ProposalNote | null {
+  const shown = handoverWords(handover, book, today())
+  if (shown === null) return null
+  return { label: handover.account.name, text: [`${shown.title}.`, ...shown.days, ...(shown.rows.length === 0 ? [] : [`${listInWords(shown.rows)}.`]), ...shown.notes].join(' '), tone: 'warning' }
 }
 
 /** How many rows already in the book the card's rules would change, which Only new rows leaves as they are. */
@@ -254,7 +267,7 @@ export function proposalGroupsOf(
   before: SpendingBook,
   targetsOf: (app: string) => AppTargets<LinkTarget>,
   sourceOf: (app: string) => TargetSource,
-  { leftOut, receipts, moves, refiled }: CardWarnings,
+  { leftOut, receipts, moves, handovers, refiled }: CardWarnings,
 ): readonly ProposalGroup[] {
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
   const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
@@ -298,6 +311,10 @@ export function proposalGroupsOf(
     ...receipts,
     ...moves.flatMap((move) => {
       const note = startDayNote(move, book)
+      return note === null ? [] : [{ noun: ACCOUNT_RECORDS.noun, note }]
+    }),
+    ...handovers.flatMap((handover) => {
+      const note = handoverNote(handover, book)
       return note === null ? [] : [{ noun: ACCOUNT_RECORDS.noun, note }]
     }),
     ...(refiled === 0 ? [] : [{ noun: RULE_RECORDS.noun, note: refiledNote(refiled) }]),

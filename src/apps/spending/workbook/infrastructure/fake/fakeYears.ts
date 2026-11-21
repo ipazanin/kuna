@@ -1,6 +1,7 @@
 import { starterCategories } from '../../../categories/domain/starterCategories'
 import { accountBalance } from '../../../accounts/domain/accountBalance'
 import { codecOfSpendingKind } from '../../application/spendingCodecs'
+import { BY_HAND_SOURCES } from '../../domain/account'
 import type { Account } from '../../domain/account'
 import type { Category } from '../../domain/category'
 import { BY_DAYS } from '../../domain/event'
@@ -138,8 +139,7 @@ export function fakeYearsDocument(savedAt: string, day: CivilDate): WorkbookDocu
     currency,
     opening: ZERO_ACCOUNT_MONEY,
     openedOn,
-    rowsFrom: 'by-hand',
-    alsoFrom: [],
+    sources: BY_HAND_SOURCES,
     iban: '',
     cards: [],
     closed: false,

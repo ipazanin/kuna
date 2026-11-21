@@ -81,24 +81,37 @@ export interface FetchStart {
   readonly longest: boolean
 }
 
+/** The first day of the bank link's period that runs on the day, or of the latest one before it, or null when the bank link brings no day up to it. */
+export function bankLinkStart(account: Pick<Account, 'sources' | 'openedOn'>, day: CivilDate): CivilDate | null {
+  let start: CivilDate | null = null
+  for (const period of account.sources) {
+    if (period.from !== null && period.from > day) break
+    if (period.source === 'bank-link') start = period.from ?? account.openedOn
+  }
+  return start
+}
+
 /**
- * Its opening day while no file or sync has brought a row, then a little back of the newest booked such row, and no later than
- * the oldest row the bank has not booked yet, so a fetch always sees the days of what is still pending. Past 89 days a bank
- * may refuse the period itself, so such a fetch asks for what the bank has. Never past yesterday here, since the API reads
- * the day in UTC, which at most lags a day behind this device's, and refuses a day in the future.
+ * The start of the bank link's period while the sync has brought no row in it, then a little back of the newest booked such
+ * row, and no later than the oldest row the bank has not booked yet, so a fetch always sees the days of what is still pending.
+ * Rows a file brought never move it, since the periods say whose days are whose. Past 89 days a bank may refuse the period
+ * itself, so such a fetch asks for what the bank has. Never past yesterday here, since the API reads the day in UTC, which at
+ * most lags a day behind this device's, and refuses a day in the future.
  */
 export function fetchFrom(account: Account, rows: readonly Pick<Transaction, 'account' | 'date' | 'importKey' | 'pending'>[], day: CivilDate): FetchStart {
   const latest = addDays(day, -1)
-  const ofAccount = rows.filter((row) => row.account === account.id && row.importKey !== '')
-  const brought = ofAccount.filter((row) => !row.pending).map((row) => row.date)
-  const pending = ofAccount.filter((row) => row.pending).map((row) => row.date)
-  const sinceBooked =
+  const linkStart = bankLinkStart(account, day) ?? account.openedOn
+  const ofLink = rows.filter((row) => row.account === account.id && isBankSyncKey(row.importKey) && row.date >= linkStart)
+  const brought = ofLink.filter((row) => !row.pending).map((row) => row.date)
+  const pending = ofLink.filter((row) => row.pending).map((row) => row.date)
+  const back =
     brought.length === 0
-      ? account.openedOn
+      ? linkStart
       : addDays(
           brought.reduce((newest, date) => (date > newest ? date : newest)),
           -OVERLAP_DAYS,
         )
+  const sinceBooked = back < linkStart ? linkStart : back
   const wanted = pending.reduce((oldest, date) => (date < oldest ? date : oldest), sinceBooked)
   const from = wanted < latest ? wanted : latest
   return { from, longest: brought.length === 0 || daysBetween(from, day) > PERIOD_A_BANK_GIVES_DAYS }
@@ -106,19 +119,11 @@ export function fetchFrom(account: Account, rows: readonly Pick<Transaction, 'ac
 
 /**
  * The first day a fetch's rows reach when it wanted days older than a bank gives outside a fresh link and got none of them,
- * or null when nothing is missing. Days a file already brought are not wanted, since the file covers them. `reached` is
- * null when the fetch brought no row at all.
+ * or null when nothing is missing. The fetch starts no earlier than the bank link's period, so days a file brings are never
+ * wanted. `reached` is null when the fetch brought no row at all.
  */
-export function olderRowsMissing(
-  account: Account,
-  start: FetchStart,
-  fetched: readonly Pick<Transaction, 'date'>[],
-  rows: readonly Pick<Transaction, 'account' | 'date' | 'importKey'>[],
-  day: CivilDate,
-): { readonly reached: CivilDate | null } | null {
-  const fileDays = rows.filter((row) => row.account === account.id && row.importKey !== '' && !isBankSyncKey(row.importKey)).map((row) => row.date)
-  const lastFileDay = fileDays.reduce<CivilDate | null>((newest, date) => (newest === null || date > newest ? date : newest), null)
-  const wanted = lastFileDay === null || addDays(lastFileDay, 1) < start.from ? start.from : addDays(lastFileDay, 1)
+export function olderRowsMissing(start: FetchStart, fetched: readonly Pick<Transaction, 'date'>[], day: CivilDate): { readonly reached: CivilDate | null } | null {
+  const wanted = start.from
   const given = addDays(day, -PERIOD_A_BANK_GIVES_DAYS)
   if (wanted >= given || fetched.some((row) => row.date < given)) return null
   const reached = fetched.map((row) => row.date).reduce<CivilDate | null>((oldest, date) => (oldest === null || date < oldest ? date : oldest), null)

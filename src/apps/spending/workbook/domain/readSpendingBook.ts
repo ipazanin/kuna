@@ -2,6 +2,7 @@ import { labelNameProblem } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import type { Account } from './account'
 import { readAccounts } from './accountReading'
+import { withDerivedSources } from '../../accounts/domain/derivedSources'
 import type { Budget } from './budget'
 import { readBudgets } from './budgetReading'
 import type { Category } from './category'
@@ -200,6 +201,8 @@ export interface SpendingBook {
   /** The payees you keep details of, in the order of the file. */
   readonly payees: readonly Payee[]
   readonly settings: SpendingSettings
+  /** The accounts a file from before periods keeps, with the periods worked out from their rows, which the next write of their rows stores. */
+  readonly sourcesWorkedOut: readonly Account[]
   /** The rows, lines and items as the file stores them, which a write of rows starts from. */
   readonly stored: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
   readonly readings: SpendingReadings
@@ -310,7 +313,8 @@ function readSettings(read: RecordsRead<SettingRow>, payees: readonly Payee[]): 
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const beforeItems = isBeforeItems(records)
-  const accounts = readAccounts(records.accounts)
+  const worked = withDerivedSources(records.accounts, records.transactions)
+  const accounts = readAccounts(worked.read)
   const categories = readCategories(records.categories)
   const categoryIds = new Set(categories.facts.map((category) => category.id))
   const accountsById = new Map(accounts.facts.map((account) => [account.id, account]))
@@ -354,6 +358,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     recipes: recipes.facts,
     payees: payees.facts,
     settings: spendingSettingsOf(settings.facts),
+    sourcesWorkedOut: accounts.facts.filter((account) => worked.ids.has(account.id)),
     stored: { transactions: records.transactions, lines: records.lines, items: records.items },
     readings,
     problems: (Object.keys(SPENDING_PARTS) as (keyof SpendingRecords)[]).flatMap((part) =>

@@ -2,7 +2,7 @@ import { starterCategories } from '../../../categories/domain/starterCategories'
 import type { Label } from '../../../../../shared/categorising/domain/labels'
 import { accountBalance } from '../../../accounts/domain/accountBalance'
 import { codecOfSpendingKind } from '../../application/spendingCodecs'
-import type { Account, RowsFrom } from '../../domain/account'
+import type { Account, SpendingPeriod, SpendingSource } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import { COMPANY_MONEY_ROLES } from '../../domain/category'
 import type { Category } from '../../domain/category'
@@ -44,6 +44,7 @@ import { spendingDocumentOf } from '../spendingDocument'
 import { FAKE_HOME_LOAN_IBAN, fakeHomeLoanShare, latestFakeHomeLoanDue } from './fakeHomeLoan'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { recipeStatement } from '../../../statements/domain/recipeStatement'
+import { derivedSources } from '../../../accounts/domain/derivedSources'
 import { fakeRecipes } from './fakeRecipes'
 import { fakeYearsDocument } from './fakeYears'
 import { REVOLUT_STATEMENT } from '../../../statements/domain/revolutRecipe'
@@ -261,8 +262,7 @@ function homeAccount(day: CivilDate): Account {
     currency: EURO,
     opening: ZERO_ACCOUNT_MONEY,
     openedOn: firstDayOf(addMonths(monthOf(day), -24)),
-    rowsFrom: 'by-hand',
-    alsoFrom: [],
+    sources: oneSource('by-hand'),
     iban: '',
     cards: [],
     closed: false,
@@ -346,7 +346,7 @@ function fakePayees(): readonly Payee[] {
 export const FAKE_OWNER_IBAN = 'XX00FAKE0000000000000020'
 
 /** The account the fake Company pays its owner on, opened before the earliest payment the company set offers. */
-function personalAccount(rowsFrom: RowsFrom): Account {
+function personalAccount(rowsFrom: SpendingSource): Account {
   return {
     id: PERSONAL,
     name: 'Erste',
@@ -355,8 +355,7 @@ function personalAccount(rowsFrom: RowsFrom): Account {
     currency: EURO,
     opening: ZERO_ACCOUNT_MONEY,
     openedOn: parseCivilDate('2026-03-01')!,
-    rowsFrom,
-    alsoFrom: [],
+    sources: oneSource(rowsFrom),
     iban: FAKE_OWNER_IBAN,
     cards: [],
     closed: false,
@@ -523,7 +522,7 @@ function withdrawalRows(day: CivilDate, idOf: (path: string) => RecordId): reado
 }
 
 /** The accounts the cash set adds: two dollar cash accounts and a pound account at Revolut, whose rows come in as `rowsFrom` says. */
-function cashSetAccounts(openedOn: CivilDate, rowsFrom: RowsFrom): readonly Account[] {
+function cashSetAccounts(openedOn: CivilDate, rowsFrom: SpendingSource): readonly Account[] {
   return [
     {
       id: HOME_DOLLARS,
@@ -533,8 +532,7 @@ function cashSetAccounts(openedOn: CivilDate, rowsFrom: RowsFrom): readonly Acco
       currency: USD,
       opening: ZERO_ACCOUNT_MONEY,
       openedOn,
-      rowsFrom: 'by-hand',
-      alsoFrom: [],
+      sources: oneSource('by-hand'),
       iban: '',
       cards: [],
       closed: false,
@@ -547,8 +545,7 @@ function cashSetAccounts(openedOn: CivilDate, rowsFrom: RowsFrom): readonly Acco
       currency: USD,
       opening: ZERO_ACCOUNT_MONEY,
       openedOn,
-      rowsFrom: 'by-hand',
-      alsoFrom: [],
+      sources: oneSource('by-hand'),
       iban: '',
       cards: [],
       closed: false,
@@ -561,8 +558,7 @@ function cashSetAccounts(openedOn: CivilDate, rowsFrom: RowsFrom): readonly Acco
       currency: GBP,
       opening: ZERO_ACCOUNT_MONEY,
       openedOn,
-      rowsFrom,
-      alsoFrom: [],
+      sources: oneSource(rowsFrom),
       iban: 'LT000000000000000001',
       cards: [],
       closed: false,
@@ -777,13 +773,18 @@ interface FakeEntries {
   readonly lines: readonly TransactionItem[]
 }
 
+/** One source of rows from the account's start. */
+function oneSource(source: SpendingSource): readonly SpendingPeriod[] {
+  return [{ source, from: null }]
+}
+
 function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | null): FakeEntries {
   const { categories, idOf } = fakeCategories()
   const month = monthOf(day)
   const [twoBack, oneBack] = [addMonths(month, -2), addMonths(month, -1)]
   const openedOn = firstDayOf(addMonths(month, -3))
   // The bank accounts take their rows from the bank once `?banksync=` sets the sync up, and are kept by hand otherwise, as their rows are typed.
-  const rowsFrom: RowsFrom = bankSync === null ? 'by-hand' : 'bank-link'
+  const rowsFrom: SpendingSource = bankSync === null ? 'by-hand' : 'bank-link'
   const accounts: readonly Account[] = [
     {
       id: OTP,
@@ -793,8 +794,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       currency: EURO,
       opening: ZERO_ACCOUNT_MONEY,
       openedOn,
-      rowsFrom,
-      alsoFrom: [],
+      sources: oneSource(rowsFrom),
       iban: 'HR0000000000000000001',
       cards: ['3670'],
       closed: false,
@@ -807,8 +807,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       currency: EURO,
       opening: ZERO_ACCOUNT_MONEY,
       openedOn,
-      rowsFrom,
-      alsoFrom: [],
+      sources: oneSource(rowsFrom),
       iban: 'LT000000000000000001',
       cards: [],
       closed: false,
@@ -822,13 +821,12 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       currency: USD,
       opening: ZERO_ACCOUNT_MONEY,
       openedOn,
-      rowsFrom: bankSync === 'iban-blank' || bankSync === 'by-hand' || bankSync === 'by-hand-savings' ? 'by-hand' : rowsFrom,
-      alsoFrom: [],
+      sources: oneSource(bankSync === 'iban-blank' || bankSync === 'by-hand' || bankSync === 'by-hand-savings' ? 'by-hand' : rowsFrom),
       iban: bankSync === 'iban-blank' ? '' : 'LT000000000000000001',
       cards: [],
       closed: false,
     },
-    { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', alsoFrom: [], iban: '', cards: [], closed: false },
+    { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, sources: oneSource('by-hand'), iban: '', cards: [], closed: false },
     ...(bankSync === 'pocket'
       ? [
           {
@@ -839,8 +837,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
             currency: EURO,
             opening: ZERO_ACCOUNT_MONEY,
             openedOn,
-            rowsFrom: 'bank-link' as const,
-            alsoFrom: [],
+            sources: oneSource('bank-link'),
             iban: FAKE_POCKET_IBAN,
             cards: [],
             closed: false,
@@ -927,6 +924,8 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
   // Each account opens with what makes its balance on the day the worked example's.
   const opened = shown.map((account) => ({
     ...account,
+    // A bank-linked account takes the periods its rows give, as a file from before periods reads them.
+    sources: account.sources[0]?.source === 'bank-link' ? derivedSources(account, transactions) : account.sources,
     opening: subtractAccountMoney(accountMoneyFromAmount((set === 'over' ? OVER_BALANCES : BALANCES)[account.id]!), accountBalance(account, transactions, day)),
   }))
   const budgets: Budget[] =

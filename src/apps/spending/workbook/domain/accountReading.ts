@@ -1,5 +1,5 @@
-import { ACCOUNT_KINDS, ROWS_FROM, cardsOfText, cardsText, rowsFromOfDetails } from './account'
-import type { Account } from './account'
+import { ACCOUNT_KINDS, SPENDING_SOURCES, cardsOfText, cardsText, sourceOfDetails } from './account'
+import type { Account, SpendingPeriod } from './account'
 import { flagOf, optionalAccountMoney } from './fieldReading'
 import { ACCOUNT_RECORDS } from './spendingKinds'
 import { words } from './words'
@@ -9,8 +9,9 @@ import { labelWords, withIdField } from '../../../../shared/storage/domain/recor
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { EXTRA_ORIGINS } from '../../../../shared/app/accountSource'
-import { choiceList, ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
+import { periodsOfText, periodsText } from '../../../../shared/app/accountSource'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 import { bankLinkWithoutIban } from './account'
@@ -32,6 +33,20 @@ function bankOfText(text: string): string | null {
   return trimmed === '' ? null : Object.hasOwn(BANK_KEYS, trimmed) ? BANK_KEYS[trimmed]! : trimmed
 }
 
+/** The periods a `sources` cell holds, which refuses text that is not a list of them. */
+function sourcesOf(text: string): readonly SpendingPeriod[] {
+  return periodsOfText(text, SPENDING_SOURCES, parseCivilDate) ?? refuse(words.notSources(text))
+}
+
+/**
+ * The one source of a file from before periods, from its `rows_from` cell, or by its details when it has none. The book works
+ * out the periods such an account had from its rows, as `derivedSources` says.
+ */
+function storedSourceOf(fields: StoredFields, kind: Account['kind'], iban: string): readonly SpendingPeriod[] {
+  const source = fields.rows_from === undefined ? sourceOfDetails({ kind, iban }) : requiredChoice(fields, 'rows_from', ['bank-link', 'by-hand'] as const, 'way its rows come in')
+  return [{ source, from: null }]
+}
+
 export function accountOf(fields: StoredFields, id: RecordId | null): Account {
   const name = textOf(fields.name)
   if (name === '') refuse(storedWords.reasons.none('name', ''))
@@ -43,10 +58,8 @@ export function accountOf(fields: StoredFields, id: RecordId | null): Account {
   const currency = currencyCodeOf(currencyText) ?? refuse(words.notACurrency(currencyText))
   const iban = ibanKey(textOf(fields.iban))
   if (iban !== '' && kind === 'cash') refuse(words.ibanOnCash)
-  const rowsFrom = fields.rows_from === undefined ? rowsFromOfDetails({ kind, iban }) : requiredChoice(fields, 'rows_from', ROWS_FROM, 'way its rows come in')
-  if (rowsFrom === 'bank-link' && kind === 'cash') refuse(words.bankLinkOnCash)
-  const alsoFrom = choiceList(fields, 'also_from', EXTRA_ORIGINS, 'other origin of its rows')
-  if (alsoFrom.length > 0 && rowsFrom === 'by-hand') refuse(words.alsoFromByHand)
+  const sources = fields.sources === undefined ? storedSourceOf(fields, kind, iban) : sourcesOf(textOf(fields.sources))
+  if (kind === 'cash' && sources.some((period) => period.source !== 'by-hand')) refuse(words.sourcesOnCash)
   const cardsField = textOf(fields.cards)
   const cards = cardsOfText(cardsField) ?? refuse(words.notCards(cardsField))
   if (cards.length > 0 && kind === 'cash') refuse(words.cardsOnCash)
@@ -58,8 +71,7 @@ export function accountOf(fields: StoredFields, id: RecordId | null): Account {
     currency,
     opening: optionalAccountMoney(fields, 'opening') ?? ZERO_ACCOUNT_MONEY,
     openedOn: requiredDate(fields, 'opened_on'),
-    rowsFrom,
-    alsoFrom,
+    sources,
     iban,
     cards,
     closed: flagOf(fields, 'closed'),
@@ -78,8 +90,7 @@ export const ACCOUNT_CODEC: RecordCodec<Account> = withIdField(
       currency: account.currency,
       opening: amountText(account.opening),
       opened_on: account.openedOn,
-      rows_from: account.rowsFrom,
-      also_from: account.alsoFrom.join(','),
+      sources: periodsText(account.sources),
       iban: account.iban,
       cards: account.cards.length === 0 ? null : cardsText(account.cards),
       closed: account.closed ? true : null,

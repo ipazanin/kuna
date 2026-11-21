@@ -135,6 +135,6 @@ export function closeAccountReply({ request, tokens }: FakeChatTurn): ModelReply
 /** Proposes a second cash account in euros, so a cash receipt has two to go on. */
 export function purseReply({ request, tokens, lookups }: FakeChatTurn): ModelReply {
   if (lookups > 0) return answered(request, says.purseProposed, tokens)
-  const step = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.purse, kind: 'cash', currency: 'EUR', opening: 0, openedOn: addDays(fakeSpendingDayHere(), -30), rowsFrom: 'by-hand' })
+  const step = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.purse, kind: 'cash', currency: 'EUR', opening: 0, openedOn: addDays(fakeSpendingDayHere(), -30), sources: null })
   return lookup(0, 'propose_changes', { app: 'spending', title: says.purseTitle, steps: [step], next: false }, tokens)
 }

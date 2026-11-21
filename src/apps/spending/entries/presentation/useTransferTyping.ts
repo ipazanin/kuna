@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import type { Ref } from 'vue'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 
 import { words } from './words'
 import { feeSide, transferAmounts } from '../domain/transfer'
@@ -19,6 +20,8 @@ export interface TransferTyping {
   readonly sent: Ref<string>
   readonly arrived: Ref<string>
   readonly lessArrived: Ref<boolean>
+  /** The transfer's day, or null while it is not a day. */
+  readonly day: Ref<CivilDate | null>
 }
 
 /** An amount typed above zero, or null. */
@@ -32,21 +35,21 @@ export function positiveAmount(text: string): AccountMoney | null {
  * account a fee row would go on when less arrives in one currency, the draft Save writes, and why the arrived amount cannot be kept.
  */
 export function useTransferTyping(typing: TransferTyping) {
-  const { kind, from, to, rowOnFrom, rowOnTo, sent, arrived, lessArrived } = typing
+  const { kind, from, to, rowOnFrom, rowOnTo, sent, arrived, lessArrived, day } = typing
   const isTransfer = computed(() => kind.value === 'transfer')
   const twoCurrencies = computed(() => isTransfer.value && from.value !== null && to.value !== null && from.value.currency !== to.value.currency)
   const feeOn = computed(() => {
-    if (!isTransfer.value || twoCurrencies.value || from.value === null || to.value === null) return null
-    const side = feeSide({ account: from.value, row: rowOnFrom.value }, { account: to.value, row: rowOnTo.value })
+    if (!isTransfer.value || twoCurrencies.value || from.value === null || to.value === null || day.value === null) return null
+    const side = feeSide({ account: from.value, row: rowOnFrom.value, day: day.value }, { account: to.value, row: rowOnTo.value, day: day.value })
     return side === null ? null : side === 'to' ? to.value : from.value
   })
   const arrivedTyped = computed(() => twoCurrencies.value || (lessArrived.value && feeOn.value !== null))
   const draft = computed((): TransferDraft | null => {
     const typedSent = positiveAmount(sent.value)
-    if (!isTransfer.value || from.value === null || to.value === null || typedSent === null) return null
+    if (!isTransfer.value || from.value === null || to.value === null || typedSent === null || day.value === null) return null
     return {
-      from: { account: from.value, row: rowOnFrom.value },
-      to: { account: to.value, row: rowOnTo.value },
+      from: { account: from.value, row: rowOnFrom.value, day: day.value },
+      to: { account: to.value, row: rowOnTo.value, day: day.value },
       sent: typedSent,
       arrived: arrivedTyped.value ? positiveAmount(arrived.value) : null,
     }

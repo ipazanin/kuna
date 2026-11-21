@@ -37,7 +37,7 @@ describe('a card that adds an account and what goes on it', () => {
   it('shows each Spending entry in the new account’s currency', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
-      stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'Dollars', kind: 'bank', currency: 'USD', opening: 0, openedOn: '2026-11-01', rowsFrom: 'by-hand' }, '$dollars'),
+      stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'Dollars', kind: 'bank', currency: 'USD', opening: 0, openedOn: '2026-11-01', sources: null }, '$dollars'),
       stepOf(SPENDING_OPERATIONS, 'add-entry', { account: '$dollars', date: '2026-11-02', amount: -12.5, payee: 'A shop', note: '' }),
       stepOf(SPENDING_OPERATIONS, 'add-entry', { account: '$dollars', date: '2026-11-03', amount: 40, payee: 'A refund', note: '' }),
     ])

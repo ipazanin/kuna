@@ -10,16 +10,21 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import { words } from './words'
 import { ACCOUNT_WRITES, changeAccount, newAccount } from '../application/accountWrites'
 import { cutoverWords } from './startDayMoveWords'
+import { handoverWords } from './sourceHandoverWords'
+import SourcePeriodsField from './SourcePeriodsField.vue'
+import { draftsOf, periodsOfDrafts } from '../domain/periodDrafts'
+import type { PeriodDraft, PeriodDraftProblem } from '../domain/periodDrafts'
+import { sourceHandover } from '../domain/sourceHandover'
 import { deletesRecords, startDayMove } from '../domain/startDayMove'
 import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, bankLinkOffered, cardsOfText, cardsText, rowsFromRefusal } from '../../workbook/domain/account'
-import type { Account, AccountKind, RowsFrom } from '../../workbook/domain/account'
+import { ACCOUNT_KINDS, BY_HAND_SOURCES, NEW_ACCOUNT_DEFAULTS, SPENDING_SOURCES, bankLinkOffered, cardsOfText, cardsText, sourcesRefusal } from '../../workbook/domain/account'
+import type { Account, AccountKind, SpendingSource } from '../../workbook/domain/account'
 import { bankNamesOf } from '../domain/bankNames'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { ExtraOrigin } from '../../../../shared/app/accountSource'
+import { periodsSince } from '../../../../shared/app/accountSource'
 import { absAccountMoney, negateAccountMoney, typedAccountAmount, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
@@ -34,7 +39,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
-/** One of your accounts in one currency: its name, kind, bank, how its rows come in, what it held on the day you start counting from, its IBAN and the cards that pay from it. One with entries is closed rather than deleted. */
+/** One of your accounts in one currency: its name, kind, bank, where its rows come from on which days, what it held on the day you start counting from, its IBAN and the cards that pay from it. One with entries is closed rather than deleted. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -46,8 +51,10 @@ const props = defineProps<{
   startingKind?: AccountKind
   /** The currency a new account starts in, for a screen that asks for one. Otherwise euros. */
   startingCurrency?: CurrencyCode
-  /** How a new account's rows come in, for a screen that asks for one. Otherwise by hand. */
-  startingRowsFrom?: RowsFrom
+  /** Where a new account's rows come from, for a screen that asks for one. Otherwise by hand. */
+  startingSource?: SpendingSource
+  /** The place of the period to change, whose first day takes focus, the start day for the first. Otherwise the dialog opens at the top. */
+  period?: number
 }>()
 
 const store = useSpendingBooks()
@@ -55,7 +62,6 @@ const writes = useRecordWrites(store)
 const router = useRouter()
 
 const KIND_OPTIONS = ACCOUNT_KINDS.map((kind) => ({ value: kind, label: words.kinds[kind] }))
-const ROWS_FROM_OPTIONS = ROWS_FROM.map((rowsFrom) => ({ value: rowsFrom, label: words.rowsFrom[rowsFrom] }))
 
 const name = ref('')
 const kind = ref<AccountKind>('bank')
@@ -67,8 +73,7 @@ const overdrawn = ref(false)
 const openedOn = ref('')
 const iban = ref('')
 const cards = ref('')
-const rowsFrom = ref<RowsFrom>('by-hand')
-const takesStatementFile = ref(false)
+const periods = ref<readonly PeriodDraft[]>([{ source: 'by-hand', from: '' }])
 const tried = ref(false)
 
 /** The banks the book's accounts and saved recipes name, which the bank field suggests. */
@@ -99,8 +104,7 @@ watch(open, (opened) => {
   openedOn.value = account?.openedOn ?? props.openingDay ?? today()
   iban.value = account?.iban ?? ''
   cards.value = cardsText(account?.cards ?? NEW_ACCOUNT_DEFAULTS.cards)
-  rowsFrom.value = account?.rowsFrom ?? props.startingRowsFrom ?? 'by-hand'
-  takesStatementFile.value = account?.alsoFrom.includes('provider-file') ?? false
+  periods.value = account === null ? [{ source: props.startingSource ?? 'by-hand', from: '' }] : draftsOf(account.sources)
   tried.value = false
 })
 
@@ -132,9 +136,40 @@ const earlierFromBank = computed(() => move.value?.direction === 'earlier' && ki
 
 const settings = computed(() => store.state.workbook?.settings ?? { bankSyncApplication: '' })
 const offersBankLink = computed(() => bankLinkOffered(kind.value, props.account, settings.value))
-/** By hand wherever the choice is not offered, as on cash. */
-const pickedRowsFrom = computed<RowsFrom>(() => (offersBankLink.value ? rowsFrom.value : 'by-hand'))
-const pickedAlsoFrom = computed<readonly ExtraOrigin[]>(() => (pickedRowsFrom.value === 'bank-link' && takesStatementFile.value ? ['provider-file'] : []))
+/** The sources a person may pick: none but by hand on cash, and the bank link only where it is offered. */
+const sourceOptions = computed<readonly SpendingSource[]>(() => (kind.value === 'cash' ? ['by-hand'] : SPENDING_SOURCES.filter((source) => source !== 'bank-link' || offersBankLink.value)))
+const typedPeriods = computed(() => periodsOfDrafts(kind.value === 'cash' ? BY_HAND_SOURCES.map((period) => ({ source: period.source, from: '' })) : periods.value, openedDay.value))
+/** The periods as typed from the start day typed, or null while one cannot be kept. */
+const pickedSources = computed(() => {
+  const typed = typedPeriods.value.periods
+  return typed === null ? null : periodsSince(typed, openedDay.value ?? today())
+})
+const PERIOD_PROBLEMS: Readonly<Record<PeriodDraftProblem, string>> = {
+  'day-needed': words.rowsFromChoice.dayNeeded,
+  'after-earlier': words.rowsFromChoice.afterEarlier,
+  'same-as-earlier': words.rowsFromChoice.sameAsEarlier,
+}
+const periodErrors = computed(() => typedPeriods.value.problems.map((problem) => (tried.value && problem !== null ? PERIOD_PROBLEMS[problem] : null)))
+/** The help for where the last source's rows come from, and how the periods follow one another when there are several. */
+const sourcesHelp = computed(() => {
+  const last = periods.value[periods.value.length - 1]?.source ?? 'by-hand'
+  const own = last === 'bank-link' ? words.rowsFromChoice.bankLinkHelp(words.dialog.openedOn) : last === 'provider-file' ? words.rowsFromChoice.statementFileHelp : words.rowsFromChoice.byHandHelp
+  return periods.value.length > 1 ? `${words.rowsFromChoice.periodsHelp} ${own}` : own
+})
+/** What giving days to another source deletes, past what moving the start day later already does. */
+const handover = computed(() => {
+  const book = store.state.workbook
+  const sources = pickedSources.value
+  if (props.account === null || book === null || sources === null) return null
+  const goneBefore = new Set(move.value?.direction === 'later' ? move.value.rows : [])
+  return sourceHandover({ ...book, transactions: book.transactions.filter((row) => !goneBefore.has(row)) }, props.account, sources)
+})
+const shownHandover = computed(() => {
+  const book = store.state.workbook
+  return handover.value === null || book === null ? null : handoverWords(handover.value, book, today())
+})
+/** Whether saving deletes rows, so its button says so. */
+const deletes = computed(() => cutover.value !== null || shownHandover.value !== null)
 
 /** None on cash, which no card pays from. */
 const typedCards = computed(() => (kind.value === 'cash' ? NEW_ACCOUNT_DEFAULTS.cards : cardsOfText(cards.value)))
@@ -146,7 +181,8 @@ const errors = computed(() => ({
   opening: openingAmount.value === null ? words.dialog.anAmount : null,
   openedOn: openedDay.value === null ? spendingWords.form.aDate(civilDate(2026, 1, 1)) : null,
   cards: typedCards.value === null ? words.dialog.cardsError : null,
-  iban: rowsFromRefusal({ kind: kind.value, iban: iban.value, rowsFrom: pickedRowsFrom.value }, props.account, settings.value) === null ? null : words.rowsFromChoice.ibanNeeded,
+  iban: sourcesRefusal({ kind: kind.value, iban: iban.value, sources: pickedSources.value ?? BY_HAND_SOURCES }, props.account, settings.value) === null ? null : words.rowsFromChoice.ibanNeeded,
+  periods: pickedSources.value === null ? words.rowsFromChoice.dayNeeded : null,
 }))
 
 async function save(): Promise<void> {
@@ -155,7 +191,8 @@ async function save(): Promise<void> {
   const day = openedDay.value
   const code = pickedCurrency.value
   const typedCardList = typedCards.value
-  if (Object.values(errors.value).some((error) => error !== null) || amount === null || day === null || code === null || typedCardList === null) return
+  const sources = pickedSources.value
+  if (Object.values(errors.value).some((error) => error !== null) || amount === null || day === null || code === null || typedCardList === null || sources === null) return
   const typed = newAccount({
     name: name.value,
     kind: kind.value,
@@ -165,8 +202,7 @@ async function save(): Promise<void> {
     openedOn: day,
     iban: iban.value,
     cards: typedCardList,
-    rowsFrom: pickedRowsFrom.value,
-    alsoFrom: pickedAlsoFrom.value,
+    sources,
     closed: props.account?.closed ?? NEW_ACCOUNT_DEFAULTS.closed,
   })
   const before = props.account
@@ -175,7 +211,7 @@ async function save(): Promise<void> {
   const written =
     before === null || records === null
       ? await writes.write(words.dialog.added, (unit) => unit.of(ACCOUNT_WRITES).add(typed), { failedTitle: spendingWords.form.notAdded })
-      : await writes.write(words.dialog.saved, (unit) => changeAccount(unit, records, before, { ...typed, id: before.id }, move.value), { failedTitle: spendingWords.form.notSaved })
+      : await writes.write(words.dialog.saved, (unit) => changeAccount(unit, records, before, { ...typed, id: before.id }, move.value, handover.value), { failedTitle: spendingWords.form.notSaved })
   if (written) open.value = false
 }
 
@@ -205,16 +241,8 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.kind" class="sm:col-span-2">
         <ChoiceButtons v-model="kind" :options="KIND_OPTIONS" :label="words.dialog.kind" data-testid="spending-account-kind" />
       </UFormField>
-      <UFormField
-        v-if="offersBankLink"
-        :label="words.rowsFromChoice.label"
-        :help="rowsFrom === 'bank-link' ? words.rowsFromChoice.bankLinkHelp(words.dialog.openedOn) : words.rowsFromChoice.byHandHelp"
-        class="sm:col-span-2"
-      >
-        <ChoiceButtons v-model="rowsFrom" :options="ROWS_FROM_OPTIONS" :label="words.rowsFromChoice.label" data-testid="spending-account-rows-from" />
-      </UFormField>
-      <UFormField v-if="pickedRowsFrom === 'bank-link'" :help="words.rowsFromChoice.statementFileHelp" class="sm:col-span-2">
-        <USwitch v-model="takesStatementFile" :label="words.rowsFromChoice.statementFile" class="min-h-11" data-testid="spending-account-statement-file" />
+      <UFormField v-if="kind !== 'cash'" :label="words.rowsFromChoice.label" :help="sourcesHelp" class="sm:col-span-2">
+        <SourcePeriodsField v-model="periods" :options="sourceOptions" :errors="periodErrors" v-bind="period === undefined ? {} : { focused: period }" />
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" :error="(tried && errors.iban) || false" class="sm:col-span-2">
         <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />
@@ -235,7 +263,7 @@ async function remove(): Promise<void> {
         <USwitch v-model="overdrawn" :label="words.dialog.overdrawn" class="min-h-11" data-testid="spending-account-overdrawn" />
       </div>
       <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false" v-bind="earlierFromBank ? { help: words.dialog.earlierStart } : {}">
-        <DayField v-model="openedOn" class="w-full" data-testid="spending-account-opened-on" />
+        <DayField v-model="openedOn" :autofocus="period === 0" class="w-full" data-testid="spending-account-opened-on" />
       </UFormField>
       <UAlert v-if="shownCutover !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="shownCutover.title" data-testid="spending-account-cutover">
         <template #description>
@@ -245,6 +273,15 @@ async function remove(): Promise<void> {
           <p v-else>{{ shownCutover.goes[0] }}</p>
           <p v-if="shownCutover.loneLegs !== null" class="mt-2">{{ shownCutover.loneLegs }}</p>
           <p class="mt-2">{{ shownCutover.opening }}</p>
+        </template>
+      </UAlert>
+      <UAlert v-if="shownHandover !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="shownHandover.title" class="sm:col-span-2" data-testid="spending-account-handover">
+        <template #description>
+          <p v-for="line in shownHandover.days" :key="line">{{ line }}</p>
+          <ul class="mt-2 list-disc ps-5">
+            <li v-for="line in shownHandover.rows" :key="line">{{ line }}</li>
+          </ul>
+          <p v-for="line in shownHandover.notes" :key="line" class="mt-2">{{ line }}</p>
         </template>
       </UAlert>
       <p v-if="account !== null && hasEntries" class="type-caption sm:col-span-2" data-testid="spending-account-has-entries">{{ words.dialog.hasEntries }}</p>
@@ -278,9 +315,9 @@ async function remove(): Promise<void> {
       <UButton
         type="submit"
         form="spending-account"
-        :label="account === null ? words.dialog.add : cutover !== null ? words.dialog.cutover.save : words.dialog.save"
-        :icon="account === null ? 'i-lucide-plus' : cutover !== null ? 'i-lucide-trash-2' : 'i-lucide-save'"
-        :color="cutover !== null ? 'error' : 'primary'"
+        :label="account === null ? words.dialog.add : deletes ? words.dialog.cutover.save : words.dialog.save"
+        :icon="account === null ? 'i-lucide-plus' : deletes ? 'i-lucide-trash-2' : 'i-lucide-save'"
+        :color="deletes ? 'error' : 'primary'"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-account-save"

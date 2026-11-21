@@ -65,9 +65,9 @@ export function shortcutsWithParts(book: Pick<SpendingBook, 'shortcuts' | 'short
   return book.shortcuts.map((shortcut) => ({ shortcut, parts: book.shortcutParts.filter((part) => part.shortcut === shortcut.id) }))
 }
 
-/** The shortcuts a tap can write today: on an open account kept by hand, in order. One on a closed account or one the bank fills stays on the file. */
-export function shortcutsShown(book: Pick<SpendingBook, 'shortcuts' | 'shortcutParts' | 'accounts'>): readonly ShortcutWithParts[] {
-  const open = new Set(book.accounts.filter(takesNewRowsByHand).map((account) => account.id))
+/** The shortcuts a tap can write on the day: on an open account that takes typed rows on it, in order. One on a closed account or one the bank or its file fills stays on the file. */
+export function shortcutsShown(book: Pick<SpendingBook, 'shortcuts' | 'shortcutParts' | 'accounts'>, day: CivilDate): readonly ShortcutWithParts[] {
+  const open = new Set(book.accounts.filter((account) => takesNewRowsByHand(account, day)).map((account) => account.id))
   return shortcutsWithParts(book).filter(({ shortcut, parts }) => open.has(shortcut.account) && parts.length > 0)
 }
 

@@ -27,6 +27,7 @@ import { receiptMatches } from '../receipts/domain/receiptMatch'
 import { waitsForBank } from '../receipts/domain/waitingReceipts'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
 import { bankLinkOffered } from '../workbook/domain/account'
+import { periodsText } from '../../../shared/app/accountSource'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
@@ -130,7 +131,7 @@ interface BankAccountLine {
   readonly takesBank: string | null
   readonly takesIban: string | null
   readonly takesKind: string | null
-  readonly takesRowsFrom: string | null
+  readonly takesSources: string | null
   readonly bankBalance: AccountMoney | null
   readonly fixedOpening: AccountMoney | null
   readonly unlistedPending: AccountMoney | null
@@ -156,11 +157,11 @@ const ACCOUNT_FIELDS: FieldDocs<Account> = {
     exposure: 'plain',
     meaning: 'The last four digits of each card that pays from it. A row on another account that names one, such as Top-Up by *3670, pairs with this account as a transfer.',
   },
-  rowsFrom: { exposure: 'plain', meaning: 'bank-link when the bank sync brings its rows, or by-hand when typing, the chat and files do. Cash is always by-hand.' },
-  alsoFrom: {
+  sources: {
     exposure: 'plain',
+    read: (account) => periodsText(account.sources),
     meaning:
-      "What else a bank-link account takes rows from: provider-file lets the bank's statement file fill it, such as days a lapsed link missed. Empty takes the sync's rows alone. Typed and copied rows never go on a bank-link account.",
+      "Where its new rows come from, in order, each later one with the day it takes over, such as provider-file, bank-link 2026-06-01, the first from openedOn: bank-link when the bank sync brings them, provider-file when the bank's statement file does, or by-hand when typing and the chat do. A day of bank-link or provider-file takes no typed, copied or receipt's row. Cash is always by-hand.",
   },
   closed: { exposure: 'plain', meaning: 'Closed by the owner.' },
 }
@@ -573,7 +574,10 @@ const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
   takesBank: { exposure: 'plain', meaning: 'The bank update gives the account, when it differs.' },
   takesIban: { exposure: 'identifier', meaning: 'The IBAN update gives the account, when it differs.' },
   takesKind: { exposure: 'plain', meaning: 'The kind update gives the account, when it differs.' },
-  takesRowsFrom: { exposure: 'plain', meaning: 'bank-link when update has the bank bring the rows of an account kept by hand. keep-mine keeps it by hand and stops the offer.' },
+  takesSources: {
+    exposure: 'plain',
+    meaning: 'The sources update gives an account kept by hand, with the bank link from the day after its newest row. keep-mine keeps it by hand and stops the offer.',
+  },
   bankBalance: { exposure: 'plain', amount: 'account', sign: 'either', meaning: "The bank's balance at the fetch, when it differs from Kuna's." },
   fixedOpening: {
     exposure: 'plain',
@@ -608,7 +612,8 @@ const BANK_SYNC_FIELDS: FieldDocs<BankSyncLine> = {
   id: { exposure: 'plain', meaning: 'The one line.' },
   bankLinkOffered: {
     exposure: 'plain',
-    meaning: 'Whether an Enable Banking application is set up for the bank sync, so a new bank or savings account can take rowsFrom bank-link. Without it, add-account takes by-hand.',
+    meaning:
+      'Whether an Enable Banking application is set up for the bank sync, so a new bank or savings account can take its rows from bank-link. Without it, add-account takes by-hand or provider-file.',
   },
 }
 
@@ -637,7 +642,7 @@ function bankAccountLines(setup: BankSetup, book: SpendingBook): readonly BankAc
       takesBank: differs('bank'),
       takesIban: differs('iban'),
       takesKind: differs('kind'),
-      takesRowsFrom: differs('rowsFrom'),
+      takesSources: update === null || account === null || periodsText(update.sources) === periodsText(account.sources) ? null : periodsText(update.sources),
       bankBalance: difference?.stated ?? null,
       fixedOpening: difference?.fixedOpening ?? null,
       unlistedPending: account === null ? null : (setup.stated.find((stated) => stated.account.id === account.id)?.unlisted ?? null),

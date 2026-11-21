@@ -27,6 +27,7 @@ import { SET_STARTING_ACCOUNT, acceptStartingAccount, setsStartingAccount, start
 import type { LastAccountPorts } from './startingAccountOperation'
 import type { BankSetup } from '../../bankSync/application/bankSync'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
+import type { SourceHandover } from '../../accounts/domain/sourceHandover'
 import { ruleLinksOf } from '../../links/domain/linkFiling'
 import type { RuleAssets } from '../../links/domain/linkFiling'
 import type { AppTargets, LinkTarget, TargetSource } from '../../links/domain/linkTarget'
@@ -130,6 +131,7 @@ function plannedSteps(
   let imported: CardStatement | null = null
   const receiptWarnings: CardNote[] = []
   const moves: StartDayMove[] = []
+  const handovers: SourceHandover[] = []
   const idOf = (value: unknown): string => {
     const text = String(value)
     return made.get(text) ?? text
@@ -185,8 +187,9 @@ function plannedSteps(
       continue
     }
     if (isAccountStep(operation)) {
-      const { added, move } = writeAccountStep(unit, book, records(), operation, field, idOf)
+      const { added, move, handover } = writeAccountStep(unit, book, records(), operation, field, idOf)
       if (move !== null) moves.push(move)
+      if (handover !== null) handovers.push(handover)
       if (added !== null) {
         book = { ...book, accounts: [...book.accounts, added] }
         if (as !== null) made.set(as, added.id)
@@ -268,10 +271,10 @@ function plannedSteps(
     const leftOut = statementLeftOut(imported, run)
     const lookAlikes = leftOut.lookAlikes.map(({ number }) => number)
     if (lookAlikes.length > 0 && run.added.length + run.changed.length === 0) throw new StepRefused(lookAlikesForTheModel(lookAlikes, true))
-    return { leftOut, receipts: receiptWarnings, moves, refiled }
+    return { leftOut, receipts: receiptWarnings, moves, handovers, refiled }
   }
   if (rulesEdited) writeRules(unit, book, edits, links, !onlyNew)
-  return { leftOut: null, receipts: receiptWarnings, moves, refiled }
+  return { leftOut: null, receipts: receiptWarnings, moves, handovers, refiled }
 }
 
 /** How the chat's steps become one write of the Spending file. The card warns on what its own plan leaves out or doubts. A receipt photo kept on Drive stays there after Undo. */

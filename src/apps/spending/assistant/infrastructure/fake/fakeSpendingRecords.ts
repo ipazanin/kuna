@@ -11,7 +11,7 @@ export interface FoundRecord {
   readonly closed?: boolean
   readonly kind?: string
   readonly bank?: string
-  readonly rowsFrom?: string
+  readonly sources?: string
   readonly counterpartyIban?: string
   /** The entry a part is of. */
   readonly transaction?: string

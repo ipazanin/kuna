@@ -28,16 +28,40 @@ export const en = {
   noEntries: 'No entries on this account yet.',
   kinds: { bank: 'Bank account', cash: 'Cash', savings: 'Savings' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Other bank' },
-  rowsFrom: { 'bank-link': 'From the bank', 'by-hand': 'By hand' },
-  /** The choice of how a new or changed account's rows come in. */
+  rowsFrom: { 'bank-link': 'From the bank', 'provider-file': 'Statement file', 'by-hand': 'By hand' },
+  /** The choice of where a new or changed account's rows come from, one source for each run of days. */
   rowsFromChoice: {
     label: 'Rows come in',
     /** Says which field holds the day the bank sync fetches from, by the label the person sees on it. */
     bankLinkHelp: (field: string) => `The bank sync finds it by its IBAN and fetches its rows from the day in “${field}”.`,
-    byHandHelp: 'You type its rows, import its statement files or add them through the chat.',
+    statementFileHelp: "You import the bank's statement files. Typed, copied and receipt rows wait for the file's row.",
+    byHandHelp: 'You type its rows or add them through the chat.',
     ibanNeeded: "Linking a bank needs the account's IBAN",
-    statementFile: "Also take the bank's statement file",
-    statementFileHelp: 'Only the bank sync brings its rows unless you allow this, for example to fill days a lapsed link missed. Typed and copied rows never go on it.',
+    fileThenBank: "This file's rows come in, and from the day after its last row the bank sync finds the account by its IBAN and fetches its rows.",
+    periodsHelp: 'Each source brings the rows from its day until the next one starts.',
+    from: 'From',
+    fromDay: (day: string) => `from ${day}`,
+    fromStart: 'From the start day',
+    add: 'Add a later source',
+    remove: 'Remove this source',
+    sourceOf: (place: number) => `Source ${place}`,
+    dayNeeded: 'Pick the day this source starts on',
+    afterEarlier: 'Pick a day after the source above starts',
+    sameAsEarlier: 'Pick a source other than the one above',
+  },
+  /** The account page's card of where its rows come from, one line for each source. */
+  sources: {
+    title: 'Where rows come from',
+    subtitle: 'Each source brings the rows of its days. Change them in the account dialog.',
+    empty: 'No source yet',
+    span: (from: string, to: string) => `${from} to ${to}`,
+    onwards: (from: string) => `From ${from} on`,
+    counts: {
+      automation: (count: number): EnglishForms => ({ one: '1 from the bank', other: `${count} from the bank` }),
+      'provider-file': (count: number): EnglishForms => ({ one: '1 from a file', other: `${count} from files` }),
+      'by-hand': (count: number): EnglishForms => ({ one: '1 typed', other: `${count} typed` }),
+    },
+    noRows: 'No rows yet',
   },
   /** The day an account drafted from a bank or its file starts on. */
   startDay: {
@@ -91,6 +115,30 @@ export const en = {
       opening: (amount: string) => `The opening balance becomes ${amount}, so today's balance stays. You can change it.`,
       save: 'Delete and save',
     },
+    handover: {
+      title: (count: number): EnglishForms => ({
+        one: 'Giving these days to another source deletes 1 row',
+        other: `Giving these days to another source deletes ${count} rows`,
+      }),
+      heldTitle: (count: number): EnglishForms => ({
+        one: 'Giving these days to another source deletes 1 bank row on hold',
+        other: `Giving these days to another source deletes ${count} bank rows on hold`,
+      }),
+      days: (days: string, from: string, to: string) => `${days}: “${from}” gives way to “${to}”.`,
+      onwards: (day: string) => `From ${day} on`,
+      more: (count: number) => `And ${count} more.`,
+      receipts: (count: number): EnglishForms => ({
+        one: "1 receipt on them waits again for the new source's row.",
+        other: `${count} receipts on them wait again for the new source's rows.`,
+      }),
+      linked: (count: number): EnglishForms => ({
+        one: '1 of them is linked to Loans, Company or Investments, which shows it unpaid until the new row is linked.',
+        other: `${count} of them are linked to Loans, Company or Investments, which shows them unpaid until the new rows are linked.`,
+      }),
+      held: (count: number): EnglishForms => ({ one: '1 bank row on hold goes too.', other: `${count} bank rows on hold go too.` }),
+      brings: 'The new source then brings its own rows. Undo puts these back until it does.',
+      oldBankDays: 'A bank gives rows older than 90 days only right after you approve a link.',
+    },
   },
 }
 
@@ -116,14 +164,37 @@ export const hr: Translation<typeof en> = {
   noEntries: 'Na ovom računu još nema unosa.',
   kinds: { bank: 'Bankovni račun', cash: 'Gotovina', savings: 'Štednja' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Druga banka' },
-  rowsFrom: { 'bank-link': 'Iz banke', 'by-hand': 'Ručno' },
+  rowsFrom: { 'bank-link': 'Iz banke', 'provider-file': 'Datoteka izvoda', 'by-hand': 'Ručno' },
   rowsFromChoice: {
     label: 'Retci dolaze',
     bankLinkHelp: (field) => `Sinkronizacija s bankom pronalazi ga po IBAN-u i dohvaća retke od dana u polju „${field}”.`,
-    byHandHelp: 'Retke upisujete sami, uvozite iz datoteka izvoda ili dodajete kroz razgovor.',
+    statementFileHelp: 'Uvozite datoteke izvoda banke. Upisani, prepisani retci i retci računa čekaju redak iz datoteke.',
+    byHandHelp: 'Retke upisujete sami ili ih dodajete kroz razgovor.',
     ibanNeeded: 'Za povezivanje banke potreban je IBAN računa',
-    statementFile: 'Primaj i datoteku izvoda banke',
-    statementFileHelp: 'Bez ovoga retke donosi samo sinkronizacija s bankom. Uključite, primjerice, da popunite dane koje je istekla veza propustila. Upisani i prepisani retci nikad ne idu na njega.',
+    fileThenBank: 'Dolaze retci ove datoteke, a od dana nakon njezina zadnjeg retka sinkronizacija s bankom pronalazi račun po IBAN-u i dohvaća retke.',
+    periodsHelp: 'Svaki izvor donosi retke od svojeg dana dok ne počne sljedeći.',
+    from: 'Od',
+    fromDay: (day) => `od ${day}`,
+    fromStart: 'Od početnog dana',
+    add: 'Dodaj kasniji izvor',
+    remove: 'Ukloni ovaj izvor',
+    sourceOf: (place) => `Izvor ${place}`,
+    dayNeeded: 'Odaberi dan od kojeg ovaj izvor počinje',
+    afterEarlier: 'Odaberi dan nakon početka izvora iznad',
+    sameAsEarlier: 'Odaberi izvor različit od onog iznad',
+  },
+  sources: {
+    title: 'Odakle dolaze retci',
+    subtitle: 'Svaki izvor donosi retke svojih dana. Mijenjate ih u prozoru računa.',
+    empty: 'Još nema izvora',
+    span: (from, to) => `Od ${from} do ${to}`,
+    onwards: (from) => `Od ${from} nadalje`,
+    counts: {
+      automation: (count): CroatianForms => ({ one: `${count} iz banke`, few: `${count} iz banke`, other: `${count} iz banke` }),
+      'provider-file': (count): CroatianForms => ({ one: `${count} iz datoteke`, few: `${count} iz datoteka`, other: `${count} iz datoteka` }),
+      'by-hand': (count): CroatianForms => ({ one: `${count} upisan`, few: `${count} upisana`, other: `${count} upisanih` }),
+    },
+    noRows: 'Još nema redaka',
   },
   startDay: {
     label: 'Prati se od',
@@ -176,6 +247,38 @@ export const hr: Translation<typeof en> = {
       }),
       opening: (amount) => `Početno stanje postaje ${amount}, pa današnje stanje ostaje isto. Možete ga promijeniti.`,
       save: 'Obriši i spremi',
+    },
+    handover: {
+      title: (count): CroatianForms => ({
+        one: `Davanjem ovih dana drugom izvoru briše se ${count} redak`,
+        few: `Davanjem ovih dana drugom izvoru brišu se ${count} retka`,
+        other: `Davanjem ovih dana drugom izvoru briše se ${count} redaka`,
+      }),
+      heldTitle: (count): CroatianForms => ({
+        one: `Davanjem ovih dana drugom izvoru briše se ${count} bankovni redak na čekanju`,
+        few: `Davanjem ovih dana drugom izvoru brišu se ${count} bankovna retka na čekanju`,
+        other: `Davanjem ovih dana drugom izvoru briše se ${count} bankovnih redaka na čekanju`,
+      }),
+      days: (days, from, to) => `${days}: izvor „${from}” ustupa mjesto izvoru „${to}” kad spremite.`,
+      onwards: (day) => `Od ${day} nadalje`,
+      more: (count) => `I još ${count}.`,
+      receipts: (count): CroatianForms => ({
+        one: `${count} fiskalni račun na njima ponovno čeka redak novog izvora.`,
+        few: `${count} fiskalna računa na njima ponovno čekaju retke novog izvora.`,
+        other: `${count} fiskalnih računa na njima ponovno čeka retke novog izvora.`,
+      }),
+      linked: (count): CroatianForms => ({
+        one: `${count} od njih povezan je s Kreditima, Tvrtkom ili Ulaganjima, gdje se prikazuje neplaćenim dok se novi redak ne poveže.`,
+        few: `${count} od njih povezana su s Kreditima, Tvrtkom ili Ulaganjima, gdje se prikazuju neplaćenima dok se novi retci ne povežu.`,
+        other: `${count} od njih povezano je s Kreditima, Tvrtkom ili Ulaganjima, gdje se prikazuju neplaćenima dok se novi retci ne povežu.`,
+      }),
+      held: (count): CroatianForms => ({
+        one: `Briše se i ${count} redak iz banke na čekanju.`,
+        few: `Brišu se i ${count} retka iz banke na čekanju.`,
+        other: `Briše se i ${count} redaka iz banke na čekanju.`,
+      }),
+      brings: 'Novi izvor zatim donosi svoje retke. Poništi ih vraća dok ih ne donese.',
+      oldBankDays: 'Banka daje retke starije od 90 dana samo odmah nakon što odobrite vezu.',
     },
   },
 }

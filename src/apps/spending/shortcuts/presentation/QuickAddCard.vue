@@ -27,7 +27,7 @@ const shown = computed(() => {
   const book = store.state.workbook
   if (book === null) return []
   const currencyOf = new Map(book.accounts.map((account) => [account.id, account.currency]))
-  return shortcutsShown(book).map((held) => {
+  return shortcutsShown(book, today()).map((held) => {
     const currency = currencyOf.get(held.shortcut.account) ?? EURO
     const amount = shortcutAmount(held.parts)
     const name = held.shortcut.name === '' ? held.shortcut.payee : held.shortcut.name

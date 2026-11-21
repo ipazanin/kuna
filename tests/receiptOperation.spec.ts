@@ -10,7 +10,8 @@ import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, deskPorts, receiptPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
-import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
+import { changeAccount } from '../src/apps/spending/accounts/application/accountWrites'
+import { sourceHandover } from '../src/apps/spending/accounts/domain/sourceHandover'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/rowRecords'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
@@ -124,7 +125,8 @@ describe('a receipt from the chat', () => {
     const current = bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
     await desk.store.write('Linked', (unit) => {
       setSetting(unit, SETTING_WRITES, bookOf(desk).readings.settings.facts, BANK_SYNC_APPLICATION_KEY, 'made-up-application')
-      unit.of(ACCOUNT_WRITES).change(current, { ...current, rowsFrom: 'bank-link' })
+      const sources = [{ source: 'bank-link' as const, from: null }]
+      changeAccount(unit, desk.store.state.records!, current, { ...current, sources }, null, sourceHandover(bookOf(desk), current, sources))
     })
     const before = bookOf(desk).transactions
 
@@ -133,7 +135,7 @@ describe('a receipt from the chat', () => {
     expect((await desk.accept()).kind).toBe('done')
 
     expect(bookOf(desk).transactions).toEqual(before)
-    const waiting = bookOf(desk).receipts.find((held) => held.account === DESK_ACCOUNTS.CURRENT.id)
+    const waiting = bookOf(desk).receipts.find((held) => held.account === DESK_ACCOUNTS.CURRENT.id && held.total === 777)
     expect(waiting).toMatchObject({ transaction: null, total: 777 })
     expect(
       bookOf(desk)
@@ -245,7 +247,7 @@ describe('a receipt from the chat', () => {
   it('asks which cash account takes a cash receipt among several, and with none asks how much cash there was and adds one with that opening first on the same card', async () => {
     const desk = await spendingDesk(used)
     const cash = (fields: Readonly<Record<string, unknown>> = {}) => receipt(desk, { paid: 'cash', entry: null, ...fields })
-    const addCash = stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'Purse', kind: 'cash', currency: 'EUR', opening: 50, openedOn: '2026-10-21', rowsFrom: 'by-hand' }, '$cash')
+    const addCash = stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'Purse', kind: 'cash', currency: 'EUR', opening: 50, openedOn: '2026-10-21', sources: null }, '$cash')
 
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-account', { account: desk.ref('account', DESK_ACCOUNTS.WALLET.id), closed: 'yes' })], [])
     await desk.accept()

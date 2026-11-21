@@ -194,7 +194,7 @@ describe('labels typed in the entry dialog', () => {
   it('leave a transfer alone, so a row turned into a leg and a leg typed over keep their labels', () => {
     const before = { row: dinner, items: [{ ...wholeItems([dinner])[0]!, labels: [PRAGUE.id] }] }
     const typed = newTransfer(
-      { from: { account: OTP!, row: null }, to: { account: ACCOUNTS_BY_HAND[1]!, row: null }, sent: accountMoneyFromAmount(40), arrived: null },
+      { from: { account: OTP!, row: null, day: dinner.date }, to: { account: ACCOUNTS_BY_HAND[1]!, row: null, day: dinner.date }, sent: accountMoneyFromAmount(40), arrived: null },
       { date: dinner.date, note: '', category: category('Between my accounts').id },
       [],
       { description: '' },

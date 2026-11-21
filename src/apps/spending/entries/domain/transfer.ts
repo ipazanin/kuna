@@ -8,14 +8,16 @@ import type { Transaction } from '../../workbook/domain/transaction'
 import { wholeItemOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { absAccountMoney, negateAccountMoney, subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 
-/** One side of a transfer: its account, and the leg already on it, whose amount the bank may have fixed. Both legs held is a transfer already saved. */
+/** One side of a transfer on its day: its account, and the leg already on it, whose amount the bank may have fixed. Both legs held is a transfer already saved. */
 export interface TransferSide {
-  readonly account: Pick<Account, 'id' | 'currency' | 'bank' | 'rowsFrom' | 'alsoFrom' | 'openedOn'>
-  readonly row: Pick<Transaction, 'importKey'> | null
+  readonly account: Pick<Account, 'id' | 'currency' | 'bank' | 'sources' | 'openedOn'>
+  readonly row: Pick<Transaction, 'importKey' | 'date'> | null
+  readonly day: CivilDate
 }
 
 /** A transfer as typed: what left the from account, and what reached the other in its own currency, or null for all of it in one currency. */
@@ -50,10 +52,8 @@ export interface TypedTransfer {
   readonly fee: ItemizedRow | null
 }
 
-const TYPED_ROW = { importKey: '' }
-
 function takesFee(side: TransferSide): boolean {
-  return !(side.row !== null && fixedByBank(side.row, side.account)) && !refusedOnAccount(TYPED_ROW, side.account)
+  return !(side.row !== null && fixedByBank(side.row, side.account)) && !refusedOnAccount({ importKey: '', date: side.day }, side.account)
 }
 
 /**

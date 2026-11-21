@@ -94,7 +94,7 @@ const tabs = computed(() => [
   { value: 'import', label: statementWords.tabs.import, icon: 'i-lucide-file-up' },
 ])
 
-const canAdd = computed(() => accounts.value.some(takesNewRowsByHand))
+const canAdd = computed(() => accounts.value.some((account) => takesNewRowsByHand(account, today())))
 /** Whether the open accounts are all ones the bank fills, so no entry can be typed until one kept by hand is added. */
 const allFromBank = computed(() => !canAdd.value && accounts.value.some((candidate) => !candidate.closed))
 const canAddReceipt = computed(() => receiptAccounts(accounts.value).length > 0)

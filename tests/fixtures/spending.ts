@@ -62,8 +62,8 @@ export function category(path: string): Category {
 }
 
 /** An account with no card and no other origin of its rows unless the test names them. */
-export function account(place: number, fields: Omit<Account, 'id' | 'cards' | 'alsoFrom'> & Partial<Pick<Account, 'cards' | 'alsoFrom'>>): Account {
-  return { cards: [], alsoFrom: [], ...fields, id: recordIdOf(ACCOUNT_RECORDS, keyOf(1000 + place)) }
+export function account(place: number, fields: Omit<Account, 'id' | 'cards'> & Partial<Pick<Account, 'cards'>>): Account {
+  return { cards: [], ...fields, id: recordIdOf(ACCOUNT_RECORDS, keyOf(1000 + place)) }
 }
 
 const OPENED_ON = civil('2026-09-01')
@@ -77,8 +77,7 @@ export const OTP = account(1, {
   currency: EURO,
   opening: accountMoneyFromAmount(1_550),
   openedOn: OPENED_ON,
-  rowsFrom: 'bank-link',
-  alsoFrom: ['provider-file'],
+  sources: [{ source: 'bank-link', from: null }],
   iban: 'HR0000000000000000001',
   closed: false,
 })
@@ -89,8 +88,7 @@ export const REVOLUT_EUR = account(2, {
   currency: EURO,
   opening: accountMoneyFromAmount(300),
   openedOn: OPENED_ON,
-  rowsFrom: 'bank-link',
-  alsoFrom: ['provider-file'],
+  sources: [{ source: 'bank-link', from: null }],
   iban: 'LT000000000000000001',
   closed: false,
 })
@@ -101,17 +99,38 @@ export const REVOLUT_USD = account(3, {
   currency: USD,
   opening: accountMoneyFromAmount(200),
   openedOn: OPENED_ON,
-  rowsFrom: 'bank-link',
-  alsoFrom: ['provider-file'],
+  sources: [{ source: 'bank-link', from: null }],
   iban: 'LT000000000000000001',
   closed: false,
 })
-export const CASH = account(4, { name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: accountMoneyFromAmount(100), openedOn: OPENED_ON, rowsFrom: 'by-hand', iban: '', closed: false })
+export const CASH = account(4, {
+  name: 'Cash',
+  kind: 'cash',
+  bank: null,
+  currency: EURO,
+  opening: accountMoneyFromAmount(100),
+  openedOn: OPENED_ON,
+  sources: [{ source: 'by-hand', from: null }],
+  iban: '',
+  closed: false,
+})
 
 export const ACCOUNTS: readonly Account[] = [OTP, REVOLUT_EUR, REVOLUT_USD, CASH]
 
+/** OTP with its rows from the bank's statement files until the bank link takes over on 29 October 2026. */
+export const FILE_THEN_LINK: Account = {
+  ...OTP,
+  sources: [
+    { source: 'provider-file', from: null },
+    { source: 'bank-link', from: civil('2026-10-29') },
+  ],
+}
+
+/** The same accounts, with the bank accounts filled by the bank's statement files, for an import of a file. */
+export const ACCOUNTS_FROM_FILES: readonly Account[] = ACCOUNTS.map((account) => (account.kind === 'cash' ? account : { ...account, sources: [{ source: 'provider-file', from: null }] }))
+
 /** The same accounts, each kept by hand, for a check of rows a person types, which an account the bank fills refuses. */
-export const ACCOUNTS_BY_HAND: readonly Account[] = ACCOUNTS.map((account) => ({ ...account, rowsFrom: 'by-hand', alsoFrom: [] }))
+export const ACCOUNTS_BY_HAND: readonly Account[] = ACCOUNTS.map((account) => ({ ...account, sources: [{ source: 'by-hand', from: null }] }))
 
 let rowPlace = 2000
 
@@ -194,6 +213,11 @@ type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budg
  * categories. Given items are stored as a file moved to items stores them; without them each row is read as one item
  * from a file from before items.
  */
+/** A book whose bank accounts take their rows from the bank's statement files, as an import of a file reads it. */
+export function fileBook(transactions: readonly Transaction[], parts: Partial<BookParts> = {}): SpendingBook {
+  return spendingBook(transactions, { accounts: ACCOUNTS_FROM_FILES, ...parts })
+}
+
 export function spendingBook(transactions: readonly Transaction[], parts: Partial<BookParts> = {}): SpendingBook {
   const { settingRows = [], ...given } = parts
   const book = {
@@ -201,6 +225,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     categories: CATEGORIES,
     labels: [],
     events: [],
+    sourcesWorkedOut: [],
     budgets: [],
     rules: [],
     shortcuts: [],
