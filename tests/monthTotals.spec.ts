@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow'
-import { categoryTotal, monthTotals } from '../src/apps/spending/analytics/domain/monthTotals'
-import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
+import { categoryTotal, monthTotals, rangeTotals } from '../src/apps/spending/analytics/domain/monthTotals'
+import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { ITEM_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
@@ -11,11 +11,11 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import type { RateBook } from '../src/shared/money/rateBook'
-import { euros, month } from './fixtures/ledger'
+import { civil, euros, month } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, category, row, transactionId, bookItems } from './fixtures/spending'
 
 function totalsOf(rows: readonly Transaction[], asked: string, rates: RateBook = RATES) {
-  return monthTotals(euroRows({ accounts: ACCOUNTS, transactions: rows, items: bookItems(rows) }, rates), CATEGORIES, month(asked))
+  return monthTotals(countedRows({ accounts: ACCOUNTS, transactions: rows, items: bookItems(rows) }, rates), CATEGORIES, month(asked))
 }
 
 /** A row's lines, as a receipt split it, in the row's currency. */
@@ -39,7 +39,7 @@ function linesOf(transaction: Transaction, parts: readonly (readonly [number, st
 describe("a split row's totals", () => {
   const split = row(OTP, '2026-10-12', -61.2, 'Food/Groceries')
   const totals = monthTotals(
-    euroRows(
+    countedRows(
       {
         accounts: ACCOUNTS,
         transactions: [split],
@@ -63,7 +63,7 @@ describe("a split row's totals", () => {
   })
 
   it('leaves out a line on a category that counts nowhere, as an R1 line for the company', () => {
-    const rows = euroRows(
+    const rows = countedRows(
       {
         accounts: ACCOUNTS,
         transactions: [split],
@@ -80,7 +80,7 @@ describe("a split row's totals", () => {
 
   it('takes a Difference line above zero off the spending', () => {
     const paid = row(OTP, '2026-10-12', -22, 'Food/Groceries')
-    const rows = euroRows(
+    const rows = countedRows(
       {
         accounts: ACCOUNTS,
         transactions: [paid],
@@ -97,7 +97,7 @@ describe("a split row's totals", () => {
 
   it("shares a foreign row's euros between its lines so they add up to the row", () => {
     const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')
-    const rows = euroRows(
+    const rows = countedRows(
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
@@ -113,12 +113,12 @@ describe("a split row's totals", () => {
 
     // $30.00 ÷ 1.0800 = €27.78, and each share is the running sum's less the one before: 9.26, 9.26, 9.26.
     expect(october.spent).toEqual(euros(27.78))
-    expect(rows[0]!.euros).toEqual(euros(-27.78))
+    expect(rows[0]!.parts.map((part) => part.euros)).toEqual([euros(-9.26), euros(-9.26), euros(-9.26)])
   })
 
   it("gives a foreign row's discount line a share of its euros of the other sign", () => {
     const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Food/Groceries')
-    const rows = euroRows(
+    const rows = countedRows(
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
@@ -139,7 +139,7 @@ describe("a split row's totals", () => {
 
   it('counts a foreign row the rates do not reach once, however many lines it has', () => {
     const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')
-    const rows = euroRows(
+    const rows = countedRows(
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
@@ -164,6 +164,15 @@ describe("a month's totals", () => {
 
     // Spent: 600.00 rent + 27.78 for $30.00 + 350.00 + 90.00 + 650.00 + 36.00 + 89.50.
     expect([october.spent, october.income, october.saved, october.unrated]).toEqual([euros(1_843.28), euros(2_400), euros(300), 0])
+  })
+
+  it("counts a span of days as a month's totals count, and a month's span as that month", () => {
+    const rows = countedRows({ accounts: ACCOUNTS, transactions: ROWS, items: bookItems(ROWS) }, RATES)
+    const { month: _month, ...october } = totalsOf(ROWS, '2026-10')
+
+    expect(rangeTotals(rows, CATEGORIES, { from: civil('2026-10-01'), to: civil('2026-10-31') })).toEqual(october)
+    // Only the 650.00 loan interest of 15 October and the 36.00 coffee of the 16th.
+    expect(rangeTotals(rows, CATEGORIES, { from: civil('2026-10-15'), to: civil('2026-10-16') }).spent).toEqual(euros(686))
   })
 
   it('counts each category on itself and each group with its children', () => {

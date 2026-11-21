@@ -12800,6 +12800,61 @@ export function spendingEventsFlowIn(language) {
 }
 
 /**
+ * On the sample Spending file's Entries opened as Analysis opens it, with the new flat's label over the two whole months before
+ * this one in `?from=` and `?to=`: the span shows in the month select, or as a chip on a phone, and the label's total counts
+ * only those two months' rent and bills, 2 × (600.00 + 118.40). On a phone no chip that fits is folded into "+N more", and taking
+ * off the span chip goes to every month, as a label picked by hand does.
+ */
+export function spendingEntriesSpanFlowIn(language) {
+  const flat = language === 'en' ? 'New flat' : 'Novi stan'
+  return async (page, { shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-transactions"]', { visible: true, timeout: 10_000 })
+    await page.evaluate(() => {
+      const day = new Date()
+      const first = new Date(day.getFullYear(), day.getMonth() - 2, 1)
+      const last = new Date(day.getFullYear(), day.getMonth(), 0)
+      const text = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      window.location.hash = `#/spending/transactions?from=${text(first)}&to=${text(last)}&label=fa4e3000-0000-4000-8000-000000002002`
+    })
+    await page.waitForSelector('[data-testid="spending-filter-total"]', { visible: true, timeout: 10_000 })
+    const total = await page.$eval('[data-testid="spending-filter-total"]', (row) => ({ text: row.textContent ?? '', spent: row.querySelector('[data-spent]')?.getAttribute('data-spent') ?? null }))
+    if (!total.text.includes(flat)) throw new Error(`Entries over a span sums up another: ${total.text}`)
+    if (total.spent !== '143680') throw new Error(`the new flat over two months sums ${total.spent} cents, not 143680`)
+    const phone = (await page.$('[data-testid="spending-filter-chips"]')) !== null
+    const shown = phone
+      ? await page.$$eval('[data-testid="spending-filter-chips"] [data-testid="filter-chip"], [data-testid="filter-chip-copy"] > div:first-child > *', (chips) =>
+          chips.map((chip) => chip.textContent?.trim() ?? ''),
+        )
+      : [await page.$eval('[data-testid="spending-filter-month"]', (select) => select.textContent?.trim() ?? '')]
+    if (!shown.some((text) => text.includes('–'))) throw new Error(`Entries over a span names no span: ${shown.join(', ')}`)
+    if (phone) await expectNoFittingChipFolded(page)
+    const cut = phone
+      ? []
+      : await page.$eval('[data-testid="spending-filter-month"]', (select) =>
+          [select, ...select.querySelectorAll('*')].filter((part) => part.scrollWidth > part.clientWidth + 1).map((part) => part.textContent?.trim() ?? ''),
+        )
+    if (cut.length > 0) throw new Error(`the month select cuts the span short: ${cut.join(', ')}`)
+    await inspect?.("Entries over Analysis's span")
+    await shoot('spending-entries-span')
+    if (!phone) return
+    const spanChip = () =>
+      page.evaluate(() => {
+        const chip = [...document.querySelectorAll('[aria-label*="–"]')].find((each) => each.closest('[data-testid="filter-chip-copy"]') === null)
+        if (!(chip instanceof HTMLElement)) return false
+        chip.click()
+        return true
+      })
+    if (!(await spanChip())) {
+      await page.click('[data-testid="spending-filter-chips"] [data-testid="more-filters"]')
+      await page.waitForFunction(() => [...document.querySelectorAll('[aria-label*="–"]')].some((each) => each.closest('[data-testid="filter-chip-copy"]') === null), { timeout: 10_000 })
+      if (!(await spanChip())) throw new Error('Entries over a span shows no span chip to take off')
+    }
+    await page.waitForFunction(() => window.location.hash.includes('month=all') && !window.location.hash.includes('from='), { timeout: 10_000 })
+  }
+}
+
+/**
  * On the sample Spending file's Entries: a label picked shows its total above the list. At a phone's width the first entry
  * starts on the first screen, the filters sit in a sheet behind a Filters button, and the picked label's chip, the only one
  * since every month goes with it, takes it off and goes back to this month.
@@ -13365,6 +13420,7 @@ export function spendingPayeesFlowIn(language) {
     if (!total.text.includes(name)) throw new Error(`Entries opened from ${name} sums up another: ${total.text}`)
     if (total.spent !== paid) throw new Error(`Entries opened from ${name} sums ${total.spent} where Payees shows ${paid}`)
     const phone = (await page.$('[data-testid="spending-filter-chips"]')) !== null
+    if (phone) await expectNoFittingChipFolded(page)
     // A phone's one line of chips folds those it has no room for behind "+N more", whose pop-up lists them.
     const more = phone ? await page.$('[data-testid="spending-filter-chips"] [data-testid="more-filters"]') : null
     if (more !== null) {
@@ -13387,6 +13443,23 @@ export function spendingPayeesFlowIn(language) {
         throw new Error("the payee's chip did not take the payee off")
       })
   }
+}
+
+/** Every one line of filter chips folds a chip behind "+N more" only when that chip has no room left beside Clear. */
+async function expectNoFittingChipFolded(page) {
+  const fitting = await page.$$eval('[data-testid="filter-chip-copy"]', (copies) =>
+    copies.flatMap((copy) => {
+      const line = copy.parentElement
+      if (line?.querySelector('[data-testid="more-filters"]') === null) return []
+      const shown = line.querySelectorAll('[data-testid="filter-chip"]').length
+      const folded = copy.firstElementChild?.children[shown]
+      const last = [...line.children].filter((child) => child !== copy).at(-1)
+      if (!(folded instanceof HTMLElement) || last === undefined) return []
+      const room = line.getBoundingClientRect().right - last.getBoundingClientRect().right
+      return folded.offsetWidth + 6 <= room ? [`${folded.textContent?.trim() ?? ''} (${folded.offsetWidth} px folded with ${Math.round(room)} px free)`] : []
+    }),
+  )
+  if (fitting.length > 0) throw new Error(`a chip that fits is folded into "+N more": ${fitting.join(', ')}`)
 }
 
 /** On the sample Spending file's Entries: a payee the books do not hold lists only itself as a new payee, which Enter keeps as typed. */

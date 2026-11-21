@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { payeeKey, samePayee } from '../src/apps/spending/payees/domain/payeeKey'
 import { inPeriod, periodNamed } from '../src/apps/spending/payees/domain/payeePeriod'
 import { payeeTotals, payeesRanked } from '../src/apps/spending/payees/domain/payeeTotals'
-import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
+import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import { ITEM_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -53,7 +53,7 @@ describe("payees' totals", () => {
   ]
   const transactions = [topUp, topUpIn, market, dinner, share, rent, lent, waiting, broker, nameless]
   const items = [...wholeItems(transactions.filter((entry) => entry !== market)), ...parts]
-  const totals = payeeTotals(euroRows({ accounts: ACCOUNTS, transactions, items }, RATES), CATEGORIES)
+  const totals = payeeTotals(countedRows({ accounts: ACCOUNTS, transactions, items }, RATES), CATEGORIES)
 
   it('count only money filed under spending and income, as Overview does: a refund lowers what was paid', () => {
     const ana = totals.find((payee) => payee.key === payeeKey('Ana Example'))!
@@ -81,7 +81,7 @@ describe("payees' totals", () => {
   })
 
   it('count a row the rates do not reach as nothing and say so', () => {
-    const market = payeeTotals(euroRows({ accounts: ACCOUNTS, transactions, items }, NO_RATES), CATEGORIES).find((payee) => payee.name === 'Corner market')!
+    const market = payeeTotals(countedRows({ accounts: ACCOUNTS, transactions, items }, NO_RATES), CATEGORIES).find((payee) => payee.name === 'Corner market')!
 
     expect([market.spent, market.rows, market.unrated]).toEqual([euros(0), 1, 1])
   })
@@ -89,7 +89,7 @@ describe("payees' totals", () => {
 
 describe('payees ranked on a side', () => {
   const shops = Array.from({ length: 12 }, (_, place) => row(OTP, '2026-10-05', -(place + 1), 'Food/Groceries', { payee: `Shop ${place + 1}` }))
-  const totals = payeeTotals(euroRows({ accounts: ACCOUNTS, transactions: shops, items: wholeItems(shops) }, RATES), CATEGORIES)
+  const totals = payeeTotals(countedRows({ accounts: ACCOUNTS, transactions: shops, items: wholeItems(shops) }, RATES), CATEGORIES)
 
   it('show the ten largest and the rest as one line', () => {
     const ranked = payeesRanked(totals, 'paid')

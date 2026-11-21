@@ -1,8 +1,7 @@
 import { payeeKey } from './payeeKey'
-import { partTotals } from '../../analytics/domain/partTotals'
+import { keepsAnyPart, partTotals } from '../../analytics/domain/partTotals'
 import type { KeepsPart, PartTotals } from '../../analytics/domain/partTotals'
-import { rowSide } from '../../categories/domain/rowSide'
-import type { EuroRow } from '../../rates/domain/euroRows'
+import type { CountedRow } from '../../analytics/domain/countedRow'
 import type { Category } from '../../workbook/domain/category'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { sumMoney } from '../../../../shared/money/money'
@@ -24,20 +23,20 @@ export interface PayeeTotals extends PartTotals {
 const SPENT_OR_RECEIVED: KeepsPart = (_row, part) => part.side === 'spending' || part.side === 'income'
 
 /** Every payee with a row filed under spending or income, by name. A row with no payee names none. */
-export function payeeTotals(rows: readonly EuroRow[], categories: readonly Category[]): readonly PayeeTotals[] {
+export function payeeTotals(rows: readonly CountedRow[], categories: readonly Category[]): readonly PayeeTotals[] {
   const byId = new Map(categories.map((category) => [category.id, category]))
-  const byKey = new Map<string, EuroRow[]>()
+  const byKey = new Map<string, CountedRow[]>()
   for (const row of rows) {
-    const key = payeeKey(row.transaction.payee)
-    if (key === '' || !rowSide(row, byId).some((part, place) => SPENT_OR_RECEIVED(row, part, place))) continue
+    const key = payeeKey(row.payee)
+    if (key === '' || !keepsAnyPart(row, byId, SPENT_OR_RECEIVED)) continue
     const held = byKey.get(key)
     if (held === undefined) byKey.set(key, [row])
     else held.push(row)
   }
   const totals = [...byKey].map(([key, counted]): PayeeTotals => {
-    const newestFirst = [...counted].sort((one, other) => other.transaction.date.localeCompare(one.transaction.date))
-    const ibans = newestFirst.map((row) => normaliseIban(row.transaction.counterpartyIban)).filter((iban) => iban !== '')
-    return { key, name: newestFirst[0]!.transaction.payee.trim(), ibans: [...new Set(ibans)], ...partTotals(counted, byId, SPENT_OR_RECEIVED) }
+    const newestFirst = [...counted].sort((one, other) => other.day.localeCompare(one.day))
+    const ibans = newestFirst.map((row) => normaliseIban(row.counterpartyIban)).filter((iban) => iban !== '')
+    return { key, name: newestFirst[0]!.payee.trim(), ibans: [...new Set(ibans)], ...partTotals(counted, byId, SPENT_OR_RECEIVED) }
   })
   return totals.sort((one, other) => one.name.localeCompare(other.name))
 }

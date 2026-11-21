@@ -9,7 +9,7 @@ import { eventTotals } from '../../events/domain/eventTotals'
 import { eventStage, eventsShown } from '../../events/domain/eventsShown'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { words as eventWords } from '../../events/presentation/words'
-import { euroRows } from '../../rates/domain/euroRows'
+import { countedRows } from '../../analytics/domain/countedRow'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { RateBook } from '../../../../shared/money/rateBook'
@@ -31,7 +31,7 @@ const props = defineProps<{
 const cards = computed(() => {
   const shown = eventsShown(props.book.events, props.day)
   if (shown.length === 0) return []
-  const totals = new Map(eventTotals(euroRows(props.book, props.rates), props.book.categories, props.book.events).map((counted) => [counted.event.id, counted]))
+  const totals = new Map(eventTotals(countedRows(props.book, props.rates), props.book.categories, props.book.events).map((counted) => [counted.event.id, counted]))
   return shown.flatMap((event) => {
     const counted = totals.get(event.id)
     if (counted === undefined) return []

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { averagedPeriod, ledgerYears, periodMonths, periodWithPreset } from '../src/apps/company/filters/domain/periodPresets'
+import { averagedPeriod, periodMonths } from '../src/apps/company/filters/domain/periodPresets'
+import { ledgerYears, periodWithPreset } from '../src/shared/calendar/periodPresets'
 import { civil, windowOf } from './fixtures/ledger'
 
 // Complete months run from 2025-06 to 2026-09. October 2026 is the part-month.

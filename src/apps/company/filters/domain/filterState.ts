@@ -1,26 +1,14 @@
-import { civilDate } from '../../../../shared/calendar/civilDate'
-import { monthRange, rangeContains } from '../../../../shared/calendar/dateRange'
-import type { DateRange } from '../../../../shared/calendar/dateRange'
+import { rangeContains } from '../../../../shared/calendar/dateRange'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
-import { addMonths } from '../../../../shared/calendar/monthKey'
+import { periodRange } from '../../../../shared/calendar/period'
+import type { Period as AnyPeriod } from '../../../../shared/calendar/period'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Bucket } from '../../workbook/domain/bucket'
 import type { Transaction } from '../../workbook/domain/workbook'
 
-export type Quarter = 1 | 2 | 3 | 4
-
-/**
- * Which days a view covers. `l3` and `l12` are the months ending with the part month, so they list
- * every row up to the newest. `all` is every row, part-months included.
- */
-export type Period =
-  | { readonly preset: 'l3' }
-  | { readonly preset: 'l12' }
-  | { readonly preset: 'all' }
-  | { readonly preset: 'year'; readonly year: number }
-  | { readonly preset: 'quarter'; readonly year: number; readonly quarter: Quarter }
-  | { readonly preset: 'custom'; readonly range: DateRange }
+/** The periods Company offers: every period but a single month, which no Company screen or address names. */
+export type Period = Exclude<AnyPeriod, { readonly preset: 'month' }>
 
 /** Bounds on the signed amount, in cents, both included. A debit-only view has a negative max. */
 export interface AmountRange {
@@ -67,33 +55,7 @@ export const DEFAULT_FILTERS: FilterState = {
   needsReview: false,
 }
 
-/** The days a period covers, or null for `all`, which has no date bound. */
-export function periodRange(period: Exclude<Period, { readonly preset: 'all' }>, window: LedgerWindow): DateRange
-export function periodRange(period: Period, window: LedgerWindow): DateRange | null
-export function periodRange(period: Period, window: LedgerWindow): DateRange | null {
-  switch (period.preset) {
-    case 'l3':
-      return monthRange(addMonths(window.partMonth, -2), window.partMonth)
-    case 'l12':
-      return monthRange(addMonths(window.partMonth, -11), window.partMonth)
-    case 'all':
-      return null
-    case 'year':
-      return { from: civilDate(period.year, 1, 1), to: civilDate(period.year, 12, 31) }
-    case 'quarter':
-      return quarterRange(period.year, period.quarter)
-    case 'custom':
-      return period.range
-  }
-}
-
 export function transactionsInPeriod<Row extends Pick<Transaction, 'date'>>(transactions: readonly Row[], period: Period, window: LedgerWindow): Row[] {
   const range = periodRange(period, window)
   return range === null ? [...transactions] : transactions.filter((transaction) => rangeContains(range, transaction.date))
-}
-
-export function quarterRange(year: number, quarter: Quarter): DateRange {
-  const firstMonth = (quarter - 1) * 3 + 1
-  const lastDay = new Date(Date.UTC(year, firstMonth + 2, 0)).getUTCDate()
-  return { from: civilDate(year, firstMonth, 1), to: civilDate(year, firstMonth + 2, lastDay) }
 }

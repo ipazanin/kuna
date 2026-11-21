@@ -1,11 +1,11 @@
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { firstDayOf, lastDayOf, monthOf } from '../../../../shared/calendar/monthKey'
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
-import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { listInWords } from '../../../../shared/text/listInWords'
-import { periodRange } from './filterState'
-import type { Period } from './filterState'
+import { dayLabel } from './dayLabel'
+import { firstDayOf, lastDayOf, monthOf } from './monthKey'
+import type { MonthKey } from './monthKey'
+import type { LedgerWindow } from './ledgerWindow'
+import { monthLabel } from './monthLabel'
+import { listInWords } from '../text/listInWords'
+import { periodRange } from './period'
+import type { Period } from './period'
 import { words } from './words'
 
 /**
@@ -23,8 +23,8 @@ export function periodInWords(period: Period, window: LedgerWindow): string {
   const span = from === to ? monthLabel(from) : `${monthLabel(from)} – ${monthLabel(to)}`
   const covers = (month: MonthKey): boolean => from <= month && month <= to
   const notes = [
-    ...(window.firstMonth !== window.firstCompleteMonth && covers(window.firstMonth) ? [words.inPart(window.firstMonth)] : []),
-    ...(covers(window.partMonth) ? [words.soFar(window.partMonth)] : []),
+    ...(window.firstMonth !== window.firstCompleteMonth && covers(window.firstMonth) ? [words.period.inPart(window.firstMonth)] : []),
+    ...(covers(window.partMonth) ? [words.period.soFar(window.partMonth)] : []),
   ]
   return notes.length === 0 ? span : `${span}, ${listInWords(notes)}`
 }

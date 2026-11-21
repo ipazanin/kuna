@@ -43,6 +43,7 @@ import { FAKE_HOME_LOAN_IBAN, fakeHomeLoanShare, latestFakeHomeLoanDue } from '.
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { recipeStatement } from '../../../statements/domain/recipeStatement'
 import { fakeRecipes } from './fakeRecipes'
+import { fakeYearsDocument } from './fakeYears'
 import { REVOLUT_STATEMENT } from '../../../statements/domain/revolutRecipe'
 import { words as statementWords } from '../../../statements/domain/words'
 import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
@@ -76,12 +77,13 @@ import { language } from '../../../../../shared/text/language'
  * and no cash leg, two dollar cash accounts and a pound account at Revolut, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split, and with the bank sync set up two receipts that wait for the bank's row on OTP, one of which two kiosk payments may be.
  * `broker` is the sample with a transfer to a broker that the fake Investments deposit takes.
+ * `years` is the sample's four accounts with two years of rows, built in `fakeYears.ts`.
  * Every set holds three labels: a trip last month with its dollar dinner and its top-up between own accounts, a new flat whose rent and
  * bills run across three months with one line of the split receipt, and a garden label nothing carries yet. Every set but `foreign`
  * holds two events: a trip to Prague of five days that runs over the day, with its rows, a flight bought last month put in it and a
  * subscription on its days taken out, and longer autumn holidays over Prague's days and a fuel row before them. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people' | 'company' | 'company-before-roles' | 'broker' | 'assets'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people' | 'company' | 'company-before-roles' | 'broker' | 'assets' | 'years'
 
 const GBP = currencyCodeOf('GBP')!
 
@@ -1023,6 +1025,7 @@ function loanRows(twoBack: MonthKey, oneBack: MonthKey, day: CivilDate, idOf: (p
 
 /** A fake set as Spending stores it: every row with its items, a row a receipt split with the receipt's lines and every other with one item. */
 export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {
+  if (set === 'years') return fakeYearsDocument(savedAt, day)
   const { records, rows, lines } = fakeEntries(set, day, bankSync)
   const linesOf = rowItemsOf({ items: lines })
   const items = [...rows.flatMap((row) => (linesOf(row).length > 0 ? linesOf(row) : [wholeItemOf(row, row)])), ...lines.filter((line) => line.transaction === null)]

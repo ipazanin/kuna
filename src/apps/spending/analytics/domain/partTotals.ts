@@ -1,6 +1,6 @@
 import { rowSide } from '../../categories/domain/rowSide'
 import type { RowPart } from '../../categories/domain/rowSide'
-import type { EuroRow } from '../../rates/domain/euroRows'
+import type { CountedRow } from './countedRow'
 import type { Category } from '../../workbook/domain/category'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, addMoney } from '../../../../shared/money/money'
@@ -33,10 +33,15 @@ export interface PartTotals {
 }
 
 /** Tells whether a part of a row is among those counted, by the row, the part as the figures count it and its place in the row. */
-export type KeepsPart = (row: EuroRow, part: RowPart, place: number) => boolean
+export type KeepsPart = (row: CountedRow, part: RowPart, place: number) => boolean
+
+/** Whether `keeps` picks any part of the row. */
+export function keepsAnyPart(row: CountedRow, categories: ReadonlyMap<RecordId, Category>, keeps: KeepsPart): boolean {
+  return rowSide(row, categories).some((part, place) => keeps(row, part, place))
+}
 
 /** The totals of the parts `keeps` picks out of the rows. */
-export function partTotals(rows: readonly EuroRow[], categories: ReadonlyMap<RecordId, Category>, keeps: KeepsPart): PartTotals {
+export function partTotals(rows: readonly CountedRow[], categories: ReadonlyMap<RecordId, Category>, keeps: KeepsPart): PartTotals {
   const sums = { spending: ZERO, income: ZERO, saved: ZERO }
   const groups = new Map<RecordId, Money>()
   let latest: CivilDate | null = null
@@ -46,7 +51,7 @@ export function partTotals(rows: readonly EuroRow[], categories: ReadonlyMap<Rec
     const parts = rowSide(row, categories).filter((part, place) => keeps(row, part, place))
     if (parts.length === 0) continue
     kept += 1
-    if (latest === null || row.transaction.date > latest) latest = row.transaction.date
+    if (latest === null || row.day > latest) latest = row.day
     const counting = parts.filter((part) => part.side !== 'nowhere' && part.category !== null)
     if (counting.some((part) => part.counted === null)) unrated += 1
     for (const { side, category, counted } of counting) {

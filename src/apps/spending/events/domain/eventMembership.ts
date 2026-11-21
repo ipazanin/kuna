@@ -31,5 +31,5 @@ export function eventMembership(events: readonly SpendingEvent[]): EventOfPart {
 /** Picks the parts of rows that are in the event, for its totals and for the rows Entries lists under it. */
 export function partsInEvent(events: readonly SpendingEvent[], event: RecordId): KeepsPart {
   const eventOf = eventMembership(events)
-  return (row, part, place) => eventOf(row.items[place]!, row.transaction.date, part.side) === event
+  return (row, part, place) => eventOf(row.parts[place]!, row.day, part.side) === event
 }

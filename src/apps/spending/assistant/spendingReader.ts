@@ -4,7 +4,8 @@ import type { Label } from '../../../shared/categorising/domain/labels'
 import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
-import { countedAccounts, euroRows } from '../rates/domain/euroRows'
+import { countedRows } from '../analytics/domain/countedRow'
+import { countedAccounts } from '../rates/domain/euroRows'
 import { eventTotals } from '../events/domain/eventTotals'
 import { labelTotals } from '../labels/domain/labelTotals'
 import { inPeriod } from '../payees/domain/payeePeriod'
@@ -461,7 +462,7 @@ function labelsReport(book: SpendingBook, rates: RateBook, period: string | null
   const day = period === null ? today() : parseCivilDate(period)
   if (day === null) throw new RangeError('Not a day.')
   const names = new Map(book.categories.map((category) => [category.id, category.name]))
-  const rows = euroRows(book, rates).filter((row) => row.transaction.date <= day)
+  const rows = countedRows(book, rates).filter((row) => row.day <= day)
   return labelTotals(rows, book.categories, book.labels).flatMap(({ label, spent, income, saved, groups, rows: carried, unrated }): readonly ReportFigure[] => [
     euros(`${label.name}: spent`, spent),
     ...groups.map(({ group, spent: groupSpent }) => euros(`${label.name} / ${names.get(group) ?? ''}: spent`, groupSpent)),
@@ -477,7 +478,7 @@ function eventsReport(book: SpendingBook, rates: RateBook, period: string | null
   const day = period === null ? today() : parseCivilDate(period)
   if (day === null) throw new RangeError('Not a day.')
   const names = new Map(book.categories.map((category) => [category.id, category.name]))
-  const rows = euroRows(book, rates).filter((row) => row.transaction.date <= day)
+  const rows = countedRows(book, rates).filter((row) => row.day <= day)
   return eventTotals(rows, book.categories, book.events).flatMap(({ event, spent, income, saved, groups, rows: counted, unrated }): readonly ReportFigure[] => {
     const named = eventNamed(event)
     return [
@@ -500,7 +501,7 @@ function payeesReport(book: SpendingBook, rates: RateBook, period: string | null
   if (day === null) throw new RangeError('Not a day.')
   const counted = inPeriod('year', day)
   const totals = payeeTotals(
-    euroRows(book, rates).filter((row) => counted(row.transaction.date)),
+    countedRows(book, rates).filter((row) => counted(row.day)),
     book.categories,
   )
   const side = (shown: PayeeSide, word: string): readonly ReportFigure[] => {
@@ -550,7 +551,7 @@ const PAYEE_FIELDS: FieldDocs<PayeeLine> = {
 /** Every payee of all time, with the categories their entries usually go under. */
 function payeeLines(book: SpendingBook, rates: RateBook): readonly PayeeLine[] {
   const [usualOut, usualIn] = [usualCategories(book, 'out'), usualCategories(book, 'in')]
-  return payeeTotals(euroRows(book, rates), book.categories).map((payee) => ({
+  return payeeTotals(countedRows(book, rates), book.categories).map((payee) => ({
     id: payee.key,
     name: payee.name,
     ibans: payee.ibans,

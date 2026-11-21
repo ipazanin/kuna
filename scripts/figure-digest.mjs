@@ -33,7 +33,8 @@ import { fillRestOfYear } from '../src/apps/company/billingPlan/domain/fillRestO
 import { itemStatistics } from '../src/apps/company/billingPlan/domain/itemStatistics.ts'
 import { plannedAgainstInvoiced } from '../src/apps/company/billingPlan/domain/plannedAgainstInvoiced.ts'
 import { balanceSeries, latestBalances } from '../src/apps/company/cash/domain/balances.ts'
-import { DEFAULT_FILTERS, periodRange, transactionsInPeriod } from '../src/apps/company/filters/domain/filterState.ts'
+import { DEFAULT_FILTERS, transactionsInPeriod } from '../src/apps/company/filters/domain/filterState.ts'
+import { periodRange } from '../src/shared/calendar/period.ts'
 import { priorEqualPeriod } from '../src/apps/company/filters/domain/periodComparison.ts'
 import { averagedPeriod, periodMonths } from '../src/apps/company/filters/domain/periodPresets.ts'
 import { euroSplit } from '../src/apps/company/overview/domain/euroSplit.ts'
@@ -186,7 +187,8 @@ import { ASSET_RECORDS } from '../src/apps/assets/workbook/domain/assetKinds.ts'
 import { rowLinksOf } from '../src/apps/spending/facts.ts'
 import { NO_RATES } from '../src/shared/money/rateBook.ts'
 import { keyOfRecordId } from '../src/shared/storage/domain/recordId.ts'
-import { accountOnDay, countedAccounts, euroRows } from '../src/apps/spending/rates/domain/euroRows.ts'
+import { accountOnDay, countedAccounts } from '../src/apps/spending/rates/domain/euroRows.ts'
+import { countedRows } from '../src/apps/spending/analytics/domain/countedRow.ts'
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals.ts'
 import { labelTotals as companyLabelTotals } from '../src/apps/company/labels/domain/labelTotals.ts'
 import { eventTotals } from '../src/apps/spending/events/domain/eventTotals.ts'
@@ -270,11 +272,11 @@ if (
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal', 'lending', 'co-owned'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone', 'co-owned'].includes(options['fake-assets'])) ||
-  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts', 'company', 'broker', 'assets'].includes(options['fake-spending'])) ||
+  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts', 'company', 'broker', 'assets', 'years'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal, lending or co-owned>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car, loan-gone or co-owned>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash, receipts, company, broker or assets>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal, lending or co-owned>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car, loan-gone or co-owned>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash, receipts, company, broker, assets or years>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -867,19 +869,19 @@ async function spendingGroups(addGroup, loansBook) {
   }
   add('spending.rules', workbook.rules)
   // A file with no label keeps this digest without the group.
-  if (workbook.labels.length > 0) add('spending.labels', () => labelTotals(euroRows(workbook, rates.everyday), workbook.categories, workbook.labels))
+  if (workbook.labels.length > 0) add('spending.labels', () => labelTotals(countedRows(workbook, rates.everyday), workbook.categories, workbook.labels))
   // A file with no event keeps this digest without the group.
-  if (workbook.events.length > 0) add('spending.events', () => eventTotals(euroRows(workbook, rates.everyday), workbook.categories, workbook.events))
+  if (workbook.events.length > 0) add('spending.events', () => eventTotals(countedRows(workbook, rates.everyday), workbook.categories, workbook.events))
   // A file with no payee keeps this digest without the groups.
   if (workbook.transactions.some((row) => row.payee.trim() !== '')) {
     const counted = inPeriod('year', today)
     add('spending.payees', () =>
       payeeTotals(
-        euroRows(workbook, rates.everyday).filter((row) => counted(row.transaction.date)),
+        countedRows(workbook, rates.everyday).filter((row) => counted(row.day)),
         workbook.categories,
       ),
     )
-    add('spending.payees.all', () => payeeTotals(euroRows(workbook, rates.everyday), workbook.categories))
+    add('spending.payees.all', () => payeeTotals(countedRows(workbook, rates.everyday), workbook.categories))
   }
   if (options['fake-spending'] === 'statements') {
     const reading = recipeStatement(REVOLUT_STATEMENT, await readFirstSheetCells(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook, statementWords.feeOn)

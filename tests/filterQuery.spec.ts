@@ -61,6 +61,10 @@ describe('filter query', () => {
     expect(decodeFilters({ p: '2026-09-30..2026-07-01' }).period).toEqual(DEFAULT_FILTERS.period)
   })
 
+  it('refuses a single month in the address, which Company never offers', () => {
+    expect(decodeFilters({ p: '2026-10' }).period).toEqual(DEFAULT_FILTERS.period)
+  })
+
   it('tells its own keys from the ones that belong to something else', () => {
     expect(hasFilterKeys({ theme: 'dark' })).toBe(false)
     expect(hasFilterKeys({ theme: 'dark', p: 'l3' })).toBe(true)

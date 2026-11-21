@@ -26,6 +26,7 @@
  * Nor may any text be cut short outside `CutText`, which shows the full text, other than what `CUT_TEXT_ALLOWED` there lists with its reason.
  * The gallery's cut text shows its full text only while cut, on hover and on keyboard focus, and the sidebar shows a long company name cut, with room above the first page and the full name on hover.
  * Transactions grouped by month, by category and by counterparty wraps each group's name below 640 px.
+ * Spending's Entries opened over a span of days with a label shows the span and counts the label's total over it, and on a phone no filter chip that fits folds into +N more.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
  * On every screen and at every step of a flow in Croatian it fails on English left on the page,
  * other than the data `support/englishLeft.mjs` lets through by name. Every flow has a Croatian run,
@@ -383,6 +384,7 @@ import {
   companySelectLabelFlowIn,
   spendingEventsFlowIn,
   spendingEntryFiltersFlowIn,
+  spendingEntriesSpanFlowIn,
   spendingPayeesFlowIn,
   spendingPayeeNewFlowIn,
   spendingPayeeMemoryFlowIn,
@@ -9863,6 +9865,24 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
+  {
+    name: 'spending-entries-span',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingEntriesSpanFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-entries-span-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingEntriesSpanFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
   },
   {
     name: 'spending-entry-filters-croatian',

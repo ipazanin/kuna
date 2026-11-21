@@ -7,7 +7,7 @@ import { ZERO, addMoney, divideMoney, subtractMoney, sumMoney } from '../../../.
 import type { Money } from '../../../../../shared/money/money'
 import { drillToTransactions } from '../../../filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../filters/domain/drillTarget'
-import { periodRange } from '../../../filters/domain/filterState'
+import { periodRange } from '../../../../../shared/calendar/period'
 import type { Period } from '../../../filters/domain/filterState'
 import { averagedPeriod, periodMonths } from '../../../filters/domain/periodPresets'
 import { ruleValue } from '../ruleset/ruleset'

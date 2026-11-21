@@ -113,7 +113,6 @@
     "src/apps/assets/workbook/domain/readAssetBook.ts",
     "src/apps/assets/workbook/domain/valuationReading.ts",
     "src/apps/company/billingPlan/domain/fillRestOfYear.ts",
-    "src/apps/company/filters/domain/periodInWords.ts",
     "src/apps/company/imports/domain/camtStatement.ts",
     "src/apps/company/imports/domain/importProfile.ts",
     "src/apps/company/imports/domain/tabularStatement.ts",

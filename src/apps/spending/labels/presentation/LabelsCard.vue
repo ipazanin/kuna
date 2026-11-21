@@ -7,7 +7,7 @@ import { labelTotals } from '../domain/labelTotals'
 import LabelDialog from './LabelDialog.vue'
 import { words } from './words'
 import { labelLink, rulesOfLabelLink, SORTING_CARDS } from '../../overview/presentation/spendingLinks'
-import { euroRows } from '../../rates/domain/euroRows'
+import { countedRows } from '../../analytics/domain/countedRow'
 import { waitsForRates } from '../../rates/presentation/waitsForRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { ruleCounts } from '../../statements/domain/rulesFiling'
@@ -40,7 +40,7 @@ const rulesOn = computed(() => ruleCounts(state.workbook?.rules ?? []))
 const lines = computed(() => {
   const book = state.workbook
   if (book === null) return []
-  return labelTotals(euroRows(book, everydayRates(rates.value)), book.categories, book.labels).map((totals) => ({
+  return labelTotals(countedRows(book, everydayRates(rates.value)), book.categories, book.labels).map((totals) => ({
     totals,
     figure: labelFigure(totals.income, totals.spent),
     caption: totals.latest === null ? words.noEntries : `${plural(words.entries(totals.rows), totals.rows)} · ${words.newest(dayLabel(totals.latest))}`,

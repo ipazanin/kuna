@@ -48,6 +48,7 @@ import FoundationsGallery from './FoundationsGallery.vue'
 import GallerySection from './GallerySection.vue'
 import GroupedTableSpecimen from './GroupedTableSpecimen.vue'
 import MoveButtonsSpecimen from './MoveButtonsSpecimen.vue'
+import PeriodBarSpecimens from './PeriodBarSpecimens.vue'
 import QuestionListSpecimens from './QuestionListSpecimens.vue'
 import RowSpecimens from './RowSpecimens.vue'
 import ScenarioSpecimens from './ScenarioSpecimens.vue'
@@ -572,6 +573,8 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
 
     <BankNameFieldSpecimen />
     <TableRecipeEditorSpecimen />
+
+    <PeriodBarSpecimens />
 
     <GallerySection id="write-progress" title="WriteProgress" description="The bar along the top of the page while a write to the books runs, shown here in place.">
       <AppCard as="div" class="p-4"><WriteProgress active label="Saving" /></AppCard>

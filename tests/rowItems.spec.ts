@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { entryLine } from '../src/apps/spending/entries/presentation/entryLine'
 import { rowSide } from '../src/apps/spending/categories/domain/rowSide'
 import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
+import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import { itemsOfStoredRow, plainLineOf, storedBeforeItems } from '../src/apps/spending/workbook/domain/beforeItems'
 import { hasParts, holdsReceipt, isSplit, largestItem, rowItemsOf, waitsOnReview, wholeItemOf, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -74,8 +75,8 @@ describe("a Spending row's items", () => {
 
   it('counts a row of one item at its whole euros, the same as the row', () => {
     const bakery = row(OTP, '2026-10-12', -6.5, 'Food/Groceries')
-    const [euroRow] = euroRows({ accounts: ACCOUNTS, transactions: [bakery], items: wholeItems([bakery]) }, NO_RATES)
-    expect(rowSide(euroRow!, new Map(CATEGORIES.map((held) => [held.id, held])))).toEqual([{ category: groceries, side: 'spending', counted: moneyFromAmount(6.5) }])
+    const [counted] = countedRows({ accounts: ACCOUNTS, transactions: [bakery], items: wholeItems([bakery]) }, NO_RATES)
+    expect(rowSide(counted!, new Map(CATEGORIES.map((held) => [held.id, held])))).toEqual([{ category: groceries, side: 'spending', counted: moneyFromAmount(6.5) }])
   })
 })
 

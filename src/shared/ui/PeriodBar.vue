@@ -2,15 +2,19 @@
 import { computed } from 'vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
-import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
-import DayField from '../../../../shared/ui/DayField.vue'
-import type { Period, Quarter } from '../domain/filterState'
-import { periodInWords } from '../domain/periodInWords'
-import { ledgerYears, periodWithPreset } from '../domain/periodPresets'
-import type { PeriodPreset } from '../domain/periodPresets'
-import { words } from './words'
+import { parseCivilDate } from '../calendar/civilDate'
+import type { LedgerWindow } from '../calendar/ledgerWindow'
+import { parseMonthKey } from '../calendar/monthKey'
+import { monthLabel } from '../calendar/monthLabel'
+import type { Period, Quarter } from '../calendar/period'
+import { periodInWords } from '../calendar/periodInWords'
+import { ledgerMonths, ledgerYears, periodWithPreset } from '../calendar/periodPresets'
+import type { PeriodPreset } from '../calendar/periodPresets'
+import ChoiceButtons from './ChoiceButtons.vue'
+import DayField from './DayField.vue'
+import { words as uiWords } from './words'
+
+const words = uiWords.periodBar
 
 const period = defineModel<Period>('period', { required: true })
 
@@ -54,6 +58,17 @@ const selectedQuarter = computed({
   },
 })
 
+const monthItems = computed(() => ledgerMonths(props.window).map((month): { label: string; value: string } => ({ label: monthLabel(month), value: month })))
+const selectedMonth = computed({
+  get: () => (period.value.preset === 'month' ? period.value.month : '') as string,
+  set: (text: string) => {
+    const month = parseMonthKey(text)
+    if (period.value.preset === 'month' && month !== null) {
+      period.value = { preset: 'month', month }
+    }
+  },
+})
+
 const customRange = computed(() => (period.value.preset === 'custom' ? period.value.range : null))
 
 /** Moving one end past the other drags the other along, so the range never turns inside out. */
@@ -83,6 +98,8 @@ function choosePreset(preset: PeriodPreset): void {
       <USelect v-model="selectedYear" :items="yearItems" size="sm" :aria-label="words.year" class="w-24" />
       <USelect v-if="period.preset === 'quarter'" v-model="selectedQuarter" :items="QUARTERS" size="sm" :aria-label="words.quarter" class="w-20" />
     </div>
+
+    <USelect v-if="period.preset === 'month'" v-model="selectedMonth" :items="monthItems" size="sm" :aria-label="words.month" class="w-40" />
 
     <div v-if="customRange" class="flex flex-wrap items-center gap-2">
       <DayField size="sm" :aria-label="words.from" :model-value="customRange.from" class="w-40" @change="setCustomEnd('from', $event)" />

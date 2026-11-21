@@ -27,6 +27,16 @@ export const en = {
   shownOf: (shown: number, total: number) => `${shown} of ${total} shown`,
   verdict: { unchanged: 'unchanged', better: 'better', worse: 'worse' },
   pickDay: 'Pick a day',
+  periodBar: {
+    presets: { l3: 'Last 3 months', l12: 'Last 12 months', year: 'Year', quarter: 'Quarter', month: 'Month', custom: 'Custom', all: 'All time' },
+    period: 'Period',
+    year: 'Year',
+    quarter: 'Quarter',
+    month: 'Month',
+    from: 'From',
+    to: 'To',
+    until: 'to',
+  },
   filters: 'Filters',
   activeFilters: (count: number) => `, ${count} active`,
   chips: {
@@ -115,6 +125,16 @@ export const hr: Translation<typeof en> = {
   shownOf: (shown, total) => `Prikazano ${shown} od ${total}`,
   verdict: { unchanged: 'bez promjene', better: 'bolje', worse: 'lošije' },
   pickDay: 'Odaberi dan',
+  periodBar: {
+    presets: { l3: 'Zadnja 3 mjeseca', l12: 'Zadnjih 12 mjeseci', year: 'Godina', quarter: 'Tromjesečje', month: 'Mjesec', custom: 'Prilagođeno', all: 'Sve' },
+    period: 'Razdoblje',
+    year: 'Godina',
+    quarter: 'Tromjesečje',
+    month: 'Mjesec',
+    from: 'Od',
+    to: 'Do',
+    until: 'do',
+  },
   filters: 'Filtri',
   activeFilters: (count) => `, aktivnih: ${count}`,
   chips: {

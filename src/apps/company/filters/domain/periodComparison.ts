@@ -1,25 +1,7 @@
-import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
-import { periodRange } from './filterState'
+import { periodRange, priorPeriod } from '../../../../shared/calendar/period'
 import type { Period } from './filterState'
-
-export type CalendarPeriod = Extract<Period, { readonly preset: 'year' | 'quarter' | 'custom' }>
-
-/** The equal period just before: the year before, the quarter before, or as many days before. */
-export function priorPeriod(period: CalendarPeriod): CalendarPeriod {
-  switch (period.preset) {
-    case 'year':
-      return { preset: 'year', year: period.year - 1 }
-    case 'quarter':
-      return period.quarter === 1 ? { preset: 'quarter', year: period.year - 1, quarter: 4 } : { preset: 'quarter', year: period.year, quarter: (period.quarter - 1) as 1 | 2 | 3 }
-    case 'custom': {
-      const length = daysBetween(period.range.from, period.range.to) + 1
-      const to = addDays(period.range.from, -1)
-      return { preset: 'custom', range: { from: addDays(to, 1 - length), to } }
-    }
-  }
-}
 
 /**
  * What a period is compared with: for a rolling window, the same days one window earlier, up to the

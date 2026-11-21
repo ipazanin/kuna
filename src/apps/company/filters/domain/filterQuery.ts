@@ -7,7 +7,8 @@ import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { DEFAULT_FILTERS } from './filterState'
-import type { FilterState, Period, Quarter } from './filterState'
+import type { FilterState, Period } from './filterState'
+import type { Quarter } from '../../../../shared/calendar/period'
 
 /** A query value as the router hands it over: absent, one value, or a repeated key. */
 export type QueryValue = string | null | readonly (string | null)[] | undefined

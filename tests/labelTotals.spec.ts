@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Label } from '../src/shared/categorising/domain/labels'
 
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals'
-import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
+import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import { ITEM_RECORDS, LABEL_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
@@ -37,7 +37,7 @@ const transactions = [toRevolut, paint, hotel, dinners, paidBack, shop, lastDay]
 const items = [labelled(toRevolut, PRAGUE), labelled(paint, FLAT), labelled(hotel, PRAGUE), labelled(dinners, PRAGUE), labelled(paidBack, PRAGUE), ...shopParts, labelled(lastDay, PRAGUE)]
 
 function totalsOf(rates: RateBook) {
-  return labelTotals(euroRows({ accounts: ACCOUNTS, transactions, items }, rates), CATEGORIES, [PRAGUE, FLAT, GARDEN])
+  return labelTotals(countedRows({ accounts: ACCOUNTS, transactions, items }, rates), CATEGORIES, [PRAGUE, FLAT, GARDEN])
 }
 
 describe("a label's totals", () => {

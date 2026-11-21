@@ -1,7 +1,10 @@
+import type { MonthKey } from './monthKey'
+import { monthName, shortMonthName } from './monthLabel'
 import { language } from '../text/language'
 import type { Translation } from '../text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
+// Croatian names a month in full, since its short names read as words.
 
 export const en = {
   syncAge: {
@@ -10,6 +13,11 @@ export const en = {
     hoursAgo: (hours: number) => `${hours} h ago`,
     yesterday: 'yesterday',
     on: (day: string) => `on ${day}`,
+  },
+  period: {
+    /** The month the ledger starts in part of, and the month it is still filling. */
+    inPart: (month: MonthKey) => `${shortMonthName(month)} in part`,
+    soFar: (month: MonthKey) => `${shortMonthName(month)} so far`,
   },
 }
 
@@ -20,6 +28,10 @@ export const hr: Translation<typeof en> = {
     hoursAgo: (hours) => `prije ${hours} h`,
     yesterday: 'jučer',
     on: (day) => day,
+  },
+  period: {
+    inPart: (month) => `${monthName(month)} djelomično`,
+    soFar: (month) => `${monthName(month)} do danas`,
   },
 }
 

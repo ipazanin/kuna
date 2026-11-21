@@ -4,7 +4,7 @@ import { ALL_MONTHS, LAST_12_MONTHS, entriesMonthsNamed, payeeLink } from '../sr
 import { payeeKey } from '../src/apps/spending/payees/domain/payeeKey'
 import { inPeriod } from '../src/apps/spending/payees/domain/payeePeriod'
 import { payeeTotals } from '../src/apps/spending/payees/domain/payeeTotals'
-import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
+import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import { lastTwelveMonths, rangeContains } from '../src/shared/calendar/dateRange'
 import { civil, euros } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, OTP, RATES, row, wholeItems } from './fixtures/spending'
@@ -45,16 +45,16 @@ describe("a payee's link to Entries", () => {
   it('leaves out a payment fourteen months back, so both screens show the same rent', () => {
     const day = civil('2026-11-16')
     const transactions = [row(OTP, '2025-09-01', -1800, 'Home/Rent', { payee: 'Landlord' }), row(OTP, '2026-10-01', -1800, 'Home/Rent', { payee: 'Landlord' })]
-    const rows = euroRows({ accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, RATES)
+    const rows = countedRows({ accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, RATES)
     const range = lastTwelveMonths(day)
     const counted = inPeriod('year', day)
 
     const onPayees = payeeTotals(
-      rows.filter((shown) => counted(shown.transaction.date)),
+      rows.filter((shown) => counted(shown.day)),
       CATEGORIES,
     )
     const onEntries = payeeTotals(
-      rows.filter((shown) => rangeContains(range, shown.transaction.date)),
+      rows.filter((shown) => rangeContains(range, shown.day)),
       CATEGORIES,
     )
 

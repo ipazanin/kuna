@@ -1,48 +1,9 @@
-import { monthRange, monthsOfRange } from '../../../../shared/calendar/dateRange'
+import { monthsOfRange } from '../../../../shared/calendar/dateRange'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
-import { lastDayOf, monthNumber, monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
+import { lastDayOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { periodRange } from './filterState'
-import type { Period, Quarter } from './filterState'
-
-export type PeriodPreset = Period['preset']
-
-/**
- * The period after the user picks another preset. A year or quarter keeps the year the current
- * period names, else it takes the last complete month's. A custom range starts as the days the
- * current period covers, so switching to it changes nothing until a date is edited.
- */
-export function periodWithPreset(current: Period, preset: PeriodPreset, window: LedgerWindow): Period {
-  const anchorYear = 'year' in current ? current.year : yearOfMonth(window.lastCompleteMonth)
-  switch (preset) {
-    case 'l3':
-    case 'l12':
-    case 'all':
-      return { preset }
-    case 'year':
-      return { preset: 'year', year: anchorYear }
-    case 'quarter':
-      return {
-        preset: 'quarter',
-        year: anchorYear,
-        quarter: current.preset === 'quarter' ? current.quarter : quarterOf(window.lastCompleteMonth),
-      }
-    case 'custom':
-      return {
-        preset: 'custom',
-        range: periodRange(current, window) ?? monthRange(window.firstMonth, window.partMonth),
-      }
-  }
-}
-
-/** The years a year or quarter preset can name: every year the ledger touches, newest first. */
-export function ledgerYears(window: LedgerWindow): number[] {
-  const years: number[] = []
-  for (let year = yearOfMonth(window.partMonth); year >= yearOfMonth(window.firstMonth); year -= 1) {
-    years.push(year)
-  }
-  return years
-}
+import { periodRange } from '../../../../shared/calendar/period'
+import type { Period } from './filterState'
 
 /** The months a period's rows fall in, within the ledger. A month the ledger covers only in part counts as one. */
 export function periodMonths(period: Period, window: LedgerWindow): MonthKey[] {
@@ -60,8 +21,4 @@ export function averagedPeriod(period: Period, window: LedgerWindow): Period {
     return period
   }
   return { preset: 'custom', range: { from: periodRange(period, window).from, to: lastDayOf(window.lastCompleteMonth) } }
-}
-
-function quarterOf(month: MonthKey): Quarter {
-  return Math.ceil(monthNumber(month) / 3) as Quarter
 }

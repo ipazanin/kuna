@@ -5,13 +5,6 @@ import type { Translation } from '../../../../shared/text/translation'
 // A bucket is skupina, a family grupa and a counterparty partner, as on the filter chips.
 
 export const en = {
-  presets: { l3: 'Last 3 months', l12: 'Last 12 months', year: 'Year', quarter: 'Quarter', custom: 'Custom', all: 'All time' },
-  period: 'Period',
-  year: 'Year',
-  quarter: 'Quarter',
-  from: 'From',
-  to: 'To',
-  until: 'to',
   showResults: 'Show results',
   allAccounts: 'All accounts',
   accounts: 'Accounts',
@@ -38,13 +31,6 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  presets: { l3: 'Zadnja 3 mjeseca', l12: 'Zadnjih 12 mjeseci', year: 'Godina', quarter: 'Tromjesečje', custom: 'Prilagođeno', all: 'Sve' },
-  period: 'Razdoblje',
-  year: 'Godina',
-  quarter: 'Tromjesečje',
-  from: 'Od',
-  to: 'Do',
-  until: 'do',
   showResults: 'Prikaži rezultate',
   allAccounts: 'Svi računi u banci',
   accounts: 'Računi u banci',

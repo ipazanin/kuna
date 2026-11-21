@@ -9,7 +9,7 @@ import FilterTotals from './FilterTotals.vue'
 import { useEntryFilters } from './useEntryFilters'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
-import { ALL_MONTHS, LAST_12_MONTHS, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
+import { SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
 import EventPicker from './EventPicker.vue'
 import LabelPicker from './LabelPicker.vue'
 import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
@@ -68,16 +68,18 @@ const pickerOpen = ref(false)
 const eventPickerOpen = ref(false)
 const hasEvents = computed(() => (state.workbook?.events.length ?? 0) > 0)
 
-/** Every month or the last twelve show their newest entries first and the rest behind Show all, since a year of entries makes a long list. */
+/** A list over more than one month shows its newest entries first and the rest behind Show all, since a year of entries makes a long list. */
 const allShown = ref(false)
-const manyMonths = computed(() => filters.month === ALL_MONTHS || filters.month === LAST_12_MONTHS)
-const listed = computed(() => (!manyMonths.value || allShown.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))
+const listed = computed(() => (!filters.manyMonths || allShown.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))
 
 /** A new filter starts the list short again and drops the picks, so no entry out of sight stays picked. */
-watch([() => filters.month, () => filters.account, () => filters.category, () => filters.label, () => filters.event, () => filters.pickedPayee?.key], () => {
-  allShown.value = false
-  if (picked.value !== null) picked.value = new Set()
-})
+watch(
+  [() => filters.month, () => filters.span?.from, () => filters.span?.to, () => filters.account, () => filters.category, () => filters.label, () => filters.event, () => filters.pickedPayee?.key],
+  () => {
+    allShown.value = false
+    if (picked.value !== null) picked.value = new Set()
+  },
+)
 
 function pick(entry: Transaction): void {
   const current = new Set(picked.value ?? [])
@@ -195,7 +197,7 @@ function openEntry(entry: Transaction | null): void {
                 @pick="pick"
                 @receipt="receiptPicker?.take($event)"
               />
-              <ShowAllButton v-if="manyMonths && rows.length > FIRST_SHOWN" v-model:expanded="allShown" :total="rows.length" class="px-4 pb-4 sm:px-5" />
+              <ShowAllButton v-if="filters.manyMonths && rows.length > FIRST_SHOWN" v-model:expanded="allShown" :total="rows.length" class="px-4 pb-4 sm:px-5" />
             </template>
           </AppCard>
         </div>

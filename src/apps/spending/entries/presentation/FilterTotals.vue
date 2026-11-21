@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import type { EntryFilters } from './useEntryFilters'
 import { words } from './words'
+import { countedRows } from '../../analytics/domain/countedRow'
 import { partTotals } from '../../analytics/domain/partTotals'
 import type { PartTotals } from '../../analytics/domain/partTotals'
 import TotalsLines from '../../analytics/presentation/TotalsLines.vue'
@@ -10,7 +11,6 @@ import { partsInEvent } from '../../events/domain/eventMembership'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { labelTotals } from '../../labels/domain/labelTotals'
 import { payeeTotals } from '../../payees/domain/payeeTotals'
-import { euroRows } from '../../rates/domain/euroRows'
 import { waitsForRates } from '../../rates/presentation/waitsForRates'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { useRates } from '../../../../shared/rates/application/pageRates'
@@ -22,7 +22,8 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /**
  * What the picked event, label and payee count, with the split by group, from the same totals as the Events, Labels and Payees
- * screens, never from the rows listed under the other filters. A payee's count over the months shown.
+ * screens, never from the rows listed under the other filters. A label and an event count every month, or the span the address
+ * names, and a payee the months shown.
  */
 const props = defineProps<{
   filters: EntryFilters
@@ -45,19 +46,24 @@ const lines = computed(() => {
   const label = props.filters.pickedLabel
   const payee = props.filters.pickedPayee
   if (book === null || (event === null && label === null && payee === null)) return []
-  const rows = euroRows(book, everydayRates(rates.value))
+  const rows = countedRows(book, everydayRates(rates.value))
   const inMonths = props.filters.inMonths
+  const grouped = props.filters.span === null ? rows : rows.filter((row) => inMonths(row.day))
   const entries = (count: number): string => plural(words.filters.entries(count), count)
   const byId = new Map(book.categories.map((category) => [category.id, category]))
   return [
     ...(event === null
       ? []
-      : [partTotals(rows, byId, partsInEvent(book.events, event.id))].map((totals) => ({ key: event.id, heading: `${event.name} · ${dayRangeLabel(event.days)} · ${entries(totals.rows)}`, totals }))),
-    ...(label === null ? [] : labelTotals(rows, book.categories, [label]).map((totals) => ({ key: label.id, heading: `${label.name} · ${entries(totals.rows)}`, totals }))),
+      : [partTotals(grouped, byId, partsInEvent(book.events, event.id))].map((totals) => ({
+          key: event.id,
+          heading: `${event.name} · ${dayRangeLabel(event.days)} · ${entries(totals.rows)}`,
+          totals,
+        }))),
+    ...(label === null ? [] : labelTotals(grouped, book.categories, [label]).map((totals) => ({ key: label.id, heading: `${label.name} · ${entries(totals.rows)}`, totals }))),
     ...(payee === null
       ? []
       : payeeTotals(
-          rows.filter((row) => inMonths(row.transaction.date)),
+          rows.filter((row) => inMonths(row.day)),
           book.categories,
         )
           .filter((totals) => totals.key === payee.key)

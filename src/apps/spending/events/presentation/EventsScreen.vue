@@ -8,7 +8,7 @@ import EventDialog from './EventDialog.vue'
 import { words } from './words'
 import TotalsLines from '../../analytics/presentation/TotalsLines.vue'
 import { eventLink } from '../../overview/presentation/spendingLinks'
-import { euroRows } from '../../rates/domain/euroRows'
+import { countedRows } from '../../analytics/domain/countedRow'
 import { waitsForRates } from '../../rates/presentation/waitsForRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
@@ -40,7 +40,7 @@ const lines = computed(() => {
   const book = state.workbook
   if (book === null) return []
   const day = today()
-  return eventTotals(euroRows(book, everydayRates(rates.value)), book.categories, book.events).map((totals) => {
+  return eventTotals(countedRows(book, everydayRates(rates.value)), book.categories, book.events).map((totals) => {
     const stage = eventStage(totals.event, day)
     const when = stage.kind === 'ahead' ? words.starts(dayLabel(totals.event.days.from)) : stage.kind === 'running' ? words.dayOf(stage.day, stage.days) : null
     const count = totals.rows === 0 ? words.noEntries : plural(words.entries(totals.rows), totals.rows)

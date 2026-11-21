@@ -9,6 +9,8 @@ import { OPENING_PERIOD } from '../../payees/domain/payeePeriod'
 import type { PayeePeriod } from '../../payees/domain/payeePeriod'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { parseMonthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -55,9 +57,37 @@ export function accountNamed(accounts: readonly Account[], key: unknown): Accoun
   return typeof key === 'string' ? (accounts.find((account) => account.id === recordIdOf(ACCOUNT_RECORDS, key)) ?? null) : null
 }
 
+/** The one group of entries a link to Entries narrows to, besides its months. */
+export type EntriesGroup = { readonly category: Category } | { readonly payee: string } | { readonly label: Label } | { readonly event: SpendingEvent } | { readonly account: Pick<Account, 'id'> }
+
+/** The address of a group's key, each by the bare UUID of its record, a payee by their key. */
+function groupQuery(group: EntriesGroup | null): Readonly<Record<string, string>> {
+  if (group === null) return {}
+  if ('category' in group) return { category: keyOfRecordId(CATEGORY_RECORDS, group.category.id) }
+  if ('payee' in group) return { payee: group.payee }
+  if ('label' in group) return { label: keyOfRecordId(LABEL_RECORDS, group.label.id) }
+  if ('event' in group) return { event: keyOfRecordId(EVENT_RECORDS, group.event.id) }
+  return { account: keyOfRecordId(ACCOUNT_RECORDS, group.account.id) }
+}
+
+/**
+ * Entries over some months or a span of days, narrowed to at most one group. A span goes in `?from=` and `?to=`, and Entries
+ * then counts the group's total over those days. Null months is this month, which stays out of the address.
+ */
+export function entriesLink(months: EntriesMonths | DateRange | null, group: EntriesGroup | null = null): RouteLocationRaw {
+  const shown = months === null ? {} : typeof months === 'string' ? { month: months } : { from: months.from, to: months.to }
+  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { ...shown, ...groupQuery(group) } }
+}
+
+/** The span a page's `?from=` and `?to=` name, or null unless both are days and the first is not after the second. */
+export function entriesSpanNamed(from: unknown, to: unknown): DateRange | null {
+  const [first, last] = [typeof from === 'string' ? parseCivilDate(from) : null, typeof to === 'string' ? parseCivilDate(to) : null]
+  return first === null || last === null || first > last ? null : { from: first, to: last }
+}
+
 /** Transactions filtered to a month and, when given, a category and its children. */
 export function transactionsLink(month: MonthKey, category: Category | null = null): RouteLocationRaw {
-  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { month, ...(category === null ? {} : { category: keyOfRecordId(CATEGORY_RECORDS, category.id) }) } }
+  return entriesLink(month, category === null ? null : { category })
 }
 
 /** The Overview with its spending ring opened on a group's children, named by the group's bare UUID in `?group=`. */
@@ -72,7 +102,7 @@ export function categoryIdNamed(key: unknown): RecordId | null {
 
 /** Entries of every month that carry the label, named by its bare UUID in `?label=`. */
 export function labelLink(label: Label): RouteLocationRaw {
-  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { month: ALL_MONTHS, label: keyOfRecordId(LABEL_RECORDS, label.id) } }
+  return entriesLink(ALL_MONTHS, { label })
 }
 
 /** The Rules card of the Sorting screen with only the rules that file under the category, named by its bare UUID in `?category=`. */
@@ -92,7 +122,7 @@ export function labelNamed(labels: readonly Label[], key: unknown): Label | null
 
 /** Entries of every month with a part in the event, named by its bare UUID in `?event=`, since a flight bought months before can be put in a trip. */
 export function eventLink(event: SpendingEvent): RouteLocationRaw {
-  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { month: ALL_MONTHS, event: keyOfRecordId(EVENT_RECORDS, event.id) } }
+  return entriesLink(ALL_MONTHS, { event })
 }
 
 /** The event the page's `?event=` names, or null when the file has none by that id. */
@@ -110,8 +140,7 @@ const ENTRIES_MONTHS_OF_PERIOD: Readonly<Record<PayeePeriod, typeof ALL_MONTHS |
 
 /** Entries of one payee over the period the Payees tab shows, named by their key in `?payee=`. */
 export function payeeLink(key: string, period: PayeePeriod): RouteLocationRaw {
-  const months = ENTRIES_MONTHS_OF_PERIOD[period]
-  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { ...(months === null ? {} : { month: months }), payee: key } }
+  return entriesLink(ENTRIES_MONTHS_OF_PERIOD[period], { payee: key })
 }
 
 /** The months a page's `?month=` names, or null when it names none, which Entries reads as this month. */

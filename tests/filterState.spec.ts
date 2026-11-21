@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { periodRange, transactionsInPeriod } from '../src/apps/company/filters/domain/filterState'
+import { transactionsInPeriod } from '../src/apps/company/filters/domain/filterState'
+import { periodRange } from '../src/shared/calendar/period'
 import { civil, ledger, windowOf } from './fixtures/ledger'
 
 const window = windowOf('2025-06-12', '2026-10-16')

@@ -1,6 +1,6 @@
+import type { CountedRow } from '../../analytics/domain/countedRow'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
-import { moneyParts } from '../../../../shared/money/decimal'
 import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -30,29 +30,18 @@ export function sideOf(category: Category | null): Side {
   }
 }
 
-/** Each item's share of the row's euros, a discount item's of the other sign, so the shares add up to the row. */
-export function eurosOfItems({ euros, items }: EuroRow): readonly (Money | null)[] {
-  if (euros === null) return items.map(() => null)
-  return moneyParts(
-    euros,
-    items.map((item) => BigInt(item.amount)),
-  )
-}
-
 /**
  * What a row counts as, item by item, by the kind of each item's category. Money out on a
  * spending category is spending and money in a refund that lowers it. Money in on an income category is income. Money out
  * to Saved to investments is saved. A transfer between your accounts, money for the company, a loan's principal paid back,
  * money lent to or borrowed from people and a row waiting on review count nowhere.
  */
-export function rowSide(row: EuroRow, categories: ReadonlyMap<RecordId, Category>): readonly RowPart[] {
-  const partOf = (id: RecordId | null, euros: Money | null): RowPart => {
+export function rowSide(row: CountedRow, categories: ReadonlyMap<RecordId, Category>): readonly RowPart[] {
+  return row.parts.map(({ category: id, euros }): RowPart => {
     const category = id === null ? null : (categories.get(id) ?? null)
     const side = sideOf(category)
     return { category, side, counted: euros === null ? null : side === 'income' ? euros : negateMoney(euros) }
-  }
-  const euros = eurosOfItems(row)
-  return row.items.map((item, place) => partOf(item.category, euros[place] ?? null))
+  })
 }
 
 /** The categories a row counts under, its items'. */

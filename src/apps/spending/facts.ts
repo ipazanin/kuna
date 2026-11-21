@@ -1,7 +1,8 @@
 import type { LinkedItemCounts, PublishedRowLink } from '../../shared/app/rowLinks'
 import type { RateBook } from '../../shared/money/rateBook'
 import { keyOfRecordId } from '../../shared/storage/domain/recordId'
-import { eurosOfItems, rowSide } from './categories/domain/rowSide'
+import { countedRowOf } from './analytics/domain/countedRow'
+import { rowSide } from './categories/domain/rowSide'
 import type { RowPart } from './categories/domain/rowSide'
 import { euroRows } from './rates/domain/euroRows'
 import type { SpendingBook } from './workbook/domain/readSpendingBook'
@@ -21,8 +22,8 @@ export function rowLinksOf(book: Pick<SpendingBook, 'accounts' | 'transactions' 
   const categories = new Map(book.categories.map((category) => [category.id, category]))
   return euroRows(book, rates).flatMap((row) => {
     const { transaction, account, items } = row
-    const euros = eurosOfItems(row)
-    const parts = rowSide(row, categories)
+    const counted = countedRowOf(row)
+    const parts = rowSide(counted, categories)
     return items.flatMap((item, place) => {
       if (item.link === null) return []
       const { app, kind, key, due } = item.link
@@ -34,7 +35,7 @@ export function rowLinksOf(book: Pick<SpendingBook, 'accounts' | 'transactions' 
           day: transaction.date,
           amount: item.amount,
           currency: account.currency,
-          euros: euros[place] ?? null,
+          euros: counted.parts[place]?.euros ?? null,
           counts: countsOf(parts[place]),
           target: { app, kind, key, due },
         },

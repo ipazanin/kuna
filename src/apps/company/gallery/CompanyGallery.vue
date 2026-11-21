@@ -1,19 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import { civilDate } from '../../../shared/calendar/civilDate'
-import { anchorWindow } from '../../../shared/calendar/ledgerWindow'
 import type { PlannedMail } from '../../../shared/mail/application/mailReading'
 import type { StatementMailEntry, StatementMailPlan } from '../mail/application/statementMail'
 import StatementMailList from '../mail/presentation/StatementMailList.vue'
 import AppCard from '../../../shared/ui/AppCard.vue'
-import type { Period } from '../filters/domain/filterState'
 import AccountPicker from '../filters/presentation/AccountPicker.vue'
-import PeriodBar from '../filters/presentation/PeriodBar.vue'
 
-/** The company's own specimens in the gallery: the period bar, the account picker and the mail list. Only development and fake builds load it. */
-const sampleWindow = anchorWindow(civilDate(2024, 3, 1), civilDate(2026, 10, 14))
-const period = ref<Period>({ preset: 'l12' })
+/** The company's own specimens in the gallery: the account picker and the mail list. Only development and fake builds load it. */
 const accounts = ref<readonly string[]>([])
 const ACCOUNTS = [
   { value: 'main', label: 'Main account' },
@@ -53,10 +47,9 @@ const STOPPED = 'Gmail asked us to slow down. Sync again in a minute.'
 
 <template>
   <div class="flex flex-col gap-4" data-dev-only="DEV-GALLERY-ONLY-DO-NOT-SHIP">
-    <h3 class="type-label">Period and filters</h3>
-    <PeriodBar v-model:period="period" :window="sampleWindow" />
+    <h3 class="type-label">Accounts</h3>
     <AccountPicker v-model="accounts" :options="ACCOUNTS" class="w-fit" />
-    <p class="figure type-caption" aria-live="polite">Selected: {{ JSON.stringify(period) }}, {{ accounts.length ? accounts.join(' and ') : 'all accounts' }}</p>
+    <p class="figure type-caption" aria-live="polite">Selected: {{ accounts.length ? accounts.join(' and ') : 'all accounts' }}</p>
     <h3 class="type-label">Mail list</h3>
     <AppCard data-testid="gallery-mail-plan">
       <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
