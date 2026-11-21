@@ -67,7 +67,7 @@ async function remove(saved: SavedRecipe): Promise<void> {
       </template>
     </ul>
     <div class="px-4 pt-2 pb-4 sm:px-5">
-      <UButton :label="words.recipes.add" icon="i-lucide-plus" color="neutral" variant="outline" data-testid="spending-recipe-add" @click="edit(null)" />
+      <UButton :label="words.recipes.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="spending-recipe-add" @click="edit(null)" />
     </div>
     <StatementRecipeDialog v-model:open="dialogOpen" :recipe="editing" :columns="null" />
   </AppCard>

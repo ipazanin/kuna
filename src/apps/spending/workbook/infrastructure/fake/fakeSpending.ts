@@ -326,7 +326,7 @@ function peopleRows(day: CivilDate, idOf: (path: string) => RecordId): readonly 
   ]
 }
 
-/** The payees the people set keeps details of, all made up: the market under two spellings with two IBANs you added, and Ana Horvat marked as a person. */
+/** The payees the people set keeps details of, all made up: the market under two spellings with two IBANs you added, and Ana Horvat with a note and no mark yet, which the person flag flows set. */
 function fakePayees(): readonly Payee[] {
   const details = { ibans: [], party: null, taxId: '', website: '', note: '' }
   return [
@@ -338,7 +338,7 @@ function fakePayees(): readonly Payee[] {
       party: 'business',
       website: 'example.com',
     },
-    { ...details, id: fixedId(PAYEE_RECORDS, 2702), names: ['Ana Horvat'], party: 'person', note: 'Rent for the flat' },
+    { ...details, id: fixedId(PAYEE_RECORDS, 2702), names: ['Ana Horvat'], note: 'Rent for the flat' },
   ]
 }
 

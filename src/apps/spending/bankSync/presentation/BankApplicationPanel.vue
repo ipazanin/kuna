@@ -81,8 +81,7 @@ async function getKey(): Promise<void> {
       </div>
       <p class="type-caption max-w-prose">{{ words.application.removeCaption }}</p>
     </template>
-    <AppDialog v-model:open="confirmingRemove" :title="words.application.removeTitle" :dismissible="!key.removing.value" changes>
-      <p class="type-body" data-testid="spending-bank-sync-remove-dialog">{{ words.application.removeDescription }}</p>
+    <AppDialog v-model:open="confirmingRemove" :title="words.application.removeTitle" :description="words.application.removeDescription" :dismissible="!key.removing.value" changes>
       <template #end>
         <UButton :label="words.key.cancel" color="neutral" variant="ghost" :disabled="key.removing.value" @click="confirmingRemove = false" />
         <UButton

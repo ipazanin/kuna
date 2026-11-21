@@ -7535,8 +7535,8 @@ async function bankSyncSettled(page, press, selector) {
 
 /**
  * On Settings, Bank sync with nothing set up: the set-up's four steps and no link. Walk through them, bring a made-up key
- * and Check it, which the fake twin answers with an active application, link Revolut, come back on the fake return with the
- * code taken out of the address, read the synced rows on Entries, then Undo the import.
+ * and Check it, which the fake twin answers with an active application and whose toast offers Undo, link Revolut, come
+ * back on the fake return with the code taken out of the address, read the synced rows on Entries, then Undo the import.
  */
 export function spendingBankSyncFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -7563,7 +7563,7 @@ export function spendingBankSyncFlowIn(language) {
     await pressSelector(page, press, '[data-testid="spending-bank-key-check"]')
     await page.waitForSelector('[data-testid="spending-bank-setup-ready"]', { visible: true, timeout: 10_000 })
     await toast(page, bank.key.saved)
-    await noUndoOffered(page, words, bank.key.saved)
+    if (!(await offersUndo(page, words, bank.key.saved))) throw new Error(`the "${bank.key.saved}" toast offers no ${words.writes.undo}, which puts back the book`)
     await delay(300)
     await inspect?.('the application checked and active')
     await shoot('spending-bank-sync-setup-active')
@@ -7908,21 +7908,21 @@ export function spendingBankApplicationFlowIn(language) {
     await shoot('spending-bank-sync-key-replace')
     await pressSelector(page, press, '[data-testid="spending-bank-key-cancel"]')
     await pressSelector(page, press, '[data-testid="spending-bank-sync-remove"]')
-    await page.waitForSelector('[data-testid="spending-bank-sync-remove-dialog"]', { visible: true, timeout: 5_000 })
+    await page.waitForSelector('[data-testid="spending-bank-sync-remove-confirm"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('Remove bank sync asking first')
     await shoot('spending-bank-sync-remove-ask')
     await pressSelector(page, press, '[data-testid="spending-bank-sync-remove-confirm"]')
     await toast(page, bank.application.removed)
-    await noUndoOffered(page, words, bank.application.removed)
+    if (await offersUndo(page, words, bank.application.removed)) throw new Error(`the "${bank.application.removed}" toast offers ${words.writes.undo}, which cannot reach the key or the bank's links`)
     await page.waitForSelector('[data-testid="spending-bank-sync-setup"]', { visible: true, timeout: 10_000 })
     await dismissToasts(page)
   }
 }
 
-/** Fails when the toast under the title offers Undo, as a write that went with a change Undo cannot reach must not. */
-async function noUndoOffered(page, words, title) {
-  const offered = await page.evaluate(
+/** Whether the toast under the title offers Undo. */
+async function offersUndo(page, words, title) {
+  return await page.evaluate(
     (selector, wanted, label) =>
       [...document.querySelectorAll(selector)]
         .filter((shown) => shown.querySelector('[data-slot="title"]')?.textContent?.trim() === wanted)
@@ -7931,7 +7931,6 @@ async function noUndoOffered(page, words, title) {
     title,
     words.writes.undo,
   )
-  if (offered) throw new Error(`the "${title}" toast offers ${words.writes.undo}, which cannot reach the key or the bank's links`)
 }
 
 /** On Spending's Import: the export without a Fee column is refused, naming the column, with no dry run. */

@@ -37,8 +37,9 @@ async function closeSessions(applicationId: string): Promise<void> {
 /**
  * Bringing, checking and removing the person's own Enable Banking key. A key is kept, and its application id written to the
  * book, only once Enable Banking answers a call it signed. The key lives in this browser's secrets, which the Keys step
- * carries to the secrets file in the person's Google account, and never in a draft, the book or the chat. Undo cannot reach
- * the secrets or the bank's sessions, so these writes offer none.
+ * carries to the secrets file in the person's Google account, and never in a draft, the book or the chat. Undo puts back only
+ * the book and leaves the key kept. A new key's first Check offers it, while another key's Check and Remove do not, since the
+ * sessions they close at the bank cannot come back.
  */
 export function useBankKey() {
   const store = useSpendingBooks()
@@ -70,7 +71,10 @@ export function useBankKey() {
         const before = book.settings.bankSyncApplication
         if (before !== id) await closeSessions(before)
         keepKey(PAGE_SECRET_STORE, before, id, pem, BANK_USAGE)
-        return await writes.write(before === '' ? words.key.saved : words.key.replaced, (unit) => saveApplicationId(unit, book, id), { failedTitle: words.notSaved, undoable: false })
+        return await writes.write(before === '' ? words.key.saved : words.key.replaced, (unit) => saveApplicationId(unit, book, id), {
+          failedTitle: words.notSaved,
+          undoable: before === '' || before === id,
+        })
       })
     } finally {
       busy.value = false
