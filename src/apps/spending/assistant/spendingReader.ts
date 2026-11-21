@@ -55,6 +55,10 @@ import {
 } from '../workbook/domain/spendingKinds'
 import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import { conditionText } from './ruleConditionText'
+import { STATEMENT_RECIPE_FIELDS } from '../statements/domain/statementRecipeDraft'
+import type { SavedRecipe } from '../workbook/domain/savedRecipe'
+import { draftOfRecipe } from '../../../shared/recipes/domain/tableRecipeDraft'
+import { inputOfDraft } from '../../../shared/recipes/domain/draftInput'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
 import type { Shortcut, ShortcutPart } from '../workbook/domain/shortcut'
 import type { Transaction } from '../workbook/domain/transaction'
@@ -133,9 +137,9 @@ interface BankAccountLine {
 /**
  * The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the
  * catalogue already says what each setting means. A bank row on hold and a payment the bank dropped are answered on To review, which the chat has no action for.
- * A line of a file from before items is read as the item it makes. A saved recipe is shown and deleted on Settings until the chat writes recipes.
+ * A line of a file from before items is read as the item it makes.
  */
-export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, DROPPED_ROW_RECORDS.name, LINE_RECORDS.name, RECIPE_RECORDS.name]
+export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, DROPPED_ROW_RECORDS.name, LINE_RECORDS.name]
 
 const ACCOUNT_FIELDS: FieldDocs<Account> = {
   id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },
@@ -309,6 +313,20 @@ const SHORTCUT_PART_FIELDS: FieldDocs<ShortcutPart> = {
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'What this part of the money is filed under.' },
   note: { exposure: 'free-text', meaning: "The owner's note on this money, or empty." },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries.' },
+}
+
+const RECIPE_FIELDS: FieldDocs<SavedRecipe> = {
+  id: { exposure: 'ref', to: RECIPE_RECORDS.name, meaning: 'The recipe.' },
+  bank: { exposure: 'free-text', meaning: 'The bank whose accounts take the rows, as Accounts names it.' },
+  currency: { exposure: 'plain', meaning: "Every row's currency, or empty where a column names each row's own." },
+  recipe: {
+    exposure: 'free-text',
+    meaning: 'How it reads a file, as change-recipe takes it, or empty for one that change-recipe cannot write.',
+    read: (saved) => {
+      const draft = draftOfRecipe(saved.recipe, STATEMENT_RECIPE_FIELDS)
+      return draft === null ? null : JSON.stringify(inputOfDraft(draft, STATEMENT_RECIPE_FIELDS))
+    },
+  },
 }
 
 const RECEIPT_FIELDS: FieldDocs<Receipt> = {
@@ -724,6 +742,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
         rows: () => rows((book) => book.shortcutParts),
         currencyOf: (part) => accountCurrency(rows((book) => book.shortcuts).find((shortcut) => shortcut.id === part.shortcut)?.account ?? ''),
       }),
+      readableKind<SavedRecipe>({ kind: RECIPE_RECORDS, about: words.reads.recipe, fields: RECIPE_FIELDS, dated: null, rows: () => rows((book) => book.recipes), currencyOf: () => EURO }),
       readableKind<Receipt>({
         kind: RECEIPT_RECORDS,
         about: words.reads.receipt,

@@ -1,11 +1,11 @@
 import { base64OfBytes } from '../../text/base64'
-import { MOST_CHARACTERS_A_READ, MOST_PAGES_A_READ, MOST_ROWS_A_READ, pdfPartOf, readRangeOf, readRangeText } from '../domain/chatAttachments'
+import { MOST_CHARACTERS_A_READ, MOST_PAGES_A_READ, MOST_ROWS_A_READ, SAMPLE, pdfPartOf, readRangeOf, readRangeText, sampleRangeOf } from '../domain/chatAttachments'
 import type { CellSheet, ChatAttachment, ReadRangeRefusal } from '../domain/chatAttachments'
 import { refusal } from './chatReads'
 import type { ChatReads, ChatToolAnswer } from './chatReads'
 import { cellsLeaving, fileTextLeaving } from './fileCells'
 
-/** What `read_attachment` asks for: a file attached to this chat by its id, the pages of a PDF, and the sheet and rows of a file read as cells, each null for all or the first. */
+/** What `read_attachment` asks for: a file attached to this chat by its id, the pages of a PDF, and the sheet and rows of a file read as cells, each null for all or the first, and rows `sample` for a sheet's sample. */
 export interface AttachmentRead {
   readonly attachment: string
   readonly pages: string | null
@@ -31,7 +31,7 @@ function cellsRead(attachment: ChatAttachment, sheets: readonly CellSheet[], inp
   const sheet = Number.isInteger(number) ? sheets[number - 1] : undefined
   if (sheet === undefined) return refusal(`That file has ${sheets.length} sheets, counted from 1.`)
   if (sheet.rows.length === 0) return refusal('That sheet is empty.')
-  const range = readRangeOf(input.rows, sheet.rows.length, MOST_ROWS_A_READ)
+  const range = input.rows === SAMPLE ? sampleRangeOf(sheet.rows) : readRangeOf(input.rows, sheet.rows.length, MOST_ROWS_A_READ)
   if ('reason' in range) return refusal(rangeRefusal(range, 'rows'))
   const leaving = cellsLeaving(sheet, range, reads)
   const index = input.rows === null ? { sheets: sheets.map((each, at) => ({ sheet: at + 1, name: each.name === null ? null : fileTextLeaving(each.name, reads), rows: each.rows.length })) } : {}

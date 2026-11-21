@@ -31,6 +31,9 @@ import {
   SETTING_RECORDS,
   TRANSACTION_RECORDS,
 } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { RECIPE_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import type { SavedRecipe } from '../../src/apps/spending/workbook/domain/savedRecipe'
+import { statementRecipeOf } from '../../src/apps/spending/statements/domain/statementRecipeDraft'
 import { plainLineOf } from '../../src/apps/spending/workbook/domain/beforeItems'
 import { rowItemsOf, wholeItemOf } from '../../src/apps/spending/workbook/domain/rowItems'
 import type { SpendingRule } from '../../src/apps/spending/workbook/domain/spendingRule'
@@ -330,6 +333,29 @@ export function deskBankSetup(): BankSetup {
 }
 
 /** The record each operation's example names, by the name it gives it. */
+/** A recipe of the current account's bank, of a day, an amount with a decimal comma and a payee, every row booked. */
+function deskRecipe(): SavedRecipe {
+  const draft = {
+    name: 'OTP current account',
+    date: { column: 'Datum valute', format: 'dd.MM.yyyy' },
+    amount: { column: 'Iznos' },
+    mark: 'comma' as const,
+    columns: { description: 'Opis' },
+    kinds: [{ kind: 'payment', test: null }],
+  }
+  const made = statementRecipeOf(recordIdOf(RECIPE_RECORDS, 'otp-current'), draft, 'OTP banka', EUR)
+  if ('problems' in made) throw new Error(made.problems.map((problem) => problem.kind).join(', '))
+  return made.saved
+}
+
+export const DESK_RECIPE = deskRecipe()
+
+/** A csv of the current account's bank attached to the chat, as the recipe operations' examples read it. */
+export function attachedStatement(id = 'a1'): ChatAttachment {
+  const bytes = new TextEncoder().encode('Datum;Opis;Iznos\n02.11.2026;Corner market;-12,50\n')
+  return { id, kind: 'csv', name: 'promet.csv', bytes, original: new Blob([bytes], { type: 'text/csv' }), pages: 1, sent: null, reading: { kind: 'cells', sheets: [], characters: 0, reads: 1 } }
+}
+
 export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   category: RENT.id,
   'category-other': GROCERIES.id,
@@ -349,6 +375,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'account-other': SAVINGS.id,
   'account-empty': WALLET.id,
   rule: RULE.id,
+  recipe: DESK_RECIPE.id,
   shortcut: SHORTCUT.id,
   label: RENOVATION.id,
   event: TRIP.id,
@@ -441,6 +468,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(LABEL_RECORDS, [RENOVATION]),
     ...stored(EVENT_RECORDS, [TRIP]),
     ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),
+    ...stored(RECIPE_RECORDS, [DESK_RECIPE]),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })
   const { store } = await browserHarness(used, document, SPENDING)

@@ -15,8 +15,9 @@ import { rowCaption, rowTitle, twinCaption } from './rowParts'
 import type { RowQuestion } from './rowParts'
 import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import FileHoldings from './FileHoldings.vue'
+import RecipeMisfitActions from './RecipeMisfitActions.vue'
 import { leftOutLine } from './leftOutLines'
-import { addRevolutAccounts, fileNoteLine, refusalLine } from './readingLines'
+import { addMissingAccounts, fileNoteLine, refusalLine } from './readingLines'
 import { words } from './words'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -78,7 +79,7 @@ const missing = computed(() => reading.value?.missing ?? [])
 const holdings = computed(() => reading.value?.holdings ?? [])
 const accounts = computed(() => store.state.workbook?.accounts ?? [])
 /** What adding the missing accounts brings in: the whole file when it was refused for them, else the savings rows it leaves out. */
-const missingTitle = computed(() => refusal.value ?? addRevolutAccounts(missing.value, 'savings'))
+const missingTitle = computed(() => refusal.value ?? addMissingAccounts(missing.value, 'savings'))
 const statement = computed(() => (reading.value !== null && 'statement' in reading.value ? reading.value.statement : null))
 
 /** The days the bank sync left in the file, which the days it brings start from. Null while the sync covers none of its days. */
@@ -194,6 +195,13 @@ async function confirm(): Promise<void> {
         <FileHoldings v-if="holdings.length > 0" :holdings="holdings" :accounts="accounts" />
         <MissingAccountsOffer v-if="missing.length > 0" :title="missingTitle" :missing="missing" />
         <UAlert v-else-if="unreadable !== null || refusal !== null" icon="i-lucide-file-x" color="error" variant="subtle" :title="unreadable ?? refusal ?? ''" data-testid="spending-import-refused" />
+        <RecipeMisfitActions
+          v-if="missing.length === 0 && refusal !== null && picked !== null && loaded !== null && reading !== null && 'refused' in reading"
+          :file="picked"
+          :cells="loaded.cells"
+          :refusal="reading.refused"
+          :said="refusal"
+        />
       </div>
     </AppCard>
     <AppCard v-if="dryRun !== null && loaded !== null" :title="loaded.name" data-testid="spending-dry-run">

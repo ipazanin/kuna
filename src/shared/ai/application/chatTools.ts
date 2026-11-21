@@ -2,7 +2,7 @@ import { parseCivilDate } from '../../calendar/civilDate'
 import { parseMonthKey } from '../../calendar/monthKey'
 import { schemaProblems } from '../domain/strictSchema'
 import type { StrictSchema } from '../domain/strictSchema'
-import { MOST_ROWS_A_READ } from '../domain/chatAttachments'
+import { MOST_ROWS_A_READ, SAMPLE, SAMPLE_ROWS } from '../domain/chatAttachments'
 import { FILTER_OPS, SORT_DIRECTIONS } from '../domain/recordFilters'
 import type { ChatAttachment } from '../domain/chatAttachments'
 import type { CheckedProposal } from '../../app/assistantOperations'
@@ -230,7 +230,9 @@ export const CHAT_TOOLS: readonly ModelTool[] = [
         attachment: { type: 'string', description: 'The id, such as "a1".' },
         pages: TEXT_OR_NULL('The pages of a PDF, such as "2" or "1-3", or null for all of them. Null for any other file.'),
         sheet: { type: ['number', 'null'], description: 'The sheet of a file sent as cells, counted from 1, or null for the first. Null for a photo or a PDF.' },
-        rows: TEXT_OR_NULL(`The rows of that sheet, such as "1-${MOST_ROWS_A_READ}", or null for all of them. Null for a photo or a PDF.`),
+        rows: TEXT_OR_NULL(
+          `The rows of that sheet, such as "1-${MOST_ROWS_A_READ}", "${SAMPLE}" for its header and the ${SAMPLE_ROWS} rows under it, or null for all of them. Null for a photo or a PDF.`,
+        ),
       },
       required: ['attachment', 'pages', 'sheet', 'rows'],
       additionalProperties: false,

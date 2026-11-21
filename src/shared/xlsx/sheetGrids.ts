@@ -23,8 +23,8 @@ export async function sheetJs(): Promise<typeof import('xlsx')> {
   return import('xlsx')
 }
 
-/** The cells from A1, so row numbers match the sheet's even when its used range starts lower. Raw cells are values, the others the text the sheet shows. */
-function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet, raw = true): (SheetCell | undefined)[][] {
+/** The cells from A1 as values, so row numbers match the sheet's even when its used range starts lower. */
+function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet): (SheetCell | undefined)[][] {
   const reference = sheet['!ref']
   if (reference === undefined) {
     return []
@@ -32,7 +32,7 @@ function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet, raw = true): (She
   const range = XLSX.utils.decode_range(reference)
   range.s.r = 0
   range.s.c = 0
-  return XLSX.utils.sheet_to_json<(SheetCell | undefined)[]>(sheet, { header: 1, raw, blankrows: true, range })
+  return XLSX.utils.sheet_to_json<(SheetCell | undefined)[]>(sheet, { header: 1, raw: true, blankrows: true, range })
 }
 
 /** Every tab of an xlsx, xls or ods file, in the file's order. */
@@ -43,31 +43,6 @@ export async function readEveryTab(bytes: ArrayBuffer | Uint8Array): Promise<She
     const sheet = book.Sheets[name]
     return sheet === undefined ? [] : [{ name, grid: gridOf(XLSX, sheet) }]
   })
-}
-
-/** How a day reads where the sheet's format leaves it unclear: the short date each reader's Excel shows its own way, which SheetJS writes month first. */
-const PLAIN_DAY = 'yyyy-mm-dd'
-
-/**
- * Every tab of an xlsx, xls or ods file, each cell as the sheet shows it, so a date reads as its format writes it rather than as a
- * serial number. The short date, and a day format SheetJS cannot write, such as the `dd.mm.yyyy` of Croatian exports, read as `yyyy-mm-dd`.
- */
-export async function readEveryTabAsShown(bytes: ArrayBuffer | Uint8Array): Promise<SheetTab[]> {
-  const XLSX = await sheetJs()
-  const book = XLSX.read(bytes, { type: 'array', cellNF: true, dateNF: PLAIN_DAY })
-  return book.SheetNames.flatMap((name) => {
-    const sheet = book.Sheets[name]
-    return sheet === undefined ? [] : [{ name, grid: gridOf(XLSX, withDaysWritten(XLSX, sheet), false) }]
-  })
-}
-
-/** The sheet with each day cell SheetJS could not write as text written as a plain day, with its time when it has one. */
-function withDaysWritten(XLSX: typeof import('xlsx'), sheet: WorkSheet): WorkSheet {
-  for (const [address, cell] of Object.entries(sheet)) {
-    if (address.startsWith('!') || cell.t !== 'n' || cell.w !== undefined || typeof cell.z !== 'string' || !XLSX.SSF.is_date(cell.z)) continue
-    cell.w = XLSX.SSF.format(Number.isInteger(cell.v) ? PLAIN_DAY : `${PLAIN_DAY} hh:mm`, cell.v)
-  }
-  return sheet
 }
 
 /**
@@ -103,17 +78,32 @@ function cellText(XLSX: typeof import('xlsx'), cell: CellObject | undefined): st
   return String(cell.v)
 }
 
+/** A sheet's cells as text from A1, each by its kind as `readFirstSheetCells` says. */
+function sheetCells(XLSX: typeof import('xlsx'), sheet: WorkSheet | undefined): string[][] {
+  const reference = sheet?.['!ref']
+  if (sheet === undefined || reference === undefined) return []
+  const { e: end } = XLSX.utils.decode_range(reference)
+  return Array.from({ length: end.r + 1 }, (_, row) => Array.from({ length: end.c + 1 }, (_, column) => cellText(XLSX, sheet[XLSX.utils.encode_cell({ r: row, c: column })])))
+}
+
+function bookOfCells(XLSX: typeof import('xlsx'), contents: ArrayBuffer | Uint8Array | string): import('xlsx').WorkBook {
+  return typeof contents === 'string' ? XLSX.read(contents, { type: 'string', raw: true }) : XLSX.read(contents, { type: 'array', cellText: false, cellNF: true })
+}
+
 /**
  * The first sheet of a file as text for a recipe, from A1: a csv's cells as written, so `1.234,56` stays text, and an xlsx,
  * xls or ods file's cells by their kind. A day cell reads as `yyyy-MM-dd HH:mm:ss`, or `yyyy-MM-dd` for a whole day, and
  * any other number as its full value in decimal text, such as `-12.5`.
  */
-export async function readFirstSheetCells(contents: ArrayBuffer | string): Promise<string[][]> {
+export async function readFirstSheetCells(contents: ArrayBuffer | Uint8Array | string): Promise<string[][]> {
   const XLSX = await sheetJs()
-  const book = typeof contents === 'string' ? XLSX.read(contents, { type: 'string', raw: true }) : XLSX.read(contents, { type: 'array', cellText: false, cellNF: true })
-  const sheet = book.Sheets[book.SheetNames[0] ?? '']
-  const reference = sheet?.['!ref']
-  if (sheet === undefined || reference === undefined) return []
-  const { e: end } = XLSX.utils.decode_range(reference)
-  return Array.from({ length: end.r + 1 }, (_, row) => Array.from({ length: end.c + 1 }, (_, column) => cellText(XLSX, sheet[XLSX.utils.encode_cell({ r: row, c: column })])))
+  const book = bookOfCells(XLSX, contents)
+  return sheetCells(XLSX, book.Sheets[book.SheetNames[0] ?? ''])
+}
+
+/** Every tab of an xlsx, xls or ods file by its name, in the file's order, each cell read as `readFirstSheetCells` reads the first tab's. */
+export async function readEveryTabCells(bytes: ArrayBuffer | Uint8Array): Promise<{ readonly name: string; readonly cells: string[][] }[]> {
+  const XLSX = await sheetJs()
+  const book = bookOfCells(XLSX, bytes)
+  return book.SheetNames.map((name) => ({ name, cells: sheetCells(XLSX, book.Sheets[name]) }))
 }

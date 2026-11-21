@@ -8,13 +8,13 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 
-/** What to add to bring in the rows the drafted accounts would keep: the whole file when it was refused for them, else the savings rows left out. */
-export function addRevolutAccounts(missing: readonly DraftedAccount[], rows: 'file' | 'savings'): string {
-  const phrase = (kind: Account['kind'], forms: (count: number, currencies: string) => EnglishForms | CroatianForms): string[] => {
-    const currencies = missing.filter(({ account }) => account.kind === kind).map(({ account }) => account.currency)
-    return currencies.length === 0 ? [] : [plural(forms(currencies.length, listInWords(currencies)), currencies.length)]
+/** What to add to bring in the rows the drafted accounts would keep, of the bank the file's recipe names: the whole file when it was refused for them, else the savings rows left out. */
+export function addMissingAccounts(missing: readonly DraftedAccount[], rows: 'file' | 'savings'): string {
+  const phrase = (kind: Account['kind'], forms: (count: number, bank: string, currencies: string) => EnglishForms | CroatianForms): string[] => {
+    const drafts = missing.filter(({ account }) => account.kind === kind).map(({ account }) => account)
+    return drafts.length === 0 ? [] : [plural(forms(drafts.length, drafts[0]!.bank ?? '', listInWords(drafts.map((account) => account.currency))), drafts.length)]
   }
-  const accounts = listInWords([...phrase('bank', words.refused.revolutBankAccounts), ...phrase('savings', words.refused.revolutSavingsAccounts)])
+  const accounts = listInWords([...phrase('bank', words.refused.bankAccounts), ...phrase('savings', words.refused.savingsAccounts)])
   return rows === 'file' ? words.refused.addToBringIn(accounts) : words.refused.addToBringInSavings(accounts)
 }
 
@@ -34,7 +34,7 @@ export function refusalLine(refusal: StatementRefusal, missing: readonly Drafted
     case 'many-accounts':
       return words.refused.manyAccounts(refusal.bank, refusal.names.join(', '), refusal.currency)
     case 'missing-accounts':
-      return addRevolutAccounts(missing, 'file')
+      return addMissingAccounts(missing, 'file')
     case 'no-recipe':
       return words.refused.noRecipe(listInWords(refusal.misses.map(({ recipe, column }) => words.refused.recipeMiss(recipe, column))))
   }

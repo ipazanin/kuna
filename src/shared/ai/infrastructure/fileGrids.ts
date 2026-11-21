@@ -1,10 +1,8 @@
 import { decodedText } from '../../text/decodedText'
-import { readEveryTabAsShown, readFirstSheet } from '../../xlsx/sheetGrids'
+import { readEveryTabCells, readFirstSheetCells } from '../../xlsx/sheetGrids'
 import type { AttachmentKind, CellSheet } from '../domain/chatAttachments'
 import { MOST_INFLATED_BYTES } from '../domain/chatAttachments'
 import { cleanCell } from '../domain/fileCells'
-
-type SheetCell = string | number | boolean | undefined
 
 const END_OF_DIRECTORY = 0x06054b50
 const DIRECTORY_ENTRY = 0x02014b50
@@ -50,9 +48,9 @@ export function unsafeToRead(kind: AttachmentKind, bytes: Uint8Array): boolean {
   return false
 }
 
-function textRows(grid: readonly (readonly SheetCell[])[]): string[][] {
+function textRows(grid: readonly (readonly string[])[]): string[][] {
   return grid.map((row) => {
-    const cells = Array.from(row, (cell) => cleanCell(cell === undefined ? '' : String(cell)))
+    const cells = row.map(cleanCell)
     while (cells.length > 0 && cells.at(-1) === '') cells.pop()
     return cells
   })
@@ -167,16 +165,16 @@ function xmlSheets(document: Document): CellSheet[] {
 }
 
 /**
- * The cells of a file Kuna does not read itself, on this device, every cell as cleaned text: each tab of a sheet with
- * formulas as their values, a CSV as written, XML and JSON flattened to rows, and any other text as one line a row.
+ * The cells of a file on this device, every cell as cleaned text: each tab of a sheet and a CSV as a recipe reads them,
+ * XML and JSON flattened to rows, and any other text as one line a row.
  * Throws for a file that does not read as its kind.
  */
 export async function cellSheetsOf(kind: AttachmentKind, bytes: Uint8Array): Promise<readonly CellSheet[]> {
   switch (kind) {
     case 'sheet':
-      return (await readEveryTabAsShown(bytes)).map((tab) => ({ name: cleanCell(tab.name), layout: 'table', rows: textRows(tab.grid) }))
+      return (await readEveryTabCells(bytes)).map((tab) => ({ name: cleanCell(tab.name), layout: 'table', rows: textRows(tab.cells) }))
     case 'csv':
-      return [{ name: null, layout: 'table', rows: textRows(await readFirstSheet(decodedText(bytes))) }]
+      return [{ name: null, layout: 'table', rows: textRows(await readFirstSheetCells(decodedText(bytes))) }]
     case 'json':
       return jsonSheets(JSON.parse(decodedText(bytes)) as JsonValue)
     case 'xml': {

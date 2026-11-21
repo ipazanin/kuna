@@ -79,10 +79,10 @@ export interface CopiedRows {
   readonly check: CopiedStatementCheck
 }
 
-/** The statement a card imports, and the rows the AI copied into it. */
+/** The statement a card imports, and the rows the AI copied into it, or null for rows Kuna read with a recipe. */
 export interface CardStatement {
   readonly statement: StatementRows
-  readonly copied: CopiedRows
+  readonly copied: CopiedRows | null
 }
 
 /** What a later part's tie counts, since a row an earlier part found in Kuna already is not among them. */

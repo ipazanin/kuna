@@ -170,6 +170,17 @@ describe('a hostile file the chat reads', () => {
     expect(sent.rows[3]![4]).not.toContain('1101234567')
   })
 
+  it('sends a sample as the header and the ten rows under it, leaving out the title lines above the header and every row after', async () => {
+    const rows = Array.from({ length: 14 }, (_, at) => `${String(at + 1).padStart(2, '0')}.11.2026,Shop ${at + 1},-${at + 1}.00`)
+    const file = await held('izvod.csv', ['Izvod po računu 1101234567', '', 'Datum,Opis,Iznos', ...rows].join('\n'))
+    const sent = JSON.parse((await read(file, readsOf(true), 'sample')).text) as { readonly rows: readonly (readonly string[])[]; readonly range: string }
+
+    expect(sent.range).toBe('3-13')
+    expect(sent.rows[0]).toEqual(['Datum', 'Opis', 'Iznos'])
+    expect(sent.rows).toHaveLength(11)
+    expect(sent.rows.at(-1)).toEqual(['10.11.2026', 'Shop 10', '-10.00'])
+  })
+
   it('aliases a known person whose name is split across cells, as a payroll sheet holds it', async () => {
     const file = await held('payroll.csv', 'Ime,Prezime,Neto\nAna,Horvat,1200.00\nIvana,Kovač,900.00\n')
     const sent = JSON.parse((await read(file)).text) as { readonly rows: readonly (readonly string[])[] }
@@ -197,11 +208,11 @@ describe('a hostile file the chat reads', () => {
     }
   })
 
-  it("sends a sheet's dates and numbers as the sheet shows them, not as serial numbers", async () => {
+  it("sends a sheet's dates and numbers as a recipe reads them, not as serial numbers", async () => {
     const bytes = await xlsxOf({ A1: { t: 's', v: 'Datum' }, B1: { t: 's', v: 'Iznos' }, A2: { t: 'n', v: 46333, z: 'yyyy-mm-dd' }, B2: { t: 'n', v: 0.125, z: '0.0%' } })
     const answer = await read(await held('dates.xlsx', bytes))
     expect(answer.text).toContain('2026-11-07')
-    expect(answer.text).toContain('12.5%')
+    expect(answer.text).toContain('"0.125"')
     expect(answer.text).not.toContain('46333')
   })
 

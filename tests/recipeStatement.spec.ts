@@ -5,7 +5,7 @@ import { recipeStatement } from '../src/apps/spending/statements/domain/recipeSt
 import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
 import type { StatementReading, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import { en } from '../src/apps/spending/statements/domain/words'
-import { addRevolutAccounts, fileNoteLine, refusalLine } from '../src/apps/spending/statements/presentation/readingLines'
+import { addMissingAccounts, fileNoteLine, refusalLine } from '../src/apps/spending/statements/presentation/readingLines'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids'
 import { account, ACCOUNTS, CATEGORIES, category, REVOLUT_EUR, REVOLUT_USD } from './fixtures/spending'
@@ -320,7 +320,7 @@ describe("Revolut's export", () => {
         closed: false,
       },
     ])
-    expect(addRevolutAccounts(reading([HEADER, row]).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')
+    expect(addMissingAccounts(reading([HEADER, row]).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')
     expect(read([row], { accounts: [...ACCOUNTS, savings], categories: CATEGORIES }).rows[0]?.account).toBe(savings.id)
   })
 

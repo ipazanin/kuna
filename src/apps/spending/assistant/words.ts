@@ -82,6 +82,7 @@ export const en = {
       printed: 'Printed',
       text: 'Note',
       withdrawal: 'Where the money goes',
+      recipe: 'How it reads',
     },
   },
   receipts: {
@@ -115,6 +116,7 @@ export const en = {
     budget: 'Monthly limits on spending categories.',
     rule: 'What files a bank row by itself.',
     shortcut: 'A Quick add button on Entries, which writes the same entry for today in one tap.',
+    recipe: "The recipes Import reads a bank's statement files with, besides Revolut's export, which Kuna brings.",
     shortcutPart: 'A part of the entry a quick add writes: its amount, category, note and labels.',
     receipt: "Fiscal receipts and the entry each split. A receipt for a card payment the bank has not brought yet has no entry and waits on its account until the bank's row comes.",
     waitingReceipt: "Receipts with no entry yet, waiting for the bank's row of their payment, which To review lists. They count nowhere until then.",
@@ -311,6 +313,7 @@ export const hr: Translation<typeof en> = {
       printed: 'Ispisano',
       text: 'Bilješka',
       withdrawal: 'Kamo ide novac',
+      recipe: 'Kako čita',
     },
   },
   receipts: {
@@ -344,6 +347,7 @@ export const hr: Translation<typeof en> = {
     budget: 'Mjesečna ograničenja na kategorije potrošnje.',
     rule: 'Ono što sâmo razvrstava bankovni redak.',
     shortcut: 'Gumb Brzog unosa na Unosima, koji jednim dodirom upisuje isti unos za danas.',
+    recipe: 'Recepti kojima Uvoz čita datoteke izvoda banke, uz Revolutov izvoz, koji Kuna donosi.',
     shortcutPart: 'Dio unosa koji brzi unos upisuje: iznos, kategorija, bilješka i oznake.',
     receipt: 'Fiskalni računi i unos koji je svaki podijelio. Fiskalni račun za plaćanje karticom koje banka još nije donijela nema unos i čeka na svom računu dok ne stigne redak iz banke.',
     waitingReceipt: 'Fiskalni računi još bez unosa, koji čekaju redak iz banke za svoje plaćanje i navedeni su pod Za pregled. Do tada se ne broje nigdje.',

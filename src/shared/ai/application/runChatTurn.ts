@@ -133,7 +133,7 @@ export interface ChatTurn {
   readonly model: ModelPort
   readonly catalogue: Catalogue
   readonly reads: ChatReads
-  /** The turns so far in this chain of requests, which only ever grows. */
+  /** The turns so far in this chain of requests, which grows by each answered message, its photos and PDF pages left out once answered. */
   readonly history: readonly ModelTurn[]
   /** The context lines, each only when it differs from the one the model last read. */
   readonly context: string | null

@@ -13,7 +13,7 @@ import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAcc
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
-import { DESK_ACCOUNTS, DESK_LOAN_TARGETS, EXAMPLE_RECORDS, attachedPhoto, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
+import { DESK_ACCOUNTS, DESK_LOAN_TARGETS, EXAMPLE_RECORDS, attachedPhoto, attachedStatement, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { LinkTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -84,7 +84,8 @@ describe('every Spending operation', () => {
       expect(Object.keys(operation.input.type === 'object' ? operation.input.properties : {}).filter((field) => KEPT_BY_KUNA.has(field))).toEqual([])
       const desk = await spendingDesk(used, deskPorts(), operation.name === 'move-to-items' ? 'before-items' : 'items')
 
-      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, EXAMPLE_RECORDS, attachedPhoto().id) }], [attachedPhoto()])
+      const attached = operation.name === 'save-recipe' ? attachedStatement() : attachedPhoto()
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, EXAMPLE_RECORDS, attached.id) }], [attached])
 
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)

@@ -7963,7 +7963,7 @@ export function spendingImportMissingFlowIn(language, paths) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const offer = '[data-testid="spending-import-missing-accounts"]'
-    const wanted = reading.addToBringIn(language === 'en' ? 'Revolut bank accounts in GBP and CHF' : 'Revolutove bankovne račune u valutama GBP i CHF')
+    const wanted = reading.addToBringIn(language === 'en' ? 'Revolut bank accounts in GBP and CHF' : 'bankovne račune banke Revolut u valutama GBP i CHF')
     await dropSpendingFile(page, paths.missing)
     await waitForTextIn(page, offer, wanted)
     await countOf(page, '[data-testid="spending-import-missing-account"]', 2, 'the offer for the missing accounts')
@@ -13907,7 +13907,11 @@ export function spendingAccountBankNameFlowIn(language) {
   }
 }
 
-/** Settings, General on the statements set lists its saved recipe by name, bank and format, with Delete. Delete takes the card away with its last recipe and Undo brings it back. */
+/**
+ * Settings, General on the statements set lists its saved recipe by name, bank and format. Its row opens the editor, whose
+ * Delete leaves the card with Add recipe and Undo brings the recipe back. Add recipe opens a blank recipe, whose Save shows
+ * each problem under its field.
+ */
 export function spendingSettingsRecipesFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -13917,15 +13921,38 @@ export function spendingSettingsRecipesFlowIn(language) {
     await delay(300)
     await inspect?.('the saved recipes on Settings')
     await shoot('spending-settings-recipes')
-    await pressSelector(page, press, '[data-testid="spending-recipe-delete"]')
-    await page.waitForSelector('[data-testid="spending-recipes"]', { hidden: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Delete of the last recipe left the recipes card on Settings')
+    await pressSelector(page, press, '[data-testid="spending-recipe"]')
+    await page.waitForSelector('[data-testid="recipe-dialog"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('a saved recipe row opens no editor')
+    })
+    await delay(400)
+    await inspect?.('a saved recipe in its editor')
+    await shoot('spending-settings-recipe-dialog')
+    await pressSelector(page, press, '[data-testid="recipe-delete"]')
+    await page.waitForSelector('[data-testid="spending-recipe"]', { hidden: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Delete of the last recipe left its row on Settings')
+    })
+    await page.waitForSelector('[data-testid="spending-recipe-add"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('a file with no recipe offers no Add recipe on Settings')
     })
     await delay(300)
     await shoot('spending-settings-recipes-deleted')
     await undoIn(page, press, words)
     await countOf(page, '[data-testid="spending-recipe"]', 1, 'Undo should bring the recipe back')
     await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="spending-recipe-add"]')
+    await page.waitForSelector('[data-testid="recipe-dialog"]', { visible: true, timeout: 10_000 })
+    await delay(400)
+    if ((await page.$('[data-testid="recipe-dialog"] [data-slot="error"], [data-testid="recipe-problem"]')) !== null) throw new Error('a new recipe shows a problem before Save')
+    await pressSelector(page, press, '[data-testid="recipe-save"]')
+    await page
+      .waitForFunction(() => document.querySelectorAll('[data-testid="recipe-dialog"] [data-slot="error"]').length >= 3, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('Save of a blank recipe shows no problem under its name, bank and amount')
+      })
+    await delay(300)
+    await inspect?.('a blank recipe after Save')
+    await shoot('spending-settings-recipe-new')
   }
 }
 
@@ -13990,5 +14017,36 @@ export function spendingAssetLinkFlowIn(language) {
     await delay(200)
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/**
+ * On Spending's Import: a file of the bank the statements set keeps a recipe for, whose amount column the bank renamed, is
+ * refused with Edit beside Ask the chat. Edit opens the recipe with the file's header to pick from, and once the amount
+ * reads Iznos EUR and the recipe is saved, Import reads the file and offers the bank's account it lacks.
+ */
+export function spendingRecipeEditFlowIn(language, paths) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropSpendingFile(page, paths.renamed)
+    await page.waitForSelector('[data-testid="spending-import-recipe-edit"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the refused file offers no Edit for its recipe')
+    })
+    await delay(300)
+    await inspect?.('a file a saved recipe stopped reading')
+    await shoot('spending-recipe-misfit')
+    await pressSelector(page, press, '[data-testid="spending-import-recipe-edit"]')
+    await page.waitForSelector('[data-testid="recipe-dialog"]', { visible: true, timeout: 10_000 })
+    await delay(400)
+    await inspect?.('the recipe editor with the file header')
+    await shoot('spending-recipe-dialog')
+    await choose(page, press, await page.waitForSelector('[data-testid="recipe-amount"]'), 'Iznos EUR')
+    await pressSelector(page, press, '[data-testid="recipe-save"]')
+    await page.waitForSelector('[data-testid="spending-import-missing-accounts"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the changed recipe does not read the file')
+    })
+    await delay(400)
+    await inspect?.('the file read with the changed recipe')
+    await shoot('spending-recipe-fixed')
   }
 }

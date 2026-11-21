@@ -325,6 +325,11 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/loans/informalLoans/application/informalLoanWrites.ts#MOVEMENT_WRITES.add', operations: ['add-movement'] },
   { path: 'src/apps/loans/informalLoans/application/informalLoanWrites.ts#MOVEMENT_WRITES.change', operations: ['change-movement'] },
   { path: 'src/apps/spending/accounts/application/accountWrites.ts#ACCOUNT_WRITES.add', operations: ['add-account'] },
+  {
+    path: 'src/apps/spending/statements/application/recipeWrites.ts#saveRecipe',
+    from: ['after'],
+    operations: ['save-recipe', 'change-recipe'].map((name) => ({ name, renames: { 'recipe.name': 'name', 'recipe.sections': 'kinds' } })),
+  },
   { path: 'src/apps/spending/accounts/application/accountWrites.ts#ACCOUNT_WRITES.change', operations: ['change-account'] },
   { path: 'src/apps/spending/accounts/application/accountWrites.ts#changeAccount', from: ['after'], operations: ['change-account'] },
   { path: 'src/apps/spending/bankSync/application/bankSetupWrites.ts#fixOpening', from: ['opening'], operations: ['fix-opening'] },

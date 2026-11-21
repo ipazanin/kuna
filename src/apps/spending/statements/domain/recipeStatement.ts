@@ -36,7 +36,7 @@ type StatementKind = (typeof STATEMENT_KINDS)[number]
 /**
  * A recipe Spending reads statement files with, the name of the bank whose accounts take its rows, which is also a fee row's
  * payee, and the currency of every row for a file whose rows name none, or null when each names its own. A kind that comes
- * in reads `started` and `startedTime`, `amount`, `fee`, `currency`, `description` and `product`, whose `Savings` sends a row to
+ * in reads `started` and `startedTime`, `amount`, or `debit` and `credit` where a row fills one of them, `fee`, `currency`, `description` and `product`, whose `Savings` sends a row to
  * a savings account, and a completed row may also read `completed`, `completedTime` and the `balance` after it.
  */
 export interface StatementRecipe {
@@ -95,7 +95,7 @@ function comingRow(row: RecipeRow, line: number, currency: CurrencyCode | null):
   return {
     line,
     started: { date: started, at: atOf(started, row.texts['startedTime']) },
-    amount: moneyField(row, 'amount') ?? ZERO_ACCOUNT_MONEY,
+    amount: moneyField(row, 'amount') ?? subtractAccountMoney(moneyField(row, 'credit') ?? ZERO_ACCOUNT_MONEY, absAccountMoney(moneyField(row, 'debit') ?? ZERO_ACCOUNT_MONEY)),
     fee: moneyField(row, 'fee') ?? ZERO_ACCOUNT_MONEY,
     onSavings: (row.texts['product'] ?? '').toLowerCase() === 'savings',
     exchange: row.kind === 'exchange',
@@ -227,6 +227,11 @@ export function statementRecipesOf(book: Pick<SpendingBook, 'recipes'>): readonl
   return [REVOLUT_STATEMENT, ...saved]
 }
 
+/** The first of the recipes whose columns head one of the file's first rows, which reads the file. */
+export function fittingRecipe(recipes: readonly StatementRecipe[], cells: readonly (readonly string[])[]): StatementRecipe | undefined {
+  return recipes.find((source) => tableRows(source.recipe, cells).kind === 'read')
+}
+
 /**
  * Reads a statement file by the first of the recipes whose columns head one of its first rows, the ones Kuna brings first. A file
  * none of them fits is refused, with the first column each recipe looked for and did not find.
@@ -238,7 +243,7 @@ export function statementOfFile(
   book: Pick<SpendingBook, 'accounts' | 'categories'>,
   feeOn: FeeDescription,
 ): StatementReading {
-  const fitting = recipes.find((source) => tableRows(source.recipe, cells).kind === 'read')
+  const fitting = fittingRecipe(recipes, cells)
   if (fitting !== undefined) return recipeStatement(fitting, cells, fileName, book, feeOn)
   if (recipes.length === 1) return recipeStatement(recipes[0]!, cells, fileName, book, feeOn)
   const misses = recipes.flatMap((source) => {

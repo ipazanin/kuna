@@ -44,6 +44,7 @@ export type RecipeRun = { readonly kind: 'misfit'; readonly misfit: RecipeMisfit
 function passes(test: RowTest, row: SourceRow): boolean {
   const text = (row.get(test.column) ?? '').trim()
   if ('is' in test) return test.anyCase === true ? test.is.some((one) => one.toLowerCase() === text.toLowerCase()) : test.is.includes(text)
+  if ('filled' in test) return text !== ''
   if ('partsWithin' in test) return text === '' || text.split(test.separator).every((part) => test.partsWithin.includes(part.trim()))
   const number = decimalOfText(text)
   return number !== null && (test.sign === 'above-zero' ? number > DECIMAL_ZERO : number < DECIMAL_ZERO)

@@ -87,3 +87,24 @@ export function sampleMissingAccountsRows(day: CivilDate): string[][] {
 export function sampleMissingAccountsCsv(day: CivilDate): string {
   return csvOf(sampleMissingAccountsRows(day))
 }
+
+export const SAMPLE_RENAMED_FILE_NAME = 'promet-primjer-banke.csv'
+
+/** A day as the made-up bank writes it, such as 07.11.2026. */
+function writtenDay(day: CivilDate): string {
+  const [year, month, date] = day.split('-')
+  return `${date}.${month}.${year}`
+}
+
+/**
+ * A made-up export of the bank the fake statements set keeps a recipe for, after the bank renamed its amount column from
+ * Iznos to Iznos EUR, so the saved recipe no longer reads it until its amount column is changed.
+ */
+export function sampleRenamedColumnCsv(day: CivilDate): string {
+  return [
+    'Datum;Opis;Iznos EUR',
+    `${writtenDay(addDays(day, -3))};Gradska ljekarna;-12,40`,
+    `${writtenDay(addDays(day, -2))};Pekara na uglu;-3,80`,
+    `${writtenDay(addDays(day, -1))};Povrat poreza;150,00`,
+  ].join('\n')
+}

@@ -1,5 +1,6 @@
 import type { AiPdfPart } from './aiPart'
 import type { DocumentSize } from './modelUsage'
+import { likeliestHeaderRow } from '../../recipes/domain/headerRow'
 
 /** What a file attached to the chat is. `text` is any other file that decodes as text, such as OFX, QIF, MT940 or TXT, read as lines. */
 export type AttachmentKind = 'photo' | 'pdf' | 'sheet' | 'xml' | 'csv' | 'json' | 'text'
@@ -211,6 +212,18 @@ function rangeOfText(text: string): ReadRange | null {
   const first = Number(match[1])
   const last = match[2] === undefined ? first : Number(match[2])
   return first <= last ? { first, last } : null
+}
+
+/** What a read asks for to get a sheet's sample, which a recipe is written from. */
+export const SAMPLE = 'sample'
+
+/** How many rows under its header a sheet's sample holds. */
+export const SAMPLE_ROWS = 10
+
+/** A sheet's sample: its likeliest header row and the rows under it, at most `SAMPLE_ROWS`. A bank's title and account lines above the header stay out. */
+export function sampleRangeOf(rows: readonly (readonly string[])[]): ReadRange {
+  const header = (likeliestHeaderRow(rows) ?? 0) + 1
+  return { first: header, last: Math.min(rows.length, header + SAMPLE_ROWS) }
 }
 
 /** A range as a read names it back, `"2"` or `"1-3"`. */

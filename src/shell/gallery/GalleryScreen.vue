@@ -36,6 +36,7 @@ import type { SortDirection } from '../../shared/ui/SortableHeader.vue'
 import SparkLine from '../../shared/ui/SparkLine.vue'
 import { installedApps } from '../routing/appRegistry'
 import BankNameFieldSpecimen from './BankNameFieldSpecimen.vue'
+import TableRecipeEditorSpecimen from './TableRecipeEditorSpecimen.vue'
 import ChangeListSpecimens from './ChangeListSpecimens.vue'
 import ChartSpecimens from './ChartSpecimens.vue'
 import ChatElementSpecimens from './ChatElementSpecimens.vue'
@@ -570,6 +571,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
     <SyncStatusSpecimens />
 
     <BankNameFieldSpecimen />
+    <TableRecipeEditorSpecimen />
 
     <GallerySection id="write-progress" title="WriteProgress" description="The bar along the top of the page while a write to the books runs, shown here in place.">
       <AppCard as="div" class="p-4"><WriteProgress active label="Saving" /></AppCard>

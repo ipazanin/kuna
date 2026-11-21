@@ -21,6 +21,7 @@ import type { KeptPhotos, ReceiptPorts } from './receiptOperation'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
 import { WAITING_RECEIPT_OPERATIONS, writeWaitingReceiptStep } from './waitingReceiptOperations'
 import { IMPORT_STATEMENT, importedStatement } from './statementImport'
+import { READING_RECIPES, RECIPE_OPERATIONS, isRecipeStep, withRecipeFilesRead, writeRecipeStep } from './recipeOperation'
 import type { CardStatement } from './statementImport'
 import { SET_STARTING_ACCOUNT, acceptStartingAccount, setsStartingAccount, startingAccountCheck } from './startingAccountOperation'
 import type { LastAccountPorts } from './startingAccountOperation'
@@ -68,11 +69,12 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   ...REVIEW_OPERATIONS,
   ...WAITING_RECEIPT_OPERATIONS,
   IMPORT_STATEMENT,
+  ...RECIPE_OPERATIONS,
   ...BANK_SETUP_OPERATIONS,
   SET_STARTING_ACCOUNT,
 ]
 
-const IMPORTING: ReadonlySet<string> = new Set([IMPORT_STATEMENT.name])
+const IMPORTING: ReadonlySet<string> = new Set([IMPORT_STATEMENT.name, ...READING_RECIPES])
 
 /** The book with an entry in place of the row of its id, with its parts in place of the row's. */
 function withEntry(book: SpendingBook, entry: ItemizedRow): SpendingBook {
@@ -208,6 +210,12 @@ function plannedSteps(
       if (entry !== null) book = withEntry(book, entry)
       continue
     }
+    if (isRecipeStep(operation)) {
+      const statement = writeRecipeStep(unit, book, operation, field, idOf)
+      if (statement !== null && imported !== null) throw new StepRefused('A card imports one statement.')
+      if (statement !== null) imported = { statement, copied: null }
+      continue
+    }
     if (isLinkStep(operation)) {
       const linked = writeLinkStep(unit, book, records(), operation, field, idOf, {
         loans,
@@ -341,7 +349,8 @@ export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'stat
             throw failure
           }
         }
-        const read = await withPhotosRead(steps, ports.receipts)
+        const photosRead = await withPhotosRead(steps, ports.receipts)
+        const read = 'refused' in photosRead ? photosRead : await withRecipeFilesRead(photosRead)
         return 'refused' in read ? read : proposedWrites(store, spendingWork(file.appName, ports)).check(title, read)
       },
     },

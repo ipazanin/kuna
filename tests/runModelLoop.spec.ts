@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { ModelRequestFailed } from '../src/shared/ai/application/modelPort'
-import type { ModelPort, ModelReply, ModelRequest, ModelTool, ToolCall, ToolResult } from '../src/shared/ai/application/modelPort'
-import { runModelLoop } from '../src/shared/ai/application/runModelLoop'
+import type { ModelPort, ModelReply, ModelRequest, ModelTool, ToolCall, ToolResult, WholePart } from '../src/shared/ai/application/modelPort'
+import { WHOLE_PART_SENT, runModelLoop } from '../src/shared/ai/application/runModelLoop'
 import type { LoopEnd, ModelLoop } from '../src/shared/ai/application/runModelLoop'
 import type { AiPart } from '../src/shared/ai/domain/aiPart'
 
@@ -172,6 +172,18 @@ describe('the tool rounds of a loop', () => {
         ],
       },
     ])
+  })
+
+  it('sends a photo a tool read until the model answers, and keeps only its reading for the next message', async () => {
+    const photo: WholePart = { kind: 'image', mediaType: 'image/jpeg', base64: '/9j/4AAQ', width: 800, height: 600 }
+    const reading = async (): Promise<ToolResult> => ({ text: '{"attachment":"a1"}', parts: [photo], isError: false })
+    const model = modelOf([calls('a1'), calls('hr.vat.rates'), answer('A receipt of 12.50 EUR.')])
+
+    const end = await loopOver(model, [ROW], { runTool: reading })
+    expect(model.sent[1]!.turns[2]).toMatchObject({ role: 'tool-results', results: [{ parts: [photo] }] })
+    expect(model.sent[2]!.turns[2]).toMatchObject({ role: 'tool-results', results: [{ parts: [photo] }] })
+    expect(end.kind === 'answer' && end.turns[2]).toEqual({ role: 'tool-results', results: [{ callId: 'call-0', text: `{"attachment":"a1"}\n${WHOLE_PART_SENT}`, parts: [], isError: false }] })
+    expect(JSON.stringify(end.kind === 'answer' && end.turns)).not.toContain('/9j/4AAQ')
   })
 
   it(`stops after ${ROUNDS} rounds of lookups`, async () => {

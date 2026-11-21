@@ -40,10 +40,6 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     paths: ['src/apps/spending/bankSync/application/heldRowWrites.ts#answerHeldRow'],
   },
   {
-    reason: "A saved recipe for a bank's statement files, deleted on Settings. The chat neither reads nor writes recipes until it writes one from a file.",
-    paths: ['src/apps/spending/statements/application/recipeWrites.ts#deleteRecipe'],
-  },
-  {
     reason: 'A note that the bank dropped a payment you had filed. Only the person reads it and presses OK on To review, and the chat does not read these notes.',
     paths: ['src/apps/spending/statements/application/ruleRecords.ts#DROPPED_ROW_WRITES.remove'],
   },

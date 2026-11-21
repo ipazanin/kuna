@@ -18,3 +18,10 @@ export function headerRowOf(grid: readonly (readonly HeaderCell[])[], columns: r
   })
   return index < 0 ? null : index
 }
+
+/** The likeliest header row of a file whose columns no recipe names yet, 0-based: the first of the first rows that fills the most cells, or null for a file with no filled cell. */
+export function likeliestHeaderRow(grid: readonly (readonly string[])[]): number | null {
+  const filled = grid.slice(0, HEADER_SEARCH_ROWS).map((row) => row.filter((cell) => cell.trim() !== '').length)
+  const most = Math.max(0, ...filled)
+  return most === 0 ? null : filled.indexOf(most)
+}

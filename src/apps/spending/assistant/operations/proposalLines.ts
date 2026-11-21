@@ -21,6 +21,8 @@ import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { RECIPE_RECORDS } from '../../workbook/domain/spendingKinds'
+import { recipeInWords } from '../../statements/presentation/recipeWords'
 import { words } from '../words'
 import type { CardStatement, CopiedRows } from './statementImport'
 import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
@@ -106,6 +108,7 @@ function shownValue(
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return swatchOf(record.colour)?.name ?? null
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
+  if (isKind(kind, RECIPE_RECORDS, record) && field === 'recipe') return recipeInWords(record)
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'rowsFrom') return accountWords.rowsFrom[record.rowsFrom]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'cards') return record.cards.length === 0 ? null : cardsText(record.cards)
@@ -145,6 +148,7 @@ function labelOf(
 ): string {
   if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category ?? categoryOf(record.id)) ?? fallback)
   if (isKind(kind, RULE_RECORDS, record)) return ruleTestOf(record, (id) => namesOf.get(id) ?? '')
+  if (isKind(kind, RECIPE_RECORDS, record)) return record.recipe.name
   if (isKind(kind, BUDGET_RECORDS, record)) return namesOf.get(record.category) ?? fallback
   if (isKind(kind, RECEIPT_RECORDS, record)) return record.merchant !== '' ? record.merchant : fallback
   if (isKind(kind, ITEM_RECORDS, record)) {
@@ -169,7 +173,7 @@ export interface WaitingLookAlike {
 export interface StatementLeftOut {
   readonly label: string
   readonly rows: number
-  readonly copied: CopiedRows
+  readonly copied: CopiedRows | null
   readonly inKuna: number
   readonly lookAlikes: readonly WaitingLookAlike[]
 }
@@ -186,9 +190,9 @@ export function statementLeftOut({ statement, copied }: CardStatement, run: Pick
 }
 
 /** The warning on the copied rows and what the import leaves out, since the card shows only what the import writes. */
-function leftOutNote({ label, rows, copied }: StatementLeftOut): ProposalNote {
-  const warnings = [copiedStatementRowsWarning(copied.count, copied.file, copied.check), ...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)])]
-  return { label, text: warnings.join(' '), tone: 'warning' }
+function leftOutNote({ label, rows, copied }: StatementLeftOut): ProposalNote | null {
+  const warnings = [...(copied === null ? [] : [copiedStatementRowsWarning(copied.count, copied.file, copied.check)]), ...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)])]
+  return warnings.length === 0 ? null : { label, text: warnings.join(' '), tone: 'warning' }
 }
 
 /** The plain line on copied rows Kuna has already, which the import skips. Null when there are none. */

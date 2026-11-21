@@ -53,10 +53,11 @@ export type RecipeFields = Readonly<Record<string, RecipeField>>
 
 /**
  * A test on one column of a row: its text is one of these, in any case where `anyCase` says so, each of its parts is one of
- * these (so a blank passes), or its number is above or below zero.
+ * these (so a blank passes), its number is above or below zero, or it is not blank.
  */
 export type RowTest =
   | { readonly column: string; readonly is: readonly string[]; readonly anyCase?: true }
+  | { readonly column: string; readonly filled: true }
   | { readonly column: string; readonly partsWithin: readonly string[]; readonly separator: string }
   | { readonly column: string; readonly sign: 'above-zero' | 'below-zero' }
 

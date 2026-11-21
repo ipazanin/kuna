@@ -170,15 +170,15 @@ describe.each([
   ['xlsx', 'promet.xlsx'],
   ['biff8', 'promet.xls'],
 ] as const)('a statement sheet of typed cells, as %s', (bookType, name) => {
-  it('goes to the model with each day as a plain day, never a serial number or month first, and amounts as the sheet shows them', async () => {
+  it('goes to the model as a recipe reads it, each day as a plain day with its time to the second, never a serial number or month first, and amounts as their full value', async () => {
     const rows = await sentRows(name, await statementSheet(bookType))
     const sent = JSON.stringify(rows)
 
     expect(rows[4]?.slice(0, 2)).toEqual(['2031-11-03', '2031-11-03'])
-    expect(rows[5]?.slice(0, 2)).toEqual(['2031-11-02 14:06', '2031-11-02'])
-    expect(rows[4]?.[5]).toBe('35.50')
-    expect(rows[6]?.[7]).toBe('1,500.00')
-    expect(rows[7]?.[5]).toBe('435.50')
+    expect(rows[5]?.slice(0, 2)).toEqual(['2031-11-02 14:06:00', '2031-11-02'])
+    expect(rows[4]?.[5]).toBe('35.5')
+    expect(rows[6]?.[7]).toBe('1500')
+    expect(rows[7]?.[5]).toBe('435.5')
     expect(sent).not.toMatch(/\b(?:4\d{4}|11\/\d+\/31)\b/)
     for (const iban of [ACCOUNT_IBAN, PAYER_IBAN, TELECOM_IBAN]) expect(sent).not.toContain(iban)
   })

@@ -26,6 +26,7 @@ function rowTestOf(value: unknown): RowTest | null {
   if (isTexts(value.is) && (value.anyCase === undefined || value.anyCase === true)) return value.anyCase === true ? { column, is: value.is, anyCase: true } : { column, is: value.is }
   if (isTexts(value.partsWithin) && isText(value.separator) && value.separator !== '') return { column, partsWithin: value.partsWithin, separator: value.separator }
   if (value.sign === 'above-zero' || value.sign === 'below-zero') return { column, sign: value.sign }
+  if (value.filled === true) return { column, filled: true }
   return null
 }
 

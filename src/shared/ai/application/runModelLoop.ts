@@ -9,7 +9,7 @@ import type { ModelPort, ModelTool, ModelTurn, ToolCall, ToolResult } from './mo
 export interface ModelLoop {
   readonly model: ModelPort
   readonly system: readonly AiTextPart[]
-  /** The turns so far, which the loop only ever adds to, as Anthropic refuses a history edited under its thinking blocks. */
+  /** The turns so far, which the loop only adds to while it runs, as Anthropic refuses a history edited under its thinking blocks. */
   readonly turns: readonly ModelTurn[]
   readonly tools: readonly ModelTool[]
   /** Answers one tool call. The text comes back masked before the model reads it, and its photos or PDFs go whole. */
@@ -21,7 +21,7 @@ export interface ModelLoop {
   readonly rounds: number
 }
 
-/** How a loop ended: the model's answer with every turn to keep, or a reply or a failure that gave no answer. */
+/** How a loop ended: the model's answer with every turn to keep, its photos and PDF pages left out, or a reply or a failure that gave no answer. */
 export type LoopEnd =
   | { readonly kind: 'answer'; readonly text: string; readonly turns: readonly ModelTurn[]; readonly usage: AiUsage | null }
   | { readonly kind: 'refused' | 'cut-off' | 'failed' | 'holds-secret' | 'out-of-credit' | 'key-refused'; readonly reason: string; readonly usage: AiUsage | null }
@@ -65,7 +65,7 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
       case 'cut-off':
         return { kind: 'cut-off', reason: '', usage }
       case 'answer':
-        return { kind: 'answer', text: reply.text, turns: [...turns, { role: 'assistant', calls: [], raw: reply.raw }], usage }
+        return { kind: 'answer', text: reply.text, turns: [...turns.map(withoutWholeParts), { role: 'assistant', calls: [], raw: reply.raw }], usage }
       case 'tool-calls': {
         if (round === loop.rounds) break
         const results = await Promise.all(
@@ -79,6 +79,21 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
     }
   }
   return { kind: 'failed', reason: `more than ${loop.rounds} rounds of lookups`, usage: usageSoFar() }
+}
+
+/** What a tool result says in place of a photo or PDF pages the model has read and answered on, which the history no longer carries. */
+export const WHOLE_PART_SENT = 'The photo or pages of this result went once and are not sent again. Read the file again if you need to look at it.'
+
+/**
+ * A turn without the photos and PDF pages its tool results carried, each result saying so, for the turns a chat keeps once the
+ * model has answered on them. A later request then sends the model's reading of a photo rather than the photo again.
+ */
+function withoutWholeParts(turn: ModelTurn): ModelTurn {
+  if (turn.role !== 'tool-results' || turn.results.every((result) => result.parts.length === 0)) return turn
+  return {
+    role: 'tool-results',
+    results: turn.results.map((result) => (result.parts.length === 0 ? result : { ...result, text: `${result.text}\n${WHOLE_PART_SENT}`, parts: [] })),
+  }
 }
 
 function maskedTurn(turn: ModelTurn): ModelTurn {
