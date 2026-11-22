@@ -57,6 +57,28 @@ function unmatched(desk: SpendingDesk) {
 }
 
 describe('a receipt from the chat', () => {
+  it("sets a line's labels, event and payee it counts under, and starts the others as the parts they replace", async () => {
+    const desk = await spendingDesk(used)
+    const label = EXAMPLE_RECORDS['label']!
+    const event = EXAMPLE_RECORDS['event']!
+    const lines = [
+      line(desk, 'VITAMIN C', 20, 'Rent', { payee: 'A friend', choices: { labels: [desk.ref('label', label)], event: desk.ref('event', event), eventRule: null } }),
+      line(desk, 'FLASTER', 11, 'Rent', { payee: null, choices: { labels: null, event: null, eventRule: null } }),
+    ]
+    const answer = await desk.propose([receipt(desk, { lines })], [attachedPhoto()])
+    expect(answer.isError, answer.text).toBe(false)
+
+    expect((await desk.accept()).kind).toBe('done')
+
+    const held = bookOf(desk).receipts.find((candidate) => candidate.transaction === PHARMACY)!
+    const parts = bookOf(desk).items.filter((candidate) => candidate.receipt === held.id)
+    expect(parts.map((part) => [part.labels, part.event, part.payee])).toEqual([
+      [[label], event, 'A friend'],
+      [[], 'days', ''],
+    ])
+    expect(bookOf(desk).payees.map((payee) => [payee.names, payee.party])).toEqual([[['A friend'], 'person']])
+  })
+
   it('splits the payment named into its lines in one write, with the model that read it, and one Undo takes it all back', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([receipt(desk)], [attachedPhoto()])

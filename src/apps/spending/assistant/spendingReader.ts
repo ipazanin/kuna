@@ -365,6 +365,11 @@ const itemFields = (
   note: { exposure: 'free-text', meaning: "The owner's note on this money, or a receipt line's plain words, or empty." },
   amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'Signed as the entry is.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'What this part of the money is filed under, or none while the entry waits on To review. The figures count it.' },
+  payee: {
+    exposure: 'party',
+    meaning:
+      "Who this part of the money counts under on the payee report and Analysis by payee, when that is not the entry's payee, or empty for the entry's payee. The entry's payee stays who was paid.",
+  },
   link: {
     exposure: 'free-text',
     meaning: 'The record in another app this money is, such as the loan instalment it pays, or empty. It changes no figure: the part counts by its category.',

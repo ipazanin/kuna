@@ -9,7 +9,9 @@ import { filedAsTransfer, isSplit, linkOfItems, rowItemsOf } from '../../workboo
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { heldRuleLabels } from '../../workbook/domain/transactionItemReading'
+import { partPayeeOf } from '../../payees/domain/payeeKey'
 import { labelsOf } from '../../../../shared/categorising/domain/labels'
+import { accountMoneyParts } from '../../../../shared/money/decimal'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { partsOfWhole, restOfWhole } from '../../../../shared/money/partsOfWhole'
 import type { PartsRefusal } from '../../../../shared/money/partsOfWhole'
@@ -19,7 +21,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 /** The labels and event choice of a part. */
 export type PartChoices = Pick<TransactionItem, 'labels' | 'event'>
 
-/** A part of an entry as you give it: an amount signed as the entry is, or the rest, with its category, optional words and, when you set them, its labels and event choice. */
+/** A part of an entry as you give it: an amount signed as the entry is, or the rest, with its category, optional words and, when you set them, its labels, event choice and payee. */
 export interface ItemDraft {
   /** The entry's part it was opened from, which keeps its id, or null for a new part. */
   readonly id: RecordId | null
@@ -28,6 +30,8 @@ export interface ItemDraft {
   readonly note: string
   /** The labels and event choice you set on the part, which the write keeps as they are. Left out, the part keeps its own and the write carries those of the parts it took money from. */
   readonly choices?: PartChoices
+  /** Who the part counts under, blank for the entry's payee. Left out, the part keeps its own, and a new part counts under the entry's payee. */
+  readonly payee?: string
 }
 
 /** The labels and event choice a part added to a split starts with: the labels every part of the entry carries and the event choice of the largest. */
@@ -65,7 +69,8 @@ export function partCategoryRefusal(category: Category | undefined, categories: 
  * Any part may go under a category a row can take, For the company too, but never under a group with children or Between my
  * accounts. A part opened from one of the entry's parts keeps its id, the first part of an entry not yet split keeps the id of
  * its one item. A part the entry holds keeps its own link, and a new part takes the entry's link when it has one. A part takes
- * the labels and event choice you set on it, or else keeps its own, and keeps only those of its rule labels it still carries.
+ * the labels and event choice you set on it, or else keeps its own, and keeps only those of its rule labels it still carries. A
+ * part counts under the payee you give it, or else keeps its own, and one that names the entry's payee keeps none.
  */
 export function entrySplit(
   book: Pick<SpendingBook, 'categories' | 'receipts' | 'items'>,
@@ -100,6 +105,7 @@ export function entrySplit(
       note: draft.note.trim(),
       amount: placed.parts[place]!,
       category: draft.category,
+      payee: partPayeeOf(draft.payee ?? kept?.payee ?? '', row.payee),
       link: kept === undefined ? link : kept.link,
       labels,
       ruleLabels: heldRuleLabels({ labels, ruleLabels: kept?.ruleLabels ?? [] }),
@@ -109,6 +115,12 @@ export function entrySplit(
   })
   const chosen = new Set(drafts.flatMap((draft, place) => (draft.choices === undefined ? [] : [parts[place]!.id])))
   return { before: { row, items: held }, row: { ...row, categorisedBy: 'person' }, parts, chosen }
+}
+
+/** The entry's amount in two halves for Half and half, the first taking the odd cent, so 84.01 is 42.01 and 42.00. */
+export function halfAndHalf(whole: AccountMoney): readonly [AccountMoney, AccountMoney] {
+  const [first, second] = accountMoneyParts(whole, [1n, 1n])
+  return [first!, second!]
 }
 
 /**
@@ -136,6 +148,7 @@ export function differenceItem(
         note,
         amount: rest,
         category: like.category,
+        payee: '',
         link: like.link,
         labels: [],
         ruleLabels: [],

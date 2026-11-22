@@ -18,6 +18,8 @@ export interface TransactionItem {
   readonly amount: AccountMoney
   /** Null only on the one item of a row waiting on review. */
   readonly category: RecordId | null
+  /** Who this money counts under, as a payee record or a row names them, or blank for the entry's payee. Never the entry's payee itself. */
+  readonly payee: string
   /** The record in another app this money is, such as the loan instalment it pays, or null. A link changes no figure. */
   readonly link: RowLink | null
   /** The labels this money carries, in the order they were put on it. A label sits beside the category and changes no figure of it. */

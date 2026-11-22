@@ -12,7 +12,7 @@ import { eventsNewestFirst } from '../../events/domain/events'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { ALL_MONTHS, LAST_12_MONTHS, accountNamed, categoryIdNamed, entriesMonthsNamed, entriesSpanNamed, eventNamed, labelNamed, payeeNamed } from '../../overview/presentation/spendingLinks'
 import type { EntriesMonths } from '../../overview/presentation/spendingLinks'
-import { payeeKey } from '../../payees/domain/payeeKey'
+import { countsUnderPayee } from '../../payees/domain/payeeTotals'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -151,7 +151,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     },
   })
 
-  const pickedPayee = computed(() => payeeNamed(book()?.transactions ?? [], route.query.payee))
+  const pickedPayee = computed(() => payeeNamed(book() ?? { transactions: [], items: [] }, route.query.payee))
   const dropPayee = (): void => changeQuery({ payee: null, ...monthLeft(pickedLabel.value === null && pickedEvent.value === null) })
 
   /** Every month, the last twelve, then each from the oldest entry's to this one, newest first, and the picked one when it lies outside them. */
@@ -180,7 +180,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     })),
   ])
 
-  /** Whether a row shows under the filters: a group of categories takes its children, and an event any row with a part in it. */
+  /** Whether a row shows under the filters: a group of categories takes its children, and an event or a payee any row with a part in it or under them. */
   const shows = computed(() => {
     const shown = inMonths.value
     const onAccount = pickedAccount.value
@@ -197,7 +197,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
       (under === null || categoriesOfRow(row).some((id) => under.has(id))) &&
       (carried === null || labelsOf(row.items).includes(carried.id)) &&
       (inEvent === null || keepsAnyPart(countedRowOf(row), byId, inEvent)) &&
-      (paid === null || payeeKey(row.transaction.payee) === paid.key)
+      (paid === null || countsUnderPayee(countedRowOf(row), paid.key))
   })
 
   /** The filters that narrow the list, each as a chip names it. This month is where the list starts, and every month goes with a label, an event or a payee, so none of them is a filter. */

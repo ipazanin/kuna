@@ -258,6 +258,7 @@ describe('a line remembered from a confirmed receipt', () => {
     note: '',
     amount: accountMoneyFromAmount(-1),
     category: category(path).id,
+    payee: '',
     link: null,
     labels: [],
     ruleLabels: [],

@@ -2,10 +2,13 @@ import type { EntrySplit } from '../domain/entrySplit'
 import type { TypedTransfer } from '../domain/transfer'
 import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
-import { eventOfLargest, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { eventOfLargest, payeeOfAll, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import { linkedEntry, linkedWithExtraPayment } from '../../links/domain/linkFiling'
 import type { LinkPlace, LinkedEntry } from '../../links/domain/linkFiling'
 import type { ExtraPaymentTarget, InstalmentTarget, LinkTarget } from '../../links/domain/linkTarget'
+import { addPartPayees } from '../../payees/application/payeeWrites'
+import type { PartPayeeRecords } from '../../payees/application/payeeWrites'
+import { partPayeeOf } from '../../payees/domain/payeeKey'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { heldItemsOf, writeRows } from './rowRecords'
 import type { RowWrite } from './rowRecords'
@@ -25,30 +28,36 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 
-/** The rows and items an entry write reads of the file. */
+/** The rows and items an entry write reads of the file, and the payees and entries it reads to add the names its parts count under. */
 type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts'>
 
-/** What you type for an entry not split: its category, or none while it waits on review, its note, its labels and its event. */
+/** What a write that may give parts a payee of their own reads of the file. */
+type FilingRecords = EntryRecords & PartPayeeRecords
+
+/** What you type for an entry not split: its category, or none while it waits on review, its note, its labels, its event and who it counts under. */
 export interface TypedFiling {
   readonly category: RecordId | null
   readonly note: string
   readonly labels: readonly RecordId[]
   /** Left out, the money joins an event by its row's day. */
   readonly event?: EventChoice
+  /** Who the money counts under when that is not the entry's payee, such as the friend a meal paid for. Left out or blank, the entry's payee. */
+  readonly countsUnder?: string
 }
 
 /** A new typed entry, its text trimmed, with an id of its own and one item with all of its money. */
 export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee'> & TypedFiling): ItemizedRow {
-  const { category, note, labels, event, ...typed } = entry
+  const { category, note, labels, event, countsUnder = '', ...typed } = entry
   const row: Transaction = { ...typed, ...NO_BANK_FACTS, payee: entry.payee.trim(), source: 'typed', pair: null, categorisedBy: 'person', id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
-  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null, labels, ...(event === undefined ? {} : { event }) })] }
+  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null, labels, countsUnder: partPayeeOf(countsUnder, row.payee), ...(event === undefined ? {} : { event }) })] }
 }
 
 /**
  * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still skips
- * it. A row not split keeps its one item's id and link and takes the typed amount, category, note, labels and event, and a
- * category you changed is yours from then on. A split row keeps its items, each with the labels and event of the typed part of
- * its id, and a receipt's line takes that part's category and note too, while its amount stays the receipt's.
+ * it. A row not split keeps its one item's id and link and takes the typed amount, category, note, labels, event and payee it
+ * counts under, keeping the payee it counted under when the typed one names none, and a category you changed is yours from then on. A split row keeps its items, each with the labels and event of
+ * the typed part of its id, and a receipt's line takes that part's category, note and payee too, while its amount stays the
+ * receipt's. A part left counting under the entry's new payee keeps no payee of its own.
  */
 export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
   const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before.row
@@ -56,15 +65,18 @@ export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedR
   const [filing] = typed.items
   const whole = held !== undefined && filing !== undefined && !isSplit(before.items)
   const typedParts = new Map(typed.items.map((part) => [part.id, part]))
+  const ownPayee = (payee: string): string => partPayeeOf(payee, typed.row.payee)
   const parts = before.items.map((part) => {
     const typedPart = typedParts.get(part.id)
-    const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, note: typedPart.note }
-    return { ...part, labels: typedPart?.labels ?? part.labels, event: typedPart?.event ?? part.event, ...refiled }
+    const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, note: typedPart.note, payee: typedPart.payee }
+    const retyped = { ...part, labels: typedPart?.labels ?? part.labels, event: typedPart?.event ?? part.event, ...refiled }
+    return { ...retyped, payee: ownPayee(retyped.payee) }
   })
   const filedAnew = whole ? held.category !== filing.category : parts.some((part, place) => part.category !== before.items[place]?.category)
   const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: filedAnew ? 'person' : before.row.categorisedBy }
-  if (whole) return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels, event: filing.event }] }
-  return { row, items: parts }
+  if (!whole) return { row, items: parts }
+  const payee = ownPayee(filing.payee === '' ? held.payee : filing.payee)
+  return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels, event: filing.event, payee }] }
 }
 
 /** A transfer's leg typed over a row, which keeps the row's labels, since a transfer is labelled by selecting it on Entries. */
@@ -92,13 +104,14 @@ function added(after: ItemizedRow): RowWrite {
   return { before: null, after: after.row, items: after.items }
 }
 
-/** The entry typed over a row on the file, or added when there is none. A transfer's other leg goes, since the row is a plain entry now. */
-export function writeEntry(unit: UnitOfWork, records: EntryRecords, before: ItemizedRow | null, entry: ItemizedRow, otherLeg: Transaction | null): void {
-  if (before === null) {
-    writeRows(unit, records, [added(entry)])
-    return
-  }
-  writeRows(unit, records, [changed(before, retypedEntry(before, entry)), ...(otherLeg === null ? [] : [{ before: otherLeg, after: null }])])
+/**
+ * The entry typed over a row on the file, or added when there is none. A transfer's other leg goes, since the row is a plain entry
+ * now. A name its parts count under that no payee holds yet joins the payees as a person in the same write.
+ */
+export function writeEntry(unit: UnitOfWork, records: FilingRecords, before: ItemizedRow | null, entry: ItemizedRow, otherLeg: Transaction | null): void {
+  const written = before === null ? entry : retypedEntry(before, entry)
+  addPartPayees(unit, records, written.items)
+  writeRows(unit, records, before === null ? [added(written)] : [changed(before, written), ...(otherLeg === null ? [] : [{ before: otherLeg, after: null }])])
 }
 
 /**
@@ -191,13 +204,18 @@ export function removeEntry(unit: UnitOfWork, records: EntryRecords, entry: Tran
 
 /**
  * The entry with the parts you split it into, in one write. A part with the id of one the entry holds changes in place, the
- * others are added, and a held part no new part names goes. A part whose labels and event choice you set keeps them as set.
+ * others are added, and a held part no new part names goes. A part whose labels and event choice you set keeps them as set. A
+ * name a part counts under that no payee holds yet joins the payees as a person in the same write.
  */
-export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { row, before, parts, chosen }: EntrySplit): void {
+export function writeEntrySplit(unit: UnitOfWork, records: FilingRecords, { row, before, parts, chosen }: EntrySplit): void {
+  addPartPayees(unit, records, parts)
   writeRows(unit, records, [{ before: before.row, after: row, items: parts, chosen }])
 }
 
-/** The one item a split row stands for again: all of its money under the category most of it was in, with the note and event choice of its largest part, its link and every label of its parts, a rule's still its. */
+/**
+ * The one item a split row stands for again: all of its money under the category most of it was in, with the note and event
+ * choice of its largest part, its link and every label of its parts, a rule's still its, and the payee every part counted under.
+ */
 export function unsplitItem(row: Pick<Transaction, 'id' | 'amount'>, held: readonly TransactionItem[]): TransactionItem {
   return wholeItemOf(row, {
     category: mainCategoryOf(held),
@@ -206,6 +224,7 @@ export function unsplitItem(row: Pick<Transaction, 'id' | 'amount'>, held: reado
     labels: labelsOf(held),
     ruleLabels: ruleLabelsOf(held),
     event: eventOfLargest(held),
+    countsUnder: payeeOfAll(held),
   })
 }
 

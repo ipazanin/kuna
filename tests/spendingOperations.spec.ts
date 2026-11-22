@@ -75,7 +75,7 @@ describe('a new category or account on its card', () => {
 function changeEntry(desk: SpendingDesk, entry: string, fields: Readonly<Record<string, unknown>>) {
   return {
     op: 'change-entry',
-    input: { entry: desk.ref('transaction', entry), account: null, kind: null, category: null, date: null, amount: null, payee: null, note: null, ...fields },
+    input: { entry: desk.ref('transaction', entry), account: null, kind: null, category: null, date: null, amount: null, payee: null, note: null, countsUnder: null, ...fields },
   }
 }
 
@@ -239,12 +239,49 @@ describe('transfers', () => {
     expect(rowOf(desk, out!.id)).toMatchObject({ payee: 'Landlord', pair: null })
   })
 
+  it('refuses who one leg of a transfer counts under', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, note: '' }),
+    ])
+    await desk.accept()
+    const [out] = filedRows(bookOf(desk)).slice(-2)
+
+    const answer = await desk.propose([changeEntry(desk, out!.id, { countsUnder: 'Ana' })])
+
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('takes no payee')
+  })
+
   it('refuses moving a row a statement brought to another account', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
       stepOf(SPENDING_OPERATIONS, 'change-entry', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!), account: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id) }),
     ])
     expect(answer.isError).toBe(true)
+  })
+})
+
+describe('who an entry counts under', () => {
+  it('sets it through change-entry, keeps it through a change that names none, and clears it with a blank', async () => {
+    const desk = await spendingDesk(used)
+    const entry = EXAMPLE_RECORDS['transaction']!
+    const countsUnder = () =>
+      bookOf(desk)
+        .items.filter((item) => item.transaction === entry)
+        .map((item) => item.payee)
+
+    await desk.propose([changeEntry(desk, entry, { countsUnder: 'Ana' })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(countsUnder()).toEqual(['Ana'])
+
+    await desk.propose([changeEntry(desk, entry, { note: 'Checked', payee: 'Corner shop' })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(countsUnder()).toEqual(['Ana'])
+
+    await desk.propose([changeEntry(desk, entry, { countsUnder: '' })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(countsUnder()).toEqual([''])
   })
 })
 
@@ -329,7 +366,7 @@ describe('where an account takes its rows from', () => {
     })
     const change = (fields: Record<string, unknown>) => ({
       op: 'change-entry',
-      input: { entry: desk.ref('transaction', synced.id), account: null, kind: null, category: null, date: null, amount: null, payee: null, note: null, ...fields },
+      input: { entry: desk.ref('transaction', synced.id), account: null, kind: null, category: null, date: null, amount: null, payee: null, note: null, countsUnder: null, ...fields },
     })
     expect((await desk.propose([change({ amount: -1 })])).text).toContain('so its date and amount stay')
     expect((await desk.propose([change({ date: '2026-11-02' })])).isError).toBe(true)
@@ -710,8 +747,8 @@ describe('an entry split by hand', () => {
             note: '',
             choices: { labels: ['$prague', desk.ref('label', EXAMPLE_RECORDS['label']!)], event: desk.ref('event', EXAMPLE_RECORDS['event']!), eventRule: null },
           },
-          { part: null, amount: 15, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '', choices: { labels: [], event: null, eventRule: 'out-of-events' } },
-          { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', choices: none },
+          { part: null, amount: 15, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '', payee: null, choices: { labels: [], event: null, eventRule: 'out-of-events' } },
+          { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', payee: null, choices: none },
         ],
       }),
     ])
@@ -727,13 +764,42 @@ describe('an entry split by hand', () => {
     expect(bookOf(desk).problems).toEqual([])
   })
 
+  it("counts a part under the payee given, keeps none for the entry's own, and refuses one on a file from before items", async () => {
+    const step = (desk: SpendingDesk) =>
+      stepOf(SPENDING_OPERATIONS, 'split-entry', {
+        entry: desk.ref('transaction', typed),
+        parts: [
+          {
+            part: null,
+            amount: 10,
+            category: desk.ref('category', EXAMPLE_RECORDS['category']!),
+            note: '',
+            payee: rowOf(desk, typed)!.payee.toUpperCase(),
+            choices: { labels: null, event: null, eventRule: null },
+          },
+          { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', payee: 'Marko', choices: { labels: null, event: null, eventRule: null } },
+        ],
+      })
+    const desk = await spendingDesk(used)
+    expect((await desk.propose([step(desk)])).isError).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === typed)
+        .map((part) => part.payee),
+    ).toEqual(['', 'Marko'])
+
+    const older = await spendingDesk(used, deskPorts(), 'before-items')
+    expect((await older.propose([step(older)])).text).toContain('Propose move-to-items first')
+  })
+
   it('keeps what a kept part has where its choices leave a field null, and refuses an event and an eventRule together, a label that is no ref and a file from before items', async () => {
     const desk = await spendingDesk(used)
     const split = EXAMPLE_RECORDS['transaction-split']!
     const rentPart = recordIdOf(ITEM_RECORDS, 'line-hardware-rent')
     const parts = (choices: Readonly<Record<string, unknown>>) => [
-      { part: desk.ref(ITEM_RECORDS.name, rentPart), amount: 10, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '', choices },
-      { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', choices: { labels: null, event: null, eventRule: null } },
+      { part: desk.ref(ITEM_RECORDS.name, rentPart), amount: 10, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '', payee: null, choices },
+      { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', payee: null, choices: { labels: null, event: null, eventRule: null } },
     ]
     const step = (choices: Readonly<Record<string, unknown>>) => stepOf(SPENDING_OPERATIONS, 'split-entry', { entry: desk.ref('transaction', split), parts: parts(choices) })
 
@@ -749,8 +815,8 @@ describe('an entry split by hand', () => {
     const olderStep = stepOf(SPENDING_OPERATIONS, 'split-entry', {
       entry: older.ref('transaction', typed),
       parts: [
-        { part: null, amount: 10, category: older.ref('category', EXAMPLE_RECORDS['category']!), note: '', choices: { labels: [], event: null, eventRule: 'out-of-events' } },
-        { part: null, amount: null, category: older.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', choices: { labels: null, event: null, eventRule: null } },
+        { part: null, amount: 10, category: older.ref('category', EXAMPLE_RECORDS['category']!), note: '', payee: null, choices: { labels: [], event: null, eventRule: 'out-of-events' } },
+        { part: null, amount: null, category: older.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', payee: null, choices: { labels: null, event: null, eventRule: null } },
       ],
     })
     expect((await older.propose([olderStep])).text).toContain('move-to-items')
@@ -794,7 +860,7 @@ describe('an entry’s receipt and payee', () => {
     const entry = EXAMPLE_RECORDS['transaction-receipt']!
     const line = EXAMPLE_RECORDS['item-receipt-line']!
     const refile = (fields: Readonly<Record<string, unknown>>, on = entry) =>
-      stepOf(SPENDING_OPERATIONS, 'refile-receipt', { entry: desk.ref('transaction', on), lines: [{ line: desk.ref('item', line), category: null, note: null, ...fields }] })
+      stepOf(SPENDING_OPERATIONS, 'refile-receipt', { entry: desk.ref('transaction', on), lines: [{ line: desk.ref('item', line), category: null, note: null, payee: null, ...fields }] })
     expect((await desk.propose([refile({}, EXAMPLE_RECORDS['transaction']!)])).text).toContain('no receipt')
     expect(
       (await desk.propose([refile({ category: desk.ref('category', EXAMPLE_RECORDS['category-other']!) }), refile({ line: desk.ref('item', recordIdOf(ITEM_RECORDS, 'line-hardware-rent')) })])).text,

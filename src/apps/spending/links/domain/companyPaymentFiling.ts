@@ -1,7 +1,7 @@
 import type { CompanyMoney, CompanyTarget } from './linkTarget'
 import type { LinkedEntry, LinkedOn, LinkFiling, LinkPlace } from './linkFiling'
 import { companyMoneyCategoryIn, fixedCategoryIn } from '../../categories/domain/starterCategories'
-import { eventOfLargest, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { eventOfLargest, payeeOfAll, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import type { Category, CompanyMoneyRole } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
@@ -113,7 +113,7 @@ function partCategories(filing: CompanyPaymentSplit, place: Pick<LinkPlace, 'cat
 
 /**
  * The row linked to the payment or the cost, filed as `companyPaymentFiling` says: its items replaced by one item per part, each linked
- * to the payment and carrying every label of the row, the first keeping the id of the row's first item, and filed by you.
+ * to the payment and carrying every label of the row and the payee all of it counted under, the first keeping the id of the row's first item, and filed by you.
  * One part files the row whole. A row that keeps its parts only takes the link.
  */
 export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, place: LinkPlace & Pick<LinkedOn, 'receipt'>, newKey: () => string = newRecordId): LinkedEntry {
@@ -124,6 +124,7 @@ export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, pl
   const labels = labelsOf(entry.items)
   const ruleLabels = ruleLabelsOf(entry.items)
   const event = eventOfLargest(entry.items)
+  const payee = payeeOfAll(entry.items)
   const several = filing.parts.length > 1
   const items = filing.parts.map((part, at): TransactionItem => ({
     id: at === 0 ? firstId : recordIdOf(ITEM_RECORDS, newKey()),
@@ -133,6 +134,7 @@ export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, pl
     note: part.home === 'difference' ? place.notes.difference : '',
     amount: part.amount,
     category: ids[at] ?? null,
+    payee,
     link: target.link,
     labels,
     ruleLabels,

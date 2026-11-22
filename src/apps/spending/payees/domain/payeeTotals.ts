@@ -1,7 +1,8 @@
 import { payeeKey } from './payeeKey'
-import { keepsAnyPart, partTotals } from '../../analytics/domain/partTotals'
+import { partTotals } from '../../analytics/domain/partTotals'
 import type { KeepsPart, PartTotals } from '../../analytics/domain/partTotals'
-import type { CountedRow } from '../../analytics/domain/countedRow'
+import type { CountedPart, CountedRow } from '../../analytics/domain/countedRow'
+import { rowSide } from '../../categories/domain/rowSide'
 import type { Category } from '../../workbook/domain/category'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { sumMoney } from '../../../../shared/money/money'
@@ -13,30 +14,62 @@ import type { Money } from '../../../../shared/money/money'
  */
 export interface PayeeTotals extends PartTotals {
   readonly key: string
-  /** The payee as their newest counted row spells it. */
+  /** The payee as their newest counted part spells it. */
   readonly name: string
-  /** The IBANs their counted rows carry, each once, newest first. */
+  /** The IBANs their counted parts carry, each once, newest first. A part counting under a payee other than its entry's carries none. */
   readonly ibans: readonly string[]
 }
 
 /** Keeps the parts that count as spending or income, so a transfer, a saving, the company's money and a loan's principal leave no figure. */
 const SPENT_OR_RECEIVED: KeepsPart = (_row, part) => part.side === 'spending' || part.side === 'income'
 
-/** Every payee with a row filed under spending or income, by name. A row with no payee names none. */
+/** Whether any part of the row counts under the payee of the key, so a list by payee shows an entry under each payee its parts name. */
+export function countsUnderPayee(row: CountedRow, key: string): boolean {
+  return row.parts.some((part) => payeeKey(part.payee) === key)
+}
+
+/** A payee's parts of one row, by their places in it. */
+interface PayeeParts {
+  readonly row: CountedRow
+  readonly places: Set<number>
+}
+
+/**
+ * Every payee with a part filed under spending or income, by name. A part counts under its own payee, or the entry's while it
+ * has none, so one entry can count under two payees, each with its own parts only. A part with no payee names none.
+ */
 export function payeeTotals(rows: readonly CountedRow[], categories: readonly Category[]): readonly PayeeTotals[] {
   const byId = new Map(categories.map((category) => [category.id, category]))
-  const byKey = new Map<string, CountedRow[]>()
+  const byKey = new Map<string, PayeeParts[]>()
   for (const row of rows) {
-    const key = payeeKey(row.payee)
-    if (key === '' || !keepsAnyPart(row, byId, SPENT_OR_RECEIVED)) continue
-    const held = byKey.get(key)
-    if (held === undefined) byKey.set(key, [row])
-    else held.push(row)
+    rowSide(row, byId).forEach((side, place) => {
+      const key = payeeKey(row.parts[place]!.payee)
+      if (key === '' || !SPENT_OR_RECEIVED(row, side, place)) return
+      const held = byKey.get(key)
+      const last = held?.at(-1)
+      if (last?.row === row) last.places.add(place)
+      else if (held === undefined) byKey.set(key, [{ row, places: new Set([place]) }])
+      else held.push({ row, places: new Set([place]) })
+    })
   }
   const totals = [...byKey].map(([key, counted]): PayeeTotals => {
-    const newestFirst = [...counted].sort((one, other) => other.day.localeCompare(one.day))
-    const ibans = newestFirst.map((row) => normaliseIban(row.counterpartyIban)).filter((iban) => iban !== '')
-    return { key, name: newestFirst[0]!.payee.trim(), ibans: [...new Set(ibans)], ...partTotals(counted, byId, SPENT_OR_RECEIVED) }
+    const newestFirst = [...counted].sort((one, other) => other.row.day.localeCompare(one.row.day))
+    const partsOf = ({ row, places }: PayeeParts): readonly CountedPart[] => row.parts.filter((_part, place) => places.has(place))
+    const ibans = newestFirst
+      .flatMap(partsOf)
+      .map((part) => normaliseIban(part.counterpartyIban))
+      .filter((iban) => iban !== '')
+    const placesOf = new Map(counted.map(({ row, places }) => [row, places]))
+    return {
+      key,
+      name: partsOf(newestFirst[0]!)[0]!.payee.trim(),
+      ibans: [...new Set(ibans)],
+      ...partTotals(
+        counted.map(({ row }) => row),
+        byId,
+        (row, part, place) => SPENT_OR_RECEIVED(row, part, place) && placesOf.get(row)?.has(place) === true,
+      ),
+    }
   })
   return totals.sort((one, other) => one.name.localeCompare(other.name))
 }

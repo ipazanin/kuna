@@ -96,6 +96,7 @@ export function entryOfShortcut({ shortcut, parts }: ShortcutWithParts, day: Civ
       note: part.note,
       amount: part.amount,
       category: part.category,
+      payee: '',
       link: null,
       labels: part.labels,
       ruleLabels: [],

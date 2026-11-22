@@ -36,11 +36,13 @@ export interface WholeFiling {
   readonly ruleLabels?: readonly RecordId[]
   /** Left out, the money joins an event by its row's day. */
   readonly event?: EventChoice
+  /** Who the money counts under, as the file keeps a part's payee. Left out, the row's payee. */
+  readonly countsUnder?: string
 }
 
 /** The one item of a row not split, with all of its money, which no link split off. */
-export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels, ruleLabels = [], event = BY_DAYS }: WholeFiling): TransactionItem {
-  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels, ruleLabels, event, splitByLink: false }
+export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels, ruleLabels = [], event = BY_DAYS, countsUnder = '' }: WholeFiling): TransactionItem {
+  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, payee: countsUnder, link, labels, ruleLabels, event, splitByLink: false }
 }
 
 /** The items of any row, the ones the items given name it in, in their order. */
@@ -60,6 +62,11 @@ export function largestItem<Item extends Pick<TransactionItem, 'amount'>>(items:
 /** The row's one item under another category, for a row not split, which a rule, the pairing or To review files. */
 export function refiledItems(items: readonly TransactionItem[], category: RecordId | null): readonly TransactionItem[] {
   return items.map((item) => ({ ...item, category }))
+}
+
+/** The row's items as a transfer's leg under the transfer category, a move between your own accounts, so no part counts under a payee of its own. */
+export function transferLegItems(items: readonly TransactionItem[], category: RecordId): readonly TransactionItem[] {
+  return items.map((item) => ({ ...item, category, payee: '' }))
 }
 
 /** Each of the row's items linked to the record in another app, as linking a whole row links it. */

@@ -4,19 +4,21 @@ import type { Category } from '../../workbook/domain/category'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A receipt's line filed anew under a category, with your words on it. Its amount stays the receipt's. */
+/** A receipt's line filed anew under a category, with your words on it and who it counts under. Its amount stays the receipt's. */
 export interface LineRefile {
   readonly line: RecordId
   readonly category: RecordId
   readonly note: string
+  /** Who the line counts under, blank for the entry's payee. */
+  readonly payee: string
 }
 
 /** Why a line cannot be filed anew: it is not one of the entry's receipt lines, or its category is not one a part may go under. */
 export type LineRefileRefusal = 'not-a-receipt-line' | PartCategoryRefusal
 
 /**
- * The entry's items with each receipt line you named under its new category and words, trimmed, and every other item as it
- * was. A line takes a category as a part of a split does, so never a group with children or Between my accounts.
+ * The entry's items with each receipt line you named under its new category, words and payee, trimmed, and every other item
+ * as it was. A line takes a category as a part of a split does, so never a group with children or Between my accounts.
  */
 export function refiledReceiptLines(
   categories: readonly Category[],
@@ -31,7 +33,7 @@ export function refiledReceiptLines(
   const refiled = new Map(refiles.map((refile) => [refile.line, refile]))
   return items.map((item) => {
     const refile = refiled.get(item.id)
-    return refile === undefined ? item : { ...item, category: refile.category, note: refile.note.trim() }
+    return refile === undefined ? item : { ...item, category: refile.category, note: refile.note.trim(), payee: refile.payee.trim() }
   })
 }
 
@@ -55,14 +57,14 @@ export function lineRefilesOf(
     const filing = filings[item.id]
     if (filing === undefined || (filing.category === (item.category ?? '') && filing.note.trim() === item.note)) return []
     const filed = categories.find((category) => category.id === filing.category)
-    return [{ line: item.id, filed, note: filing.note, refusal: partCategoryRefusal(filed, categories) }]
+    return [{ line: item.id, filed, note: filing.note, payee: item.payee, refusal: partCategoryRefusal(filed, categories) }]
   })
   return {
     lines: items.map((item) => {
       const filing = filings[item.id]
       return filing === undefined ? item : { ...item, category: categories.find((category) => category.id === filing.category)?.id ?? null, note: filing.note }
     }),
-    refiles: changed.flatMap(({ line, filed, note, refusal }) => (filed === undefined || refusal !== null ? [] : [{ line, category: filed.id, note }])),
+    refiles: changed.flatMap(({ line, filed, note, payee, refusal }) => (filed === undefined || refusal !== null ? [] : [{ line, category: filed.id, note, payee }])),
     refused: new Map(changed.flatMap(({ line, refusal }) => (refusal === null ? [] : [[line, refusal] as const]))),
   }
 }

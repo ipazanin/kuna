@@ -2,6 +2,8 @@ import { RECEIPT_WRITES } from './receiptRecords'
 import type { ReceiptSplit } from '../domain/receiptSplit'
 import type { PlacedReceipt } from '../domain/waitingReceipts'
 import { writeRows } from '../../entries/application/rowRecords'
+import { addPartPayees } from '../../payees/application/payeeWrites'
+import type { PartPayeeRecords } from '../../payees/application/payeeWrites'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
@@ -13,10 +15,12 @@ type ReceiptRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
 
 /**
  * The receipt, its lines in place of the row's items, and the row they split, in one write, so one Undo takes it all back. A
- * receipt that waits for the bank's row writes no row. Each line keeps the labels and event choice `receiptSplit` gave it.
+ * receipt that waits for the bank's row writes no row. Each line keeps the labels, event choice and payee `receiptSplit` gave
+ * it, and a name a line counts under that no payee holds yet joins the payees as a person in the same write.
  */
-export function writeReceiptSplit(unit: UnitOfWork, records: ReceiptRecords, { before, row, receipt, lines }: ReceiptSplit): void {
+export function writeReceiptSplit(unit: UnitOfWork, records: ReceiptRecords & PartPayeeRecords, { before, row, receipt, lines }: ReceiptSplit): void {
   unit.of(RECEIPT_WRITES).add(receipt)
+  addPartPayees(unit, records, lines)
   if (row === null) writeRows(unit, records, [], [{ receipt: receipt.id, lines }])
   else writeRows(unit, records, [{ before, after: row, items: lines, chosen: idsOf(lines) }])
 }

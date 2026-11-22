@@ -13,3 +13,8 @@ export function payeeKey(payee: string): string {
 export function samePayee(one: string, other: string): boolean {
   return payeeKey(one) === payeeKey(other)
 }
+
+/** A part's payee as the file keeps it: trimmed, and blank when it names the entry's payee, since a part with none counts under the entry's. */
+export function partPayeeOf(payee: string, entryPayee: string): string {
+  return samePayee(payee, entryPayee) ? '' : payee.trim()
+}

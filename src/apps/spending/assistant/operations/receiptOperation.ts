@@ -18,9 +18,11 @@ import type { ReceiptPlace, ReceiptSplit } from '../../receipts/domain/receiptSp
 import { beforeStartDay, cashAccountsOn } from '../../workbook/domain/account'
 import { companyCategoryOf } from '../../workbook/domain/category'
 import type { Account } from '../../workbook/domain/account'
-import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { PART_CHOICES, PART_PAYEE, choicesOf, givenPartPayee } from './splitOperations'
+import type { PartChoiceInput } from './splitOperations'
 import { words } from '../words'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, CardNote, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -35,6 +37,14 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 
 const ANSWERS: readonly R1Answer[] = ['company', 'personal']
 
+const NO_CHOICES: PartChoiceInput = { labels: null, event: null, eventRule: null }
+
+/** What a line of add-receipt sets beside what the receipt prints. */
+interface LineChoices {
+  readonly payee: string | null
+  readonly choices: PartChoiceInput
+}
+
 export const ADD_RECEIPT: AssistantOperation = {
   name: 'add-receipt',
   about: [
@@ -44,6 +54,7 @@ export const ADD_RECEIPT: AssistantOperation = {
     "entry is the payment it splits: the entry tagged, as a row's camera tags the one the receipt was taken for, else the one match_records with kind receipt finds ready, or the one the person picks when it finds several. Any entry that can take a receipt goes, even days or cents away or paid to someone else. The card warns on the day and the amount that differ, and on the payee of an entry the person picked, and a Difference line makes up the amount. Cash goes only on an entry on a cash account, and a card never on one. An entry split by hand loses those parts to the receipt's lines.",
     "With entry null a new entry is made, also when the person says none of the payments match_records finds is this receipt. The card then names those payments and warns that the same money may be counted twice. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on. On an account the bank fills, the receipt makes no entry: it waits on To review and goes on the bank's row when the sync or a file brings it.",
     'Amounts are euros above zero, a discount below zero. Each line gets a category ref Kuna handed out, a spending category with no categories under it.',
+    "A line's choices set its labels and event as split-entry's do, such as milk for a birthday, and all null start it with the labels every part it replaces carries and the event of the largest. A line's payee is who it counts under, as in split-entry, and null starts it with the payee every part it replaces counts under.",
     'A line whose category does not exist yet waits: propose that category on a card of its own first, and this receipt on the next card once it is accepted.',
     "A receipt marked R1, or naming a buyer, with no buyer's OIB readable needs the person to say whose it is: whose is \"company\" or \"personal\", as they said. A buyer's OIB Kuna can read decides by itself, so whose is null then, as for every other receipt. Kuna matches it against the OIB on Company's billing and invoice terms. Without Company on this device, or with no OIB there, the card says so and the lines start as read. Spending keeps no OIB of its own, so tell the person to set it in Company. Call the receipt the company's in the title only when its buyer's OIB is Company's.",
     'keepPhoto true keeps the photo as taken in the Receipts folder beside the Spending file on Drive, which stays there after Undo. Ask the person first.',
@@ -72,6 +83,8 @@ export const ADD_RECEIPT: AssistantOperation = {
         unitPrice: NUMBER_OR_NULL,
         lineTotal: NUMBER,
         category: TEXT,
+        payee: PART_PAYEE,
+        choices: PART_CHOICES,
       }),
     },
     vat: { type: 'array', items: inputOf({ base: NUMBER, tax: NUMBER }) },
@@ -79,7 +92,14 @@ export const ADD_RECEIPT: AssistantOperation = {
     unreadable: { type: 'array', items: TEXT },
     keepPhoto: { type: 'boolean' },
   }),
-  refs: { photo: ATTACHMENT_REF, entry: TRANSACTION_RECORDS.name, account: ACCOUNT_RECORDS.name, 'lines.category': CATEGORY_RECORDS.name },
+  refs: {
+    photo: ATTACHMENT_REF,
+    entry: TRANSACTION_RECORDS.name,
+    account: ACCOUNT_RECORDS.name,
+    'lines.category': CATEGORY_RECORDS.name,
+    'lines.choices.labels': LABEL_RECORDS.name,
+    'lines.choices.event': EVENT_RECORDS.name,
+  },
   creates: null,
   alone: false,
   example: {
@@ -97,8 +117,8 @@ export const ADD_RECEIPT: AssistantOperation = {
     jir: null,
     zki: null,
     lines: [
-      { printed: 'KRUH', text: 'kruh', kind: 'product', quantity: null, unitPrice: null, lineTotal: 3.2, category: 'category' },
-      { printed: 'DET.TEK.', text: 'deterdžent tekući', kind: 'product', quantity: null, unitPrice: null, lineTotal: 5.5, category: 'category-other' },
+      { printed: 'KRUH', text: 'kruh', kind: 'product', quantity: null, unitPrice: null, lineTotal: 3.2, category: 'category', payee: null, choices: NO_CHOICES },
+      { printed: 'DET.TEK.', text: 'deterdžent tekući', kind: 'product', quantity: null, unitPrice: null, lineTotal: 5.5, category: 'category-other', payee: null, choices: NO_CHOICES },
     ],
     vat: [],
     total: 8.7,
@@ -314,6 +334,7 @@ function notesOf(warnings: readonly string[], read: ReceiptRead, split: ReceiptS
 export function writeReceiptStep(
   unit: UnitOfWork,
   book: SpendingBook,
+  records: SpendingRecords,
   field: Readonly<Record<string, never>>,
   idOf: (value: unknown) => string,
   ports: Pick<ReceiptPorts, 'keepsOnDrive' | 'mayKeepNow' | 'reader' | 'companyOib'>,
@@ -354,6 +375,15 @@ export function writeReceiptStep(
         ? "This fiscal receipt is already on the file, as its JIR or ZKI says, waiting for the bank's row. remove-waiting-receipt takes it off first."
         : 'This fiscal receipt is already on the file, as its JIR or ZKI says. Removing it from its entry comes first.',
     )
+  const place = placeOf(
+    field,
+    book,
+    { merchant: read.merchant, merchantOib: read.merchantOib, issuedOn: read.issuedOn, total: read.total, latitude: photo.place?.latitude ?? '', longitude: photo.place?.longitude ?? '' },
+    paid,
+    idOf,
+  )
+  const replaced = 'row' in place ? place.held : []
+  const given = field['lines'] as readonly LineChoices[]
   const split = receiptSplit(
     {
       merchant: read.merchant,
@@ -369,15 +399,14 @@ export function writeReceiptStep(
       latitude: photo.place?.latitude ?? '',
       longitude: photo.place?.longitude ?? '',
     },
-    placeOf(
-      field,
-      book,
-      { merchant: read.merchant, merchantOib: read.merchantOib, issuedOn: read.issuedOn, total: read.total, latitude: photo.place?.latitude ?? '', longitude: photo.place?.longitude ?? '' },
-      paid,
-      idOf,
-    ),
-    read.lines.map((line) => ({ printed: line.printed, note: line.text, amount: line.amount, category: line.category! })),
+    place,
+    read.lines.map((line) => {
+      const { choices } = given[line.place]!
+      const payee = givenPartPayee(records, given[line.place]!.payee)
+      const chosen = choicesOf(book, records, replaced, undefined, choices, idOf)
+      return { printed: line.printed, note: line.text, amount: line.amount, category: line.category!, ...(chosen === null ? {} : { choices: chosen }), ...(payee === null ? {} : { payee }) }
+    }),
   )
-  writeReceiptSplit(unit, book.stored, split)
+  writeReceiptSplit(unit, records, split)
   return { split, notes: notesOf([...drafted.notes, ...placeNotes(split, book, paid)], read, split, book) }
 }

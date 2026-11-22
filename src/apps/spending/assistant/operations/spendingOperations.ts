@@ -231,7 +231,7 @@ function plannedSteps(
     }
     switch (operation) {
       case 'add-receipt': {
-        const { split, notes } = writeReceiptStep(unit, book, field, idOf, ports.receipts, kept?.[at] ?? '')
+        const { split, notes } = writeReceiptStep(unit, book, records(), field, idOf, ports.receipts, kept?.[at] ?? '')
         const { before, row: filed } = split
         book = {
           ...book,

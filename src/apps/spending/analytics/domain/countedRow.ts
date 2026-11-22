@@ -1,3 +1,4 @@
+import { samePayee } from '../../payees/domain/payeeKey'
 import { euroRows } from '../../rates/domain/euroRows'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -8,17 +9,18 @@ import { moneyParts } from '../../../../shared/money/decimal'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** One part of a counted row: what it is filed under and its share of the row's euros, null while the rates do not reach the row's day. */
+/** One part of a counted row: what it is filed under, who it counts under and its share of the row's euros, null while the rates do not reach the row's day. */
 export interface CountedPart extends Pick<TransactionItem, 'category' | 'labels' | 'event'> {
+  /** The part's own payee, or the entry's while it has none. */
+  readonly payee: string
+  /** The entry's IBAN while the part counts under the entry's payee, blank under another. */
+  readonly counterpartyIban: string
   readonly euros: Money | null
 }
 
-/** A row as every figure counts it: its day, who it was with, the account it is on and its parts. */
+/** A row as every figure counts it: its day, the account it is on and its parts. */
 export interface CountedRow {
   readonly day: CivilDate
-  readonly payee: string
-  /** The other side's IBAN as the transaction holds it, or blank. */
-  readonly counterpartyIban: string
   readonly account: RecordId | null
   /** At least one, in the order of the row's items. */
   readonly parts: readonly CountedPart[]
@@ -33,15 +35,17 @@ function eurosOfItems({ euros, items }: EuroRow): readonly (Money | null)[] {
   )
 }
 
+/** The row as the figures count it. A part counts under its own payee when it has one, else under the entry's, and no figure reads a payee any other way. */
 export function countedRowOf(row: EuroRow): CountedRow {
   const euros = eurosOfItems(row)
   const { transaction } = row
   return {
     day: transaction.date,
-    payee: transaction.payee,
-    counterpartyIban: transaction.counterpartyIban,
     account: transaction.account,
-    parts: row.items.map(({ category, labels, event }, place) => ({ category, labels, event, euros: euros[place] ?? null })),
+    parts: row.items.map(({ category, labels, event, payee }, place) => {
+      const own = payee.trim() !== '' && !samePayee(payee, transaction.payee)
+      return { category, labels, event, payee: own ? payee : transaction.payee, counterpartyIban: own ? '' : transaction.counterpartyIban, euros: euros[place] ?? null }
+    }),
   }
 }
 

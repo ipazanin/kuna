@@ -2,7 +2,7 @@ import type { InstalmentTarget, LinkTarget } from './linkTarget'
 import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import type { DatedMoney } from '../../../../shared/app/moneyMatch'
-import { eventOfLargest, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { eventOfLargest, payeeOfAll, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import { categoryWithRole } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -77,13 +77,15 @@ export type LinkedPart = readonly [AccountMoney, RecordId, string, RowLink]
 
 /**
  * The entry in the parts given, in place of the items it had, leaving out a part of nothing. The first part keeps the id of
- * the entry's first item, and the entry is filed by you. Every part carries every label of the entry and says a link split it off.
+ * the entry's first item, and the entry is filed by you. Every part carries every label of the entry and the payee all of it
+ * counted under, and says a link split it off.
  */
 export function splitIntoParts(entry: ItemizedRow, parts: readonly LinkedPart[], newKey: () => string): ItemizedRow {
   const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
   const labels = labelsOf(entry.items)
   const ruleLabels = ruleLabelsOf(entry.items)
   const event = eventOfLargest(entry.items)
+  const payee = payeeOfAll(entry.items)
   const items = parts
     .filter(([amount]) => amount !== 0)
     .map(([amount, category, note, link], place): TransactionItem => ({
@@ -94,6 +96,7 @@ export function splitIntoParts(entry: ItemizedRow, parts: readonly LinkedPart[],
       note,
       amount,
       category,
+      payee,
       link,
       labels,
       ruleLabels,

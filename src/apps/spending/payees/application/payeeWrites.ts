@@ -1,10 +1,12 @@
 import { holdsName, mergedPayees, newPayee, payeeProblem, renamedPayee, saysOnlyItsName, tidiedPayee, withParty, withoutDetails } from '../domain/payeeDetails'
 import type { PayeeProblem } from '../domain/payeeDetails'
-import { oldMarksCount, payeeDirectory, payeeOfRow, personPayeesByWords } from '../domain/payeeDirectory'
+import { isPerson, oldMarksCount, payeeDirectory, payeeOfRow, personPayeesByWords } from '../domain/payeeDirectory'
+import { payeeKey } from '../domain/payeeKey'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { Payee, PayeeParty } from '../../workbook/domain/payee'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { PAYEE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { PERSON_PAYEES_KEY } from '../../workbook/domain/spendingSettings'
 import { personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
@@ -114,4 +116,24 @@ export function setPayeeParty(unit: UnitOfWork, records: PayeeRecords, name: str
     if (name.trim() === '' || (party === 'person' && sameWords.length > 0)) return payees
     return [...payees, newPayee(name, party)]
   })
+}
+
+/** What a write that gives parts a payee of their own reads of the file to know which names are new. */
+export type PartPayeeRecords = PayeeRecords & Pick<SpendingRecords, 'transactions'>
+
+/**
+ * Adds a payee marked as a person for each name the parts count under that no payee and no entry's payee holds yet, such as a
+ * friend you paid for, in the write that names them, so one Undo takes back both. A name an entry already has is a payee as it is.
+ */
+export function addPartPayees(unit: UnitOfWork, records: PartPayeeRecords, parts: readonly Pick<TransactionItem, 'payee'>[]): void {
+  const directory = payeeDirectory(recordsOf(records.payees), recordsOf(records.settings))
+  const onEntries = new Set(recordsOf(records.transactions).map((row) => payeeKey(row.payee)))
+  const fresh = new Map<string, string>()
+  for (const { payee } of parts) {
+    const key = payeeKey(payee)
+    if (key === '' || onEntries.has(key) || fresh.has(key) || payeeOfRow(directory, { payee, counterpartyIban: '' }) !== null || isPerson(directory, payee)) continue
+    fresh.set(key, payee.trim())
+  }
+  if (fresh.size === 0) return
+  writePayees(unit, records, (payees) => [...payees, ...[...fresh.values()].map((name) => newPayee(name, 'person'))])
 }

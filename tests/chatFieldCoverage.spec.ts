@@ -350,7 +350,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry',
     type: 'src/apps/spending/workbook/domain/transactionItem.ts#TransactionItem',
-    operations: ['add-entry', 'change-entry'].map((name) => ({ name, renames: LINK_ENTRY_RENAMES })),
+    operations: ['add-entry', 'change-entry'].map((name) => ({ name, renames: { ...LINK_ENTRY_RENAMES, payee: 'countsUnder' } })),
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeTransfer',
@@ -406,7 +406,13 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',
     type: 'src/apps/spending/workbook/domain/transactionItem.ts#TransactionItem',
-    operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal', note: 'lines.text', ...LINK_ENTRY_RENAMES } }],
+    operations: [
+      {
+        name: 'add-receipt',
+        prefix: 'lines.',
+        renames: { amount: 'lines.lineTotal', note: 'lines.text', ...LINK_ENTRY_RENAMES, labels: 'lines.choices.labels', event: 'lines.choices.event' },
+      },
+    ],
   },
   {
     path: 'src/apps/spending/statements/application/statementWrites.ts#writeRules',

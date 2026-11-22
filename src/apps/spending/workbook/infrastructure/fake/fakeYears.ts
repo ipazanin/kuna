@@ -182,6 +182,7 @@ export function fakeYearsDocument(savedAt: string, day: CivilDate): WorkbookDocu
         note: '',
         amount: accountMoneyFromAmount(part),
         category: idOf(category),
+        payee: '',
         link: null,
         labels,
         ruleLabels: [],

@@ -23,8 +23,15 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 const EVENT_RULES = ['on-its-days', 'out-of-events'] as const
 
-/** The labels and event a part of split-entry carries as the Split dialog sets them, each null to keep what the part has. */
-const PART_CHOICES: StrictSchema = inputOf({
+/** Who a part or a receipt's line counts under, as the Split dialog and the receipt's lines set it. */
+export const PART_PAYEE: StrictSchema = {
+  type: ['string', 'null'],
+  description:
+    "Who this money counts under on the payee report when not the entry's payee, such as the friend a meal was for, \"\" for the entry's payee, or null to keep the part's own. A name no payee or entry has yet becomes a payee marked as a person. The entry's payee stays who was paid.",
+}
+
+/** The labels and event a part of split-entry or a line of add-receipt carries as the Split dialog sets them, each null to keep what the part has. */
+export const PART_CHOICES: StrictSchema = inputOf({
   labels: { type: ['array', 'null'], items: TEXT, description: "The refs of every label the part carries, an empty list for none, or null to keep the part's own." },
   event: { type: ['string', 'null'], description: 'The ref of the event the part is put in by hand, or null.' },
   eventRule: {
@@ -34,7 +41,7 @@ const PART_CHOICES: StrictSchema = inputOf({
   },
 })
 
-interface PartChoiceInput {
+export interface PartChoiceInput {
   readonly labels: readonly string[] | null
   readonly event: string | null
   readonly eventRule: (typeof EVENT_RULES)[number] | null
@@ -50,12 +57,13 @@ export const SPLIT_OPERATIONS: readonly AssistantOperation[] = [
       'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. note is the owner\'s optional words on the part, or "".',
       "part is the ref of the entry's part it keeps, which stays the same part with its new amount, category and note, or null for a new part. The one part of an entry not split yet goes to the first part that names none.",
       "Every part keeps the entry's link. A transfer's leg and an entry a receipt split stay as they are.",
+      'payee sets who a part counts under, so a meal for a friend can count half under the restaurant and half under the friend.',
       "choices sets a part's labels and event as the Split does, and all null leaves them to Kuna, which carries those of the parts the new part took money from. Where choices sets one, what it leaves null stays as the part has it, and a new part starts from the labels every part of the entry carries and the event of its largest part.",
       'A label or an event the same card adds is named by its $ name. A file from before parts keeps no labels or events.',
     ].join(' '),
     input: inputOf({
       entry: TEXT,
-      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, note: TEXT, choices: PART_CHOICES }) },
+      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, note: TEXT, payee: PART_PAYEE, choices: PART_CHOICES }) },
     }),
     refs: {
       entry: TRANSACTION_RECORDS.name,
@@ -69,8 +77,8 @@ export const SPLIT_OPERATIONS: readonly AssistantOperation[] = [
     example: {
       entry: 'transaction',
       parts: [
-        { part: null, amount: 30, category: 'category', note: 'Lunch', choices: { labels: null, event: null, eventRule: null } },
-        { part: null, amount: null, category: 'category-other', note: '', choices: { labels: null, event: null, eventRule: null } },
+        { part: null, amount: 30, category: 'category', note: 'Lunch', payee: null, choices: { labels: null, event: null, eventRule: null } },
+        { part: null, amount: null, category: 'category-other', note: '', payee: null, choices: { labels: null, event: null, eventRule: null } },
       ],
     },
   },
@@ -96,16 +104,16 @@ export const SPLIT_OPERATIONS: readonly AssistantOperation[] = [
     name: 'refile-receipt',
     about: [
       "Files lines of the receipt on an entry anew, as the entry dialog does. Each line names one of the receipt's lines by its ref, and takes a category as a part of split-entry does, never a group with categories under it or Between my accounts.",
-      "note is the owner's words on the line, or null to keep them, and category null keeps its category. A line's amount, the entry's amount and its account stay the receipt's, and a line not named stays as it is.",
+      "note is the owner's words on the line, or null to keep them, category null keeps its category, and payee is who the line counts under as in split-entry. A line's amount, the entry's amount and its account stay the receipt's, and a line not named stays as it is.",
     ].join(' '),
     input: inputOf({
       entry: TEXT,
-      lines: { type: 'array', items: inputOf({ line: TEXT, category: TEXT_OR_NULL, note: TEXT_OR_NULL }) },
+      lines: { type: 'array', items: inputOf({ line: TEXT, category: TEXT_OR_NULL, note: TEXT_OR_NULL, payee: PART_PAYEE }) },
     }),
     refs: { entry: TRANSACTION_RECORDS.name, 'lines.line': ITEM_RECORDS.name, 'lines.category': CATEGORY_RECORDS.name },
     creates: null,
     alone: false,
-    example: { entry: 'transaction-receipt', lines: [{ line: 'item-receipt-line', category: 'category-child', note: 'Bread for the trip' }] },
+    example: { entry: 'transaction-receipt', lines: [{ line: 'item-receipt-line', category: 'category-child', note: 'Bread for the trip', payee: null }] },
   },
 ]
 
@@ -129,8 +137,8 @@ function eventChoiceOf(book: SpendingBook, { event, eventRule }: PartChoiceInput
   return eventRule === 'on-its-days' ? BY_DAYS : OUT_OF_EVENTS
 }
 
-/** The labels and event a part is given, with what the choices leave null as the part has it, or null when they set nothing. */
-function choicesOf(
+/** The labels and event a part is given, with what the choices leave null as the part has it, or else as a new part starts beside `held`, or null when they set nothing. */
+export function choicesOf(
   book: SpendingBook,
   records: SpendingRecords,
   held: readonly TransactionItem[],
@@ -145,6 +153,13 @@ function choicesOf(
   return { labels: given.labels === null ? own.labels : [...new Set(given.labels.map((label) => found(book.labels, idOf(label), 'label').id))], event: event ?? own.event }
 }
 
+/** The payee a step gives a part, refused on a file from before items, which keeps none. Null keeps the part's own. */
+export function givenPartPayee(records: SpendingRecords, payee: string | null): string | null {
+  if (payee !== null && payee.trim() !== '' && isBeforeItems(records))
+    throw new StepRefused('This file stores entries the way older versions of Kuna did, so no part counts under a payee of its own. Propose move-to-items first.')
+  return payee
+}
+
 /** Splits an entry by hand as the entry's Split does, and gives the entry with its new parts. */
 function splitEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingRecords, field: Readonly<Record<string, never>>, idOf: (value: unknown) => string): ItemizedRow {
   const row = found(book.transactions, idOf(field['entry']), 'row')
@@ -153,6 +168,7 @@ function splitEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingRecor
     readonly amount: number | null
     readonly category: string
     readonly note: string
+    readonly payee: string | null
     readonly choices: PartChoiceInput
   }[]
   const held = itemizedRow(book, row).items
@@ -164,6 +180,7 @@ function splitEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingRecor
   }
   const drafts = given.map((part): ItemDraft => {
     const id = keptPart(part.part)
+    const payee = givenPartPayee(records, part.payee)
     const choices = choicesOf(
       book,
       records,
@@ -178,6 +195,7 @@ function splitEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingRecor
       category: found(book.categories, idOf(part.category), 'category').id,
       note: part.note,
       ...(choices === null ? {} : { choices }),
+      ...(payee === null ? {} : { payee }),
     }
   })
   const kept = drafts.flatMap((draft) => (draft.id === null ? [] : [draft.id]))
@@ -192,12 +210,12 @@ function splitEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingRecor
 function refileReceipt(unit: UnitOfWork, book: SpendingBook, records: SpendingRecords, field: Readonly<Record<string, never>>, idOf: (value: unknown) => string): ItemizedRow {
   const before = itemizedRow(book, found(book.transactions, idOf(field['entry']), 'row'))
   if (!book.receipts.some((receipt) => receipt.transaction === before.row.id)) throw new StepRefused('That entry has no receipt.')
-  const given = field['lines'] as readonly { readonly line: string; readonly category: string | null; readonly note: string | null }[]
+  const given = field['lines'] as readonly { readonly line: string; readonly category: string | null; readonly note: string | null; readonly payee: string | null }[]
   const refiles = given.map((line) => {
     const held = before.items.find((item) => item.id === idOf(line.line))
     const category = line.category === null ? held?.category : found(book.categories, idOf(line.category), 'category').id
     if (held === undefined || category === null || category === undefined) throw new StepRefused("A line names one of the entry's own receipt lines.")
-    return { line: held.id, category, note: line.note ?? held.note }
+    return { line: held.id, category, note: line.note ?? held.note, payee: givenPartPayee(records, line.payee) ?? held.payee }
   })
   const lines = refiledReceiptLines(book.categories, before.items, refiles)
   if ('refused' in lines) throw new StepRefused(lines.refused === 'not-a-receipt-line' ? "A line names one of the entry's own receipt lines." : entriesEnglish.split.refusals[lines.refused])

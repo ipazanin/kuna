@@ -35,7 +35,7 @@ import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import { DROPPED_ROW_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { rowKey } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { filedAsTransfer, refiledItems, rowItemsOf, wholeItemOf } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, rowItemsOf, transferLegItems, wholeItemOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
@@ -436,7 +436,7 @@ function transferred(
   }
   for (const row of waiting) {
     const items = itemsOf(row)
-    if (!isTransfer(items)) changes.set(row, { row: { ...row, categorisedBy: null }, items: refiledItems(items, transfer) })
+    if (!isTransfer(items)) changes.set(row, { row: { ...row, categorisedBy: null }, items: transferLegItems(items, transfer) })
   }
   return changes
 }

@@ -2,6 +2,7 @@ import { BY_DAYS } from './event'
 import type { EventChoice } from './event'
 import { largestItem } from './rowItems'
 import type { TransactionItem } from './transactionItem'
+import { samePayee } from '../../payees/domain/payeeKey'
 import { carriedLabels, labelsOf } from '../../../../shared/categorising/domain/labels'
 import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -14,6 +15,12 @@ export function ruleLabelsOf(items: readonly Pick<TransactionItem, 'labels' | 'r
 /** The event choice of the item with the most money, so money that parts become again keeps what was chosen for most of it. */
 export function eventOfLargest(items: readonly Pick<TransactionItem, 'amount' | 'event'>[]): EventChoice {
   return largestItem(items)?.event ?? BY_DAYS
+}
+
+/** The payee every item counts under, or blank for the entry's when they differ, so parts that become one keep a payee they all shared. */
+export function payeeOfAll(items: readonly Pick<TransactionItem, 'payee'>[]): string {
+  const [first, ...rest] = items
+  return first !== undefined && rest.every((item) => samePayee(item.payee, first.payee)) ? first.payee : ''
 }
 
 /**

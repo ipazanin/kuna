@@ -172,6 +172,11 @@ export function moneyParts(total: Money, weights: readonly bigint[]): Money[] {
   return proportionalParts(BigInt(total), weights, 1n).map((cents) => moneyFromCents(Number(cents)))
 }
 
+/** The same split of an amount in an account's own currency, to the cent. */
+export function accountMoneyParts(total: AccountMoney, weights: readonly bigint[]): AccountMoney[] {
+  return proportionalParts(BigInt(total), weights, 1n).map((cents) => accountMoneyFromCents(Number(cents)))
+}
+
 /** An amount of an account's own currency, rounded half away from zero to the cent. */
 export function accountMoneyOfDecimal(amount: Decimal): AccountMoney {
   return accountMoneyFromCents(Number(dividedHalfAwayFromZero(amount, STEPS_PER_CENT)))

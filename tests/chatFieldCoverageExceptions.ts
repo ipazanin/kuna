@@ -49,8 +49,9 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['spending: ShortcutPart.labels'],
   },
   {
-    reason: "A transfer moves money between your own accounts, so its legs write no payee. A plain entry's payee goes through add-entry and change-entry.",
-    fields: ['spending: Transaction.payee'],
+    reason:
+      "A transfer moves money between your own accounts, so its legs write no payee and count under no payee of their own. A plain entry's payee and who it counts under go through add-entry and change-entry.",
+    fields: ['spending: Transaction.payee', 'spending: TransactionItem.payee'],
   },
   {
     reason: "Ids Kuna makes. A person never types a record's id, and an operation names the record it changes by a ref.",

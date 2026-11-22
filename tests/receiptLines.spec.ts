@@ -23,6 +23,7 @@ function line(key: string, amount: number, onReceipt = true): TransactionItem {
     note: '',
     amount: accountMoneyFromAmount(amount),
     category: groceries.id,
+    payee: '',
     link: null,
     labels: [],
     ruleLabels: [],
@@ -35,19 +36,19 @@ const [bread, coffee] = [line('bread', -20), line('coffee', -10)]
 
 describe("a receipt's lines filed anew", () => {
   it('take the category and trimmed words given, keep their amounts, and leave a line not named as it was', () => {
-    const refiled = refiledReceiptLines(CATEGORIES, [bread!, coffee!], [{ line: coffee!.id, category: eatingOut.id, note: ' Espresso ' }])
+    const refiled = refiledReceiptLines(CATEGORIES, [bread!, coffee!], [{ line: coffee!.id, category: eatingOut.id, note: ' Espresso ', payee: ' Ana ' }])
 
-    expect(refiled).toEqual([bread, { ...coffee, category: eatingOut.id, note: 'Espresso' }])
+    expect(refiled).toEqual([bread, { ...coffee, category: eatingOut.id, note: 'Espresso', payee: 'Ana' }])
   })
 
   it('refuse a part split by hand, a line of another entry, a group with children and Between my accounts', () => {
     const handPart = line('hand', -30, false)
     const between = CATEGORIES.find((held) => held.kind === 'transfer')!
 
-    expect(refiledReceiptLines(CATEGORIES, [handPart], [{ line: handPart.id, category: eatingOut.id, note: '' }])).toEqual({ refused: 'not-a-receipt-line' })
-    expect(refiledReceiptLines(CATEGORIES, [bread!], [{ line: coffee!.id, category: eatingOut.id, note: '' }])).toEqual({ refused: 'not-a-receipt-line' })
-    expect(refiledReceiptLines(CATEGORIES, [bread!], [{ line: bread!.id, category: category('Food').id, note: '' }])).toEqual({ refused: 'group-with-children' })
-    expect(refiledReceiptLines(CATEGORIES, [bread!], [{ line: bread!.id, category: between.id, note: '' }])).toEqual({ refused: 'between-accounts' })
+    expect(refiledReceiptLines(CATEGORIES, [handPart], [{ line: handPart.id, category: eatingOut.id, note: '', payee: '' }])).toEqual({ refused: 'not-a-receipt-line' })
+    expect(refiledReceiptLines(CATEGORIES, [bread!], [{ line: coffee!.id, category: eatingOut.id, note: '', payee: '' }])).toEqual({ refused: 'not-a-receipt-line' })
+    expect(refiledReceiptLines(CATEGORIES, [bread!], [{ line: bread!.id, category: category('Food').id, note: '', payee: '' }])).toEqual({ refused: 'group-with-children' })
+    expect(refiledReceiptLines(CATEGORIES, [bread!], [{ line: bread!.id, category: between.id, note: '', payee: '' }])).toEqual({ refused: 'between-accounts' })
   })
 
   it('are written over the entry as typed, so the entry becomes filed by the person, while a hand part keeps its category for Change the split', () => {
@@ -66,6 +67,20 @@ describe("a receipt's lines filed anew", () => {
     expect(after.items).toEqual([{ ...bread, category: eatingOut.id, note: 'Rolls' }, handPart])
     expect(after.row.categorisedBy).toBe('person')
   })
+
+  it("count under the payee a retyped line names, and keep none once it names the entry's payee", () => {
+    const shop = { ...market, payee: 'Corner market' }
+    const before = { row: shop, items: [bread!, coffee!] }
+    const typed = {
+      row: shop,
+      items: [
+        { ...bread!, payee: 'Ana' },
+        { ...coffee!, payee: ' CORNER MARKET ' },
+      ],
+    }
+
+    expect(retypedEntry(before, typed).items.map((item) => item.payee)).toEqual(['Ana', ''])
+  })
 })
 
 describe("a receipt's lines as the entry dialog holds them", () => {
@@ -75,7 +90,7 @@ describe("a receipt's lines as the entry dialog holds them", () => {
       [coffee!.id]: { category: eatingOut.id, note: 'Espresso' },
     })
 
-    expect(filed.refiles).toEqual([{ line: coffee!.id, category: eatingOut.id, note: 'Espresso' }])
+    expect(filed.refiles).toEqual([{ line: coffee!.id, category: eatingOut.id, note: 'Espresso', payee: '' }])
     expect(filed.refused.size).toBe(0)
     expect(filed.lines).toEqual([
       { ...bread, note: ' ' },

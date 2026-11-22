@@ -1,7 +1,7 @@
 import { cardsNamedBy, namesCardOf } from './cardMentions'
 import { nearestTo } from '../../../../shared/app/moneyMatch'
 import type { Account } from '../../workbook/domain/account'
-import { refiledItems, waitsOnReview } from '../../workbook/domain/rowItems'
+import { transferLegItems, waitsOnReview } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
@@ -111,7 +111,7 @@ export function transferPairs(
 /** The two legs as a pair: each names the other, its one item under Between my accounts, which a rule change leaves alone. */
 export function legsOfPair(debit: ItemizedRow, credit: ItemizedRow, transferCategory: RecordId): readonly [ItemizedRow, ItemizedRow] {
   return [
-    { row: { ...debit.row, categorisedBy: null, pair: credit.row.id }, items: refiledItems(debit.items, transferCategory) },
-    { row: { ...credit.row, categorisedBy: null, pair: debit.row.id }, items: refiledItems(credit.items, transferCategory) },
+    { row: { ...debit.row, categorisedBy: null, pair: credit.row.id }, items: transferLegItems(debit.items, transferCategory) },
+    { row: { ...credit.row, categorisedBy: null, pair: debit.row.id }, items: transferLegItems(credit.items, transferCategory) },
   ]
 }

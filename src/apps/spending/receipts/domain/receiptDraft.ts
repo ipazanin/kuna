@@ -48,6 +48,8 @@ export interface ReceiptAnswer {
 
 /** A line as the draft shows it, its amount signed as money out is, in cents. */
 export interface DraftLine {
+  /** Where the line stood among the lines as the model wrote them, since a line with no amount drops out. */
+  readonly place: number
   readonly printed: string
   readonly text: string
   readonly amount: AccountMoney
@@ -137,7 +139,7 @@ export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: Dr
   const pickable = receiptCategories(book.categories)
   const pickableId = (id: string | null): RecordId | null => pickable.find((category) => category.id === id)?.id ?? null
 
-  const answered = answer.lines.flatMap((line) => {
+  const answered = answer.lines.flatMap((line, place) => {
     const cents = moneyFromAmount(line.lineTotal)
     if (cents === 0) {
       notes.push(words.noAmount(line.printed))
@@ -151,7 +153,7 @@ export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: Dr
     const memory = line.printed === '' ? undefined : remembered.find((held) => fold(held.printed) === fold(line.printed))
     // A line remembered under For the company, or a category hidden since, says nothing of this receipt.
     const picked = (memory === undefined ? null : pickableId(memory.category)) ?? pickableId(line.category)
-    return [{ cents, line: { printed: line.printed, text: line.text, amount: negateAccountMoney(accountMoneyOfEuros(cents)), category: r1 ? company : picked } }]
+    return [{ cents, line: { place, printed: line.printed, text: line.text, amount: negateAccountMoney(accountMoneyOfEuros(cents)), category: r1 ? company : picked } }]
   })
 
   const readTotal = moneyFromAmount(answer.total)

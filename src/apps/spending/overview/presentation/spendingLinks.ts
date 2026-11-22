@@ -7,6 +7,7 @@ import type { SpendingEvent } from '../../workbook/domain/event'
 import { payeeKey } from '../../payees/domain/payeeKey'
 import { OPENING_PERIOD } from '../../payees/domain/payeePeriod'
 import type { PayeePeriod } from '../../payees/domain/payeePeriod'
+import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
@@ -159,9 +160,16 @@ export function entriesMonthsNamed(key: unknown): EntriesMonths | null {
   return typeof key === 'string' ? parseMonthKey(key) : null
 }
 
-/** The payee a page's `?payee=` names, spelt as their newest row spells it, or null when no row names them. */
-export function payeeNamed(rows: readonly Pick<Transaction, 'date' | 'payee'>[], key: unknown): { readonly key: string; readonly name: string } | null {
+/** The payee a page's `?payee=` names, spelt as their newest entry or part of one spells it, or null when none names them. */
+export function payeeNamed(book: Pick<SpendingBook, 'transactions' | 'items'>, key: unknown): { readonly key: string; readonly name: string } | null {
   if (typeof key !== 'string' || key === '') return null
-  const named = rows.filter((row) => payeeKey(row.payee) === key).reduce<Pick<Transaction, 'date' | 'payee'> | null>((newest, row) => (newest === null || row.date >= newest.date ? row : newest), null)
+  const days = new Map(book.transactions.map((row) => [row.id, row.date]))
+  const parts = book.items.flatMap((item) => {
+    const date = item.transaction === null ? undefined : days.get(item.transaction)
+    return date === undefined || item.payee === '' ? [] : [{ date, payee: item.payee }]
+  })
+  const named = [...book.transactions, ...parts]
+    .filter((row) => payeeKey(row.payee) === key)
+    .reduce<Pick<Transaction, 'date' | 'payee'> | null>((newest, row) => (newest === null || row.date >= newest.date ? row : newest), null)
   return named === null ? null : { key, name: named.payee.trim() }
 }

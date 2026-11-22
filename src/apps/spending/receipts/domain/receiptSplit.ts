@@ -1,4 +1,5 @@
 import { words } from './words'
+import { partPayeeOf } from '../../payees/domain/payeeKey'
 import { differenceItem, newPartChoices, partCategoryRefusal } from '../../entries/domain/entrySplit'
 import type { PartCategoryRefusal, PartChoices } from '../../entries/domain/entrySplit'
 import type { Category } from '../../workbook/domain/category'
@@ -11,7 +12,7 @@ import { ITEM_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbo
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
-import { ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { payeeOfAll, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
 import { heldRuleLabels } from '../../workbook/domain/transactionItemReading'
 import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -24,8 +25,11 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 /** What the owner confirmed of a receipt. */
 export type ReceiptDraft = Omit<Receipt, 'id' | 'transaction' | 'account'>
 
-/** A line the owner confirmed, its amount signed as the row is, with the labels and event choice they set on it, or none to start it with those of `openingLineChoices`. */
-export type ReceiptPart = Pick<TransactionItem, 'printed' | 'note' | 'amount'> & { readonly category: RecordId; readonly choices?: PartChoices }
+/**
+ * A line the owner confirmed, its amount signed as the row is, with the labels and event choice they set on it, or none to start
+ * it with those of `openingLineChoices`, and the payee it counts under, or none to start it with `payeeOfAll`.
+ */
+export type ReceiptPart = Pick<TransactionItem, 'printed' | 'note' | 'amount'> & { readonly category: RecordId; readonly choices?: PartChoices; readonly payee?: string }
 
 /** A line of a receipt as you type it: its amount above zero, or the rest of the total, its category, your words and, when you set them, its labels and event choice. */
 export interface TypedLine {
@@ -33,6 +37,8 @@ export interface TypedLine {
   readonly category: RecordId
   readonly note: string
   readonly choices?: PartChoices
+  /** Who the line counts under, blank for the entry's payee. Left out, it starts with `payeeOfAll`. */
+  readonly payee?: string
 }
 
 /**
@@ -52,7 +58,16 @@ export function typedReceiptLines(
     lines.map((line) => (line.amount === 'rest' ? 'rest' : negateAccountMoney(line.amount))),
   )
   if ('refused' in placed) return placed
-  return { parts: lines.map(({ note, category, choices }, place) => ({ printed: '', note: note.trim(), amount: placed.parts[place]!, category, ...(choices === undefined ? {} : { choices }) })) }
+  return {
+    parts: lines.map(({ note, category, choices, payee }, place) => ({
+      printed: '',
+      note: note.trim(),
+      amount: placed.parts[place]!,
+      category,
+      ...(choices === undefined ? {} : { choices }),
+      ...(payee === undefined ? {} : { payee }),
+    })),
+  }
 }
 
 /**
@@ -114,7 +129,8 @@ export function rowFiledBy(row: Transaction, merchant: string): Transaction {
  * any parts the row was split into by hand. When they do not add up to the row, or to minus the total of a receipt that
  * waits, as with a tip or a misread line, one Difference line in the main category shows what is left, and no line you confirmed changes.
  * Every line takes the row's link when its items named one record, and none when they named several or none. A line takes the
- * labels and event choice you set on it, or else those of `openingLineChoices`, as the Difference line does, with `lineRuleLabels` still a rule's.
+ * labels and event choice you set on it, or else those of `openingLineChoices`, as the Difference line does, with `lineRuleLabels` still a rule's. A line counts under the payee you give it, or else under
+ * `payeeOfAll`, kept blank when that is the entry's payee.
  */
 export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: readonly ReceiptPart[], newKey: () => string = newRecordId): ReceiptSplit {
   const merchant = draft.merchant.trim()
@@ -143,7 +159,9 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
   const replaced = 'row' in place ? place.held : []
   const link = linkOfItems(replaced)
   const opening = openingLineChoices(replaced)
-  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory, choices }): TransactionItem => {
+  const openingPayee = payeeOfAll(replaced)
+  const entryPayee = row?.payee ?? receipt.merchant
+  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory, choices, payee }): TransactionItem => {
     const { labels, event } = choices ?? opening
     return {
       id: recordIdOf(ITEM_RECORDS, newKey()),
@@ -153,6 +171,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
       note,
       amount: lineAmount,
       category: lineCategory,
+      payee: partPayeeOf(payee ?? openingPayee, entryPayee),
       link,
       labels,
       ruleLabels: lineRuleLabels(labels, replaced),
