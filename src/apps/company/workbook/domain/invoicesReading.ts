@@ -41,7 +41,18 @@ export function invoiceOf(fields: StoredFields, id: RecordId | null): Invoice {
   const issued = fields.issued?.date ?? refuse(words.invoices.issuedNotADate(textOf(fields.issued)))
   const due = fields.due === undefined ? null : (fields.due.date ?? refuse(words.invoices.dueNotADate(fields.due.text)))
   const period = deliveryPeriodOf(fields)
-  return { number, client, item: textOf(fields.item), amount, issued, due, deliveryPeriod: 'made' in period ? period.made : null, id: keyedId(id) }
+  const planItems = textOf(fields.plan_items)
+  return {
+    number,
+    client,
+    item: textOf(fields.item),
+    ...(planItems === '' ? {} : { planItems }),
+    amount,
+    issued,
+    due,
+    deliveryPeriod: 'made' in period ? period.made : null,
+    id: keyedId(id),
+  }
 }
 
 export const INVOICE_CODEC: RecordCodec<Invoice> = {
@@ -58,6 +69,7 @@ export const INVOICE_CODEC: RecordCodec<Invoice> = {
       number: invoice.number,
       client: invoice.client,
       item: invoice.item,
+      plan_items: invoice.planItems,
       amount: amountText(invoice.amount),
       issued: invoice.issued,
       due: invoice.due,

@@ -10,7 +10,7 @@ import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import type { Invoice, Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
-import { invoiceOf } from './fixtures/billingPlan'
+import { invoiceOf, planRow } from './fixtures/billingPlan'
 import { exampleStudio } from './fixtures/exampleStudio'
 
 const store = vi.hoisted(() => ({
@@ -62,7 +62,7 @@ function googleWorkbook(): Workbook {
 function openedRun() {
   const run = useInvoiceRun(ref<InvoiceRunMode>({ kind: 'new', client: 'north' }))
   run.reset()
-  run.lines.value = [{ description: 'Software development', amount: '6925.00' }]
+  run.lines.value = [{ description: 'Software development', amount: '6925.00', items: [] }]
   return run
 }
 
@@ -118,6 +118,70 @@ describe('the checks before an invoice is made', () => {
     await run.check()
 
     expect(run.stage.value).toEqual({ kind: 'edit', message: 'Saved by a newer version.' })
+    run.dispose()
+  })
+})
+
+describe('the lines an invoice starts from', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ now: new Date('2026-10-21T10:00:00'), toFake: ['Date'] })
+    const workbook = googleWorkbook()
+    const lines = [
+      { text: 'Software services for {month}', items: ['Monthly Fee'] },
+      { text: 'Costs billed on', items: [] },
+    ]
+    store.state = reactive({
+      workbook: {
+        ...workbook,
+        invoices: [],
+        clients: [
+          { ...workbook.clients[0]!, invoicing: { ...workbook.clients[0]!.invoicing, lines } },
+          { slug: 'south', name: 'South Ltd', ibans: [], invoicing: { ...NO_CLIENT_INVOICING, address: '2 Road', reverseCharge: true } },
+        ],
+        billingPlan: [
+          planRow('Monthly Fee', '2026-10-31', 5000, 'north', 'October fee'),
+          planRow('Hotel', '2026-10-12', 300, 'north', 'Hotel in Zagreb'),
+          planRow('Workshop', '2026-10-15', 900, 'south', 'Workshop'),
+        ],
+      },
+      snapshot: null,
+      status: 'ready',
+      error: null,
+    })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("follow the client's invoice lines, and the plan's rows again for a client without them", () => {
+    const run = useInvoiceRun(ref<InvoiceRunMode>({ kind: 'new', client: 'north' }))
+    run.reset()
+
+    expect(run.templated.value).toBe(true)
+    expect(run.lines.value).toEqual([
+      { description: 'Software services for October 2026', amount: '5000.00', items: ['Monthly Fee'] },
+      { description: 'Costs billed on', amount: '300.00', items: ['Hotel'] },
+    ])
+
+    run.client.value = 'south'
+    run.fillLines()
+
+    expect(run.templated.value).toBe(false)
+    expect(run.lines.value).toEqual([{ description: 'Workshop', amount: '900.00', items: ['Workshop'] }])
+    run.dispose()
+  })
+
+  it('keep the plan items of a line typed over, and of one line made for the total', () => {
+    const run = useInvoiceRun(ref<InvoiceRunMode>({ kind: 'new', client: 'north' }))
+    run.reset()
+    run.lines.value = run.lines.value.map((line, index) => (index === 0 ? { ...line, description: 'Development' } : line))
+
+    expect(run.lines.value[0]!.items).toEqual(['Monthly Fee'])
+
+    run.mergeLines()
+
+    expect(run.lines.value).toEqual([{ description: 'Development', amount: '5300.00', items: ['Monthly Fee', 'Hotel'] }])
     run.dispose()
   })
 })

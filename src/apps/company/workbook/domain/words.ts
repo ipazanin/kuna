@@ -206,6 +206,8 @@ export const en = {
     reverseCharge: (text: string) => `reverse_charge "${text}" is neither TRUE nor FALSE, so it reads as FALSE`,
     onSeveralRows: (slug: string, rows: number) => `${slug} is on ${rows} rows, so none of them counts. Put all its IBANs in the first row, separated by commas, and delete the others`,
     sharedIban: (iban: string) => `${iban} is on another client too, so a payment from it counts for neither`,
+    /** `problems` names each problem of the invoice lines, joined. */
+    badLines: (problems: string) => `invoice_lines reads as blank, so each open plan row makes a line of the invoice. ${capitalised(problems)}`,
   },
   billing: {
     noItem: 'no item',
@@ -320,6 +322,7 @@ export const hr: Translation<typeof en> = {
     onSeveralRows: (slug, rows) =>
       `„${slug}” je u ${rows} ${plural({ one: 'retku', few: 'retka', other: 'redaka' }, rows)}, pa se nijedan ne broji. Sve njegove IBAN-ove upišite u prvi redak, odvojene zarezima, a ostale retke obrišite`,
     sharedIban: (iban) => `${iban} je i kod drugog klijenta, pa se uplata s njega ne broji ni za jednog`,
+    badLines: (problems) => `invoice_lines se čita kao prazno, pa svaki otvoreni redak plana daje jednu stavku računa. ${capitalised(problems)}`,
   },
   billing: {
     noItem: 'polje item je prazno',

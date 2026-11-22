@@ -10,10 +10,10 @@ import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmou
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { INVOICE_WRITES } from '../../receivables/application/invoiceWrites'
 import { setSettings } from '../../settings/application/settingWrites'
-import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { NO_CLIENT_INVOICING } from '../../workbook/domain/workbook'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
 import { filingDrive } from '../../documents/application/filingDrive'
 import { locateFiling } from '../../documents/application/driveFiling'
@@ -28,7 +28,8 @@ import type { InvoiceDocument } from '../domain/invoiceDocument'
 import { filingPathOf } from '../domain/invoiceFiling'
 import { filledMail, gmailComposeUrl } from '../domain/invoiceMail'
 import type { InvoiceMail } from '../domain/invoiceMail'
-import { linesTotal, plannedLines, registerItemOf } from '../domain/invoiceLines'
+import { linesTotal, mergedLine, startingLines } from '../domain/invoiceLines'
+import { registerInvoiceOf, reexportedInvoice } from '../domain/registerInvoice'
 import type { InvoiceLine } from '../domain/invoiceLines'
 import { nextYearlyNumber, numberTaken } from '../../documents/domain/yearlyNumber'
 import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitch'
@@ -42,6 +43,8 @@ export type InvoiceRunMode = { readonly kind: 'new'; readonly client: string | n
 export interface LineDraft {
   description: string
   amount: string
+  /** The plan items the line sums, kept while its text or amount is typed over. */
+  readonly items: readonly string[]
 }
 
 export type RunStage =
@@ -54,7 +57,11 @@ export type RunStage =
   | { readonly kind: 'finished' }
 
 function linesOf(drafts: readonly LineDraft[]): InvoiceLine[] {
-  return drafts.map((draft) => ({ description: draft.description.trim(), amount: typedAmount(draft.amount) ?? UNREADABLE_AMOUNT }))
+  return drafts.map((draft) => ({ description: draft.description.trim(), amount: typedAmount(draft.amount) ?? UNREADABLE_AMOUNT, items: draft.items }))
+}
+
+function draftOf(line: InvoiceLine): LineDraft {
+  return { description: line.description, amount: amountForTyping(line.amount), items: line.items }
 }
 
 async function pdfOf(document: InvoiceDocument): Promise<Uint8Array> {
@@ -110,7 +117,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       due.value = invoice.due ?? fresh.due
       periodFrom.value = invoice.deliveryPeriod?.from ?? fresh.periodFrom
       periodTo.value = invoice.deliveryPeriod?.to ?? fresh.periodTo
-      lines.value = [{ description: invoice.item, amount: amountForTyping(invoice.amount) }]
+      lines.value = [{ description: invoice.item, amount: amountForTyping(invoice.amount), items: [] }]
       return
     }
     const asked = mode.value.kind === 'new' ? mode.value.client : null
@@ -135,13 +142,15 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
 
   function fillLines(): void {
     const day = parseCivilDate(issued.value)
-    lines.value = day === null ? [] : plannedLines(expected.value, client.value, day).map((line) => ({ description: line.description, amount: amountForTyping(line.amount) }))
-    if (lines.value.length === 0) lines.value = [{ description: '', amount: '' }]
+    const invoicing = chosenClient.value?.invoicing ?? NO_CLIENT_INVOICING
+    lines.value = day === null ? [] : startingLines(expected.value, { slug: client.value, invoicing }, day).map(draftOf)
+    if (lines.value.length === 0) lines.value = [{ description: '', amount: '', items: [] }]
   }
 
   const issueDay = computed(() => parseCivilDate(issued.value))
   const settings = computed(() => workbook.value?.settings ?? null)
   const chosenClient = computed((): Client | null => workbook.value?.clients.find((candidate) => candidate.slug === client.value) ?? null)
+  const templated = computed(() => (chosenClient.value?.invoicing.lines?.length ?? 0) > 0)
 
   const suggestedNumber = computed(() => {
     const day = issueDay.value
@@ -339,25 +348,13 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   }
 
   function registerChange(): RegisterChange | null {
-    const day = issueDay.value!
-    const invoiceNumber = number.value.trim()
-    const invoiceClient = client.value.trim().toLowerCase()
-    const typed: Invoice = {
-      number: invoiceNumber,
-      client: invoiceClient,
-      item: registerItemOf(parsedLines.value),
-      amount: total.value,
-      issued: day,
-      due: dates.value!.due,
-      deliveryPeriod: dates.value!.period,
-      id: invoiceIdOf({ client: invoiceClient, number: invoiceNumber }),
-    }
+    const typed = registerInvoiceOf({ number: number.value, client: client.value, issued: issueDay.value!, due: dates.value!.due, deliveryPeriod: dates.value!.period, lines: parsedLines.value })
     const current = mode.value
     if (current.kind === 'new') return { before: null, after: typed }
     const before = recordWithId(store.state.records?.invoices ?? NO_RECORDS, current.id)?.record
     if (before === undefined) return null
-    const after: Invoice = { ...before, item: typed.item, amount: typed.amount }
-    return after.item === before.item && after.amount === before.amount ? null : { before, after }
+    const after = reexportedInvoice(before, typed)
+    return after === null ? null : { before, after }
   }
 
   async function writeRegister({ before, after }: RegisterChange): Promise<void> {
@@ -426,11 +423,17 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
 
   const composeUrl = computed(() => (mail.value === null ? null : gmailComposeUrl(mail.value)))
 
-  /** One line for the whole amount, named as the client's last invoice was, as the invoices so far have been made. */
+  /** One line for the whole amount, as the invoices so far have been made. */
   function mergeLines(): void {
-    const previous = [...(workbook.value?.invoices ?? [])].filter((invoice) => invoice.client === client.value).sort((upper, lower) => lower.issued.localeCompare(upper.issued))[0]
-    const description = previous?.item || lines.value[0]?.description || ''
-    lines.value = [{ description, amount: amountForTyping(total.value) }]
+    lines.value = [
+      draftOf(
+        mergedLine(
+          parsedLines.value.filter((line) => !Number.isNaN(line.amount)),
+          workbook.value?.invoices ?? [],
+          client.value,
+        ),
+      ),
+    ]
   }
 
   return {
@@ -442,6 +445,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     periodFrom,
     periodTo,
     lines,
+    templated,
     mailDraft,
     stage,
     steps,

@@ -218,8 +218,8 @@ describe('the PDF', () => {
         issuer,
         recipient: { name: 'North Ltd', address: '1 Road, London', country: 'United Kingdom', taxId: '' },
         lines: [
-          { description: 'Software development for October, a description long enough to wrap onto a second line of the table', amount: euros(6700) },
-          { description: 'Subscription', amount: euros(225) },
+          { description: 'Software development for October, a description long enough to wrap onto a second line of the table', amount: euros(6700), items: [] },
+          { description: 'Subscription', amount: euros(225), items: [] },
         ],
         total: euros(6925),
         currency: 'EUR',

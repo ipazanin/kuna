@@ -33,9 +33,15 @@ const props = withDefaults(
     startCollapsed?: boolean
     /** True while a link points at the card, so it opens even when this device keeps it collapsed. */
     reveal?: boolean
+    /** The name of the button that opens a kept record in its dialog. Without it a row opens nothing. */
+    openLabel?: (record: R) => string
   }>(),
   { newRow: () => ({}), startCollapsed: false, reveal: false },
 )
+
+const emit = defineEmits<{
+  open: [record: R]
+}>()
 
 const { state } = useWorkbook()
 const writes = useRecordWrites(useWorkbook())
@@ -63,7 +69,9 @@ function save(made: readonly { readonly saved: number | null; readonly record: R
       :noun="rules.kind.noun"
       :saving="writes.saving('save')"
       :refused="writes.refused.value"
+      v-bind="openLabel === undefined ? {} : { openLabel }"
       @save="save"
+      @open="emit('open', $event)"
     />
   </AppCard>
 </template>

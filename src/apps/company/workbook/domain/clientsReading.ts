@@ -8,10 +8,13 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { problemOf, refusedProblems } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
-import { booleanOf, keyedId, refuse, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
-import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { booleanOf, keyedId, refuse, slugOf, storedFieldOfValue, textOf } from '../../../../shared/storage/domain/storedFields'
+import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Client, ClientInvoicing } from './workbook'
 import { words } from './words'
+import { templateOfText, templateProblems, textOfTemplate } from '../../invoicing/domain/invoiceTemplate'
+import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
+import { templateProblemsInWords } from '../../invoicing/domain/words'
 
 /** A client as the clients tab holds it, with the id its name makes. */
 export type ClientRecord = Client & { readonly id: RecordId }
@@ -42,7 +45,37 @@ export const CLIENT_CODEC: RecordCodec<ClientRecord> = {
       invoice_mail: client.invoicing.invoiceMail,
       mail_language: client.invoicing.mailLanguage,
       reverse_charge: client.invoicing.reverseCharge ? true : null,
+      invoice_lines: client.invoicing.lines === undefined ? null : textOfTemplate(client.invoicing.lines),
     }),
+}
+
+/** The text fields of a client a dialog or the chat may change, by their stored names. */
+export type ClientTextField = 'client' | 'name' | 'iban' | 'address' | 'country' | 'tax_id' | 'invoice_mail' | 'mail_language'
+
+/** What a change sets on a client, each absent to keep what the client holds. */
+export interface ClientChanges {
+  readonly texts?: Partial<Readonly<Record<ClientTextField, string>>>
+  readonly reverseCharge?: boolean
+  readonly lines?: readonly InvoiceTemplateLine[]
+}
+
+/**
+ * The client's stored fields with the changes made, as the clients grid writes them: each text trimmed and absent
+ * when blank, the short name in lower case, reverse charge TRUE or absent, and the invoice lines absent while there
+ * are none. Fields the change does not name stay as stored.
+ */
+export function clientFieldsWith(stored: StoredFields, changes: ClientChanges): StoredFields {
+  const fields: Record<string, StoredField> = { ...stored }
+  const set = (name: string, value: string | boolean | null): void => {
+    if (value === null || value === '' || value === false) delete fields[name]
+    else fields[name] = storedFieldOfValue(value)
+  }
+  for (const [name, text] of Object.entries(changes.texts ?? {})) {
+    set(name, name === 'client' ? text.trim().toLowerCase() : text.trim())
+  }
+  if (changes.reverseCharge !== undefined) set('reverse_charge', changes.reverseCharge)
+  if (changes.lines !== undefined) set('invoice_lines', changes.lines.length === 0 ? null : textOfTemplate(changes.lines))
+  return fields
 }
 
 /** A client made from its fields, with the id its name makes, as an editor makes one. */
@@ -50,7 +83,10 @@ export function clientOfFields(fields: StoredFields): ClientRecord {
   return clientOf(fields, recordIdOf(CLIENT_RECORDS, slugOf(fields.client)))
 }
 
-/** The invoice fields of one client. A language the browser does not know or a reverse charge that is not TRUE or FALSE is doubted, and read as blank and FALSE. */
+/**
+ * The invoice fields of one client. A language the browser does not know, a reverse charge that is not
+ * TRUE or FALSE and invoice lines that break a rule are doubted, and read as blank, FALSE and no lines.
+ */
 function invoicingOf(fields: StoredFields): { readonly invoicing: ClientInvoicing; readonly doubts: readonly string[] } {
   const doubts: string[] = []
   let mailLanguage = textOf(fields.mail_language).toLowerCase()
@@ -63,6 +99,11 @@ function invoicingOf(fields: StoredFields): { readonly invoicing: ClientInvoicin
   if (reverseCharge === null) {
     doubts.push(words.clients.reverseCharge(stored?.text ?? ''))
   }
+  const template = templateOfText(textOf(fields.invoice_lines))
+  const problems = templateProblems(template)
+  if (problems.length > 0) {
+    doubts.push(words.clients.badLines(templateProblemsInWords(problems).join(', ')))
+  }
   return {
     invoicing: {
       address: textOf(fields.address),
@@ -71,6 +112,7 @@ function invoicingOf(fields: StoredFields): { readonly invoicing: ClientInvoicin
       invoiceMail: textOf(fields.invoice_mail),
       mailLanguage,
       reverseCharge: reverseCharge ?? false,
+      ...(template.length === 0 || problems.length > 0 ? {} : { lines: template }),
     },
     doubts,
   }

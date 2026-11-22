@@ -19,6 +19,12 @@ import GallerySection from './GallerySection.vue'
 
 const picked = ref<ReadonlySet<string>>(new Set(['pharmacy']))
 const reported = ref(false)
+/** How often the row with no page opened in place, which stands in for its dialog. */
+const openedInPlace = ref(0)
+
+function openInPlace(): void {
+  openedInPlace.value += 1
+}
 /** Where each specimen row opens, which is this specimen again. */
 const recordLink = { path: '/gallery', hash: '#record-rows' }
 
@@ -185,7 +191,7 @@ function pick(key: string): void {
   <GallerySection
     id="record-rows"
     title="RecordRow"
-    description="A table row that stands for a record opens it on a tap anywhere on the row, and its name stays the one real link for the keyboard and a new tab. A link in a cell opens only that cell's own details, a control works only itself, and a total opens nothing."
+    description="A table row that stands for a record opens it on a tap anywhere on the row, and its name stays the one real link for the keyboard and a new tab. A link in a cell opens only that cell's own details, a control works only itself, and a total opens nothing. A record with no page opens in place, and its name is a DrillLink with open. Where the table does not fit, a card in a list stands in for the row the same way."
   >
     <AppCard title="Travel orders" subtitle="Made-up trips. Each row opens this gallery again.">
       <FigureTable class="px-1 pt-2 pb-2 sm:px-2" label="Travel orders">
@@ -214,12 +220,37 @@ function pick(key: string): void {
             <td class="cell-wraps">Split, one day</td>
             <td class="text-end"><MoneyText :cents="moneyFromCents(12_800)" /></td>
           </RecordRow>
+          <RecordRow :open="openInPlace" data-testid="gallery-record-row-in-place">
+            <th scope="row" class="text-start font-normal">
+              <DrillLink :to="null" :open="openInPlace" label="Open travel order 5/2026" class="font-medium text-highlighted">5/2026</DrillLink>
+            </th>
+            <td class="cell-wraps">{{ openedInPlace === 0 ? 'No page, so it opens in place' : `Opened in place ${openedInPlace} ${openedInPlace === 1 ? 'time' : 'times'}` }}</td>
+            <td class="text-end"><MoneyText :cents="moneyFromCents(9_600)" /></td>
+          </RecordRow>
           <RecordRow :to="null" class="total-row">
             <th scope="row" class="text-start" colspan="2">Together</th>
-            <td class="text-end"><MoneyText :cents="moneyFromCents(54_050)" /></td>
+            <td class="text-end"><MoneyText :cents="moneyFromCents(63_650)" /></td>
           </RecordRow>
         </tbody>
       </FigureTable>
+    </AppCard>
+    <AppCard title="As phone cards" subtitle="Where the table does not fit, each card stands in for its row.">
+      <ul class="grid gap-2 p-4 sm:grid-cols-2 sm:p-5">
+        <RecordRow as="li" :to="recordLink" class="rounded-control border border-default px-3 py-2.5" data-testid="gallery-record-card">
+          <div class="flex items-start justify-between gap-3">
+            <DrillLink :to="recordLink" label="Travel order 3/2026" class="type-card-title">3/2026</DrillLink>
+            <MoneyText :cents="moneyFromCents(41_250)" />
+          </div>
+          <p class="type-caption">Zagreb, three days</p>
+        </RecordRow>
+        <RecordRow as="li" :to="null" class="rounded-control border border-default px-3 py-2.5">
+          <div class="flex items-start justify-between gap-3">
+            <span class="type-card-title">5/2026</span>
+            <MoneyText :cents="moneyFromCents(9_600)" />
+          </div>
+          <p class="type-caption">No payment yet, so the card opens nothing.</p>
+        </RecordRow>
+      </ul>
     </AppCard>
   </GallerySection>
   <GallerySection

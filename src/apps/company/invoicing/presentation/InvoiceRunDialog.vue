@@ -143,7 +143,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           </UFormField>
         </FormGrid>
 
-        <InvoiceLinesEditor v-model:lines="run.lines.value" :total="run.total.value" :disabled="!editable" @plan="run.fillLines()" @merge="run.mergeLines()" />
+        <InvoiceLinesEditor v-model:lines="run.lines.value" :total="run.total.value" :disabled="!editable" :templated="run.templated.value" @plan="run.fillLines()" @merge="run.mergeLines()" />
 
         <div class="flex flex-col gap-2 type-body">
           <p class="text-toned" data-testid="invoice-run-where">{{ where }}</p>

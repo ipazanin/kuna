@@ -1,4 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { unknownTokensIn } from './templateTokens'
 import { words } from './words'
 
 export const DEFAULT_MAIL_SUBJECT = 'Invoice {number}, {month}'
@@ -6,8 +7,6 @@ export const DEFAULT_MAIL_SUBJECT = 'Invoice {number}, {month}'
 export const DEFAULT_MAIL_BODY = "Hello,\n\nI'm sending you the invoice for {month} in the attachment.\n\nBest regards,\n{signatory}"
 
 const MAIL_TOKENS = ['{month}', '{number}', '{client}', '{company}', '{signatory}'] as const
-
-const TOKEN = /\{[^}]*\}/g
 
 /** What the mail's words in braces stand for. */
 export interface MailValues {
@@ -28,7 +27,7 @@ export interface InvoiceMail {
 
 /** Null when every word in braces is one the app fills in. */
 export function mailTemplateProblem(template: string): string | null {
-  const unknown = (template.match(TOKEN) ?? []).filter((token) => !(MAIL_TOKENS as readonly string[]).includes(token))
+  const unknown = unknownTokensIn(template, MAIL_TOKENS)
   return unknown.length === 0 ? null : words.unknownTokens(unknown, MAIL_TOKENS)
 }
 

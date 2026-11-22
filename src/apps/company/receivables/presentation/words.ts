@@ -5,7 +5,7 @@ import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// An invoice is račun, the invoices tab the popis računa, a bank row stavka, and a payment uplata. Invoicing, Clients names the screen and its tab.
+// An invoice is račun, the invoices tab the popis računa, a bank row stavka, a payment uplata and a plan item usluga iz plana. Invoicing, Clients names the screen and its tab.
 
 /** "1 dan", "2 dana", "1,5 dana". */
 function croatianDays(days: number): string {
@@ -94,6 +94,8 @@ export const en = {
     clientPlaceholder: 'Choose a client',
     item: 'Item',
     itemHelp: 'What the invoice is for.',
+    planItems: 'Plan items',
+    planItemsHelp: 'A record of each line of the invoice with the plan items it summed in brackets, written by Make invoice. Nothing reads it back, so a change here moves no amount.',
     amount: 'Amount',
     amountError: 'An amount above zero with at most two decimals',
     amountHelp: 'The invoice total.',
@@ -222,6 +224,8 @@ export const hr: Translation<typeof en> = {
     clientPlaceholder: 'Odaberi klijenta',
     item: 'Predmet',
     itemHelp: 'Za što je račun.',
+    planItems: 'Usluge iz plana',
+    planItemsHelp: 'Zapis svake stavke računa sa zbrojenim uslugama iz plana navedenima u zagradama, koji upisuje Izradi račun. Ništa ga ne čita natrag, pa izmjena ovdje ne mijenja nijedan iznos.',
     amount: 'Iznos',
     amountError: 'Iznos veći od nule, s najviše dvije decimale',
     amountHelp: 'Ukupni iznos računa.',

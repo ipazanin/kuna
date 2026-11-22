@@ -12,6 +12,8 @@ import type { Reading, RecordsRead } from '../../../../shared/storage/domain/rec
 import { draftOutcomes, draftsOfRecords, fieldsOfDrafts, kindOfColumn, madeOfDrafts } from '../domain/recordDrafts'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import DayField from '../../../../shared/ui/DayField.vue'
+import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import type { DraftFieldKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
 import IbanTagsField from './IbanTagsField.vue'
@@ -36,10 +38,13 @@ const props = defineProps<{
   noun: RecordNoun
   /** The fields a new record starts with. */
   newRow: () => Readonly<Record<string, string>>
+  /** The name of the button that opens a kept record in its dialog, such as "Open northwind". Without it a row opens nothing. */
+  openLabel?: (record: R) => string
 }>()
 
 const emit = defineEmits<{
   save: [made: readonly { readonly saved: number | null; readonly record: R }[]]
+  open: [record: R]
 }>()
 
 const stored = computed(() => storedOf(props.records))
@@ -83,6 +88,19 @@ function choiceValue(column: EditorColumn, draft: RecordDraft): string {
   return current === '' && column.blankLabel !== undefined ? BLANK_CHOICE : current
 }
 
+/**
+ * The kept record each draft opens, while the editor opens rows. A new or refused record opens nothing, so it stays fixable
+ * in its cells. The dialog starts from what is stored, so no row opens while the grid holds changes it would lose.
+ */
+const openedRecords = computed(() => drafts.value.map((draft) => (props.openLabel === undefined || draft.saved === null ? null : (props.records.records[draft.saved]?.record ?? null))))
+
+const openLabels = computed(() => openedRecords.value.map((record) => (record === null ? null : (props.openLabel?.(record) ?? null))))
+
+function opener(index: number): (() => void) | null {
+  const record = openedRecords.value[index] ?? null
+  return record === null || dirty.value ? null : () => emit('open', record)
+}
+
 function update(index: number, column: string, text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, fields: { ...draft.fields, [column]: text } } : draft))
 }
@@ -121,10 +139,13 @@ function save(): void {
           <td :colspan="columns.length + 1" class="text-muted">{{ words.factTab.none(noun) }}</td>
         </tr>
         <template v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`">
-          <tr data-testid="fact-row">
-            <td v-for="column in columns" :key="column.name">
+          <RecordRow :open="opener(index)" data-testid="fact-row">
+            <td v-for="(column, place) in columns" :key="column.name">
+              <span v-if="place === 0 && openLabels[index] !== null" class="inline-flex min-h-8 items-center" :class="column.width">
+                <DrillLink :to="null" :open="opener(index)" :label="openLabels[index]!" class="font-medium text-highlighted" data-testid="open-row">{{ draft.fields[column.name] }}</DrillLink>
+              </span>
               <USelect
-                v-if="choicesOf(column, draft)"
+                v-else-if="choicesOf(column, draft)"
                 :model-value="choiceValue(column, draft)"
                 :items="choicesOf(column, draft) ?? []"
                 :placeholder="column.placeholderOf?.(fieldReader(draft)) || words.factTab.choose"
@@ -182,7 +203,7 @@ function save(): void {
                 @click="removeRow(index)"
               />
             </td>
-          </tr>
+          </RecordRow>
           <tr v-if="reading[index]!.reasons.length > 0" class="problem-row">
             <td :colspan="columns.length + 1">
               <p v-for="reason in reading[index]!.reasons" :key="reason" :class="reading[index]!.kept ? 'row-warning' : 'row-error'">

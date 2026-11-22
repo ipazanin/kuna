@@ -8,6 +8,7 @@ import type { Money } from '../../../../shared/money/money'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import type { OwnerPart, OwnerPartOf } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
+import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
 import type { Rule } from '../../../../shared/categorising/domain/rule'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import type { Settings } from '../../settings/domain/settings'
@@ -128,6 +129,8 @@ export interface Invoice {
   /** The client slug, as the `clients` tab names it. */
   readonly client: string
   readonly item: string
+  /** Each line of the invoice with the plan items it summed, such as `Software development (Development); Maintenance (Hosting, Support)`. Absent when no line summed one. */
+  readonly planItems?: string
   readonly amount: Money
   readonly issued: CivilDate
   /** Null when the tab leaves it blank. */
@@ -164,6 +167,8 @@ export interface ClientInvoicing {
   readonly mailLanguage: string
   /** True when the client accounts for the VAT, so the invoice carries none and prints the reverse-charge note. */
   readonly reverseCharge: boolean
+  /** The client's own invoice lines, absent when each open plan row makes a line. */
+  readonly lines?: readonly InvoiceTemplateLine[]
 }
 
 export const NO_CLIENT_INVOICING: ClientInvoicing = { address: '', country: '', taxId: '', invoiceMail: '', mailLanguage: '', reverseCharge: false }

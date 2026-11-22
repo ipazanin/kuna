@@ -5,7 +5,11 @@ import { newInvoiceDates } from '../src/apps/company/invoicing/domain/invoiceDat
 import { invoiceProblems } from '../src/apps/company/invoicing/domain/invoiceDocument'
 import { pathInWords } from '../src/apps/company/documents/domain/filingPath'
 import { DEFAULT_FILE_PATH, filePathProblem, filingPathOf } from '../src/apps/company/invoicing/domain/invoiceFiling'
-import { linesTotal, plannedLines, registerItemOf } from '../src/apps/company/invoicing/domain/invoiceLines'
+import { linesTotal, mergedLine, planItemsOf, registerItemOf, startingLines } from '../src/apps/company/invoicing/domain/invoiceLines'
+import { registerInvoiceOf, reexportedInvoice } from '../src/apps/company/invoicing/domain/registerInvoice'
+import { INVOICE_CODEC } from '../src/apps/company/workbook/domain/invoicesReading'
+import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
+import type { InvoiceTemplateLine } from '../src/apps/company/invoicing/domain/invoiceTemplate'
 import { DEFAULT_MAIL_BODY, filledMail, gmailComposeUrl, mailTemplateProblem, monthInLanguage } from '../src/apps/company/invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../src/apps/company/invoicing/domain/invoiceNumber'
 import { nextYearlyNumber, numberTaken } from '../src/apps/company/documents/domain/yearlyNumber'
@@ -14,7 +18,7 @@ import { DEFAULT_SETTINGS, changedSettings, companyVatId, parseSettings, setting
 import { CLIENT_RECORDS, SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { Client } from '../src/apps/company/workbook/domain/workbook'
 import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
-import { readClients } from '../src/apps/company/workbook/domain/clientsReading'
+import { clientFieldsWith, clientOfFields, readClients } from '../src/apps/company/workbook/domain/clientsReading'
 import { CORE_TABS, recordsOfRows } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
@@ -95,25 +99,114 @@ describe('invoice lines', () => {
 
   it('start from the client’s open plan rows up to the end of the issue month', () => {
     const expected = expectedInvoices(plan, [invoiceOf('9-1-26', 5000, '2026-09-25')])
-    const lines = plannedLines(expected, 'north', civil('2026-10-21'))
+    const lines = startingLines(expected, { slug: 'north', invoicing: NO_CLIENT_INVOICING }, civil('2026-10-21'))
     expect(lines).toEqual([
-      { description: 'Subscription', amount: euros(200) },
-      { description: 'October fee', amount: euros(5000) },
+      { description: 'Subscription', amount: euros(200), items: ['Subscription'] },
+      { description: 'October fee', amount: euros(5000), items: ['Monthly Fee'] },
     ])
     expect(linesTotal(lines)).toBe(euros(5200))
     expect(registerItemOf(lines)).toBe('Subscription; October fee')
+  })
+
+  it('make one line for the total, named as the client’s last invoice was, summing every plan item of the lines', () => {
+    const lines = startingLines(expectedInvoices(plan, []), { slug: 'north', invoicing: NO_CLIENT_INVOICING }, civil('2026-10-21'))
+    const invoices = [invoiceOf('1-1-26', 100, '2026-08-31'), { ...invoiceOf('2-1-26', 100, '2026-09-30'), item: 'Services' }, invoiceOf('3-1-26', 100, '2026-10-01', 'south')]
+
+    expect(mergedLine(lines, invoices, 'north')).toEqual({ description: 'Services', amount: euros(10200), items: ['Monthly Fee', 'Subscription'] })
+    expect(mergedLine(lines, [], 'north').description).toBe('September fee')
+  })
+})
+
+describe('invoice lines from a client’s own template', () => {
+  const template: readonly InvoiceTemplateLine[] = [
+    { text: 'Software development', items: ['Development'] },
+    { text: 'Maintenance in {month}', items: ['Hosting', 'Support'] },
+  ]
+  const client = (mailLanguage = 'en') => ({ slug: 'north', invoicing: { ...NO_CLIENT_INVOICING, mailLanguage, lines: template } })
+  const november = [planRow('Development', '2026-11-30', 3000), planRow('Hosting', '2026-11-30', 200), planRow('Support', '2026-11-30', 300), planRow('Travel', '2026-11-30', 120)]
+
+  it('sum the open rows each line names, and put a row no line names on the last line, so the total is what the plan has open', () => {
+    const lines = startingLines(expectedInvoices(november, []), client(), civil('2026-11-30'))
+
+    // Maintenance takes Hosting 200 and Support 300, and Travel 120, which no line names.
+    expect(lines).toEqual([
+      { description: 'Software development', amount: euros(3000), items: ['Development'] },
+      { description: 'Maintenance in November 2026', amount: euros(620), items: ['Hosting', 'Support', 'Travel'] },
+    ])
+    expect(linesTotal(lines)).toBe(euros(3620))
+  })
+
+  it('take only what is still open of a row an earlier invoice billed', () => {
+    const october = [planRow('Hosting', '2026-10-31', 200), planRow('Support', '2026-10-31', 300)]
+    const lines = startingLines(expectedInvoices([...october, ...november.slice(0, 1), november[3]!], [invoiceOf('9-1-26', 500, '2026-10-31')]), client(), civil('2026-11-30'))
+
+    expect(lines.map((line) => [line.description, line.amount])).toEqual([
+      ['Software development', euros(3000)],
+      ['Maintenance in November 2026', euros(120)],
+    ])
+  })
+
+  it('leave out a line that sums nothing this month', () => {
+    expect(startingLines(expectedInvoices(november.slice(0, 1), []), client(), civil('2026-11-30'))).toEqual([{ description: 'Software development', amount: euros(3000), items: ['Development'] }])
+  })
+
+  it('give one line for the whole total when the template has one line, and name the month in the client’s language', () => {
+    const oneLine = { slug: 'north', invoicing: { ...NO_CLIENT_INVOICING, mailLanguage: 'hr', lines: [{ text: 'Usluge razvoja softvera za {month}', items: [] }] } }
+
+    expect(startingLines(expectedInvoices(november, []), oneLine, civil('2026-11-30'))).toEqual([
+      { description: 'Usluge razvoja softvera za studeni 2026.', amount: euros(3620), items: ['Development', 'Hosting', 'Support', 'Travel'] },
+    ])
+  })
+
+  it('start with no lines when nothing is open', () => {
+    expect(startingLines([], client(), civil('2026-11-30'))).toEqual([])
+  })
+})
+
+describe('the register row of a made invoice', () => {
+  const lines = [
+    { description: 'Software development', amount: euros(3000), items: ['Development'] },
+    { description: 'Maintenance in November 2026', amount: euros(620), items: ['Hosting', 'Support', 'Travel'] },
+    { description: 'Setup, typed by hand', amount: euros(80), items: [] },
+  ]
+  const made = { number: ' 11-1-26 ', client: 'North', issued: civil('2026-11-30'), due: civil('2026-12-31'), deliveryPeriod: { from: civil('2026-11-01'), to: civil('2026-11-30') }, lines }
+
+  it('keeps what the client read as the item, and each line with the plan items it summed, a line typed by hand by its text alone', () => {
+    const invoice = registerInvoiceOf(made)
+
+    expect(invoice).toMatchObject({
+      number: '11-1-26',
+      client: 'north',
+      item: 'Software development; Maintenance in November 2026; Setup, typed by hand',
+      planItems: 'Software development (Development); Maintenance in November 2026 (Hosting, Support, Travel); Setup, typed by hand',
+      amount: euros(3700),
+    })
+    expect(INVOICE_CODEC.make(storedFieldsOfValues(INVOICE_CODEC.fieldsOf(invoice)), invoice.id)).toEqual(invoice)
+  })
+
+  it('leaves the plan items out when no line summed one', () => {
+    expect(planItemsOf([lines[2]!])).toBe('')
+    expect(registerInvoiceOf({ ...made, lines: [lines[2]!] })).not.toHaveProperty('planItems')
+  })
+
+  it('keeps the plan items of a re-exported invoice when its one line names none, and changes nothing when nothing changed', () => {
+    const before = registerInvoiceOf(made)
+    const retyped = registerInvoiceOf({ ...made, lines: [{ description: 'Software services', amount: euros(3700), items: [] }] })
+
+    expect(reexportedInvoice(before, retyped)).toEqual({ ...before, item: 'Software services' })
+    expect(reexportedInvoice(before, registerInvoiceOf({ ...made, lines: [{ description: before.item, amount: before.amount, items: [] }] }))).toBeNull()
   })
 })
 
 describe('what keeps an invoice from being made', () => {
   const client: Client = { slug: 'north', name: 'North Ltd', ibans: [], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road', reverseCharge: true } }
   const issuer = { ...DEFAULT_SETTINGS.invoicing, name: 'Example Studio', address: 'Street 1', oib: '12345678901', iban: 'HR6212345670000000001', place: 'Split', signatory: 'Ana' }
-  const line = { description: 'Work', amount: euros(100) }
+  const line = { description: 'Work', amount: euros(100), items: [] }
 
   it('needs the issuer’s details, the client’s address and reverse charge, and lines above zero', () => {
     expect(invoiceProblems(issuer, client, [line])).toEqual([])
     expect(invoiceProblems({ ...issuer, oib: '', place: '' }, client, [line])).toEqual(['The invoice terms on Invoicing, Clients need your OIB, the place of issue.'])
-    expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } }, [{ description: '', amount: euros(0) }])).toEqual([
+    expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } }, [{ description: '', amount: euros(0), items: [] }])).toEqual([
       'Invoicing, Clients needs an address for North Ltd.',
       'The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for North Ltd on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.',
       'Every line needs a description.',
@@ -178,23 +271,55 @@ describe('invoice settings and client details', () => {
     })
   })
 
-  it('reads each client’s invoice details, a blank reverse charge as FALSE', () => {
+  it('reads each client’s invoice details, a blank reverse charge as FALSE and invoice lines that break a rule as none', () => {
     const reading = readClients(
       recordsOfRows(CORE_TABS.clients, [
         { sheetRow: 2, cells: { client: 'north', name: 'North Ltd', iban: 'XX00FAKE0101' } },
         { sheetRow: 3, cells: { client: 'east', iban: 'XX00FAKE0102', address: '1 Road', invoice_mail: 'ap@east.example', mail_language: 'HR', reverse_charge: true } },
         { sheetRow: 4, cells: { client: 'south', iban: 'XX00FAKE0103', mail_language: 'not a language tag', reverse_charge: 'maybe' } },
+        { sheetRow: 5, cells: { client: 'west', iban: 'XX00FAKE0104', invoice_lines: 'Software services for {month} | Monthly Fee\nCosts billed on' } },
+        { sheetRow: 6, cells: { client: 'up', iban: 'XX00FAKE0105', invoice_lines: 'Development\nMaintenance | Hosting' } },
       ]),
     )
     expect(reading.facts.map((client) => [client.slug, client.invoicing])).toEqual([
       ['north', NO_CLIENT_INVOICING],
       ['east', { ...NO_CLIENT_INVOICING, address: '1 Road', invoiceMail: 'ap@east.example', mailLanguage: 'hr', reverseCharge: true }],
       ['south', NO_CLIENT_INVOICING],
+      [
+        'west',
+        {
+          ...NO_CLIENT_INVOICING,
+          lines: [
+            { text: 'Software services for {month}', items: ['Monthly Fee'] },
+            { text: 'Costs billed on', items: [] },
+          ],
+        },
+      ],
+      ['up', NO_CLIENT_INVOICING],
     ])
     expect(reading.problems).toEqual([
       { id: recordIdOf(CLIENT_RECORDS, 'south'), label: 'south', reason: '"not a language tag" is not a language such as en or hr, so the mail is written in English' },
       { id: recordIdOf(CLIENT_RECORDS, 'south'), label: 'south', reason: 'reverse_charge "maybe" is neither TRUE nor FALSE, so it reads as FALSE' },
+      {
+        id: recordIdOf(CLIENT_RECORDS, 'up'),
+        label: 'up',
+        reason: 'invoice_lines reads as blank, so each open plan row makes a line of the invoice. Line 1: only the last line can name no plan item, since it takes every plan item no line names',
+      },
     ])
+  })
+})
+
+describe('a change to a client', () => {
+  it('keeps every stored field it does not name, clears a blank one, and stores the invoice lines only while there are some', () => {
+    const stored = storedFieldsOfValues({ client: 'north', iban: 'XX00FAKE0101', address: '1 Road', reverse_charge: true, invoice_lines: 'Fees | Monthly Fee', note_from_elsewhere: 'kept' })
+
+    const changed = clientFieldsWith(stored, { texts: { client: ' North ', address: '' } })
+    expect(Object.keys(changed).sort()).toEqual(['client', 'iban', 'invoice_lines', 'note_from_elsewhere', 'reverse_charge'])
+    expect(clientOfFields(changed).invoicing.lines).toEqual([{ text: 'Fees', items: ['Monthly Fee'] }])
+
+    const cleared = clientFieldsWith(stored, { reverseCharge: false, lines: [] })
+    expect(clientOfFields(cleared).invoicing).toEqual({ ...NO_CLIENT_INVOICING, address: '1 Road' })
+    expect(cleared.invoice_lines).toBeUndefined()
   })
 })
 

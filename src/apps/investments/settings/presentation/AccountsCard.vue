@@ -11,7 +11,7 @@ import AccountDialog from './AccountDialog.vue'
 import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import CutText from '../../../../shared/ui/CutText.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /** The accounts of the Investments file, each with how its rows come in and its change, and a way to add one. */
 const { state } = useInvestmentsBooks()
@@ -45,13 +45,13 @@ function openAccount(account: InvestmentAccount | null): void {
 
 <template>
   <AppCard v-if="state.workbook !== null" id="accounts" :title="words.accounts.title" :subtitle="words.accounts.subtitle" data-testid="investments-accounts">
-    <ul v-if="accounts.length > 0" class="px-2 pb-1 sm:px-3">
-      <li v-for="account in accounts" :key="account.id" class="flex items-center justify-between gap-3 border-t border-default py-1 ps-2 first:border-t-0" data-testid="investments-account">
-        <span class="min-w-0">
-          <CutText class="block type-row-title">{{ account.name }}</CutText>
-          <CutText class="block type-caption" data-testid="investments-account-intake">{{ [intakeLine(account), account.note].filter((part) => part !== '').join(' · ') }}</CutText>
-        </span>
-        <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" :aria-label="words.accounts.change(account.name)" data-testid="account-edit" @click="openAccount(account)" />
+    <ul v-if="accounts.length > 0" class="flex flex-col divide-y divide-default pt-1">
+      <li v-for="account in accounts" :key="account.id" data-testid="investments-account">
+        <ListRow as="button" :title="account.name" data-testid="account-edit" @click="openAccount(account)">
+          <template #caption>
+            <span data-testid="investments-account-intake">{{ [intakeLine(account), account.note].filter((part) => part !== '').join(' · ') }}</span>
+          </template>
+        </ListRow>
       </li>
     </ul>
     <p v-else class="px-4 pb-2 type-body sm:px-5">{{ words.accounts.none }}</p>

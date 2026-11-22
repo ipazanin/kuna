@@ -135,6 +135,10 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'due', note: 'The due date, as a date cell. Optional. Ageing counts from it, or from the issue date when it is blank.' },
     { name: 'period_from', note: 'The first day of the work the invoice is for, as a date cell. Optional, with period_to. Blank means the issue date.' },
     { name: 'period_to', note: 'The last day of the work the invoice is for, as a date cell. Optional, with period_from.' },
+    {
+      name: 'plan_items',
+      note: 'Each line of the invoice with the outgoing-plan items it summed in brackets, such as Software development (Development); Maintenance (Hosting, Support). Optional.',
+    },
   ],
   clients: [
     { name: 'client', note: 'A short name in lower case, such as northwind. One row per client. Required.' },
@@ -146,6 +150,10 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'invoice_mail', note: 'Who the invoice mail goes to, one address. Optional.' },
     { name: 'mail_language', note: 'The language of the month’s name in the mail, such as en or hr. Blank means English.' },
     { name: 'reverse_charge', note: 'TRUE when the client accounts for the VAT, so the invoice carries none and prints the reverse-charge note. The app makes only such invoices.' },
+    {
+      name: 'invoice_lines',
+      note: 'The lines an invoice to the client has, one per line of the cell: its text, then each plan item it sums after a |, such as Software services for {month} | Monthly Fee. The last line also sums every plan item no line names. Blank means one line per plan row.',
+    },
   ],
   'outgoing-plan': [
     {

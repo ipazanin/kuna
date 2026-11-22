@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { plural } from '../../../../shared/text/translation'
@@ -10,11 +10,13 @@ import FactTabCard from '../../settings/presentation/FactTabCard.vue'
 import { useSettingsSave } from '../../settings/presentation/useSettingsSave'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { clientOfFields, readClients } from '../../workbook/domain/clientsReading'
+import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { REQUIRED_ISSUER } from '../domain/invoiceDocument'
+import ClientDialog from './ClientDialog.vue'
 import InvoicingTermsForm from './InvoicingTermsForm.vue'
 import { words } from './words'
 
-/** Who the company bills, and the terms the billing plan and the invoices follow. */
+/** Who the company bills, and the terms the billing plan and the invoices follow. A tap on a client's row opens every field of it in one dialog. */
 defineProps<{
   /** True while a link from elsewhere points at the clients, so the card opens even when this device keeps it collapsed. */
   linked: boolean
@@ -23,6 +25,18 @@ defineProps<{
 const { state } = useWorkbook()
 const route = useRoute()
 const { settings, saving, refused, save } = useSettingsSave()
+
+const opened = ref('')
+const dialogOpen = ref(false)
+
+function openLabel(client: ClientRecord): string {
+  return words.clients.open(client.name || client.slug)
+}
+
+function openClient(client: ClientRecord): void {
+  opened.value = client.slug
+  dialogOpen.value = true
+}
 
 const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
 
@@ -47,7 +61,10 @@ const termsSummary = computed(() => {
       :make="clientOfFields"
       :saved-title="words.clients.saved"
       :reveal="linked"
+      :open-label="openLabel"
+      @open="openClient"
     />
+    <ClientDialog v-model:open="dialogOpen" :slug="opened" />
 
     <AppCard
       id="invoicing-terms"

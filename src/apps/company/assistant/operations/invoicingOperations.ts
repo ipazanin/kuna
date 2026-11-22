@@ -12,8 +12,11 @@ import { storesItems } from '../../workbook/domain/rowItems'
 import { invoiceDatesProblems } from '../../receivables/domain/invoiceGuards'
 import { CLIENT_WRITES } from '../../settings/application/namedRecordWrites'
 import { CLIENT_RECORDS, BILLING_RECORDS, INVOICE_RECORDS, ITEM_RECORDS } from '../../workbook/domain/coreKinds'
-import { clientOfFields } from '../../workbook/domain/clientsReading'
-import type { ClientRecord } from '../../workbook/domain/clientsReading'
+import { clientFieldsWith, clientOfFields } from '../../workbook/domain/clientsReading'
+import type { ClientRecord, ClientTextField } from '../../workbook/domain/clientsReading'
+import { templateProblems } from '../../invoicing/domain/invoiceTemplate'
+import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
+import { en as invoicingEn } from '../../invoicing/domain/words'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import type { Invoice } from '../../workbook/domain/workbook'
 import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
@@ -26,8 +29,8 @@ import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { ReadRecord, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { refusalOr, storedFieldOfValue } from '../../../../shared/storage/domain/storedFields'
-import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { refusalOr } from '../../../../shared/storage/domain/storedFields'
+import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 
 const DAY_OR_NULL: StrictSchema = { type: ['string', 'null'], description: 'A day such as 2026-10-31, "" for none, or null to leave it.' }
 
@@ -38,27 +41,60 @@ const MAKE_ON_SCREEN =
 const PAID_BY =
   'paidBy lists the items of revenue credits that pay it, in books that keep items: one the invoice holds already, or one no invoice holds from its client or from an account no client names. One larger than what is still owed gives the part the invoice needs to an item of its own. Books from before items take an empty list, since they match client payments by themselves.'
 
+/** What the invoice operations say of the plan items behind an invoice's lines. */
+const PLAN_ITEMS =
+  'planItems names each line of the invoice with the billing plan items it summed in brackets, such as "Software development (Development); Maintenance (Hosting, Support)", or "" for none.'
+
 const PAID_BY_ITEMS = { type: 'array', items: inputOf({ item: TEXT }) } as const satisfies StrictSchema
+
+const INVOICE_LINE = inputOf({ text: TEXT, items: { type: 'array', items: TEXT } })
+
+/** What the client operations say of a client's own invoice lines. */
+const INVOICE_LINES =
+  "lines are the client's own invoice lines, in order: each line's text, which may name {month} for the issue month in the client's mail language, and the billing plan items it sums, written exactly as the plan rows write them. The last line also sums every plan item no line names, so every line but the last names at least one item, and no item is on two lines. An empty list makes one line per open plan row."
 
 /** Every change the chat can propose to the invoices register, the billing plan and the clients. Making an invoice is a link, never a card. */
 const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-invoice',
-    about: `Adds a row to the invoices register for an invoice made elsewhere. The amount is the total, above zero. ${PAID_BY} ${MAKE_ON_SCREEN}`,
-    input: inputOf({ number: TEXT, client: TEXT, item: TEXT, amount: NUMBER, issued: TEXT, due: DAY_OR_NULL, periodFrom: DAY_OR_NULL, periodTo: DAY_OR_NULL, paidBy: PAID_BY_ITEMS }),
+    about: `Adds a row to the invoices register for an invoice made elsewhere. The amount is the total, above zero. ${PLAN_ITEMS} ${PAID_BY} ${MAKE_ON_SCREEN}`,
+    input: inputOf({
+      number: TEXT,
+      client: TEXT,
+      item: TEXT,
+      planItems: TEXT,
+      amount: NUMBER,
+      issued: TEXT,
+      due: DAY_OR_NULL,
+      periodFrom: DAY_OR_NULL,
+      periodTo: DAY_OR_NULL,
+      paidBy: PAID_BY_ITEMS,
+    }),
     refs: { client: CLIENT_RECORDS.name, 'paidBy.item': ITEM_RECORDS.name },
     creates: null,
     alone: false,
-    example: { number: '99-1-26', client: 'client', item: 'Consulting', amount: 1200, issued: '2026-10-31', due: '2026-11-15', periodFrom: '2026-10-01', periodTo: '2026-10-31', paidBy: [] },
+    example: {
+      number: '99-1-26',
+      client: 'client',
+      item: 'Consulting',
+      planItems: '',
+      amount: 1200,
+      issued: '2026-10-31',
+      due: '2026-11-15',
+      periodFrom: '2026-10-01',
+      periodTo: '2026-10-31',
+      paidBy: [],
+    },
   },
   {
     name: 'change-invoice',
-    about: `Fixes a row of the invoices register. Null leaves a field as it is, and "" clears a due day or the work period. Its PDF on Drive stays as it was. ${PAID_BY} paid keep leaves the payments that pay it as they are and takes an empty paidBy, and set puts paidBy in their place. ${MAKE_ON_SCREEN}`,
+    about: `Fixes a row of the invoices register. Null leaves a field as it is, and "" clears a due day or the work period. Its PDF on Drive stays as it was. ${PLAN_ITEMS} ${PAID_BY} paid keep leaves the payments that pay it as they are and takes an empty paidBy, and set puts paidBy in their place. ${MAKE_ON_SCREEN}`,
     input: inputOf({
       invoice: TEXT,
       number: TEXT_OR_NULL,
       client: TEXT_OR_NULL,
       item: TEXT_OR_NULL,
+      planItems: TEXT_OR_NULL,
       amount: NUMBER_OR_NULL,
       issued: TEXT_OR_NULL,
       due: DAY_OR_NULL,
@@ -70,7 +106,20 @@ const OPERATIONS: readonly AssistantOperation[] = [
     refs: { invoice: INVOICE_RECORDS.name, client: CLIENT_RECORDS.name, 'paidBy.item': ITEM_RECORDS.name },
     creates: null,
     alone: false,
-    example: { invoice: 'invoice', number: null, client: null, item: 'Consulting, corrected', amount: null, issued: null, due: null, periodFrom: null, periodTo: null, paid: 'keep', paidBy: [] },
+    example: {
+      invoice: 'invoice',
+      number: null,
+      client: null,
+      item: 'Consulting, corrected',
+      planItems: null,
+      amount: null,
+      issued: null,
+      due: null,
+      periodFrom: null,
+      periodTo: null,
+      paid: 'keep',
+      paidBy: [],
+    },
   },
   {
     name: 'delete-invoice',
@@ -121,9 +170,19 @@ const OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'add-client',
-    about:
-      'Adds a client. client is its short name in lower case, such as northwind, which invoices and plan rows name. ibans lists the accounts its payments come from, comma separated, at least one. Fill an IBAN or a mail address only if you read it or the person gave it: the card warns on it. mailLanguage is a language tag such as en or hr, or "". reverseCharge is yes when the client accounts for the VAT.',
-    input: inputOf({ client: TEXT, name: TEXT, ibans: TEXT, address: TEXT, country: TEXT, taxId: TEXT, invoiceMail: TEXT, mailLanguage: TEXT, reverseCharge: { type: 'string', enum: ['yes', 'no'] } }),
+    about: `Adds a client. client is its short name in lower case, such as northwind, which invoices and plan rows name. ibans lists the accounts its payments come from, comma separated, at least one. Fill an IBAN or a mail address only if you read it or the person gave it: the card warns on it. mailLanguage is a language tag such as en or hr, or "". reverseCharge is yes when the client accounts for the VAT. ${INVOICE_LINES}`,
+    input: inputOf({
+      client: TEXT,
+      name: TEXT,
+      ibans: TEXT,
+      address: TEXT,
+      country: TEXT,
+      taxId: TEXT,
+      invoiceMail: TEXT,
+      mailLanguage: TEXT,
+      reverseCharge: { type: 'string', enum: ['yes', 'no'] },
+      lines: { type: 'array', items: INVOICE_LINE },
+    }),
     refs: {},
     creates: CLIENT_RECORDS.name,
     alone: false,
@@ -137,12 +196,15 @@ const OPERATIONS: readonly AssistantOperation[] = [
       invoiceMail: '',
       mailLanguage: 'hr',
       reverseCharge: 'no',
+      lines: [
+        { text: 'Software services for {month}', items: ['Monthly Fee'] },
+        { text: 'Costs billed on', items: [] },
+      ],
     },
   },
   {
     name: 'change-client',
-    about:
-      'Fixes a client. A new short name is refused while invoices, plan rows or the billing terms name the client. ibans replaces the whole list. The card warns on IBANs and mail. Null leaves a field as it is, and "" clears a text.',
+    about: `Fixes a client. A new short name is refused while invoices, plan rows or the billing terms name the client. ibans replaces the whole list. The card warns on IBANs and mail. Null leaves a field as it is, and "" clears a text. ${INVOICE_LINES}`,
     input: inputOf({
       client: TEXT,
       shortName: TEXT_OR_NULL,
@@ -154,11 +216,24 @@ const OPERATIONS: readonly AssistantOperation[] = [
       invoiceMail: TEXT_OR_NULL,
       mailLanguage: TEXT_OR_NULL,
       reverseCharge: FLAG_OR_NULL,
+      lines: { type: ['array', 'null'], items: INVOICE_LINE },
     }),
     refs: { client: CLIENT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { client: 'client', shortName: null, name: 'Renamed Ltd', ibans: null, address: null, country: null, taxId: null, invoiceMail: null, mailLanguage: null, reverseCharge: null },
+    example: {
+      client: 'client',
+      shortName: null,
+      name: 'Renamed Ltd',
+      ibans: null,
+      address: null,
+      country: null,
+      taxId: null,
+      invoiceMail: null,
+      mailLanguage: null,
+      reverseCharge: null,
+      lines: null,
+    },
   },
   {
     name: 'delete-client',
@@ -223,8 +298,8 @@ function chosenPayments(
   return chosen
 }
 
-/** The client's fields as the clients editor writes them: a blank field is absent, and reverse charge is true or absent. */
-const CLIENT_FIELDS: Readonly<Record<string, string>> = {
+/** The client's fields the chat names, by their stored names. */
+const CLIENT_FIELDS: Readonly<Record<string, ClientTextField>> = {
   shortName: 'client',
   name: 'name',
   ibans: 'iban',
@@ -235,19 +310,19 @@ const CLIENT_FIELDS: Readonly<Record<string, string>> = {
   mailLanguage: 'mail_language',
 }
 
+/** The client's fields with what a step sets, refused for invoice lines that break a rule, as the client dialog refuses them. */
 function clientFieldsOf(stored: StoredFields, input: Readonly<Record<string, unknown>>): StoredFields {
-  const fields: Record<string, StoredField> = { ...stored }
-  for (const [name, column] of Object.entries(CLIENT_FIELDS)) {
-    const value = input[name]
-    if (typeof value !== 'string') continue
-    const text = column === 'client' ? value.trim().toLowerCase() : value.trim()
-    if (text === '') delete fields[column]
-    else fields[column] = storedFieldOfValue(text)
-  }
+  const texts = Object.fromEntries(Object.entries(CLIENT_FIELDS).flatMap(([name, column]) => (typeof input[name] === 'string' ? [[column, input[name]]] : [])))
   const reverse = input['reverseCharge']
-  if (reverse === 'yes') fields['reverse_charge'] = storedFieldOfValue(true)
-  else if (reverse === 'no') delete fields['reverse_charge']
-  return fields
+  const lines = Array.isArray(input['lines']) ? (input['lines'] as readonly InvoiceTemplateLine[]).map((line) => ({ text: line.text.trim(), items: line.items.map((item) => item.trim()) })) : undefined
+  const problems = lines === undefined ? [] : templateProblems(lines)
+  if (problems.length > 0)
+    throw new StepRefused(`The invoice lines cannot be saved: ${problems.map((problem) => invoicingEn.templateLine(problem.line, invoicingEn.templateProblem(problem))).join(', ')}.`)
+  return clientFieldsWith(stored, {
+    texts,
+    ...(reverse === 'yes' || reverse === 'no' ? { reverseCharge: reverse === 'yes' } : {}),
+    ...(lines === undefined ? {} : { lines }),
+  })
 }
 
 /** A client as the clients editor makes one from its fields, refused for the reasons the editor gives. */
@@ -279,10 +354,12 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
       const client = idOf(field['client'])
       const number = (field['number'] as string).trim()
       const issued = dayOf(field['issued'])
+      const planItems = (field['planItems'] as string).trim()
       const invoice: Invoice = {
         number,
         client,
         item: (field['item'] as string).trim(),
+        ...(planItems === '' ? {} : { planItems }),
         amount: moneyFromAmount(field['amount']),
         issued,
         due: optionalDay(field['due'], null),
@@ -297,10 +374,12 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
       const before = invoiceOf(field['invoice']).record
       const number = (field['number'] as string | null)?.trim() ?? before.number
       const client = field['client'] === null ? before.client : idOf(field['client'])
+      const planItems = (field['planItems'] as string | null)?.trim() ?? before.planItems ?? ''
       const after: Invoice = {
         number,
         client,
         item: (field['item'] as string | null)?.trim() ?? before.item,
+        ...(planItems === '' ? {} : { planItems }),
         amount: field['amount'] === null ? before.amount : moneyFromAmount(field['amount']),
         issued: field['issued'] === null ? before.issued : dayOf(field['issued']),
         due: optionalDay(field['due'], before.due),

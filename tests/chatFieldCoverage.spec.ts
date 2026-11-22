@@ -42,7 +42,7 @@ interface FieldSource {
 
 const CONDITION_RENAMES = Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [`conditions.${field.column}`, field.name]))
 const SPENDING_RULE_RENAMES = { labels: 'label', 'withdrawal.cashAccount': 'cash_account', 'link.app': 'pays', 'link.kind': 'pays', 'link.key': 'pays', 'link.due': 'pays' }
-const INVOICING_RENAMES = Object.fromEntries(['address', 'country', 'taxId', 'invoiceMail', 'mailLanguage', 'reverseCharge'].map((field) => [`invoicing.${field}`, field]))
+const INVOICING_RENAMES = Object.fromEntries(['address', 'country', 'taxId', 'invoiceMail', 'mailLanguage', 'reverseCharge', 'lines'].map((field) => [`invoicing.${field}`, field]))
 const ASSET_RENAMES = { name: 'asset', inUse: 'in_use', costNet: 'cost_net', doubledRate: 'doubled', fundedBy: 'funded_by', ledgerReference: 'ledger_reference', rowId: 'payment' }
 const GRANT_RENAMES = {
   slug: 'grant',
@@ -116,6 +116,10 @@ const FIELD_SOURCES: readonly FieldSource[] = [
       { name: 'add-client', renames: { slug: 'client', ...INVOICING_RENAMES } },
       { name: 'change-client', renames: { slug: 'shortName', ...INVOICING_RENAMES } },
     ],
+  },
+  {
+    path: 'src/apps/company/settings/application/namedRecordWrites.ts#CLIENT_WRITES.change',
+    operations: [{ name: 'change-client', renames: { slug: 'shortName', ...INVOICING_RENAMES } }],
   },
   { path: 'src/apps/company/invoicing/infrastructure/mailDraftSwitch.ts#switchMailDrafts', from: ['on'], operations: [{ name: 'switch-mail-drafts', renames: { on: 'drafts' } }] },
   {

@@ -1,3 +1,4 @@
+import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
@@ -115,6 +116,7 @@ export const en = {
   clients: {
     onAnotherClient: (iban: string, client: string) => `${iban} is already on the clients tab for ${client}.`,
     ownAccount: (iban: string, account: string) => `${iban} is the IBAN of your ${account} account, so a transfer between your own accounts would read as a payment from a client.`,
+    badLines: (client: string, problems: readonly string[]) => `The invoice lines of ${client} cannot be saved. ${capitalised(problems.join(', '))}.`,
   },
   /** Why a billing or invoice term on the settings tab cannot be used. */
   terms: {
@@ -251,6 +253,7 @@ export const hr: Translation<typeof en> = {
   clients: {
     onAnotherClient: (iban, client) => `${iban} već je u popisu klijenata, kod klijenta „${client}”.`,
     ownAccount: (iban, account) => `${iban} je IBAN vašeg računa u banci „${account}”, pa bi prijenos između vaših računa izgledao kao uplata klijenta.`,
+    badLines: (client, problems) => `Stavke računa klijenta „${client}” ne mogu se spremiti. ${capitalised(problems.join(', '))}.`,
   },
   terms: {
     amountAboveZero: 'upišite iznos veći od nule, na primjer 7200',

@@ -24,6 +24,7 @@ import { categoryChangeRefusals, categoryClassRefusals, categoryColourRefusals, 
 import { storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { clientChangeRefusals } from '../domain/clientGuards'
+import type { ClientCells, ClientChecks } from '../domain/clientGuards'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { EditedOn } from '../../workbook/domain/packPart'
 import { recordsOf, storedFieldsOf } from '../../../../shared/storage/domain/recordsRead'
@@ -344,8 +345,17 @@ export const ACCOUNT_WRITES: WriteRules<AccountRecord> = {
   ],
 }
 
-function clientCellsOf(fields: StoredFields): { readonly slug: string; readonly ibans: readonly string[] } {
-  return { slug: slugOf(fields.client), ibans: ibanListOf(textOf(fields.iban)) }
+/** The cells of a client its checks read. */
+export function clientCellsOf(fields: StoredFields): ClientCells {
+  return { slug: slugOf(fields.client), ibans: ibanListOf(textOf(fields.iban)), lines: textOf(fields.invoice_lines) }
+}
+
+/** What a change to the clients is checked against: what names each client, and the IBANs of your own accounts. */
+export function clientChecksOf(records: FreshRecords): ClientChecks {
+  return {
+    named: clientUses((kind) => records.of(kind)),
+    accountIbans: new Map(readAccounts(records.of(ACCOUNT_RECORDS), null).facts.flatMap((account) => (account.iban === '' ? [] : [[account.iban, account.slug] as const]))),
+  }
 }
 
 /** A client keeps to the slug format and to one row, keeps its name while invoices, plan rows or billing_client name it, and its IBANs are valid, its own and none of the accounts'. */
@@ -358,9 +368,6 @@ export const CLIENT_WRITES: WriteRules<ClientRecord> = {
     clientChangeRefusals(
       pickedEdits(change, clientCellsOf),
       pickedUntouched(change, clientCellsOf).filter((client) => client.slug !== ''),
-      {
-        named: clientUses((kind) => fresh.of(kind)),
-        accountIbans: new Map(readAccounts(fresh.of(ACCOUNT_RECORDS), null).facts.flatMap((account) => (account.iban === '' ? [] : [[account.iban, account.slug] as const]))),
-      },
-    ),
+      clientChecksOf(fresh),
+    ).map((refusal) => refusal.reason),
 }

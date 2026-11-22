@@ -649,6 +649,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null, giving: bool
         invoice_mail: 'accounts@northwind.example',
         mail_language: 'en',
         reverse_charge: true,
+        invoice_lines: 'Analytics, {month} | Monthly Fee | Part Time Fee\nModel API seat and hotel',
       },
       { client: 'lumen', name: 'Lumen Labs', iban: PAYEES.secondClient.iban },
     ],

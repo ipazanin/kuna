@@ -50,6 +50,7 @@ import { labelTotals } from '../labels/domain/labelTotals'
 import { ruleConditionValues } from './ruleConditionFields'
 import type { RuleConditionValues } from './ruleConditionFields'
 import { words } from './words'
+import { lineWithItems } from '../invoicing/domain/invoiceLines'
 import { installedPack } from '../packs/packContribution'
 
 /** What the reader reads from, which `app.ts` hands in over the company's store, so this folder holds no store. */
@@ -197,6 +198,7 @@ interface ClientView {
   readonly invoiceMail: string
   readonly mailLanguage: string
   readonly reverseCharge: boolean
+  readonly lines: readonly string[]
 }
 
 interface InvoiceView {
@@ -204,6 +206,7 @@ interface InvoiceView {
   readonly number: string
   readonly client: string
   readonly item: string
+  readonly planItems: string
   readonly amount: Money
   readonly issued: string
   readonly due: string
@@ -342,6 +345,11 @@ const CLIENT_FIELDS: FieldDocs<ClientView> = {
   invoiceMail: { exposure: 'never', meaning: 'Who the invoice mail goes to.' },
   mailLanguage: { exposure: 'plain', meaning: 'The language of the invoice mail.' },
   reverseCharge: { exposure: 'plain', meaning: 'The client accounts for the VAT, so the invoice carries none.' },
+  lines: {
+    exposure: 'free-text',
+    meaning:
+      "The client's own invoice lines in order, each its text and in brackets the plan items it sums. The last line also sums every plan item no line names. Empty when each open plan row makes a line.",
+  },
 }
 
 const INVOICE_FIELDS: FieldDocs<InvoiceView> = {
@@ -349,6 +357,7 @@ const INVOICE_FIELDS: FieldDocs<InvoiceView> = {
   number: { exposure: 'plain', meaning: 'Its number.' },
   client: { exposure: 'ref', to: CLIENT_RECORDS.name, meaning: 'The client it was issued to.' },
   item: { exposure: 'free-text', meaning: 'What it bills.' },
+  planItems: { exposure: 'free-text', meaning: 'Each line of the invoice with the billing plan items it summed in brackets, or empty.' },
   amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'Its total.' },
   issued: { exposure: 'plain', meaning: 'The day it was issued.' },
   due: { exposure: 'plain', meaning: 'The day it is due, or empty.' },
@@ -678,6 +687,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
               invoiceMail: client.invoicing.invoiceMail,
               mailLanguage: client.invoicing.mailLanguage,
               reverseCharge: client.invoicing.reverseCharge,
+              lines: (client.invoicing.lines ?? []).map((line) => lineWithItems(line.text, line.items)),
             })),
           ),
         currencyOf: currency,
@@ -694,6 +704,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
               number: invoice.number,
               client: invoice.client,
               item: invoice.item,
+              planItems: invoice.planItems ?? '',
               amount: invoice.amount,
               issued: invoice.issued,
               due: invoice.due ?? '',

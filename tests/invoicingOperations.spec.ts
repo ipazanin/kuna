@@ -94,7 +94,7 @@ describe('the invoices register', () => {
   it('refuses a due day before the issue day and a work period with one end, as the invoice dialog does', async () => {
     const company = await desk()
     const client = company.ref('client', 'northwind')
-    const invoice = { number: '99-1-26', client, item: 'Consulting', amount: 100, issued: '2026-10-31', due: null, periodFrom: null, periodTo: null, paidBy: [] }
+    const invoice = { number: '99-1-26', client, item: 'Consulting', planItems: '', amount: 100, issued: '2026-10-31', due: null, periodFrom: null, periodTo: null, paidBy: [] }
 
     const late = await company.propose([{ op: 'add-invoice', input: { ...invoice, due: '2026-10-01' } }])
     const oneEnd = await company.propose([{ op: 'add-invoice', input: { ...invoice, periodFrom: '2026-10-01' } }])
@@ -124,7 +124,18 @@ describe('the invoices register', () => {
       stepOf(
         INVOICING_OPERATIONS.operations,
         'add-client',
-        { client: 'acme', name: 'Acme Ltd', ibans: 'HR1210010051863000160', address: '', country: '', taxId: '', invoiceMail: 'billing@acme.example', mailLanguage: '', reverseCharge: 'no' },
+        {
+          client: 'acme',
+          name: 'Acme Ltd',
+          ibans: 'HR1210010051863000160',
+          address: '',
+          country: '',
+          taxId: '',
+          invoiceMail: 'billing@acme.example',
+          mailLanguage: '',
+          reverseCharge: 'no',
+          lines: [],
+        },
         '$acme',
       ),
       stepOf(INVOICING_OPERATIONS.operations, 'add-invoice', { number: 'A-1', client: '$acme', item: 'Setup', amount: 500, issued: '2026-11-02' }),
@@ -143,6 +154,21 @@ describe('the invoices register', () => {
     const answer = await company.propose([stepOf(INVOICING_OPERATIONS.operations, 'delete-client', { client: company.ref('client', 'lumen') })])
 
     expect(answer.isError).toBe(true)
+  })
+})
+
+describe('the plan items behind an invoice', () => {
+  it('sets them on a change and keeps them on a change that leaves them', async () => {
+    const company = await desk()
+    const invoice = company.ref('invoice', bookOf(company).invoices[0]!.id)
+    const unchanged = { invoice, number: null, client: null, item: null, planItems: null, amount: null, issued: null, due: null, periodFrom: null, periodTo: null, paid: 'keep', paidBy: [] }
+
+    await company.propose([{ op: 'change-invoice', input: { ...unchanged, planItems: 'Software development (Monthly Fee)' } }])
+    expect((await company.accept()).kind).toBe('done')
+    await company.propose([{ op: 'change-invoice', input: { ...unchanged, item: 'Software development, corrected' } }])
+    expect((await company.accept()).kind).toBe('done')
+
+    expect(bookOf(company).invoices[0]).toMatchObject({ item: 'Software development, corrected', planItems: 'Software development (Monthly Fee)' })
   })
 })
 
@@ -289,7 +315,7 @@ describe('clients', () => {
   it('warns on invoice details only when the mail address changes', async () => {
     const company = await desk()
     const client = company.ref('client', 'northwind')
-    const unchanged = { client, shortName: null, name: null, ibans: null, country: null, taxId: null, invoiceMail: null, mailLanguage: null, reverseCharge: null }
+    const unchanged = { client, shortName: null, name: null, ibans: null, country: null, taxId: null, invoiceMail: null, mailLanguage: null, reverseCharge: null, lines: null }
 
     await company.propose([{ op: 'change-client', input: { ...unchanged, address: '9 New Street, Zagreb' } }])
     await company.propose([{ op: 'change-client', input: { ...unchanged, address: null, invoiceMail: 'new@northwind.example' } }])
@@ -297,6 +323,65 @@ describe('clients', () => {
     const details = (at: number) => company.cards[at]!.groups[0]!.lines[0]!.fields.find((field) => field.name === invoicingWords.fields.invoicing)!
     expect(details(0).warns).toBe(false)
     expect(details(1).warns).toBe(true)
+  })
+
+  it("sets a client's invoice lines and keeps its other fields, and an empty list clears them", async () => {
+    const company = await desk()
+    const client = company.ref('client', 'northwind')
+    const unchanged = { client, shortName: null, name: null, ibans: null, address: null, country: null, taxId: null, invoiceMail: null, mailLanguage: null, reverseCharge: null }
+    const lines = [
+      { text: ' Development for {month} ', items: ['Monthly Fee'] },
+      { text: 'Everything else', items: [] },
+    ]
+
+    expect((await company.propose([{ op: 'change-client', input: { ...unchanged, lines } }])).isError).toBe(false)
+    expect((await company.accept()).kind).toBe('done')
+    const northwind = () => bookOf(company).clients.find((candidate) => candidate.slug === 'northwind')!
+    expect(northwind().invoicing).toMatchObject({
+      address: '1 Example Road, London',
+      reverseCharge: true,
+      lines: [
+        { text: 'Development for {month}', items: ['Monthly Fee'] },
+        { text: 'Everything else', items: [] },
+      ],
+    })
+
+    expect((await company.propose([{ op: 'change-client', input: { ...unchanged, lines: [] } }])).isError).toBe(false)
+    expect((await company.accept()).kind).toBe('done')
+    expect(northwind().invoicing.lines).toBeUndefined()
+    expect(northwind().invoicing.address).toBe('1 Example Road, London')
+  })
+
+  it('refuses invoice lines that name a plan item on two lines, as the client dialog does', async () => {
+    const company = await desk()
+    const unchanged = {
+      client: company.ref('client', 'northwind'),
+      shortName: null,
+      name: null,
+      ibans: null,
+      address: null,
+      country: null,
+      taxId: null,
+      invoiceMail: null,
+      mailLanguage: null,
+      reverseCharge: null,
+    }
+
+    const answer = await company.propose([
+      {
+        op: 'change-client',
+        input: {
+          ...unchanged,
+          lines: [
+            { text: 'Development', items: ['Monthly Fee'] },
+            { text: 'Fees', items: ['Monthly Fee'] },
+          ],
+        },
+      },
+    ])
+
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Monthly Fee is on an earlier line already')
   })
 })
 

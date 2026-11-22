@@ -282,6 +282,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/assets/asset/application/assetWrites.ts#VALUATION_WRITES.remove',
       'src/apps/assets/asset/application/assetWrites.ts#ASSET_SHARE_WRITES.remove',
       'src/apps/company/billingPlan/application/billingWrites.ts#BILLING_WRITES.remove',
+      'src/apps/company/settings/application/namedRecordWrites.ts#CLIENT_WRITES.remove',
       'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#OWNER_ADVANCE_WRITES.remove',
       'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#SCENARIO_WRITES.remove',
       'src/apps/company/packs/hr-doo/application/tripWrites.ts#removeTrip',

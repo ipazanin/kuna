@@ -20,6 +20,8 @@ import { en as importEnglish, hr as importCroatian } from '../../src/apps/compan
 import { en as importWritesEnglish, hr as importWritesCroatian } from '../../src/apps/company/imports/application/words.ts'
 import { en as onboardingEnglish, hr as onboardingCroatian } from '../../src/apps/company/onboarding/presentation/words.ts'
 import { en as settingsReasonsEnglish, hr as settingsReasonsCroatian } from '../../src/apps/company/settings/domain/words.ts'
+import { en as invoicingDomainEnglish, hr as invoicingDomainCroatian } from '../../src/apps/company/invoicing/domain/words.ts'
+import { capitalised } from '../../src/shared/text/capitalised.ts'
 import { en as booksEnglish, hr as booksCroatian } from '../../src/apps/company/workbook/presentation/words.ts'
 import { en as mailEnglish, hr as mailCroatian } from '../../src/apps/company/mail/presentation/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../../src/apps/company/invoicing/presentation/words.ts'
@@ -370,9 +372,16 @@ async function setField(input, value) {
 }
 
 /** The row of an editor table whose first field reads `name`. */
+/** A row named by its first field, or by the button that opens it where its name is one. */
 async function rowNamed(page, rowSelector, name) {
   return page
-    .waitForFunction((selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.querySelector('input')?.value === wanted) ?? null, { timeout: 10_000 }, rowSelector, name)
+    .waitForFunction(
+      (selector, wanted) =>
+        [...document.querySelectorAll(selector)].find((row) => (row.querySelector('[data-testid="open-row"]')?.textContent?.trim() ?? row.querySelector('input')?.value) === wanted) ?? null,
+      { timeout: 10_000 },
+      rowSelector,
+      name,
+    )
     .then((handle) => handle.asElement())
     .catch(() => {
       throw new Error(`no ${rowSelector} named "${name}"`)
@@ -381,7 +390,13 @@ async function rowNamed(page, rowSelector, name) {
 
 async function rowGone(page, rowSelector, name) {
   await page
-    .waitForFunction((selector, wanted) => ![...document.querySelectorAll(selector)].some((row) => row.querySelector('input')?.value === wanted), { timeout: 10_000 }, rowSelector, name)
+    .waitForFunction(
+      (selector, wanted) =>
+        ![...document.querySelectorAll(selector)].some((row) => (row.querySelector('[data-testid="open-row"]')?.textContent?.trim() ?? row.querySelector('input')?.value) === wanted),
+      { timeout: 10_000 },
+      rowSelector,
+      name,
+    )
     .catch(() => {
       throw new Error(`the ${rowSelector} named "${name}" is still there`)
     })
@@ -14317,3 +14332,85 @@ export function companyAccountSourcesFlowIn(language) {
     await pressLabelled(page, press, 'body', language === 'en' ? companySettingsEnglish.accounts.discard : companySettingsCroatian.accounts.discard)
   }
 }
+
+/**
+ * On Invoicing, Clients the client's name on its row of the clients grid opens every field of the client, and so does a tap on the row
+ * outside its cells' fields. A tag that is not an IBAN and an invoice line with no text are each said under their own field after Save. A
+ * line moves down and back up. An address change is saved with Undo, and Undo puts the address back.
+ */
+export function clientDialogFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const domain = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
+  const form = '[data-testid="client-form"]'
+  const lineTexts = (page) => page.$$eval(`${form} [data-testid="client-line-text"]`, (inputs) => inputs.map((input) => input.value))
+  const northwindRow = (page) => rowNamed(page, FACT_ROW, 'northwind')
+  const dialogOpened = async (page, how) => {
+    await page.waitForSelector(form, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error(`${how} opened no client dialog`)
+    })
+    await delay(400)
+  }
+  const openByName = async (page, press) => {
+    const row = await northwindRow(page)
+    await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await press(await row.$('[data-testid="open-row"]'))
+    await dialogOpened(page, 'the name northwind')
+  }
+  const openByRow = async (page) => {
+    const row = await northwindRow(page)
+    await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    const box = await row.boundingBox()
+    const spot = { x: box.x + 3, y: box.y + 3 }
+    const onControl = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('a, button, input, label, [role="combobox"], [role="checkbox"]') !== null, spot)
+    if (onControl) throw new Error("the northwind row's corner is a control, so a tap there cannot test the row")
+    await page.mouse.click(spot.x, spot.y)
+    await dialogOpened(page, 'a tap on the northwind row outside its fields')
+  }
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openByName(page, press)
+    const lines = await lineTexts(page)
+    if (lines.length !== 2) throw new Error(`the Northwind dialog shows ${lines.length} invoice lines, not the two of the fake books`)
+    const address = await page.$eval('[data-testid="client-address"]', (input) => input.value)
+    await inspect?.('the client dialog on Northwind')
+    await shoot('dialog-client')
+
+    await typeIban(page, press, await page.$('[data-testid="client-ibans"]'), 'XX00 NOT AN IBAN')
+    await pressSelector(page, press, '[data-testid="client-line-add"]')
+    await pressSelector(page, press, '[data-testid="client-save"]')
+    await elementSays(
+      page,
+      form,
+      [words.settingsReasons.notAnIban('XX00NOTANIBAN'), capitalised(domain.templateProblem({ kind: 'blank-text', line: 2 }))],
+      'the client dialog does not say the refusals under their fields',
+    )
+    await inspect?.('the client dialog refusing an IBAN and a blank line')
+    await shoot('dialog-client-refused')
+    await removeLastTag(page, press, form)
+    const lineButtons = await page.$$(`${form} [data-testid="client-line-remove"]`)
+    await press(lineButtons.at(-1))
+
+    await pressSelector(page, press, `${form} [data-testid="client-line-down"]`)
+    const moved = await lineTexts(page)
+    if (JSON.stringify(moved) !== JSON.stringify([...lines].reverse())) throw new Error(`moving the first line down shows ${JSON.stringify(moved)}`)
+    const ups = await page.$$(`${form} [data-testid="client-line-up"]`)
+    await press(ups.at(-1))
+    if (JSON.stringify(await lineTexts(page)) !== JSON.stringify(lines)) throw new Error('moving the line back up does not give the lines as they were')
+
+    await setField(await page.$('[data-testid="client-address"]'), '2 Example Street, Leeds')
+    await pressSelector(page, press, '[data-testid="client-save"]')
+    await toast(page, words.invoicing.clientDialog.saved)
+    await dialogGone(page, form)
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+    await openByRow(page)
+    const after = await page.$eval('[data-testid="client-address"]', (input) => input.value)
+    if (after !== address) throw new Error(`after Undo the address reads "${after}", not "${address}"`)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, form)
+  }
+}
+
+export const clientDialogFlow = clientDialogFlowIn('en')

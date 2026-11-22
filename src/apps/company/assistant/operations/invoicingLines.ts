@@ -1,4 +1,5 @@
 import { words } from './invoicingWords'
+import { lineWithItems } from '../../invoicing/domain/invoiceLines'
 import { words as billingWords } from '../../billingPlan/presentation/words'
 import { words as receivablesWords } from '../../receivables/presentation/words'
 import { moneyFormatOf } from '../../settings/domain/settings'
@@ -16,6 +17,7 @@ const FIELD_NAMES: Readonly<Record<string, string>> = {
   number: receivablesWords.dialog.number,
   client: receivablesWords.dialog.client,
   item: receivablesWords.dialog.item,
+  planItems: receivablesWords.dialog.planItems,
   amount: receivablesWords.dialog.amount,
   issued: receivablesWords.dialog.issued,
   due: receivablesWords.dialog.due,
@@ -36,7 +38,10 @@ export const INVOICING_KINDS: ReadonlySet<string> = new Set([INVOICE_RECORDS.nam
 
 /** A client's invoice details as one line, each filled one in turn. */
 function invoicingText({ invoicing }: ClientRecord): string | null {
-  const parts = [invoicing.address, invoicing.country, invoicing.taxId, invoicing.invoiceMail, invoicing.mailLanguage, invoicing.reverseCharge ? words.reverseCharge : ''].filter((part) => part !== '')
+  const lines = (invoicing.lines ?? []).map((line) => lineWithItems(line.text, line.items))
+  const parts = [invoicing.address, invoicing.country, invoicing.taxId, invoicing.invoiceMail, invoicing.mailLanguage, invoicing.reverseCharge ? words.reverseCharge : '', ...lines].filter(
+    (part) => part !== '',
+  )
   return parts.length === 0 ? null : parts.join(', ')
 }
 

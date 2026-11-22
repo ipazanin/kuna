@@ -13,16 +13,18 @@ const lines = defineModel<LineDraft[]>('lines', { required: true })
 defineProps<{
   total: Money
   disabled: boolean
+  /** The client has invoice lines of its own, which start the list instead of one line per plan row. */
+  templated: boolean
 }>()
 
 const emit = defineEmits<{
-  /** Lines from the billing plan's open rows again. */
+  /** The lines the client's invoice starts from again. */
   plan: []
   /** One line for the whole amount. */
   merge: []
 }>()
 
-function update(index: number, field: keyof LineDraft, text: string): void {
+function update(index: number, field: 'description' | 'amount', text: string): void {
   lines.value = lines.value.map((line, at) => (at === index ? { ...line, [field]: text } : line))
 }
 
@@ -31,7 +33,7 @@ function remove(index: number): void {
 }
 
 function add(): void {
-  lines.value = [...lines.value, { description: '', amount: '' }]
+  lines.value = [...lines.value, { description: '', amount: '', items: [] }]
 }
 
 function amountError(text: string): boolean {
@@ -45,7 +47,15 @@ function amountError(text: string): boolean {
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h3 id="invoice-lines-title" class="type-card-title">{{ words.lines.title }}</h3>
       <div class="flex flex-wrap gap-1">
-        <UButton :label="words.lines.fromPlan" icon="i-lucide-list-restart" size="sm" color="neutral" variant="ghost" :disabled="disabled" @click="emit('plan')" />
+        <UButton
+          :label="templated ? words.lines.fromTemplate : words.lines.fromPlan"
+          icon="i-lucide-list-restart"
+          size="sm"
+          color="neutral"
+          variant="ghost"
+          :disabled="disabled"
+          @click="emit('plan')"
+        />
         <UButton
           :label="words.lines.merge"
           icon="i-lucide-merge"
@@ -58,7 +68,7 @@ function amountError(text: string): boolean {
         />
       </div>
     </div>
-    <p class="-mt-1 type-caption">{{ words.lines.intro }}</p>
+    <p class="-mt-1 type-caption">{{ templated ? words.lines.introTemplate : words.lines.intro }}</p>
     <ul class="flex flex-col gap-2">
       <li v-for="(line, index) in lines" :key="index" class="line-row" data-testid="invoice-line">
         <UInput

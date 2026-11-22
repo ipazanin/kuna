@@ -67,7 +67,7 @@ const props = withDefaults(
   { prefill: null },
 )
 
-type Field = 'number' | 'client' | 'item' | 'amount' | 'issued' | 'due' | 'period_from' | 'period_to'
+type Field = 'number' | 'client' | 'item' | 'plan_items' | 'amount' | 'issued' | 'due' | 'period_from' | 'period_to'
 
 const store = useWorkbook()
 const booked = useBookedWorkbook()
@@ -81,7 +81,7 @@ const paidBy = ref<string[]>([])
 const openedPaidBy = ref<string[]>([])
 
 function blankFields(): Record<Field, string> {
-  return { number: '', client: '', item: '', amount: '', issued: '', due: '', period_from: '', period_to: '' }
+  return { number: '', client: '', item: '', plan_items: '', amount: '', issued: '', due: '', period_from: '', period_to: '' }
 }
 
 /** The invoice as the app read it, with its fields as stored, so a field the dialog cannot read still shows. */
@@ -97,6 +97,7 @@ function fieldsOf(stored: StoredFields): Record<Field, string> {
     number: textOf(stored.number),
     client: textOf(stored.client).toLowerCase(),
     item: textOf(stored.item),
+    plan_items: textOf(stored.plan_items),
     amount: amount === null ? textOf(stored.amount) : amountForTyping(amount),
     issued: dateText(stored.issued),
     due: dateText(stored.due),
@@ -192,10 +193,12 @@ async function save(): Promise<void> {
   const to = optionalDate(fields.value.period_to) ?? null
   const number = fields.value.number.trim()
   const client = fields.value.client.trim().toLowerCase()
+  const planItems = fields.value.plan_items.trim()
   const typed: Invoice = {
     number,
     client,
     item: fields.value.item.trim(),
+    ...(planItems === '' ? {} : { planItems }),
     amount: parsedAmount.value,
     issued,
     due: optionalDate(fields.value.due) ?? null,
@@ -215,9 +218,11 @@ async function save(): Promise<void> {
     number: changed('number') ? typed.number : before.number,
     client: changed('client') ? typed.client : before.client,
   }
+  const keptPlanItems = changed('plan_items') ? typed.planItems : before.planItems
   const after: Invoice = {
     ...kept,
     item: changed('item') ? typed.item : before.item,
+    ...(keptPlanItems === undefined ? {} : { planItems: keptPlanItems }),
     amount: changed('amount') ? typed.amount : before.amount,
     issued: changed('issued') ? typed.issued : before.issued,
     due: changed('due') ? typed.due : before.due,
@@ -268,6 +273,9 @@ async function remove(): Promise<void> {
         <DayField v-model="fields.period_to" class="w-full" />
       </UFormField>
       <p class="-mt-2 type-caption">{{ words.dialog.periodHelp }}</p>
+      <UFormField :label="words.dialog.planItems" :help="words.dialog.planItemsHelp" class="sm:col-span-2">
+        <UInput v-model="fields.plan_items" class="w-full" data-testid="invoice-plan-items" />
+      </UFormField>
       <UFormField v-if="paymentItems.length > 0" :label="words.dialog.paidBy" :help="words.dialog.paidByHelp" :error="(tried && errors.paidBy) || false" class="sm:col-span-2">
         <PaymentsSelect v-model="paidBy" data-testid="invoice-paid-by" :payments="paymentItems" :none="words.dialog.notPaid" :search="words.dialog.searchPayments" />
       </UFormField>

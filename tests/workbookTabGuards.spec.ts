@@ -15,6 +15,11 @@ import { civil } from './fixtures/ledger'
 const VALID_IBAN = 'XX66FAKE0000000099'
 const OTHER_IBAN = 'XX93FAKE0000000098'
 
+/** Why a change to the clients is refused, each reason as the write gives it. */
+function clientReasons(...args: Parameters<typeof clientChangeRefusals>): string[] {
+  return clientChangeRefusals(...args).map((refusal) => refusal.reason)
+}
+
 describe('a slug', () => {
   it('is lower-case letters and digits in words joined by single hyphens', () => {
     expect(['ai-services', 'main', 'q3-2026'].map((slug) => slugProblem(slug, 'category'))).toEqual([null, null, null])
@@ -148,34 +153,34 @@ describe('the accounts tab', () => {
 
 describe('the clients tab', () => {
   const checks = { named: new Map([['acme', ['2 invoices']]]), accountIbans: new Map([['XX23FAKE0000000097', 'main']]) }
-  const acme = { slug: 'acme', ibans: [VALID_IBAN] }
+  const acme = { slug: 'acme', ibans: [VALID_IBAN], lines: '' }
 
   it('takes a second IBAN on the client’s row, and checks only the IBANs a change adds', () => {
-    expect(clientChangeRefusals([{ before: acme, after: { ...acme, ibans: [VALID_IBAN, OTHER_IBAN] } }], [], checks)).toEqual([])
-    expect(clientChangeRefusals([{ before: { ...acme, ibans: ['XX00FAKE0000000001'] }, after: { ...acme, ibans: ['XX00FAKE0000000001', OTHER_IBAN] } }], [], checks)).toEqual([])
+    expect(clientReasons([{ before: acme, after: { ...acme, ibans: [VALID_IBAN, OTHER_IBAN] } }], [], checks)).toEqual([])
+    expect(clientReasons([{ before: { ...acme, ibans: ['XX00FAKE0000000001'] }, after: { ...acme, ibans: ['XX00FAKE0000000001', OTHER_IBAN] } }], [], checks)).toEqual([])
   })
 
   it('refuses each added IBAN that is on another client, on one of your own accounts, or not valid', () => {
-    const globex = (...ibans: string[]) => [{ before: null, after: { slug: 'globex', ibans } }]
+    const globex = (...ibans: string[]) => [{ before: null, after: { slug: 'globex', ibans, lines: '' } }]
 
-    expect(clientChangeRefusals(globex(OTHER_IBAN, VALID_IBAN), [acme], checks)).toEqual([`${VALID_IBAN} is already on the clients tab for acme.`])
-    expect(clientChangeRefusals(globex('XX23FAKE0000000097'), [acme], checks)).toEqual([
+    expect(clientReasons(globex(OTHER_IBAN, VALID_IBAN), [acme], checks)).toEqual([`${VALID_IBAN} is already on the clients tab for acme.`])
+    expect(clientReasons(globex('XX23FAKE0000000097'), [acme], checks)).toEqual([
       'XX23FAKE0000000097 is the IBAN of your main account, so a transfer between your own accounts would read as a payment from a client.',
     ])
-    expect(clientChangeRefusals(globex('XX00FAKE0000000001', OTHER_IBAN), [acme], checks)).toEqual(['"XX00FAKE0000000001" is not a valid IBAN.'])
+    expect(clientReasons(globex('XX00FAKE0000000001', OTHER_IBAN), [acme], checks)).toEqual(['"XX00FAKE0000000001" is not a valid IBAN.'])
   })
 
   it('refuses a second row of a client', () => {
-    const second = [{ before: null, after: { slug: 'acme', ibans: [OTHER_IBAN] } }]
+    const second = [{ before: null, after: { slug: 'acme', ibans: [OTHER_IBAN], lines: '' } }]
 
-    expect(clientChangeRefusals(second, [acme], checks)).toEqual(['"acme" is already a client.'])
+    expect(clientReasons(second, [acme], checks)).toEqual(['"acme" is already a client.'])
   })
 
   it('takes the IBAN of a row the same change deletes, as merging two rows of a client does', () => {
-    const second = { slug: 'acme', ibans: [OTHER_IBAN] }
+    const second = { slug: 'acme', ibans: [OTHER_IBAN], lines: '' }
 
     expect(
-      clientChangeRefusals(
+      clientReasons(
         [
           { before: acme, after: { ...acme, ibans: [VALID_IBAN, OTHER_IBAN] } },
           { before: second, after: null },
@@ -186,8 +191,24 @@ describe('the clients tab', () => {
     ).toEqual([])
   })
 
+  it('refuses invoice lines a change gives that break a rule, and saves a client whose stored lines it leaves as they were', () => {
+    const doubted = { ...acme, lines: 'Development\nMaintenance | Hosting' }
+
+    expect(clientReasons([{ before: acme, after: { ...acme, lines: 'Development | Development\nMaintenance {week} | Development' } }], [], checks)).toEqual([
+      'The invoice lines of acme cannot be saved. Line 2: {week} is not {month}, the only word in braces a line can name, line 2: Development is on an earlier line already.',
+    ])
+    expect(clientReasons([{ before: doubted, after: { ...doubted, ibans: [VALID_IBAN, OTHER_IBAN] } }], [], checks)).toEqual([])
+    expect(clientReasons([{ before: acme, after: { ...acme, lines: 'Software services for {month}' } }], [], checks)).toEqual([])
+  })
+
+  it('names the field each refusal is about, so the client dialog shows it under that field', () => {
+    expect(
+      clientChangeRefusals([{ before: acme, after: { ...acme, slug: 'acme-ltd', ibans: ['XX23FAKE0000000097'], lines: 'Fees | A\nCosts | A' } }], [], checks).map((refusal) => refusal.field),
+    ).toEqual(['client', 'iban', 'invoice_lines'])
+  })
+
   it('keeps a client with invoices', () => {
-    expect(clientChangeRefusals([{ before: acme, after: null }], [], checks)).toEqual(['"acme" cannot be deleted, since it is used by 2 invoices.'])
+    expect(clientReasons([{ before: acme, after: null }], [], checks)).toEqual(['"acme" cannot be deleted, since it is used by 2 invoices.'])
   })
 })
 

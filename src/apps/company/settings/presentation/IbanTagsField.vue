@@ -29,7 +29,7 @@ function update(tags: readonly unknown[]): void {
     add-on-paste
     add-on-blur
     :placeholder="words.general.addIban"
-    :ui="{ item: 'identifier', input: 'identifier min-w-28' }"
+    :ui="{ item: 'identifier', input: 'identifier min-w-28 basis-28' }"
     @update:model-value="update"
   />
 </template>

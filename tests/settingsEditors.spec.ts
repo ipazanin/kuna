@@ -158,13 +158,24 @@ describe('the assets, grants and year-end editors', () => {
     sameBack(YEAR_END_TAB, snapshot['year-end'], YEAR_END_COLUMNS, yearEndLineOfFields)
   })
 
-  it('draft a client with two IBANs and every invoice detail and make the same record back, so a save keeps its invoice columns', () => {
+  it('draft a client with two IBANs, every invoice detail and invoice lines the grid does not show, and make the same record back, so a save keeps them', () => {
     const stored = storedOf(
       recordsOfRows(
         CORE_TABS.clients,
         sheetRowsFromValues([
-          ['client', 'name', 'iban', 'address', 'country', 'tax_id', 'invoice_mail', 'mail_language', 'reverse_charge'],
-          ['northwind', 'Northwind', 'GB82WEST12345698765432, IE29AIBK93115212345678', '1 Example Road', 'United Kingdom', 'GB000000000', 'ap@northwind.example', 'hr', true],
+          ['client', 'name', 'iban', 'address', 'country', 'tax_id', 'invoice_mail', 'mail_language', 'reverse_charge', 'invoice_lines'],
+          [
+            'northwind',
+            'Northwind',
+            'GB82WEST12345698765432, IE29AIBK93115212345678',
+            '1 Example Road',
+            'United Kingdom',
+            'GB000000000',
+            'ap@northwind.example',
+            'hr',
+            true,
+            'Software services for {month} | Monthly Fee\nCosts billed on',
+          ],
         ]),
       ),
     )

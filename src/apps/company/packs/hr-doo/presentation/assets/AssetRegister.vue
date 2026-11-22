@@ -53,7 +53,7 @@ const tableFits = roomAtLeast(70)
 <template>
   <div v-if="!tableFits" class="flex flex-col gap-2">
     <ul class="grid gap-2 sm:grid-cols-2" data-testid="asset-register">
-      <li v-for="line in lines" :key="line.key" class="rounded-control border border-default px-3 py-2.5">
+      <RecordRow v-for="line in lines" :key="line.key" as="li" :to="line.payment" class="rounded-control border border-default px-3 py-2.5">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <DrillLink :to="line.payment" :label="words.register.openPayment(line.name)" class="type-card-title">
@@ -97,7 +97,7 @@ const tableFits = roomAtLeast(70)
           </div>
         </dl>
         <p v-if="line.payment === null" class="mt-1.5 type-caption text-warning">{{ words.register.noPayment }}</p>
-      </li>
+      </RecordRow>
     </ul>
     <dl class="asset-cells px-3">
       <div>
