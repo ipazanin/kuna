@@ -19,7 +19,6 @@ import { words as spendingWords } from '../../words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { bankLinked, sameBank } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
-import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
@@ -82,8 +81,8 @@ function startError(proposal: AccountProposal, key: string): string | false {
   return accountWords.startDay.between(earliest, latest)
 }
 
-function title(bank: LinkableBank, currency: string): string {
-  return words.setup.account(words.banks[bank], currency)
+function title(bank: string, currency: string): string {
+  return words.setup.account(bank, currency)
 }
 
 function about(linked: LinkedAccount): string {
@@ -125,7 +124,7 @@ function changes(line: Extract<SetupLine, { kind: 'kept' | 'fits' }> & { readonl
   ]
   const shared = account.iban !== update.iban && lines.value.some((other) => other.kind === 'kept' && other.bank === line.bank && other.account.id !== account.id && other.account.iban === update.iban)
   const gives = offersSync(line) ? words.setup.switchGives(details.join(', ')) : words.setup.updateGives(account.name, details.join(', '))
-  return shared ? `${gives} ${words.setup.sharedIban(words.banks[line.bank])}` : gives
+  return shared ? `${gives} ${words.setup.sharedIban(line.bank)}` : gives
 }
 
 function stateLine(line: SetupLine): string {
@@ -309,13 +308,14 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
       >
         <template #actions>
           <UButton
-            :label="words.linkAgain(words.banks[older.bank])"
+            :label="words.linkAgain"
+            :aria-label="words.linkAgainOf(older.link.bank)"
             color="neutral"
             variant="outline"
             size="sm"
             :loading="sync.busy.value"
             data-testid="spending-bank-sync-link-again"
-            @click="sync.link(older.bank)"
+            @click="sync.link(older.link.bank)"
           />
         </template>
       </UAlert>

@@ -17,9 +17,13 @@ import type { SavedRecipe } from './savedRecipe'
 import type { Payee } from './payee'
 import type { SpendingEvent } from './event'
 import type { Receipt } from './receipt'
+import { OLD_LINK_SETTING_KEYS, bankLinksOf, oldLinkEndKey, oldLinksCount } from './bankLinkReading'
+import { OLD_BANK_KEYS } from '../../bankSync/domain/bankLink'
+import type { BankLink } from '../../bankSync/domain/bankLink'
 import { readReceipts } from './receiptReading'
 import {
   ACCOUNT_RECORDS,
+  BANK_LINK_RECORDS,
   BUDGET_RECORDS,
   CATEGORY_RECORDS,
   EVENT_RECORDS,
@@ -47,10 +51,7 @@ import {
   INSTALMENTS_PUT_OFF_KEY,
   COMPANY_ROLES_PUT_OFF_KEY,
   COMPANY_PAYMENTS_PUT_OFF_KEY,
-  LINKABLE_BANKS,
   PERSON_PAYEES_KEY,
-  bankFetchedKey,
-  bankLinkKey,
   instalmentPutOffOf,
   isBankAccountLine,
   linesOf,
@@ -74,11 +75,16 @@ import { words as recordWords } from '../../../../shared/storage/domain/words'
 import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 
+function oldLinkCheck(key: string): SettingValueCheck {
+  if (Object.values(OLD_BANK_KEYS).some((oldKey) => oldLinkEndKey(oldKey) === key)) return (value) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])
+  return (value) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])
+}
+
 function bankAccountLinesCheck(key: string): SettingValueCheck {
   return (value: string) => linesOf(value).flatMap((line) => (isBankAccountLine(line) ? [] : [words.settingNotABankAccount(key, line)]))
 }
 
-/** Each key Spending knows, a bank's link ending only on a day, and a bank's last fetch only at a UTC time. */
+/** Each key Spending knows, and of a book from before bank-link records a bank's link ending only on a day and a bank's last fetch only at a UTC time. */
 export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingValueCheck>([
   [BANK_SYNC_APPLICATION_KEY, ANY_VALUE],
   [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
@@ -86,8 +92,7 @@ export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingVal
   [INSTALMENTS_PUT_OFF_KEY, (value: string) => linesOf(value).flatMap((line) => (instalmentPutOffOf(line) === null ? [words.settingNotAPutOff(INSTALMENTS_PUT_OFF_KEY, line)] : []))],
   [COMPANY_ROLES_PUT_OFF_KEY, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(COMPANY_ROLES_PUT_OFF_KEY, value)] : [])],
   [COMPANY_PAYMENTS_PUT_OFF_KEY, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(COMPANY_PAYMENTS_PUT_OFF_KEY, value)] : [])],
-  ...LINKABLE_BANKS.map(bankLinkKey).map((key) => [key, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])] as const),
-  ...LINKABLE_BANKS.map(bankFetchedKey).map((key) => [key, (value: string) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])] as const),
+  ...OLD_LINK_SETTING_KEYS.map((key) => [key, oldLinkCheck(key)] as const),
 ])
 
 /**
@@ -116,6 +121,7 @@ export interface SpendingRecords {
   readonly dropped: RecordsRead<DroppedRow>
   readonly recipes: RecordsRead<SavedRecipe>
   readonly payees: RecordsRead<Payee>
+  readonly bankLinks: RecordsRead<BankLink>
   readonly settings: RecordsRead<SettingRow>
 }
 
@@ -137,6 +143,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   dropped: DROPPED_ROW_RECORDS,
   recipes: RECIPE_RECORDS,
   payees: PAYEE_RECORDS,
+  bankLinks: BANK_LINK_RECORDS,
   settings: SETTING_RECORDS,
 }
 
@@ -159,6 +166,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     dropped: of(SPENDING_PARTS.dropped),
     recipes: of(SPENDING_PARTS.recipes),
     payees: of(SPENDING_PARTS.payees),
+    bankLinks: of(SPENDING_PARTS.bankLinks),
     settings: of(SPENDING_PARTS.settings),
   }
 }
@@ -200,6 +208,8 @@ export interface SpendingBook {
   readonly recipes: readonly SavedRecipe[]
   /** The payees you keep details of, in the order of the file. */
   readonly payees: readonly Payee[]
+  /** The bank approvals the book keeps, or in a book from before bank-link records those its old settings hold. */
+  readonly bankLinks: readonly BankLink[]
   readonly settings: SpendingSettings
   /** The accounts a file from before periods keeps, with the periods worked out from their rows, which the next write of their rows stores. */
   readonly sourcesWorkedOut: readonly Account[]
@@ -294,10 +304,14 @@ function readPayees(read: RecordsRead<Payee>): Reading<Payee> {
   })
 }
 
-/** The settings, of which the old marks of payees as people are doubted once payees count, since the payees say it now. */
-function readSettings(read: RecordsRead<SettingRow>, payees: readonly Payee[]): Reading<SettingRow> {
+/**
+ * The settings, of which the old marks of payees as people are doubted once payees count, since the payees say it now, and
+ * the old link settings once a bank-link record counts.
+ */
+function readSettings(read: RecordsRead<SettingRow>, payees: readonly Payee[], links: readonly BankLink[]): Reading<SettingRow> {
   const reading = readSettingRows(read, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  return oldMarksCount(payees) ? reading : doubted(reading, read, (row) => (row.key === PERSON_PAYEES_KEY ? words.personPayeesMoved : null))
+  const ofPayees = oldMarksCount(payees) ? reading : doubted(reading, read, (row) => (row.key === PERSON_PAYEES_KEY ? words.personPayeesMoved : null))
+  return oldLinksCount(links) ? ofPayees : doubted(ofPayees, read, (row) => (OLD_LINK_SETTING_KEYS.includes(row.key) ? words.oldBankLinkMoved : null))
 }
 
 /**
@@ -339,8 +353,28 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const dropped = readDropped(records.dropped, accountsById)
   const recipes = readEach(records.recipes, () => [])
   const payees = readPayees(records.payees)
-  const settings = readSettings(records.settings, payees.facts)
-  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, dropped, recipes, payees, settings }
+  const bankLinks = readEach(records.bankLinks, () => [])
+  const settings = readSettings(records.settings, payees.facts, bankLinks.facts)
+  const readings: SpendingReadings = {
+    accounts,
+    categories,
+    labels,
+    events,
+    transactions,
+    budgets,
+    rules,
+    shortcuts,
+    shortcutParts,
+    receipts,
+    lines,
+    items,
+    held,
+    dropped,
+    recipes,
+    payees,
+    bankLinks,
+    settings,
+  }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -357,6 +391,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     dropped: dropped.facts,
     recipes: recipes.facts,
     payees: payees.facts,
+    bankLinks: bankLinksOf(bankLinks.facts, settings.facts),
     settings: spendingSettingsOf(settings.facts),
     sourcesWorkedOut: accounts.facts.filter((account) => worked.ids.has(account.id)),
     stored: { transactions: records.transactions, lines: records.lines, items: records.items },

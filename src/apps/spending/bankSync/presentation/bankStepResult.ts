@@ -27,13 +27,13 @@ function accountLines(linked: readonly LinkedOfBank[], proposals: readonly Accou
   if (book === null) return NO_ACCOUNT_LINES
   const lines = setupLines(linked, proposals, book)
   return {
-    waiting: lines.flatMap((line) => (line.kind === 'fits' ? [words.fitsAccount(words.banks[line.bank], line.update.currency, line.account.name)] : [])),
-    notes: lines.flatMap((line) => (line.kind === 'missing' ? [words.unknownAccount(words.linkedAccount(words.banks[line.bank], line.currency, linkedAccountEnding(line.linked)))] : [])),
+    waiting: lines.flatMap((line) => (line.kind === 'fits' ? [words.fitsAccount(line.bank, line.update.currency, line.account.name)] : [])),
+    notes: lines.flatMap((line) => (line.kind === 'missing' ? [words.unknownAccount(words.linkedAccount(line.bank, line.currency, linkedAccountEnding(line.linked)))] : [])),
   }
 }
 
-export function olderRowsLine({ bank, account, reached }: OlderRowsMissing): string {
-  return reached === null ? words.noOlderRows(words.banks[bank], account.name) : words.olderRows(words.banks[bank], account.name, dayLabel(reached))
+export function olderRowsLine({ link, account, reached }: OlderRowsMissing): string {
+  return reached === null ? words.noOlderRows(link.bank, account.name) : words.olderRows(link.bank, account.name, dayLabel(reached))
 }
 
 export function differenceLine({ account, stated, worked }: BalanceDifference): string {

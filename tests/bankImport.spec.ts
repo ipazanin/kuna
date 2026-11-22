@@ -11,7 +11,11 @@ import { bankHeldResult, bankStepResult } from '../src/apps/spending/bankSync/pr
 import { hr } from '../src/apps/spending/bankSync/presentation/words'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { BANK_SYNC_APPLICATION_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { bankLinkId, oldLinkEndKey, oldLinkFetchedKey } from '../src/apps/spending/workbook/domain/bankLinkReading'
+import type { BankLink } from '../src/apps/spending/bankSync/domain/bankLink'
+import type { BankSession } from '../src/apps/spending/bankSync/domain/bankAnswer'
+import type { WriteRules } from '../src/shared/storage/domain/writeRules'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
@@ -41,31 +45,48 @@ const BANK: BankTransaction = {
 const NOW = Date.parse('2026-10-30T12:00:00.000Z')
 const HOUR = 3_600_000
 
-function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01', otpFetchedAt: number | null = null): SpendingWorkbook {
-  const settingRows = [
-    settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-application'),
-    ...(otpLink === null ? [] : [settingRow(SETTING_RECORDS, bankLinkKey('otp'), otpLink)]),
-    ...(otpFetchedAt === null ? [] : [settingRow(SETTING_RECORDS, bankFetchedKey('otp'), new Date(otpFetchedAt).toISOString())]),
-  ]
-  return { ...spendingBook(transactions, { settingRows }), title: 'made-up' }
+function linkOf(bank: string, endsOn: string, fetchedAt: number | null = null): BankLink {
+  return { id: bankLinkId({ bank, usage: 'personal' }), bank, usage: 'personal', endsOn: civil(endsOn), fetchedAt }
 }
 
-/** A store over the book given, whose writes run their work against a unit that records what was added and set. */
+function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01', otpFetchedAt: number | null = null): SpendingWorkbook {
+  const settingRows = [settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-application')]
+  return { ...spendingBook(transactions, { settingRows, bankLinks: otpLink === null ? [] : [linkOf('OTP banka', otpLink, otpFetchedAt)] }), title: 'made-up' }
+}
+
+/** A book from before bank-link records, whose settings hold OTP's link. */
+function oldBookOf(): SpendingWorkbook {
+  const settingRows = [
+    settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-application'),
+    settingRow(SETTING_RECORDS, oldLinkEndKey('otp'), '2027-01-01'),
+    settingRow(SETTING_RECORDS, oldLinkFetchedKey('otp'), '2026-10-29T08:00:00.000Z'),
+  ]
+  return { ...spendingBook([], { settingRows }), title: 'made-up' }
+}
+
+/** A store over the book given, whose writes run their work against a unit that records what was added and set, the links each as written and the settings removed by key. */
 function storeOver(first: SpendingWorkbook) {
   const state: { workbook: SpendingWorkbook | null; writes: never[] } = { workbook: first, writes: [] }
   const added: Transaction[] = []
   const settings: { key: string; value: string }[] = []
+  const links: BankLink[] = []
+  const removedSettings: string[] = []
   const titles: string[] = []
   const unit = {
-    of: () => ({
-      add: (record: Transaction & { key: string; value: string }) => (record.key === undefined ? added.push(record) : settings.push(record)),
-      change: (_before: unknown, after: Transaction & { key: string; value: string }) => (after.key === undefined ? undefined : settings.push(after)),
-      remove: () => undefined,
-    }),
+    of: (writes: WriteRules<unknown>) => {
+      const kind = writes.kind.name
+      return {
+        add: (record: never) => (kind === 'bank-link' ? links.push(record) : kind === 'setting' ? settings.push(record) : added.push(record)),
+        change: (_before: unknown, after: never) => (kind === 'bank-link' ? links.push(after) : kind === 'setting' ? settings.push(after) : undefined),
+        remove: (record: { key?: string }) => (kind === 'setting' && record.key !== undefined ? removedSettings.push(record.key) : undefined),
+      }
+    },
   } as unknown as UnitOfWork
   return {
     added,
     settings,
+    links,
+    removedSettings,
     titles,
     store: {
       state,
@@ -84,13 +105,14 @@ function linked(uid: string, iban: string, currency: string): LinkedAccount {
   return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null }
 }
 
-const OTP_SESSION = { bank: 'OTP banka', status: 'AUTHORIZED', accounts: [linked('otp', OTP.iban, 'EUR')] }
+const OTP_SESSION: BankSession = { bank: 'OTP banka', usage: 'personal', status: 'AUTHORIZED', accounts: [linked('otp', OTP.iban, 'EUR')] }
 
 function portOf(fields: Partial<BankSyncPort> = {}): BankSyncPort {
   return {
     application: async () => ({ name: 'Kuna', environment: 'PRODUCTION', redirectUrls: [], active: true }),
+    banks: async () => [],
     startLink: async () => '',
-    finishLink: async () => ({ sessionId: 'made-up-session', validUntil: '2027-05-03T12:00:00+00:00' }),
+    finishLink: async () => ({ sessionId: 'made-up-session', bank: 'Revolut', usage: 'personal', validUntil: '2027-05-03T12:00:00+00:00' }),
     closeSession: async () => undefined,
     sessions: async () => [OTP_SESSION],
     transactions: async () => [BANK],
@@ -232,7 +254,7 @@ describe('a fetch', () => {
 
   it('shares one fetch between two callers, and the next call makes its own', async () => {
     const fake = storeOver(bookOf([]))
-    const sessions = vi.fn(async () => [OTP_SESSION])
+    const sessions = vi.fn(async (): Promise<readonly BankSession[]> => [OTP_SESSION])
     const importer = importerOver(portOf({ sessions }), fake.store)
 
     const [one, other] = await Promise.all([importer.run(false), importer.run(false)])
@@ -275,18 +297,26 @@ describe('a fetch', () => {
 
   it('marks a session that ended, with the rest of the rows still imported in their own write', async () => {
     const fake = storeOver(bookOf([]))
-    const port = portOf({ sessions: async () => [{ bank: 'OTP banka', status: 'EXPIRED', accounts: [] }] })
+    const port = portOf({ sessions: async () => [{ bank: 'OTP banka', usage: 'personal', status: 'EXPIRED', accounts: [] }] })
 
     const { problems } = await importerOver(port, fake.store).run(false)
 
-    expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_otp', value: '2026-10-29' })])
+    expect(fake.links).toEqual([expect.objectContaining({ bank: 'OTP banka', endsOn: '2026-10-29' })])
     expect(problems).toEqual(['The link to OTP banka ended early. Link it again.'])
   })
 
   it('leaves the day alone for a link already over', async () => {
     const fake = storeOver(bookOf([], '2026-10-01'))
-    await importerOver(portOf({ sessions: async () => [{ bank: 'OTP banka', status: 'EXPIRED', accounts: [] }] }), fake.store).run(false)
-    expect(fake.settings).toEqual([])
+    await importerOver(portOf({ sessions: async () => [{ bank: 'OTP banka', usage: 'personal', status: 'EXPIRED', accounts: [] }] }), fake.store).run(false)
+    expect(fake.links).toEqual([])
+  })
+
+  it('moves the links of a book from before bank-link records onto records in the write that stamps the fetch, clearing the old settings', async () => {
+    const fake = storeOver(oldBookOf())
+    await importerOver(portOf({ transactions: async () => [] }), fake.store).run(false)
+    expect(fake.titles).toEqual(['Banks asked'])
+    expect(fake.links).toEqual([{ id: bankLinkId({ bank: 'OTP banka', usage: 'personal' }), bank: 'OTP banka', usage: 'personal', endsOn: '2027-01-01', fetchedAt: NOW }])
+    expect(fake.removedSettings).toEqual([oldLinkEndKey('otp'), oldLinkFetchedKey('otp')])
   })
 })
 
@@ -295,7 +325,7 @@ describe('finishing a link', () => {
     let held = first
     return { load: () => held, save: (next) => (held = next), held: () => held }
   }
-  const WAITING: PendingLink = { bank: 'revolut', state: 'one-time', code: 'made-up', validUntil: null }
+  const WAITING: PendingLink = { bank: 'Revolut', usage: 'personal', state: 'one-time', code: 'made-up', validUntil: null }
 
   /** This browser's secrets, kept in a map. */
   function secretsOver(first: Record<string, string> = {}): BankSecretStore & { readonly kept: Map<string, string> } {
@@ -303,47 +333,62 @@ describe('finishing a link', () => {
     return {
       kept,
       read: (id) => kept.get(id) ?? null,
-      write: (id, value) => (value === null ? kept.delete(id) : kept.set(id, value)),
+      write: (id, value) => {
+        if (value === null) kept.delete(id)
+        else kept.set(id, value)
+      },
+      ids: () => [...kept.keys()],
     }
   }
 
-  it('keeps the session as a secret, writes the day and forgets the link', async () => {
+  it('keeps the session as a secret, writes the link with the bank and login Enable Banking answered and forgets the pending one', async () => {
     const fake = storeOver(bookOf([], null))
     const pending = pendingOver(WAITING)
     const secrets = secretsOver()
-    await finishBankLink({ script: portOf(), pending, store: fake.store, secrets, usage: 'personal' })
-    expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_revolut', value: '2027-05-03' })])
-    expect(secrets.kept).toEqual(new Map([['enable-banking-session personal revolut', 'made-up-session']]))
+    await finishBankLink({ script: portOf(), pending, store: fake.store, secrets })
+    expect(fake.links).toEqual([{ id: bankLinkId({ bank: 'Revolut', usage: 'personal' }), bank: 'Revolut', usage: 'personal', endsOn: '2027-05-03', fetchedAt: null }])
+    expect(secrets.kept).toEqual(new Map([['enable-banking-session personal Revolut', 'made-up-session']]))
     expect(pending.held()).toBeNull()
   })
 
-  it('closes the session a new link replaces, and links even when the close fails', async () => {
+  it("closes the session a new link replaces, kept under the bank's old short name, and links even when the close fails", async () => {
     const fake = storeOver(bookOf([], null))
     const secrets = secretsOver({ 'enable-banking-session personal revolut': 'old-session' })
     const closeSession = vi.fn(async () => {
       throw new Error('The bank sync script did not answer: Failed to fetch')
     })
-    await finishBankLink({ script: portOf({ closeSession }), pending: pendingOver(WAITING), store: fake.store, secrets, usage: 'personal' })
+    await finishBankLink({ script: portOf({ closeSession }), pending: pendingOver(WAITING), store: fake.store, secrets })
     expect(closeSession).toHaveBeenCalledWith('old-session')
-    expect(secrets.read('enable-banking-session personal revolut')).toBe('made-up-session')
-    expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_revolut', value: '2027-05-03' })])
+    expect(secrets.kept).toEqual(new Map([['enable-banking-session personal Revolut', 'made-up-session']]))
+    expect(fake.links).toEqual([expect.objectContaining({ bank: 'Revolut', endsOn: '2027-05-03' })])
+  })
+
+  it("keeps OTP's carried-over link beside a new one in a book from before bank-link records, under one write", async () => {
+    const fake = storeOver(oldBookOf())
+    await finishBankLink({ script: portOf(), pending: pendingOver(WAITING), store: fake.store, secrets: secretsOver() })
+    expect(fake.titles).toEqual(['Bank linked'])
+    expect(fake.links.map(({ bank, endsOn }) => [bank, endsOn])).toEqual([
+      ['OTP banka', '2027-01-01'],
+      ['Revolut', '2027-05-03'],
+    ])
+    expect(fake.removedSettings).toEqual([oldLinkEndKey('otp'), oldLinkFetchedKey('otp')])
   })
 
   it('keeps what the code was traded for when the write fails, and a retry only writes', async () => {
     const fake = storeOver(bookOf([], null))
     const pending = pendingOver(WAITING)
-    const finishLink = vi.fn(async () => ({ sessionId: 'made-up-session', validUntil: '2027-05-03T12:00:00+00:00' }))
+    const finishLink = vi.fn(async () => ({ sessionId: 'made-up-session', bank: 'Revolut', usage: 'personal' as const, validUntil: '2027-05-03T12:00:00+00:00' }))
     const secrets = secretsOver()
-    const ports = { script: portOf({ finishLink }), pending, store: fake.store, secrets, usage: 'personal' as const }
+    const ports = { script: portOf({ finishLink }), pending, store: fake.store, secrets }
     vi.mocked(fake.store.write).mockRejectedValueOnce(new Error('The file is being read'))
 
     await expect(finishBankLink(ports)).rejects.toThrow('being read')
     expect(pending.held()).toMatchObject({ code: 'made-up', validUntil: '2027-05-03T12:00:00+00:00' })
-    expect(secrets.read('enable-banking-session personal revolut')).toBe('made-up-session')
+    expect(secrets.read('enable-banking-session personal Revolut')).toBe('made-up-session')
 
     await finishBankLink(ports)
     expect(finishLink).toHaveBeenCalledOnce()
-    expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_revolut', value: '2027-05-03' })])
+    expect(fake.links).toEqual([expect.objectContaining({ bank: 'Revolut', endsOn: '2027-05-03' })])
     expect(pending.held()).toBeNull()
   })
 
@@ -355,7 +400,7 @@ describe('finishing a link', () => {
         throw new BankScriptFailure('The bank sync script did not answer: EXPIRED_AUTHORIZATION_CODE')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver(), usage: 'personal' })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
+    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver() })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
     expect(pending.held()).toBeNull()
   })
 
@@ -367,7 +412,7 @@ describe('finishing a link', () => {
         throw new Error('The bank sync script did not answer: Failed to fetch')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver(), usage: 'personal' })).rejects.toThrow('Failed to fetch')
+    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver() })).rejects.toThrow('Failed to fetch')
     expect(pending.held()?.code).toBe('made-up')
   })
 })
@@ -376,7 +421,7 @@ describe('what the step says', () => {
   const dryRun = { newRows: 2, alreadyIn: 1, filled: 0, fileNotes: [], leftOut: [], notes: [] } as never
   const noWrite = { dryRun, problems: [], linked: [], proposals: [], differences: [], stated: [], olderRows: [], receipt: null }
   const bookNow = () => bookOf([])
-  const other = { bank: 'otp' as const, account: linked('u', 'HR0000000000000000077', 'EUR') }
+  const other = { bank: 'OTP banka', account: linked('u', 'HR0000000000000000077', 'EUR') }
 
   it('is done with a link to review when nothing went wrong', () => {
     expect(bankStepResult(noWrite, bookNow(), 7, 3)).toEqual({
@@ -390,7 +435,7 @@ describe('what the step says', () => {
   it('is done and notes a linked account Kuna does not keep by its bank, currency and the end of its number, with a way to Settings', () => {
     const result = bankStepResult({ ...noWrite, linked: [other] }, bookNow(), null, 0)
     expect(result).toMatchObject({ kind: 'done', link: { to: '/spending/settings?tab=bank-sync' } })
-    expect('line' in result && result.line).toContain('Kuna does not keep the account OTP EUR ending 0077. Bank sync can add it or leave it out.')
+    expect('line' in result && result.line).toContain('Kuna does not keep the account OTP banka EUR ending 0077. Bank sync can add it or leave it out.')
     expect('line' in result && result.line).not.toContain('HR0000000000000000077')
   })
 
@@ -405,22 +450,22 @@ describe('what the step says', () => {
 
   it('names a multi-currency account by the currency the fetch drafted', () => {
     const all = linked('all', 'LT000000000000000009', 'XXX')
-    const gbp = proposeAccount(all, 'revolut', 'GBP' as never, [], [], 'account:gbp' as never, DAY, ACCOUNTS)
-    const result = bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: all }], proposals: [gbp] }, bookNow(), null, 0)
+    const gbp = proposeAccount(all, 'Revolut', 'GBP' as never, [], [], 'account:gbp' as never, DAY, ACCOUNTS)
+    const result = bankStepResult({ ...noWrite, linked: [{ bank: 'Revolut', account: all }], proposals: [gbp] }, bookNow(), null, 0)
     expect('line' in result && result.line).toContain('Kuna does not keep the account Revolut GBP ending 0009.')
   })
 
   it('says an account that fits one without its IBAN needs updating, not that Kuna does not keep it', () => {
     const typed = { ...REVOLUT_USD, iban: '' }
     const book = { ...bookNow(), accounts: [...bookNow().accounts.filter((account) => account.id !== REVOLUT_USD.id), typed] }
-    const result = bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: linked('usd', 'LT000000000000000009', 'USD') }] }, book, null, 0)
+    const result = bankStepResult({ ...noWrite, linked: [{ bank: 'Revolut', account: linked('usd', 'LT000000000000000009', 'USD') }] }, book, null, 0)
     expect('line' in result && result.line).toContain(`Revolut has an account in USD that ${REVOLUT_USD.name} keeps once you update it with the bank's details.`)
   })
 
   it('stays quiet about a linked account kept by hand, which the person chose', () => {
     const byHand = { ...REVOLUT_USD, sources: [{ source: 'by-hand' as const, from: null }] }
     const book = { ...bookNow(), accounts: [...bookNow().accounts.filter((account) => account.id !== REVOLUT_USD.id), byHand] }
-    expect(bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: linked('usd', REVOLUT_USD.iban, 'USD') }] }, book, null, 0)).toMatchObject({ kind: 'done' })
+    expect(bankStepResult({ ...noWrite, linked: [{ bank: 'Revolut', account: linked('usd', REVOLUT_USD.iban, 'USD') }] }, book, null, 0)).toMatchObject({ kind: 'done' })
   })
 
   it('stays quiet about an account added since the fetch', () => {
@@ -432,7 +477,7 @@ describe('what the step says', () => {
   it('holds back the next fetch done, with an account Kuna does not keep as a note', () => {
     expect(bankHeldResult([], [other], bookNow())).toEqual({
       kind: 'done',
-      line: 'Asked the banks less than six hours ago, so they are left alone for now. Kuna does not keep the account OTP EUR ending 0077. Bank sync can add it or leave it out.',
+      line: 'Asked the banks less than six hours ago, so they are left alone for now. Kuna does not keep the account OTP banka EUR ending 0077. Bank sync can add it or leave it out.',
       writeId: null,
       link: { label: 'Bank sync', to: '/spending/settings?tab=bank-sync' },
     })
@@ -444,7 +489,7 @@ describe('what the step says', () => {
   })
 
   it('waits and says older rows need a new link when a fetch reached back further than the bank gave', () => {
-    const result = bankStepResult({ ...noWrite, olderRows: [{ bank: 'revolut', account: OTP, reached: civil('2026-08-10') }] }, bookNow(), null, 0)
+    const result = bankStepResult({ ...noWrite, olderRows: [{ link: { bank: 'Revolut', usage: 'personal' }, account: OTP, reached: civil('2026-08-10') }] }, bookNow(), null, 0)
     expect(result).toMatchObject({ kind: 'waits' })
     expect('line' in result && result.line).toContain('Older rows come only if you link Revolut again')
   })
@@ -461,7 +506,7 @@ describe('the six hours every device shares', () => {
     const fake = storeOver(bookOf([], '2027-01-01', NOW - 6 * HOUR + 1))
     const { linked: reached } = await importerOver(portOf({ transactions }), fake.store).run(false)
     expect(transactions).not.toHaveBeenCalled()
-    expect(reached.map((account) => account.bank)).toEqual(['otp'])
+    expect(reached.map((account) => account.bank)).toEqual(['OTP banka'])
     expect(fake.titles).toEqual([])
   })
 
@@ -470,21 +515,21 @@ describe('the six hours every device shares', () => {
     await importerOver(portOf({ transactions }), fake.store).run(false)
     expect(transactions).toHaveBeenCalledOnce()
     expect(fake.titles).toEqual(['Bank rows imported'])
-    expect(fake.settings).toMatchObject([{ key: 'bank_sync_fetched_otp', value: '2026-10-30T12:00:00.000Z' }])
+    expect(fake.links).toMatchObject([{ bank: 'OTP banka', fetchedAt: NOW }])
   })
 
   it('asks on Sync now within the six hours, and starts them again', async () => {
     const fake = storeOver(bookOf([], '2027-01-01', NOW - HOUR))
     await importerOver(portOf({ transactions }), fake.store).run(true)
     expect(transactions).toHaveBeenCalledOnce()
-    expect(fake.settings).toMatchObject([{ key: 'bank_sync_fetched_otp', value: '2026-10-30T12:00:00.000Z' }])
+    expect(fake.links).toMatchObject([{ bank: 'OTP banka', fetchedAt: NOW }])
   })
 
   it('writes the time alone when the fetch brought nothing new', async () => {
     const fake = storeOver(bookOf([]))
     await importerOver(portOf({ transactions: async () => [] }), fake.store).run(false)
     expect(fake.titles).toEqual(['Banks asked'])
-    expect(fake.settings).toMatchObject([{ key: 'bank_sync_fetched_otp' }])
+    expect(fake.links).toMatchObject([{ bank: 'OTP banka', fetchedAt: NOW }])
   })
 
   it('writes no time when the bank did not answer, so the next sync asks again', async () => {
@@ -495,7 +540,7 @@ describe('the six hours every device shares', () => {
       },
     })
     await importerOver(failing, fake.store).run(false)
-    expect(fake.settings).toEqual([])
+    expect(fake.links).toEqual([])
   })
 })
 
@@ -503,7 +548,7 @@ describe('a link whose session this browser does not hold', () => {
   it('says so for a bank the file says is linked, and writes no end to its link', async () => {
     const fake = storeOver(bookOf([]))
     const outcome = await importerOver(portOf({ sessions: async () => [] }), fake.store).run(true)
-    expect(outcome.problems).toEqual(['This browser does not hold the link to OTP. Get it from Google on Settings, Bank sync, or link it again.'])
-    expect(fake.settings).toEqual([])
+    expect(outcome.problems).toEqual(['This browser does not hold the link to OTP banka. Get it from Google on Settings, Bank sync, or link it again.'])
+    expect(fake.links).toEqual([])
   })
 })

@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { BANK_SYNC_APPLICATION_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { bankLinkId } from '../src/apps/spending/workbook/domain/bankLinkReading'
+import { civil } from './fixtures/ledger'
 import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { spendingBook } from './fixtures/spending'
 
@@ -43,12 +45,9 @@ function stubStorage(): void {
 /** This device opens the file, in which another device's fetch wrote when OTP last answered. */
 function openedWithOtpFetchedAt(fetchedAt: number): void {
   vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
-  const settingRows = [
-    settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-application'),
-    settingRow(SETTING_RECORDS, bankLinkKey('otp'), '2027-01-01'),
-    settingRow(SETTING_RECORDS, bankFetchedKey('otp'), new Date(fetchedAt).toISOString()),
-  ]
-  store.state.workbook = { ...spendingBook([], { categories: [], settingRows }), title: 'made-up' }
+  const settingRows = [settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-application')]
+  const bankLinks = [{ id: bankLinkId({ bank: 'OTP banka', usage: 'personal' }), bank: 'OTP banka', usage: 'personal' as const, endsOn: civil('2027-01-01'), fetchedAt }]
+  store.state.workbook = { ...spendingBook([], { categories: [], settingRows, bankLinks }), title: 'made-up' }
 }
 
 afterEach(() => {
@@ -98,5 +97,11 @@ describe('the bank step across devices', () => {
       linked: [{ bank: 'otp', account: { uid: 'u', iban: 'HR0000000000000000077', currency: 'EUR', identificationHash: 'hash-1' } }],
     })
     expect(loadLastFetch()?.linked[0]?.account).toEqual({ ...described, product: null, details: null, cashAccountType: null, usage: null })
+  })
+
+  it('reads a last fetch saved under the old short bank names by the names Enable Banking gives', () => {
+    stubStorage()
+    localStorage.setItem('kuna.bank-sync-fetched', JSON.stringify({ problems: [], linked: [{ bank: 'otp', account: { uid: 'u', iban: 'HR0000000000000000077', currency: 'EUR' } }] }))
+    expect(loadLastFetch()?.linked[0]?.bank).toBe('OTP banka')
   })
 })

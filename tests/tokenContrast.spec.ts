@@ -273,6 +273,27 @@ describe('the cost buckets', () => {
   }
 })
 
+describe("the app colours on Net worth's What you have ring", () => {
+  for (const [theme, tokens] of [
+    ['light', LIGHT_TOKENS],
+    ['dark', DARK_TOKENS],
+  ] as const) {
+    it(`keep every pair apart in normal vision and with red-green colour blindness in the ${theme} theme, since any two may sit side by side`, () => {
+      const failing = APP_COLOURS.flatMap((app, index) =>
+        APP_COLOURS.slice(index + 1).flatMap((other) => {
+          const one = colourOf(tokens, app)
+          const two = colourOf(tokens, other)
+          const apart = (seen?: readonly (readonly number[])[]): number => 100 * Math.hypot(...oklabOf(one, seen).map((part, place) => part - (oklabOf(two, seen)[place] ?? 0)))
+          const normal = apart()
+          const redGreen = Math.min(apart(COLOUR_BLINDNESS['protanopia']), apart(COLOUR_BLINDNESS['deuteranopia']))
+          return normal >= BUCKETS_APART && redGreen >= BUCKETS_APART_RED_GREEN ? [] : [`${app} and ${other}: ${normal.toFixed(1)}, red-green ${redGreen.toFixed(1)}`]
+        }),
+      )
+      expect(failing).toEqual([])
+    })
+  }
+})
+
 /** The debts on Net worth's What you owe ring, largest first, with the grey the rest folds into. */
 const DEBT_RING = ['--net-debt-1', '--net-debt-2', '--net-debt-3', '--chart-deemphasis']
 /** The colours a debt must not be taken for: the two bars above the rings, and a gain or a loss. */

@@ -22,6 +22,7 @@ import {
   DROPPED_ROW_RECORDS,
   RECIPE_RECORDS,
   PAYEE_RECORDS,
+  BANK_LINK_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SHORTCUT_PART_RECORDS,
@@ -33,7 +34,9 @@ import { rowItemsOf, wholeItemOf } from '../../domain/rowItems'
 import type { WholeFiling } from '../../domain/rowItems'
 import type { SpendingRule } from '../../domain/spendingRule'
 import type { Shortcut, ShortcutPart } from '../../domain/shortcut'
-import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_APPLICATION_KEY, bankLinkKey } from '../../domain/spendingSettings'
+import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_APPLICATION_KEY } from '../../domain/spendingSettings'
+import { bankLinkId, oldLinkEndKey } from '../../domain/bankLinkReading'
+import type { BankLink } from '../../../bankSync/domain/bankLink'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../domain/transaction'
 import type { DroppedRow } from '../../domain/droppedRow'
 import type { Payee } from '../../domain/payee'
@@ -731,6 +734,10 @@ const LINKED_VARIANTS: readonly string[] = [
   'by-hand-savings',
   'kind-differs',
   'settled',
+  'old-links',
+  'not-listed',
+  'list-failed',
+  'link-refused',
 ]
 
 /** The made-up Enable Banking application id the fake book's bank sync uses. */
@@ -742,7 +749,7 @@ const UNLINKED_VARIANTS: readonly string[] = ['saved', 'inactive', 'refused', 'n
 /**
  * The bank sync's settings as `?banksync=` names them: `saved`, `inactive`, `refused` and `no-key` an application set up with no link, each of `LINKED_VARIANTS` both
  * banks linked for months yet, `not-in-kuna` with the dollar account `new-accounts` adds left out, and `ending` OTP's link
- * with 13 days left. Any other variant holds none.
+ * with 13 days left. `old-links` keeps both links in the settings of a book from before bank-link records. Any other variant holds none.
  */
 function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly SettingRow[] {
   if (variant === null || (!UNLINKED_VARIANTS.includes(variant) && variant !== 'ending' && !LINKED_VARIANTS.includes(variant))) return []
@@ -750,10 +757,16 @@ function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly 
   if (UNLINKED_VARIANTS.includes(variant)) return [application]
   return [
     application,
-    settingRow(SETTING_RECORDS, bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)),
-    settingRow(SETTING_RECORDS, bankLinkKey('revolut'), addDays(day, 120)),
+    ...(variant === 'old-links' ? [settingRow(SETTING_RECORDS, oldLinkEndKey('otp'), addDays(day, 120)), settingRow(SETTING_RECORDS, oldLinkEndKey('revolut'), addDays(day, 120))] : []),
     ...(variant === 'not-in-kuna' ? [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${FAKE_NEW_USD_IBAN} USD`)] : []),
   ]
+}
+
+/** The personal links of OTP and Revolut, for months yet or OTP's with 13 days left in `ending`, in each variant that links both but `old-links`. */
+function fakeBankLinks(variant: string | null, day: CivilDate): readonly BankLink[] {
+  if (variant === null || variant === 'old-links' || (variant !== 'ending' && !LINKED_VARIANTS.includes(variant))) return []
+  const link = (bank: string, days: number): BankLink => ({ id: bankLinkId({ bank, usage: 'personal' }), bank, usage: 'personal', endsOn: addDays(day, days), fetchedAt: null })
+  return [link('OTP banka', variant === 'ending' ? 13 : 120), link('Revolut', 120)]
 }
 
 /** The day `?day=` names, so a check that builds files for a day gets rows seeded for the same day, and today where it names none. */
@@ -954,6 +967,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...stored(RECIPE_RECORDS, set === 'statements' ? fakeRecipes() : []),
       ...stored(PAYEE_RECORDS, set === 'people' ? fakePayees() : []),
       ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
+      ...stored(BANK_LINK_RECORDS, fakeBankLinks(bankSync, day)),
     },
     rows: transactions,
     lines: [...receipts.lines, ...loanEntries.lines, ...assetEntries.lines],
@@ -1205,7 +1219,11 @@ function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {
 
 /** The starter categories alone, with fixed keys, as a new file on the fake Drive holds them, and the bank sync's settings `?banksync=` names. */
 export function fakeStarterDocument(savedAt: string, bankSync: string | null = null, day: CivilDate = today()): WorkbookDocument {
-  return spendingDocumentOf(savedAt, { ...stored(CATEGORY_RECORDS, fakeCategories().categories), ...stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day)) })
+  return spendingDocumentOf(savedAt, {
+    ...stored(CATEGORY_RECORDS, fakeCategories().categories),
+    ...stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day)),
+    ...stored(BANK_LINK_RECORDS, fakeBankLinks(bankSync, day)),
+  })
 }
 
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {

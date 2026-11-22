@@ -2,7 +2,8 @@ import { BankScriptFailure } from '../application/bankSync'
 import type { BankLinkMade, BankSyncPort } from '../application/bankSync'
 import type { KeptSession } from '../application/bankSecrets'
 import type { BankApplication, BankBalance, BankFields, BankSession, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
-import { ENABLE_BANKING_NAMES } from '../domain/bankAnswer'
+import { BANK_USAGES } from '../domain/bankLink'
+import type { BankUsage, ListedBank } from '../domain/bankLink'
 import { words } from '../domain/words'
 import { googleRequest, isUnauthorized } from '../../../../shared/google/googleApi'
 
@@ -17,11 +18,23 @@ interface RunAnswer {
 /** A linked account as a script answers it. One deployed before the script returned the bank's descriptions leaves them out. */
 type AnsweredAccount = Pick<LinkedAccount, 'uid' | 'iban' | 'currency'> & Partial<LinkedAccount>
 
-type AnsweredSession = Omit<BankSession, 'accounts'> & { readonly accounts?: readonly AnsweredAccount[] }
+type AnsweredSession = Omit<BankSession, 'accounts' | 'usage'> & { readonly accounts?: readonly AnsweredAccount[] }
 
-function sessionOf({ accounts, ...session }: AnsweredSession): BankSession {
+/** A bank as the script lists it. Only the two logins Kuna knows are kept. */
+interface AnsweredBank {
+  readonly name: string
+  readonly usages: readonly string[]
+  readonly beta: boolean
+}
+
+function listedOf(answered: AnsweredBank): ListedBank {
+  return { name: answered.name, usages: BANK_USAGES.filter((usage) => answered.usages.includes(usage)), beta: answered.beta }
+}
+
+function sessionOf({ accounts, ...session }: AnsweredSession, usage: BankUsage): BankSession {
   return {
     ...session,
+    usage,
     accounts: (accounts ?? []).map((account) => ({
       uid: account.uid,
       iban: account.iban,
@@ -72,26 +85,30 @@ export function appsScriptBankSync({ deployment, googleToken, bankToken, session
     return answer.response?.result as Answer
   }
 
-  const kept = (): readonly { readonly bank: string; readonly sessionId: string }[] => sessions().map(({ bank, sessionId }) => ({ bank: ENABLE_BANKING_NAMES[bank], sessionId }))
+  const asked = (session: KeptSession): { readonly bank: string; readonly sessionId: string } => ({ bank: session.bank, sessionId: session.sessionId })
 
   return {
     application: () => run<BankApplication>('application', []),
-    startLink: async (bankName, redirectUrl, state) => (await run<{ readonly url: string }>('startLink', [bankName, redirectUrl, state])).url,
+    banks: async () => ((await run<readonly AnsweredBank[] | undefined>('banks', [])) ?? []).map(listedOf),
+    startLink: async (link, redirectUrl, state) => (await run<{ readonly url: string }>('startLink', [link.bank, redirectUrl, state, link.usage])).url,
     finishLink: async (code) => {
-      const { sessionId, validUntil } = await run<BankLinkMade>('finishLink', [code])
-      return { sessionId, validUntil }
+      const { sessionId, bank, usage, validUntil } = await run<Omit<BankLinkMade, 'usage'> & { readonly usage?: string }>('finishLink', [code])
+      return { sessionId, bank, usage: usage === 'business' ? 'business' : 'personal', validUntil }
     },
     closeSession: async (sessionId) => {
       await run<null>('closeSession', [sessionId])
     },
     // Google's page does not say whether an empty list comes back as `[]` or as no result at all.
     sessions: async () => {
-      const asked = kept()
-      return asked.length === 0 ? [] : ((await run<readonly AnsweredSession[] | undefined>('accounts', [asked, ...present])) ?? []).map(sessionOf)
+      const held = sessions()
+      if (held.length === 0) return []
+      // The script answers each session in the order it was given, so its login is the one asked at the same place.
+      const answered = (await run<readonly AnsweredSession[] | undefined>('accounts', [held.map(asked), ...present])) ?? []
+      return answered.map((session, place) => sessionOf(session, held[place]?.usage ?? 'personal'))
     },
     bankFields: async () => {
-      const asked = kept()
-      return asked.length === 0 ? [] : ((await run<readonly BankFields[] | undefined>('bankFields', [asked])) ?? [])
+      const held = sessions()
+      return held.length === 0 ? [] : ((await run<readonly BankFields[] | undefined>('bankFields', [held.map(asked)])) ?? [])
     },
     transactions: async (accountUid, from, longest) => (await run<readonly BankTransaction[] | undefined>('transactions', [accountUid, from, longest ? 'longest' : 'default', ...present])) ?? [],
     balances: async (accountUid) => (await run<readonly BankBalance[] | undefined>('balances', [accountUid, ...present])) ?? [],

@@ -3,14 +3,14 @@ import { ref, shallowRef } from 'vue'
 import { forgetBankSecrets, keepKey, keyOf, sessionsOf } from '../application/bankSecrets'
 import { forgetBankSync, saveApplicationId } from '../application/bankSync'
 import { applicationProblems } from '../domain/bankAnswer'
+import { BANK_USAGES } from '../domain/bankLink'
 import type { ApplicationProblem, BankApplication } from '../domain/bankAnswer'
 import { bankRedirectUrl } from '../infrastructure/bankBrowserState'
 import { UnreadableBankKey } from '../infrastructure/enableBankingToken'
-import { BANK_SYNC_SCOPE, BANK_USAGE, bankSyncPort, bankSyncPortWithKey } from './bankSyncPort'
+import { BANK_SECRETS, BANK_SYNC_SCOPE, bankSyncPort, bankSyncPortWithKey } from './bankSyncPort'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
-import { PAGE_SECRET_STORE } from '../../../../shared/secrets/presentation/pageSecrets'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 
 /** What the last check of this page found: the application and what keeps it from linking, or why the key failed. */
@@ -23,12 +23,12 @@ function failedLine(failure: unknown): string {
   return words.key.refused(failure instanceof Error ? failure.message : String(failure))
 }
 
-/** Ends each session kept here at the bank with the application's key. A session the script cannot reach stays open at the bank until it runs out. */
+/** Ends each session kept here at the bank with the application's key, of either login, since the key and every session go together. A session the script cannot reach stays open at the bank until it runs out. */
 async function closeSessions(applicationId: string): Promise<void> {
-  if (keyOf(PAGE_SECRET_STORE, applicationId) === null) return
+  if (keyOf(BANK_SECRETS, applicationId) === null) return
   try {
     const port = await bankSyncPort(applicationId)
-    for (const { sessionId } of sessionsOf(PAGE_SECRET_STORE, BANK_USAGE)) await port.closeSession(sessionId)
+    for (const { sessionId } of BANK_USAGES.flatMap((usage) => sessionsOf(BANK_SECRETS, usage))) await port.closeSession(sessionId)
   } catch {
     // Remove and another key go ahead anyway, since the bank ends the session on its own day.
   }
@@ -70,7 +70,7 @@ export function useBankKey() {
         if (application === null) return false
         const before = book.settings.bankSyncApplication
         if (before !== id) await closeSessions(before)
-        keepKey(PAGE_SECRET_STORE, before, id, pem, BANK_USAGE)
+        keepKey(BANK_SECRETS, before, id, pem)
         return await writes.write(before === '' ? words.key.saved : words.key.replaced, (unit) => saveApplicationId(unit, book, id), {
           failedTitle: words.notSaved,
           undoable: before === '' || before === id,
@@ -101,7 +101,7 @@ export function useBankKey() {
     removing.value = true
     try {
       await withGoogleAccess([BANK_SYNC_SCOPE], () => closeSessions(applicationId)).catch(() => undefined)
-      forgetBankSecrets(PAGE_SECRET_STORE, applicationId, BANK_USAGE)
+      forgetBankSecrets(BANK_SECRETS, applicationId)
       lastCheck.value = null
       return await writes.write(words.application.removed, (unit) => forgetBankSync(unit, book), { failedTitle: words.application.notRemoved, undoable: false })
     } finally {

@@ -28,19 +28,34 @@ function application(token) {
   return { name: found.name ?? '', environment: found.environment ?? '', redirectUrls: found.redirect_urls ?? [], active: found.active === true }
 }
 
-/** Starts a bank's approval for as long as the bank allows, and says where to send the tab. */
-function startLink(token, bank, redirectUrl, state) {
-  const aspsp = call_(token, 'get', `/aspsps?country=${COUNTRY}`).aspsps.find((candidate) => candidate.name === bank)
+/** The banks Enable Banking lists for the country, each with the logins it takes, `personal` or `business`, and whether it is still in beta. */
+function banks(token) {
+  return listedBanks_(token).map((aspsp) => ({
+    name: aspsp.name,
+    usages: aspsp.psu_types ?? [],
+    beta: aspsp.beta === true,
+    maximumConsentDays: Math.floor((aspsp.maximum_consent_validity ?? 0) / 86400),
+  }))
+}
+
+/** Starts a bank's approval for a `personal` or `business` login, for as long as the bank allows, and says where to send the tab. */
+function startLink(token, bank, redirectUrl, state, usage = 'personal') {
+  const aspsp = listedBanks_(token).find((candidate) => candidate.name === bank)
   if (aspsp === undefined) throw new Error(`Enable Banking lists no ${bank} in ${COUNTRY}`)
+  if (!(aspsp.psu_types ?? []).includes(usage)) throw new Error(`Enable Banking lists no ${usage} login at ${bank}`)
   const validUntil = new Date(Date.now() + (aspsp.maximum_consent_validity - 60) * 1000).toISOString()
-  const started = call_(token, 'post', '/auth', { body: { access: { valid_until: validUntil }, aspsp: { name: bank, country: COUNTRY }, state, redirect_url: redirectUrl, psu_type: 'personal' } })
+  const started = call_(token, 'post', '/auth', { body: { access: { valid_until: validUntil }, aspsp: { name: bank, country: COUNTRY }, state, redirect_url: redirectUrl, psu_type: usage } })
   return { url: started.url }
 }
 
-/** Trades the code the bank came back with for a session, and answers only its id, its bank and how long it lasts. Kuna closes the session it replaces. */
+function listedBanks_(token) {
+  return call_(token, 'get', `/aspsps?country=${COUNTRY}`).aspsps ?? []
+}
+
+/** Trades the code the bank came back with for a session, and answers only its id, its bank, its login and how long it lasts. Kuna closes the session it replaces. */
 function finishLink(token, code) {
   const session = call_(token, 'post', '/sessions', { body: { code } })
-  return { sessionId: session.session_id, bank: session.aspsp.name, validUntil: session.access.valid_until }
+  return { sessionId: session.session_id, bank: session.aspsp.name, usage: session.psu_type ?? 'personal', validUntil: session.access.valid_until }
 }
 
 /** A bank that allows one session has already ended the old one, so a refusal here changes nothing. */
@@ -54,22 +69,28 @@ function closeSession(token, sessionId) {
 
 /**
  * Each session's accounts, which restricted mode cuts down to the accounts linked in Enable Banking's panel. `sessions` are
- * Kuna's, as `[{ bank, sessionId }]`. One bank failing is that bank's answer, and leaves the others theirs.
+ * Kuna's, as `[{ bank, sessionId }]`. One bank failing is that bank's answer, and leaves the others theirs. An account whose
+ * `psu_status` is `deleted` is a closed product, which a bank may still offer on the same IBAN as the live one, so it is left out.
  */
 function accounts(token, sessions, psuUserAgent) {
   return sessions.map(({ bank, sessionId }) => {
     try {
       const session = call_(token, 'get', `/sessions/${sessionId}`)
-      return { bank, status: session.status, accounts: session.status === 'AUTHORIZED' ? session.accounts.map((uid) => accountOf_(token, uid, psuUserAgent)) : [] }
+      return {
+        bank,
+        status: session.status,
+        accounts: session.status === 'AUTHORIZED' ? session.accounts.map((uid) => accountOf_(token, uid, psuUserAgent)).filter((account) => account !== null) : [],
+      }
     } catch (failure) {
       return { bank, status: 'FAILED', reason: failure.message, accounts: [] }
     }
   })
 }
 
-/** What Kuna drafts an account from. Never `name`, which Enable Banking fills with the holder's own name. */
+/** What Kuna drafts an account from, or null for a deleted one. Never `name`, which Enable Banking fills with the holder's own name. */
 function accountOf_(token, uid, psuUserAgent) {
   const details = call_(token, 'get', `/accounts/${uid}/details`, { psuUserAgent })
+  if (details.psu_status === 'deleted') return null
   return {
     uid,
     iban: details.account_id?.iban ?? '',

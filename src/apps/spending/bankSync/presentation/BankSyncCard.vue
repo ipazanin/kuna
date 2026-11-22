@@ -9,8 +9,9 @@ import { notedBankReturn } from './bankReturnOnOpen'
 import BankAccountsSetup from './BankAccountsSetup.vue'
 import BankApplicationPanel from './BankApplicationPanel.vue'
 import BankFieldsCard from './BankFieldsCard.vue'
+import BankLinkDialog from './BankLinkDialog.vue'
 import BankSyncSetup from './BankSyncSetup.vue'
-import { BANK_SYNC_SCOPE, bankSyncBuiltIn } from './bankSyncPort'
+import { BANK_SYNC_SCOPE, BANK_USAGE, bankSyncBuiltIn } from './bankSyncPort'
 import { heldBankSetup, useBankSync } from './useBankSync'
 import { words } from './words'
 import { useHeldRows } from './useHeldRows'
@@ -21,17 +22,19 @@ import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { LINKABLE_BANKS, bankSyncSetUp } from '../../workbook/domain/spendingSettings'
+import { bankSyncSetUp } from '../../workbook/domain/spendingSettings'
 import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { currentToken } from '../../../../shared/google/googleAuth'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /**
- * Settings' Bank sync tab: the person's own Enable Banking application, a link per bank, and what the last fetch did. With
- * no application set up it walks the person through making one and bringing its key, and shows nothing else.
+ * Settings' Bank sync tab: the person's own Enable Banking application, each bank linked with a personal login, and what the last fetch did. A
+ * linked bank Enable Banking no longer lists keeps its row, which offers Remove in place of Link again. Remove asks first, since the bank's
+ * session cannot come back. With no application set up it walks the person through making one and bringing its key, and shows nothing else.
  */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
@@ -47,23 +50,36 @@ const saved = computed(() => settings.value !== null && bankSyncSetUp(settings.v
 const finishing = ref(false)
 const walking = computed(() => settings.value !== null && (!saved.value || finishing.value))
 
-const banks = computed(() =>
-  LINKABLE_BANKS.map((bank) => {
-    const until = settings.value?.bankLinks[bank] ?? null
+const links = computed(() => (store.state.workbook?.bankLinks ?? []).filter((link) => link.usage === BANK_USAGE))
+const linkRows = computed(() =>
+  links.value.map((link) => {
+    const listed = sync.listed.value === null || sync.listed.value.some((bank) => bank.name === link.bank)
     return {
-      bank,
-      name: words.banks[bank],
-      until,
-      line: until === null ? words.notLinked : until < today() ? words.endedOn(dayLabel(until)) : words.linkedUntil(dayLabel(until)),
-      action: until === null ? words.link(words.banks[bank]) : words.linkAgain(words.banks[bank]),
+      link,
+      line: link.endsOn < today() ? words.endedOn(dayLabel(link.endsOn)) : words.linkedUntil(dayLabel(link.endsOn)),
+      listed,
     }
   }),
 )
+const picking = ref(false)
+/** The bank whose Remove is asking first, or null. */
+const confirmingRemoval = ref<string | null>(null)
+const removalOpen = computed({
+  get: () => confirmingRemoval.value !== null,
+  set: (open) => {
+    if (!open) confirmingRemoval.value = null
+  },
+})
+
+async function removeLink(): Promise<void> {
+  const bank = confirmingRemoval.value
+  if (bank !== null && (await sync.removeLink(bank))) confirmingRemoval.value = null
+}
 
 const pendingCode = ref(loadPendingLink()?.code != null)
 const pendingBank = computed(() => {
   const pending = loadPendingLink()
-  return pendingCode.value && pending !== null ? words.banks[pending.bank] : null
+  return pendingCode.value && pending !== null ? pending.bank : null
 })
 
 const returned = notedBankReturn()
@@ -94,7 +110,10 @@ onMounted(() => {
     (open) => {
       if (!open) return
       queueMicrotask(() => stop())
-      if (pendingCode.value && currentToken(BANK_SYNC_SCOPE) !== null) void finish()
+      if (currentToken(BANK_SYNC_SCOPE) === null) return
+      if (pendingCode.value) void finish()
+      // With the access already here, the list says which linked bank Enable Banking no longer has, at no tap's cost.
+      else if (saved.value && links.value.length > 0) void sync.listBanks()
     },
     { immediate: true },
   )
@@ -111,23 +130,68 @@ onMounted(() => {
         <UAlert v-if="returnLine !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="returnLine" data-testid="spending-bank-sync-return" />
         <UAlert v-if="sync.failure.value !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="sync.failure.value" data-testid="spending-bank-sync-failed" />
         <template v-if="builtIn && saved">
-          <ul class="divide-y divide-default rounded-control border border-default">
-            <li v-for="{ bank, name, line, action } in banks" :key="bank" class="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="spending-bank-link">
+          <ul v-if="linkRows.length > 0" class="divide-y divide-default rounded-control border border-default">
+            <li v-for="{ link, line, listed } in linkRows" :key="link.id" class="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="spending-bank-link">
               <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span class="type-row-title">{{ name }}</span>
+                <span class="type-row-title">{{ link.bank }}</span>
                 <span class="type-caption" data-testid="spending-bank-link-state">{{ line }}</span>
+                <NoteLine v-if="!listed" tone="warning" data-testid="spending-bank-link-not-listed">{{ words.notListed }}</NoteLine>
               </span>
-              <UButton :label="action" color="neutral" variant="outline" size="sm" :loading="sync.busy.value" :data-testid="`spending-bank-link-${bank}`" @click="sync.link(bank)" />
+              <UButton
+                v-if="listed"
+                :label="words.linkAgain"
+                :aria-label="words.linkAgainOf(link.bank)"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                :loading="sync.busy.value"
+                data-testid="spending-bank-link-again"
+                @click="sync.link(link.bank)"
+              />
+              <UButton
+                v-else
+                :label="words.removeLink"
+                :aria-label="words.removeLinkOf(link.bank)"
+                icon="i-lucide-unlink"
+                color="error"
+                variant="ghost"
+                size="sm"
+                data-testid="spending-bank-link-remove"
+                @click="confirmingRemoval = link.bank"
+              />
             </li>
           </ul>
+          <p v-else class="type-aside" data-testid="spending-bank-link-none">{{ words.noLinkYet }}</p>
           <div class="flex flex-wrap gap-3">
+            <UButton :label="words.linkBank" icon="i-lucide-landmark" color="neutral" variant="outline" :loading="sync.busy.value" data-testid="spending-bank-link-add" @click="picking = true" />
             <UButton v-if="pendingBank !== null" :label="words.finish(pendingBank)" icon="i-lucide-link" :loading="sync.busy.value" data-testid="spending-bank-link-finish" @click="finish" />
             <UButton v-else-if="sync.canSync()" :label="words.syncNow" icon="i-lucide-refresh-cw" :loading="sync.busy.value" data-testid="spending-bank-sync-now" @click="syncNow" />
           </div>
         </template>
       </div>
     </AppCard>
-    <BankFieldsCard v-if="builtIn && saved && banks.some(({ until }) => until !== null)" :application-id="settings?.bankSyncApplication ?? ''" />
+    <AppDialog
+      v-model:open="removalOpen"
+      :title="words.removeLinkTitle(confirmingRemoval ?? '')"
+      :description="words.removeLinkDescription(confirmingRemoval ?? '')"
+      :dismissible="sync.removing.value === null"
+      changes
+    >
+      <template #end>
+        <UButton :label="words.key.cancel" color="neutral" variant="ghost" :disabled="sync.removing.value !== null" @click="confirmingRemoval = null" />
+        <UButton
+          :label="words.removeLink"
+          icon="i-lucide-unlink"
+          color="error"
+          :loading="sync.removing.value !== null"
+          :disabled="writes.refused.value"
+          data-testid="spending-bank-link-remove-confirm"
+          @click="removeLink"
+        />
+      </template>
+    </AppDialog>
+    <BankLinkDialog v-if="builtIn && saved" v-model:open="picking" :links="links" />
+    <BankFieldsCard v-if="builtIn && saved && links.length > 0" :application-id="settings?.bankSyncApplication ?? ''" />
     <BankAccountsSetup v-if="setup !== null && setup.linked.length > 0" :outcome="setup" />
     <AppCard v-if="sync.lastOutcome.value !== null" :title="words.lastSync" data-testid="spending-bank-sync-result">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">

@@ -4,7 +4,11 @@ import { saveApplicationId } from '../src/apps/spending/bankSync/application/ban
 import { applicationIdOfFileName, applicationProblems } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import type { BankApplication } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
-import { BANK_SYNC_APPLICATION_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { bankLinkId, oldLinkEndKey, oldLinkFetchedKey } from '../src/apps/spending/workbook/domain/bankLinkReading'
+import type { BankLink } from '../src/apps/spending/bankSync/domain/bankLink'
+import type { WriteRules } from '../src/shared/storage/domain/writeRules'
+import { civil } from './fixtures/ledger'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import { settingRow } from '../src/shared/storage/domain/settingRows'
 import type { SettingRow } from '../src/shared/storage/domain/settingRows'
@@ -35,32 +39,32 @@ describe('the application id of a key file', () => {
 })
 
 describe('saving the application id', () => {
-  const LINKED = [
-    settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-before'),
-    settingRow(SETTING_RECORDS, bankLinkKey('otp'), '2027-01-01'),
-    settingRow(SETTING_RECORDS, bankFetchedKey('otp'), '2026-11-20T08:00:00.000Z'),
-  ]
+  const APPLICATION = settingRow(SETTING_RECORDS, BANK_SYNC_APPLICATION_KEY, 'made-up-before')
+  const OLD_LINK = [settingRow(SETTING_RECORDS, oldLinkEndKey('otp'), '2027-01-01'), settingRow(SETTING_RECORDS, oldLinkFetchedKey('otp'), '2026-11-20T08:00:00.000Z')]
+  const LINK: BankLink = { id: bankLinkId({ bank: 'OTP banka', usage: 'personal' }), bank: 'OTP banka', usage: 'personal', endsOn: civil('2027-01-01'), fetchedAt: null }
 
-  /** What the save leaves in each setting it writes, blank for a removed row. */
-  function saved(settingRows: readonly SettingRow[], applicationId: string): Record<string, string> {
+  /** What the save leaves in each setting it writes, blank for a removed row, and the links it removes by bank. */
+  function saved(settingRows: readonly SettingRow[], applicationId: string, bankLinks: readonly BankLink[] = []): Record<string, string> {
     const written: Record<string, string> = {}
     const unit = {
-      of: () => ({
+      of: (writes: WriteRules<unknown>) => ({
         add: (row: SettingRow) => (written[row.key] = row.value),
         change: (_before: SettingRow, after: SettingRow) => (written[after.key] = after.value),
-        remove: (row: SettingRow) => (written[row.key] = ''),
+        remove: (record: SettingRow | BankLink) => (written[writes.kind.name === 'bank-link' ? `link ${(record as BankLink).bank}` : (record as SettingRow).key] = ''),
       }),
     } as unknown as UnitOfWork
-    saveApplicationId(unit, spendingBook([], { settingRows }), applicationId)
+    saveApplicationId(unit, spendingBook([], { settingRows, bankLinks }), applicationId)
     return written
   }
 
-  it("clears each bank's link end and last fetch for another application, since its sessions do not carry over", () => {
-    expect(saved(LINKED, ' made-up-after ')).toEqual({ [BANK_SYNC_APPLICATION_KEY]: 'made-up-after', [bankLinkKey('otp')]: '', [bankFetchedKey('otp')]: '' })
+  it("ends each link for another application, since its sessions do not carry over, and clears a book's old link settings", () => {
+    expect(saved([APPLICATION], ' made-up-after ', [LINK])).toEqual({ [BANK_SYNC_APPLICATION_KEY]: 'made-up-after', 'link OTP banka': '' })
+    expect(saved([APPLICATION, ...OLD_LINK], 'made-up-after')).toEqual({ [BANK_SYNC_APPLICATION_KEY]: 'made-up-after', [oldLinkEndKey('otp')]: '', [oldLinkFetchedKey('otp')]: '' })
   })
 
   it('keeps the links for the same application and writes only the id on a first set-up', () => {
-    expect(saved(LINKED, 'made-up-before')).toEqual({})
+    expect(saved([APPLICATION, ...OLD_LINK], 'made-up-before')).toEqual({})
+    expect(saved([APPLICATION], 'made-up-before', [LINK])).toEqual({})
     expect(saved([], 'made-up-after')).toEqual({ [BANK_SYNC_APPLICATION_KEY]: 'made-up-after' })
   })
 })

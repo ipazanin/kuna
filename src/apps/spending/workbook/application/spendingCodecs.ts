@@ -16,13 +16,11 @@ import {
   INSTALMENTS_PUT_OFF_KEY,
   COMPANY_ROLES_PUT_OFF_KEY,
   COMPANY_PAYMENTS_PUT_OFF_KEY,
-  LINKABLE_BANKS,
   PERSON_PAYEES_KEY,
-  bankFetchedKey,
-  bankLinkKey,
 } from '../domain/spendingSettings'
 import { words } from '../domain/words'
-import { words as accountWords } from '../../accounts/domain/words'
+import { BANK_LINK_CODEC, oldLinkEndKey, oldLinkFetchedKey } from '../domain/bankLinkReading'
+import { OLD_BANK_KEYS } from '../../bankSync/domain/bankLink'
 import { settingCodec } from '../../../../shared/storage/domain/settingRows'
 import { DROPPED_ROW_CODEC, HELD_ROW_CODEC, TRANSACTION_CODEC } from '../domain/transactionReading'
 import { RECIPE_CODEC } from '../domain/recipeReading'
@@ -41,9 +39,9 @@ function settingLabel(key: string): string {
     [COMPANY_ROLES_PUT_OFF_KEY]: labels.companyRolesPutOff,
     [COMPANY_PAYMENTS_PUT_OFF_KEY]: labels.companyPaymentsPutOff,
     ...Object.fromEntries(
-      LINKABLE_BANKS.flatMap((bank) => [
-        [bankLinkKey(bank), labels.bankLink(accountWords.banks[bank])],
-        [bankFetchedKey(bank), labels.bankFetched(accountWords.banks[bank])],
+      Object.entries(OLD_BANK_KEYS).flatMap(([bank, oldKey]) => [
+        [oldLinkEndKey(oldKey), labels.bankLink(bank)],
+        [oldLinkFetchedKey(oldKey), labels.bankFetched(bank)],
       ]),
     ),
   }
@@ -69,6 +67,7 @@ const SPENDING_CODECS = [
   DROPPED_ROW_CODEC,
   RECIPE_CODEC,
   PAYEE_CODEC,
+  BANK_LINK_CODEC,
   SETTING_CODEC,
 ] as readonly RecordCodec<unknown>[]
 

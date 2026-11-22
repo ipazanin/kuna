@@ -1,4 +1,4 @@
-import type { LinkableBank } from '../../workbook/domain/spendingSettings'
+import type { BankUsage } from './bankLink'
 
 /** One transaction as the script hands it over, cut down from Enable Banking's `Transaction`. */
 export interface BankTransaction {
@@ -55,6 +55,8 @@ export interface LinkedAccount {
 export interface BankSession {
   /** The bank's name at Enable Banking. */
   readonly bank: string
+  /** The login the session was made with. */
+  readonly usage: BankUsage
   /** Enable Banking's session status, such as `AUTHORIZED` or `EXPIRED`, or the script's `FAILED` when it could not ask. */
   readonly status: string
   /** Why the script could not ask, on a `FAILED` session. */
@@ -73,9 +75,6 @@ export function namesEndedSession(message: string): boolean {
 export function sessionEnded(session: BankSession): boolean {
   return ENDED_STATUSES.includes(session.status) || namesEndedSession(session.reason ?? '')
 }
-
-/** Each bank's name in Enable Banking's list of banks. */
-export const ENABLE_BANKING_NAMES: Readonly<Record<LinkableBank, string>> = { otp: 'OTP banka', revolut: 'Revolut' }
 
 /** The currency Enable Banking gives an account that holds several, or that names none. */
 export const NO_SINGLE_CURRENCY = 'XXX'

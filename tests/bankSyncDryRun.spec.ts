@@ -381,6 +381,7 @@ describe('readBanks', () => {
   const port = fakeBankSync('linked', DAY)
   const session = (bank: string, status: string, uid: string, iban: string, currency = 'EUR', reason?: string): BankSession => ({
     bank,
+    usage: 'personal',
     status,
     ...(reason === undefined ? {} : { reason }),
     accounts: status === 'AUTHORIZED' ? [linked(uid, iban, currency)] : [],
@@ -400,7 +401,7 @@ describe('readBanks', () => {
 
   it('drafts a linked account Kuna does not keep, and reads the rest', async () => {
     const { proposals, statement } = await readBanks(fakeBankSync('unknown-account', DAY), spendingBook([]), DAY)
-    expect(proposals.map(({ bank, account }) => [bank, account.iban, account.currency, account.name])).toEqual([['otp', 'HR0000000000000000077', 'EUR', 'OTP banka EUR']])
+    expect(proposals.map(({ bank, account }) => [bank, account.iban, account.currency, account.name])).toEqual([['OTP banka', 'HR0000000000000000077', 'EUR', 'OTP banka EUR']])
     expect(statement.rows.some((statementRow) => statementRow.account === proposals[0]!.account.id)).toBe(false)
   })
 
@@ -447,7 +448,7 @@ describe('readBanks', () => {
   it('gives two new accounts of one bank and currency different names', async () => {
     const twoUsd: BankSyncPort = {
       ...port,
-      sessions: async () => [{ bank: 'Revolut', status: 'AUTHORIZED', accounts: [linked('usd-1', 'LT000000000000000004', 'USD'), linked('usd-2', 'LT000000000000000005', 'USD')] }],
+      sessions: async () => [{ bank: 'Revolut', usage: 'personal', status: 'AUTHORIZED', accounts: [linked('usd-1', 'LT000000000000000004', 'USD'), linked('usd-2', 'LT000000000000000005', 'USD')] }],
       transactions: async () => [],
       balances: async () => [],
     }
@@ -457,8 +458,8 @@ describe('readBanks', () => {
 
   it('says nothing of older rows on the fetch just after a link, which a new link could not better', async () => {
     const openedLongAgo: SpendingBook = { ...spendingBook([]), accounts: ACCOUNTS.map((account) => ({ ...account, openedOn: civil('2026-05-01') })) }
-    const { olderRows } = await readBanks(port, openedLongAgo, DAY, ['revolut'])
-    expect(olderRows.map(({ bank }) => bank)).toEqual(['otp'])
+    const { olderRows } = await readBanks(port, openedLongAgo, DAY, [{ bank: 'Revolut', usage: 'personal' }])
+    expect(olderRows.map(({ link }) => link.bank)).toEqual(['OTP banka'])
   })
 
   it("says a kept account wanted older rows than the bank gave, and not when its bank link starts after the statement file's days", async () => {
@@ -467,10 +468,10 @@ describe('readBanks', () => {
       accounts: ACCOUNTS.map((account) => ({ ...account, openedOn: civil('2026-05-01') })),
     })
     const { olderRows } = await readBanks(port, openedLongAgo([]), DAY)
-    expect(olderRows.map(({ bank, account, reached }) => [bank, account.name, reached])).toEqual([
-      ['otp', OTP.name, civil('2026-10-28')],
-      ['revolut', REVOLUT_EUR.name, civil('2026-10-28')],
-      ['revolut', REVOLUT_USD.name, civil('2026-10-29')],
+    expect(olderRows.map(({ link, account, reached }) => [link.bank, account.name, reached])).toEqual([
+      ['OTP banka', OTP.name, civil('2026-10-28')],
+      ['Revolut', REVOLUT_EUR.name, civil('2026-10-28')],
+      ['Revolut', REVOLUT_USD.name, civil('2026-10-29')],
     ])
     const linkedLater = openedLongAgo([fileRow(1, '2026-10-20')])
     const covered = await readBanks(port, { ...linkedLater, accounts: linkedLater.accounts.map((account) => (account.id === OTP.id ? { ...account, sources: FILE_THEN_LINK.sources } : account)) }, DAY)
@@ -485,7 +486,7 @@ describe('readBanks', () => {
     }
     const read = await readBanks(failing, spendingBook([]), DAY)
     expect(payeesOf(read)).toEqual(['Corner bakery'])
-    expect(read.problems).toEqual(['OTP did not answer, so its rows wait for a later sync: Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED'])
+    expect(read.problems).toEqual(['OTP banka did not answer, so its rows wait for a later sync: Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED'])
     expect(read.ended).toEqual([])
   })
 
@@ -500,7 +501,7 @@ describe('readBanks', () => {
     }
     const read = await readBanks(failing, spendingBook([]), DAY)
     expect(payeesOf(read)).toEqual(['Corner bakery'])
-    expect(read.problems).toEqual(['OTP did not answer, so its rows wait for a later sync: The bank sync script did not answer: ASPSP_ERROR'])
+    expect(read.problems).toEqual(['OTP banka did not answer, so its rows wait for a later sync: The bank sync script did not answer: ASPSP_ERROR'])
   })
 
   it("lets Google's 401 through, which the page's sync turns into asking for access", async () => {
@@ -519,13 +520,13 @@ describe('readBanks', () => {
     const ended: BankSyncPort = { ...port, sessions: async () => [session('OTP banka', status, '', '')] }
     const read = await readBanks(ended, spendingBook([]), DAY)
     expect(read.statement.rows).toEqual([])
-    expect(read.ended).toEqual(['otp'])
+    expect(read.ended).toEqual([{ bank: 'OTP banka', usage: 'personal' }])
     expect(read.problems).toEqual(['The link to OTP banka ended early. Link it again.'])
   })
 
   it('takes EXPIRED_SESSION from either call as a session that ended', async () => {
     const onSession: BankSyncPort = { ...port, sessions: async () => [session('OTP banka', 'FAILED', '', '', 'EUR', 'Enable Banking answered 401: EXPIRED_SESSION Session is expired')] }
-    expect((await readBanks(onSession, spendingBook([]), DAY)).ended).toEqual(['otp'])
+    expect((await readBanks(onSession, spendingBook([]), DAY)).ended).toEqual([{ bank: 'OTP banka', usage: 'personal' }])
     const onRows: BankSyncPort = {
       ...port,
       sessions: async () => [OTP_SESSION],
@@ -533,7 +534,7 @@ describe('readBanks', () => {
         throw new BankScriptFailure('Enable Banking answered 401: EXPIRED_SESSION Session is expired')
       },
     }
-    expect((await readBanks(onRows, spendingBook([]), DAY)).ended).toEqual(['otp'])
+    expect((await readBanks(onRows, spendingBook([]), DAY)).ended).toEqual([{ bank: 'OTP banka', usage: 'personal' }])
   })
 
   it('reads neither of two linked accounts that fit one Spending account, says so, and reads the rest', async () => {
@@ -542,6 +543,7 @@ describe('readBanks', () => {
       sessions: async () => [
         {
           bank: 'Revolut',
+          usage: 'personal',
           status: 'AUTHORIZED',
           accounts: [linked('current', REVOLUT_EUR.iban, 'EUR'), linked('pocket', REVOLUT_EUR.iban, 'EUR')],
         },

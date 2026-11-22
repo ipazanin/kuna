@@ -9,6 +9,7 @@ import type { DroppedRow } from './droppedRow'
 import type { Receipt } from './receipt'
 import type { SavedRecipe } from './savedRecipe'
 import type { Payee } from './payee'
+import type { BankLink } from '../../bankSync/domain/bankLink'
 import type { SpendingRule } from './spendingRule'
 import type { Shortcut, ShortcutPart } from './shortcut'
 import type { StoredLine } from './beforeItems'
@@ -85,6 +86,10 @@ export const RECIPE_RECORDS = recordKind<SavedRecipe>('recipe', {
 export const PAYEE_RECORDS = recordKind<Payee>('payee', {
   en: { one: 'payee', many: 'payees', article: 'a' },
   hr: { one: 'primatelj ili platitelj', of: 'primatelja ili platitelja', few: 'primatelja ili platitelja', other: 'primatelja ili platitelja', gender: 'masculine' },
+})
+export const BANK_LINK_RECORDS = recordKind<BankLink>('bank-link', {
+  en: { one: 'bank link', many: 'bank links', article: 'a' },
+  hr: { one: 'veza s bankom', of: 'veze s bankom', few: 'veze s bankom', other: 'veza s bankom', gender: 'feminine' },
 })
 export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
   en: { one: 'setting', many: 'settings', article: 'a' },

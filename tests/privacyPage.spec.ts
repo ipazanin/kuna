@@ -37,6 +37,7 @@ describe('the privacy page', () => {
   it('says the bank key and sessions stay with you and the script keeps nothing', () => {
     expect(page).toContain('The script keeps nothing')
     expect(section('Where your data goes')).toContain('kuna-secrets.json')
+    expect(section('Where your data goes')).toContain('one session for each bank and login you link')
   })
 
   it('names what the browser keeps for a link', () => {

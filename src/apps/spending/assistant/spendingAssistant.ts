@@ -21,7 +21,7 @@ import { words as settingsWords } from '../settings/presentation/words'
 import { words as statementWords } from '../statements/presentation/words'
 import * as spendingKinds from '../workbook/domain/spendingKinds'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../workbook/domain/spendingKinds'
-import { BANK_SYNC_APPLICATION_KEY, LINKABLE_BANKS, bankLinkKey } from '../workbook/domain/spendingSettings'
+import { BANK_SYNC_APPLICATION_KEY } from '../workbook/domain/spendingSettings'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
 import { PAYEE_LINES, spendingReader } from './spendingReader'
@@ -75,10 +75,7 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
   kinds: Object.values(spendingKinds),
   places: PLACES,
   automations: [{ id: 'bank-sync', title: words.automations.bankSync.title, what: words.automations.bankSync.what(LABELS), setUpRoute: SPENDING_BANK_SYNC_LINK, guide: 'link-a-bank' }],
-  settings: [
-    { key: BANK_SYNC_APPLICATION_KEY, note: words.settings.bankSyncApplication, neverPropose: true },
-    ...LINKABLE_BANKS.map((bank) => ({ key: bankLinkKey(bank), note: words.settings.bankLink(bankSyncWords.banks[bank]), neverPropose: true as const })),
-  ],
+  settings: [{ key: BANK_SYNC_APPLICATION_KEY, note: words.settings.bankSyncApplication, neverPropose: true }],
   guides: [
     { id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [SPENDING_OVERVIEW_ROUTE, SPENDING_ACCOUNTS_ROUTE, IMPORT_LINK] },
     { id: 'first-rules', title: words.guides.rules.title, body: words.guides.rules.body(LABELS), places: [SPENDING_REVIEW_LINK, IMPORT_LINK, SPENDING_SORTING_ROUTE] },

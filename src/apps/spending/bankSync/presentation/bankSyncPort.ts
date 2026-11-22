@@ -1,5 +1,6 @@
 import { keyOf, sessionsOf } from '../application/bankSecrets'
-import type { BankUsage } from '../application/bankSecrets'
+import type { BankSecretStore } from '../application/bankSecrets'
+import type { BankUsage } from '../domain/bankLink'
 import type { BankSyncPort } from '../application/bankSync'
 import { appsScriptBankSync } from '../infrastructure/appsScriptBankSync'
 import { enableBankingTokens } from '../infrastructure/enableBankingToken'
@@ -9,15 +10,19 @@ import { currentToken } from '../../../../shared/google/googleAuth'
 import { bankSyncDeployment } from '../../../../shared/google/googleConfig'
 import type { GoogleScope } from '../../../../shared/google/googleScopes'
 import { words as googleWords } from '../../../../shared/google/words'
-import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
+import { storedSecret, storedSecretIds } from '../../../../shared/secrets/infrastructure/browserSecrets'
+import { PAGE_SECRET_STORE } from '../../../../shared/secrets/presentation/pageSecrets'
 
 export const BANK_SYNC_SCOPE: GoogleScope = 'script.external_request'
 
-/** Whose banks Spending reads. */
+/** Whose logins Spending links and reads. */
 export const BANK_USAGE: BankUsage = 'personal'
 
 /** The secrets this browser keeps, read only, since asking the banks never changes a key or a session. */
-const KEPT = { read: storedSecret }
+const KEPT = { read: storedSecret, ids: storedSecretIds }
+
+/** The secrets the cards keep and forget a key and sessions in. */
+export const BANK_SECRETS: BankSecretStore = { ...PAGE_SECRET_STORE, ids: storedSecretIds }
 
 /** Whether this build has a bank sync script to call: the deployment built in, or the fake build's twin. */
 export function bankSyncBuiltIn(): boolean {

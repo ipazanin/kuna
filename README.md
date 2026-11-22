@@ -3073,12 +3073,20 @@ through. Its key and each bank's session are secrets like the AI keys, kept in t
 signs each call with the key through WebCrypto (`enableBankingToken.ts`) and calls Kuna's one relay
 script (`apps-script/bank-sync`, with the owner's deployment note) through the Apps Script API, whose
 deployment id is built in as `VITE_BANK_SYNC_DEPLOYMENT`. The script relays and keeps nothing. The book
-keeps only the application id, as `bank_sync_application`. Without one it asks Google for nothing more,
+keeps the application id, as `bank_sync_application`, and each link as a `bank-link` record of its bank's name
+at Enable Banking, its login (`personal` or `business`, Enable Banking's `psu_type`), the day it ends and when
+any device last got an answer. Spending links personal logins only. Link a bank lists what the script's
+`banks` gets from Enable Banking for Croatia, and a linked bank the list no longer has says so. A book from
+before these records reads its links from the old `bank_link_otp` and `bank_link_revolut` settings, and the
+first link write moves them onto records under one Undo. A browser's sessions kept under the old short names
+`otp` and `revolut` are read as OTP banka's and Revolut's until the bank links again. Without an application it asks Google for nothing more,
 sends nothing and shows no sync step. A row's key comes from the bank's `entry_reference` with its day and amount, and a row the other of a file and the sync brought on the same day is
 skipped by `sameBooking`. The fake build's twin answers from the page, as `?banksync=` names it: `saved`,
 `linked`, `ending`, `failed`, `unknown-account`, `otp-failed` or `ended`, `inactive` for an application
 not active yet, `refused` for a key Enable Banking does not accept, and `no-key` for a browser that holds
-no key. Without it the book has no application, and the set-up's Check finds an active one.
+no key. `old-links` keeps both links in the old settings, `not-listed` lists no Revolut, and `list-failed`
+cannot list the banks. The fake list holds a bank with business logins only, which Spending leaves out.
+Without it the book has no application, and the set-up's Check finds an active one.
 
 Receipts (`receipts/`) split the bank payment they match. Add a receipt on Entries takes a photo, and `qrDecode.ts` reads its
 QR code with `jsqr` in the browser, since Firefox has no `BarcodeDetector`. `fiscalQr` reads `jir` or `zki`, `datv` and `izn` from

@@ -3,19 +3,10 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { settingValue } from '../../../../shared/storage/domain/settingRows'
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 
-/** The banks the bank sync can link. */
-export const LINKABLE_BANKS = ['otp', 'revolut'] as const
-
-export type LinkableBank = (typeof LINKABLE_BANKS)[number]
-
 /** What the Spending file keeps besides its records. */
 export interface SpendingSettings {
   /** The id of the Enable Banking application whose key signs the bank sync's calls, blank until a key is checked, which leaves the whole sync off. */
   readonly bankSyncApplication: string
-  /** The day each bank's approval runs out, or null for a bank not linked. */
-  readonly bankLinks: Readonly<Record<LinkableBank, CivilDate | null>>
-  /** When any device last got an answer from each bank, in epoch milliseconds, or null for one never asked. */
-  readonly bankFetchedAt: Readonly<Record<LinkableBank, number | null>>
   /** The bank accounts the owner said Kuna does not keep, each as its IBAN and currency, so the bank sync neither offers nor reads them. */
   readonly bankAccountsNotInKuna: readonly string[]
   /** The bank accounts whose Spending account keeps its own bank and kind, so the bank sync stops offering the bank's. Named as in `bankAccountsNotInKuna`. */
@@ -80,17 +71,10 @@ export function bankAccountsText(keys: readonly string[]): string {
   return keys.join('\n')
 }
 
-export function bankLinkKey(bank: LinkableBank): string {
-  return `bank_link_${bank}`
-}
-
-export function bankFetchedKey(bank: LinkableBank): string {
-  return `bank_sync_fetched_${bank}`
-}
-
 /** A UTC time as `toISOString` writes it, such as 2026-11-09T07:40:00.000Z. */
 const UTC_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/
 
+/** The epoch milliseconds of a UTC time, or null for text of another shape. */
 export function utcTimeOf(value: string): number | null {
   const time = UTC_TIME.test(value) ? Date.parse(value) : Number.NaN
   return Number.isFinite(time) ? time : null
@@ -103,12 +87,8 @@ export function bankSyncSetUp(settings: Pick<SpendingSettings, 'bankSyncApplicat
 
 /** The settings the rows that count hold, and the defaults for the rest. */
 export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSettings {
-  const linkOf = (bank: LinkableBank): CivilDate | null => parseCivilDate(settingValue(rows, bankLinkKey(bank)))
-  const fetchedOf = (bank: LinkableBank): number | null => utcTimeOf(settingValue(rows, bankFetchedKey(bank)))
   return {
     bankSyncApplication: settingValue(rows, BANK_SYNC_APPLICATION_KEY),
-    bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') },
-    bankFetchedAt: { otp: fetchedOf('otp'), revolut: fetchedOf('revolut') },
     bankAccountsNotInKuna: linesOf(settingValue(rows, BANK_ACCOUNTS_NOT_IN_KUNA_KEY)),
     bankAccountsKeepMine: linesOf(settingValue(rows, BANK_ACCOUNTS_KEEP_MINE_KEY)),
     instalmentsPutOff: linesOf(settingValue(rows, INSTALMENTS_PUT_OFF_KEY)).flatMap((line) => instalmentPutOffOf(line) ?? []),

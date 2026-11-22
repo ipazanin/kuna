@@ -50,6 +50,7 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
       'shared: src/shared/secrets/infrastructure/browserSecrets.ts#forgetBrowserSecrets',
       'src/apps/spending/bankSync/application/bankSync.ts#saveApplicationId',
       'src/apps/spending/bankSync/application/bankSync.ts#forgetBankSync',
+      'src/apps/spending/bankSync/application/bankLinkWrites.ts#forgetBankLink',
     ],
   },
   {

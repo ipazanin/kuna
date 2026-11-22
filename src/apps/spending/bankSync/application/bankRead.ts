@@ -5,7 +5,9 @@ import { NO_SINGLE_CURRENCY, namesEndedSession, sessionEnded } from '../domain/b
 import type { BankBalance, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
 import { statedBalance, unlistedPending } from '../domain/bankBalance'
 import type { StatedBalance } from '../domain/bankBalance'
-import { accountsOfLinked, fetchFrom, linkableBankNamed, olderRowsMissing } from '../domain/bankLinks'
+import { sameLink } from '../domain/bankLink'
+import type { LinkName } from '../domain/bankLink'
+import { accountsOfLinked, fetchFrom, liveLinks, olderRowsMissing } from '../domain/bankLinks'
 import { BANK_SYNC_LABEL, bankSyncRows, rowsWithMoves } from '../domain/bankSyncRows'
 import { words } from '../domain/words'
 import type { FileNote, StatementRow, StatementRows } from '../../statements/domain/statementRows'
@@ -13,8 +15,6 @@ import { sourceOfDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
-import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
-import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
@@ -29,7 +29,7 @@ const NEW_ACCOUNT_HISTORY_DAYS = 5 * 366
 
 /** A kept account whose fetch wanted older days than a bank gives outside a fresh link, and got none of them. */
 export interface OlderRowsMissing {
-  readonly bank: LinkableBank
+  readonly link: LinkName
   readonly account: Account
   /** The oldest day the bank's rows reach, or null when it gave none. */
   readonly reached: CivilDate | null
@@ -45,13 +45,17 @@ export interface BankRead {
   readonly proposals: readonly AccountProposal[]
   /** One line for each bank or account that gave no rows this time. */
   readonly problems: readonly string[]
-  /** The banks whose approval is over, whatever day the file holds. */
-  readonly ended: readonly LinkableBank[]
-  /** The banks that answered for at least one account's rows, which starts their six hours. */
-  readonly fetched: readonly LinkableBank[]
+  /** The links whose approval is over, whatever day the file holds. */
+  readonly ended: readonly LinkName[]
+  /** The links that answered for at least one account's rows, which starts their six hours. */
+  readonly fetched: readonly LinkName[]
   /** What the banks say the accounts they answered for hold. */
   readonly stated: readonly StatedBalance[]
   readonly olderRows: readonly OlderRowsMissing[]
+}
+
+function withLink(links: readonly LinkName[], link: LinkName): readonly LinkName[] {
+  return links.some((other) => sameLink(other, link)) ? links : [...links, { bank: link.bank, usage: link.usage }]
 }
 
 function reasonOf(failure: unknown): string {
@@ -87,16 +91,16 @@ function currenciesLeft(linked: LinkedAccount, kept: readonly Account[], answer:
  * Kuna all take their rows by hand is neither fetched nor drafted, since those accounts keep it. A bank or an account that
  * fails is a problem line and leaves the others' rows. Google turning the token away ends it all, since no later call
  * would go through. A bank whose link the file says is live but whose session this browser does not hold is a problem
- * line too, since only fetching the keys brings it here. `freshLinks` are the banks linked just before this fetch, whose missing older rows a new link cannot bring.
- * `leftAlone` are banks asked too recently, whose accounts are listed from the session and none of them read.
+ * line too, since only fetching the keys brings it here. `freshLinks` are the links made just before this fetch, whose missing older rows a new link cannot bring. `leftAlone` are
+ * links asked too recently, whose accounts are listed from the session and none of them read.
  */
 export async function readBanks(
   port: BankSyncPort,
-  book: Pick<SpendingBook, 'accounts' | 'transactions' | 'settings'>,
+  book: Pick<SpendingBook, 'accounts' | 'transactions' | 'settings' | 'bankLinks'>,
   day: CivilDate,
-  freshLinks: readonly LinkableBank[] = [],
+  freshLinks: readonly LinkName[] = [],
   newId: () => RecordId = () => recordIdOf(ACCOUNT_RECORDS, newRecordId()),
-  leftAlone: readonly LinkableBank[] = [],
+  leftAlone: readonly LinkName[] = [],
 ): Promise<BankRead> {
   const rows: StatementRow[] = []
   const exchangeRates = new Map<StatementRow, Decimal>()
@@ -104,31 +108,31 @@ export async function readBanks(
   const linkedAll: LinkedOfBank[] = []
   const proposals: AccountProposal[] = []
   const problems: string[] = []
-  const ended = new Set<LinkableBank>()
-  const fetched = new Set<LinkableBank>()
+  let ended: readonly LinkName[] = []
+  let fetched: readonly LinkName[] = []
   const stated: StatedBalance[] = []
   const olderRows: OlderRowsMissing[] = []
   const covers = new Map<RecordId, DateRange>()
-  const endedAt = (bank: LinkableBank, name: string): void => {
-    ended.add(bank)
-    problems.push(words.sessionEnded(name))
+  const endedAt = (link: LinkName): void => {
+    ended = withLink(ended, link)
+    problems.push(words.sessionEnded(link.bank))
   }
   const sessions = await port.sessions()
-  const answered = new Set(sessions.map((session) => linkableBankNamed(session.bank)))
-  LINKABLE_BANKS.filter((bank) => (book.settings.bankLinks[bank] ?? '') >= day && !answered.has(bank)).forEach((bank) => problems.push(words.sessionNotHere(words.banks[bank])))
+  liveLinks(book.bankLinks, day)
+    .filter((link) => !sessions.some((session) => sameLink(session, link)))
+    .forEach((link) => problems.push(words.sessionNotHere(link.bank)))
   for (const session of sessions) {
-    const bank = linkableBankNamed(session.bank)
-    if (bank === null) continue
+    const { bank } = session
     if (sessionEnded(session)) {
-      endedAt(bank, session.bank)
+      endedAt(session)
       continue
     }
     if (session.status !== 'AUTHORIZED') {
-      problems.push(words.bankFailed(words.banks[bank], session.reason ?? session.status))
+      problems.push(words.bankFailed(bank, session.reason ?? session.status))
       continue
     }
     linkedAll.push(...session.accounts.map((account) => ({ bank, account })))
-    if (leftAlone.includes(bank)) continue
+    if (leftAlone.some((link) => sameLink(link, session))) continue
     const offered = session.accounts.filter((linked) => !leftOutOfKuna(linked, book.accounts, book.settings.bankAccountsNotInKuna))
     const fitTwice = accountsFitTwice(offered, book.accounts, day)
     fitTwice.forEach((account) => problems.push(words.sameAccountTwice(session.bank, account.name)))
@@ -147,13 +151,13 @@ export async function readBanks(
         if (isUnauthorized(failure)) throw failure
         const reason = reasonOf(failure)
         if (namesEndedSession(reason)) {
-          endedAt(bank, session.bank)
+          endedAt(session)
           break
         }
-        problems.push(words.bankFailed(words.banks[bank], reason))
+        problems.push(words.bankFailed(bank, reason))
         continue
       }
-      fetched.add(bank)
+      fetched = withLink(fetched, session)
       const listed = new Map<RecordId, readonly StatementRow[]>()
       accounts.forEach((account, place) => {
         const statement = bankSyncRows(answer, account)
@@ -164,8 +168,8 @@ export async function readBanks(
         const { zero, unreadable } = statement.leftOut
         if (zero > 0) fileNotes.push({ kind: 'zero-left-out', count: zero, account: account.name })
         if (unreadable > 0) fileNotes.push({ kind: 'unreadable-left-out', count: unreadable, account: account.name })
-        const missing = freshLinks.includes(bank) ? null : olderRowsMissing(starts[place]!, statement.rows, day)
-        if (missing !== null) olderRows.push({ bank, account, reached: missing.reached })
+        const missing = freshLinks.some((link) => sameLink(link, session)) ? null : olderRowsMissing(starts[place]!, statement.rows, day)
+        if (missing !== null) olderRows.push({ link: { bank, usage: session.usage }, account, reached: missing.reached })
       })
       let balances: readonly BankBalance[] = []
       try {
@@ -173,9 +177,7 @@ export async function readBanks(
       } catch (failure) {
         if (isUnauthorized(failure)) throw failure
         const names =
-          accounts.length === 0
-            ? [words.linkedAccount(words.banks[bank], linked.currency === NO_SINGLE_CURRENCY ? '' : linked.currency, linkedAccountEnding(linked))]
-            : accounts.map((account) => account.name)
+          accounts.length === 0 ? [words.linkedAccount(bank, linked.currency === NO_SINGLE_CURRENCY ? '' : linked.currency, linkedAccountEnding(linked))] : accounts.map((account) => account.name)
         fileNotes.push({ kind: 'balance-not-read', accounts: names.join(', '), reason: reasonOf(failure) })
       }
       for (const account of accounts) {
@@ -204,8 +206,8 @@ export async function readBanks(
     linked: linkedAll,
     proposals: proposals.map((proposal) => ({ ...proposal, rows: { ...proposal.rows, rows: proposal.rows.rows.map((row) => movedOf.get(row) ?? row) } })),
     problems,
-    ended: [...ended],
-    fetched: [...fetched],
+    ended,
+    fetched,
     stated,
     olderRows,
   }

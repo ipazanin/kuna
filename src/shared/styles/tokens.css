@@ -77,12 +77,12 @@
   --accent-wash: rgba(138, 100, 33, 0.1);
   --accent-ink: #ffffff;
 
-  /* An app's identity colour, on the tile of its icon. Company keeps the brass, and Loans, Investments, Assets and Spending are a teal, a plum, a slate and an olive no tone uses, darker and duller than the chart series of the same hue. */
+  /* An app's identity colour, on the tile of its icon. Company keeps the brass, and Loans, Investments, Assets and Spending are a teal, a plum, a slate and an olive no tone uses, darker and duller than the chart series of the same hue. Any two sit side by side on Net worth's What you have ring, so each pair stays apart with red-green colour blindness too. */
   --app-company: #8a6421;
   --app-loans: #0d7a73;
-  --app-investments: #8a3f8c;
-  --app-assets: #4d6080;
-  --app-spending: #5f6b1f;
+  --app-investments: #91469f;
+  --app-assets: #4b5b79;
+  --app-spending: #51580e;
 
   --tone-positive: #107348;
   --tone-negative: #b4372d;
@@ -188,10 +188,10 @@
   --accent-ink: #1a1406;
 
   --app-company: #d4ab63;
-  --app-loans: #45c4b8;
-  --app-investments: #d08ad3;
-  --app-assets: #9fb3d1;
-  --app-spending: #b9c46d;
+  --app-loans: #4abfaa;
+  --app-investments: #ca85d1;
+  --app-assets: #a3b8da;
+  --app-spending: #bcd477;
 
   --tone-positive: #4fc28d;
   --tone-negative: #f0857c;

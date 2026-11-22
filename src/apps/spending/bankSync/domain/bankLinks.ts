@@ -1,10 +1,12 @@
-import { ENABLE_BANKING_NAMES, NO_SINGLE_CURRENCY } from './bankAnswer'
+import { NO_SINGLE_CURRENCY } from './bankAnswer'
 import type { LinkedAccount } from './bankAnswer'
+import { sameLink } from './bankLink'
+import type { BankLink } from './bankLink'
 import { isBankSyncKey } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
-import { LINKABLE_BANKS, bankSyncSetUp } from '../../workbook/domain/spendingSettings'
-import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spendingSettings'
+import { bankSyncSetUp } from '../../workbook/domain/spendingSettings'
+import type { SpendingSettings } from '../../workbook/domain/spendingSettings'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -21,43 +23,42 @@ const PERIOD_A_BANK_GIVES_DAYS = 89
 /** How often the step asks a bank by itself. Enable Banking says many banks allow four background fetches a day and says to retry after six hours. */
 const FETCH_INTERVAL_MS = 6 * 3_600_000
 
+/** What the bank sync reads of the book besides its accounts and rows. */
+export interface LinkedBook {
+  readonly settings: Pick<SpendingSettings, 'bankSyncApplication'>
+  readonly bankLinks: readonly BankLink[]
+}
+
 export interface EndingLink {
-  readonly bank: LinkableBank
-  readonly endsOn: CivilDate
+  readonly link: BankLink
   /** True once the day has passed, so the link no longer reads. */
   readonly ended: boolean
 }
 
 /** Each link that runs out within 14 days or already has. */
-export function endingLinks(settings: SpendingSettings, day: CivilDate): readonly EndingLink[] {
-  return LINKABLE_BANKS.flatMap((bank) => {
-    const endsOn = settings.bankLinks[bank]
-    return endsOn === null || daysBetween(day, endsOn) > ENDING_DAYS ? [] : [{ bank, endsOn, ended: endsOn < day }]
-  })
+export function endingLinks(links: readonly BankLink[], day: CivilDate): readonly EndingLink[] {
+  return links.flatMap((link) => (daysBetween(day, link.endsOn) > ENDING_DAYS ? [] : [{ link, ended: link.endsOn < day }]))
+}
+
+/** The links still good on the day. */
+export function liveLinks(links: readonly BankLink[], day: CivilDate): readonly BankLink[] {
+  return links.filter((link) => link.endsOn >= day)
 }
 
 /** Whether a sync has anything to ask: an application set up and a link still good on the day. */
-export function hasLiveLink(settings: SpendingSettings, day: CivilDate): boolean {
-  return bankSyncSetUp(settings) && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day)
+export function hasLiveLink(book: LinkedBook, day: CivilDate): boolean {
+  return bankSyncSetUp(book.settings) && liveLinks(book.bankLinks, day).length > 0
 }
 
-/** The banks any device sharing the file asked within the last six hours, which the step leaves alone. */
-export function heldBanks(settings: SpendingSettings, now: number): readonly LinkableBank[] {
-  return LINKABLE_BANKS.filter((bank) => {
-    const fetchedAt = settings.bankFetchedAt[bank]
-    return fetchedAt !== null && now - fetchedAt < FETCH_INTERVAL_MS
-  })
+/** The links any device sharing the file asked within the last six hours, which the step leaves alone. */
+export function heldLinks(links: readonly BankLink[], now: number): readonly BankLink[] {
+  return links.filter((link) => link.fetchedAt !== null && now - link.fetchedAt < FETCH_INTERVAL_MS)
 }
 
 /** Whether the step has a bank to ask by itself: a live link that no device asked within the last six hours. */
-export function hasDueLink(settings: SpendingSettings, day: CivilDate, now: number): boolean {
-  const held = heldBanks(settings, now)
-  return bankSyncSetUp(settings) && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day && !held.includes(bank))
-}
-
-/** The link a session of Enable Banking belongs to, or null for a bank Kuna does not link. */
-export function linkableBankNamed(name: string): LinkableBank | null {
-  return LINKABLE_BANKS.find((bank) => ENABLE_BANKING_NAMES[bank] === name) ?? null
+export function hasDueLink(book: LinkedBook, day: CivilDate, now: number): boolean {
+  const held = heldLinks(book.bankLinks, now)
+  return bankSyncSetUp(book.settings) && liveLinks(book.bankLinks, day).some((link) => !held.some((other) => sameLink(other, link)))
 }
 
 /**

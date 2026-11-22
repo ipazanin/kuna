@@ -41,7 +41,7 @@ export function spendingHomeFigures(book: SpendingBook, rates: RatesState, day: 
         toReview === 0 ? null : plural(words.toReview(toReview), toReview),
         unconverted === 0 ? null : plural(words.notConverted(unconverted), unconverted),
         unratedNote(unrated),
-        ...bankLinkLines(book.settings, day),
+        ...bankLinkLines(book, day),
       ]
         .filter((line) => line !== null)
         .join(' · ') || null,

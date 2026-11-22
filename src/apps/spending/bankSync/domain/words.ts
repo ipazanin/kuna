@@ -1,11 +1,9 @@
-import { en as accountsEn, hr as accountsHr } from '../../accounts/domain/words'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
 
 export const en = {
-  banks: accountsEn.banks,
   /** A linked account Kuna does not keep, by its bank, its currency where it has one, and the end of its number, never the whole IBAN. */
   linkedAccount: (bank: string, currency: string, ending: string) => [bank, currency, ending === '' ? '' : `ending ${ending}`].filter((part) => part !== '').join(' '),
   sameAccountTwice: (bank: string, account: string) => `${bank} has more than one account that fits ${account}, so none of them was read.`,
@@ -18,10 +16,10 @@ export const en = {
   fetched: 'Banks asked',
   linked: 'Bank linked',
   linkEndedTitle: 'Bank link ended',
+  noLinkEnd: (validUntil: string) => `Enable Banking gave the link an end Kuna cannot read: ${validUntil}`,
 }
 
 export const hr: Translation<typeof en> = {
-  banks: accountsHr.banks,
   linkedAccount: (bank, currency, ending) => [bank, currency, ending === '' ? '' : `koji završava na ${ending}`].filter((part) => part !== '').join(' '),
   sameAccountTwice: (bank, account) => `${bank} ima više računa koji odgovaraju računu ${account}, pa nijedan nije pročitan.`,
   didNotAnswer: (reason) => `Skripta za sinkronizaciju s bankom nije odgovorila: ${reason}`,
@@ -33,6 +31,7 @@ export const hr: Translation<typeof en> = {
   fetched: 'Banke pitane',
   linked: 'Banka povezana',
   linkEndedTitle: 'Veza s bankom završena',
+  noLinkEnd: (validUntil) => `Enable Banking je vezi dao kraj koji Kuna ne može pročitati: ${validUntil}`,
 }
 
 export const words = language === 'hr' ? hr : en

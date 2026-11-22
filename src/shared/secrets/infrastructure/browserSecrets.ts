@@ -32,6 +32,11 @@ export function storedSecretChanges(): SecretChanges {
   )
 }
 
+/** The id of every secret this browser holds a key for. */
+export function storedSecretIds(): readonly string[] {
+  return Object.entries(storedSecretChanges()).flatMap(([id, change]) => (change.key === null ? [] : [id]))
+}
+
 /** Whether a name in this browser's storage holds a secret or the time of its last change. */
 export function namesSecret(name: string): boolean {
   return name.startsWith(KEY_PREFIX) || name.startsWith(CHANGED_PREFIX)

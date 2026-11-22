@@ -1,4 +1,4 @@
-import { ENABLE_BANKING_NAMES, NO_SINGLE_CURRENCY } from './bankAnswer'
+import { NO_SINGLE_CURRENCY } from './bankAnswer'
 import type { BankBalance, BankTransaction, LinkedAccount } from './bankAnswer'
 import { rowsCountedBy, statedBalance } from './bankBalance'
 import type { BankStated } from './bankBalance'
@@ -11,7 +11,7 @@ import { draftedAccount } from '../../accounts/domain/accountDraft'
 import { sameBank } from '../../workbook/domain/account'
 import type { Account, AccountKind } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
-import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spendingSettings'
+import type { SpendingSettings } from '../../workbook/domain/spendingSettings'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -29,13 +29,13 @@ export function linkedAccountEnding(linked: Pick<LinkedAccount, 'iban'>): string
 
 /** One account a session reaches, with the bank it belongs to. */
 export interface LinkedOfBank {
-  readonly bank: LinkableBank
+  readonly bank: string
   readonly account: LinkedAccount
 }
 
 /** An account Kuna does not keep yet, drafted from what its bank says, with the bank's answer held until it is added. */
 export interface AccountProposal {
-  readonly bank: LinkableBank
+  readonly bank: string
   readonly linked: LinkedAccount
   /** The draft, starting on the day of the fetch at the bank's balance less that day's rows. */
   readonly account: Account
@@ -89,10 +89,10 @@ export function startedAccount({ proposal, startsOn }: BankAccountStart): Starte
  * differs in where its rows come from.
  */
 export type SetupLine =
-  | { readonly kind: 'kept'; readonly bank: LinkableBank; readonly linked: LinkedAccount; readonly account: Account; readonly update: Account | null; readonly keptMine: boolean }
-  | { readonly kind: 'fits'; readonly bank: LinkableBank; readonly linked: LinkedAccount; readonly account: Account; readonly update: Account; readonly proposal: AccountProposal | null }
-  | { readonly kind: 'missing'; readonly bank: LinkableBank; readonly linked: LinkedAccount; readonly currency: string; readonly proposal: AccountProposal | null }
-  | { readonly kind: 'not-in-kuna'; readonly bank: LinkableBank; readonly linked: LinkedAccount; readonly key: string }
+  | { readonly kind: 'kept'; readonly bank: string; readonly linked: LinkedAccount; readonly account: Account; readonly update: Account | null; readonly keptMine: boolean }
+  | { readonly kind: 'fits'; readonly bank: string; readonly linked: LinkedAccount; readonly account: Account; readonly update: Account; readonly proposal: AccountProposal | null }
+  | { readonly kind: 'missing'; readonly bank: string; readonly linked: LinkedAccount; readonly currency: string; readonly proposal: AccountProposal | null }
+  | { readonly kind: 'not-in-kuna'; readonly bank: string; readonly linked: LinkedAccount; readonly key: string }
 
 /**
  * How the settings of accounts not in Kuna and accounts that keep their own details name a linked account: its IBAN, else
@@ -112,21 +112,17 @@ export function kindOfBankAccount(linked: Pick<LinkedAccount, 'cashAccountType' 
 }
 
 /** A new account as its bank describes it, opening at zero on the day. */
-export function draftAccount(linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode, id: RecordId, day: CivilDate, accounts: readonly Pick<Account, 'name'>[]): Account {
+export function draftAccount(linked: LinkedAccount, bank: string, currency: CurrencyCode, id: RecordId, day: CivilDate, accounts: readonly Pick<Account, 'name'>[]): Account {
   return {
     id,
-    ...draftedAccount(
-      { kind: kindOfBankAccount(linked) ?? 'bank', bank: ENABLE_BANKING_NAMES[bank], currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day },
-      accounts,
-      'automation',
-    ),
+    ...draftedAccount({ kind: kindOfBankAccount(linked) ?? 'bank', bank: bank, currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day }, accounts, 'automation'),
   }
 }
 
 /** The draft starting on the day of the fetch, with the bank's rows and balance held for when it is added. */
 export function proposeAccount(
   linked: LinkedAccount,
-  bank: LinkableBank,
+  bank: string,
   currency: CurrencyCode,
   answer: readonly BankTransaction[],
   balances: readonly BankBalance[],
@@ -140,8 +136,8 @@ export function proposeAccount(
 }
 
 /** The account with the bank's details: its bank, IBAN and currency, its kind where the bank states one, and its rows from the bank. Its name and opening stay. */
-export function withBankDetails(account: Account, linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode, rows: readonly Pick<Transaction, 'account' | 'date'>[]): Account {
-  return { ...account, bank: ENABLE_BANKING_NAMES[bank], iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind, sources: bankLinkedSources(account, rows) }
+export function withBankDetails(account: Account, linked: LinkedAccount, bank: string, currency: CurrencyCode, rows: readonly Pick<Transaction, 'account' | 'date'>[]): Account {
+  return { ...account, bank: bank, iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind, sources: bankLinkedSources(account, rows) }
 }
 
 /** The account's periods once the bank brings its rows: as they are when it brings them now, or with the bank link from the day after its newest row on, or from its start while it has none. */
@@ -162,7 +158,7 @@ function sameDetails(one: Account, other: Account): boolean {
  */
 function fittingAccount(
   linked: LinkedAccount,
-  bank: LinkableBank,
+  bank: string,
   currency: string,
   accounts: readonly Account[],
   claimed: ReadonlySet<RecordId>,
@@ -170,7 +166,7 @@ function fittingAccount(
 ): Account | null {
   const iban = ibanKey(linked.iban)
   const open = accounts.filter((account) => !claimed.has(account.id) && !account.closed && account.kind !== 'cash')
-  const withoutIban = open.find((account) => account.iban === '' && account.currency === currency && (account.bank === null || sameBank(account.bank, ENABLE_BANKING_NAMES[bank])))
+  const withoutIban = open.find((account) => account.iban === '' && account.currency === currency && (account.bank === null || sameBank(account.bank, bank)))
   return withoutIban ?? open.find((account) => iban !== '' && account.iban === iban && !rows.some((row) => row.account === account.id)) ?? null
 }
 

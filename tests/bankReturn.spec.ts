@@ -51,18 +51,18 @@ describe('bankReturnOf', () => {
 describe('takeBankReturn', () => {
   it('keeps the code for the link this browser started and clears the address', () => {
     const address = stubAddress('?code=made-up&state=one-time')
-    savePendingLink({ bank: 'revolut', state: 'one-time', code: null, validUntil: null })
+    savePendingLink({ bank: 'Revolut', usage: 'personal', state: 'one-time', code: null, validUntil: null })
 
     takeBankReturn()
 
     expect(takeReturnNote()).toEqual({ kind: 'code' })
-    expect(loadPendingLink()).toEqual({ bank: 'revolut', state: 'one-time', code: 'made-up', validUntil: null })
+    expect(loadPendingLink()).toEqual({ bank: 'Revolut', usage: 'personal', state: 'one-time', code: 'made-up', validUntil: null })
     expect(address.replaced()).toBe('/kuna/')
   })
 
   it('refuses an answer with another state and keeps no code', () => {
     const address = stubAddress('?code=made-up&state=forged')
-    savePendingLink({ bank: 'revolut', state: 'one-time', code: null, validUntil: null })
+    savePendingLink({ bank: 'Revolut', usage: 'personal', state: 'one-time', code: null, validUntil: null })
 
     takeBankReturn()
 
@@ -79,7 +79,7 @@ describe('takeBankReturn', () => {
 
   it("forgets the link when the bank refused, and keeps the bank's reason past the silent trip to Google", async () => {
     stubAddress('?error=access_denied&error_description=Cancelled%20by%20user&state=one-time')
-    savePendingLink({ bank: 'otp', state: 'one-time', code: null, validUntil: null })
+    savePendingLink({ bank: 'OTP banka', usage: 'personal', state: 'one-time', code: null, validUntil: null })
 
     takeBankReturn()
 
@@ -88,6 +88,12 @@ describe('takeBankReturn', () => {
     const reloaded = await import('../src/apps/spending/bankSync/infrastructure/bankBrowserState')
     expect(reloaded.takeReturnNote()).toEqual({ kind: 'refused', reason: 'Cancelled by user' })
     expect(reloaded.takeReturnNote()).toBeNull()
+  })
+
+  it('reads a link started under an old short bank name by the name Enable Banking gives', () => {
+    stubAddress('')
+    localStorage.setItem('kuna.bank-link', JSON.stringify({ bank: 'revolut', state: 'one-time', code: null }))
+    expect(loadPendingLink()).toEqual({ bank: 'Revolut', usage: 'personal', state: 'one-time', code: null, validUntil: null })
   })
 
   it('touches nothing on an ordinary address', () => {
@@ -114,7 +120,7 @@ describe('openBankSyncAfterReturn', () => {
 
   it('opens the Bank sync tab once for a return, and no open after it, with the code still waiting', () => {
     stubAddress('?code=made-up&state=one-time')
-    savePendingLink({ bank: 'otp', state: 'one-time', code: null, validUntil: null })
+    savePendingLink({ bank: 'OTP banka', usage: 'personal', state: 'one-time', code: null, validUntil: null })
     takeBankReturn()
 
     const first = routerOf()

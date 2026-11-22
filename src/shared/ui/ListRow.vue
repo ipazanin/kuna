@@ -55,7 +55,7 @@ const gutter = computed(() => (props.flush ? '' : 'px-4 sm:px-5'))
     :class="[
       to === undefined ? 'flex-col gap-2' : 'items-start gap-3',
       picking ? '' : ['py-3', gutter],
-      { 'w-full text-start': as === 'button', 'transition-colors hover:bg-elevated focus-visible:-outline-offset-2': as === 'button' || to !== undefined },
+      { 'w-full text-start': as === 'button', 'transition-colors not-disabled:hover:bg-elevated disabled:cursor-not-allowed focus-visible:-outline-offset-2': as === 'button' || to !== undefined },
     ]"
   >
     <component

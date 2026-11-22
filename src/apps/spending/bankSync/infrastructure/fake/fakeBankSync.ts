@@ -2,6 +2,7 @@ import { bankRedirectUrl } from '../bankBrowserState'
 import { BankScriptFailure } from '../../application/bankSync'
 import type { BankSyncPort } from '../../application/bankSync'
 import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../../domain/bankAnswer'
+import type { ListedBank } from '../../domain/bankLink'
 import { words } from '../../domain/words'
 import { addDays } from '../../../../../shared/calendar/civilDate'
 import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
@@ -139,20 +140,39 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
       : []
   const revolut: BankSession = {
     bank: 'Revolut',
+    usage: 'personal',
     status: 'AUTHORIZED',
     accounts: [...revolutAccounts, ...(variant === 'pocket' ? [linkedAccount(POCKET_UID, FAKE_POCKET_IBAN, 'EUR')] : []), ...added],
   }
-  if (variant === 'otp-failed') return [{ bank: 'OTP banka', status: 'FAILED', reason: 'HTTP 503', accounts: [] }, revolut]
-  if (variant === 'ended') return [{ bank: 'OTP banka', status: 'EXPIRED', accounts: [] }, revolut]
+  if (variant === 'otp-failed') return [{ bank: 'OTP banka', usage: 'personal', status: 'FAILED', reason: 'HTTP 503', accounts: [] }, revolut]
+  if (variant === 'ended') return [{ bank: 'OTP banka', usage: 'personal', status: 'EXPIRED', accounts: [] }, revolut]
   return [
     {
       bank: 'OTP banka',
+      usage: 'personal',
       status: 'AUTHORIZED',
       accounts: [linkedAccount(OTP_UID, 'HR0000000000000000001', 'EUR'), ...(variant === 'unknown-account' ? [linkedAccount('fake-other-account', UNKNOWN_IBAN, 'EUR')] : [])],
     },
     revolut,
   ]
 }
+
+/**
+ * The banks the fake script lists for Croatia: OTP banka in beta, a bank with both logins, and one with only business logins,
+ * which Spending leaves out. `not-listed` lists no Revolut, so its link says the list no longer has it.
+ */
+function fakeListedBanks(variant: string | null): readonly ListedBank[] {
+  return [
+    { name: 'Erste banka', usages: ['business', 'personal'], beta: false },
+    { name: 'Example Business Bank', usages: ['business'], beta: false },
+    { name: 'OTP banka', usages: ['personal'], beta: true },
+    ...(variant === 'not-listed' ? [] : [{ name: 'Revolut', usages: ['personal' as const], beta: false }]),
+    { name: 'Zagrebačka banka', usages: ['personal'], beta: false },
+  ]
+}
+
+/** The code the fake bank sends back, which names the bank so the fake script's session does. */
+const FAKE_CODE = 'fake-code '
 
 /**
  * The fake build's script as `?banksync=` names it, which answers from the page and sends nothing away. `failed` answers an
@@ -162,7 +182,8 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
  * `exchange` and `pocket` bring a move between your accounts, `look-alike` books the file's Old Town Bookshop three days later
  * under a longer name, and a link's trip comes straight back to this address. Its application is active in production with
  * this address as its redirect, `inactive` one whose accounts are not linked in Enable Banking's panel yet, and `refused`
- * one Enable Banking does not know by the key, as a key from another application gives.
+ * one Enable Banking does not know by the key, as a key from another application gives. `list-failed` cannot list the banks,
+ * and `link-refused` lists them but refuses to start a link.
  */
 export function fakeBankSync(variant: string | null, day: CivilDate): BankSyncPort {
   const failed = (): void => {
@@ -174,18 +195,25 @@ export function fakeBankSync(variant: string | null, day: CivilDate): BankSyncPo
       if (variant === 'refused') throw new BankScriptFailure(words.didNotAnswer('Enable Banking answered 401: UNAUTHORIZED'))
       return { name: 'Kuna', environment: 'PRODUCTION', redirectUrls: [bankRedirectUrl()], active: variant !== 'inactive' }
     },
-    startLink: async (_bankName, _redirectUrl, state) => {
+    banks: async () => {
       failed()
+      if (variant === 'list-failed') throw new BankScriptFailure(words.didNotAnswer('Enable Banking answered 503'))
+      return fakeListedBanks(variant)
+    },
+    startLink: async (link, _redirectUrl, state) => {
+      failed()
+      if (variant === 'link-refused') throw new BankScriptFailure(words.didNotAnswer('Enable Banking answered 422'))
       const url = new URL(window.location.href)
       url.searchParams.set('banksync', 'saved')
-      url.searchParams.set('code', 'fake-code')
+      url.searchParams.set('code', `${FAKE_CODE}${link.bank}`)
       url.searchParams.set('state', state)
       url.hash = ''
       return url.href
     },
-    finishLink: async () => {
+    finishLink: async (code) => {
       failed()
-      return { sessionId: 'fake-session', validUntil: `${addDays(day, 180)}T12:00:00.000000+00:00` }
+      const bank = code.startsWith(FAKE_CODE) ? code.slice(FAKE_CODE.length) : 'Revolut'
+      return { sessionId: 'fake-session', bank, usage: 'personal', validUntil: `${addDays(day, 180)}T12:00:00.000000+00:00` }
     },
     closeSession: async () => undefined,
     sessions: async () => {

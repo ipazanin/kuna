@@ -7527,8 +7527,9 @@ async function bankSyncSettled(page, press, selector) {
 
 /**
  * On Settings, Bank sync with nothing set up: the set-up's four steps and no link. Walk through them, bring a made-up key
- * and Check it, which the fake twin answers with an active application and whose toast offers Undo, link Revolut, come
- * back on the fake return with the code taken out of the address, read the synced rows on Entries, then Undo the import.
+ * and Check it, which the fake twin answers with an active application and whose toast offers Undo, open Link a bank, which
+ * lists the banks that take a personal login with OTP banka in beta and leaves out the one with business logins only, link
+ * Revolut, come back on the fake return with the code taken out of the address, read the synced rows on Entries, then Undo the import.
  */
 export function spendingBankSyncFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -7561,13 +7562,23 @@ export function spendingBankSyncFlowIn(language) {
     await shoot('spending-bank-sync-setup-active')
     await dismissToasts(page)
     await pressSelector(page, press, '[data-testid="spending-bank-setup-done"]')
-    await page.waitForSelector('[data-testid="spending-bank-link-revolut"]', { visible: true, timeout: 10_000 })
+    await page.waitForSelector('[data-testid="spending-bank-link-add"]', { visible: true, timeout: 10_000 })
     await waitForTextIn(page, '[data-testid="spending-bank-application-name"]', bank.application.named('Kuna'))
+    await page.waitForSelector('[data-testid="spending-bank-link-none"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('the bank sync with an application set up')
     await shoot('spending-settings-bank-sync-saved')
     await dismissToasts(page)
-    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30_000 }), pressSelector(page, press, '[data-testid="spending-bank-link-revolut"]')])
+    await pressSelector(page, press, '[data-testid="spending-bank-link-add"]')
+    await page.waitForSelector('[data-testid="spending-bank-pick-bank"]', { visible: true, timeout: 10_000 })
+    const offered = await page.$$eval('[data-testid="spending-bank-pick-bank"]', (rows) => rows.map((row) => row.textContent ?? ''))
+    if (offered.some((row) => row.includes('Example Business Bank'))) throw new Error('Link a bank offers a bank that takes business logins only')
+    if (!offered.some((row) => row.includes('OTP banka') && row.includes(bank.pick.betaCaption))) throw new Error(`Link a bank does not mark OTP banka as beta: ${offered.join(' | ')}`)
+    await delay(300)
+    await inspect?.('the banks Link a bank offers')
+    await shoot('spending-bank-sync-pick')
+    const revolut = (await page.$$('[data-testid="spending-bank-pick-bank"]'))[offered.findIndex((row) => row.includes('Revolut'))]
+    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30_000 }), press(revolut)])
     await page.waitForSelector('[data-testid="spending-bank-link-finish"], [data-testid="spending-bank-sync-result"]', { visible: true, timeout: 15_000 })
     if ((await page.$('[data-testid="spending-bank-sync-result"]')) === null) await pressSelector(page, press, '[data-testid="spending-bank-link-finish"]')
     await page.waitForSelector('[data-testid="spending-bank-sync-result"]', { visible: true, timeout: 15_000 })
@@ -7584,6 +7595,90 @@ export function spendingBankSyncFlowIn(language) {
     await shoot('spending-bank-sync-rows')
     await undoIn(page, press, words)
     await dismissToasts(page)
+  }
+}
+
+/**
+ * On Settings, Bank sync with OTP banka and Revolut linked while Enable Banking lists no Revolut: Link a bank offers no Revolut,
+ * and once it has the list, Revolut's link says the list no longer has it and offers Remove in place of Link again, while OTP banka's still
+ * offers Link again. Remove asks first, and once confirmed takes Revolut's row away, leaves OTP banka's and offers no Undo.
+ */
+export function spendingBankSyncNotListedFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const bank = words.spendingBankSync
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="spending-bank-link-add"]')
+    await page.waitForSelector('[data-testid="spending-bank-pick-bank"]', { visible: true, timeout: 10_000 })
+    const offered = await page.$$eval('[data-testid="spending-bank-pick-bank"]', (rows) => rows.map((row) => row.textContent ?? ''))
+    if (offered.some((row) => row.includes('Revolut'))) throw new Error('Link a bank offers Revolut, which the list does not have')
+    if (!offered.some((row) => row.includes(bank.pick.linked('').split(' ')[0]))) throw new Error(`Link a bank does not say which bank is linked already: ${offered.join(' | ')}`)
+    await delay(300)
+    await inspect?.('Link a bank with a bank linked already')
+    await shoot('spending-bank-sync-pick-linked')
+    await pressSelector(page, press, '[data-testid="spending-bank-pick-cancel"]')
+    await page.waitForSelector('[data-testid="spending-bank-link-not-listed"]', { visible: true, timeout: 10_000 })
+    const rows = await page.$$eval('[data-testid="spending-bank-link"]', (links) =>
+      links.map((link) => ({ text: link.textContent ?? '', again: link.querySelector('[data-testid="spending-bank-link-again"]') !== null })),
+    )
+    const revolut = rows.find((row) => row.text.includes('Revolut'))
+    const otp = rows.find((row) => row.text.includes('OTP banka'))
+    if (revolut === undefined || revolut.again || !revolut.text.includes(bank.notListed)) throw new Error(`Revolut's link does not say the list no longer has it: ${revolut?.text}`)
+    if (otp === undefined || !otp.again) throw new Error("OTP banka's link offers no Link again")
+    await delay(300)
+    await inspect?.('a linked bank the list no longer has')
+    await shoot('spending-settings-bank-sync-not-listed')
+    await pressSelector(page, press, '[data-testid="spending-bank-link"]:has([data-testid="spending-bank-link-not-listed"]) [data-testid="spending-bank-link-remove"]')
+    await page.waitForSelector('[role="dialog"] [data-testid="spending-bank-link-remove-confirm"]', { visible: true, timeout: 10_000 })
+    await waitForTextIn(page, '[role="dialog"]', bank.removeLinkTitle('Revolut'))
+    if ((await page.$$('[data-testid="spending-bank-link"]')).length !== 2) throw new Error('Remove took a link away before it was confirmed')
+    await delay(300)
+    await inspect?.('Remove asking first for the bank the list no longer has')
+    await shoot('spending-settings-bank-sync-not-listed-remove-confirm')
+    await pressSelector(page, press, '[data-testid="spending-bank-link-remove-confirm"]')
+    await page.waitForFunction(() => ![...document.querySelectorAll('[data-testid="spending-bank-link"]')].some((link) => link.textContent?.includes('Revolut')), { timeout: 10_000 })
+    await toast(page, bank.linkRemoved('Revolut'))
+    if (await offersUndo(page, words, bank.linkRemoved('Revolut'))) throw new Error(`the "${bank.linkRemoved('Revolut')}" toast offers ${words.writes.undo}, though the ended session cannot come back`)
+    const left = await page.$$eval('[data-testid="spending-bank-link"]', (links) => links.map((link) => link.textContent ?? ''))
+    if (left.length !== 1 || !left[0].includes('OTP banka')) throw new Error(`Remove took more than Revolut's link: ${left.join(' | ')}`)
+    await delay(300)
+    await inspect?.('the bank sync after Remove on the bank the list no longer has')
+    await shoot('spending-settings-bank-sync-not-listed-removed')
+    await dismissToasts(page)
+  }
+}
+
+/** On Settings, Bank sync when Enable Banking's list cannot be read: Link a bank says so in a line and offers no bank. */
+export function spendingBankSyncListFailedFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="spending-bank-link-add"]')
+    await page.waitForSelector('[data-testid="spending-bank-pick-failed"]', { visible: true, timeout: 10_000 })
+    if ((await page.$('[data-testid="spending-bank-pick-bank"]')) !== null) throw new Error('Link a bank offers a bank while the list could not be read')
+    await delay(300)
+    await inspect?.('Link a bank when the list cannot be read')
+    await shoot('spending-bank-sync-pick-failed')
+    await pressSelector(page, press, '[data-testid="spending-bank-pick-retry"]')
+    await page.waitForSelector('[data-testid="spending-bank-pick-failed"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-bank-pick-cancel"]')
+  }
+}
+
+/** On Settings, Bank sync when the script refuses to start a link: the tap on a bank says why inside Link a bank, which stays open with its banks. */
+export function spendingBankSyncLinkRefusedFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="spending-bank-link-add"]')
+    await page.waitForSelector('[data-testid="spending-bank-pick-bank"]', { visible: true, timeout: 10_000 })
+    const offered = await page.$$eval('[data-testid="spending-bank-pick-bank"]', (rows) => rows.map((row) => row.textContent ?? ''))
+    const revolut = (await page.$$('[data-testid="spending-bank-pick-bank"]'))[offered.findIndex((row) => row.includes('Revolut'))]
+    await press(revolut)
+    await page.waitForSelector('[data-testid="spending-bank-pick-link-failed"]', { visible: true, timeout: 10_000 })
+    if ((await page.$('[data-testid="spending-bank-pick-bank"]')) === null) throw new Error('Link a bank no longer offers its banks after a refused link')
+    await delay(300)
+    await inspect?.('Link a bank after the script refused a link')
+    await shoot('spending-bank-sync-pick-link-refused')
+    await pressSelector(page, press, '[data-testid="spending-bank-pick-cancel"]')
   }
 }
 
@@ -7620,7 +7715,7 @@ export function spendingBankSyncHeldNoteFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const literally = (text) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const note = literally(bank.unknownAccount(bank.linkedAccount(bank.banks.otp, 'EUR', linkedAccountEnding({ iban: UNKNOWN_IBAN }))))
+    const note = literally(bank.unknownAccount(bank.linkedAccount('OTP banka', 'EUR', linkedAccountEnding({ iban: UNKNOWN_IBAN }))))
     await openKunaSettings(page)
     // A sync asks the banks, if none did within six hours, and the next one is held back.
     await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)

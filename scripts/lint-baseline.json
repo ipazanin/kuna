@@ -236,7 +236,6 @@
     "src/apps/loans/workbook/domain/readLoanBook.ts",
     "src/apps/loans/workbook/domain/scenarioChangeReading.ts",
     "src/apps/spending/accounts/domain/accountDraft.ts",
-    "src/apps/spending/bankSync/domain/words.ts",
     "src/apps/spending/receipts/domain/receiptDraft.ts",
     "src/apps/spending/receipts/domain/receiptSplit.ts",
     "src/apps/spending/statements/domain/statementDryRun.ts",

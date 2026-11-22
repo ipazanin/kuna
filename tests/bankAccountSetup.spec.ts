@@ -44,7 +44,7 @@ function linked(uid: string, iban: string, currency: string, described: Partial<
   return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null, ...described }
 }
 
-const revolut = (account: LinkedAccount): LinkedOfBank => ({ bank: 'revolut', account })
+const revolut = (account: LinkedAccount): LinkedOfBank => ({ bank: 'Revolut', account })
 const fromEarliest = (proposals: readonly AccountProposal[]) => proposals.map((proposal) => ({ proposal, startsOn: startDays(proposal).earliest }))
 const book = (accounts = ACCOUNTS, transactions: readonly Pick<Transaction, 'account' | 'date'>[] = [], marks: { notInKuna?: readonly string[]; keepMine?: readonly string[] } = {}) => ({
   accounts,
@@ -147,7 +147,7 @@ describe('the setup list', () => {
   it('drafts one account per currency of a multi-currency account, keeping the currencies Kuna has', () => {
     const xxx = linked('all', REVOLUT_EUR.iban, 'XXX')
     const answer = [bankRow({}), bankRow({ currency: 'GBP' })]
-    const gbp = proposeAccount(xxx, 'revolut', 'GBP' as never, answer, [], recordIdOf(ACCOUNT_RECORDS, 'gbp'), DAY, ACCOUNTS)
+    const gbp = proposeAccount(xxx, 'Revolut', 'GBP' as never, answer, [], recordIdOf(ACCOUNT_RECORDS, 'gbp'), DAY, ACCOUNTS)
     const lines = setupLines([revolut(xxx)], [gbp], book([REVOLUT_EUR, REVOLUT_USD]))
     expect(lines.map((line) => [line.kind, line.kind === 'missing' ? line.currency : line.kind === 'kept' ? line.account.currency : null])).toEqual([
       ['kept', 'EUR'],
@@ -173,7 +173,7 @@ describe('a draft held from an earlier fetch', () => {
     const balances = [{ amount: '10.00', currency: 'USD', type: 'ITBD' }]
     const proposal = proposeAccount(
       { ...usd, uid: 'held' },
-      'revolut',
+      'Revolut',
       USD,
       [bankRow({}), bankRow({ reference: 'p', status: 'PDNG', amount: '3.00', direction: 'DBIT' })],
       balances,
@@ -189,7 +189,7 @@ describe('the day a drafted account starts on', () => {
   const usd = linked('usd', 'LT000000000000000003', 'USD')
   // 100.00 in on 1 October, 30.00 out on 15 October, and the bank says 250.00 at the fetch.
   const answer = [bankRow({ reference: 'in', amount: '100.00', bookedOn: '2026-10-01' }), bankRow({ reference: 'out', amount: '30.00', direction: 'DBIT', bookedOn: '2026-10-15' })]
-  const proposal = proposeAccount(usd, 'revolut', USD, answer, [{ amount: '250.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
+  const proposal = proposeAccount(usd, 'Revolut', USD, answer, [{ amount: '250.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
 
   it("is the day of the fetch unless the person picks one, opening at the bank's balance with no row before it", () => {
     expect(proposal.account).toMatchObject({ openedOn: DAY, opening: accountMoneyFromAmount(250) })
@@ -209,13 +209,13 @@ describe('the day a drafted account starts on', () => {
   })
 
   it('can start the day before the first row when the rows reach back to an empty account', () => {
-    const empty = proposeAccount(usd, 'revolut', USD, answer, [{ amount: '70.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
+    const empty = proposeAccount(usd, 'Revolut', USD, answer, [{ amount: '70.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
     expect(startDays(empty).earliest).toBe(civil('2026-09-30'))
     expect(startedAccount({ proposal: empty, startsOn: civil('2026-09-30') }).opening).toMatchObject({ opening: 0, source: 'start', rows: 2 })
   })
 
   it('only starts on the day of the fetch when the bank gave no rows', () => {
-    const bare = proposeAccount(usd, 'revolut', USD, [], [{ amount: '15.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
+    const bare = proposeAccount(usd, 'Revolut', USD, [], [{ amount: '15.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
     expect(startDays(bare)).toEqual({ earliest: DAY, latest: DAY })
   })
 })
@@ -230,7 +230,7 @@ describe('a drafted account', () => {
 
   it("takes the IBAN's last four characters when another account has its name", () => {
     const id = recordIdOf(ACCOUNT_RECORDS, 'x')
-    expect(draftAccount(linked('u', 'LT000000000000000003', 'USD'), 'revolut', USD, id, DAY, ACCOUNTS).name).toBe('Revolut USD 0003')
+    expect(draftAccount(linked('u', 'LT000000000000000003', 'USD'), 'Revolut', USD, id, DAY, ACCOUNTS).name).toBe('Revolut USD 0003')
   })
 
   it("is savings by the bank's type or its product's name, a current account by any other stated type, and unknown when the bank states none", () => {
@@ -244,7 +244,7 @@ describe('a drafted account', () => {
 
   it('is named from the bank and the currency, never the holder', () => {
     const id = recordIdOf(ACCOUNT_RECORDS, 'x')
-    expect(draftAccount(linked('u', 'lt00 1', 'USD', { cashAccountType: 'SVGS', details: 'Ana Horvat' }), 'revolut', USD, id, DAY, [])).toEqual({
+    expect(draftAccount(linked('u', 'lt00 1', 'USD', { cashAccountType: 'SVGS', details: 'Ana Horvat' }), 'Revolut', USD, id, DAY, [])).toEqual({
       id,
       name: 'Revolut USD savings',
       kind: 'savings',
@@ -324,7 +324,7 @@ describe('the setup writes', () => {
     const outLeg = { ...bankRow({ reference: 'x-1', amount: '50.00', currency: 'EUR', direction: 'DBIT', creditorName: 'Exchanged to USD', debtorName: null }), exchangeRate: '1.0850' }
     const inLeg = bankRow({ reference: 'x-2', amount: '54.25', currency: 'USD', debtorName: 'Exchanged from EUR' })
     const port = fakeBankSync('linked', DAY)
-    const sessions = async () => [{ bank: 'Revolut', status: 'AUTHORIZED', accounts: [linked('eur', REVOLUT_EUR.iban, 'EUR'), linked('usd', REVOLUT_EUR.iban, 'USD')] }]
+    const sessions = async () => [{ bank: 'Revolut', usage: 'personal' as const, status: 'AUTHORIZED', accounts: [linked('eur', REVOLUT_EUR.iban, 'EUR'), linked('usd', REVOLUT_EUR.iban, 'USD')] }]
     const read = await readBanks({ ...port, sessions, transactions: async (uid) => (uid === 'eur' ? [outLeg] : [inLeg]), balances: async () => [] }, store.state.workbook!, DAY)
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, read.statement, DAY)))
 
@@ -341,7 +341,7 @@ describe('the setup writes', () => {
     const typed = { ...REVOLUT_USD, iban: '', sources: [{ source: 'by-hand' as const, from: null }] }
     const store = await spendingStore([OTP, REVOLUT_EUR, typed])
     const usd = linked('usd', REVOLUT_EUR.iban, 'USD')
-    const proposal = proposeAccount(usd, 'revolut', USD, [bankRow({})], [], recordIdOf(ACCOUNT_RECORDS, 'never-written'), DAY, [])
+    const proposal = proposeAccount(usd, 'Revolut', USD, [bankRow({})], [], recordIdOf(ACCOUNT_RECORDS, 'never-written'), DAY, [])
     const [line] = setupLines([revolut(usd)], [proposal], store.state.workbook!)
     if (line?.kind !== 'fits') throw new Error('expected a fitting account')
 
@@ -375,7 +375,7 @@ describe('the setup writes', () => {
     const port = fakeBankSync('linked', DAY)
     const read = await readBanks(
       { ...port, transactions: async (uid, from, longest) => (asked.push(uid), port.transactions(uid, from, longest)) },
-      { accounts: [OTP, REVOLUT_EUR, byHand], transactions: [], settings: spendingSettingsOf([]) },
+      { accounts: [OTP, REVOLUT_EUR, byHand], transactions: [], settings: spendingSettingsOf([]), bankLinks: [] },
       DAY,
     )
 

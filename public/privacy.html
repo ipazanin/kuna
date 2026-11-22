@@ -260,8 +260,10 @@
           <p>
             For Spending's bank sync, once you brought your Enable Banking key and linked a bank, the booked rows of your linked accounts, with their amounts, dates, descriptions, and the names and
             IBANs of who paid or was paid, come from your bank through Enable Banking (<code>api.enablebanking.com</code>) and Kuna's bank sync script to this page, which saves them in your Spending
-            file. Neither Kuna nor the script keeps a copy elsewhere. Your Enable Banking key and each bank's session stay in this browser and in <code>kuna-secrets.json</code> in your own Google
-            account, so every device that syncs holds them. Enable Banking's own terms cover what it does, and you approve it at your bank for each bank you link.
+            file. Neither Kuna nor the script keeps a copy elsewhere. Your Enable Banking key and one session for each bank and login you link stay in this browser and in
+            <code>kuna-secrets.json</code> in your own Google account, so every device that syncs holds them. The Spending file keeps each link's bank, login and end day, never its session. To offer a
+            bank, the page asks Enable Banking through the script which banks it lists for Croatia, and shows no bank's logo, so nothing loads from Enable Banking's servers. Enable Banking's own terms
+            cover what it does, and you approve it at your bank for each bank you link.
           </p>
           <p>
             For Investments, the page also asks the price vendors named in the Investments Settings for daily closes and exchange rates: Twelve Data, Alpha Vantage and the European Central Bank. It

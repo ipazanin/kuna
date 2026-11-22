@@ -1,14 +1,21 @@
 import type { LinkedOfBank } from '../domain/bankAccountSetup'
 import { bankReturnOf, searchWithoutReturn } from '../domain/bankReturn'
 import type { BankReturnNote, PendingLink } from '../domain/bankReturn'
-import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
+import { BANK_USAGES, bankOfOldKey } from '../domain/bankLink'
+import type { BankUsage } from '../domain/bankLink'
 import { deviceChoice, jsonChoice } from '../../../../shared/device/deviceChoice'
+
+/** A login as a browser kept it, personal for a link kept before links had one. */
+function usageOf(kept: unknown): BankUsage {
+  return BANK_USAGES.find((usage) => usage === kept) ?? 'personal'
+}
 
 function pendingLinkOf(parsed: unknown): PendingLink | null {
   const candidate = parsed as Partial<PendingLink> | null
-  if (candidate === null || typeof candidate.state !== 'string' || !LINKABLE_BANKS.some((bank) => bank === candidate.bank)) return null
+  if (candidate === null || typeof candidate.state !== 'string' || typeof candidate.bank !== 'string' || candidate.bank === '') return null
   return {
-    bank: candidate.bank!,
+    bank: bankOfOldKey(candidate.bank) ?? candidate.bank,
+    usage: usageOf(candidate.usage),
     state: candidate.state,
     code: typeof candidate.code === 'string' ? candidate.code : null,
     validUntil: typeof candidate.validUntil === 'string' ? candidate.validUntil : null,
@@ -45,10 +52,12 @@ export interface LastFetch {
 
 function linkedOf(candidate: unknown): LinkedOfBank | null {
   const { bank, account } = (candidate ?? {}) as Partial<LinkedOfBank>
-  if (!LINKABLE_BANKS.some((linkable) => linkable === bank) || account === undefined || typeof account.uid !== 'string' || typeof account.iban !== 'string' || typeof account.currency !== 'string')
-    return null
+  if (typeof bank !== 'string' || bank === '' || account === undefined || typeof account.uid !== 'string' || typeof account.iban !== 'string' || typeof account.currency !== 'string') return null
   const hash = typeof account.identificationHash === 'string' ? account.identificationHash : null
-  return { bank: bank!, account: { uid: account.uid, iban: account.iban, currency: account.currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: hash } }
+  return {
+    bank: bankOfOldKey(bank) ?? bank,
+    account: { uid: account.uid, iban: account.iban, currency: account.currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: hash },
+  }
 }
 
 function lastFetchOf(parsed: unknown): LastFetch | null {

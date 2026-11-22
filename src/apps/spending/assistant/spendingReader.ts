@@ -51,13 +51,13 @@ import {
   RECIPE_RECORDS,
   PAYEE_RECORDS,
   RULE_RECORDS,
+  BANK_LINK_RECORDS,
   SETTING_RECORDS,
   SHORTCUT_PART_RECORDS,
   SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
   LINE_RECORDS,
 } from '../workbook/domain/spendingKinds'
-import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import { conditionText } from './ruleConditionText'
 import { STATEMENT_RECIPE_FIELDS } from '../statements/domain/statementRecipeDraft'
 import type { SavedRecipe } from '../workbook/domain/savedRecipe'
@@ -118,7 +118,8 @@ function receiptPayments(reading: SpendingReading): ReceiptPayments {
 /** One line of the bank set-up list as the chat reads it. */
 interface BankAccountLine {
   readonly id: string
-  readonly bank: LinkableBank
+  /** The bank's name at Enable Banking. */
+  readonly bank: string
   readonly currency: string
   readonly state: SetupLine['kind']
   readonly account: RecordId | null
@@ -141,9 +142,9 @@ interface BankAccountLine {
 /**
  * The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the
  * catalogue already says what each setting means. A bank row on hold and a payment the bank dropped are answered on To review, which the chat has no action for.
- * A line of a file from before items is read as the item it makes.
+ * A line of a file from before items is read as the item it makes. A bank link is set up and linked again only on Settings, Bank sync, which the chat has no action for.
  */
-export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, DROPPED_ROW_RECORDS.name, LINE_RECORDS.name]
+export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, DROPPED_ROW_RECORDS.name, LINE_RECORDS.name, BANK_LINK_RECORDS.name]
 
 const ACCOUNT_FIELDS: FieldDocs<Account> = {
   id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },

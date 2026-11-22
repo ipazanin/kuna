@@ -51,7 +51,9 @@ describe('the bank sync script', () => {
   })
 
   it('passes on the token it was given with every call', () => {
-    const { run, calls } = script(({ url }) => (url.includes('/aspsps') ? { aspsps: [{ name: 'Revolut', maximum_consent_validity: 15_552_000 }] } : { url: 'https://example.invalid/approve' }))
+    const { run, calls } = script(({ url }) =>
+      url.includes('/aspsps') ? { aspsps: [{ name: 'Revolut', psu_types: ['personal'], maximum_consent_validity: 15_552_000 }] } : { url: 'https://example.invalid/approve' },
+    )
     run('startLink', TOKEN, 'Revolut', 'https://example.invalid/kuna/', 'one-time')
     run('transactions', TOKEN, 'u1', '2026-10-01', 'default')
     run('balances', TOKEN, 'u1')
@@ -67,7 +69,7 @@ describe('the bank sync script', () => {
   })
 
   it('starts a link for as long as the bank allows, with the state and the address it is given', () => {
-    const { run, calls } = script(() => ({ aspsps: [{ name: 'OTP banka', maximum_consent_validity: 15_552_000 }], url: 'https://example.invalid/approve' }))
+    const { run, calls } = script(() => ({ aspsps: [{ name: 'OTP banka', psu_types: ['personal'], maximum_consent_validity: 15_552_000 }], url: 'https://example.invalid/approve' }))
     expect(run('startLink', TOKEN, 'OTP banka', 'https://example.invalid/kuna/', 'one-time')).toEqual({ url: 'https://example.invalid/approve' })
 
     expect(calls[0]!.url).toBe('https://api.enablebanking.com/aspsps?country=HR')
@@ -79,15 +81,41 @@ describe('the bank sync script', () => {
     expect(days).toBeLessThan(180)
   })
 
-  it('answers the session id, its bank and its end once a link finishes, no account and no name, and closes nothing', () => {
+  it('lists the banks of the country with their logins, beta and longest consent, and nothing else', () => {
+    const { run, calls } = script(() => ({
+      aspsps: [
+        { name: 'Made-up Bank', country: 'HR', logo: 'https://example.invalid/logo.png', psu_types: ['business', 'personal'], beta: true, maximum_consent_validity: 7_776_000, bic: 'MADEUPXX' },
+        { name: 'Other Bank', country: 'HR', psu_types: ['personal'], maximum_consent_validity: 15_552_000 },
+      ],
+    }))
+    expect(run('banks', TOKEN)).toEqual([
+      { name: 'Made-up Bank', usages: ['business', 'personal'], beta: true, maximumConsentDays: 90 },
+      { name: 'Other Bank', usages: ['personal'], beta: false, maximumConsentDays: 180 },
+    ])
+    expect(calls.map(({ method, url }) => `${method} ${url}`)).toEqual(['get https://api.enablebanking.com/aspsps?country=HR'])
+  })
+
+  it('starts a business link when asked, and refuses a login the bank does not list before asking for approval', () => {
+    const listed = { aspsps: [{ name: 'Made-up Bank', psu_types: ['business'], maximum_consent_validity: 15_552_000 }], url: 'https://example.invalid/approve' }
+    const business = script(() => listed)
+    business.run('startLink', TOKEN, 'Made-up Bank', 'https://example.invalid/kuna/', 'one-time', 'business')
+    expect(business.calls[1]!.body).toMatchObject({ psu_type: 'business' })
+
+    const personal = script(() => listed)
+    expect(() => personal.run('startLink', TOKEN, 'Made-up Bank', 'https://example.invalid/kuna/', 'one-time')).toThrow('Enable Banking lists no personal login at Made-up Bank')
+    expect(personal.calls.map(({ url }) => new URL(url).pathname)).toEqual(['/aspsps'])
+  })
+
+  it('answers the session id, its bank, its login and its end once a link finishes, no account and no name, and closes nothing', () => {
     const { run, calls } = script(() => ({
       session_id: 'made-up-session',
+      psu_type: 'business',
       aspsp: { name: 'Revolut', country: 'HR' },
       access: { valid_until: '2027-05-03T12:00:00+00:00' },
       accounts: [{ uid: 'u1', account_id: { iban: 'LT000000000000000001' }, name: 'Made-up Owner' }],
     }))
     const answer = run('finishLink', TOKEN, 'made-up-code')
-    expect(answer).toEqual({ sessionId: 'made-up-session', bank: 'Revolut', validUntil: '2027-05-03T12:00:00+00:00' })
+    expect(answer).toEqual({ sessionId: 'made-up-session', bank: 'Revolut', usage: 'business', validUntil: '2027-05-03T12:00:00+00:00' })
     expect(calls.map(({ method, url }) => `${method} ${new URL(url).pathname}`)).toEqual(['post /sessions'])
   })
 
@@ -130,6 +158,17 @@ describe('the bank sync script', () => {
       { bank: 'Revolut', status: 'AUTHORIZED', accounts: [{ uid: 'u1', iban: 'LT000000000000000001', currency: 'XXX', ...none }] },
       { bank: 'OTP banka', status: 'EXPIRED', accounts: [] },
     ])
+  })
+
+  it('leaves out an account the bank marks deleted, and keeps one with any other mark or none', () => {
+    const { run } = script(({ url }) => {
+      if (url.endsWith('/sessions/live')) return { status: 'AUTHORIZED', accounts: ['closed', 'enabled', 'unmarked'] }
+      if (url.includes('/closed/')) return { account_id: { iban: 'HR0000000000000000001' }, currency: 'EUR', psu_status: 'deleted' }
+      if (url.includes('/enabled/')) return { account_id: { iban: 'HR0000000000000000001' }, currency: 'EUR', psu_status: 'enabled' }
+      return { account_id: { iban: 'HR0000000000000000002' }, currency: 'EUR' }
+    })
+    const [answer] = run('accounts', TOKEN, [{ bank: 'Made-up Bank', sessionId: 'live' }]) as { accounts: { uid: string }[] }[]
+    expect(answer!.accounts.map(({ uid }) => uid)).toEqual(['enabled', 'unmarked'])
   })
 
   it("hands over the bank's description of an account and never the holder's name", () => {

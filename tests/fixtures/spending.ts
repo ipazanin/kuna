@@ -16,6 +16,7 @@ import { NO_RECORDS } from '../../src/shared/storage/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../src/shared/storage/domain/recordsRead'
 import type { SettingRow } from '../../src/shared/storage/domain/settingRows'
 import { spendingSettingsOf } from '../../src/apps/spending/workbook/domain/spendingSettings'
+import { bankLinksOf } from '../../src/apps/spending/workbook/domain/bankLinkReading'
 import type { RowCells, Transaction } from '../../src/apps/spending/workbook/domain/transaction'
 import { writeRows } from '../../src/apps/spending/entries/application/rowRecords'
 import type { SpendingBook, SpendingRecords } from '../../src/apps/spending/workbook/domain/readSpendingBook'
@@ -203,8 +204,8 @@ function storedWithItems(rows: readonly Transaction[], items: readonly Transacti
   return { transactions: readOf(rows.map((entry) => storedRowOf(entry, BLANK_CELLS))), lines: NO_RECORDS, items: readOf(items) }
 }
 
-/** The parts of a Spending book a test may give, with its setting rows in place of the settings they make. */
-type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'dropped' | 'stored'> & {
+/** The parts of a Spending book a test may give, with its setting rows in place of the settings they make and its bank-link records, which old link settings stand in for while there are none. */
+type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'dropped' | 'stored' | 'bankLinks'> & {
   readonly settingRows: readonly SettingRow[]
 }
 
@@ -236,6 +237,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     dropped: [],
     recipes: [],
     payees: [],
+    bankLinks: [],
     stored: given.items === undefined ? storedBeforeItems(transactions) : storedWithItems(transactions, given.items),
     ...given,
   }
@@ -244,6 +246,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
   return {
     ...book,
     transactions,
+    bankLinks: bankLinksOf(book.bankLinks, settingRows),
     settings: spendingSettingsOf(settingRows),
     readings: {
       accounts: counting(book.accounts),
@@ -262,6 +265,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
       dropped: counting(book.dropped),
       recipes: counting(book.recipes),
       payees: counting(book.payees),
+      bankLinks: counting(book.bankLinks),
       settings: counting(settingRows),
     },
     problems: [],

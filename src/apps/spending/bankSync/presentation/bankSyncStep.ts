@@ -22,10 +22,10 @@ export const BANK_SYNC_STEP: SyncStep = {
   scopes: () => [BANK_SYNC_SCOPE],
   startLine: words.step.start,
   leftOutWhenOff: true,
-  on: () => store.state.workbook !== null && hasLiveLink(store.state.workbook.settings, today()),
+  on: () => store.state.workbook !== null && hasLiveLink(store.state.workbook, today()),
   async run(_report, _startedAt, asking) {
     const book = store.state.workbook
-    if (asking === 'due' && book !== null && !hasDueLink(book.settings, today(), Date.now())) {
+    if (asking === 'due' && book !== null && !hasDueLink(book, today(), Date.now())) {
       const last = loadLastFetch()
       return bankHeldResult(last?.problems ?? [], last?.linked ?? [], book)
     }

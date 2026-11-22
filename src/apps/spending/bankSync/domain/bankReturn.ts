@@ -1,8 +1,7 @@
-import type { LinkableBank } from '../../workbook/domain/spendingSettings'
+import type { LinkName } from './bankLink'
 
 /** What a browser keeps while a bank has the tab, and until the link is written down. `validUntil` holds what a spent code was traded for, so a failed write retries alone. */
-export interface PendingLink {
-  readonly bank: LinkableBank
+export interface PendingLink extends LinkName {
   readonly state: string
   readonly code: string | null
   readonly validUntil: string | null

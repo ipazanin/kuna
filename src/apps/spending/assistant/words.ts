@@ -29,7 +29,6 @@ export const en = {
   },
   settings: {
     bankSyncApplication: `${workbookEn.settingLabels.application}, the person's own Enable Banking application, whose key stays in their browser and their Google account. Blank leaves the whole sync off.`,
-    bankLink: (bank: string) => `The day the approval for ${bank} runs out, set by linking the bank.`,
   },
   proposals: {
     withdrawalTo: (account: string) => `Cash taken out, into ${account}`,
@@ -264,7 +263,6 @@ export const hr: Translation<typeof en> = {
   },
   settings: {
     bankSyncApplication: `${workbookHr.settingLabels.application}, vlastite aplikacije Enable Banking, čiji ključ ostaje u pregledniku i Google računu. Ako je prazno, sinkronizacija je isključena.`,
-    bankLink: (bank) => `Datum isteka odobrenja za ${bank}. Postavlja se povezivanjem banke.`,
   },
   proposals: {
     withdrawalTo: (account) => `Podignuta gotovina, na račun ${account}`,
