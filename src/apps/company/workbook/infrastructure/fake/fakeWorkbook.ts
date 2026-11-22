@@ -1,6 +1,7 @@
 import { ZERO, addMoney, moneyFromAmount } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
 import { language } from '../../../../../shared/text/language'
+import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import { RULE_COLUMNS } from '../../../rules/domain/readRules'
 import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../shared/storage/domain/recordFields'
@@ -313,13 +314,16 @@ function withAdvanceLabels(advances: readonly RecordFields[]): readonly RecordFi
 }
 
 /**
- * The accounts as books that say how each account's rows come in hold them: main from the bank's statements from its first
- * statement's day, which also takes the bank's camt file on Import, and legacy by hand. Books from before items leave both unsaid, which the reader then works out from the ledger.
+ * The accounts as books that say where each account's rows come from hold them: main from the bank's statement mail from its
+ * first statement's day, and its camt file from the day after its newest row, as when the mail lapsed and the person brings
+ * the bank's file, and legacy by hand. Books from before items leave them unsaid, which the reader then works out from the ledger.
  */
 function withAccountSources(accounts: readonly RecordFields[], ledger: readonly RecordFields[]): readonly RecordFields[] {
   const mainDays = ledger.filter((row) => row.account === 'main').map((row) => String(row.date))
-  const startsOn = mainDays.reduce((first, day) => (day < first ? day : first), mainDays[0] ?? '')
-  return accounts.map((account) => (account.account === 'main' ? { ...account, rows_from: 'mail', starts_on: startsOn, also_from: 'provider-file' } : { ...account, rows_from: 'by-hand' }))
+  const first = mainDays.reduce((earliest, day) => (day < earliest ? day : earliest), mainDays[0] ?? '')
+  const newest = mainDays.reduce((latest, day) => (day > latest ? day : latest), mainDays[0] ?? '')
+  const fileFrom = newest === '' ? '' : addDays(parseCivilDate(newest)!, 1)
+  return accounts.map((account) => (account.account === 'main' ? { ...account, sources: `mail ${first}, provider-file ${fileFrom}` } : { ...account, sources: 'by-hand' }))
 }
 
 /**

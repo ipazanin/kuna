@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { accountIntakes, mailOwned } from '../src/apps/investments/imports/domain/accountIntake'
+import { accountSources, mailOwned } from '../src/apps/investments/imports/domain/accountIntake'
 import { NO_ANSWERS, workbookDryRun } from '../src/apps/investments/imports/domain/importDryRun'
 import type { ReportQuestion, WorkbookAnswers, WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
 import { bookingKey, isAskedKey, isReportKey } from '../src/apps/investments/imports/domain/reportKey'
@@ -20,7 +20,7 @@ import { USD, account, book, instrument, rateBookOf, trade } from './fixtures/in
 
 const DAY = parseCivilDate('2026-10-05')!
 const SINCE = parseCivilDate('2026-01-01')!
-const ACCOUNT = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: SINCE, alsoFrom: [] })
+const ACCOUNT = account('kuna-ibkr', 'Kuna IBKR', [{ source: 'mail', from: SINCE }])
 const ABC = instrument('abc', { name: 'Example Tech', isin: 'XX000000ABC1', currency: USD })
 const DEF = instrument('def', { name: 'Example Dividend Co', isin: 'US000000DEF2', currency: USD })
 const RATES = rateBookOf(new Map([[USD, [['2026-10-01', '1.10']]]]))
@@ -78,7 +78,7 @@ describe('the form a question of IBKR’s report starts', () => {
   })
 
   it('leaves the account blank when the mail fills no account or more than one', () => {
-    const twoMailed = { ...records, accounts: [ACCOUNT, account('second', 'Second', { rowsFrom: 'mail', startsOn: SINCE, alsoFrom: [] })] }
+    const twoMailed = { ...records, accounts: [ACCOUNT, account('second', 'Second', [{ source: 'mail', from: SINCE }])] }
     expect(askedRowStart(questionIn(records, 'Corporate Actions'), twoMailed)?.texts).not.toHaveProperty('account')
     expect(askedRowStart(questionIn(records, 'Trades', 'BUY'), twoMailed)?.texts).toMatchObject({ account: '' })
   })
@@ -102,7 +102,7 @@ describe('a question booked from IBKR’s report', () => {
   it('keeps a key shaped like the report’s, so it lands on the account the mail fills', () => {
     expect(key).toBe(`${IBKR_FLEX_RECIPE.id}:asked:${question.key}`)
     expect(isReportKey(key) && isAskedKey(key)).toBe(true)
-    expect(mailOwned(accountIntakes(records), { accounts: [ACCOUNT.id], date: DAY, importKeys: [key] })).toBeNull()
+    expect(mailOwned(accountSources(records), { id: ACCOUNT.id, accounts: [ACCOUNT.id], date: DAY, importKeys: [key] })).toBeNull()
     expect(booked().cashMovements.at(-1)!.importKeys).toEqual([key])
   })
 
@@ -115,9 +115,9 @@ describe('a question booked from IBKR’s report', () => {
   it('neither moves the newest report day nor makes an account read as filled by the mail', () => {
     const old = { ...booked(), cashMovements: booked().cashMovements.map((movement) => (movement.importKeys.includes(key) ? { ...movement, date: parseCivilDate('2027-01-04')! } : movement)) }
     expect(newestReportDay(old)).toBe(newestReportDay(records))
-    const unsaid = { ...old, accounts: [{ ...ACCOUNT, intake: null }], mailReaders: [{ ...old.mailReaders[0]!, since: SINCE }] }
+    const unsaid = { ...old, accounts: [{ ...ACCOUNT, sources: null }], mailReaders: [{ ...old.mailReaders[0]!, since: SINCE }] }
     const onlyBooked = { ...unsaid, trades: [], income: [], exchanges: [], transfers: [], cashMovements: unsaid.cashMovements.filter((movement) => movement.importKeys.includes(key)) }
-    expect(accountIntakes(onlyBooked).get(ACCOUNT.id)?.rowsFrom).toBe('by-hand')
+    expect(accountSources(onlyBooked).get(ACCOUNT.id)).toEqual([{ source: 'by-hand', from: null }])
   })
 
   it('is neither asked about nor listed as gone by a workbook import', () => {

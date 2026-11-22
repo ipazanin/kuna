@@ -9,7 +9,7 @@ import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workboo
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 import { withIds } from './fixtures/rowIds'
-import { BY_HAND } from '../src/shared/app/accountSource'
+import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
 
 const CATEGORIES: CellValue[][] = [
   ['category', 'family', 'bucket', 'colour'],
@@ -56,7 +56,7 @@ describe('readWorkbook', () => {
         id: recordIdOf(LEDGER_RECORDS, JSON.stringify(['main', 'FAKE-1'])),
       }),
     ])
-    expect(workbook.accounts).toEqual([{ slug: 'main', label: '', iban: 'HR1234567890123456789', currency: '', intake: BY_HAND }])
+    expect(workbook.accounts).toEqual([{ slug: 'main', label: '', iban: 'HR1234567890123456789', currency: '', sources: BY_HAND_SOURCES }])
   })
 
   it('reads the optional label of a category, keeping its slug as the identity', () => {

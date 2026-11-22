@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { ledgerKeyOf } from '../src/apps/company/workbook/domain/ledgerReading'
 import { needsReview } from '../src/apps/company/workbook/domain/needsReview'
 import { civil, ledger } from './fixtures/ledger'
-import { BY_HAND } from '../src/shared/app/accountSource'
+import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
 
 const CATEGORIES = new Set(['equipment', 'travel', 'ai-services', 'revenue'])
 
@@ -21,7 +21,7 @@ function rule(id: string, order: number, conditions: RuleCondition[], category =
   return { id, order, enabled: true, conditions, category, confidence: 'rule', note: '' }
 }
 
-const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', intake: BY_HAND }], clients: [], settings: DEFAULT_SETTINGS })
+const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', sources: BY_HAND_SOURCES }], clients: [], settings: DEFAULT_SETTINGS })
 
 describe('rule fields', () => {
   it('reads back as the rule they were written from', () => {
@@ -199,7 +199,7 @@ describe('rule coverage', () => {
   it('groups card purchases settled against the bank account by their merchants', () => {
     const settlement = 'XX00FAKE0000000003'
     const cardContext = categorisationContextOf({
-      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', intake: BY_HAND }],
+      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', sources: BY_HAND_SOURCES }],
       clients: [],
       settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [settlement] },
     })

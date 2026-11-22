@@ -178,7 +178,10 @@ describe('Investments records', () => {
     vi.useRealTimers()
   })
 
-  const IBKR = account('ibkr', 'IBKR', { rowsFrom: 'mail', startsOn: civil('2026-06-01'), alsoFrom: ['provider-file'] })
+  const IBKR = account('ibkr', 'IBKR', [
+    { source: 'provider-file', from: null },
+    { source: 'mail', from: civil('2026-06-01') },
+  ])
   const OTHER = account('other', 'Other broker')
   const FUND = instrument('fund', { name: 'Example Fund', prices: 'manual', sourceSymbol: '' })
 

@@ -12,6 +12,9 @@ import { isHeldStatement } from '../../workbook/domain/heldStatements'
 import type { HeldStatement } from '../../workbook/domain/heldStatements'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import { words } from './words'
+import { setSettings } from '../../settings/application/settingWrites'
+import { STATEMENTS_MAIL_READ_TO_KEY } from '../../settings/domain/settings'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 
 /** What filing a sync's statements is doing: checking them against the ledger, or filing this many rows. */
 export type StatementSyncStep = { readonly kind: 'looking' } | { readonly kind: 'filing'; readonly rows: number }
@@ -43,7 +46,7 @@ export interface StatementSyncPorts {
  * start day. A statement it refuses, such as one of an account kept by hand or one before that day, one that waits for its
  * account to start, or one whose IBAN no account has, is held, and nothing after it is written for that account. The books remember
  * a statement held for the first time in the same write, or in a write of their own when nothing is filed, and forget one the ledger
- * now holds. A statement the person passed over is not held again. A sync whose statements the ledger holds already, and that holds
+ * now holds, and the day of the newest mail it read, which the next search starts a week before. A statement the person passed over is not held again. A sync whose statements the ledger holds already, and that holds
  * nothing new, writes nothing. Google turning the token away throws, so the sync can ask for access.
  */
 export async function fileNewStatements(readings: readonly StatementReading[], ports: StatementSyncPorts): Promise<StatementSyncOutcome> {
@@ -79,6 +82,8 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
       if (run.added.length > 0) writeImport(unit, run, now)
       else if (now !== null) forgetSettledStatements(unit, now, run.statements)
       for (const record of newlyHeld) unit.of(HELD_STATEMENT_WRITES).add(record)
+      const readTo = mailReadTo(ports.mailed, now?.workbook.settings.statementsMailReadTo ?? null)
+      if (now !== null && readTo !== null) setSettings(unit, now.records.settings, [{ key: STATEMENTS_MAIL_READ_TO_KEY, value: readTo }])
     })
     return run.added.length === 0 ? { ...NOTHING_FILED, held } : { problem: null, held, filed: receipt === null ? [] : filed, receipt }
   } catch (failure) {
@@ -98,6 +103,12 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
     ports.step({ kind: 'looking' })
     return await fileReadings(readings, ports, false)
   }
+}
+
+/** The day of the newest mail the sync read, when it is later than the day the books say the mail was read up to, or null. */
+function mailReadTo(mailed: readonly MailedStatement[], readTo: CivilDate | null): CivilDate | null {
+  const newest = mailed.reduce<CivilDate | null>((last, mail) => (last === null || mail.mailedOn > last ? mail.mailedOn : last), null)
+  return newest !== null && (readTo === null || newest > readTo) ? newest : null
 }
 
 /** A statement the dry run writes: nothing refused, no account to start or add, and at least one new row. */

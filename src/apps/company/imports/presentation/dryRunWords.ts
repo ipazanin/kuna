@@ -6,20 +6,26 @@ import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
 import type { DryRunFact, DryRunNote, DryRunRefusal } from '../domain/importDryRun'
+import type { CompanySource } from '../../workbook/domain/workbook'
+import type { RowOrigin } from '../../../../shared/app/accountSource'
 import type { TranscribedRefusal } from '../domain/importedStatement'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
 // A bank statement is izvod, its entries and the ledger's rows stavke, and the ledger evidencija. The statement's own label stays as the file writes it.
 
+/** How a sentence names where a day's rows come from. */
+const SOURCE_EN: Readonly<Record<CompanySource, string>> = { mail: "from the bank's statement mail", 'provider-file': "from the bank's camt file you bring", 'by-hand': 'by hand' }
+
+const SOURCE_HR: Readonly<Record<CompanySource, string>> = { mail: 'iz pošte banke s izvodima', 'provider-file': 'iz camt datoteke banke koju donesete', 'by-hand': 'ručno' }
+
 export const en = {
   intake: {
-    statementsFill: (account: string, startsOn: CivilDate, camtFile: boolean) =>
-      camtFile
-        ? `${account} takes its rows from the bank's statement mail from ${dayLabel(startsOn)}, so a camt file you bring goes on it only once its settings allow the bank's file. Nothing of it is written.`
-        : `${account} takes its rows from the bank's statement mail from ${dayLabel(startsOn)}, so a sheet or a copied statement does not go on it. Nothing of it is written.`,
-    keptByHand: (account: string) => `${account} is kept by hand, so the sync leaves its statements to you. Import its file on Import, or let the bank's statements fill it in Settings, Accounts.`,
+    otherSource: (account: string, day: CivilDate, source: CompanySource, origin: RowOrigin) =>
+      origin === 'automation'
+        ? `${account} takes its rows of ${dayLabel(day)} ${SOURCE_EN[source]}, so the sync leaves this statement to you. Import its file on Import, or give those days to the bank's statement mail in Settings, Accounts.`
+        : `${account} takes its rows of ${dayLabel(day)} ${SOURCE_EN[source]}, so ${origin === 'provider-file' ? 'a camt file you bring' : 'a sheet or a copied statement'} does not go on it. Nothing of it is written. Settings, Accounts says which source takes which days.`,
     beforeStart: (account: string, startsOn: CivilDate, first: CivilDate) =>
-      `It starts on ${dayLabel(first)}, before ${dayLabel(startsOn)}, the day the bank's statements fill ${account} from, so the sync leaves it to you.`,
+      `It starts on ${dayLabel(first)}, before ${dayLabel(startsOn)}, the first day ${account} takes rows on, so nothing of it is written.`,
   },
   dryRun: {
     noEntries: 'The statement has no booked entries, so importing it writes nothing.',
@@ -63,13 +69,11 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   intake: {
-    statementsFill: (account, startsOn, camtFile) =>
-      camtFile
-        ? `Račun „${account}” dobiva stavke iz pošte banke s izvodima od ${dayLabel(startsOn)}, pa camt datoteka koju donesete ide na njega tek kad njegove postavke dopuste datoteku banke. Ništa se iz nje ne upisuje.`
-        : `Račun „${account}” dobiva stavke iz pošte banke s izvodima od ${dayLabel(startsOn)}, pa tablica ili prepisani izvod ne idu na njega. Ništa se iz njih ne upisuje.`,
-    keptByHand: (account) =>
-      `Račun „${account}” vodi se ručno, pa sinkronizacija njegove izvode ostavlja vama. Uvezite njegovu datoteku u Uvozu ili u Postavkama, Računi, dopustite da ga pune izvodi banke.`,
-    beforeStart: (account, startsOn, first) => `Počinje ${dayLabel(first)}, prije ${dayLabel(startsOn)}, dana od kojega izvodi banke pune račun „${account}”, pa ga sinkronizacija ostavlja vama.`,
+    otherSource: (account, day, source, origin) =>
+      origin === 'automation'
+        ? `Račun „${account}” stavke za ${dayLabel(day)} dobiva ${SOURCE_HR[source]}, pa sinkronizacija ovaj izvod ostavlja vama. Uvezite njegovu datoteku u Uvozu ili u Postavkama, Računi, dajte te dane pošti banke s izvodima.`
+        : `Račun „${account}” stavke za ${dayLabel(day)} dobiva ${SOURCE_HR[source]}, pa ${origin === 'provider-file' ? 'camt datoteka koju donesete ne ide' : 'tablica ili prepisani izvod ne idu'} na njega. Ništa se ne upisuje. Postavke, Računi kažu koji izvor puni koje dane.`,
+    beforeStart: (account, startsOn, first) => `Počinje ${dayLabel(first)}, prije ${dayLabel(startsOn)}, prvog dana od kojega račun „${account}” prima stavke, pa se ništa ne upisuje.`,
   },
   dryRun: {
     noEntries: 'Izvod nema proknjiženih stavki, pa njegov uvoz ništa ne upisuje.',
@@ -153,10 +157,8 @@ export function refusalText(refusal: DryRunRefusal): string {
       return words.dryRun.missingBetween(refusal.account, refusal.balance, refusal.day, refusal.before)
     case 'part-does-not-tie':
       return words.transcribed.partDoesNotTie(refusal.account, refusal.left, refusal.rows, refusal.reached, refusal.closing, refusal.gap)
-    case 'statements-fill':
-      return words.intake.statementsFill(refusal.account, refusal.startsOn, refusal.origin === 'provider-file')
-    case 'kept-by-hand':
-      return words.intake.keptByHand(refusal.account)
+    case 'other-source':
+      return words.intake.otherSource(refusal.account, refusal.day, refusal.source, refusal.origin)
     case 'before-start':
       return words.intake.beforeStart(refusal.account, refusal.startsOn, refusal.first)
   }

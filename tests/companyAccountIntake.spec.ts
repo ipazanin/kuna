@@ -2,11 +2,14 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { firstVatOpenDay, vatReturnDue } from '../src/apps/company/packs/hr-doo/domain/vatFiledDays'
-import { ACCOUNT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
-import { derivedIntake, folderFiledOnSync, statementMailReach } from '../src/apps/company/workbook/domain/accountIntakes'
+import { ACCOUNT_WRITES, writeAccounts } from '../src/apps/company/settings/application/namedRecordWrites'
+import { derivedSources, folderFiledOnSync, statementMailReach } from '../src/apps/company/workbook/domain/accountSources'
+import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
+import { storedOf } from '../src/shared/storage/domain/recordsRead'
+import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
+import type { CompanyPeriod } from '../src/apps/company/workbook/domain/workbook'
 import { isBankStatementRow } from '../src/apps/company/workbook/domain/rowOrigin'
 import type { AccountRecord } from '../src/apps/company/workbook/domain/accountsReading'
-import { BY_HAND } from '../src/shared/app/accountSource'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
@@ -41,16 +44,24 @@ describe('where a ledger row came from', () => {
 })
 
 describe("the day the bank's statement mail reaches back to", () => {
-  const mail = (slug: string, startsOn: string) => ({ slug, intake: { rowsFrom: 'mail' as const, startsOn: day(startsOn), alsoFrom: [] } })
+  const mail = (slug: string, startsOn: string, more: readonly CompanyPeriod[] = []) => ({ slug, sources: [{ source: 'mail' as const, from: day(startsOn) }, ...more] })
+  const byHand = (slug: string) => ({ slug, sources: [{ source: 'by-hand' as const, from: null }] })
   const row = (account: string, date: string, statement: string, reference = `${account}-${date}`) => ({ account, date: day(date), statement, reference })
 
-  it('is the oldest of the newest statement day of each account the mail fills, so an account furthest behind keeps its statements in the search', () => {
-    const ledger = [row('main', '2026-10-01', '2026-10-01-statement-010'), row('main', '2026-11-10', '2026-11-10-statement-030'), row('savings', '2026-10-20', '2026-10-20-statement-004')]
+  it('is the day the mail was last read up to, so an account that went quiet no longer holds the search back', () => {
+    // savings has had no statement since 1 Sep, while main's mail came on 10 Nov.
+    const ledger = [row('main', '2026-11-10', '2026-11-10-statement-030'), row('savings', '2026-09-01', '2026-09-01-statement-004')]
 
-    expect(statementMailReach([mail('main', '2026-09-01'), mail('savings', '2026-09-01')], ledger, [])).toBe('2026-10-20')
+    expect(statementMailReach([mail('main', '2026-08-01'), mail('savings', '2026-08-01')], ledger, [], day('2026-11-12'))).toBe('2026-11-12')
   })
 
-  it('is the start day of an account with no statement row on or after it, and leaves out rows by hand and accounts kept by hand', () => {
+  it('is the newest statement day of the accounts the mail fills before any sync kept the day it read up to', () => {
+    const ledger = [row('main', '2026-10-01', '2026-10-01-statement-010'), row('main', '2026-11-10', '2026-11-10-statement-030'), row('savings', '2026-10-20', '2026-10-20-statement-004')]
+
+    expect(statementMailReach([mail('main', '2026-09-01'), mail('savings', '2026-09-01')], ledger, [], null)).toBe('2026-11-10')
+  })
+
+  it('reaches back to the start of a run of mail days that holds no statement yet, and leaves out rows by hand and accounts kept by hand', () => {
     const ledger = [
       row('main', '2026-11-10', '2026-11-10-statement-030'),
       row('reserve', '2026-11-12', 'export (aaaaaaaa)'),
@@ -58,20 +69,20 @@ describe("the day the bank's statement mail reaches back to", () => {
       row('hand', '2026-01-01', '2026-01-01-statement-001'),
     ]
 
-    expect(statementMailReach([mail('main', '2026-09-01'), mail('reserve', '2026-11-05'), { slug: 'hand', intake: BY_HAND }], ledger, [])).toBe('2026-11-05')
+    expect(statementMailReach([mail('main', '2026-09-01'), mail('reserve', '2026-11-05'), byHand('hand')], ledger, [], day('2026-11-15'))).toBe('2026-11-05')
   })
 
   it('is null while the mail fills no account', () => {
-    expect(statementMailReach([{ slug: 'hand', intake: BY_HAND }], [], [])).toBeNull()
+    expect(statementMailReach([byHand('hand')], [], [], day('2026-11-15'))).toBeNull()
   })
 
   it('reaches back to the mail of a held statement that waits, and no longer once the person passed it over', () => {
     const ledger = [row('main', '2026-11-10', '2026-11-10-statement-030')]
     const waiting = { mailedOn: day('2026-10-02'), passedOverOn: null }
 
-    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [waiting])).toBe('2026-10-02')
-    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [{ ...waiting, passedOverOn: day('2026-11-15') }])).toBe('2026-11-10')
-    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [{ ...waiting, mailedOn: day('2026-11-18') }])).toBe('2026-11-10')
+    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [waiting], day('2026-11-10'))).toBe('2026-10-02')
+    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [{ ...waiting, passedOverOn: day('2026-11-15') }], day('2026-11-10'))).toBe('2026-11-10')
+    expect(statementMailReach([mail('main', '2026-09-01')], ledger, [{ ...waiting, mailedOn: day('2026-11-18') }], day('2026-11-10'))).toBe('2026-11-10')
   })
 })
 
@@ -80,19 +91,19 @@ describe('an account that does not say how its rows come in', () => {
 
   it("reads as filled by the bank's statements from the first statement after its last row by hand, once the folder was filed on sync", () => {
     const ledger = [row('2026-01-10', 1, 'export (aaaaaaaa)'), row('2026-02-03', 2, '2026-02-03-statement-001'), row('2026-03-03', 3, '2026-03-03-statement-002')]
-    expect(derivedIntake({ slug: 'main' }, ledger, true)).toEqual({ rowsFrom: 'mail', startsOn: '2026-02-03', alsoFrom: [] })
+    expect(derivedSources({ slug: 'main' }, ledger, true)).toEqual([{ source: 'mail', from: '2026-02-03' }])
   })
 
   it('starts the day after a row by hand on the same day as the first statement', () => {
     const ledger = [row('2026-02-03', 1, 'main, February', 'read-1'), row('2026-02-03', 2, '2026-02-03-statement-001')]
-    expect(derivedIntake({ slug: 'main' }, ledger, true)).toEqual({ rowsFrom: 'mail', startsOn: '2026-02-04', alsoFrom: [] })
+    expect(derivedSources({ slug: 'main' }, ledger, true)).toEqual([{ source: 'mail', from: '2026-02-04' }])
   })
 
   it('reads as by hand when its newest row is by hand, when it has none, or when the folder was not filed on sync', () => {
     const ledger = [row('2026-02-03', 1, '2026-02-03-statement-001'), row('2026-03-01', 2, 'export (aaaaaaaa)')]
-    expect(derivedIntake({ slug: 'main' }, ledger, true)).toEqual(BY_HAND)
-    expect(derivedIntake({ slug: 'savings' }, ledger, true)).toEqual(BY_HAND)
-    expect(derivedIntake({ slug: 'main' }, ledger.slice(0, 1), false)).toEqual(BY_HAND)
+    expect(derivedSources({ slug: 'main' }, ledger, true)).toEqual(BY_HAND_SOURCES)
+    expect(derivedSources({ slug: 'savings' }, ledger, true)).toEqual(BY_HAND_SOURCES)
+    expect(derivedSources({ slug: 'main' }, ledger.slice(0, 1), false)).toEqual(BY_HAND_SOURCES)
   })
 
   it.each([
@@ -152,15 +163,39 @@ describe("the writes of an account's source", () => {
     return (await browserHarness(used, { ...grids, ledger: [LEDGER_HEADER, ...grids.ledger!.slice(1).map((cells) => [...cells])] }, COMPANY)).store
   }
 
-  const mailFrom = (main: AccountRecord, startsOn: string): AccountRecord => ({ ...main, intake: { rowsFrom: 'mail', startsOn: day(startsOn), alsoFrom: [] } })
+  const mailFrom = (main: AccountRecord, startsOn: string): AccountRecord => ({
+    ...main,
+    sources: [
+      { source: 'by-hand', from: null },
+      { source: 'mail', from: day(startsOn) },
+    ],
+  })
 
-  it("refuses a start day over the harness's rows by hand and in a filed VAT month, and takes one after them", async () => {
+  it("refuses periods that give the mail a filed VAT month, or the harness's rows by hand when they are not carried out, and takes later ones", async () => {
     const store = await storeOf()
     const main = store.state.records!.accounts.records[0]!.record
     // The harness's rows of main are a bank sheet's, up to 5 Oct 2026, and September's return was due on 31 Oct 2026.
     await expect(store.write('Mail', (unit) => unit.of(ACCOUNT_WRITES).change(main, mailFrom(main, '2026-09-30')))).rejects.toThrow(WorkbookWriteRefused)
-    await expect(store.write('Mail', (unit) => unit.of(ACCOUNT_WRITES).change(main, mailFrom(main, '2026-10-05')))).rejects.toThrow(/rows by hand from 5 Oct 2026/)
+    await expect(store.write('Mail', (unit) => unit.of(ACCOUNT_WRITES).change(main, mailFrom(main, '2026-10-05')))).rejects.toThrow(/of the old source would stay/)
     await store.write('Mail', (unit) => unit.of(ACCOUNT_WRITES).change(main, mailFrom(main, '2026-10-06')))
-    expect(store.state.workbook!.accounts[0]!.intake).toEqual({ rowsFrom: 'mail', startsOn: '2026-10-06', alsoFrom: [] })
+    expect(store.state.workbook!.accounts[0]!.sources).toEqual([
+      { source: 'by-hand', from: null },
+      { source: 'mail', from: '2026-10-06' },
+    ])
+  })
+
+  it('carries the rows by hand on the days it gives the mail out in the same write, which Undo puts back', async () => {
+    const store = await storeOf()
+    const stored = storedOf(store.state.records!.accounts)
+    const main = store.state.records!.accounts.records[0]!
+    const before = store.state.workbook!.transactions.filter((row) => row.account === main.record.slug)
+    const onFifth = before.filter((row) => row.date === '2026-10-05').length
+
+    await store.write('Mail', (unit) => writeAccounts(unit, companyBooksOf(store.state)!, stored, [{ saved: 0, record: mailFrom(main.record, '2026-10-05') }]))
+    expect(store.state.workbook!.transactions.filter((row) => row.account === main.record.slug)).toHaveLength(before.length - onFifth)
+
+    await store.undo(store.state.writes[0]!)
+    expect(store.state.workbook!.transactions.filter((row) => row.account === main.record.slug)).toHaveLength(before.length)
+    expect(store.state.workbook!.accounts[0]!.sources).toEqual([{ source: 'by-hand', from: null }])
   })
 })

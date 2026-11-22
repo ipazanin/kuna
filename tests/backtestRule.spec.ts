@@ -11,12 +11,12 @@ import type { Category } from '../src/apps/company/workbook/domain/workbook'
 import { isHumanConfirmed } from '../src/apps/company/workbook/domain/needsReview'
 import { ledger } from './fixtures/ledger'
 import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
-import { BY_HAND } from '../src/shared/app/accountSource'
+import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
 
 const SHOP_IBAN = 'XX00FAKE0000000011'
 const CLIENT_IBAN = 'XX00FAKE0000000012'
 
-const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', intake: BY_HAND }], clients: [], settings: DEFAULT_SETTINGS })
+const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', sources: BY_HAND_SOURCES }], clients: [], settings: DEFAULT_SETTINGS })
 
 function rule(id: string, order: number, conditions: RuleCondition[], category: string, confidence: Rule['confidence'] = 'rule'): Rule {
   return { id, order, enabled: true, conditions, category, confidence, note: '' }
@@ -145,7 +145,7 @@ describe('proposeRule', () => {
   it('names a card purchase by its merchant, not by the bank account it settles against', () => {
     const settlement = 'XX00FAKE0000000003'
     const cardContext = categorisationContextOf({
-      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', intake: BY_HAND }],
+      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', sources: BY_HAND_SOURCES }],
       clients: [],
       settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [settlement] },
     })

@@ -102,7 +102,7 @@ describe("an account's source periods", () => {
     ]
     expect(periodsChangeRefusal(FILE_THEN_LINK, after, rows, null)).toMatchObject({ kind: 'rows-of-another-source', count: 1 })
     expect(periodsChangeRefusal(FILE_THEN_LINK, after, rows.slice(1), null)).toBeNull()
-    expect(periodsChangeRefusal(FILE_THEN_LINK, after, [], civil('2026-06-01'))).toEqual({ kind: 'filed', firstOpen: civil('2026-06-01') })
+    expect(periodsChangeRefusal(FILE_THEN_LINK, after, [], civil('2026-06-01'))).toMatchObject({ kind: 'filed', firstOpen: civil('2026-06-01') })
   })
 
   it('count the rows each origin brought in each period', () => {

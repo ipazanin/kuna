@@ -2,9 +2,10 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
+import { writeInvestmentAccount } from '../src/apps/investments/holdings/application/accountSourceWrites'
 import { writeAccountSources } from '../src/apps/investments/mail/application/mailReaderWrites'
 import { words as holdingWords } from '../src/apps/investments/holdings/application/words'
-import { accountIntakes, intakeRefusal, mailOwned, proposedMailStart } from '../src/apps/investments/imports/domain/accountIntake'
+import { accountSources, mailOwned, proposedMailStart, sourcesRefusal } from '../src/apps/investments/imports/domain/accountIntake'
 import { NO_ANSWERS, workbookDryRun } from '../src/apps/investments/imports/domain/importDryRun'
 import { readPortfolioWorkbook } from '../src/apps/investments/imports/domain/portfolioWorkbook'
 import { reportRowKey } from '../src/apps/investments/imports/domain/reportKey'
@@ -12,10 +13,10 @@ import { firstUnfiledDay } from '../src/apps/investments/tax/domain/taxDeadlines
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
 import { keyOf, textsOf, transactionDraft } from '../src/apps/investments/transactions/domain/transactionDraft'
 import { transactionErrors } from '../src/apps/investments/transactions/presentation/words'
-import type { InvestmentIntake } from '../src/apps/investments/workbook/domain/investmentAccount'
+import { BY_HAND_SOURCES } from '../src/apps/investments/workbook/domain/investmentAccount'
+import type { InvestmentPeriod } from '../src/apps/investments/workbook/domain/investmentAccount'
 import { INVESTMENTS_DOCUMENT, emptyInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import { INVESTMENTS_APP } from '../src/apps/investments/workbook/domain/investmentsApp'
-import { BY_HAND } from '../src/shared/app/accountSource'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
@@ -33,11 +34,12 @@ function day(text: string): CivilDate {
 }
 
 const START = day('2026-06-01')
-const MAILED: InvestmentIntake = { rowsFrom: 'mail', startsOn: START, alsoFrom: [] }
+const MAILED: readonly InvestmentPeriod[] = [{ source: 'mail', from: START }]
 const IBKR = account('ibkr', 'IBKR', MAILED)
 const OTHER = account('other', 'Other broker')
 const FUND = instrument('fund', { name: 'Example Fund', prices: 'manual', sourceSymbol: '' })
 const REPORT_KEY = reportRowKey('ibkr-activity-flex', 'U0000001', 'tx-1')
+const REPORT_ID = cashMovement('deposit', account('ibkr'), '2026-06-01', '1').id
 
 describe('the day a tax year counts as filed', () => {
   it.each([
@@ -83,13 +85,13 @@ describe('an account that does not say how its rows come in', () => {
       'mail-reader': [READER],
     })
     expect(problems).toEqual([])
-    expect(read.accounts.map((held) => held.intake)).toEqual([null, null])
-    expect([...accountIntakes(read).values()]).toEqual([{ rowsFrom: 'mail', startsOn: '2026-03-01', alsoFrom: [] }, BY_HAND])
+    expect(read.accounts.map((held) => held.sources)).toEqual([null, null])
+    expect([...accountSources(read).values()]).toEqual([[{ source: 'mail', from: '2026-03-01' }], BY_HAND_SOURCES])
   })
 
   it('reads as by hand once no reader keeps a start day', () => {
     const { book: read } = booksOf({ 'investment-account': [{ id: ONE, name: 'IBKR' }], 'cash-movement': [MOVED('c1', ONE, REPORT_KEY)] })
-    expect([...accountIntakes(read).values()]).toEqual([BY_HAND])
+    expect([...accountSources(read).values()]).toEqual([BY_HAND_SOURCES])
   })
 
   it("is saved with the others on the first write of an account or of the reader, which drops the reader's shared start day, and one Undo puts both back", async () => {
@@ -112,18 +114,18 @@ describe('an account that does not say how its rows come in', () => {
     const read = store.state.workbook!.book
     const other = read.accounts.find((held) => held.name === 'Other')!
     await store.write('Renamed', (unit) => {
-      unit.of(INVESTMENT_ACCOUNT_WRITES).change(other, { ...other, name: 'Other broker', intake: BY_HAND })
+      unit.of(INVESTMENT_ACCOUNT_WRITES).change(other, { ...other, name: 'Other broker', sources: BY_HAND_SOURCES })
       writeAccountSources(unit, read, { account: other.id })
     })
     const saved = store.state.workbook!.book
-    expect(saved.accounts.map((held) => [held.name, held.intake])).toEqual([
-      ['IBKR', { rowsFrom: 'mail', startsOn: '2026-03-01', alsoFrom: [] }],
-      ['Other broker', BY_HAND],
+    expect(saved.accounts.map((held) => [held.name, held.sources])).toEqual([
+      ['IBKR', [{ source: 'mail', from: '2026-03-01' }]],
+      ['Other broker', BY_HAND_SOURCES],
     ])
     expect(saved.mailReaders.map((reader) => reader.since)).toEqual([null])
 
     await store.undo(store.state.writes[0]!)
-    expect(store.state.workbook!.book.accounts.map((held) => held.intake)).toEqual([null, null])
+    expect(store.state.workbook!.book.accounts.map((held) => held.sources)).toEqual([null, null])
     expect(store.state.workbook!.book.mailReaders.map((reader) => reader.since)).toEqual(['2026-03-01'])
     vi.useRealTimers()
   })
@@ -141,7 +143,7 @@ describe('an account that does not say how its rows come in', () => {
 })
 
 describe('a record by hand on an account the mail fills', () => {
-  const intakes = accountIntakes(book({ accounts: [IBKR, OTHER] }))
+  const sources = accountSources(book({ accounts: [IBKR, OTHER] }))
 
   it.each([
     ['before the start day', '2026-05-31', null, IBKR.id],
@@ -149,12 +151,12 @@ describe('a record by hand on an account the mail fills', () => {
     ['from the report', '2026-06-02', REPORT_KEY, null],
     ['imported from the workbook', '2026-06-02', 'row-17', IBKR.id],
   ])('%s', (_label, date, importKey, owner) => {
-    expect(mailOwned(intakes, { accounts: [IBKR.id], date: day(date), importKeys: importKey === null ? [] : [importKey] })).toBe(owner)
+    expect(mailOwned(sources, { id: REPORT_ID, accounts: [IBKR.id], date: day(date), importKeys: importKey === null ? [] : [importKey] })).toBe(owner)
   })
 
   it('lands on an account kept by hand on any day, and a transfer is held to both of its accounts', () => {
-    expect(mailOwned(intakes, { accounts: [OTHER.id], date: day('2026-07-01'), importKeys: [] })).toBeNull()
-    expect(mailOwned(intakes, { accounts: [OTHER.id, IBKR.id], date: day('2026-07-01'), importKeys: [] })).toBe(IBKR.id)
+    expect(mailOwned(sources, { id: REPORT_ID, accounts: [OTHER.id], date: day('2026-07-01'), importKeys: [] })).toBeNull()
+    expect(mailOwned(sources, { id: REPORT_ID, accounts: [OTHER.id, IBKR.id], date: day('2026-07-01'), importKeys: [] })).toBe(IBKR.id)
   })
 
   it("marks the dialog's account field with the account, and lets a record already on it keep its account and day", () => {
@@ -170,30 +172,40 @@ describe('a record by hand on an account the mail fills', () => {
   })
 })
 
-describe('a start day that gives the mail more days', () => {
-  const TODAY = day('2026-11-13')
-  const typed = [{ accounts: [IBKR.id], date: day('2026-07-01'), importKeys: [] }]
+describe('periods that give the mail more days', () => {
+  const FIRST_OPEN = firstUnfiledDay(day('2026-11-13'))
+  const typed = { kept: [{ id: REPORT_ID, accounts: [IBKR.id], date: day('2026-07-01'), importKeys: [] }], back: [] }
 
-  it('is refused in a tax year already filed, and taken in the first one not filed', () => {
-    expect(intakeRefusal(IBKR.id, null, { ...MAILED, startsOn: day('2025-12-31') }, [], TODAY)).toEqual({ kind: 'filed', startsOn: '2025-12-31', firstOpen: '2026-01-01' })
-    expect(intakeRefusal(IBKR.id, null, { ...MAILED, startsOn: day('2026-01-01') }, [], TODAY)).toBeNull()
+  it('are refused in a tax year already filed, and taken in the first one not filed', () => {
+    expect(sourcesRefusal(IBKR.id, BY_HAND_SOURCES, [{ source: 'mail', from: day('2025-12-31') }], { kept: [], back: [] }, FIRST_OPEN)).toEqual({
+      kind: 'filed',
+      firstOpen: '2026-01-01',
+      day: '2025-12-31',
+    })
+    expect(sourcesRefusal(IBKR.id, BY_HAND_SOURCES, [{ source: 'mail', from: day('2026-01-01') }], { kept: [], back: [] }, FIRST_OPEN)).toBeNull()
   })
 
-  it('is refused over records by hand on the days it gives the mail, and keeps the records by hand before it', () => {
-    expect(intakeRefusal(IBKR.id, BY_HAND, MAILED, typed, TODAY)).toEqual({ kind: 'rows-by-hand', count: 1, startsOn: START })
-    expect(intakeRefusal(IBKR.id, BY_HAND, { ...MAILED, startsOn: day('2026-07-02') }, typed, TODAY)).toBeNull()
+  it('are refused over records by hand left on the days they give the mail, and keep the records by hand before them', () => {
+    expect(sourcesRefusal(IBKR.id, BY_HAND_SOURCES, MAILED, typed, FIRST_OPEN)).toEqual({ kind: 'rows-of-another-source', count: 1 })
+    expect(sourcesRefusal(IBKR.id, BY_HAND_SOURCES, [{ source: 'mail', from: day('2026-07-02') }], typed, FIRST_OPEN)).toBeNull()
   })
 
-  it('checks nothing for a later start day or a switch to by hand, which bring no report row in', () => {
-    const filed: InvestmentIntake = { ...MAILED, startsOn: day('2024-06-01') }
-    expect(intakeRefusal(IBKR.id, filed, { ...MAILED, startsOn: day('2025-01-01') }, typed, TODAY)).toBeNull()
-    expect(intakeRefusal(IBKR.id, filed, BY_HAND, typed, TODAY)).toBeNull()
+  it('refuse an Undo once the mail brought a record on the days it was given, and take one before', () => {
+    const fromReport = { id: REPORT_ID, accounts: [IBKR.id], date: day('2026-07-01'), importKeys: [REPORT_KEY] }
+    // The Undo puts back the periods by hand and the typed record the handover took out.
+    expect(sourcesRefusal(IBKR.id, MAILED, BY_HAND_SOURCES, { kept: [fromReport], back: typed.kept }, null)).toEqual({ kind: 'rows-of-another-source', count: 1 })
+    expect(sourcesRefusal(IBKR.id, MAILED, BY_HAND_SOURCES, { kept: [], back: typed.kept }, null)).toBeNull()
+  })
+
+  it('check nothing for a later start day, which brings no report row in', () => {
+    const filed: readonly InvestmentPeriod[] = [{ source: 'mail', from: day('2024-06-01') }]
+    expect(sourcesRefusal(IBKR.id, filed, [{ source: 'mail', from: day('2025-01-01') }], typed, FIRST_OPEN)).toBeNull()
   })
 })
 
 describe('the start day proposed when an account comes to take the report', () => {
   const TODAY = day('2026-11-13')
-  const typedOn = (date: string, importKey: string | null = null) => ({ accounts: [IBKR.id], date: day(date), importKeys: importKey === null ? [] : [importKey] })
+  const typedOn = (date: string, importKey: string | null = null) => ({ id: REPORT_ID, accounts: [IBKR.id], date: day(date), importKeys: importKey === null ? [] : [importKey] })
 
   it.each([
     ['today with no row by hand', [], '2026-11-13'],
@@ -240,10 +252,10 @@ describe('the writes', () => {
     const store = await storeOf()
     const kept = cashMovement('deposit', IBKR, '2026-05-01', '100')
     await store.write('Before the mail', (unit) => {
-      unit.of(INVESTMENT_ACCOUNT_WRITES).change(IBKR, { ...IBKR, intake: BY_HAND })
+      unit.of(INVESTMENT_ACCOUNT_WRITES).change(IBKR, { ...IBKR, sources: BY_HAND_SOURCES })
       writeTransaction(unit, null, { kind: 'cash-movement', record: kept })
     })
-    await store.write('Mail', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).change({ ...IBKR, intake: BY_HAND }, IBKR))
+    await store.write('Mail', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).change({ ...IBKR, sources: BY_HAND_SOURCES }, IBKR))
     await store.write('Note', (unit) => writeTransaction(unit, { kind: 'cash-movement', record: kept }, { kind: 'cash-movement', record: { ...kept, note: 'Fixed' } }))
     expect(store.state.workbook!.book.cashMovements.map((movement) => movement.note)).toEqual(['Fixed'])
     const moved = { ...kept, note: 'Fixed', date: day('2026-05-02') }
@@ -254,14 +266,47 @@ describe('the writes', () => {
 
   it('refuses a start day moved into a filed tax year, and one over records by hand', async () => {
     const store = await storeOf()
-    const byHand = { ...IBKR, intake: BY_HAND }
+    const byHand = { ...IBKR, sources: BY_HAND_SOURCES }
     await store.write('By hand', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).change(IBKR, byHand))
     await store.write('Typed', (unit) => writeTransaction(unit, null, { kind: 'cash-movement', record: cashMovement('deposit', IBKR, '2026-05-01', '100') }))
-    const earlier = (startsOn: string) => store.write('Moved', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).change(byHand, { ...IBKR, intake: { ...MAILED, startsOn: day(startsOn) } }))
+    const earlier = (startsOn: string) => store.write('Moved', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).change(byHand, { ...IBKR, sources: [{ source: 'mail', from: day(startsOn) }] }))
     await expect(earlier('2025-12-01')).rejects.toThrow(new WorkbookWriteRefused(`IBKR: ${holdingWords.startInFiledYear(2025, day('2026-01-01'))}`))
-    await expect(earlier('2026-04-01')).rejects.toThrow(new WorkbookWriteRefused(`IBKR: ${holdingWords.startOverHandRows(day('2026-04-01'))}`))
+    await expect(earlier('2026-04-01')).rejects.toThrow(new WorkbookWriteRefused(`IBKR: ${holdingWords.rowsOfAnotherSource(1)}`))
     await earlier('2026-05-02')
-    expect(accountIntakes(store.state.workbook!.book).get(IBKR.id)).toEqual({ rowsFrom: 'mail', startsOn: '2026-05-02', alsoFrom: [] })
+    expect(accountSources(store.state.workbook!.book).get(IBKR.id)).toEqual([{ source: 'mail', from: '2026-05-02' }])
+  })
+})
+
+describe("periods that give an account's days to another source", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-13T10:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('take out the records by hand on the days given to the mail in the same write, which Undo puts back until the mail brings one', async () => {
+    const { store } = await browserHarness(used, emptyInvestmentsDocument('2026-10-30T09:00:00.000Z'), INVESTMENTS)
+    await store.write('Set up', (unit) => {
+      unit.of(INVESTMENT_ACCOUNT_WRITES).add(OTHER)
+      unit.of(INSTRUMENT_WRITES).add(FUND)
+      writeTransaction(unit, null, { kind: 'cash-movement', record: cashMovement('deposit', OTHER, '2026-07-01', '100') })
+      writeTransaction(unit, null, { kind: 'cash-movement', record: cashMovement('deposit', OTHER, '2026-05-01', '50') })
+    })
+    const mailed = {
+      ...OTHER,
+      sources: [
+        { source: 'by-hand' as const, from: null },
+        { source: 'mail' as const, from: START },
+      ],
+    }
+    const before = store.state.workbook!.book
+    await store.write('Mail', (unit) => writeInvestmentAccount(unit, before, OTHER, mailed))
+    expect(store.state.workbook!.book.cashMovements.map((movement) => movement.date)).toEqual(['2026-05-01'])
+
+    await store.undo(store.state.writes[0]!)
+    expect(store.state.workbook!.book.cashMovements.map((movement) => movement.date).sort()).toEqual(['2026-05-01', '2026-07-01'])
   })
 })
 

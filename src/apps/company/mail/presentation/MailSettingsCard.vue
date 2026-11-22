@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { runsOf } from '../../../../shared/app/accountSource'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UFormField from '@nuxt/ui/components/FormField.vue'
@@ -42,14 +43,15 @@ const store = useWorkbook()
 const route = useRoute()
 const revealed = computed(() => route.hash === '#mail' || props.errors.statementsMailFrom !== undefined || props.errors.statementsMailSubject !== undefined)
 
-/** The accounts the bank's statements fill, by name, with the day each starts from. */
+/** The accounts the bank's statements fill, by name, with the day the mail's latest period on each starts from. */
 const filled = computed(() => {
   const workbook = store.state.workbook
   if (workbook === null) return []
   const names = displayNamesOf(workbook)
   return workbook.accounts.flatMap((account) => {
-    if (account.intake.rowsFrom !== 'mail') return []
-    const from = dayLabel(account.intake.startsOn)
+    const starts = runsOf(account.sources, 'mail').flatMap((run) => (run.from === null ? [] : [run.from]))
+    if (starts.length === 0) return []
+    const from = dayLabel(starts[starts.length - 1]!)
     const startsOn = words.card.accountFrom(from)
     return [{ slug: account.slug, name: names.account(account.slug), from, caption: account.iban === '' ? startsOn : `${startsOn} · ${account.iban}` }]
   })

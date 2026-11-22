@@ -3,17 +3,19 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
-import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { listInWords } from '../../../../shared/text/listInWords'
 import { slugInWords } from '../../workbook/domain/slugInWords'
 import type { SlugUses } from '../../workbook/domain/slug'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { NEW_ACCOUNT_DRAFT, accountDraftErrors, accountDraftsOf, accountsOfDrafts, intakeOfDraft } from '../domain/accountDrafts'
-import type { AccountDraft, CompanyRowsFrom } from '../domain/accountDrafts'
-import type { CompanyIntake } from '../../workbook/domain/workbook'
+import { NEW_ACCOUNT_DRAFT, accountDraftErrors, accountDraftsOf, accountsOfDrafts, sourcesOfDraft } from '../domain/accountDrafts'
+import type { AccountDraft } from '../domain/accountDrafts'
+import type { CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
+import type { PeriodDraft } from '../../../../shared/app/periodDrafts'
+import type { HandoverWords } from '../../../../shared/ui/sourceHandover'
 import DayField from '../../../../shared/ui/DayField.vue'
+import SourceHandoverAlert from '../../../../shared/ui/SourceHandoverAlert.vue'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { words } from './words'
 
@@ -28,10 +30,10 @@ const props = defineProps<{
   saving: boolean
   /** The file takes no changes, which switches its Save off. */
   refused: boolean
-  /** How each account's rows come in, by its name, as the workbook reads it. */
-  intakes: ReadonlyMap<string, CompanyIntake>
-  /** Why an account's new intake may not be written, from how it read before, or null. */
-  startDayFault: (account: string, before: CompanyIntake | null, after: CompanyIntake) => string | null
+  /** Where each account's rows come from on which days, by its name, as the workbook reads it. */
+  sources: ReadonlyMap<string, readonly CompanyPeriod[]>
+  /** Why a saved account's new periods may not be written, or the rows saving them takes out of the ledger. */
+  periodsCheck: (account: string, after: readonly CompanyPeriod[]) => { readonly fault: string | null; readonly warning: HandoverWords | null }
 }>()
 
 const emit = defineEmits<{
@@ -39,33 +41,65 @@ const emit = defineEmits<{
 }>()
 
 const stored = computed(() => storedOf(props.records))
-const savedDrafts = computed(() => accountDraftsOf(stored.value, props.intakes))
+const savedDrafts = computed(() => accountDraftsOf(stored.value, props.sources))
 const drafts = ref<AccountDraft[]>(savedDrafts.value)
 watch(savedDrafts, (saved) => {
   drafts.value = saved
 })
 
-const ROWS_FROM_ITEMS: { value: CompanyRowsFrom; label: string }[] = [
+const SOURCE_ITEMS: { value: CompanySource; label: string }[] = [
   { value: 'mail', label: words.accounts.rowsFrom.mail },
+  { value: 'provider-file', label: words.accounts.rowsFrom.providerFile },
   { value: 'by-hand', label: words.accounts.rowsFrom.byHand },
 ]
 
 const usedNames = computed(() => new Set(props.uses.keys()))
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(savedDrafts.value))
-/** Each row's faults, with a start day the write would refuse said on its field. */
+/** What saving each saved account's typed periods does, by its row: why the write would refuse them, or the rows it takes out. */
+const checks = computed(
+  () =>
+    new Map(
+      drafts.value.flatMap((draft, index) => {
+        const after = sourcesOfDraft(draft).periods
+        return draft.saved === null || after === null ? [] : [[index, props.periodsCheck(draft.savedName.trim().toLowerCase(), after)] as const]
+      }),
+    ),
+)
+
+/** Each row's faults, with periods the write would refuse said under them. */
 const errors = computed(() => {
   const found = new Map(accountDraftErrors(drafts.value, usedNames.value))
-  drafts.value.forEach((draft, index) => {
-    const after = intakeOfDraft(draft)
-    const before = draft.saved === null ? null : (props.intakes.get(draft.savedName.trim().toLowerCase()) ?? null)
-    const fault = after === null || found.get(index)?.startsOn !== undefined ? null : props.startDayFault(draft.account.trim().toLowerCase(), before, after)
-    if (fault !== null) found.set(index, { ...found.get(index), startsOn: fault })
-  })
+  for (const [index, check] of checks.value) {
+    if (check.fault !== null && found.get(index)?.sources === undefined) found.set(index, { ...found.get(index), sources: check.fault })
+  }
   return found
 })
 
-function update<Field extends 'account' | 'label' | 'iban' | 'currency' | 'rowsFrom' | 'startsOn' | 'takesCamtFile'>(index: number, field: Field, value: AccountDraft[Field]): void {
+function update<Field extends 'account' | 'label' | 'iban' | 'currency' | 'periods'>(index: number, field: Field, value: AccountDraft[Field]): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: value } : draft))
+}
+
+function changePeriod(index: number, place: number, change: Partial<PeriodDraft<CompanySource>>): void {
+  update(
+    index,
+    'periods',
+    drafts.value[index]!.periods.map((period, at) => (at === place ? { ...period, ...change } : period)),
+  )
+}
+
+function addPeriod(index: number): void {
+  const { periods } = drafts.value[index]!
+  const last = periods[periods.length - 1]
+  const source = SOURCE_ITEMS.find((item) => item.value !== last?.source)!.value
+  update(index, 'periods', [...periods, { source, from: '' }])
+}
+
+function removePeriod(index: number, place: number): void {
+  update(
+    index,
+    'periods',
+    drafts.value[index]!.periods.filter((_period, at) => at !== place),
+  )
 }
 
 function locked(draft: AccountDraft): boolean {
@@ -167,39 +201,54 @@ function save(): void {
           </tr>
           <tr class="sources-row" data-testid="account-sources">
             <td colspan="5" class="cell-wraps">
-              <div class="sources sticky left-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <div class="flex items-center gap-2">
-                  <span class="type-label" aria-hidden="true">{{ words.accounts.columns.rowsFrom }}</span>
-                  <USelect
-                    :model-value="draft.rowsFrom"
-                    :items="ROWS_FROM_ITEMS"
-                    :aria-label="words.accounts.columns.rowsFrom"
-                    size="sm"
-                    class="w-44"
-                    data-testid="account-rows-from"
-                    @update:model-value="update(index, 'rowsFrom', $event as CompanyRowsFrom)"
-                  />
-                </div>
-                <template v-if="draft.rowsFrom === 'mail'">
+              <div class="sources sticky left-3 flex flex-col gap-2">
+                <div v-for="(period, place) in draft.periods" :key="place" class="flex flex-wrap items-center gap-x-4 gap-y-2" role="group" :aria-label="words.accounts.sources.source(place + 1)">
+                  <div class="flex items-center gap-2">
+                    <span class="type-label" aria-hidden="true">{{ place === 0 ? words.accounts.columns.rowsFrom : words.accounts.sources.then }}</span>
+                    <USelect
+                      :model-value="period.source"
+                      :items="SOURCE_ITEMS"
+                      :aria-label="words.accounts.sources.source(place + 1)"
+                      size="sm"
+                      class="w-48"
+                      :data-testid="place === 0 ? 'account-rows-from' : 'account-source'"
+                      @update:model-value="changePeriod(index, place, { source: $event as CompanySource })"
+                    />
+                  </div>
                   <div class="flex items-center gap-2">
                     <span class="type-label" aria-hidden="true">{{ words.accounts.columns.startsOn }}</span>
                     <DayField
-                      :model-value="draft.startsOn"
+                      :model-value="period.from"
                       size="sm"
-                      :aria-label="words.accounts.columns.startsOn"
-                      data-testid="account-starts-on"
-                      @update:model-value="update(index, 'startsOn', $event)"
+                      :aria-label="place === 0 ? words.accounts.sources.firstFrom : words.accounts.columns.startsOn"
+                      :data-testid="place === 0 ? 'account-starts-on' : 'account-source-from'"
+                      @update:model-value="changePeriod(index, place, { from: $event })"
+                    />
+                    <UButton
+                      v-if="place > 0"
+                      icon="i-lucide-x"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      :aria-label="words.accounts.sources.remove"
+                      data-testid="account-source-remove"
+                      @click="removePeriod(index, place)"
                     />
                   </div>
-                  <USwitch
-                    :model-value="draft.takesCamtFile"
-                    :label="words.accounts.takesCamtFile"
-                    data-testid="account-takes-camt-file"
-                    @update:model-value="update(index, 'takesCamtFile', $event)"
-                  />
-                </template>
+                </div>
+                <UButton
+                  :label="words.accounts.sources.add"
+                  icon="i-lucide-plus"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  class="self-start"
+                  data-testid="account-source-add"
+                  @click="addPeriod(index)"
+                />
+                <SourceHandoverAlert v-if="checks.get(index)?.warning" :handover="checks.get(index)!.warning!" data-testid="account-handover" />
               </div>
-              <p v-if="errors.get(index)?.startsOn" class="field-error sticky left-3">{{ errors.get(index)?.startsOn }}</p>
+              <p v-if="errors.get(index)?.sources" class="field-error sticky left-3">{{ errors.get(index)?.sources }}</p>
             </td>
           </tr>
         </template>

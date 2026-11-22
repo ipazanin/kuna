@@ -2,10 +2,11 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { accountIntakes } from '../../imports/domain/accountIntake'
+import { accountSources } from '../../imports/domain/accountIntake'
 import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
-import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentPeriod } from '../../workbook/domain/investmentAccount'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import AccountDialog from './AccountDialog.vue'
 import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -15,13 +16,22 @@ import CutText from '../../../../shared/ui/CutText.vue'
 /** The accounts of the Investments file, each with how its rows come in and its change, and a way to add one. */
 const { state } = useInvestmentsBooks()
 const accounts = computed(() => state.workbook?.book.accounts ?? [])
-const intakes = computed(() => (state.workbook === null ? new Map() : accountIntakes(state.workbook.book)))
+const sources = computed(() => (state.workbook === null ? new Map<RecordId, readonly InvestmentPeriod[]>() : accountSources(state.workbook.book)))
 const readerOn = computed(() => ibkrMailReader(state.workbook?.book)?.on === true)
 
+/** Where one period's rows come from, from its day. */
+function periodLine(period: InvestmentPeriod): string {
+  const from = period.from === null ? null : dayLabel(period.from)
+  if (period.source === 'mail') return words.accounts.fromMail(from ?? '')
+  if (period.source === 'provider-file') return from === null ? words.accounts.uploads : words.accounts.uploadsFrom(from)
+  return from === null ? words.accounts.byHand : words.accounts.byHandFrom(from)
+}
+
+/** Where the account's rows come from, each period in order, and whether the mail's reader is off while the mail fills a period. */
 function intakeLine(account: InvestmentAccount): string {
-  const intake = intakes.value.get(account.id)
-  if (intake?.rowsFrom !== 'mail') return words.accounts.byHand
-  return [words.accounts.fromMail(dayLabel(intake.startsOn)), ...(readerOn.value ? [] : [words.accounts.readerOff])].join(', ')
+  const periods = sources.value.get(account.id) ?? []
+  const mailed = periods.some((period) => period.source === 'mail')
+  return [...periods.map(periodLine), ...(mailed && !readerOn.value ? [words.accounts.readerOff] : [])].join(', ')
 }
 
 const editing = ref<InvestmentAccount | null>(null)

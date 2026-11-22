@@ -61,9 +61,9 @@ async function save(): Promise<void> {
     const accounts = store.state.records?.accounts.records ?? []
     await store.write(settingsWords.saved, (unit) => {
       setSettings(unit, store.state.records?.settings ?? NO_RECORDS, rows)
-      for (const { slug, intake } of filled) {
+      for (const { slug, sources } of filled) {
         const before = accounts.find((stored) => stored.record.slug === slug)?.record
-        if (before !== undefined) unit.of(ACCOUNT_WRITES).change(before, { ...before, intake })
+        if (before !== undefined) unit.of(ACCOUNT_WRITES).change(before, { ...before, sources })
       }
     })
     open.value = false

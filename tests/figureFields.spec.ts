@@ -143,7 +143,7 @@ describe("the figure digest's fields", () => {
 
     expect(leftOutIn(group, spendingKindOf)).toEqual(expect.arrayContaining(['import_key', 'labels', 'splitByLink']))
     expect(leftOutIn(spendingFiguresOf(group), spendingKindOf)).toEqual([])
-    expect(leftOutIn(investments.records.accounts, investmentsKindOf)).toContain('starts_on')
+    expect(leftOutIn(investments.records.accounts, investmentsKindOf)).toContain('sources')
     expect(leftOutIn(investmentsFiguresOf(investments.records).accounts, investmentsKindOf)).toEqual([])
     expect(leftOutIn(company.records.ledger, companyKindOf)).toContain('signals')
     expect(leftOutIn(companyFiguresOf(company.records).ledger, companyKindOf)).toEqual([])

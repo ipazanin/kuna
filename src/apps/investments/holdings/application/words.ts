@@ -3,6 +3,7 @@ import type { Mix } from '../../workbook/domain/mixGroup'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
+import { plural } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 
@@ -16,9 +17,11 @@ export const en = {
   quoteCurrencyKept: (instrument: string, currency: CurrencyCode) => `"${instrument}" stays quoted in ${currency} while records name it, since they are all in that currency.`,
   byMix: { sector: 'by sector', currency: 'by currency', country: 'by country', class: 'by class', account: 'by account' } satisfies Record<Mix, string>,
   targetsOfTwoMixes: (added: string, kept: string) => `Targets are set for one mix at a time, so targets ${added} cannot stay beside targets ${kept}.`,
-  mailOwnsAccount: (account: string) => `IBKR report by mail brings the rows of "${account}", so a row typed, copied or imported does not go on it. You can still fix a row it holds.`,
+  mailOwnsAccount: (account: string) => `Another source brings the rows of "${account}" on that day, so a row typed, copied or imported does not go on it. You can still fix a row it holds.`,
   startInFiledYear: (year: number, firstOpen: CivilDate) => `${year} is a filed tax year. Pick ${dayLabel(firstOpen)} or later.`,
-  startOverHandRows: (startsOn: CivilDate) => `It has rows by hand from ${dayLabel(startsOn)}. Pick a later day.`,
+  rowsOfAnotherSource: (count: number) =>
+    `${count === 1 ? 'One row' : `${count} rows`} of the old source would stay on days the new source fills. Save from the account's dialog, which takes them out.`,
+  undoAfterHandover: "The new source has brought rows on those days since, so Undo would keep both. Move the day back in the account's dialog instead.",
 }
 
 export const hr: Translation<typeof en> = {
@@ -29,9 +32,11 @@ export const hr: Translation<typeof en> = {
   byMix: { sector: 'po sektoru', currency: 'po valuti', country: 'po državi', class: 'po klasi', account: 'po računu' },
   targetsOfTwoMixes: (added, kept) => `Ciljevi se postavljaju za jednu raspodjelu odjednom, pa ciljevi ${added} ne mogu stajati uz ciljeve ${kept}.`,
   mailOwnsAccount: (account) =>
-    `${withFullStop(`Izvješće IBKR-a poštom donosi retke računa „${account}”, pa upisani, prepisani ili uvezeni redak ne ide na njega`)} Redak koji već ima i dalje možete ispraviti.`,
+    `${withFullStop(`Drugi izvor donosi retke računa „${account}” za taj dan, pa upisani, prepisani ili uvezeni redak ne ide na njega`)} Redak koji već ima i dalje možete ispraviti.`,
   startInFiledYear: (year, firstOpen) => withFullStop(`Porez za ${year}. je prijavljen. Odaberite od ${dayLabel(firstOpen)}`),
-  startOverHandRows: (startsOn) => `${withFullStop(`Ima ručne retke od ${dayLabel(startsOn)}`)} Odaberite kasniji dan.`,
+  rowsOfAnotherSource: (count) =>
+    `${plural({ one: `${count} redak starog izvora ostao bi`, few: `${count} retka starog izvora ostala bi`, other: `${count} redaka starog izvora ostalo bi` }, count)} na danima koje puni novi izvor. Spremite u dijalogu računa, koji ih uklanja.`,
+  undoAfterHandover: 'Novi izvor od tada je donio retke za te dane, pa bi poništavanje zadržalo oba. Umjesto toga vratite dan u dijalogu računa.',
 }
 
 export const words = language === 'hr' ? hr : en

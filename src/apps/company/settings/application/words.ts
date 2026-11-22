@@ -12,10 +12,12 @@ export const en = {
   settings: {
     keyOnRows: (key: string, rows: number) => `The settings tab sets "${key}" on ${rows} rows. Keep one of them in an export and open that file again.`,
   },
-  /** Why an account's start day for the bank's statements cannot be written, short enough for its field. */
-  startDay: {
-    filed: (firstOpen: CivilDate) => `Its VAT return is filed. Pick ${dayLabel(firstOpen)} or later.`,
-    overHandRows: (startsOn: CivilDate) => `It has rows by hand from ${dayLabel(startsOn)}. Pick a later day.`,
+  /** Why an account's periods cannot be written, short enough for the field under them. */
+  sources: {
+    filed: (firstOpen: CivilDate) => `Those days' VAT return is filed. Give another source days from ${dayLabel(firstOpen)} on.`,
+    rowsOfAnotherSource: (count: number) =>
+      `${count === 1 ? 'One row' : `${count} rows`} of the old source would stay on days the new source fills. Save from Settings, Accounts, which takes them out.`,
+    undoAfterHandover: 'The new source has brought rows on those days since, so Undo would keep both. Move the day back in Settings, Accounts instead.',
   },
   /** What names a category, an account or a client outside its tab, as a refusal and the editor's lock say it. */
   uses: {
@@ -35,9 +37,11 @@ export const hr: Translation<typeof en> = {
     keyOnRows: (key, rows) =>
       `Postavka „${key}” postavljena je u ${rows} ${plural({ one: 'retku', few: 'retka', other: 'redaka' }, rows)} kartice postavki. U izvozu zadržite jedan od njih i ponovno otvorite tu datoteku.`,
   },
-  startDay: {
-    filed: (firstOpen) => `Prijava PDV-a za te dane je predana. ${withFullStop(`Odaberite od ${dayLabel(firstOpen)}`)}`,
-    overHandRows: (startsOn) => `${withFullStop(`Ima ručne stavke od ${dayLabel(startsOn)}`)} Odaberite kasniji dan.`,
+  sources: {
+    filed: (firstOpen) => `Prijava PDV-a za te dane je predana. ${withFullStop(`Drugom izvoru dajte dane od ${dayLabel(firstOpen)}`)}`,
+    rowsOfAnotherSource: (count) =>
+      `${plural({ one: `${count} stavka starog izvora ostala bi`, few: `${count} stavke starog izvora ostale bi`, other: `${count} stavki starog izvora ostalo bi` }, count)} na danima koje puni novi izvor. Spremite u Postavkama, Računi, koje ih uklanjaju.`,
+    undoAfterHandover: 'Novi izvor od tada je donio stavke za te dane, pa bi poništavanje zadržalo obje. Umjesto toga vratite dan u Postavkama, Računi.',
   },
   uses: {
     ledgerRows: (count) => ({ one: `${count} stavka evidencije`, few: `${count} stavke evidencije`, other: `${count} stavki evidencije` }),

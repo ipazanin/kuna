@@ -1,5 +1,5 @@
 import type { TransactionKind, TransactionRecord } from './listedTransactions'
-import { accountIntakes, landingRecordOf, landsAnew, mailOwned } from '../../imports/domain/accountIntake'
+import { accountSources, landingRecordOf, landsAnew, mailOwned } from '../../imports/domain/accountIntake'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovementKind } from '../../workbook/domain/cashMovement'
 import type { IncomeKind } from '../../workbook/domain/income'
@@ -312,14 +312,14 @@ function wholeNumber(text: string): number | null {
 }
 
 /**
- * The account the mail fills that the record by hand would land on anew, added or moved there, or null. A fix that keeps the
+ * The account the record by hand would land on anew, added or moved there, on a day it takes from another source, or null. A fix that keeps the
  * record's account and day is allowed, and a record of a report keeps its key, so it stays the mail's own.
  */
 function mailOwnedFault(record: TransactionRecord, book: InvestmentBook, importKeys: readonly string[]): TransactionFault | null {
   if (record.kind === 'split' || record.kind === 'spin-off' || record.kind === 'price') return null
   const before = landingRecordOf(book, record.record.id)
-  const landing = { accounts: record.kind === 'transfer' ? [record.record.from, record.record.to] : [record.record.account], date: record.record.date, importKeys }
-  const owned = landsAnew(before, landing) ? mailOwned(accountIntakes(book), landing) : null
+  const landing = { id: record.record.id, accounts: record.kind === 'transfer' ? [record.record.from, record.record.to] : [record.record.account], date: record.record.date, importKeys }
+  const owned = landsAnew(before, landing) ? mailOwned(accountSources(book), landing) : null
   return owned === null ? null : { kind: 'mailOwns', account: book.accounts.find((account) => account.id === owned)?.name ?? '' }
 }
 

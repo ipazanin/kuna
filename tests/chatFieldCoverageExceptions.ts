@@ -75,7 +75,6 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'investments: HandPrice.id',
       'investments: Income.id',
       'investments: Instrument.id',
-      'investments: InvestmentAccount.id',
       'investments: MailReader.id',
       'investments: SettingRow.id',
       'investments: SpinOff.id',
@@ -240,6 +239,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['company: Setting.template_version', 'company: Setting.client_payments_placed', 'company: Setting.review_label'],
   },
   {
+    reason: "The day the bank's statement mail was read up to, which only a sync writes, so the next search starts a week before it.",
+    fields: ['company: Setting.statements_mail_read_to'],
+  },
+  {
     reason: "Where the files live. The first-run screen asks it, since keeping files on Drive needs Google's consent.",
     fields: ['kuna: KunaStart.home'],
   },
@@ -330,10 +333,6 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/company/packs/hr-doo/application/tripRowWrites.ts#fileTripRows',
       'src/apps/company/packs/hr-doo/application/tripRowWrites.ts#dismissTripRow',
     ],
-  },
-  {
-    reason: "Saving how each account of an older file reads now, beside a write of an account or of the reader, with the reader's shared start day gone. The person types nothing for it.",
-    paths: ['src/apps/investments/mail/application/mailReaderWrites.ts#writeAccountSources'],
   },
   {
     reason: "Writing what a file or a bank brings. An import, a sync or a bank's account list writes rows the person checks, with no field of their own to type.",

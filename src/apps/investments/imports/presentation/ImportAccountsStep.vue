@@ -6,7 +6,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import type { AccountChoice, AccountStep, SettledImport } from '../domain/importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
-import { intakeRefusalText } from '../../holdings/application/intakeRefusals'
+import { sourcesRefusalText } from '../../holdings/application/intakeRefusals'
 import { plural } from '../../../../shared/text/translation'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -40,7 +40,7 @@ function newChoice(step: AccountStep, typed: Partial<Omit<Extract<AccountChoice,
 function startError(step: AccountStep): string | false {
   const fault = step.startFault
   if (fault === null || !props.tried) return false
-  return fault.kind === 'missing' ? words.accounts.startsOnMissing : intakeRefusalText(fault.refusal)
+  return fault.kind === 'missing' ? words.accounts.startsOnMissing : sourcesRefusalText(fault.refusal, false)
 }
 
 function likelyLine(step: AccountStep): string {

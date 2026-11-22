@@ -1757,7 +1757,7 @@ async function checkWidth(browser, width) {
   }
 
   for (const [name, variant, run, hash = '#/company', title = 'Overview', within = null] of [
-    ['statements-sync', '', statementSyncFlow],
+    ['statements-sync', '&fake=mail', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-held-croatian', '&fake=held-statement&lang=hr', heldStatementFlowIn('hr'), '#/company', overviewCroatian.title],
     ['statements-held-pass-over', '&fake=held-statement', heldPassOverFlowIn('en')],

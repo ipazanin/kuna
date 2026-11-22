@@ -9,14 +9,18 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { writeDrafts } from '../application/draftWrites'
-import { ACCOUNT_WRITES, accountUses, startDayRefusalText } from '../application/namedRecordWrites'
-import { startDayRefusal } from '../../../../shared/app/accountSource'
+import { accountUses, periodsRefusalText, writeAccounts } from '../application/namedRecordWrites'
+import { periodsChangeRefusal } from '../../../../shared/app/accountSource'
 import { today } from '../../../../shared/calendar/civilDate'
 import { installedPack } from '../../packs/packContribution'
-import { handDaysOf } from '../../workbook/domain/accountIntakes'
-import type { CompanyIntake } from '../../workbook/domain/workbook'
+import { datedOriginsOf } from '../../workbook/domain/accountSources'
+import { storedItemsOfRow } from '../../workbook/domain/rowItems'
+import type { CompanyPeriod } from '../../workbook/domain/workbook'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
+import { sourceHandover } from '../domain/sourceHandover'
+import { handoverWords } from './sourceHandoverWords'
+import type { HandoverWords } from '../../../../shared/ui/sourceHandover'
+import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import AccountsEditor from './AccountsEditor.vue'
 import { storedCount } from './settingsCounts'
 import { plural } from '../../../../shared/text/translation'
@@ -32,18 +36,35 @@ const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RE
 const accountsInUse = computed(() => accountUses(recordsOnScreen))
 const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
 
-const intakes = computed(() => new Map((state.workbook?.accounts ?? []).map((account) => [account.slug, account.intake])))
+const sources = computed(() => new Map((state.workbook?.accounts ?? []).map((account) => [account.slug, account.sources])))
 
-/** Why the account's new intake may not be written, in the words the write would refuse it with. */
-function startDayFault(account: string, before: CompanyIntake | null, after: CompanyIntake): string | null {
-  const refusal = startDayRefusal(before, after, handDaysOf(account, state.workbook?.transactions ?? []), installedPack().firstOpenDay(today()))
-  return refusal === null ? null : startDayRefusalText(refusal)
+/**
+ * What saving the account's new periods does: why the write would refuse them, in its words, or the rows it takes out of the
+ * ledger for the new source to bring again. The write takes those rows out with the periods, so only a filed day refuses.
+ */
+function periodsCheck(slug: string, after: readonly CompanyPeriod[]): { readonly fault: string | null; readonly warning: HandoverWords | null } {
+  const workbook = state.workbook
+  const was = workbook?.accounts.find((account) => account.slug === slug)
+  if (workbook === null || was === undefined) return { fault: null, warning: null }
+  const handover = sourceHandover(was, after, workbook.transactions)
+  const going = new Set(handover?.rows.map((row) => row.id) ?? [])
+  const left = workbook.transactions.filter((row) => !going.has(row.id))
+  const refusal = periodsChangeRefusal(was.sources, after, datedOriginsOf(was, was.sources, left), installedPack().firstOpenDay(today()))
+  if (refusal !== null) return { fault: periodsRefusalText(refusal, false), warning: null }
+  const items = state.records?.items ?? NO_RECORDS
+  return { fault: null, warning: handover === null ? null : handoverWords(handover, (row) => storedItemsOfRow(items, row).some((item) => item.invoice !== null)) }
 }
 
 function saveAccounts(made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]): void {
-  void writes.write(words.accounts.saved, (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), {
-    failedTitle: words.notSaved,
-  })
+  void writes.write(
+    words.accounts.saved,
+    (unit) => {
+      const books = companyBooksOf(state)
+      if (books === null) throw new Error(words.notSaved)
+      writeAccounts(unit, books, storedOf(accounts.value), made)
+    },
+    { failedTitle: words.notSaved },
+  )
 }
 </script>
 
@@ -56,8 +77,8 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
       :currency="settings.currency"
       :saving="writes.saving('save')"
       :refused="writes.refused.value"
-      :intakes="intakes"
-      :start-day-fault="startDayFault"
+      :sources="sources"
+      :periods-check="periodsCheck"
       @save="saveAccounts"
     />
   </AppCard>

@@ -42,7 +42,7 @@ function inputsOf(transactions: readonly Transaction[], twinAnswers: DryRunInput
     starts: new Map(),
     named: new Map(),
     twinAnswers,
-    intakes: new Map(),
+    sources: new Map(),
     camtOrigin: 'provider-file',
     paymentsOf: () => [],
   }

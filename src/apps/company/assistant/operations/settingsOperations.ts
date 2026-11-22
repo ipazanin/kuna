@@ -6,7 +6,7 @@ import { fillShares } from '../../owner-share/application/ownerShareWrites'
 import { shareFillsOf } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
 import { writeDrafts } from '../../settings/application/draftWrites'
-import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryKeptAfterMove, categoryUses, deleteCategoryInto, joinedInWords, keptInWords } from '../../settings/application/namedRecordWrites'
+import { CATEGORY_WRITES, accountUses, writeAccounts, categoryKeptAfterMove, categoryUses, deleteCategoryInto, joinedInWords, keptInWords } from '../../settings/application/namedRecordWrites'
 import type { RecordsOfKind } from '../../settings/application/namedRecordWrites'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { NEW_ACCOUNT_DRAFT, accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../../settings/domain/accountDrafts'
@@ -18,6 +18,7 @@ import { knownRoles } from '../../settings/domain/categoryGuards'
 import type { MadeDraft } from '../../settings/domain/recordDrafts'
 import {
   CLIENT_PAYMENTS_PLACED_KEY,
+  STATEMENTS_MAIL_READ_TO_KEY,
   PERSON_PAYEES_KEY,
   SETTING_DEFINITIONS,
   STATEMENTS_MAIL_KEY,
@@ -37,10 +38,11 @@ import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import { VAT_TREATMENTS } from '../../workbook/domain/vatTreatment'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
-import { ALSO_FROM_OR_NULL, FLAG_OR_NULL, TEXT, TEXT_OR_NULL, alsoFromOfInput, choiceOf, dayOf, inputOf } from '../../../../shared/app/operationInput'
-import { proposedStartDay } from '../../../../shared/app/accountSource'
-import { handDaysOf } from '../../workbook/domain/accountIntakes'
-import { COMPANY_ROWS_FROM } from '../../workbook/domain/workbook'
+import { FLAG_OR_NULL, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
+import { datedPeriodsRefusal, periodsOfText } from '../../../../shared/app/accountSource'
+import { draftsOfPeriods } from '../../../../shared/app/periodDrafts'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { COMPANY_SOURCES } from '../../workbook/domain/workbook'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { SWATCHES } from '../../../../shared/charts/swatches'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -56,7 +58,16 @@ const ACCOUNT = ACCOUNT_RECORDS.name
  * own guard. The invoice and travel orders folders need Google's picker. The bank's mail address needs Google's consent,
  * so the chat links their screen, and so does turning the bank's mail on, though the chat may turn it off. The subject of the bank's mail needs none, so a card sets it.
  */
-const NEVER_PROPOSED: ReadonlySet<string> = new Set(['template_version', CLIENT_PAYMENTS_PLACED_KEY, 'review_label', PERSON_PAYEES_KEY, 'invoice_folder_id', TRIP_FOLDER_KEY, 'statements_mail_from'])
+const NEVER_PROPOSED: ReadonlySet<string> = new Set([
+  'template_version',
+  CLIENT_PAYMENTS_PLACED_KEY,
+  STATEMENTS_MAIL_READ_TO_KEY,
+  'review_label',
+  PERSON_PAYEES_KEY,
+  'invoice_folder_id',
+  TRIP_FOLDER_KEY,
+  'statements_mail_from',
+])
 
 /** The keys whose value says where money or mail goes, or where an invoice is filed, which a card warns on. */
 export const WARNED_SETTING_KEYS: ReadonlySet<string> = new Set([
@@ -222,29 +233,27 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
     {
       name: 'add-account',
       about: `A new bank account as Settings, Accounts adds it: a short name in lower case with hyphens, a name on screen, its IBAN, and its currency or "" for the books' own. ${ROWS_FROM_ABOUT}`,
-      input: inputOf({ account: TEXT, label: TEXT, iban: TEXT, currency: TEXT, rowsFrom: ROWS_FROM_INPUT, startsOn: TEXT_OR_NULL, alsoFrom: ALSO_FROM_OR_NULL }),
+      input: inputOf({ account: TEXT, label: TEXT, iban: TEXT, currency: TEXT, sources: TEXT_OR_NULL }),
       refs: {},
       creates: ACCOUNT,
       alone: false,
-      example: { account: 'savings', label: 'Savings', iban: 'HR1210010051863000160', currency: '', rowsFrom: 'by-hand', startsOn: null, alsoFrom: null },
+      example: { account: 'savings', label: 'Savings', iban: 'HR1210010051863000160', currency: '', sources: null },
     },
     {
       name: 'change-account',
-      about: `Changes an account's short name, name on screen, IBAN, currency or how its rows come in. An account ledger rows name keeps its short name and IBAN. Null leaves a field as it is. ${ROWS_FROM_ABOUT}`,
+      about: `Changes an account's short name, name on screen, IBAN, currency or where its rows come from. An account ledger rows name keeps its short name and IBAN. Null leaves a field as it is. ${ROWS_FROM_ABOUT} The rows another source brought on the days a change gives away go, with what the card lists, as Settings, Accounts takes them out, and the new source brings its own. Undo puts them back until it does.`,
       input: inputOf({
         account: TEXT,
         name: TEXT_OR_NULL,
         label: TEXT_OR_NULL,
         iban: TEXT_OR_NULL,
         currency: TEXT_OR_NULL,
-        rowsFrom: { ...ROWS_FROM_INPUT, type: ['string', 'null'], enum: [...COMPANY_ROWS_FROM, null] },
-        startsOn: TEXT_OR_NULL,
-        alsoFrom: ALSO_FROM_OR_NULL,
+        sources: TEXT_OR_NULL,
       }),
       refs: { account: ACCOUNT },
       creates: null,
       alone: false,
-      example: { account: 'account', name: null, label: 'Main account', iban: null, currency: null, rowsFrom: null, startsOn: null, alsoFrom: null },
+      example: { account: 'account', name: null, label: 'Main account', iban: null, currency: null, sources: null },
     },
     {
       name: 'delete-account',
@@ -415,17 +424,15 @@ function deleteCategory(card: CompanyCard, step: ProposalStep): void {
 }
 
 const ROWS_FROM_ABOUT =
-  "rowsFrom mail: the bank's statements bring its rows from startsOn, read from the bank's mail, and no sheet or copied row goes on it on any day. startsOn null takes the day after its last row by hand. A start day may not reach a day whose VAT return is filed or a row by hand. alsoFrom provider-file also takes its camt file on Import or in the chat. by-hand: its files are imported or the chat copies them."
+  "sources lists where its rows come from, in order, each later one followed by the day it takes over, such as by-hand, mail 2026-03-01, and null is by-hand on add-account and keeps them on change-account. The first may carry its own day, before which the account takes no row, and mail first needs it, as the mail search starts there. mail: each sync reads the bank's statements from the bank's mail. provider-file: the bank's camt file brought on Import or in the chat. by-hand: its sheets, its camt files and the chat's copies. A day each source fills takes no row from another, and no day may reach one whose VAT return is filed."
 
-const ROWS_FROM_INPUT = { type: 'string', enum: [...COMPANY_ROWS_FROM] } as const satisfies StrictSchema
-
-/** Saves the accounts as Settings, Accounts saves its editor's rows, after its checks. */
-function writeAccounts(card: CompanyCard, edit: (drafts: readonly AccountDraft[]) => readonly AccountDraft[]): void {
+/** Saves the accounts as Settings, Accounts saves its editor's rows, after its checks, with the rows a handover takes out. */
+function saveAccounts(card: CompanyCard, edit: (drafts: readonly AccountDraft[]) => readonly AccountDraft[]): void {
   const records = card.records()
   const stored: readonly StoredRecord<unknown>[] = storedOf(records.accounts)
-  const drafts = edit(accountDraftsOf(stored, new Map(card.workbook.accounts.map((account) => [account.slug, account.intake]))))
+  const drafts = edit(accountDraftsOf(stored, new Map(card.workbook.accounts.map((account) => [account.slug, account.sources]))))
   const used = new Set(accountUses((kind) => recordsOfKindIn(records, kind)).keys())
-  writeDrafts(card.unit.of(ACCOUNT_WRITES), stored, madeOrRefused(accountDraftErrors(drafts, used), accountsOfDrafts(stored, drafts)))
+  writeAccounts(card.unit, { records, workbook: card.workbook }, storedOf(records.accounts), madeOrRefused(accountDraftErrors(drafts, used), accountsOfDrafts(stored, drafts)))
 }
 
 function accountAt(drafts: readonly AccountDraft[], slug: string): number {
@@ -434,39 +441,27 @@ function accountAt(drafts: readonly AccountDraft[], slug: string): number {
   return at
 }
 
-/**
- * How a step says an account's rows come in, over how its draft says it now. Mail with no day keeps the day it has, or takes the
- * day after its last row by hand, never a filed day.
- */
-function intakeFields(
-  card: CompanyCard,
-  slug: string,
-  field: Readonly<Record<string, string | null>>,
-  now: Pick<AccountDraft, 'rowsFrom' | 'startsOn' | 'takesCamtFile'>,
-): Pick<AccountDraft, 'rowsFrom' | 'startsOn' | 'takesCamtFile'> {
-  const rowsFrom = choiceOf(COMPANY_ROWS_FROM, field['rowsFrom'] ?? null, 'rowsFrom') ?? now.rowsFrom
-  const alsoFrom = field['alsoFrom'] ?? null
-  if (rowsFrom === 'by-hand') {
-    if (field['startsOn'] !== null || (alsoFrom !== null && alsoFrom !== 'none')) throw new StepRefused('startsOn and alsoFrom are for an account the bank statements fill.')
-    return { rowsFrom, startsOn: '', takesCamtFile: false }
-  }
-  const proposed = () => proposedStartDay(handDaysOf(slug, card.workbook.transactions), today(), installedPack().firstOpenDay(today()))
-  const startsOn = field['startsOn'] !== null ? dayOf(field['startsOn']!) : now.rowsFrom === 'mail' && now.startsOn !== '' ? now.startsOn : proposed()
-  return { rowsFrom, startsOn, takesCamtFile: alsoFromOfInput(alsoFrom, now.takesCamtFile ? ['provider-file'] : []).includes('provider-file') }
+/** The periods a step lists, as the accounts editor would hold them, or `kept` on null. */
+function sourcesField(text: string | null, kept: AccountDraft['periods']): AccountDraft['periods'] {
+  if (text === null) return kept
+  const periods = periodsOfText(text, COMPANY_SOURCES, parseCivilDate, 'may-have-day')
+  if (periods === null || datedPeriodsRefusal(periods, ['mail']) !== null)
+    throw new StepRefused(`Write sources as ${COMPANY_SOURCES.join(', ')} in order, each later one followed by the day it takes over, and mail first with its day, such as by-hand, mail 2026-03-01.`)
+  return draftsOfPeriods(periods)
 }
 
 function addAccount(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const slug = String(field['account']).trim().toLowerCase()
-  const intake = intakeFields(card, slug, field, NEW_ACCOUNT_DRAFT)
-  writeAccounts(card, (drafts) => [...drafts, { ...NEW_ACCOUNT_DRAFT, account: slug, label: field['label']!, iban: field['iban']!, currency: field['currency']!, ...intake }])
+  const periods = sourcesField(field['sources'] ?? null, NEW_ACCOUNT_DRAFT.periods)
+  saveAccounts(card, (drafts) => [...drafts, { ...NEW_ACCOUNT_DRAFT, account: slug, label: field['label']!, iban: field['iban']!, currency: field['currency']!, periods }])
   card.made(step.as, slug)
 }
 
 function changeAccount(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const slug = card.idOf(field['account']).toLowerCase()
-  writeAccounts(card, (drafts) => {
+  saveAccounts(card, (drafts) => {
     const at = accountAt(drafts, slug)
     const before = drafts[at]!
     const after: AccountDraft = {
@@ -475,7 +470,7 @@ function changeAccount(card: CompanyCard, step: ProposalStep): void {
       label: textOrKept(field['label'], before.label),
       iban: textOrKept(field['iban'], before.iban),
       currency: textOrKept(field['currency'], before.currency),
-      ...intakeFields(card, slug, field, before),
+      periods: sourcesField(field['sources'] ?? null, before.periods),
     }
     return drafts.map((draft, place) => (place === at ? after : draft))
   })
@@ -484,7 +479,7 @@ function changeAccount(card: CompanyCard, step: ProposalStep): void {
 function deleteAccount(card: CompanyCard, step: ProposalStep): void {
   const slug = card.idOf(fieldsOf(step)['account']).toLowerCase()
   if (accountUses((kind) => recordsOfKindIn(card.records(), kind)).has(slug)) throw new StepRefused('Ledger rows name that account, so it stays.')
-  writeAccounts(card, (drafts) => drafts.filter((_, place) => place !== accountAt(drafts, slug)))
+  saveAccounts(card, (drafts) => drafts.filter((_, place) => place !== accountAt(drafts, slug)))
 }
 
 /** Core's settings and the installed pack's values, as the records hold them. */

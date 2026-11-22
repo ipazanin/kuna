@@ -102,7 +102,7 @@ export function dryRunFor(
     starts,
     named,
     twinAnswers,
-    intakes: new Map(workbook.accounts.map((account) => [account.slug, account.intake])),
+    sources: new Map(workbook.accounts.map((account) => [account.slug, account.sources])),
     camtOrigin,
     paymentsOf: (added) => [...(placesInvoices ? proposedInvoicePayments(presentedWorkbook(workbook), added) : []), ...installedPack().repaymentsOf(workbook, added)],
   })
@@ -126,7 +126,7 @@ export function writeImport(unit: UnitOfWork, run: ImportDryRun, books: CompanyB
   for (const account of run.accounts) {
     unit
       .of(ACCOUNT_WRITES)
-      .add({ ...accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }), intake: account.intake })
+      .add({ ...accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }), sources: account.sources })
   }
   const removed = run.removed.flatMap((copied) => recordWithId(records.ledger, copied.id)?.record ?? [])
   replaceLedgerRows(unit, records, removed, run.added, run.payments)

@@ -1,4 +1,4 @@
-import type { AccountIntake, AccountSource } from '../../../../shared/app/accountSource'
+import type { PeriodSource, SourcePeriod } from '../../../../shared/app/accountSource'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { anchorWindow } from '../../../../shared/calendar/ledgerWindow'
@@ -44,11 +44,15 @@ export function categoryIdOf(category: Pick<Category, 'slug'>): RecordId {
   return recordIdOf(CATEGORY_RECORDS, category.slug)
 }
 
-/** The ways a Company account's rows come in. Company has no bank link yet. */
-export const COMPANY_ROWS_FROM = ['mail', 'by-hand'] as const satisfies readonly AccountSource[]
+/** Where a Company account's rows come from: the bank's statement mail, which each sync reads, the bank's camt file brought on Import or to the chat, or by hand. Company has no bank link yet. */
+export const COMPANY_SOURCES = ['mail', 'provider-file', 'by-hand'] as const satisfies readonly PeriodSource[]
 
-/** How an account's rows come in: from the bank's statements, which each sync reads from the bank's mail, from a start day, or by hand. */
-export type CompanyIntake = AccountIntake<'mail'>
+export type CompanySource = (typeof COMPANY_SOURCES)[number]
+
+export type CompanyPeriod = SourcePeriod<CompanySource>
+
+/** One period by hand from the account's start, as an account that names no other source has. */
+export const BY_HAND_SOURCES: readonly CompanyPeriod[] = [{ source: 'by-hand', from: null }]
 
 export interface Account {
   readonly slug: string
@@ -57,8 +61,11 @@ export interface Account {
   readonly iban: string
   /** Blank when the tab does not say, which means the workbook's currency. */
   readonly currency: string
-  /** As the accounts tab says it or, for an account that does not say, as `derivedIntake` reads it from its rows. */
-  readonly intake: CompanyIntake
+  /**
+   * Where its rows come from, from each period's day until the next period's. The first may start on a day, and the account then
+   * takes no row before it. As the accounts tab says it or, for an account that does not say, as `derivedSources` reads it from its rows.
+   */
+  readonly sources: readonly CompanyPeriod[]
 }
 
 /** One booked bank entry from the `ledger` tab. Credits are positive. */

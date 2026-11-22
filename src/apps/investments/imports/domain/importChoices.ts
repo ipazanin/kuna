@@ -1,6 +1,5 @@
-import { BY_HAND } from '../../../../shared/app/accountSource'
-import { accountIntakes, intakeRefusal } from './accountIntake'
-import type { StartDayRefusal } from '../../../../shared/app/accountSource'
+import { accountSources, sourcesRefusal } from './accountIntake'
+import type { PeriodsChangeRefusal } from '../../../../shared/app/accountSource'
 import { NO_ANSWERS, costShareFromCloses, proposedCostShare, workbookDryRun } from './importDryRun'
 import type { AccountQuestion, InstrumentQuestion, LookAlikeAnswer, SpinOffAnswer, SpinOffQuestion, SplitQuestion, SplitRatio, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from './importDryRun'
 import type { WorkbookRow } from './portfolioWorkbook'
@@ -10,7 +9,8 @@ import type { CloseRow } from '../../prices/domain/pricesFile'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { firstUnfiledDay } from '../../tax/domain/taxDeadlines'
-import type { InvestmentAccount, InvestmentIntake } from '../../workbook/domain/investmentAccount'
+import { BY_HAND_SOURCES } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentPeriod } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { daysBetween, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -69,11 +69,19 @@ export interface AccountStep {
   /** The start day a new account of a mailed report takes, as typed or proposed. Null for a file or an upload, whose new accounts come in by hand. */
   readonly startsOn: string | null
   /** Why that start day cannot be kept: it is no day, or it reaches into a filed tax year. */
-  readonly startFault: { readonly kind: 'missing' } | { readonly kind: 'refused'; readonly refusal: StartDayRefusal } | null
+  readonly startFault: { readonly kind: 'missing' } | { readonly kind: 'refused'; readonly refusal: PeriodsChangeRefusal } | null
 }
 
-/** The accounts a mailed report's rows may go to: those the mail fills, by how each one's rows come in. Null for a file or an upload, which may go to any. */
-type MailAccounts = ReadonlyMap<RecordId, InvestmentIntake> | null
+/**
+ * Whether the accounts step asks the person: an account Kuna does not know, or one it knows whose answer is a new account, as
+ * when the known account is not one a mailed report may go to. The rows then never go to a new account unseen.
+ */
+export function asksAboutAccount(step: Pick<AccountStep, 'question' | 'choice'>): boolean {
+  return step.question.known === null || step.choice.kind === 'new'
+}
+
+/** The accounts a mailed report's rows may go to: those the mail fills on some day, by where each one's rows come from. Null for a file or an upload, which may go to any. */
+type MailAccounts = ReadonlyMap<RecordId, readonly InvestmentPeriod[]> | null
 
 export interface InstrumentStep {
   readonly question: InstrumentQuestion
@@ -180,7 +188,7 @@ export function settledImport(
   splitsOf: SplitsOf = NO_SPLIT_LOOKUP,
   closesOf: ClosesOf = NO_CLOSES,
 ): SettledImport {
-  const mail: MailAccounts = reading.report?.mailed === true ? accountIntakes(book) : null
+  const mail: MailAccounts = reading.report?.mailed === true ? accountSources(book) : null
   let dryRun = workbookDryRun(reading, { book, rates, answers: NO_ANSWERS })
   let answered = answersOf(dryRun, book, choices, newIds, splitsOf, closesOf, mail)
   for (let pass = 0; pass < MOST_PASSES; pass += 1) {
@@ -238,7 +246,7 @@ export function proposedStartDay(question: AccountQuestion, on: CivilDate): Civi
 
 function accountStep(question: AccountQuestion, book: InvestmentBook, choices: ImportChoices, newIds: NewIds, mail: MailAccounts): Answering<AccountStep, InvestmentAccount> {
   const chosen = choices.accounts[question.account]
-  const offered = mail === null ? book.accounts : book.accounts.filter((account) => mail.get(account.id)?.rowsFrom === 'mail')
+  const offered = mail === null ? book.accounts : book.accounts.filter((account) => mail.get(account.id)?.some((period) => period.source === 'mail') === true)
   const existing = (id: RecordId | null | undefined): InvestmentAccount | undefined => offered.find((account) => account.id === id)
   const choice: AccountChoice =
     chosen?.kind === 'new' || (chosen?.kind === 'existing' && existing(chosen.account) !== undefined)
@@ -256,12 +264,12 @@ function accountStep(question: AccountQuestion, book: InvestmentBook, choices: I
   const on = today()
   const startsOn = mail === null ? null : (choice.startsOn ?? proposedStartDay(question, on))
   const day = startsOn === null ? null : parseCivilDate(startsOn)
-  const intake: InvestmentIntake | null = mail === null ? BY_HAND : day === null ? null : { rowsFrom: 'mail', startsOn: day, alsoFrom: [] }
-  const refusal = intake === null ? null : intakeRefusal(id, null, intake, [], on)
-  const startFault = startsOn === null ? null : intake === null ? { kind: 'missing' as const } : refusal === null ? null : { kind: 'refused' as const, refusal }
+  const sources: readonly InvestmentPeriod[] | null = mail === null ? BY_HAND_SOURCES : day === null ? null : [{ source: 'mail', from: day }]
+  const refusal = sources === null ? null : sourcesRefusal(id, BY_HAND_SOURCES, sources, { kept: [], back: [] }, firstUnfiledDay(on))
+  const startFault = startsOn === null ? null : sources === null ? { kind: 'missing' as const } : refusal === null ? null : { kind: 'refused' as const, refusal }
   return {
     step: { question, choice, nameMissing: name === '', offered, startsOn, startFault },
-    answer: name === '' || intake === null || startFault !== null ? null : { id, name, note: '', intake },
+    answer: name === '' || sources === null || startFault !== null ? null : { id, name, note: '', sources },
   }
 }
 

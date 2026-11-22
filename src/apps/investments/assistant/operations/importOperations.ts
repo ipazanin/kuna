@@ -1,5 +1,5 @@
 import { writeWorkbookImport } from '../../imports/application/workbookImport'
-import { accountIntakes, sourcesSaid } from '../../imports/domain/accountIntake'
+import { accountSources, sourcesSaid } from '../../imports/domain/accountIntake'
 import { importableRecords } from '../../imports/domain/importedRecords'
 import { LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
 import type { WorkbookDryRun, WorkbookRows } from '../../imports/domain/importDryRun'
@@ -463,7 +463,7 @@ export const IMPORT_STEPS: InvestmentSteps = {
       if (!isRowsRead(read) || held === null) throw new StepRefused('No mailed report waits.')
       const { written, leftOut } = importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, asked: askedOf(field), where: { ...words.proposals.mailReport, lead: null } })
       writeLeftOut(unit, card.book, held, leftOut)
-      return { ...written, book: sourcesSaid(written.book, accountIntakes(card.book)) }
+      return { ...written, book: sourcesSaid(written.book, accountSources(card.book)) }
     }
     const switchedOff = field['on'] !== null && choiceOf(['yes', 'no'], field['on'] as string, 'on') === 'no'
     if (field['on'] !== null && !switchedOff) throw new StepRefused("Turning the reader on asks Google's consent. Link Settings, General and leave it to the person.")

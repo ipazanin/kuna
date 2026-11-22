@@ -181,6 +181,8 @@ export const en = {
     namedTwice: (slug: string) => `${slug} is named on more than one row, so none of them counts`,
     mailWithoutStart: "rows_from mail needs starts_on, the first day the bank's statements bring rows of",
     startWithoutMail: "starts_on and also_from are for an account whose rows come from the bank's statements",
+    notSources: (text: string) =>
+      `sources "${text}" is not a list of where its rows come from: mail, provider-file or by-hand in order, each later one with the day it takes over, after the day above, and mail first with its day`,
   },
   dismissals: {
     noKey: 'no key',
@@ -292,6 +294,8 @@ export const hr: Translation<typeof en> = {
     namedTwice: (slug) => `„${slug}” je naveden u više redaka, pa se nijedan ne broji`,
     mailWithoutStart: 'rows_from mail traži starts_on, prvi dan od kojega izvodi banke donose retke',
     startWithoutMail: 'starts_on i also_from vrijede za račun čiji retci stižu iz izvoda banke',
+    notSources: (text: string) =>
+      `sources "${text}" nije popis odakle stižu njegovi retci: mail, provider-file ili by-hand redom, svaki sljedeći s danom od kojega preuzima, nakon dana iznad, i mail na prvom mjestu sa svojim danom`,
   },
   dismissals: {
     noKey: 'polje key je prazno',

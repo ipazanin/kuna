@@ -16,6 +16,7 @@ export interface ReportReview {
 import { computed, nextTick, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { asksAboutAccount } from '../domain/importChoices'
 import { writeWorkbookImport } from '../application/workbookImport'
 import ImportAccountsStep from './ImportAccountsStep.vue'
 import ImportDryRunStep from './ImportDryRunStep.vue'
@@ -73,7 +74,7 @@ const steps = computed((): ImportStep[] => {
     run.dryRun.questions.lookAlikes.length > 0
   if (props.report) {
     return [
-      ...(run.accounts.some(({ question }) => question.known === null) ? ['accounts' as const] : []),
+      ...(run.accounts.some(asksAboutAccount) ? ['accounts' as const] : []),
       ...(run.instruments.some(({ question }) => question.known === null && question.offer === null) ? ['instruments' as const] : []),
       ...(asks ? ['questions' as const] : []),
       'dry-run',

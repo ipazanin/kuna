@@ -1,4 +1,4 @@
-import { accountIntakeRefusals } from './intakeRefusals'
+import { accountSourcesRefusals } from './intakeRefusals'
 import { words } from './words'
 import { INVESTMENT_KINDS, bookOf, bookWith, dependentRefusals } from '../../workbook/application/investmentWriteGuards'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -18,7 +18,7 @@ export const INVESTMENT_ACCOUNT_WRITES: WriteRules<InvestmentAccount> = {
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(INVESTMENT_ACCOUNT_RECORDS, read, records).readings.accounts,
-  refusals: (change, fresh, after) => [...accountIntakeRefusals(change, fresh, after), ...dependentRefusals(['trades', 'income', 'cashMovements', 'exchanges', 'transfers', 'targets'], fresh, after)],
+  refusals: (change, fresh, after) => [...accountSourcesRefusals(change, fresh, after), ...dependentRefusals(['trades', 'income', 'cashMovements', 'exchanges', 'transfers', 'targets'], fresh, after)],
 }
 
 /** The instruments that records name. Every one of those records is read in its instrument's quote currency. */

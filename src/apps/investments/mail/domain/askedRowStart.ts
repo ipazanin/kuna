@@ -1,4 +1,4 @@
-import { accountIntakes } from '../../imports/domain/accountIntake'
+import { accountSources } from '../../imports/domain/accountIntake'
 import type { ReportQuestion } from '../../imports/domain/importDryRun'
 import type { Happening, TransactionTexts } from '../../transactions/domain/transactionDraft'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -17,8 +17,8 @@ export interface AskedRowStart {
 
 /** The one account the mail fills, which a question of its report names nothing else of, or blank when it fills none or several. */
 function mailedAccount(book: InvestmentBook): string {
-  const intakes = accountIntakes(book)
-  const mailed = book.accounts.filter((account) => intakes.get(account.id)?.rowsFrom === 'mail')
+  const sources = accountSources(book)
+  const mailed = book.accounts.filter((account) => sources.get(account.id)?.some((period) => period.source === 'mail') === true)
   return mailed.length === 1 ? mailed[0]!.id : ''
 }
 

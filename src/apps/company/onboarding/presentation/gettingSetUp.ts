@@ -1,5 +1,5 @@
 import type { SetUpLine } from '../../../../shared/app/appContribution'
-import { earliestStartDay } from '../../../../shared/app/accountSource'
+import { earliestFrom } from '../../../../shared/app/accountSource'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import { REQUIRED_ISSUER } from '../../invoicing/domain/invoiceDocument'
@@ -56,7 +56,11 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
     lines.push({ key: 'first-statement', text: words.setUp.firstStatement, whileEmpty: true, link: { label: words.setUp.importLink, to: { path: '/company/transactions', query: { tab: 'import' } } } })
   }
   const { statementsMailFrom } = workbook.settings
-  const bankFills = earliestStartDay(workbook.accounts.map((account) => account.intake)) !== null
+  const bankFills =
+    earliestFrom(
+      workbook.accounts.map((account) => account.sources),
+      'mail',
+    ) !== null
   if (bankFills && statementsMailFrom.length === 0) {
     lines.push({ key: 'statements-mail', text: words.setUp.statementsMail, link: { label: words.setUp.settingsLink, to: '/company/settings#mail' } })
   }

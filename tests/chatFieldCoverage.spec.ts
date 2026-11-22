@@ -68,7 +68,6 @@ const COMPONENT_RENAMES = {
 const SCENARIO_OPERATIONS: readonly OperationFields[] = [{ name: 'add-component', renames: COMPONENT_RENAMES }, { name: 'change-component', renames: COMPONENT_RENAMES }, { name: 'rename-scenario' }]
 const INTERIM_RENAMES = { 'interimInterest.amount': 'interimAmount', 'interimInterest.date': 'interimDate' }
 /** How an Investments or a Company account's rows come in, which their operations take flat. */
-const INTAKE_RENAMES = { 'intake.rowsFrom': 'rowsFrom', 'intake.startsOn': 'startsOn', 'intake.alsoFrom': 'alsoFrom' }
 const SUBSIDY_RENAMES = {
   'subsidy.monthly': 'subsidyMonthly',
   'subsidy.payer': 'subsidyPayer',
@@ -155,15 +154,15 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     ],
   },
   {
-    path: 'src/apps/company/settings/application/namedRecordWrites.ts#ACCOUNT_WRITES',
+    path: 'src/apps/company/settings/application/namedRecordWrites.ts#writeAccounts',
     operations: [
-      { name: 'add-account', renames: { slug: 'account', ...INTAKE_RENAMES } },
-      { name: 'change-account', renames: { slug: 'name', ...INTAKE_RENAMES } },
+      { name: 'add-account', renames: { slug: 'account' } },
+      { name: 'change-account', renames: { slug: 'name' } },
     ],
   },
   {
     path: 'src/apps/company/settings/application/namedRecordWrites.ts#ACCOUNT_WRITES.change',
-    operations: [{ name: 'change-account', renames: { slug: 'name', ...INTAKE_RENAMES } }],
+    operations: [{ name: 'change-account', renames: { slug: 'name' } }],
   },
   {
     path: 'src/apps/company/settings/application/namedRecordWrites.ts#CATEGORY_WRITES',
@@ -236,8 +235,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     path: 'src/apps/investments/holdings/application/holdingWrites.ts#INSTRUMENT_WRITES.change',
     operations: [{ name: 'change-instrument', renames: { benchmark: 'set-benchmark:instrument', 'quoted.kind': 'quoted', 'quoted.coupon': 'coupon', 'quoted.maturity': 'maturity' } }],
   },
-  { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.add', operations: [{ name: 'add-account', renames: INTAKE_RENAMES }] },
-  { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.change', operations: [{ name: 'change-account', renames: INTAKE_RENAMES }] },
+  { path: 'src/apps/investments/holdings/application/accountSourceWrites.ts#writeInvestmentAccount', operations: ['add-account', 'change-account'], anyOperation: true },
   { path: 'src/apps/investments/mail/application/mailReaderWrites.ts#writeReader', from: ['after'], operations: ['set-mail-reader'] },
   { path: 'src/apps/investments/checks/application/checkWrites.ts#writeCheck', from: ['check', 'threshold', 'on'], operations: ['set-check'] },
   { path: 'src/apps/investments/workbook/application/settingWrites.ts#SETTING_WRITES', operations: ['set-setting'] },

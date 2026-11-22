@@ -23,7 +23,7 @@ import type { Money } from '../src/shared/money/money'
 import { AN_ID, browserHarness, forgetCaches, driveHarness, ruleRow, workbookGrids } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { factText, noteText, refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
-import { BY_HAND } from '../src/shared/app/accountSource'
+import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
 
 const used = new Set<string>()
 
@@ -357,7 +357,7 @@ describe('an account from a camt file', () => {
     const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
     const run = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]))
 
-    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', intake: BY_HAND }])
+    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', sources: BY_HAND_SOURCES }])
     expect(run.added.map((entry) => entry.account)).toEqual(['business'])
     expect(run.statements[0]).toMatchObject({ account: 'business', refusal: null, newAccount: { iban: NEW_IBAN } })
     expect(importTitle(run)).toBe('Added business and imported 1 row')
@@ -376,9 +376,9 @@ describe('an account from a camt file', () => {
     const readings = statementReadings(camtFile(newAccountStatement()), store.state.workbook!, null)
     const run = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]), new Map(), true, 'automation')
 
-    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', intake: { rowsFrom: 'mail', startsOn: '2031-03-11', alsoFrom: [] } }])
+    expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', sources: [{ source: 'mail', from: '2031-03-11' }] }])
     await store.write(importTitle(run), (unit) => writeImport(unit, run, companyBooksOf(store.state)))
-    expect(store.state.workbook!.accounts.find((account) => account.slug === 'business')?.intake).toEqual({ rowsFrom: 'mail', startsOn: '2031-03-11', alsoFrom: [] })
+    expect(store.state.workbook!.accounts.find((account) => account.slug === 'business')?.sources).toEqual([{ source: 'mail', from: '2031-03-11' }])
   })
 
   it('names no account with a name the accounts tab has, or one the app cannot use', async () => {

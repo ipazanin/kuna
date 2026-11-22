@@ -5,9 +5,8 @@ import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../.
 import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
 import { STATEMENTS_MAIL_KEY, flagText } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
-import { proposedStartDay } from '../../../../shared/app/accountSource'
-import { handDaysOf } from '../../workbook/domain/accountIntakes'
-import type { Account, CompanyIntake, Transaction } from '../../workbook/domain/workbook'
+import { periodsFrom, proposedStartDay } from '../../../../shared/app/accountSource'
+import type { Account, CompanyPeriod, Transaction } from '../../workbook/domain/workbook'
 
 /** The bank named for any bank without a preset, whose sender and subject words are typed in. */
 export const OTHER_BANK = 'other'
@@ -63,19 +62,20 @@ export function mailDeliveryRows(mail: StatementMail): readonly { readonly key: 
 }
 
 /**
- * The accounts kept by hand that the bank's statement mail fills, each from the day the mail
- * search starts, and never over a day already filed or a row by hand. Only an account with an IBAN, which a statement finds it by.
+ * The accounts kept by hand that the bank's statement mail fills, each from the day the mail search starts, and never over a day
+ * already filed or a row already on it, which the mail would not take. Only an account with an IBAN, which a statement finds it by.
  */
 export function accountsTheStatementsFill(
-  accounts: readonly Pick<Account, 'slug' | 'iban' | 'intake'>[],
-  ledger: readonly Pick<Transaction, 'account' | 'date' | 'statement' | 'reference'>[],
+  accounts: readonly Pick<Account, 'slug' | 'iban' | 'sources'>[],
+  ledger: readonly Pick<Transaction, 'account' | 'date'>[],
   since: CivilDate,
   firstOpen: CivilDate | null,
-): readonly { readonly slug: string; readonly intake: CompanyIntake }[] {
+): readonly { readonly slug: string; readonly sources: readonly CompanyPeriod[] }[] {
   return accounts
-    .filter((account) => account.intake.rowsFrom === 'by-hand' && account.iban !== '')
+    .filter((account) => account.sources.every((period) => period.source === 'by-hand') && account.iban !== '')
     .map((account) => {
-      const proposed = proposedStartDay(handDaysOf(account.slug, ledger), since, firstOpen)
-      return { slug: account.slug, intake: { rowsFrom: 'mail', startsOn: proposed > since ? proposed : since, alsoFrom: [] } }
+      const days = ledger.filter((row) => row.account === account.slug).map((row) => row.date)
+      const proposed = proposedStartDay(days, since, firstOpen)
+      return { slug: account.slug, sources: periodsFrom(account.sources, 'mail', proposed > since ? proposed : since) }
     })
 }

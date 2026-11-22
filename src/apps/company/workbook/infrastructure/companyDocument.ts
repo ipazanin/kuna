@@ -8,7 +8,8 @@ import type { AppDocument } from '../../../../shared/storage/infrastructure/docu
 
 /** The contributor that stores core's kinds. */
 const CORE = 'core'
-const CORE_SCHEMA_VERSION = 2
+/** Each account keeps its periods in one sources cell, which a build of schema 2 would not read and would work out again from the rows. */
+const CORE_SCHEMA_VERSION = 3
 
 /** The schema version each contributor of this app writes: core, and the installed pack. */
 export function installedSchema(): WorkbookDocument['schema'] {

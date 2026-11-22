@@ -130,6 +130,8 @@ export const en = {
   mailReaderNoSender: 'it is on, but has no sender',
   mailWithoutStart: 'rows_from mail needs starts_on, the first day the report brings rows of',
   startWithoutMail: 'starts_on and also_from are for an account whose rows come from the mail',
+  notSources: (text: string) =>
+    `sources "${text}" is not a list of where its rows come from: mail, provider-file or by-hand in order, each later one with the day it takes over, after the day above, and mail first with its day`,
   checkChangesNothing: 'threshold is blank or the default, and off is not true, so it changes nothing',
   /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
   settingLabels: { surtaxCity2023: 'Your city in 2023' },
@@ -209,6 +211,8 @@ export const hr: Translation<typeof en> = {
   mailReaderNoSender: 'uključeno je, ali nema pošiljatelja',
   mailWithoutStart: 'rows_from mail traži starts_on, prvi dan od kojega izvješće donosi retke',
   startWithoutMail: 'starts_on i also_from vrijede za račun čiji retci stižu poštom',
+  notSources: (text) =>
+    `sources "${text}" nije popis odakle stižu njegovi retci: mail, provider-file ili by-hand redom, svaki sljedeći s danom od kojega preuzima, nakon dana iznad, i mail na prvom mjestu sa svojim danom`,
   checkChangesNothing: 'polje threshold je prazno ili jednako zadanom, a off nije true, pa zapis ništa ne mijenja',
   settingLabels: { surtaxCity2023: 'Vaš grad u 2023.' },
 }

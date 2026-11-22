@@ -193,7 +193,7 @@ describe.each([
     const held = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map(), new Map(), new Map(), true, 'automation').statements
     expect(held.map((statement) => statement.refusal)).toEqual([
       { kind: 'before-start', account: 'main', startsOn: '2026-10-07', first: '2026-10-06' },
-      { kind: 'kept-by-hand', account: 'savings' },
+      { kind: 'other-source', account: 'savings', day: '2026-10-06', source: 'by-hand', origin: 'automation' },
     ])
     expect(store.state.writes.map((write) => write.receipt.title)).toEqual(['Kept the statements the sync holds until they are filed or passed over'])
     expect(store.state.workbook!.heldStatements.map((statement) => [statement.mailId, statement.label, statement.iban, statement.passedOverOn])).toEqual([
@@ -351,8 +351,8 @@ describe("filing the statements a sync read against another device's sync", () =
 })
 
 describe('the statement mail step of a sync', () => {
-  const BY_MAIL: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', intake: { rowsFrom: 'mail', startsOn: civil('2026-11-01'), alsoFrom: [] } }
-  const BY_HAND_TOO: Account = { ...BY_MAIL, slug: 'savings', iban: SAVINGS_IBAN, intake: { rowsFrom: 'by-hand', startsOn: null } }
+  const BY_MAIL: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', sources: [{ source: 'mail', from: civil('2026-11-01') }] }
+  const BY_HAND_TOO: Account = { ...BY_MAIL, slug: 'savings', iban: SAVINGS_IBAN, sources: [{ source: 'by-hand', from: null }] }
   const named = emptyCompany({
     accounts: [BY_HAND_TOO],
     settings: { ...DEFAULT_SETTINGS, statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Izvadak' },

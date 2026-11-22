@@ -142,7 +142,7 @@ import { LOANS_APP } from '../src/apps/loans/workbook/domain/loansApp.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
 import { closedPositions } from '../src/apps/investments/holdings/domain/closedPositions.ts'
-import { accountIntakes } from '../src/apps/investments/imports/domain/accountIntake.ts'
+import { accountSources } from '../src/apps/investments/imports/domain/accountIntake.ts'
 import { holdingMix, holdingMixes } from '../src/apps/investments/holdings/domain/holdingMix.ts'
 import { depositSplit, targetGaps, targetedMix } from '../src/apps/investments/holdings/domain/targetMix.ts'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
@@ -329,12 +329,14 @@ if (companyAsked) {
   const { labels: _labels, itemLabels: _itemLabels, ...workbookWithoutLabels } = raw
   group('read.records', companyFiguresOf(recordsWithoutLabels))
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
-  // How each account's rows come in has a group of its own, so read.workbook stays as it was before accounts said it.
-  const withoutSources = { ...workbookWithoutLabels, accounts: raw.accounts.map(({ intake: _intake, ...account }) => account) }
+  // Where each account's rows come from has a group of its own, so read.workbook stays as it was before accounts said it.
+  // The day the bank's statement mail was read up to is where the next search starts, which moves no figure.
+  const { statementsMailReadTo: _readTo, ...settingsWithoutReadTo } = raw.settings
+  const withoutSources = { ...workbookWithoutLabels, settings: settingsWithoutReadTo, accounts: raw.accounts.map(({ sources: _sources, ...account }) => account) }
   group('read.workbook', [withoutSources, raw.categories.map((category) => [category.label, category.family, category.colour.stored, category.roles])])
   group(
     'read.sources',
-    raw.accounts.map((account) => account.intake),
+    raw.accounts.map((account) => account.sources),
   )
   group('settings.problems', booked.problems)
   group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
@@ -643,7 +645,7 @@ function investmentsGroups(addGroup) {
   const { records, workbook } = INVESTMENTS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   add('investments.read.records', records)
   // How each account's rows come in, as the file says or Kuna reads it, has a group of its own, so the records keep their digest.
-  addGroup('investments.read.sources', [...accountIntakes(workbook.book).values()])
+  addGroup('investments.read.sources', [...accountSources(workbook.book).values()])
   add('investments.read.problems', workbook.problems)
   cashMovements = cashMovementTargetsOf(workbook.book)
   add('investments.published.targets', cashMovements)

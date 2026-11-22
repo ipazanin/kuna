@@ -27,7 +27,7 @@ export const MAIL_READER_WRITES: WriteRules<MailReader> = {
 export function writeAccountSources(unit: UnitOfWork, book: InvestmentBook, written: { readonly account?: RecordId; readonly reader?: RecordId }): void {
   const said = sourcesSaid(book)
   book.accounts.forEach((account, at) => {
-    if (account.intake === null && account.id !== written.account) unit.of(INVESTMENT_ACCOUNT_WRITES).change(account, said.accounts[at]!)
+    if (account.sources === null && account.id !== written.account) unit.of(INVESTMENT_ACCOUNT_WRITES).change(account, said.accounts[at]!)
   })
   book.mailReaders.forEach((reader, at) => {
     if (reader.since !== null && reader.id !== written.reader) unit.of(MAIL_READER_WRITES).change(reader, said.mailReaders[at]!)

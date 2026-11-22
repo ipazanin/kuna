@@ -9,8 +9,8 @@ import type { ReportNews } from '../domain/mailReview'
 import { reportRows } from '../domain/reportRows'
 import { words as mailWords } from '../domain/words'
 import { words } from './words'
-import { accountIntakes } from '../../imports/domain/accountIntake'
-import { earliestStartDay } from '../../../../shared/app/accountSource'
+import { accountSources } from '../../imports/domain/accountIntake'
+import { earliestFrom } from '../../../../shared/app/accountSource'
 import type { WorkbookRows } from '../../imports/domain/importDryRun'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { INVESTMENTS_GENERAL_ROUTE } from '../../overview/presentation/investmentLinks'
@@ -64,7 +64,7 @@ function rowsOfPlan(plan: MailReportPlan, reader: MailReader, book: InvestmentBo
     IBKR_FLEX_RECIPE,
     plan.mails.flatMap((mail) => (mail.kind === 'read' ? [mail.file] : [])),
     reader,
-    { kind: 'mailed', since: earliestStartDay(accountIntakes(book).values()) },
+    { kind: 'mailed', since: earliestFrom(accountSources(book).values(), 'mail') },
   )
 }
 
@@ -182,7 +182,7 @@ async function readReports(): Promise<StepResult> {
   if (workbook === null || reader === null || choice?.source !== 'drive') {
     return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
   }
-  const since = earliestStartDay(accountIntakes(workbook.book).values())
+  const since = earliestFrom(accountSources(workbook.book).values(), 'mail')
   if (since === null) {
     state.plan = null
     return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }

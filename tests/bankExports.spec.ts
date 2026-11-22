@@ -20,7 +20,7 @@ import { loadImportFile } from '../src/apps/company/imports/infrastructure/impor
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { noteText } from '../src/apps/company/imports/presentation/dryRunWords'
-import { BY_HAND } from '../src/shared/app/accountSource'
+import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
 
 /**
  * Files shaped like the exports Croatian banks give, every name, IBAN and amount invented: the banks' shared camt.053.001.02 guide,
@@ -202,7 +202,11 @@ describe.each([
     expect(reading.statement.opening).toBe(moneyFromCents(100_000))
 
     // main is kept by hand here, since the bank's statements fill it in the fake books and a sheet goes on no such account.
-    const withoutMain = { ...workbook, transactions: workbook.transactions.filter((row) => row.account !== 'main'), accounts: workbook.accounts.map((account) => ({ ...account, intake: BY_HAND })) }
+    const withoutMain = {
+      ...workbook,
+      transactions: workbook.transactions.filter((row) => row.account !== 'main'),
+      accounts: workbook.accounts.map((account) => ({ ...account, sources: BY_HAND_SOURCES })),
+    }
     const run = dryRunFor([reading], { ...FAKE_BOOKS, workbook: withoutMain }, new Map([['main', moneyFromCents(100_000)]]))
     expect(run.statements[0]?.refusal).toBeNull()
     expect(run.newRows).toBe(3)

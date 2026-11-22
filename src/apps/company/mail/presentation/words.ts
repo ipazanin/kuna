@@ -32,7 +32,7 @@ export const en = {
     readFrom: (senders: readonly string[], fills: readonly string[]) =>
       fills.length === 0 ? `Bank mail from ${senders.join(', ')}, for no account yet.` : `Bank mail from ${senders.join(', ')}, for ${listInWords(fills)}.`,
     fillsFrom: (account: string, day: string) => `${account} from ${day}`,
-    searchedFrom: { newest: 'a week before the newest statement of the account furthest behind', since: 'the earliest start day of the accounts it fills' },
+    searchedFrom: { newest: 'a week before the day the mail must still reach back to', since: 'the first day the mail fills an account' },
     senders: settingsEn.settingLabels.statementsMailFrom,
     sendersHelp: "Mail addresses, comma separated. Blank leaves the bank's mail unread, and Gmail is not asked for.",
     sendersPlaceholder: 'Not read',
@@ -72,7 +72,7 @@ export const hr: Translation<typeof en> = {
     readFrom: (senders, fills) =>
       withFullStop(`Pošta banke ${listed({ one: 's adrese', other: 's adresa' }, senders.length)} ${senders.join(', ')}, ${fills.length === 0 ? 'još ni za jedan račun' : `za ${listInWords(fills)}`}`),
     fillsFrom: (account, day) => `${account} od ${day}`,
-    searchedFrom: { newest: 'tjedan dana prije najnovijeg izvoda računa koji najviše kasni', since: 'najranijeg početnog dana računa koje puni' },
+    searchedFrom: { newest: 'tjedan dana prije dana do kojega pošta još mora sezati', since: 'prvog dana od kojega pošta puni neki račun' },
     senders: settingsHr.settingLabels.statementsMailFrom,
     sendersHelp: 'Adrese e-pošte, odvojene zarezom. Ako je prazno, pošta banke se ne čita i ne traži se pristup Gmailu.',
     sendersPlaceholder: 'Ne čita se',

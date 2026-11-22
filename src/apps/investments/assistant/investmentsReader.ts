@@ -1,6 +1,7 @@
-import { BY_HAND } from '../../../shared/app/accountSource'
+import { periodsText } from '../../../shared/app/accountSource'
 import { HOLDING_ROUTE } from '../holdings/presentation/holdingLinks'
-import { accountIntakes } from '../imports/domain/accountIntake'
+import { accountSources } from '../imports/domain/accountIntake'
+import { BY_HAND_SOURCES } from '../workbook/domain/investmentAccount'
 import type { WorkbookRows } from '../imports/domain/importDryRun'
 import { askedColumns } from '../imports/presentation/dryRunLines'
 import { waitingRows } from '../mail/domain/waitingRows'
@@ -194,13 +195,13 @@ function fieldsOf(book: () => InvestmentBook | null) {
     id: { exposure: 'ref', to: INVESTMENT_ACCOUNT_RECORDS.name, meaning: 'The account at a broker.' },
     name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
     note: { exposure: 'free-text', meaning: "The owner's note." },
-    intake: {
+    sources: {
       exposure: 'plain',
-      meaning: 'How its rows come in: "mail from" a day, when IBKR\'s mailed report brings them from that day and rows by hand go only on earlier days, or "by hand".',
+      meaning:
+        "Where its rows come from, in order, each later one with the day it takes over, such as by-hand, mail 2026-03-01. A first with its own day takes no row before it. mail: IBKR's mailed report. provider-file: an IBKR report you upload. by-hand: typing, imports and the chat. A day each source fills takes no row from another.",
       read: (record) => {
         const current = book()
-        const intake = (current === null ? undefined : accountIntakes(current).get(record.id)) ?? record.intake ?? BY_HAND
-        return intake.rowsFrom === 'mail' ? `mail from ${intake.startsOn}` : 'by hand'
+        return periodsText((current === null ? undefined : accountSources(current).get(record.id)) ?? record.sources ?? BY_HAND_SOURCES)
       },
     },
   }

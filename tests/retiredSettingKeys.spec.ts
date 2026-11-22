@@ -54,6 +54,7 @@ const KEYS_EVER_READ: Readonly<Record<string, readonly string[]>> = {
     'statements_mail',
     'statements_mail_from',
     'statements_mail_subject',
+    'statements_mail_read_to',
     'mail_since',
     'person_payees',
     'trip_folder_id',

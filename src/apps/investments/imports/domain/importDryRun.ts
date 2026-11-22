@@ -1,4 +1,4 @@
-import { accountIntakes } from './accountIntake'
+import { accountSources } from './accountIntake'
 import { goneRecords } from './goneRecords'
 import type { ImportedRecord } from './importedRecords'
 import { accountsOfReportScope, importedByKey, knownAccountsOf, knownInstrumentsOf, matchedWithKey, withMatchedKeys } from './importKeys'
@@ -19,9 +19,10 @@ import { EXCHANGE_CODEC } from '../../workbook/domain/exchangeReading'
 import type { Income } from '../../workbook/domain/income'
 import { INCOME_CODEC } from '../../workbook/domain/incomeReading'
 import type { Instrument, InstrumentType, PriceSource } from '../../workbook/domain/instrument'
-import type { InvestmentAccount, InvestmentIntake } from '../../workbook/domain/investmentAccount'
+import { BY_HAND_SOURCES } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentPeriod } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { BY_HAND, alsoFromOf, earliestStartDay, takesRowFrom } from '../../../../shared/app/accountSource'
+import { earliestFrom, sourceOn, takesRowOn } from '../../../../shared/app/accountSource'
 import {
   CASH_MOVEMENT_RECORDS,
   EXCHANGE_RECORDS,
@@ -379,20 +380,20 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
   const knownAccounts = rolling ? new Map([...knownAccountsOf(inKuna, keyed), ...accountsOfReportScope(reading.rows, keyed)]) : knownAccountsOf(inKuna, keyed)
   const knownInstruments = knownInstrumentsOf(inKuna, keyed, identityOf)
   const accountOf = (row: WorkbookRow): InvestmentAccount | null => answers.accounts.get(row.account) ?? book.accounts.find((account) => account.id === knownAccounts.get(row.account)) ?? null
-  const intakes = accountIntakes(book)
-  const intakeOf = (account: InvestmentAccount): InvestmentIntake => account.intake ?? intakes.get(account.id) ?? BY_HAND
+  const sources = accountSources(book)
+  const sourcesOf = (account: InvestmentAccount): readonly InvestmentPeriod[] => account.sources ?? sources.get(account.id) ?? BY_HAND_SOURCES
   const accountsSoFar = [...book.accounts, ...answers.accounts.values()]
   const instrumentsSoFar = [...book.instruments, ...answers.instruments.values()]
   const instrumentOf = (row: WorkbookRow): Instrument | null =>
     answers.instruments.get(identityOf(row)) ?? book.instruments.find((instrument) => instrument.id === knownInstruments.get(identityOf(row))) ?? null
 
   const mailed = reading.report?.mailed === true
-  const mailStart = mailed ? earliestStartDay(intakes.values()) : null
+  const mailStart = mailed ? earliestFrom(sources.values(), 'mail') : null
   // No account the mail fills takes a mailed row dated before the earliest of their start days, so such a row of an account Kuna does not know yet asks nothing.
   const beforeEveryStart = (entry: RowEntry): boolean => mailStart !== null && !knownAccounts.has(entry.rows[0].account) && entry.rows[0].date < mailStart
   const skipped: SkippedRow[] = [...reading.skipped]
   const leftOut = { beforeStart: 0, byHand: 0 }
-  // A mailed report brings only the days the mail fills its account. Another report is the broker's own file, which an account the mail fills takes only when it allows that, and any other row is by hand, which it never takes.
+  // A mailed report brings only the days the mail fills its account. Another report is the broker's own file, which goes on a day an uploaded report or by hand fills, and any other row is by hand, which goes only on a day kept by hand.
   const taken = entries.filter((entry) => {
     const account = accountOf(entry.rows[0])
     if (account === null) {
@@ -400,14 +401,15 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
       leftOut.beforeStart += entry.rows.length
       return false
     }
-    const intake = intakeOf(account)
+    const periods = sourcesOf(account)
+    const day = entry.rows[0].date
     if (mailed) {
-      if (intake.rowsFrom === 'mail' && entry.rows[0].date >= intake.startsOn) return true
-      if (intake.rowsFrom === 'by-hand') leftOut.byHand += entry.rows.length
-      else leftOut.beforeStart += entry.rows.length
+      if (takesRowOn(periods, day, 'automation')) return true
+      if (sourceOn(periods, day) === null) leftOut.beforeStart += entry.rows.length
+      else leftOut.byHand += entry.rows.length
       return false
     }
-    if (keyed.has(entry.key) || takesRowFrom(intake.rowsFrom, alsoFromOf(intake), reading.report === undefined ? 'by-hand' : 'provider-file')) return true
+    if (keyed.has(entry.key) || takesRowOn(periods, day, reading.report === undefined ? 'by-hand' : 'provider-file')) return true
     entry.rows.forEach((row) => skipped.push({ fileRow: row.fileRow, reason: { kind: 'mail-owns', account: account.name } }))
     return false
   })
@@ -949,7 +951,7 @@ function identities(rows: readonly WorkbookRow[]): (row: WorkbookRow) => string 
 }
 
 /** An account no record is in, so a row of it may look like a record of any account. */
-const ANY_ACCOUNT: InvestmentAccount = { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, 'any-account'), name: '', note: '', intake: BY_HAND }
+const ANY_ACCOUNT: InvestmentAccount = { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, 'any-account'), name: '', note: '', sources: BY_HAND_SOURCES }
 
 /** The record a row would make in an account no record is in, or null for a row that cannot make one yet. */
 function recordInAnyAccount(entry: RowEntry, mapping: Mapping): ImportedRecord | null {

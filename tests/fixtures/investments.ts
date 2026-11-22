@@ -1,9 +1,9 @@
-import { BY_HAND } from '../../src/shared/app/accountSource'
 import type { CashMovement, CashMovementKind } from '../../src/apps/investments/workbook/domain/cashMovement'
 import type { Exchange } from '../../src/apps/investments/workbook/domain/exchange'
 import type { Income } from '../../src/apps/investments/workbook/domain/income'
 import type { Instrument } from '../../src/apps/investments/workbook/domain/instrument'
-import type { InvestmentAccount, InvestmentIntake } from '../../src/apps/investments/workbook/domain/investmentAccount'
+import { BY_HAND_SOURCES } from '../../src/apps/investments/workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentPeriod } from '../../src/apps/investments/workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../src/apps/investments/workbook/domain/investmentBook'
 import {
   CASH_MOVEMENT_RECORDS,
@@ -45,8 +45,8 @@ function rateOf(text: string | null): Decimal | null {
   return text === null ? null : decimal(text)
 }
 
-export function account(key: string, name = key, intake: InvestmentIntake | null = BY_HAND): InvestmentAccount {
-  return { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, key), name, note: '', intake }
+export function account(key: string, name = key, sources: readonly InvestmentPeriod[] | null = BY_HAND_SOURCES): InvestmentAccount {
+  return { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, key), name, note: '', sources }
 }
 
 export function instrument(key: string, overrides: Partial<Instrument> = {}): Instrument {

@@ -17,7 +17,7 @@ import type { HandPrice } from '../../workbook/domain/handPrice'
 import type { Income } from '../../workbook/domain/income'
 import { NEW_INSTRUMENT_DEFAULTS } from '../../workbook/domain/instrument'
 import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
-import type { InvestmentIntake } from '../../workbook/domain/investmentAccount'
+import type { InvestmentPeriod } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import {
   CASH_MOVEMENT_RECORDS,
@@ -70,7 +70,7 @@ const MAIL_FIELD_NAMES: Readonly<Record<string, string>> = {
   senders: mailWords.card.senders,
   subject: mailWords.card.subject,
   contents: mailWords.card.contents,
-  intake: settingsWords.accountDialog.rowsFrom,
+  sources: settingsWords.accountDialog.rowsFrom,
 }
 
 /** The mail reader's senders say whose mail Kuna reads, so the card marks them. */
@@ -212,15 +212,22 @@ function quotingText(quoted: Instrument['quoted']): string {
   return quoted.kind === 'percent' ? words.proposals.bondQuoting(label, percentText(quoted.coupon), dayLabel(quoted.maturity)) : label
 }
 
-/** A field of an instrument or a line of its mix in the holding dialog's words, or undefined for a field shown as it is. */
-function intakeText(intake: InvestmentIntake | null): string | null {
-  if (intake === null) return null
-  return intake.rowsFrom === 'mail' ? settingsWords.accounts.fromMail(dayLabel(intake.startsOn)) : settingsWords.accounts.byHand
+/** Where an account's rows come from, each period in the accounts card's words. */
+function sourcesText(sources: readonly InvestmentPeriod[] | null): string | null {
+  if (sources === null) return null
+  return sources
+    .map((period) => {
+      const from = period.from === null ? null : dayLabel(period.from)
+      if (period.source === 'mail') return settingsWords.accounts.fromMail(from ?? '')
+      if (period.source === 'provider-file') return from === null ? settingsWords.accounts.uploads : settingsWords.accounts.uploadsFrom(from)
+      return from === null ? settingsWords.accounts.byHand : settingsWords.accounts.byHandFrom(from)
+    })
+    .join(', ')
 }
 
 function holdingValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, namesOf: ReadonlyMap<unknown, string>): string | null | undefined {
   if (isKind(kind, INVESTMENT_ACCOUNT_RECORDS, record)) {
-    return field === 'intake' ? intakeText(record.intake) : undefined
+    return field === 'sources' ? sourcesText(record.sources) : undefined
   }
   if (isKind(kind, INSTRUMENT_RECORDS, record)) {
     const shown: Partial<Record<keyof Instrument, string | null>> = {

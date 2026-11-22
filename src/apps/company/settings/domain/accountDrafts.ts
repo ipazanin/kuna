@@ -3,9 +3,11 @@ import { accountOfFields } from '../../workbook/domain/accountsReading'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import { slugProblem } from '../../workbook/domain/slug'
 import { slugOf, storedFieldOfValue, textOf } from '../../../../shared/storage/domain/storedFields'
-import { BY_HAND } from '../../../../shared/app/accountSource'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import type { COMPANY_ROWS_FROM, CompanyIntake } from '../../workbook/domain/workbook'
+import { periodsText } from '../../../../shared/app/accountSource'
+import { draftsOfPeriods, periodsOfDrafts } from '../../../../shared/app/periodDrafts'
+import type { PeriodDraft, PeriodDraftProblem } from '../../../../shared/app/periodDrafts'
+import { BY_HAND_SOURCES } from '../../workbook/domain/workbook'
+import type { CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 import { madeOfDrafts } from './recordDrafts'
@@ -24,27 +26,19 @@ export interface AccountDraft {
   readonly label: string
   readonly iban: string
   readonly currency: string
-  readonly rowsFrom: CompanyRowsFrom
-  /** With mail, the first day the bank's statements bring rows of, as typed. */
-  readonly startsOn: string
-  /** With mail, whether it also takes the bank's camt file on Import or in the chat. */
-  readonly takesCamtFile: boolean
+  /** Where its rows come from, each source from the day typed, the first from its own day or, blank, from the account's start. */
+  readonly periods: readonly PeriodDraft<CompanySource>[]
 }
 
-export type CompanyRowsFrom = (typeof COMPANY_ROWS_FROM)[number]
-
-/** The draft's intake, or null for mail with no day typed. */
-export function intakeOfDraft(draft: Pick<AccountDraft, 'rowsFrom' | 'startsOn' | 'takesCamtFile'>): CompanyIntake | null {
-  if (draft.rowsFrom === 'by-hand') return BY_HAND
-  const startsOn = parseCivilDate(draft.startsOn)
-  return startsOn === null ? null : { rowsFrom: 'mail', startsOn, alsoFrom: draft.takesCamtFile ? ['provider-file'] : [] }
+/** The draft's periods, or null while one cannot be kept, with why each cannot. A first period of the mail needs its day, as the mail search starts on it. */
+export function sourcesOfDraft(draft: Pick<AccountDraft, 'periods'>): { readonly periods: readonly CompanyPeriod[] | null; readonly problems: readonly (PeriodDraftProblem | null)[] } {
+  return periodsOfDrafts(draft.periods, ['mail'])
 }
 
-/** The drafts of the stored accounts, as the workbook holds their text, each with how its rows come in as the workbook reads it by its name. */
-export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], intakes: ReadonlyMap<string, CompanyIntake>): AccountDraft[] {
+/** The drafts of the stored accounts, as the workbook holds their text, each with where its rows come from as the workbook reads it by its name. */
+export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], sources: ReadonlyMap<string, readonly CompanyPeriod[]>): AccountDraft[] {
   return stored.map(({ fields }, saved) => {
     const text = (name: string): string => textOf(fields[name])
-    const intake = intakes.get(slugOf(fields.account)) ?? BY_HAND
     return {
       saved,
       savedName: text('account'),
@@ -52,15 +46,13 @@ export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], intake
       label: text('label'),
       iban: text('iban'),
       currency: text('currency'),
-      rowsFrom: intake.rowsFrom,
-      startsOn: intake.startsOn ?? '',
-      takesCamtFile: intake.rowsFrom === 'mail' && intake.alsoFrom.includes('provider-file'),
+      periods: draftsOfPeriods(sources.get(slugOf(fields.account)) ?? BY_HAND_SOURCES),
     }
   })
 }
 
 /** A new account's draft: kept by hand, with nothing typed. */
-export const NEW_ACCOUNT_DRAFT: AccountDraft = { saved: null, savedName: '', account: '', label: '', iban: '', currency: '', rowsFrom: 'by-hand', startsOn: '', takesCamtFile: false }
+export const NEW_ACCOUNT_DRAFT: AccountDraft = { saved: null, savedName: '', account: '', label: '', iban: '', currency: '', periods: draftsOfPeriods(BY_HAND_SOURCES) }
 
 /** The accounts the drafts make, each over the fields its stored record holds. */
 export function accountsOfDrafts(stored: readonly StoredRecord<unknown>[], drafts: readonly AccountDraft[]): MadeDraft<AccountRecord>[] {
@@ -68,7 +60,7 @@ export function accountsOfDrafts(stored: readonly StoredRecord<unknown>[], draft
   return madeOfDrafts(drafts, fields, stored, accountOfFields)
 }
 
-export type AccountField = 'account' | 'currency' | 'startsOn'
+export type AccountField = 'account' | 'currency' | 'sources'
 
 export type AccountDraftErrors = ReadonlyMap<number, Partial<Record<AccountField, string>>>
 
@@ -92,13 +84,14 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
     if (name !== '') {
       named.add(name)
     }
-    if (intakeOfDraft(draft) === null) {
-      found.startsOn = words.fields.aDay
+    const problem = sourcesOfDraft(draft).problems.find((candidate) => candidate !== null)
+    if (problem !== undefined && problem !== null) {
+      found.sources = words.fields.period[problem]
     }
     const currency = draft.currency.trim().toUpperCase()
-    const problem = currency === '' ? null : currencyProblem(currency)
-    if (problem !== null) {
-      found.currency = problem
+    const currencyFault = currency === '' ? null : currencyProblem(currency)
+    if (currencyFault !== null) {
+      found.currency = currencyFault
     }
     if (Object.keys(found).length > 0) {
       errors.set(index, found)
@@ -107,17 +100,21 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
   return errors
 }
 
-/** The draft's fields, over the fields of the account it was read from. A blank field is absent. How its rows come in is always written, so an account that did not say says it from then on. */
+/**
+ * The draft's fields, over the fields of the account it was read from. A blank field is absent. Where its rows come from is always
+ * written, so an account that did not say says it from then on, and the cells of a file from before periods go.
+ */
 function accountFieldsOf(draft: AccountDraft, stored: StoredFields): StoredFields {
-  const mail = draft.rowsFrom === 'mail'
+  const periods = sourcesOfDraft(draft).periods
   const typed: Readonly<Record<string, string>> = {
     account: draft.account.trim().toLowerCase(),
     label: draft.label.trim(),
     iban: normaliseIban(draft.iban),
     currency: draft.currency.trim().toUpperCase(),
-    rows_from: draft.rowsFrom,
-    starts_on: mail ? draft.startsOn.trim() : '',
-    also_from: mail && draft.takesCamtFile ? 'provider-file' : '',
+    sources: periods === null ? draft.periods.map((period) => `${period.source} ${period.from}`.trim()).join(', ') : periodsText(periods),
+    rows_from: '',
+    starts_on: '',
+    also_from: '',
   }
   const fields: Record<string, StoredField> = { ...stored }
   for (const [name, text] of Object.entries(typed)) {

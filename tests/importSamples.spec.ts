@@ -11,7 +11,7 @@ import { loadImportFile } from '../src/apps/company/imports/infrastructure/impor
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { noteText, refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
-import { BY_HAND } from '../src/shared/app/accountSource'
+import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
 
 const FAKE_BOOKS = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
 const workbook = FAKE_BOOKS.workbook
@@ -22,7 +22,7 @@ const profile = { ...guess, name: 'example-bank', account: accountNamedIn(grid, 
 const table = { kind: 'table' as const, fileName: SAMPLE_TABLE_FILE_NAME, fileHash: 'e'.repeat(64), grid }
 
 describe('the fake build’s sample statement files', () => {
-  it("carry the main account on with four new rows from the camt file, which main allows beside the bank's mail, and refuse the sheet, since the bank's statements fill main", () => {
+  it('carry the main account on with four new rows from the camt file, which main takes from the day after its newest row, and refuse the sheet, which no day of main takes', () => {
     const fromCamt = dryRunFor(statementReadings(camt, workbook, null), FAKE_BOOKS, new Map())
     const fromTable = dryRunFor(statementReadings(table, workbook, profile), FAKE_BOOKS, new Map())
 
@@ -35,12 +35,12 @@ describe('the fake build’s sample statement files', () => {
     ])
     expect(profile.account).toBe('main')
     expect(fromTable.newRows).toBe(0)
-    expect(fromTable.statements[0]?.refusal).toMatchObject({ kind: 'statements-fill', account: 'main', origin: 'by-hand' })
+    expect(fromTable.statements[0]?.refusal).toMatchObject({ kind: 'other-source', account: 'main', origin: 'by-hand' })
     expect(fromTable.statements[0]?.notes.map(noteText)).toEqual(['Row 9 reads "Ukupno" where the date goes, so it is skipped.'])
   })
 
   it('start from the same balance, so only one of them can follow the ledger on an account kept by hand', () => {
-    const byHand = { ...FAKE_BOOKS, workbook: { ...workbook, accounts: workbook.accounts.map((account) => ({ ...account, intake: BY_HAND })) } }
+    const byHand = { ...FAKE_BOOKS, workbook: { ...workbook, accounts: workbook.accounts.map((account) => ({ ...account, sources: BY_HAND_SOURCES })) } }
     const run = dryRunFor([...statementReadings(camt, workbook, null), ...statementReadings(table, workbook, profile)], byHand, new Map())
 
     expect(run.statements.map((statement) => [statement.fileName, statement.refusal && refusalText(statement.refusal)])).toEqual([
@@ -65,12 +65,17 @@ async function readFakeMail(variant: string | null) {
 }
 
 describe('the fake build’s bank mail', () => {
-  it('mails the sample camt statement twice, which reads once and carries main on with four rows, beside PDFs passed over and a notice that is no statement', async () => {
+  it('mails the sample camt statement twice, which reads once and carries main on with four rows where the mail fills it, beside PDFs passed over and a notice that is no statement', async () => {
     const plan = await readFakeMail(null)
+    // The mail variants keep main's mail period alone, as the default books give its days after the newest row to its camt file.
+    const mailOnly = {
+      ...FAKE_BOOKS,
+      workbook: { ...workbook, accounts: workbook.accounts.map((account) => (account.slug === 'main' ? { ...account, sources: account.sources.slice(0, 1) } : account)) },
+    }
 
     expect(plan.entries.map((entry) => entry.kind).sort()).toEqual(['not-read', 'passed-over', 'passed-over', 'passed-over', 'read', 'read'])
     expect(plan.entries.filter((entry) => entry.kind === 'read').map((entry) => entry.label)).toEqual([sampleCamtLabel(), sampleCamtLabel()])
-    const run = dryRunFor(plan.readings, FAKE_BOOKS, new Map(), new Map(), new Map(), false, 'automation')
+    const run = dryRunFor(plan.readings, mailOnly, new Map(), new Map(), new Map(), false, 'automation')
     expect(run.statements.map((statement) => [statement.label, statement.account, statement.refusal && refusalText(statement.refusal)])).toEqual([[sampleCamtLabel(), 'main', null]])
     expect(run.newRows).toBe(4)
   })

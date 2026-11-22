@@ -53,6 +53,7 @@ import QuestionListSpecimens from './QuestionListSpecimens.vue'
 import RowSpecimens from './RowSpecimens.vue'
 import ScenarioSpecimens from './ScenarioSpecimens.vue'
 import SplitEditorSpecimens from './SplitEditorSpecimens.vue'
+import SourceHandoverSpecimens from './SourceHandoverSpecimens.vue'
 import { BUCKET_LEGEND } from './sampleCharts'
 import StepSpecimen from './StepSpecimen.vue'
 import SyncStatusSpecimens from './SyncStatusSpecimens.vue'
@@ -454,6 +455,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
           </div>
         </AppCard>
         <MoveButtonsSpecimen />
+        <SourceHandoverSpecimens />
         <AppCard title="RemovableChip" subtitle="Names something picked, such as a filter or a ticker to compare with. A press anywhere on it removes it.">
           <div class="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-4 sm:px-5">
             <RemovableChip v-for="chip in galleryChips" :key="chip" :label="chip" :remove-label="`Remove ${chip}`" @remove="galleryChips = galleryChips.filter((shown) => shown !== chip)" />

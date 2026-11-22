@@ -3068,7 +3068,7 @@ export async function mailWindowFlow(page, { press, shoot, inspect }) {
   await openMailCard(page)
   await mailListShows(page, ['passed-over'])
   const windows = await page.$$eval(`${MAIL_PLAN} [data-testid="mail-source-window"]`, (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
-  if (windows.length !== 1 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest statement of the account furthest behind$/.test(line)))
+  if (windows.length !== 1 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the day the mail must still reach back to$/.test(line)))
     throw new Error(`the search started ${JSON.stringify(windows)}`)
   await scrollToTop(page, MAIL_PLAN)
   await inspect?.('the list searched from a week before the newest statement')
@@ -9964,16 +9964,27 @@ export function investmentsDialogsFlowIn(language) {
     })
     await delay(300)
     await shoot('dialog-investments-account-mail')
-    // The switch that lets the account take an uploaded report too, with its help under it.
-    await scrollIntoDialogView(page, '[data-testid="account-takes-uploads"]')
+    // The list of where its rows come from, with a later source added that takes over on a day of its own.
+    await pressSelector(page, press, '[data-testid="account-source-add"]')
+    await scrollIntoDialogView(page, '[data-testid="account-source-add"]')
     await delay(300)
-    await shoot('dialog-investments-account-mail-uploads')
+    await shoot('dialog-investments-account-mail-sources')
+    await pressSelector(page, press, '[data-testid="account-source-remove"]')
     // A start day in a filed tax year is refused under the field once Save is pressed.
     await typeDay(await page.$('[data-testid="account-starts-on"]'), '2024-03-01')
     await pressSelector(page, press, '[data-testid="account-save"]')
     await elementSays(page, '[data-testid="account-form"]', ['2024'], 'the start day in a filed tax year is not refused under its field')
     await delay(300)
     await shoot('dialog-investments-account-filed')
+    if (await page.$('[data-testid="account-handover"]')) throw new Error('a refused start day still warns of the rows saving takes out')
+    // A start day in an open year over rows typed by hand warns of the rows that go, listed by day, what they are and their euros.
+    await typeDay(await page.$('[data-testid="account-starts-on"]'), '2026-01-02')
+    await page.waitForSelector('[data-testid="account-handover"] li', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('giving open days to the mailed report lists no row that goes')
+    })
+    await scrollIntoDialogView(page, '[data-testid="account-handover"]')
+    await delay(300)
+    await shoot('dialog-investments-account-handover')
     // A day after the account's last row by hand goes in, and the list says where its rows come from.
     await typeDay(await page.$('[data-testid="account-starts-on"]'), '2099-01-04')
     await pressSelector(page, press, '[data-testid="account-save"]')
@@ -14184,5 +14195,27 @@ export function spendingImportGiveDaysFlowIn(language, paths) {
     await shootAt(page, shoot, '[data-testid="spending-dry-run"]', 'spending-import-given-days')
     await pressSelector(page, press, '[data-testid="spending-dry-run-keep-days"]')
     await page.waitForSelector('[data-testid="spending-dry-run-give-days"]', { visible: true, timeout: 5_000 })
+  }
+}
+
+/**
+ * Settings, Accounts: main's list of where its rows come from, mail and then its camt file, and a camt file's day moved earlier
+ * over days the mail filled, which warns of the rows saving takes out. Nothing is saved.
+ */
+export function companyAccountSourcesFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.evaluate(() => {
+      window.location.hash = '#/company/settings?tab=accounts'
+    })
+    await page.waitForSelector('[data-testid="accounts-editor"] [data-testid="account-source-from"]', { visible: true, timeout: 10_000 })
+    await shootAt(page, shoot, '[data-testid="account-sources"] .sources', 'company-account-sources')
+    await typeDay(await page.$('[data-testid="account-source-from"]'), '2026-10-01')
+    await page.waitForSelector('[data-testid="account-handover"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('moving the camt file over days the mail filled warns of no rows')
+    })
+    await inspect?.('the warning of the rows saving the periods takes out')
+    await shootAt(page, shoot, '[data-testid="account-handover"]', 'company-account-handover')
+    await pressLabelled(page, press, 'body', language === 'en' ? companySettingsEnglish.accounts.discard : companySettingsCroatian.accounts.discard)
   }
 }

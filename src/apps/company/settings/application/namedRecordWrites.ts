@@ -33,10 +33,17 @@ import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { pickedEdits, pickedUntouched } from '../../../../shared/storage/domain/writeRules'
 import type { FreshRecords, KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
-import { startDayRefusal } from '../../../../shared/app/accountSource'
-import type { StartDayRefusal } from '../../../../shared/app/accountSource'
+import { periodsChangeRefusal } from '../../../../shared/app/accountSource'
+import type { PeriodsChangeRefusal } from '../../../../shared/app/accountSource'
 import { today } from '../../../../shared/calendar/civilDate'
-import { accountsWithIntakes, folderFiledOnSync, handDaysOf } from '../../workbook/domain/accountIntakes'
+import { accountsWithSources, folderFiledOnSync, ledgerRowOrigin } from '../../workbook/domain/accountSources'
+import { sourceHandover } from '../domain/sourceHandover'
+import type { SourceHandover } from '../domain/sourceHandover'
+import { writeDrafts } from './draftWrites'
+import { replaceLedgerRows } from '../../transactions/application/itemWrites'
+import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
+import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
+import type { Account, Transaction } from '../../workbook/domain/workbook'
 import { definedCategories } from '../../workbook/domain/categoriesReading'
 import { readLedger } from '../../workbook/domain/ledgerReading'
 import { installedPack } from '../../packs/packContribution'
@@ -253,38 +260,78 @@ function accountOfFields(fields: StoredFields): { readonly slug: string; readonl
   return { slug: slugOf(fields.account), iban: normaliseIban(textOf(fields.iban)) }
 }
 
-/** The sentence of a refused start day, for the accounts editor, the chat and the write alike. */
-export function startDayRefusalText(refusal: StartDayRefusal): string {
-  return refusal.kind === 'filed' ? words.startDay.filed(refusal.firstOpen) : words.startDay.overHandRows(refusal.startsOn)
+/** The sentence of a refused change of periods, for the accounts editor, the chat and the write alike. */
+export function periodsRefusalText(refusal: PeriodsChangeRefusal, undoing: boolean): string {
+  if (refusal.kind === 'filed') return words.sources.filed(refusal.firstOpen)
+  return undoing ? words.sources.undoAfterHandover : words.sources.rowsOfAnotherSource(refusal.count)
+}
+
+/** The accounts as the records read them, each with the periods it says or derives. */
+function accountsOfRecords(fresh: FreshRecords, ledger: readonly Transaction[]): ReadonlyMap<string, Account> {
+  return new Map(accountsWithSources(readAccounts(fresh.of(ACCOUNT_RECORDS), null).facts, ledger, folderFiledOnSync(fresh.of(SETTING_RECORDS))).map((account) => [account.slug, account]))
 }
 
 /**
- * Why the write would give the bank's statements days of an account that they did not fill: days already filed, which the
- * pack says, or days holding rows by hand. Undo puts back what was there.
+ * Why the write would give days of an account to another source over a filed day, which the pack says, or leave a row on a day
+ * whose new source would not take it. A write that gives days away carries those rows out with it, so only a change written
+ * some other way is refused. Each row's origin is read by the periods it came in under: one already in by the old periods, one
+ * the write puts back by the new. So an Undo after the new source brought a row on the handed days is refused.
  */
-function startDayRefusals(change: KindChange<AccountRecord>, fresh: FreshRecords): string[] {
-  if (change.undoing) return []
-  const ledger = readLedger(fresh.of(LEDGER_RECORDS), definedCategories(fresh.of(CATEGORY_RECORDS))).facts
-  const before = new Map(accountsWithIntakes(readAccounts(change.before, null).facts, ledger, folderFiledOnSync(fresh.of(SETTING_RECORDS))).map((account) => [account.slug, account.intake]))
-  const firstOpen = installedPack().firstOpenDay(today())
+function periodsRefusals(change: KindChange<AccountRecord>, fresh: FreshRecords, after: FreshRecords): string[] {
+  const categories = definedCategories(fresh.of(CATEGORY_RECORDS))
+  const ledgerBefore = readLedger(fresh.of(LEDGER_RECORDS), categories).facts
+  const ledgerAfter = readLedger(after.of(LEDGER_RECORDS), categories).facts
+  const before = accountsOfRecords(fresh, ledgerBefore)
+  const there = new Set(ledgerBefore.map((row) => row.id))
+  const firstOpen = change.undoing ? null : installedPack().firstOpenDay(today())
   return change.edits.flatMap((edit) => {
     const account = edit.after !== null && 'record' in edit.after ? edit.after.record : undefined
-    if (account === undefined || account.intake === null) return []
-    const refusal = startDayRefusal(before.get(account.slug) ?? null, account.intake, handDaysOf(account.slug, ledger), firstOpen)
-    return refusal === null ? [] : [`${account.slug}: ${startDayRefusalText(refusal)}`]
+    const was = account === undefined ? undefined : before.get(account.slug)
+    if (account === undefined || account.sources === null || was === undefined) return []
+    const sources = account.sources
+    const rows = ledgerAfter.filter((row) => row.account === account.slug).map((row) => ({ date: row.date, origin: ledgerRowOrigin(row, there.has(row.id) ? was.sources : sources) }))
+    const refusal = periodsChangeRefusal(was.sources, sources, rows, firstOpen)
+    return refusal === null ? [] : [`${account.slug}: ${periodsRefusalText(refusal, change.undoing)}`]
+  })
+}
+
+/** What each account's new periods carry out of the ledger, by the account's name: none for an account whose days keep their source. */
+export function accountHandovers(
+  books: { readonly workbook: { readonly accounts: readonly Account[]; readonly transactions: readonly Transaction[] } },
+  made: readonly { readonly record: AccountRecord }[],
+): readonly SourceHandover[] {
+  return made.flatMap(({ record }) => {
+    const was = books.workbook.accounts.find((account) => account.slug === record.slug)
+    const handover = was === undefined || record.sources === null ? null : sourceHandover(was, record.sources, books.workbook.transactions)
+    return handover === null || handover.rows.length === 0 ? [] : [handover]
   })
 }
 
 /**
+ * Writes the accounts as an editor made them, and in the same write carries out the ledger rows each new list of periods gives to
+ * another source, with their items, so one Undo puts all of it back.
+ */
+export function writeAccounts(
+  unit: UnitOfWork,
+  books: { readonly records: WorkbookRecords; readonly workbook: { readonly accounts: readonly Account[]; readonly transactions: readonly Transaction[] } },
+  stored: readonly StoredRecord<AccountRecord>[],
+  made: readonly { readonly saved: number | null; readonly record: AccountRecord }[],
+): void {
+  writeDrafts(unit.of(ACCOUNT_WRITES), stored, made)
+  const going = accountHandovers(books, made).flatMap((handover) => handover.rows.flatMap((row) => recordWithId(books.records.ledger, row.id)?.record ?? []))
+  if (going.length > 0) replaceLedgerRows(unit, books.records, going, [])
+}
+
+/**
  * An account keeps to the slug format, keeps its name and IBAN while ledger rows name it, and its IBAN is valid, its own and no
- * client's. A start day that gives the bank's statements more days reaches no filed day and no row by hand.
+ * client's. Periods that give days to another source reach no filed day and leave no row there the new source would not take.
  */
 export const ACCOUNT_WRITES: WriteRules<AccountRecord> = {
   kind: ACCOUNT_RECORDS,
   reads: [LEDGER_RECORDS, CLIENT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS],
   undoable: true,
   read: (read) => readAccounts(read, null),
-  refusals: (change, fresh) => [
+  refusals: (change, fresh, after) => [
     ...accountChangeRefusals(
       pickedEdits(change, accountOfFields),
       pickedUntouched(change, accountOfFields).filter((row) => row.slug !== ''),
@@ -293,7 +340,7 @@ export const ACCOUNT_WRITES: WriteRules<AccountRecord> = {
         clientIbans: new Map(readClients(fresh.of(CLIENT_RECORDS)).facts.flatMap((client) => client.ibans.map((iban) => [iban, client.slug] as const))),
       },
     ),
-    ...startDayRefusals(change, fresh),
+    ...periodsRefusals(change, fresh, after),
   ],
 }
 

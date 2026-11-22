@@ -1,4 +1,4 @@
-import { BY_HAND } from '../../../../../shared/app/accountSource'
+import { BY_HAND_SOURCES } from '../../domain/investmentAccount'
 import { codecOfInvestmentsKind } from '../../application/investmentsCodecs'
 import type { CashMovement } from '../../domain/cashMovement'
 import type { CheckSetting } from '../../domain/checkSetting'
@@ -71,12 +71,12 @@ function fixedId(kind: RecordKind, place: number): RecordId {
 /** Carries the marker the production build looks for, so the made-up portfolio cannot ship unseen. */
 const FAKE_INVESTMENTS_NOTE = 'Made up for the fake build. FAKE-WORKBOOK-ONLY-DO-NOT-SHIP-INVESTMENTS'
 
-const BROKER_ONE: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 1), name: 'Broker One', note: FAKE_INVESTMENTS_NOTE, intake: BY_HAND }
-const BROKER_TWO: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 2), name: 'Broker Two', note: '', intake: BY_HAND }
+const BROKER_ONE: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 1), name: 'Broker One', note: FAKE_INVESTMENTS_NOTE, sources: BY_HAND_SOURCES }
+const BROKER_TWO: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 2), name: 'Broker Two', note: '', sources: BY_HAND_SOURCES }
 
 /** The first account as the mailed report fills it, from a month before the day. */
 function mailedBrokerOne(today: CivilDate): InvestmentAccount {
-  return { ...BROKER_ONE, intake: { rowsFrom: 'mail', startsOn: addDays(today, -30), alsoFrom: [] } }
+  return { ...BROKER_ONE, sources: [{ source: 'mail', from: addDays(today, -30) }] }
 }
 
 /** Made-up instruments, the three priced ones on the made-up series of the fake prices file. */

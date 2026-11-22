@@ -76,7 +76,12 @@ export const en = {
   /** What the categories editor says beside a field it cannot save. */
   fields: {
     required: 'Required',
-    aDay: 'A day, such as 1 Jan 2026',
+    period: {
+      'day-needed': "Each later source, and the bank's statement mail first, needs the day it starts on.",
+      'not-a-day': 'A day, such as 1 Jan 2026',
+      'after-earlier': 'Each source starts after the one above.',
+      'same-as-earlier': 'A source follows another source, not itself.',
+    },
     usedAbove: 'Already used above',
     keepsName: (name: string) => `${name} is in use, so it keeps its name`,
     slugFormat: 'Lower-case letters, digits and single hyphens',
@@ -134,6 +139,7 @@ export const en = {
     statementsMail: "Read the bank's statement mail",
     statementsMailFrom: 'The bank mails statements from',
     statementsMailSubject: 'Subject words',
+    statementsMailReadTo: 'Statement mail read up to',
     personPayees: 'Counterparties who are people',
     importProfile: (name: string) => `Import profile ${name}`,
     billing: { monthlyAmount: 'Monthly fee', subscriptionAmount: 'Monthly subscriptions', bonusAmount: 'Yearly bonus', client: 'Client the rows are for' },
@@ -207,7 +213,12 @@ export const hr: Translation<typeof en> = {
   },
   fields: {
     required: 'Obavezno',
-    aDay: 'Dan, na primjer 1. 1. 2026.',
+    period: {
+      'day-needed': 'Svaki sljedeći izvor, i pošta banke s izvodima na prvom mjestu, treba dan od kojega počinje.',
+      'not-a-day': 'Dan, na primjer 1. 1. 2026.',
+      'after-earlier': 'Svaki izvor počinje nakon onoga iznad.',
+      'same-as-earlier': 'Izvor slijedi drugi izvor, ne sebe.',
+    },
     usedAbove: 'Već se koristi iznad',
     keepsName: (name) => `„${name}” je u upotrebi, pa zadržava naziv`,
     slugFormat: 'Mala slova, znamenke i pojedinačne crtice',
@@ -262,6 +273,7 @@ export const hr: Translation<typeof en> = {
     statementsMail: 'Čitaj poštu banke s izvodima',
     statementsMailFrom: 'Banka šalje izvode s adresa',
     statementsMailSubject: 'Riječi u predmetu',
+    statementsMailReadTo: 'Pošta s izvodima pročitana do',
     personPayees: 'Druge strane koje su osobe',
     importProfile: (name) => `Profil učitavanja ${name}`,
     billing: { monthlyAmount: 'Mjesečna naknada', subscriptionAmount: 'Mjesečne pretplate', bonusAmount: 'Godišnji bonus', client: 'Klijent za kojeg su stavke' },

@@ -1,6 +1,6 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
-import { earliestStartDay } from '../../../../shared/app/accountSource'
+import { earliestFrom } from '../../../../shared/app/accountSource'
 import { civilDateIn, deviceTimeZone, startOfDayIn } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { currentToken } from '../../../../shared/google/googleAuth'
@@ -19,7 +19,7 @@ import { setSettings } from '../../settings/application/settingWrites'
 import { STATEMENTS_MAIL_KEY, flagText } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { statementMailReach } from '../../workbook/domain/accountIntakes'
+import { statementMailReach } from '../../workbook/domain/accountSources'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { readStatementMail } from '../application/statementMail'
 import type { KnownAttachment, StatementMailPlan } from '../application/statementMail'
@@ -56,7 +56,13 @@ function statementSearch(settings: Settings): MailSearch | null {
 /** Gmail read while the switch is on, a sender is named and some account takes the bank's statements, and nothing otherwise. Before the books are read it counts as needed. */
 function mailScopes(workbook: Workbook | null): GoogleScope[] {
   if (workbook === null) return [MAIL_SCOPE]
-  return statementSearch(workbook.settings) === null || earliestStartDay(workbook.accounts.map((account) => account.intake)) === null ? [] : [MAIL_SCOPE]
+  return statementSearch(workbook.settings) === null ||
+    earliestFrom(
+      workbook.accounts.map((account) => account.sources),
+      'mail',
+    ) === null
+    ? []
+    : [MAIL_SCOPE]
 }
 
 const MAIL_LABEL = words.step.label
@@ -83,8 +89,8 @@ export function useMailSync(): { readonly state: Readonly<MailSyncState> } {
 }
 
 /**
- * The mail step of a sync, which reads the bank's statement mail and files the statements the ledger lacks. It searches Gmail from a week before the oldest of the
- * newest statement days of the accounts the mail fills, reads each statement it finds, and files what is new in one write.
+ * The mail step of a sync, which reads the bank's statement mail and files the statements the ledger lacks. It searches Gmail from a week before the day the
+ * mail was last read up to, or before a run of days the mail fills that holds no statement yet, reads each statement it finds, and files what is new in one write.
  * Nothing is kept on Drive. Gmail still asking to slow down fails it with that alone. `writes` makes the stop that turns the mail off.
  */
 export function statementMailStep(writes: RecordWrites): SyncStep {
@@ -113,8 +119,11 @@ export function statementMailStep(writes: RecordWrites): SyncStep {
         return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
       }
       const search = statementSearch(workbook.settings)
-      const since = earliestStartDay(workbook.accounts.map((account) => account.intake))
-      const reach = statementMailReach(workbook.accounts, workbook.transactions, workbook.heldStatements)
+      const since = earliestFrom(
+        workbook.accounts.map((account) => account.sources),
+        'mail',
+      )
+      const reach = statementMailReach(workbook.accounts, workbook.transactions, workbook.heldStatements, workbook.settings.statementsMailReadTo)
       if (search === null || since === null || reach === null) {
         state.plan = null
         statements.forget()

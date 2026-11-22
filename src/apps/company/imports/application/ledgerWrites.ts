@@ -1,10 +1,10 @@
 import { addMoney, subtractMoney } from '../../../../shared/money/money'
 import { definedCategories, definedCategorySlugs } from '../../workbook/domain/categoriesReading'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, SETTING_RECORDS } from '../../workbook/domain/coreKinds'
-import { accountsWithIntakes, folderFiledOnSync } from '../../workbook/domain/accountIntakes'
+import { accountsWithSources, folderFiledOnSync } from '../../workbook/domain/accountSources'
 import { readAccounts } from '../../workbook/domain/accountsReading'
 import { isBankStatementRow } from '../../workbook/domain/rowOrigin'
-import { alsoFromOf, takesRowFrom } from '../../../../shared/app/accountSource'
+import { takesRowOn } from '../../../../shared/app/accountSource'
 import { changesOnly } from '../../workbook/domain/fieldEdits'
 import { readLedger } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
@@ -12,14 +12,14 @@ import { ID_FIELD } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
-import type { CompanyIntake, Transaction } from '../../workbook/domain/workbook'
+import type { CompanyPeriod, Transaction } from '../../workbook/domain/workbook'
 import type { FreshRecords, KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { words } from './words'
 
-/** How each account's rows come in, by its name, as the reader reads the accounts tab over the ledger before the write. */
-function intakesOfRecords(fresh: FreshRecords, ledger: readonly Transaction[]): ReadonlyMap<string, CompanyIntake> {
-  const accounts = accountsWithIntakes(readAccounts(fresh.of(ACCOUNT_RECORDS), null).facts, ledger, folderFiledOnSync(fresh.of(SETTING_RECORDS)))
-  return new Map(accounts.map((account) => [account.slug, account.intake]))
+/** Where each account's rows come from on which days, by its name, as the reader reads the accounts tab over the ledger before the write. */
+function sourcesOfRecords(fresh: FreshRecords, ledger: readonly Transaction[]): ReadonlyMap<string, readonly CompanyPeriod[]> {
+  const accounts = accountsWithSources(readAccounts(fresh.of(ACCOUNT_RECORDS), null).facts, ledger, folderFiledOnSync(fresh.of(SETTING_RECORDS)))
+  return new Map(accounts.map((account) => [account.slug, account.sources]))
 }
 
 /** Each account's newest row in booking order, as the readers take a closing balance. */
@@ -89,17 +89,17 @@ function removedRefusals(removedRows: ReadonlySet<RecordId | null>, before: read
 }
 
 /**
- * Each account an added row by hand would go on, a sheet's or a copied one, that the bank's statements fill. Such an account
- * takes no row by hand on any day, as `takesRowFrom` says. A camt row's origin the dry run checked, since only it knows whether
- * the statement came from the folder or from the person.
+ * Each account an added row by hand would go on, a sheet's or a copied one, on a day its periods do not keep by hand, as
+ * `takesRowOn` says. A camt row's origin the dry run checked, since only it knows whether the statement came from the mail or from the person.
  */
-function byHandRefusals(added: readonly StoredFields[], intakes: ReadonlyMap<string, CompanyIntake>): string[] {
+function byHandRefusals(added: readonly StoredFields[], sources: ReadonlyMap<string, readonly CompanyPeriod[]>): string[] {
   const refused = new Set(
     added.flatMap((fields) => {
       const account = slugOf(fields.account)
-      const intake = intakes.get(account)
+      const periods = sources.get(account)
+      const day = fields.date?.date ?? null
       const byHand = !isBankStatementRow({ statement: textOf(fields.statement), reference: textOf(fields.reference) })
-      return intake !== undefined && byHand && !takesRowFrom(intake.rowsFrom, alsoFromOf(intake), 'by-hand') ? [account] : []
+      return periods !== undefined && day !== null && byHand && !takesRowOn(periods, day, 'by-hand') ? [account] : []
     }),
   )
   return [...refused].map((account) => words.ledger.statementsFill(account))
@@ -149,10 +149,10 @@ export const LEDGER_WRITES: WriteRules<LedgerEntry> = {
     const added = change.edits.flatMap((edit) => (edit.before === null && edit.after !== null ? [edit.after.fields] : []))
     const removed = new Set(change.edits.flatMap((edit) => (edit.after === null && edit.before !== null ? [edit.before.id] : [])))
     const left = before.filter((row) => !removed.has(row.id))
-    const intakes = change.undoing ? new Map<string, CompanyIntake>() : intakesOfRecords(fresh, before)
+    const sources = change.undoing ? new Map<string, readonly CompanyPeriod[]>() : sourcesOfRecords(fresh, before)
     return [
       ...addedRefusals(added, left),
-      ...byHandRefusals(added, intakes),
+      ...byHandRefusals(added, sources),
       ...removedRefusals(removed, before),
       ...verdictRefusals(change, definedCategorySlugs(fresh.of(CATEGORY_RECORDS))),
       ...rowIdRefusals(change),

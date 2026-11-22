@@ -1,3 +1,5 @@
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { amountOf, moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { MoneyFormat } from '../../../../shared/money/moneyFormat'
@@ -64,6 +66,8 @@ export interface Settings {
   readonly statementsMailFrom: readonly string[]
   /** The phrase before the statement number in the subject of the bank's statement mail. Blank leaves the bank's mail unread. */
   readonly statementsMailSubject: string
+  /** The day of the newest statement mail a sync filed or held, which the next search starts a week before. Null until a sync files one. */
+  readonly statementsMailReadTo: CivilDate | null
   /** The counterparties the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
   readonly personPayees: readonly string[]
   /** The Google Drive folder travel orders are filed under, by year, as the app's folder picker sets it. Blank until one is picked. */
@@ -194,6 +198,7 @@ export const DEFAULT_SETTINGS: Settings = {
   statementsMail: true,
   statementsMailFrom: [],
   statementsMailSubject: '',
+  statementsMailReadTo: null,
   personPayees: [],
   tripFolderId: '',
 }
@@ -428,6 +433,9 @@ export const TRIP_FOLDER_KEY = 'trip_folder_id'
 /** The key of the switch that reads the bank's statement mail. A blank cell reads as on. */
 export const STATEMENTS_MAIL_KEY = 'statements_mail'
 
+/** The key of the day the bank's statement mail was last read up to. Only a sync sets it. */
+export const STATEMENTS_MAIL_READ_TO_KEY = 'statements_mail_read_to'
+
 /** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
 export const PERSON_PAYEES_KEY = 'person_payees'
 
@@ -553,6 +561,18 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     apply: (settings, value) => {
       const on = booleanOf(value)
       return on === null ? words.settings.notAFlag(value) : { ...settings, statementsMail: on }
+    },
+  },
+  {
+    key: STATEMENTS_MAIL_READ_TO_KEY,
+    label: words.settingLabels.statementsMailReadTo,
+    note: 'The day of the newest statement mail a sync filed or held, as a date cell. The next search starts a week before it. Leave it as Kuna wrote it.',
+    type: 'text',
+    valueOf: (settings) => settings.statementsMailReadTo ?? '',
+    apply: (settings, value) => {
+      const trimmed = value.trim()
+      const day = trimmed === '' ? null : parseCivilDate(trimmed)
+      return trimmed !== '' && day === null ? words.settings.notADay(value) : { ...settings, statementsMailReadTo: day }
     },
   },
   {

@@ -65,6 +65,12 @@ function withOpenAdvance(document: WorkbookDocument): WorkbookDocument {
   return { ...document, records: { ...records, 'hr-doo.owner-advance': [...(records['hr-doo.owner-advance'] ?? []), advance], rule: [rule, ...(records.rule ?? [])] } }
 }
 
+/** The books with the main account's rows from the bank's statement mail on every day from its first, so a sync files the mailed sample statement. */
+function withMailOnly(document: WorkbookDocument): WorkbookDocument {
+  const accounts = (document.records.account ?? []).map((account) => (account.account === 'main' ? { ...account, sources: String(account.sources).split(',')[0]!.trim() } : account))
+  return { ...document, records: { ...document.records, account: accounts } }
+}
+
 /** Each load of the fake build starts with the home welcome unanswered, unless the address says otherwise, so one check's answer does not reach the next. */
 function seedFakeStart(home: string | null): void {
   forgetKunaStart()
@@ -87,7 +93,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * in `no-billing-plan`, `no-scenarios`, `no-plan` or `no-ledger` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
  * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. Books on the fake Drive name the bank's mail, which the
- * fake mailbox answers, but for `?fake=mail-off`. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
+ * fake mailbox answers, but for `?fake=mail-off`. The main account takes the bank's camt file from the day after its newest row, but in a variant that starts with `mail` and in `held-statement`, where the mail fills it on every day from its first. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, one that ends
@@ -124,7 +130,8 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
   const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : variant?.endsWith('refused-splits') ? withRefusedSplits(planned) : planned
   const kept = missing === null ? unlinked : { ...unlinked, records: { ...unlinked.records, [missing]: [] } }
-  const mailed = source === 'drive' && variant !== 'mail-off' ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : kept
+  const mailOnly = variant?.startsWith('mail') === true || variant === 'held-statement' ? withMailOnly(kept) : kept
+  const mailed = source === 'drive' && variant !== 'mail-off' ? { ...mailOnly, records: { ...mailOnly.records, setting: [...(mailOnly.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : mailOnly
   const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {
     raceTheNextSave(otherDeviceSave)

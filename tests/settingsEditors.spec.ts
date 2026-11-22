@@ -41,7 +41,7 @@ function made<R>(drafts: readonly RecordDraft[], columns: readonly DraftColumn[]
 }
 
 function account(name: string, overrides: Partial<AccountDraft> = {}): AccountDraft {
-  return { saved: 0, savedName: name, account: name, label: '', iban: '', currency: '', rowsFrom: 'by-hand', startsOn: '', takesCamtFile: false, ...overrides }
+  return { saved: 0, savedName: name, account: name, label: '', iban: '', currency: '', periods: [{ source: 'by-hand', from: '' }], ...overrides }
 }
 
 /** The roles core and the installed pack pick categories by. */

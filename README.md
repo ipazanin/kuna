@@ -176,14 +176,13 @@ the bank's statements it searches nothing, asks for no Gmail access, and its lin
 to Settings, Accounts. It asks for `gmail.readonly` alone. The books' own `drive.file` covers the
 write.
 
-**The window.** For each account the bank's statements fill, the step takes the day of its newest row
-from a bank statement on or after its start day, or the start day when it has none. Its search starts
-7 days before the oldest of those days, or of the day the mail of a held statement came while it waits,
-and never before the earliest start day of those accounts
-(`statementMailReach` in `src/apps/company/workbook/domain/accountIntakes.ts`). Taking the oldest
-keeps a statement held for an account that waits to start inside the search until it is filed. An
-account with no movements for weeks keeps an old newest row, so each sync reads every statement mail
-since then. A page keeps what it read of each attachment by mail and name, so a sync on a timer
+**The window.** The search starts 7 days before the day of the newest statement mail a sync filed or held,
+which the books keep in the `statements_mail_read_to` setting, or before the first such sync the newest
+day of a statement row on a day the mail fills. A run of days the mail fills that holds no statement
+row yet, such as a new account's or one whose start moved earlier, reaches back to its first day, and
+so does the mail of a held statement while it waits. It never starts before the earliest day the mail
+fills an account (`statementMailReach` in `src/apps/company/workbook/domain/accountSources.ts`). An
+account with no movements for weeks no longer holds the search back. A page keeps what it read of each attachment by mail and name, so a sync on a timer
 downloads each one once. The search is `from:(a OR b) subject:"…" has:attachment after:<epoch seconds>`,
 read page by page, since Gmail reads a date in a search as midnight in California. Gmail searches
 mail, not threads, so a reply from another sender in the bank's thread is not read. Gmail's
@@ -198,9 +197,9 @@ every row on the ledger and adds nothing.
 
 **Filing.** One dry run takes every statement read, against the ledger just read, and one write adds
 every statement it accepts, with no refusal and no account to start, through `LEDGER_WRITES`: the
-same path, the same checks and the same Undo as Import. Only an account the bank's statements fill
-takes them, from its start day. A statement it refuses, such as one of an account kept by hand, one
-before that day, one that waits for its account to start or one whose IBAN no account has, is held.
+same path, the same checks and the same Undo as Import. Only the days an account's periods give the
+mail take them. A statement it refuses, such as one on days kept by hand or given to the camt file, one
+before the account's first period, one that waits for its account to start or one whose IBAN no account has, is held.
 The dry run leaves the account where it was, so nothing after a held statement is filed for that
 account, and other accounts still are. When the write is refused, such as for rows another device's
 sync filed since the read, the step reads the file again and runs the dry run once more. A second
@@ -240,8 +239,8 @@ makes the step wait for you, and otherwise to the Mail card of Settings, General
 that files nothing says "Nothing new" and adds nothing to "Changes in this session". No toast says
 any of it. Overview then says how many statements were not filed and links to Import, which shows
 each one. A save Google turns away still reads the file again, and the line says "Not filed. Sync
-again." The Mail card says where the search started, the start day or a week before the newest
-statement of the account furthest behind, and lists each attachment: read with its statement, not
+again." The Mail card says where the search started, the first day the mail fills or a week before the day
+the mail must still reach back to, and lists each attachment: read with its statement, not
 read with why, or passed over. A step that stopped before it had a list leaves its reason on the
 card instead. After Google turned the access away the card says the last sync stopped before it
 finished with the mail and that the sync control says what it needs, since only the control asks
@@ -1774,14 +1773,14 @@ The company's Settings at `#/company/settings` holds how its books are set up an
 figures, one tab each. Core gives General, Categories, Category rules and Accounts, the pack adds Tax rules, and Books
 file holds the Company books card. The period filters stay out of its address.
 
-| Tab            | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| General        | The settings tab as four cards: the workbook (name, currency, number locale, review label, card settlement IBANs and the owner-pay module) open, then the mail (the bank's senders and subject, the accounts its statements fill from their start day, and what the last mail step found), the company and owner facts, and the bucket labels, collapsed, with one Save under them, which writes only what changed. Then the loan switch and the rows the app could not use, which opens itself while there are any |
-| Categories     | The categories tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Category rules | The rules tab, tried from the top, where `?rule=` marks a rule and opens its card, and "Confirmed rows no rule repeats", collapsed, over the whole ledger. Each group there can be made a rule or dismissed. A dismissal is a row on the `dismissed` tab, so the group stays hidden as new rows join it, and "Dismissed suggestions (N)" lists each one with Restore, which deletes its row. Both write through the record path with Undo                                                                           |
-| Accounts       | The accounts tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Tax rules      | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as _Ruleset_ describes                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Books file     | Company books, where the company's books are kept, with export, import, the move to Drive and the switch                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Tab            | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| General        | The settings tab as four cards: the workbook (name, currency, number locale, review label, card settlement IBANs and the owner-pay module) open, then the mail (the bank's senders and subject, the accounts its statements fill, each from the day its mail period starts, and what the last mail step found), the company and owner facts, and the bucket labels, collapsed, with one Save under them, which writes only what changed. Then the loan switch and the rows the app could not use, which opens itself while there are any |
+| Categories     | The categories tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Category rules | The rules tab, tried from the top, where `?rule=` marks a rule and opens its card, and "Confirmed rows no rule repeats", collapsed, over the whole ledger. Each group there can be made a rule or dismissed. A dismissal is a row on the `dismissed` tab, so the group stays hidden as new rows join it, and "Dismissed suggestions (N)" lists each one with Restore, which deletes its row. Both write through the record path with Undo                                                                                                |
+| Accounts       | The accounts tab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Tax rules      | The law the d.o.o. pack computes with, while `owner_pay_module` is on, as _Ruleset_ describes                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Books file     | Company books, where the company's books are kept, with export, import, the move to Drive and the switch                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 Without a workbook on screen only Books file is there. A card with a field in error opens. A link
 that names a fact by its field, such as `#/company/settings#owner-loan-interest` or
