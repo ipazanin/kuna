@@ -7,7 +7,9 @@ import { fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeW
 
 /**
  * The fake build's Gmail for the bank's statement mail. The bank mails from an example.com address, and every subject and file
- * name copies the shape of a real one with made-up names. `?fake=mail-nothing-new` keeps only mail the books already hold,
+ * name copies the shape of a real one with made-up names. Only a variant that starts with `mail` and `?fake=held-statement` get
+ * mail the books lack. Elsewhere the mail lapsed after the main account's newest row, which takes the bank's camt file from then.
+ * `?fake=mail-nothing-new` keeps only mail the books already hold,
  * `?fake=held-statement` adds the first statement of an account the accounts tab lacks, `?fake=slow-statements` takes three
  * seconds to search, `?fake=mail-failed` fails the search and `?fake=mail-rate-limited` answers it as Gmail still asking to slow down.
  */
@@ -21,6 +23,11 @@ export const FAKE_MAIL_SETTINGS: readonly { readonly key: string; readonly value
   { key: 'statements_mail_from', value: BANK },
   { key: 'statements_mail_subject', value: SUBJECT },
 ]
+
+/** Whether the bank still mails statements the books lack in a variant, so the main account takes the mail on every day from its first. */
+export function bankStillMails(variant: string | null): boolean {
+  return variant?.startsWith('mail') === true || variant === 'held-statement'
+}
 
 /** An IBAN no account of the fake workbook holds, so its statement waits for the person to add the account. */
 const UNKNOWN_ACCOUNT_IBAN = 'XX43FAKE0000000000000003'
@@ -39,8 +46,15 @@ function bankFileName(day: string, extension: string): string {
   return `IZV_${day.replaceAll('-', '_')} 06_00_00_000_001.${extension}`
 }
 
-/** The bank's mail: the sample statement mailed twice, a newer statement's PDF beside its HTML copy, an older PDF and a notice that is no statement. */
+/**
+ * The bank's mail: the sample statement mailed twice, a newer statement's PDF beside its HTML copy, an older PDF and a notice that
+ * is no statement. Where the mail lapsed, only the older PDF and the notice are left.
+ */
 export function fakeMails(variant: string | null): FakeMail[] {
+  return bankMails(variant).filter((mail) => mail.filed || bankStillMails(variant))
+}
+
+function bankMails(variant: string | null): FakeMail[] {
   const sample = sampleCamtLabel()
   const sampleDay = sample.slice(0, 10)
   const sampleNumber = sample.slice(-3)

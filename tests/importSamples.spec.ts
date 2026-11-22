@@ -65,8 +65,8 @@ async function readFakeMail(variant: string | null) {
 }
 
 describe('the fake build’s bank mail', () => {
-  it('mails the sample camt statement twice, which reads once and carries main on with four rows where the mail fills it, beside PDFs passed over and a notice that is no statement', async () => {
-    const plan = await readFakeMail(null)
+  it('mails the sample camt statement twice under ?fake=mail, which reads once and carries main on with four rows where the mail fills it, beside PDFs passed over and a notice that is no statement', async () => {
+    const plan = await readFakeMail('mail')
     // The mail variants keep main's mail period alone, as the default books give its days after the newest row to its camt file.
     const mailOnly = {
       ...FAKE_BOOKS,
@@ -87,6 +87,13 @@ describe('the fake build’s bank mail', () => {
       { statement: { label: sampleCamtLabel() } },
       { statement: { account: '', label: sampleCamtLabel(1) }, newAccount: { iban: 'XX43FAKE0000000000000003', currency: 'EUR' } },
     ])
+  })
+
+  it('keeps, in the default books whose main account takes the camt file after its newest row, only mail whose statements the books already hold', async () => {
+    const plan = await readFakeMail(null)
+
+    expect(plan.readings).toEqual([])
+    expect(plan.entries.map((entry) => entry.kind).sort()).toEqual(['not-read', 'passed-over'])
   })
 
   it('keeps, under ?fake=mail-nothing-new, only mail whose statements the books already hold', async () => {

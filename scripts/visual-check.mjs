@@ -7984,7 +7984,7 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: language === 'en' ? '&fake=open-advance' : '&fake=open-advance&lang=hr' },
   })),
-  { name: 'statements-sync', hash: '#/company', title: 'Overview', run: statementSyncFlow, modes: ['drive'] },
+  { name: 'statements-sync', hash: '#/company', title: 'Overview', run: statementSyncFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
   { name: 'statements-held', hash: '#/company', title: 'Overview', run: heldStatementFlow, modes: ['drive'], queries: { drive: '&fake=held-statement' } },
   {
     name: 'statements-held-croatian',
@@ -8121,7 +8121,7 @@ const FLOWS = [
   { name: 'net-worth-twin-debts', hash: '#/overview', title: 'Net worth', run: twinDebtSlicesFlow, viewports: ['desktop'], modes: ['drive'], queries: { drive: '&loans=twin-names' } },
   { name: 'sync-access-closed', hash: '#/company', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
   ...[
-    { name: 'statements-sync-croatian', variant: '' },
+    { name: 'statements-sync-croatian', variant: '&fake=mail' },
     { name: 'statements-access-croatian', variant: '', stored: { 'kuna.google-granted': JSON.stringify(['drive.file', 'gmail.compose']) } },
     { name: 'sync-running-croatian', variant: '&fake=slow-statements' },
     { name: 'mail-off-croatian', variant: '&fake=mail-off', stored: { 'kuna.google-granted': null, 'kuna.google-needed': null } },

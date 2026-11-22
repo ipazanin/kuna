@@ -9,7 +9,7 @@ import { createDriveDocument, documentName } from '../../../../../shared/storage
 import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, seedFakeBackups, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
-import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
+import { FAKE_MAIL_SETTINGS, bankStillMails } from '../../../mail/infrastructure/fake/fakeMailbox'
 import {
   FAKE_WORKBOOK_ID,
   categoryMovePlanRecords,
@@ -93,7 +93,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * in `no-billing-plan`, `no-scenarios`, `no-plan` or `no-ledger` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
  * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. Books on the fake Drive name the bank's mail, which the
- * fake mailbox answers, but for `?fake=mail-off`. The main account takes the bank's camt file from the day after its newest row, but in a variant that starts with `mail` and in `held-statement`, where the mail fills it on every day from its first. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
+ * fake mailbox answers, but for `?fake=mail-off`. The main account takes the bank's camt file from the day after its newest row, but in a variant where the bank still mails statements the books lack, where the mail fills it on every day from its first. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, one that ends
@@ -130,7 +130,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
   const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : variant?.endsWith('refused-splits') ? withRefusedSplits(planned) : planned
   const kept = missing === null ? unlinked : { ...unlinked, records: { ...unlinked.records, [missing]: [] } }
-  const mailOnly = variant?.startsWith('mail') === true || variant === 'held-statement' ? withMailOnly(kept) : kept
+  const mailOnly = bankStillMails(variant) ? withMailOnly(kept) : kept
   const mailed = source === 'drive' && variant !== 'mail-off' ? { ...mailOnly, records: { ...mailOnly.records, setting: [...(mailOnly.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : mailOnly
   const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {
