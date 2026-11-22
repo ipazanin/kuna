@@ -88,6 +88,7 @@ import { linkedAccountEnding } from '../../src/apps/spending/bankSync/domain/ban
 import { UNKNOWN_IBAN } from '../../src/shared/bank-sync/infrastructure/fake/fakeBankSync.ts'
 import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
 import { en as bankScriptEnglish, hr as bankScriptCroatian } from '../../src/shared/bank-sync/infrastructure/words.ts'
+import { en as bankSyncSharedEnglish, hr as bankSyncSharedCroatian } from '../../src/shared/bank-sync/presentation/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
 import { en as spendingLabelsEnglish, hr as spendingLabelsCroatian } from '../../src/apps/spending/labels/presentation/words.ts'
 import { en as companyLabelsEnglish, hr as companyLabelsCroatian } from '../../src/apps/company/labels/presentation/words.ts'
@@ -237,6 +238,7 @@ const SCREEN_WORDS = {
     spendingBankSync: spendingBankSyncEnglish,
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
     bankScript: bankScriptEnglish,
+    bankSyncShared: bankSyncSharedEnglish,
     spendingBudgets: spendingBudgetsEnglish,
     spendingLabels: spendingLabelsEnglish,
     companyLabels: companyLabelsEnglish,
@@ -329,6 +331,7 @@ const SCREEN_WORDS = {
     spendingBankSync: spendingBankSyncCroatian,
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
     bankScript: bankScriptCroatian,
+    bankSyncShared: bankSyncSharedCroatian,
     spendingBudgets: spendingBudgetsCroatian,
     spendingLabels: spendingLabelsCroatian,
     companyLabels: companyLabelsCroatian,
@@ -7551,7 +7554,7 @@ async function bankSyncSettled(page, press, selector) {
  */
 export function spendingBankSyncFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const bank = words.spendingBankSync
+  const bank = { ...words.spendingBankSync, ...words.bankSyncShared }
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await page.waitForSelector('[data-testid="spending-bank-sync-setup"] [data-step="start"]', { visible: true, timeout: 10_000 })
@@ -7623,7 +7626,7 @@ export function spendingBankSyncFlowIn(language) {
  */
 export function spendingBankSyncNotListedFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const bank = words.spendingBankSync
+  const bank = { ...words.spendingBankSync, ...words.bankSyncShared }
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await pressSelector(page, press, '[data-testid="spending-bank-link-add"]')
@@ -7729,7 +7732,7 @@ export function spendingBankSyncRowsFlowIn(language) {
  */
 export function spendingBankSyncHeldNoteFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const bank = words.spendingBankSync
+  const bank = { ...words.spendingBankSync, ...words.bankSyncShared }
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const literally = (text) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -7995,7 +7998,7 @@ export function spendingBankSyncFailedFlowIn(language) {
  */
 export function spendingBankApplicationFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const bank = words.spendingBankSync
+  const bank = { ...words.spendingBankSync, ...words.bankSyncShared }
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await page.waitForSelector('[data-testid="spending-bank-application-check"]', { visible: true, timeout: 10_000 })
