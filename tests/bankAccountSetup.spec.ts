@@ -17,8 +17,8 @@ import {
   withOlderHistory,
 } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import type { AccountProposal, LinkedOfBank } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
-import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
-import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
+import type { BankTransaction, LinkedAccount } from '../src/shared/bank-sync/domain/bankAnswer'
+import { fakeBankSync } from '../src/shared/bank-sync/infrastructure/fake/fakeBankSync'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { BankLink } from '../src/apps/spending/bankSync/domain/bankLink'
-import { endingLinks, hasDueLink, hasLiveLink, heldLinks } from '../src/apps/spending/bankSync/domain/bankLinks'
+import type { BankLink } from '../src/shared/bank-sync/domain/bankLink'
+import { hasDueLink, hasLiveLink } from '../src/apps/spending/bankSync/domain/bankLinks'
+import { endingLinks, heldLinks } from '../src/shared/bank-sync/domain/bankLinkDays'
 import type { LinkedBook } from '../src/apps/spending/bankSync/domain/bankLinks'
 import { bankLinkLines } from '../src/apps/spending/bankSync/presentation/bankLinkLines'
 import { bankLinkId } from '../src/apps/spending/workbook/domain/bankLinkReading'

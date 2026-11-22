@@ -1,4 +1,4 @@
-import { BANK_SYNC_SCOPE } from '../../bankSync/presentation/bankSyncPort'
+import { BANK_SYNC_SCOPE } from '../../../../shared/bank-sync/application/pageBankSync'
 import { BANK_SYNC_STEP } from '../../bankSync/presentation/bankSyncStep'
 import { SPENDING_SETTINGS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { ratesNeeded } from '../../rates/domain/ratesNeeded'

@@ -1,5 +1,5 @@
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { CivilDate } from '../../calendar/civilDate'
+import type { RecordId } from '../../storage/domain/recordId'
 
 /** Whose login a link is made with at the bank, as Enable Banking's `psu_type`. Spending links personal logins only. */
 export const BANK_USAGES = ['personal', 'business'] as const

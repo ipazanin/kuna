@@ -349,7 +349,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/bankSync/application/bankSetupWrites.ts#keepOutOfKuna',
       'src/apps/spending/bankSync/application/bankSetupWrites.ts#takeBankDetails',
       'src/apps/spending/bankSync/application/bankSync.ts#bankImporter',
-      'src/apps/spending/bankSync/infrastructure/bankBrowserState.ts#saveLastFetch',
+      'src/apps/spending/bankSync/infrastructure/lastFetch.ts#saveLastFetch',
       'src/shell/sync/keepPageSynced.ts#keepPageSynced',
     ],
   },

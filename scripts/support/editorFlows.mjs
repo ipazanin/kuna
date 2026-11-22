@@ -83,8 +83,9 @@ import { en as spendingFileReadingEnglish, hr as spendingFileReadingCroatian } f
 import { en as spendingAccountsEnglish, hr as spendingAccountsCroatian } from '../../src/apps/spending/accounts/presentation/words.ts'
 import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
 import { linkedAccountEnding } from '../../src/apps/spending/bankSync/domain/bankAccountSetup.ts'
-import { UNKNOWN_IBAN } from '../../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync.ts'
+import { UNKNOWN_IBAN } from '../../src/shared/bank-sync/infrastructure/fake/fakeBankSync.ts'
 import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
+import { en as bankScriptEnglish, hr as bankScriptCroatian } from '../../src/shared/bank-sync/infrastructure/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
 import { en as spendingLabelsEnglish, hr as spendingLabelsCroatian } from '../../src/apps/spending/labels/presentation/words.ts'
 import { en as companyLabelsEnglish, hr as companyLabelsCroatian } from '../../src/apps/company/labels/presentation/words.ts'
@@ -233,6 +234,7 @@ const SCREEN_WORDS = {
     spendingAccounts: spendingAccountsEnglish,
     spendingBankSync: spendingBankSyncEnglish,
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
+    bankScript: bankScriptEnglish,
     spendingBudgets: spendingBudgetsEnglish,
     spendingLabels: spendingLabelsEnglish,
     companyLabels: companyLabelsEnglish,
@@ -324,6 +326,7 @@ const SCREEN_WORDS = {
     spendingAccounts: spendingAccountsCroatian,
     spendingBankSync: spendingBankSyncCroatian,
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
+    bankScript: bankScriptCroatian,
     spendingBudgets: spendingBudgetsCroatian,
     spendingLabels: spendingLabelsCroatian,
     companyLabels: companyLabelsCroatian,
@@ -7964,7 +7967,7 @@ export function spendingBankSyncFailedFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-failed"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-failed"]', words.spendingBankSyncReading.didNotAnswer(''))
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-failed"]', words.bankScript.didNotAnswer(''))
     await delay(300)
     await inspect?.('the bank sync when the script fails')
     await shoot('spending-bank-sync-failed')

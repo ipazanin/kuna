@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import type { BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
+import type { BankTransaction } from '../src/shared/bank-sync/domain/bankAnswer'
 import { bankSyncRows, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
-import { fakeBankTransactions } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
+import { fakeBankTransactions } from '../src/shared/bank-sync/infrastructure/fake/fakeBankSync'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
 import { decimalOfText } from '../src/shared/money/decimal'
 import { ACCOUNTS, OTP, REVOLUT_EUR, REVOLUT_USD } from './fixtures/spending'

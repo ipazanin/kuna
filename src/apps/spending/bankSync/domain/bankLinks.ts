@@ -1,18 +1,19 @@
-import { NO_SINGLE_CURRENCY } from './bankAnswer'
-import type { LinkedAccount } from './bankAnswer'
-import { sameLink } from './bankLink'
-import type { BankLink } from './bankLink'
 import { isBankSyncKey } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import { bankSyncSetUp } from '../../workbook/domain/spendingSettings'
 import type { SpendingSettings } from '../../workbook/domain/spendingSettings'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { NO_SINGLE_CURRENCY } from '../../../../shared/bank-sync/domain/bankAnswer'
+import type { LinkedAccount } from '../../../../shared/bank-sync/domain/bankAnswer'
+import { sameLink } from '../../../../shared/bank-sync/domain/bankLink'
+import type { BankLink, BankUsage } from '../../../../shared/bank-sync/domain/bankLink'
+import { heldLinks, liveLinks } from '../../../../shared/bank-sync/domain/bankLinkDays'
 import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 
-/** How long before a link runs out the home card starts to say so. */
-const ENDING_DAYS = 14
+/** Whose logins Spending links and reads. */
+export const BANK_USAGE: BankUsage = 'personal'
 
 /** How far back of the newest statement row a fetch looks, since a bank may book a row under an earlier day. */
 const OVERLAP_DAYS = 14
@@ -20,39 +21,15 @@ const OVERLAP_DAYS = 14
 /** The FAQ says many banks restrict transactions to the past 90 days. */
 const PERIOD_A_BANK_GIVES_DAYS = 89
 
-/** How often the step asks a bank by itself. Enable Banking says many banks allow four background fetches a day and says to retry after six hours. */
-const FETCH_INTERVAL_MS = 6 * 3_600_000
-
 /** What the bank sync reads of the book besides its accounts and rows. */
 export interface LinkedBook {
   readonly settings: Pick<SpendingSettings, 'bankSyncApplication'>
   readonly bankLinks: readonly BankLink[]
 }
 
-export interface EndingLink {
-  readonly link: BankLink
-  /** True once the day has passed, so the link no longer reads. */
-  readonly ended: boolean
-}
-
-/** Each link that runs out within 14 days or already has. */
-export function endingLinks(links: readonly BankLink[], day: CivilDate): readonly EndingLink[] {
-  return links.flatMap((link) => (daysBetween(day, link.endsOn) > ENDING_DAYS ? [] : [{ link, ended: link.endsOn < day }]))
-}
-
-/** The links still good on the day. */
-export function liveLinks(links: readonly BankLink[], day: CivilDate): readonly BankLink[] {
-  return links.filter((link) => link.endsOn >= day)
-}
-
 /** Whether a sync has anything to ask: an application set up and a link still good on the day. */
 export function hasLiveLink(book: LinkedBook, day: CivilDate): boolean {
   return bankSyncSetUp(book.settings) && liveLinks(book.bankLinks, day).length > 0
-}
-
-/** The links any device sharing the file asked within the last six hours, which the step leaves alone. */
-export function heldLinks(links: readonly BankLink[], now: number): readonly BankLink[] {
-  return links.filter((link) => link.fetchedAt !== null && now - link.fetchedAt < FETCH_INTERVAL_MS)
 }
 
 /** Whether the step has a bank to ask by itself: a live link that no device asked within the last six hours. */

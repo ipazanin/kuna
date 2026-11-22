@@ -18,8 +18,8 @@ import type { Payee } from './payee'
 import type { SpendingEvent } from './event'
 import type { Receipt } from './receipt'
 import { OLD_LINK_SETTING_KEYS, bankLinksOf, oldLinkEndKey, oldLinksCount } from './bankLinkReading'
-import { OLD_BANK_KEYS } from '../../bankSync/domain/bankLink'
-import type { BankLink } from '../../bankSync/domain/bankLink'
+import { OLD_BANK_KEYS } from '../../../../shared/bank-sync/domain/bankLink'
+import type { BankLink } from '../../../../shared/bank-sync/domain/bankLink'
 import { readReceipts } from './receiptReading'
 import {
   ACCOUNT_RECORDS,

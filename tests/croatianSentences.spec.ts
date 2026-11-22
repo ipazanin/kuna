@@ -853,6 +853,9 @@ describe('the closing full stop of a note in Croatian', () => {
     ['what a reader left out or noticed', () => import('../src/apps/spending/statements/presentation/readingWords')],
     ['the bank sync', () => import('../src/apps/spending/bankSync/domain/words')],
     ['the bank sync card', () => import('../src/apps/spending/bankSync/presentation/words')],
+    ['the shared bank sync script', () => import('../src/shared/bank-sync/infrastructure/words')],
+    ['the shared bank sync page', () => import('../src/shared/bank-sync/application/words')],
+    ['the shared bank sync cards', () => import('../src/shared/bank-sync/presentation/words')],
   ] as const)('ends %s as English ends them, a day label in Croatian closing the sentence with its own stop', async (_name, load) => {
     const { dayLabel: englishDay } = await import('../src/shared/calendar/dayLabel')
     const { dayLabel: croatianDay } = await inCroatian(() => import('../src/shared/calendar/dayLabel'))

@@ -1,12 +1,11 @@
-import { bankRedirectUrl } from '../bankBrowserState'
-import { BankScriptFailure } from '../../application/bankSync'
-import type { BankSyncPort } from '../../application/bankSync'
+import { bankRedirectUrl } from '../../application/pageBankSync'
+import { BankScriptFailure } from '../../application/bankSyncPort'
+import type { BankSyncPort } from '../../application/bankSyncPort'
 import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../../domain/bankAnswer'
 import type { ListedBank } from '../../domain/bankLink'
-import { words } from '../../domain/words'
-import { addDays } from '../../../../../shared/calendar/civilDate'
-import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
-import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { words } from '../words'
+import { addDays, parseCivilDate, today } from '../../../calendar/civilDate'
+import type { CivilDate } from '../../../calendar/civilDate'
 
 const OTP_UID = 'fake-otp-account'
 const REVOLUT_UID = 'fake-revolut-account'
@@ -231,7 +230,9 @@ export function fakeBankSync(variant: string | null, day: CivilDate): BankSyncPo
   }
 }
 
-/** The fake sync this address names with `?banksync=`, dating its rows from the same day as the fake file. */
+/** The fake sync this address names with `?banksync=`, dating its rows from the day `?day=` names, as the fake books do, so a check that runs past midnight still sees them line up. */
 export function fakeBankSyncHere(): BankSyncPort {
-  return fakeBankSync(new URLSearchParams(window.location.search).get('banksync'), fakeSpendingDayHere())
+  const query = new URLSearchParams(window.location.search)
+  const day = query.get('day')
+  return fakeBankSync(query.get('banksync'), (day === null ? null : parseCivilDate(day)) ?? today())
 }

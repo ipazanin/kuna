@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { BankScriptFailure } from '../src/apps/spending/bankSync/application/bankSync'
-import type { KeptSession } from '../src/apps/spending/bankSync/application/bankSecrets'
-import { appsScriptBankSync } from '../src/apps/spending/bankSync/infrastructure/appsScriptBankSync'
+import { BankScriptFailure } from '../src/shared/bank-sync/application/bankSyncPort'
+import type { KeptSession } from '../src/shared/bank-sync/application/bankSecrets'
+import { appsScriptBankSync } from '../src/shared/bank-sync/infrastructure/appsScriptBankSync'
 import { words as googleWords } from '../src/shared/google/words'
 import { hangingFetch } from './fixtures/hangingFetch'
 import { civil } from './fixtures/ledger'

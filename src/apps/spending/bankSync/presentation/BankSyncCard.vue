@@ -4,14 +4,18 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { BankSyncOutcome } from '../application/bankSync'
-import { loadPendingLink } from '../infrastructure/bankBrowserState'
+import { loadPendingLink } from '../../../../shared/bank-sync/infrastructure/bankBrowserState'
 import { notedBankReturn } from './bankReturnOnOpen'
 import BankAccountsSetup from './BankAccountsSetup.vue'
 import BankApplicationPanel from './BankApplicationPanel.vue'
 import BankFieldsCard from './BankFieldsCard.vue'
-import BankLinkDialog from './BankLinkDialog.vue'
-import BankSyncSetup from './BankSyncSetup.vue'
-import { BANK_SYNC_SCOPE, BANK_USAGE, bankSyncBuiltIn } from './bankSyncPort'
+import BankLinkDialog from '../../../../shared/bank-sync/presentation/BankLinkDialog.vue'
+import BankSyncSetup from '../../../../shared/bank-sync/presentation/BankSyncSetup.vue'
+import { BANK_SYNC_SCOPE, bankSyncBuiltIn } from '../../../../shared/bank-sync/application/pageBankSync'
+import { words as bankScriptWords } from '../../../../shared/bank-sync/application/words'
+import { words as bankWords } from '../../../../shared/bank-sync/presentation/words'
+import { BANK_USAGE } from '../domain/bankLinks'
+import { useSpendingBankHost } from './spendingBankHost'
 import { heldBankSetup, useBankSync } from './useBankSync'
 import { words } from './words'
 import { useHeldRows } from './useHeldRows'
@@ -39,6 +43,7 @@ import NoteLine from '../../../../shared/ui/NoteLine.vue'
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 const sync = useBankSync()
+const host = useSpendingBankHost()
 const builtIn = bankSyncBuiltIn()
 
 /** The rows this fetch put on hold, asked about here as on To review. */
@@ -122,10 +127,10 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <BankSyncSetup v-if="builtIn && walking" @holding="finishing = true" @done="finishing = false" />
+    <BankSyncSetup v-if="builtIn && walking" :host="host" @holding="finishing = true" @done="finishing = false" />
     <AppCard v-else :title="words.title" :subtitle="words.subtitle" data-testid="spending-bank-sync">
       <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
-        <NoteLine v-if="!builtIn" tone="info" size="body" data-testid="spending-bank-sync-no-script">{{ words.noScript }}</NoteLine>
+        <NoteLine v-if="!builtIn" tone="info" size="body" data-testid="spending-bank-sync-no-script">{{ bankScriptWords.noScript }}</NoteLine>
         <BankApplicationPanel v-else :application-id="settings?.bankSyncApplication ?? ''" />
         <UAlert v-if="returnLine !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="returnLine" data-testid="spending-bank-sync-return" />
         <UAlert v-if="sync.failure.value !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="sync.failure.value" data-testid="spending-bank-sync-failed" />
@@ -178,7 +183,7 @@ onMounted(() => {
       changes
     >
       <template #end>
-        <UButton :label="words.key.cancel" color="neutral" variant="ghost" :disabled="sync.removing.value !== null" @click="confirmingRemoval = null" />
+        <UButton :label="bankWords.key.cancel" color="neutral" variant="ghost" :disabled="sync.removing.value !== null" @click="confirmingRemoval = null" />
         <UButton
           :label="words.removeLink"
           icon="i-lucide-unlink"
@@ -190,7 +195,7 @@ onMounted(() => {
         />
       </template>
     </AppDialog>
-    <BankLinkDialog v-if="builtIn && saved" v-model:open="picking" :links="links" />
+    <BankLinkDialog v-if="builtIn && saved" v-model:open="picking" :links="links" :linking="sync" :host="host" />
     <BankFieldsCard v-if="builtIn && saved && links.length > 0" :application-id="settings?.bankSyncApplication ?? ''" />
     <BankAccountsSetup v-if="setup !== null && setup.linked.length > 0" :outcome="setup" />
     <AppCard v-if="sync.lastOutcome.value !== null" :title="words.lastSync" data-testid="spending-bank-sync-result">

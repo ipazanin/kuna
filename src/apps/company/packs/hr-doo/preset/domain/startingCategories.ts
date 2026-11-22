@@ -68,6 +68,7 @@ const FAMILIES: readonly Family[] = [
       ['payroll-tax', [PACK_ROLES.deductibleCost, PACK_ROLES.ownerPayTax, PACK_ROLES.arrears]],
       ['dividend-tax', [PACK_ROLES.profitDistribution, PACK_ROLES.ownerPayTax]],
       ['local-fees', [PACK_ROLES.deductibleCost]],
+      ['late-payment-interest', [PACK_ROLES.deductibleCost]],
     ],
   },
   {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { bankKeyId, bankSessionId, forgetBankSecrets, forgetSession, keepKey, keepSession, keyOf, sessionsOf } from '../src/apps/spending/bankSync/application/bankSecrets'
-import type { BankSecretStore } from '../src/apps/spending/bankSync/application/bankSecrets'
+import { bankKeyId, bankSessionId, forgetBankSecrets, forgetSession, keepKey, keepSession, keyOf, sessionsOf } from '../src/shared/bank-sync/application/bankSecrets'
+import type { BankSecretStore } from '../src/shared/bank-sync/application/bankSecrets'
 
 function storeOver(first: Record<string, string> = {}): BankSecretStore & { readonly kept: Map<string, string> } {
   const kept = new Map(Object.entries(first))

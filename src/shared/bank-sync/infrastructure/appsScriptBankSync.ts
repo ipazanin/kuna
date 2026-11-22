@@ -1,11 +1,11 @@
-import { BankScriptFailure } from '../application/bankSync'
-import type { BankLinkMade, BankSyncPort } from '../application/bankSync'
+import { BankScriptFailure } from '../application/bankSyncPort'
+import type { BankLinkMade, BankSyncPort } from '../application/bankSyncPort'
 import type { KeptSession } from '../application/bankSecrets'
 import type { BankApplication, BankBalance, BankFields, BankSession, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
 import { BANK_USAGES } from '../domain/bankLink'
 import type { BankUsage, ListedBank } from '../domain/bankLink'
-import { words } from '../domain/words'
-import { googleRequest, isUnauthorized } from '../../../../shared/google/googleApi'
+import { words } from './words'
+import { googleRequest, isUnauthorized } from '../../google/googleApi'
 
 const SCRIPT_API = 'https://script.googleapis.com/v1/scripts'
 

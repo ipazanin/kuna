@@ -1,7 +1,7 @@
 import type { Router } from 'vue-router'
 
-import type { BankReturnNote } from '../domain/bankReturn'
-import { takeBankReturn, takeReturnNote } from '../infrastructure/bankBrowserState'
+import type { BankReturnNote } from '../../../../shared/bank-sync/domain/bankReturn'
+import { takeBankReturn, takeReturnNote } from '../../../../shared/bank-sync/infrastructure/bankBrowserState'
 import { SPENDING_BANK_SYNC_LINK } from '../../overview/presentation/spendingLinks'
 
 let noted: BankReturnNote | null = null

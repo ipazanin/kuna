@@ -129,10 +129,15 @@ describe('the template', () => {
     expect(workbook.categories.find((category) => category.slug === 'vat')).toMatchObject({ bucket: 'taxes', roles: ['vat-settlement'], vat: 'none' })
     expect(workbook.categories.find((category) => category.slug === 'representation')).toMatchObject({ bucket: 'operating', roles: ['representation'], vat: 'representation' })
     expect(workbook.rules.map((rule) => [rule.id, rule.category, rule.confidence])).toEqual([
+      ['state-vat-interest', 'late-payment-interest', 'review'],
       ['state-vat', 'vat', 'review'],
+      ['state-profit-tax-interest', 'late-payment-interest', 'review'],
       ['state-profit-tax', 'corporate-income-tax', 'review'],
+      ['state-pension-pillar-one-interest', 'late-payment-interest', 'review'],
       ['state-pension-pillar-one', 'payroll-contributions', 'review'],
+      ['state-pension-pillar-two-interest', 'late-payment-interest', 'review'],
       ['state-pension-pillar-two', 'payroll-contributions', 'review'],
+      ['state-health-insurance-interest', 'late-payment-interest', 'review'],
       ['state-health-insurance', 'payroll-contributions', 'review'],
     ])
   })

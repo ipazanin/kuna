@@ -36,6 +36,7 @@ const CATEGORIES: readonly Category[] = [
   category('payroll-contributions', 'taxes', ['owner-pay-tax', 'watched', 'arrears']),
   category('payroll-tax', 'taxes', ['owner-pay-tax', 'arrears']),
   category('dividend-tax', 'taxes', ['owner-pay-tax', 'profit-distribution']),
+  category('late-payment-interest', 'taxes', ['deductible-cost']),
   category('travel-orders', 'operating', []),
   category('per-diems', 'owner-pay', ['tax-free:domestic-per-diem-over-12-hours']),
   category('car-km', 'owner-pay', ['tax-free:private-car-business-travel']),
@@ -170,6 +171,13 @@ describe('salaryReconciliation', () => {
       ['2026-04-19', euros(0.05)],
       ['2026-04-10', euros(totalOf('health'))],
     ])
+  })
+
+  it('leaves interest on a late contribution out of the payday, though it goes to the same account', () => {
+    const rows = [...payrollRows(), { date: '2026-04-19', amount: -3.18, category: 'late-payment-interest', iban: CONTRIBUTION_ACCOUNTS.health }]
+    const april = paydayOf(reconciled(rows, PEOPLE).paydays, '2026-04')
+    expect(april.problems).toEqual([])
+    expect(april.contributions.find((check) => check.line === 'health')?.bank?.amount).toBe(euros(totalOf('health')))
   })
 
   it('runs the director at the floor for the month before a payday', () => {

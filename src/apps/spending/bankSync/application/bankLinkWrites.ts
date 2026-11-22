@@ -1,5 +1,5 @@
-import { sameLink } from '../domain/bankLink'
-import type { BankLink, LinkName } from '../domain/bankLink'
+import { sameLink } from '../../../../shared/bank-sync/domain/bankLink'
+import type { BankLink, LinkName } from '../../../../shared/bank-sync/domain/bankLink'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { OLD_LINK_SETTING_KEYS, bankLinkId, oldLinksCount } from '../../workbook/domain/bankLinkReading'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'

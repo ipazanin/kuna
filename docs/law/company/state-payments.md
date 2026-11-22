@@ -37,6 +37,16 @@ The accounts are `CONTRIBUTION_ACCOUNTS` in `src/apps/company/packs/hr-doo/domai
 
 Mark: `confirmed-nn`.
 
+## Interest on late payments
+
+Interest on a tax or contribution paid late goes to the same account under the same revenue code as the payment itself. The Naputak names no code of its own for it: the only interest codes in NN 18/26 are for other kinds of income, such as 5401 060 "Prihodi za zatezne kamate iz obveznih odnosa za obvezno zdravstveno osiguranje", which is interest under the law of obligations and not on a contribution. OPZ Art. 128(1) collects interest out of a payment for the same kind of tax first: "iz uplaćenog iznosa, najprije se naplaćuju kamate i troškovi ovrhe, a nakon toga glavni porezni dug iste vrste poreza".
+
+So the account and the code cannot tell the interest from the payment, and only the payment's description can. Kuna seeds a rule ahead of each state payment rule that files a debit to the same account or code as late payment interest when its description holds "kamat", as in "kamata" or "zatezne kamate". The rule waits on review like the others. A description that names no interest files as the payment itself, and the owner moves the row by hand.
+
+The category `late-payment-interest` is a deductible cost in the taxes bucket, with neither the `arrears` nor the `owner-pay-tax` modifier, so the payday's reconciliation and the accruals leave it alone. ZPD Art. 7(1)(8) adds back default interest only between related parties: "za zatezne kamate između povezanih osoba". The state is not a related party, so the interest stays an allowed cost. A cost in the taxes bucket counts on other costs, as [Profit and loss lines](tax-classes.md#profit-and-loss-lines) says, and the accountant's konto lines move it to another line. Whether accountants book default interest on financial expenses, group 47 of the RRiF chart, was not checked in the chart, so that is `unconfirmed`.
+
+Mark: `confirmed-consolidated` for OPZ Art. 128(1) and ZPD Art. 7(1)(8), read in the zakon.hr consolidated texts on 22 November 2026. The Naputak's lack of a code is `confirmed-nn`, read in NN 18/26 the same day. Reading a payment's description for "kamat" is a `reading`, since no act says what a payer writes there.
+
 ## Payments not seeded
 
 - The health contribution's revenue codes, the income tax on a dividend and the income tax on a salary were seen only in a summary of the Naputak's page, not in its text. None of them is seeded. The health contribution goes by its account, and the two income taxes by the owner's own rules.
@@ -51,4 +61,6 @@ Mark: `confirmed-nn`.
 
 ## Sources
 
+- Opći porezni zakon, Art. 128(1), the order in which a payment settles interest and the tax of the same kind. https://www.zakon.hr/z/100/Op%C4%87i-porezni-zakon, consolidated text, loaded on 22 November 2026.
+- Zakon o porezu na dobit, Art. 7(1)(8), default interest between related parties added back. https://www.zakon.hr/z/99/Zakon-o-porezu-na-dobit, consolidated text, loaded on 22 November 2026.
 - Naputak o načinu uplaćivanja prihoda proračuna, obveznih doprinosa te prihoda za financiranje drugih javnih potreba u 2026. godini, NN 18/26: codes 1201, 1651 and 8168 under head II, points 1.1.2, 1.11 and 1.2.1, with model HR68, and the accounts of heads II, IV and V. https://narodne-novine.nn.hr/clanci/sluzbeni/2026_02_18_197.html, loaded on 4 November 2026. The fetch returned quotes for the first part of the page and a summary for the second.

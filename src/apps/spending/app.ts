@@ -75,7 +75,7 @@ export const spendingApp: AppContribution = {
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
       const { fakeSpendingDayHere } = await import('./workbook/infrastructure/fake/fakeSpending')
-      const { saveLastFetch } = await import('./bankSync/infrastructure/bankBrowserState')
+      const { saveLastFetch } = await import('./bankSync/infrastructure/lastFetch')
       const { registerFakeSpendingChat } = await import('./assistant/infrastructure/fake/fakeSpendingChat')
       saveLastFetch(null)
       registerFakeSpendingChat()

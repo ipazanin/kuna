@@ -7,7 +7,7 @@ import { spendingAcceptance, spendingProposer } from '../../src/apps/spending/as
 import type { SpendingPorts } from '../../src/apps/spending/assistant/operations/spendingOperations'
 import type { BankSetup } from '../../src/apps/spending/bankSync/application/bankSync'
 import { proposeAccount } from '../../src/apps/spending/bankSync/domain/bankAccountSetup'
-import type { BankTransaction, LinkedAccount } from '../../src/apps/spending/bankSync/domain/bankAnswer'
+import type { BankTransaction, LinkedAccount } from '../../src/shared/bank-sync/domain/bankAnswer'
 import { forgetLastAccount, lastAccountId, rememberLastAccount, startingAccount } from '../../src/apps/spending/entries/infrastructure/lastAccount'
 import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY } from '../../src/apps/spending/workbook/domain/spendingSettings'
 import { settingRow } from '../../src/shared/storage/domain/settingRows'

@@ -1,5 +1,4 @@
 import { words as analysisWords } from '../analytics/presentation/words'
-import { words as bankSyncWords } from '../bankSync/presentation/words'
 import {
   SPENDING_ACCOUNT_ROUTE,
   SPENDING_ACCOUNTS_ROUTE,
@@ -16,6 +15,7 @@ import {
 } from '../overview/presentation/spendingLinks'
 import { payeeDirectory, personPayees } from '../payees/domain/payeeDirectory'
 import { words as receiptWords } from '../receipts/presentation/words'
+import { words as workbookWords } from '../workbook/domain/words'
 import { words as screenWords } from '../screenWords'
 import { words as settingsWords } from '../settings/presentation/words'
 import { words as statementWords } from '../statements/presentation/words'
@@ -66,7 +66,7 @@ const LABELS: GuideLabels = {
   sorting: screenWords.sorting,
   bankSync: settingsWords.tabs.bankSync,
   limits: screenWords.limits,
-  application: bankSyncWords.key.application,
+  application: workbookWords.settingLabels.application,
   addReceipt: receiptWords.add,
 }
 

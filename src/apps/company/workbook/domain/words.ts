@@ -70,6 +70,7 @@ const SEEDED_NAMES: ReadonlyMap<string, string> = new Map([
   ['payroll-tax', 'Porez na plaću'],
   ['dividend-tax', 'Porez na dividendu'],
   ['local-fees', 'Lokalne naknade'],
+  ['late-payment-interest', 'Zatezne kamate'],
   ['salary-net', 'Neto plaća'],
   ['dividend', 'Dividenda'],
   ['rent-owner', 'Najamnina vlasniku'],

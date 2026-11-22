@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { forgetBankLink } from '../src/apps/spending/bankSync/application/bankLinkWrites'
-import { banksFor, sameLink } from '../src/apps/spending/bankSync/domain/bankLink'
-import type { BankLink } from '../src/apps/spending/bankSync/domain/bankLink'
+import { banksFor, sameLink } from '../src/shared/bank-sync/domain/bankLink'
+import type { BankLink } from '../src/shared/bank-sync/domain/bankLink'
 import { BANK_LINK_CODEC, bankLinkId, bankLinksOf, oldLinkEndKey, oldLinkFetchedKey } from '../src/apps/spending/workbook/domain/bankLinkReading'
 import { readSpendingBook, spendingRecordsOf } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { BANK_LINK_RECORDS, SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'

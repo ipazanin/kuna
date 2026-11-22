@@ -8,7 +8,7 @@ import { addBankAccounts, bringBackBankDetails, fixOpening, keepMine, keepOutOfK
 import type { BankSetup } from '../application/bankSync'
 import { canStartOn, setupActions, setupLineCurrency, setupLineKey, setupLines, startDays, startedAccount } from '../domain/bankAccountSetup'
 import type { AccountProposal, BankAccountStart, SetupLine, StartedAccount } from '../domain/bankAccountSetup'
-import type { LinkedAccount } from '../domain/bankAnswer'
+import type { LinkedAccount } from '../../../../shared/bank-sync/domain/bankAnswer'
 import { currentDifferences } from '../domain/bankBalance'
 import type { BalanceDifference } from '../domain/bankBalance'
 import { differenceLine, olderRowsLine, unlistedLines } from './bankStepResult'
@@ -22,6 +22,7 @@ import type { Account } from '../../workbook/domain/account'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
+import { words as bankWords } from '../../../../shared/bank-sync/presentation/words'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -159,19 +160,19 @@ async function update(account: Account, updated: Account, proposal: AccountPropo
 async function leaveOut(linked: LinkedAccount, out: boolean, key: string): Promise<void> {
   const open = book.value
   if (open === null) return
-  await writes.write(out ? words.setup.markedOut : words.setup.broughtBack, (unit) => keepOutOfKuna(unit, open, linked, out), { key, failedTitle: words.notSaved })
+  await writes.write(out ? words.setup.markedOut : words.setup.broughtBack, (unit) => keepOutOfKuna(unit, open, linked, out), { key, failedTitle: bankWords.notSaved })
 }
 
 async function keepTheirs(line: SetupLine, key: string): Promise<void> {
   const open = book.value
   if (open === null) return
-  await writes.write(offersSync(line) ? words.setup.keptByHandToast : words.setup.keptMine, (unit) => keepMine(unit, open, line.linked), { key, failedTitle: words.notSaved })
+  await writes.write(offersSync(line) ? words.setup.keptByHandToast : words.setup.keptMine, (unit) => keepMine(unit, open, line.linked), { key, failedTitle: bankWords.notSaved })
 }
 
 async function bringBackMine(linked: LinkedAccount, key: string): Promise<void> {
   const open = book.value
   if (open === null) return
-  await writes.write(words.setup.broughtBack, (unit) => bringBackBankDetails(unit, open, linked), { key, failedTitle: words.notSaved })
+  await writes.write(words.setup.broughtBack, (unit) => bringBackBankDetails(unit, open, linked), { key, failedTitle: bankWords.notSaved })
 }
 
 async function setOpening(difference: BalanceDifference, key: string): Promise<void> {

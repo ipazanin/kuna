@@ -2,47 +2,43 @@ import { ref, shallowRef } from 'vue'
 
 import type { BankRead } from '../application/bankRead'
 import { forgetBankLink } from '../application/bankLinkWrites'
-import { forgetSession } from '../application/bankSecrets'
-import { bankImporter, finishBankLink } from '../application/bankSync'
+import { bankImporter, writeBankLink } from '../application/bankSync'
 import type { BankSetup, BankSyncOutcome } from '../application/bankSync'
 import { withOlderHistory } from '../domain/bankAccountSetup'
-import { banksFor } from '../domain/bankLink'
-import type { LinkName, ListedBank } from '../domain/bankLink'
-import { hasLiveLink } from '../domain/bankLinks'
-import { bankRedirectUrl, loadLastFetch, loadPendingLink, saveLastFetch, savePendingLink } from '../infrastructure/bankBrowserState'
+import { BANK_USAGE, hasLiveLink } from '../domain/bankLinks'
+import { loadLastFetch, saveLastFetch } from '../infrastructure/lastFetch'
 import { bankProblemLines } from './bankStepResult'
 import { words } from './words'
-import { BANK_SECRETS, BANK_SYNC_SCOPE, BANK_USAGE, bankSyncPort } from './bankSyncPort'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { ruleLinks } from '../../links/presentation/ruleLinks'
+import { finishBankLink } from '../../../../shared/bank-sync/application/bankLinkFinish'
+import { forgetSession } from '../../../../shared/bank-sync/application/bankSecrets'
+import type { LinkName } from '../../../../shared/bank-sync/domain/bankLink'
+import { loadPendingLink, savePendingLink } from '../../../../shared/bank-sync/infrastructure/bankBrowserState'
+import { bankLinking, messageOf } from '../../../../shared/bank-sync/presentation/bankLinking'
+import { BANK_SECRETS, BANK_SYNC_SCOPE, bankSyncPort } from '../../../../shared/bank-sync/application/pageBankSync'
+import { words as bankWords } from '../../../../shared/bank-sync/presentation/words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { ruleLinks } from '../../links/presentation/ruleLinks'
 
 const store = useSpendingBooks()
 const lastOutcome = shallowRef<BankSyncOutcome | null>(null)
-const failure = ref<string | null>(null)
-const busy = ref(false)
-/** The banks Enable Banking listed that take a personal login, once this page asked, or null before. */
-const listed = shallowRef<readonly ListedBank[] | null>(null)
-const listFailure = ref<string | null>(null)
-const listing = ref(false)
+/** Linking a bank with a personal login, whose failure and busy the fetch and its other steps share. */
+const linking = bankLinking(BANK_USAGE, () => store.state.workbook?.settings.bankSyncApplication ?? null)
+const { failure, busy } = linking
 /** The bank whose link Remove is taking away, or null. */
 const removing = ref<string | null>(null)
 
 const importer = bankImporter({
-  script: bankSyncPort,
+  script: (applicationId, personHere) => bankSyncPort(applicationId, BANK_USAGE, personHere),
   store,
   asked: (read: BankRead) => saveLastFetch({ problems: bankProblemLines(read), linked: read.linked }),
   day: today,
   links: ruleLinks,
   now: Date.now,
 })
-
-function messageOf(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason)
-}
 
 /**
  * Asks the banks and imports what is new. Throws why not, Google's 401 as it came, which the page's sync turns into asking
@@ -72,41 +68,6 @@ export function heldBankSetup(): BankSetup | null {
 export function useBankSync() {
   const writes = useRecordWrites(store)
 
-  /** Asks Enable Banking once more for the banks that take a personal login, which is the only one Spending links. */
-  async function listBanks(): Promise<void> {
-    const book = store.state.workbook
-    if (book === null || listing.value) return
-    listing.value = true
-    listFailure.value = null
-    try {
-      listed.value = await withGoogleAccess([BANK_SYNC_SCOPE], async () => banksFor(await (await bankSyncPort(book.settings.bankSyncApplication)).banks(), BANK_USAGE))
-    } catch (reason) {
-      listFailure.value = messageOf(reason)
-    } finally {
-      listing.value = false
-    }
-  }
-
-  /** Sends the tab to the bank's approval for a personal login, asking Google first in this tap when the page lacks the access. */
-  async function link(bank: string): Promise<void> {
-    const book = store.state.workbook
-    if (book === null || busy.value) return
-    failure.value = null
-    busy.value = true
-    try {
-      await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
-        const state = crypto.randomUUID()
-        const port = await bankSyncPort(book.settings.bankSyncApplication)
-        const url = await port.startLink({ bank, usage: BANK_USAGE }, bankRedirectUrl(), state)
-        savePendingLink({ bank, usage: BANK_USAGE, state, code: null, validUntil: null })
-        window.location.assign(url)
-      })
-    } catch (reason) {
-      failure.value = messageOf(reason)
-      busy.value = false
-    }
-  }
-
   /** Writes down the link a bank came back with and fetches at once, since a bank gives more than 90 days only just after an approval: Revolut for 5 minutes, and many others for an hour. */
   async function finishLink(): Promise<BankSyncOutcome | null> {
     const book = store.state.workbook
@@ -117,10 +78,10 @@ export function useBankSync() {
     try {
       return await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
         await finishBankLink({
-          script: await bankSyncPort(book.settings.bankSyncApplication),
+          script: await bankSyncPort(book.settings.bankSyncApplication, BANK_USAGE),
           pending: { load: loadPendingLink, save: savePendingLink },
-          store,
           secrets: BANK_SECRETS,
+          saveLink: (link, validUntil) => writeBankLink(store, link, validUntil),
         })
         return await fetchAndImport(true, pending)
       })
@@ -159,12 +120,12 @@ export function useBankSync() {
       if (ended.length > 0) {
         // A session the script cannot reach stays open at the bank until it runs out, and the link goes anyway.
         await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
-          const port = await bankSyncPort(book.settings.bankSyncApplication)
+          const port = await bankSyncPort(book.settings.bankSyncApplication, BANK_USAGE)
           for (const sessionId of ended) await port.closeSession(sessionId)
         }).catch(() => undefined)
       }
       return await writes.write(words.linkRemoved(bank), (unit) => forgetBankLink(unit, book, name), {
-        failedTitle: words.application.notRemoved,
+        failedTitle: bankWords.application.notRemoved,
         undoable: false,
       })
     } finally {
@@ -173,16 +134,10 @@ export function useBankSync() {
   }
 
   return {
+    ...linking,
     lastOutcome,
-    failure,
-    busy,
-    listed,
-    listFailure,
-    listing,
     removing,
-    listBanks,
     removeLink,
-    link,
     finishLink,
     syncNow,
     canSync: () => (store.state.workbook === null ? false : hasLiveLink(store.state.workbook, today())),

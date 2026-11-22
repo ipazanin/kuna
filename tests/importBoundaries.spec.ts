@@ -123,6 +123,7 @@ const DOMAIN_SHARED = [
   'src/shared/mail/domain/',
   'src/shared/recipes/domain/',
   'src/shared/privacy/domain/',
+  'src/shared/bank-sync/domain/',
 ]
 
 /** Where the books are kept: the kernel's document storage and each app's workbook. */
@@ -151,6 +152,7 @@ const ADAPTER_WIRING = [
   'src/shared/ai/application/attachmentReads.ts',
   'src/shared/ai/application/chatFiles.ts',
   'src/shared/rates/application/pageRates.ts',
+  'src/shared/bank-sync/application/pageBankSync.ts',
 ]
 
 /** What presentation in the shared kernel still imports from an adapter, a list that only shrinks. */
@@ -209,7 +211,7 @@ function readsPublished(entry: Import): boolean {
 }
 
 /** The shared modules that each hold one capability two apps use, which stay apart so none grows into another. */
-const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail/', 'src/shared/privacy/']
+const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail/', 'src/shared/privacy/', 'src/shared/bank-sync/']
 
 function capabilityOf(file: string): string | null {
   return CAPABILITIES.find((folder) => file.startsWith(folder)) ?? null

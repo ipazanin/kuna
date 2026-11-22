@@ -48,7 +48,18 @@ describe('the template download', () => {
       expect(contents.tabs[tab], tab).toEqual([])
     }
     expect(contents.tabs.categories.map((row) => row.cells.category)).toEqual(startingCategoryNames())
-    expect(contents.tabs.rules.map((row) => row.cells.revenue_code ?? row.cells.counterparty_iban)).toEqual(['1201', '1651', '8168', 'HR7610010051700036001', 'HR6510010051550100001'])
+    expect(contents.tabs.rules.map((row) => row.cells.revenue_code ?? row.cells.counterparty_iban)).toEqual([
+      '1201',
+      '1201',
+      '1651',
+      '1651',
+      '8168',
+      '8168',
+      'HR7610010051700036001',
+      'HR7610010051700036001',
+      'HR6510010051550100001',
+      'HR6510010051550100001',
+    ])
     expect(contents.tabs.settings.length).toBeGreaterThan(0)
     expect(preview.summary).toMatchObject({ transactionCount: 0, accounts: [], defaultedTabs: [], problems: [], refusal: null })
     expect(preview.counts.map((kind) => kind.name).sort()).toEqual(['categories', 'rules', 'settings'])

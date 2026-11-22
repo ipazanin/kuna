@@ -20,7 +20,7 @@ import {
 } from '../domain/spendingSettings'
 import { words } from '../domain/words'
 import { BANK_LINK_CODEC, oldLinkEndKey, oldLinkFetchedKey } from '../domain/bankLinkReading'
-import { OLD_BANK_KEYS } from '../../bankSync/domain/bankLink'
+import { OLD_BANK_KEYS } from '../../../../shared/bank-sync/domain/bankLink'
 import { settingCodec } from '../../../../shared/storage/domain/settingRows'
 import { DROPPED_ROW_CODEC, HELD_ROW_CODEC, TRANSACTION_CODEC } from '../domain/transactionReading'
 import { RECIPE_CODEC } from '../domain/recipeReading'

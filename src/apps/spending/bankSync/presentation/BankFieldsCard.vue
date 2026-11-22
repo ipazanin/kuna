@@ -2,7 +2,9 @@
 import { ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { BANK_SYNC_SCOPE, bankSyncPort } from './bankSyncPort'
+import { BANK_USAGE } from '../domain/bankLinks'
+import { BANK_SYNC_SCOPE, bankSyncPort } from '../../../../shared/bank-sync/application/pageBankSync'
+import { words as bankWords } from '../../../../shared/bank-sync/presentation/words'
 import { words } from './words'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -21,7 +23,7 @@ async function read(): Promise<void> {
   failure.value = null
   busy.value = true
   try {
-    const fields = await withGoogleAccess([BANK_SYNC_SCOPE], async () => (await bankSyncPort(props.applicationId)).bankFields())
+    const fields = await withGoogleAccess([BANK_SYNC_SCOPE], async () => (await bankSyncPort(props.applicationId, BANK_USAGE)).bankFields())
     text.value = JSON.stringify(fields, null, 2)
   } catch (reason) {
     failure.value = reason instanceof Error ? reason.message : String(reason)
@@ -60,7 +62,7 @@ async function copy(): Promise<void> {
         />
       </div>
       <NoteLine v-if="failure !== null" tone="error" size="body">{{ failure }}</NoteLine>
-      <NoteLine v-if="copyFailed" tone="error" size="body" data-testid="spending-bank-fields-copy-failed">{{ words.copyFailed }}</NoteLine>
+      <NoteLine v-if="copyFailed" tone="error" size="body" data-testid="spending-bank-fields-copy-failed">{{ bankWords.copyFailed }}</NoteLine>
       <pre v-if="text !== null" tabindex="0" class="max-h-64 overflow-y-auto rounded-control bg-elevated p-2 whitespace-pre-wrap wrap-anywhere type-caption" data-testid="spending-bank-fields-text">{{
         text
       }}</pre>

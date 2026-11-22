@@ -5,12 +5,13 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
+import type { BankSyncHost } from './bankSyncHost'
 import { useBankKey } from './useBankKey'
 import { applicationIdOfFileName } from '../domain/bankAnswer'
 import { words } from './words'
-import FileDrop from '../../../../shared/ui/FileDrop.vue'
-import FormGrid from '../../../../shared/ui/FormGrid.vue'
-import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import FileDrop from '../../ui/FileDrop.vue'
+import FormGrid from '../../ui/FormGrid.vue'
+import NoteLine from '../../ui/NoteLine.vue'
 
 /**
  * Brings the person's Enable Banking key: the .pem dropped or pasted, its application id from the file's name, and Check,
@@ -18,6 +19,7 @@ import NoteLine from '../../../../shared/ui/NoteLine.vue'
  * no draft. On Settings' card and in the set-up's walk-through alike.
  */
 const props = defineProps<{
+  host: BankSyncHost
   /** The application the book keeps, or blank before bank sync is set up. */
   current: string
   /** Shows Cancel, for a key that replaces the kept one. */
@@ -27,7 +29,7 @@ const props = defineProps<{
 /** `checking` comes before the key is kept, as the book's write may land before Check returns. */
 const emit = defineEmits<{ checking: []; kept: []; cancel: [] }>()
 
-const key = useBankKey()
+const key = useBankKey(props.host)
 const file = ref<File | null>(null)
 const pem = ref('')
 const applicationId = ref('')
@@ -58,7 +60,7 @@ async function check(): Promise<void> {
       <UFormField :label="words.key.paste" :help="words.key.pasteHelp" class="sm:col-span-2" data-testid="spending-bank-key-pem">
         <UTextarea v-model="pem" :rows="3" autocomplete="off" autocapitalize="off" :spellcheck="false" class="w-full font-mono" />
       </UFormField>
-      <UFormField :label="words.key.application" :help="words.key.applicationHelp" class="sm:col-span-2" data-testid="spending-bank-key-application">
+      <UFormField :label="host.applicationLabel" :help="words.key.applicationHelp" class="sm:col-span-2" data-testid="spending-bank-key-application">
         <UInput v-model="applicationId" autocomplete="off" :spellcheck="false" class="w-full" />
       </UFormField>
     </FormGrid>

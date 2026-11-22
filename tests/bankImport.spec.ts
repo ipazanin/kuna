@@ -2,19 +2,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { BankRead } from '../src/apps/spending/bankSync/application/bankRead'
 import { proposeAccount } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
-import type { BankSecretStore } from '../src/apps/spending/bankSync/application/bankSecrets'
-import { bankImporter, BankScriptFailure, finishBankLink } from '../src/apps/spending/bankSync/application/bankSync'
-import type { BankImportPorts, BankSyncPort, PendingLinks } from '../src/apps/spending/bankSync/application/bankSync'
-import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
-import type { PendingLink } from '../src/apps/spending/bankSync/domain/bankReturn'
+import type { BankSecretStore } from '../src/shared/bank-sync/application/bankSecrets'
+import { bankImporter, writeBankLink } from '../src/apps/spending/bankSync/application/bankSync'
+import type { BankImportPorts } from '../src/apps/spending/bankSync/application/bankSync'
+import { finishBankLink } from '../src/shared/bank-sync/application/bankLinkFinish'
+import type { BankLinkPorts, PendingLinks } from '../src/shared/bank-sync/application/bankLinkFinish'
+import { BankScriptFailure } from '../src/shared/bank-sync/application/bankSyncPort'
+import type { BankSyncPort } from '../src/shared/bank-sync/application/bankSyncPort'
+import type { BankTransaction, LinkedAccount } from '../src/shared/bank-sync/domain/bankAnswer'
+import type { PendingLink } from '../src/shared/bank-sync/domain/bankReturn'
 import { bankHeldResult, bankStepResult } from '../src/apps/spending/bankSync/presentation/bankStepResult'
 import { hr } from '../src/apps/spending/bankSync/presentation/words'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { bankLinkId, oldLinkEndKey, oldLinkFetchedKey } from '../src/apps/spending/workbook/domain/bankLinkReading'
-import type { BankLink } from '../src/apps/spending/bankSync/domain/bankLink'
-import type { BankSession } from '../src/apps/spending/bankSync/domain/bankAnswer'
+import type { BankLink } from '../src/shared/bank-sync/domain/bankLink'
+import type { BankSession } from '../src/shared/bank-sync/domain/bankAnswer'
 import type { WriteRules } from '../src/shared/storage/domain/writeRules'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
@@ -345,7 +349,7 @@ describe('finishing a link', () => {
     const fake = storeOver(bookOf([], null))
     const pending = pendingOver(WAITING)
     const secrets = secretsOver()
-    await finishBankLink({ script: portOf(), pending, store: fake.store, secrets })
+    await finishBankLink({ script: portOf(), pending, secrets, saveLink: (link, until) => writeBankLink(fake.store, link, until) })
     expect(fake.links).toEqual([{ id: bankLinkId({ bank: 'Revolut', usage: 'personal' }), bank: 'Revolut', usage: 'personal', endsOn: '2027-05-03', fetchedAt: null }])
     expect(secrets.kept).toEqual(new Map([['enable-banking-session personal Revolut', 'made-up-session']]))
     expect(pending.held()).toBeNull()
@@ -357,7 +361,7 @@ describe('finishing a link', () => {
     const closeSession = vi.fn(async () => {
       throw new Error('The bank sync script did not answer: Failed to fetch')
     })
-    await finishBankLink({ script: portOf({ closeSession }), pending: pendingOver(WAITING), store: fake.store, secrets })
+    await finishBankLink({ script: portOf({ closeSession }), pending: pendingOver(WAITING), secrets, saveLink: (link, until) => writeBankLink(fake.store, link, until) })
     expect(closeSession).toHaveBeenCalledWith('old-session')
     expect(secrets.kept).toEqual(new Map([['enable-banking-session personal Revolut', 'made-up-session']]))
     expect(fake.links).toEqual([expect.objectContaining({ bank: 'Revolut', endsOn: '2027-05-03' })])
@@ -365,7 +369,7 @@ describe('finishing a link', () => {
 
   it("keeps OTP's carried-over link beside a new one in a book from before bank-link records, under one write", async () => {
     const fake = storeOver(oldBookOf())
-    await finishBankLink({ script: portOf(), pending: pendingOver(WAITING), store: fake.store, secrets: secretsOver() })
+    await finishBankLink({ script: portOf(), pending: pendingOver(WAITING), secrets: secretsOver(), saveLink: (link, until) => writeBankLink(fake.store, link, until) })
     expect(fake.titles).toEqual(['Bank linked'])
     expect(fake.links.map(({ bank, endsOn }) => [bank, endsOn])).toEqual([
       ['OTP banka', '2027-01-01'],
@@ -379,7 +383,7 @@ describe('finishing a link', () => {
     const pending = pendingOver(WAITING)
     const finishLink = vi.fn(async () => ({ sessionId: 'made-up-session', bank: 'Revolut', usage: 'personal' as const, validUntil: '2027-05-03T12:00:00+00:00' }))
     const secrets = secretsOver()
-    const ports = { script: portOf({ finishLink }), pending, store: fake.store, secrets }
+    const ports: BankLinkPorts = { script: portOf({ finishLink }), pending, secrets, saveLink: (link, until) => writeBankLink(fake.store, link, until) }
     vi.mocked(fake.store.write).mockRejectedValueOnce(new Error('The file is being read'))
 
     await expect(finishBankLink(ports)).rejects.toThrow('being read')
@@ -400,7 +404,7 @@ describe('finishing a link', () => {
         throw new BankScriptFailure('The bank sync script did not answer: EXPIRED_AUTHORIZATION_CODE')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver() })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
+    await expect(finishBankLink({ script, pending, secrets: secretsOver(), saveLink: (link, until) => writeBankLink(fake.store, link, until) })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
     expect(pending.held()).toBeNull()
   })
 
@@ -412,7 +416,7 @@ describe('finishing a link', () => {
         throw new Error('The bank sync script did not answer: Failed to fetch')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store, secrets: secretsOver() })).rejects.toThrow('Failed to fetch')
+    await expect(finishBankLink({ script, pending, secrets: secretsOver(), saveLink: (link, until) => writeBankLink(fake.store, link, until) })).rejects.toThrow('Failed to fetch')
     expect(pending.held()?.code).toBe('made-up')
   })
 })

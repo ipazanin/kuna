@@ -1,7 +1,7 @@
-import { endingLinks } from '../domain/bankLinks'
 import type { LinkedBook } from '../domain/bankLinks'
 import { words } from './words'
 import { bankSyncSetUp } from '../../workbook/domain/spendingSettings'
+import { endingLinks } from '../../../../shared/bank-sync/domain/bankLinkDays'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 

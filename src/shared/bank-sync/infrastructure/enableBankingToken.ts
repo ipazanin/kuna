@@ -1,3 +1,5 @@
+import { UnreadableBankKey } from '../application/bankSyncPort'
+
 /** How long a token lasts. Enable Banking takes up to a day, and an hour keeps a token that leaks short-lived. */
 const TOKEN_SECONDS = 3600
 
@@ -5,11 +7,6 @@ const TOKEN_SECONDS = 3600
 const MARGIN_SECONDS = 300
 
 const PEM_LINE = /-----(?:BEGIN|END) PRIVATE KEY-----/g
-
-/** The key could not be read: not a PKCS#8 private key, as Enable Banking's Control Panel downloads it. */
-export class UnreadableBankKey extends Error {
-  override readonly name = 'UnreadableBankKey'
-}
 
 /** Signs the tokens of one Enable Banking application. */
 export interface BankTokens {

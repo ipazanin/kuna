@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
+import type { LinkedAccount } from '../src/shared/bank-sync/domain/bankAnswer'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { BANK_SYNC_APPLICATION_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
@@ -30,7 +30,7 @@ const fetchAndImport = vi.hoisted(() =>
 vi.mock('../src/apps/spending/workbook/application/spendingStore', () => ({ useSpendingBooks: () => store }))
 vi.mock('../src/apps/spending/bankSync/presentation/useBankSync', () => ({ fetchAndImport }))
 
-const { loadLastFetch, saveLastFetch } = await import('../src/apps/spending/bankSync/infrastructure/bankBrowserState')
+const { loadLastFetch, saveLastFetch } = await import('../src/apps/spending/bankSync/infrastructure/lastFetch')
 const { BANK_SYNC_STEP } = await import('../src/apps/spending/bankSync/presentation/bankSyncStep')
 
 function linked(uid: string, iban: string, currency: string): LinkedAccount {

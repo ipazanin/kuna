@@ -240,12 +240,13 @@ describe('company law docs', () => {
     },
   )
 
-  it('states the revenue code and model of each seeded payment as the ruleset has them on 1 January, with the category its rule files to', () => {
+  it('states the revenue code and model of each seeded payment as the ruleset has them on 1 January, with the category its rule files to, the interest on each apart', () => {
     const rows = tableUnder('company/state-payments.md', 'Revenue codes')
     for (const year of new Set(rows.map((row) => Number(row.Year)))) {
       const on = civilDate(year, 1, 1)
       const codes = ruleValue('hr.state.revenue-codes', on).value
-      const byCode = startingRules(on).flatMap((rule) => rule.conditions.flatMap((condition) => (condition.column === 'revenue_code' ? [[condition.code, rule.category] as const] : [])))
+      const payments = startingRules(on).filter((rule) => !rule.conditions.some((condition) => condition.column === 'description_contains'))
+      const byCode = payments.flatMap((rule) => rule.conditions.flatMap((condition) => (condition.column === 'revenue_code' ? [[condition.code, rule.category] as const] : [])))
       expect(
         rows.filter((row) => Number(row.Year) === year).map((row) => [row.Code, row.Model, row.Category]),
         String(year),

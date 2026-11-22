@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Router } from 'vue-router'
 
-import { bankReturnOf, searchWithoutReturn } from '../src/apps/spending/bankSync/domain/bankReturn'
-import { loadPendingLink, savePendingLink, takeBankReturn, takeReturnNote } from '../src/apps/spending/bankSync/infrastructure/bankBrowserState'
+import { bankReturnOf, searchWithoutReturn } from '../src/shared/bank-sync/domain/bankReturn'
+import { loadPendingLink, savePendingLink, takeBankReturn, takeReturnNote } from '../src/shared/bank-sync/infrastructure/bankBrowserState'
 import { notedBankReturn, openBankSyncAfterReturn } from '../src/apps/spending/bankSync/presentation/bankReturnOnOpen'
 
 function stubAddress(search: string): { replaced: () => string | null } {
@@ -85,7 +85,7 @@ describe('takeBankReturn', () => {
 
     expect(loadPendingLink()).toBeNull()
     vi.resetModules()
-    const reloaded = await import('../src/apps/spending/bankSync/infrastructure/bankBrowserState')
+    const reloaded = await import('../src/shared/bank-sync/infrastructure/bankBrowserState')
     expect(reloaded.takeReturnNote()).toEqual({ kind: 'refused', reason: 'Cancelled by user' })
     expect(reloaded.takeReturnNote()).toBeNull()
   })

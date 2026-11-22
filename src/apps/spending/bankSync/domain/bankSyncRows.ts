@@ -1,4 +1,4 @@
-import type { BankTransaction } from './bankAnswer'
+import type { BankTransaction } from '../../../../shared/bank-sync/domain/bankAnswer'
 import { syncMoves } from '../../pairing/domain/syncMoves'
 import { BANK_SYNC_KEY_PREFIX, PENDING_KEY_FACT } from '../../statements/domain/statementRows'
 import type { StatementRow } from '../../statements/domain/statementRows'

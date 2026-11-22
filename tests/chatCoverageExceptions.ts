@@ -51,6 +51,8 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
       'src/apps/spending/bankSync/application/bankSync.ts#saveApplicationId',
       'src/apps/spending/bankSync/application/bankSync.ts#forgetBankSync',
       'src/apps/spending/bankSync/application/bankLinkWrites.ts#forgetBankLink',
+      'shared: src/shared/bank-sync/application/pageBankSync.ts#BANK_SECRETS',
+      'spending: src/shared/bank-sync/application/pageBankSync.ts#BANK_SECRETS',
     ],
   },
   {
@@ -64,10 +66,11 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   {
     reason: "Bank linking. The bank's approval page needs the person, so linking a bank and coming back from it stay on the screen.",
     paths: [
-      'src/apps/spending/bankSync/application/bankSync.ts#finishBankLink',
-      'src/apps/spending/bankSync/infrastructure/bankBrowserState.ts#savePendingLink',
-      'src/apps/spending/bankSync/infrastructure/bankBrowserState.ts#takeBankReturn',
-      'src/apps/spending/bankSync/infrastructure/bankBrowserState.ts#takeReturnNote',
+      'src/apps/spending/bankSync/application/bankSync.ts#writeBankLink',
+      'shared: src/shared/bank-sync/application/pageBankSync.ts#startBankLink',
+      'spending: src/shared/bank-sync/infrastructure/bankBrowserState.ts#savePendingLink',
+      'spending: src/shared/bank-sync/infrastructure/bankBrowserState.ts#takeBankReturn',
+      'spending: src/shared/bank-sync/infrastructure/bankBrowserState.ts#takeReturnNote',
     ],
   },
   {

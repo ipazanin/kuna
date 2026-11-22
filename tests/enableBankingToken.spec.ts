@@ -2,7 +2,8 @@ import { createVerify, generateKeyPairSync } from 'node:crypto'
 
 import { describe, expect, it } from 'vitest'
 
-import { UnreadableBankKey, enableBankingTokens } from '../src/apps/spending/bankSync/infrastructure/enableBankingToken'
+import { UnreadableBankKey } from '../src/shared/bank-sync/application/bankSyncPort'
+import { enableBankingTokens } from '../src/shared/bank-sync/infrastructure/enableBankingToken'
 
 // Made here for each run, so no private key is ever in the repository.
 const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } })

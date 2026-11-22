@@ -3,16 +3,19 @@ import { computed, nextTick, provide, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import BankKeyForm from './BankKeyForm.vue'
+import type { BankSyncHost } from './bankSyncHost'
 import { useBankKey } from './useBankKey'
 import { words } from './words'
-import { bankRedirectUrl } from '../infrastructure/bankBrowserState'
-import NoteLine from '../../../../shared/ui/NoteLine.vue'
-import StepCard, { STEP_FLOW } from '../../../../shared/ui/StepCard.vue'
+import { bankRedirectUrl } from '../application/pageBankSync'
+import NoteLine from '../../ui/NoteLine.vue'
+import StepCard, { STEP_FLOW } from '../../ui/StepCard.vue'
 
 /**
  * The walk-through to a person's own Enable Banking application: what it takes, the values its form asks for, its key, and
  * activating it. Shown while the book has no application, and until Done once the key is kept.
  */
+const props = defineProps<{ host: BankSyncHost }>()
+
 /** `holding` asks the screen to keep the walk-through open from Check until Done, since a kept key sets bank sync up. */
 const emit = defineEmits<{ holding: []; done: [] }>()
 
@@ -32,7 +35,7 @@ provide(STEP_FLOW, {
 // A new step takes focus, so a screen reader announces its card.
 watch(step, () => void nextTick(() => document.querySelector<HTMLElement>('[data-testid="onboarding-step"]')?.focus()))
 
-const key = useBankKey()
+const key = useBankKey(props.host)
 const answered = computed(() => (key.lastCheck.value?.kind === 'answered' ? key.lastCheck.value : null))
 const problemLines = computed(() =>
   (answered.value?.problems ?? []).map((problem) => (problem === 'redirect-missing' ? words.application.problems[problem](bankRedirectUrl()) : words.application.problems[problem])),
@@ -104,7 +107,7 @@ async function copy(id: string, value: string): Promise<void> {
     </StepCard>
 
     <StepCard v-else-if="step === 'key'" :title="words.walk.key.title" :subtitle="words.walk.key.subtitle">
-      <BankKeyForm current="" @checking="emit('holding')" @kept="kept" />
+      <BankKeyForm :host="host" current="" @checking="emit('holding')" @kept="kept" />
     </StepCard>
 
     <StepCard v-else :title="words.walk.activate.title" :subtitle="words.walk.activate.subtitle">
