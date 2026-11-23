@@ -12,7 +12,7 @@ import type { FilteredLedger } from '../transactions/application/useFilteredLedg
 import { NO_VAT_ON_PRIVATE_SHARE } from '../owner-share/domain/ownerParts'
 import type { VatOnPrivateShare } from '../owner-share/domain/ownerParts'
 import type { Dismissal } from '../workbook/domain/dismissals'
-import type { PackPart } from '../workbook/domain/packPart'
+import type { MissingStartingCategory, PackPart } from '../workbook/domain/packPart'
 import type { CompanyBooks, WorkbookRecords } from '../workbook/domain/readWorkbook'
 import type { ItemRecord } from '../workbook/domain/splitsReading'
 import type { LedgerEntry } from '../workbook/domain/ledgerReading'
@@ -127,9 +127,13 @@ export function classSharesDay(workbook: Workbook | null): CivilDate {
   return newestBookingOf(workbook?.transactions ?? []) ?? today()
 }
 
-/** A line of Categories to sort. A line that suggests the tax class new books give a category names that category, and the person may dismiss it. */
+/**
+ * A line of Categories to sort. A line that suggests the tax class new books give a category names that category, and the person
+ * may dismiss it. A line that offers a starting category the books lack carries it with its rules, to add or dismiss.
+ */
 export interface CategoryToSort extends RecordProblem {
   readonly newerClassOf?: string
+  readonly missing?: MissingStartingCategory
 }
 
 /** What the move to the items tab writes of the ledger's money, before the pack splits any of it further. */
@@ -185,6 +189,8 @@ export interface PackContribution {
    * law's figures in force on the day. A suggestion the person dismissed is left out. They are no reading problem.
    */
   categoriesToSort(categories: readonly Category[], on: CivilDate, dismissals: readonly Dismissal[]): readonly CategoryToSort[]
+  /** A line for each category new books start with that the books lack, with the rules of the day that file into it, unless the person dismissed it. None without a pack. */
+  missingCategoriesToSort(workbook: Pick<Workbook, 'categories' | 'rules' | 'dismissals'>, on: CivilDate): readonly CategoryToSort[]
   /** The words for the records of one of the kinds the pack's part names categories with, by the kind's name. */
   categoryNamingWords(kind: string): CategoryNamingWords
   readonly onboarding: PackOnboarding | null
@@ -231,6 +237,7 @@ const NO_PACK: PackContribution = {
   costGroupLinks: () => null,
   categoryClassHelp: () => null,
   categoriesToSort: () => [],
+  missingCategoriesToSort: () => [],
   categoryNamingWords: (kind) => {
     throw new Error(`No pack is installed, so no ${kind} record names a category.`)
   },

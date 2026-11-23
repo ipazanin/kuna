@@ -6,8 +6,8 @@ import { words as settingsWords } from '../../../../settings/presentation/words'
 import type { Dismissal } from '../../../../workbook/domain/dismissals'
 import { displayName } from '../../../../workbook/domain/displayName'
 import { categoryIdOf } from '../../../../workbook/domain/workbook'
-import type { Category } from '../../../../workbook/domain/workbook'
-import { startingChange } from '../domain/startingCategories'
+import type { Category, Workbook } from '../../../../workbook/domain/workbook'
+import { missingStartingCategories, startingChange } from '../domain/startingCategories'
 import { CATEGORY_CLASSES, taxClassOf } from '../domain/taxClassOf'
 import { classNameOf, words } from './classWords'
 
@@ -53,4 +53,22 @@ export function categoriesToSort(categories: readonly Category[], on: CivilDate,
     }
   }
   return unclassed.length === 0 ? lines : [{ id: null, label: words.toSort.unclassedLabel, reason: plural(words.toSort.unclassed(unclassed), unclassed.length) }, ...lines]
+}
+
+/**
+ * A line for each category new books start with that the books lack, naming the class it starts with and how many of the day's
+ * starting rules file into it, unless the person dismissed it. Add puts the category and its rules in.
+ */
+export function missingCategoriesToSort(workbook: Pick<Workbook, 'categories' | 'rules' | 'dismissals'>, on: CivilDate): CategoryToSort[] {
+  return missingStartingCategories(workbook.categories, workbook.rules, workbook.dismissals, on).map((missing) => {
+    const { slug, roles } = missing.category
+    const role = roles.find((candidate) => taxClassOf(candidate) !== null)
+    const taxClass = role === undefined ? null : taxClassOf(role)
+    return {
+      id: categoryIdOf(missing.category),
+      label: displayName(slug),
+      reason: plural(words.toSort.missing(role === undefined || taxClass === null ? null : classNameOf(taxClass, role, on), missing.rules.length), missing.rules.length),
+      missing,
+    }
+  })
 }

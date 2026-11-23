@@ -1,3 +1,4 @@
+import type { RecordId } from '../../storage/domain/recordId'
 import { inTryingOrder } from './rule'
 import type { Rule, RuleCondition } from './rule'
 import { foldedTextHolds } from './textTest'
@@ -13,6 +14,8 @@ export interface Verdict {
   readonly flaggedBy: 'rule' | 'ai'
   /** The rule that decided, or null when none did. */
   readonly ruleId: string | null
+  /** The labels the deciding rule puts on the row, only when it files the row at full confidence. Left out while it puts on none. */
+  readonly labels?: readonly RecordId[]
 }
 
 /** The first enabled rule, in order, whose every condition holds decides the row. No match is `unknown` / `ai`. */
@@ -22,10 +25,12 @@ export function categorise(transaction: CategorisableRow, rules: readonly Rule[]
   if (deciding === undefined) {
     return { category: UNKNOWN_CATEGORY, flaggedBy: 'ai', ruleId: null }
   }
+  const files = deciding.confidence === 'rule'
   return {
     category: deciding.category || UNKNOWN_CATEGORY,
-    flaggedBy: deciding.confidence === 'rule' ? 'rule' : 'ai',
+    flaggedBy: files ? 'rule' : 'ai',
     ruleId: deciding.id,
+    ...(!files || deciding.labels === undefined ? {} : { labels: deciding.labels }),
   }
 }
 

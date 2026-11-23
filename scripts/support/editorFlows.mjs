@@ -11,6 +11,7 @@ import { CHAT_MIN_WIDTH } from '../../src/shared/ai/presentation/chatDock.ts'
 import { PAGE_LEAST_WIDTH } from '../../src/shared/layout/viewport.ts'
 import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
+import { en as categoriesEnglish, hr as categoriesCroatian } from '../../src/apps/company/categories/presentation/words.ts'
 import { en as classWordsEnglish, hr as classWordsCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
 import { en as ruleChangesEnglish, hr as ruleChangesCroatian } from '../../src/apps/company/rules/domain/words.ts'
@@ -199,6 +200,7 @@ const SCREEN_WORDS = {
     billing: billingEnglish,
     clientColumns: companySettingsEnglish.clientColumns,
     settings: companySettingsEnglish,
+    categoriesToSort: categoriesEnglish.categoriesToSort,
     classes: classWordsEnglish.classes,
     settingsReasons: settingsReasonsEnglish,
     onboarding: onboardingEnglish,
@@ -292,6 +294,7 @@ const SCREEN_WORDS = {
     billing: billingCroatian,
     clientColumns: companySettingsCroatian.clientColumns,
     settings: companySettingsCroatian,
+    categoriesToSort: categoriesCroatian.categoriesToSort,
     classes: classWordsCroatian.classes,
     settingsReasons: settingsReasonsCroatian,
     onboarding: onboardingCroatian,
@@ -3322,14 +3325,14 @@ export function newerClassFlowIn(language) {
     await inspect?.('the suggested class with Dismiss')
     await shoot('newer-class-suggested')
     await pressSelector(page, press, '[data-testid="categories-to-sort"] [data-testid="dismiss-newer-class"]')
-    await toastMatching(page, new RegExp(words.settings.categoriesToSort.dismissedToast('.+')))
+    await toastMatching(page, new RegExp(words.categoriesToSort.dismissedToast('.+')))
     await toSortButtonShown(page, 'dismiss-newer-class', false)
     await toSortButtonShown(page, 'restore-newer-class', true)
     await dismissToasts(page)
     await inspect?.('the dismissed class with Restore')
     await shoot('newer-class-dismissed')
     await pressSelector(page, press, '[data-testid="categories-to-sort"] [data-testid="restore-newer-class"]')
-    await toast(page, words.settings.categoriesToSort.restored)
+    await toast(page, words.categoriesToSort.restored)
     await toSortButtonShown(page, 'dismiss-newer-class', true)
     await undoIn(page, press, words)
     await toSortButtonShown(page, 'restore-newer-class', true)
@@ -3339,6 +3342,51 @@ export function newerClassFlowIn(language) {
 }
 
 export const newerClassFlow = newerClassFlowIn('en')
+
+/**
+ * Settings, General in books from before late payment interest: Add puts the category and its rules in with one Undo, then
+ * Dismiss hides the offer, Restore shows it again and Undo takes the restore back.
+ */
+export function missingCategoryFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const offer = '[data-testid="categories-to-sort"] [data-testid="add-missing-category"]'
+    await openCard(page, press, 'categories-to-sort')
+    await toSortButtonShown(page, 'add-missing-category', true)
+    await inspect?.('a missing starting category with Add and Dismiss')
+    await shoot('missing-category-offered')
+    const offers = await page.$$eval(offer, (buttons) => buttons.length)
+    await pressSelector(page, press, offer)
+    await toastMatching(page, new RegExp(words.categoriesToSort.added('.+')))
+    await page
+      .waitForFunction((css, before) => document.querySelectorAll(css).length === before - 1, { timeout: 10_000 }, offer, offers)
+      .catch(() => {
+        throw new Error('Add left the offer on Categories to sort')
+      })
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction((css, before) => document.querySelectorAll(css).length === before, { timeout: 10_000 }, offer, offers)
+      .catch(() => {
+        throw new Error('Undo did not bring the offer back')
+      })
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="categories-to-sort"] [data-testid="dismiss-missing-category"]')
+    await toastMatching(page, new RegExp(words.categoriesToSort.dismissedToast('.+')))
+    await toSortButtonShown(page, 'restore-missing-category', true)
+    await dismissToasts(page)
+    await inspect?.('the dismissed offer with Restore')
+    await shoot('missing-category-dismissed')
+    await pressSelector(page, press, '[data-testid="categories-to-sort"] [data-testid="restore-missing-category"]')
+    await toast(page, words.categoriesToSort.restored)
+    await toSortButtonShown(page, 'restore-missing-category', false)
+    await undoIn(page, press, words)
+    await toSortButtonShown(page, 'restore-missing-category', true)
+    await dismissToasts(page)
+  }
+}
+
+export const missingCategoryFlow = missingCategoryFlowIn('en')
 
 /** The Save settings button once it is enabled or disabled, as `enabled` asks. */
 async function saveSettingsButton(page, enabled, words = SCREEN_WORDS.en) {
@@ -3589,6 +3637,44 @@ export function rulesEditorFlowIn(language) {
 }
 
 export const rulesEditorFlow = rulesEditorFlowIn('en')
+
+/**
+ * On Settings, Category rules: Berlin conference picked in a rule's Labels field, the change preview saying the rows it files
+ * from now on take it while the rows it filed keep theirs, the label on the rule's row once saved, and Undo taking it off.
+ */
+export function ruleLabelsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const id = 'merchant-airline'
+  const label = 'Berlin conference'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await editRule(page, press, id)
+    const field = await page.waitForSelector('[data-testid="rule-labels"] [data-testid="labels-select"]', { visible: true, timeout: 10_000 })
+    await pickLabel(page, press, field, label, false, '[role="dialog"] [data-testid="rule-editor"]')
+    await inspect?.('the label a rule gains in its preview')
+    await shootAt(page, shoot, '[data-testid="rule-labels-gained"]', 'rule-label-preview')
+    await acceptBacktest(page, press)
+    await pressSelector(page, press, '[data-testid="save-rule"]')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+    await toast(page, words.ruleChanges.edited(id, [words.ruleChanges.labelIds], words.ruleChanges.renumbered(0)))
+    await page
+      .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="rule-label"]')].some((badge) => badge.textContent?.trim() === wanted), { timeout: 10_000 }, label)
+      .catch(() => {
+        throw new Error(`the rules tab shows no ${label} on ${id}`)
+      })
+    await inspect?.('the label on the rule')
+    await shootAt(page, shoot, await ruleRowOf(page, id), 'rule-label-saved')
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="rule-label"]') === null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Undo left the label on the rule')
+      })
+    await dismissToasts(page)
+  }
+}
+
+export const ruleLabelsFlow = ruleLabelsFlowIn('en')
 
 /** Presses the visible button under `selector` whose text starts with `label`. */
 async function pressButton(page, press, selector, label) {

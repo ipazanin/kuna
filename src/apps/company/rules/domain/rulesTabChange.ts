@@ -1,5 +1,7 @@
 import { cellText } from '../../../../shared/text/cellText'
+import { LABEL_RECORDS } from '../../workbook/domain/coreKinds'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
+import { idsText } from '../../../../shared/storage/domain/storedFields'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RuleTabRow } from './readRules'
 import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
@@ -73,6 +75,7 @@ export function ruleFieldsOf(rule: Rule): RuleFields {
     order: String(rule.order),
     enabled: rule.enabled,
     category: rule.category,
+    label_ids: idsText(rule.labels ?? [], LABEL_RECORDS),
     confidence: rule.confidence,
     note: rule.note,
   }

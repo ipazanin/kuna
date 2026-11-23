@@ -43,7 +43,7 @@ describe('rule fields', () => {
       { column: 'foreign_currency' },
     ])
 
-    const [read] = readRules([{ fields: ruleFieldsOf(written) }], CATEGORIES).rules
+    const [read] = readRules([{ fields: ruleFieldsOf(written) }], CATEGORIES, new Set()).rules
 
     expect(read).toEqual(written)
   })
@@ -77,7 +77,7 @@ describe('previewRulesChange', () => {
   const broken = { fields: { rule: 'broken', order: 'soon', enabled: true, is_card: true, category: 'equipment', confidence: 'rule' } }
 
   it('refuses only the rules the change writes, and leaves a broken rule elsewhere to its problem', () => {
-    const preview = (change: Parameters<typeof previewRulesChange>[1]) => previewRulesChange([good, broken], change, CATEGORIES, [], [], context).refusals
+    const preview = (change: Parameters<typeof previewRulesChange>[1]) => previewRulesChange([good, broken], change, CATEGORIES, new Set(), [], [], context).refusals
 
     expect(preview({ appended: { rule: 'b', order: '200', enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([])
     expect(preview({ appended: null, edited: [{ id: 'a', expected: good.fields, fields: { ...good.fields, category: 'snacks' } }], removed: null })).toEqual([
@@ -87,7 +87,7 @@ describe('previewRulesChange', () => {
   })
 
   it('refuses a new rule without an id, and names a taken id once', () => {
-    const preview = (change: Parameters<typeof previewRulesChange>[1]) => previewRulesChange([good, broken], change, CATEGORIES, [], [], context).refusals
+    const preview = (change: Parameters<typeof previewRulesChange>[1]) => previewRulesChange([good, broken], change, CATEGORIES, new Set(), [], [], context).refusals
 
     expect(preview({ appended: { rule: '', order: '200', enabled: true, is_card: true, category: 'travel', confidence: 'rule' }, edited: [], removed: null })).toEqual([
       'unnamed: a row without a rule id',
@@ -245,6 +245,7 @@ describe('rulesChangeInWords', () => {
     expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: fields, fields: { ...fields, note: 'Monthly', category: 'consulting' } }], removed: null })).toBe(
       'Edited accountant: category, note',
     )
+    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'accountant', expected: fields, fields: { ...fields, label_ids: 'label-0001' } }], removed: null })).toBe('Edited accountant: Labels')
     expect(rulesChangeInWords({ appended: null, edited: [], removed: fields })).toBe('Deleted accountant')
   })
 })

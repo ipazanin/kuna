@@ -1,20 +1,21 @@
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
-import { RULE_RECORDS } from '../../workbook/domain/coreKinds'
+import { LABEL_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
 import { filledKey, labelWords } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { FieldValue, RecordFields } from '../../../../shared/storage/domain/recordFields'
-import { recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordProblem } from '../../../../shared/storage/domain/recordsRead'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
-import { slugOf, textOf as fieldTextOf } from '../../../../shared/storage/domain/storedFields'
+import { idsInText, slugOf, textOf as fieldTextOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { CONDITION_COLUMNS, inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import type { Rule, RuleCondition, RuleConfidence } from '../../../../shared/categorising/domain/rule'
 import { words } from './words'
 
 /** Every column of the `rules` tab in its seeded order. */
-export const RULE_COLUMNS = ['rule', 'order', 'enabled', ...CONDITION_COLUMNS, 'category', 'confidence', 'note'] as const
+export const RULE_COLUMNS = ['rule', 'order', 'enabled', ...CONDITION_COLUMNS, 'category', 'label_ids', 'confidence', 'note'] as const
 
 /** One stored rule as its fields, a flag as true or false and anything else as its text, blank fields left out. */
 export interface RuleTabRow {
@@ -34,6 +35,19 @@ export const RULE_CODEC: RecordCodec<RuleTabRow> = {
   fieldsOf: (row) => filledFields(row.fields),
 }
 
+/** The labels a rule may put on rows: the ids the labels tab holds, or null for books from before items, which keep no labels. */
+export type RuleLabelIds = ReadonlySet<RecordId> | null
+
+/** The labels the books' rules may put on rows, from the labels they hold and whether they keep items. */
+export function ruleLabelIdsIn(labels: readonly { readonly id: RecordId }[], itemsStored: boolean): RuleLabelIds {
+  return itemsStored ? new Set(labels.map((label) => label.id)) : null
+}
+
+/** The labels a stored rule names, by their ids, whether the labels tab holds them or not. */
+export function ruleLabelIdsOf(fields: RecordFields): RecordId[] {
+  return idsInText(textOf(fields.label_ids), LABEL_RECORDS)
+}
+
 export interface RulesRead {
   /** In the order they are tried. */
   readonly rules: readonly Rule[]
@@ -48,11 +62,14 @@ type ConditionColumnName = (typeof CONDITION_COLUMNS)[number]
  * refused row is left out, which hands its rows to the rules below it.
  *
  * Refused: an unknown column, no id or one on more than one row, every row of it, an order that is not a number, an enabled
- * cell that is not TRUE or FALSE, an enabled rule with no condition or an unreadable one, and a `rule`
- * confidence rule whose category `definedCategories` lacks. A `review` rule may name any category or
- * none. A disabled rule is checked for its id and order only, and keeps the conditions that read.
+ * cell that is not TRUE or FALSE, an enabled rule with no condition or an unreadable one, a `rule`
+ * confidence rule whose category `definedCategories` lacks, and an enabled rule with labels and no category. A `review` rule may
+ * name any category or none. A disabled rule is checked for its id and order only, and keeps the conditions that read.
+ *
+ * A label `labels` lacks is a problem on the rule, which still reads with the others. On books from before items every label
+ * the rule names is such a problem, since those books keep no labels.
  */
-export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>): RulesRead {
+export function readRules(rows: readonly RuleTabRow[], definedCategories: ReadonlySet<string>, labels: RuleLabelIds): RulesRead {
   const problems: RecordProblem[] = []
   const shared = sharedKeys(
     rows.filter((row) => textOf(row.fields.rule) !== ''),
@@ -92,26 +109,33 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
     const read = conditionsOf(row.fields)
     const category = textOf(row.fields.category).toLowerCase()
     const confidenceText = textOf(row.fields.confidence).toLowerCase()
+    const namedLabels = ruleLabelIdsOf(row.fields)
     if (enabled) {
-      const reasons = enabledRuleRefusals(confidenceText, category, read, definedCategories)
+      const reasons = enabledRuleRefusals(confidenceText, category, namedLabels.length > 0, read, definedCategories)
       if (reasons.length > 0) {
         reasons.forEach(refuse)
         continue
       }
     }
+    const known = labels === null ? [] : namedLabels.filter((label) => labels.has(label))
+    if (labels === null && namedLabels.length > 0) refuse(words.reading.noLabelsBeforeItems)
+    if (labels !== null) namedLabels.filter((label) => !labels.has(label)).forEach((label) => refuse(words.reading.noLabel(keyOfRecordId(LABEL_RECORDS, label))))
     const confidence: RuleConfidence = confidenceText === 'rule' ? 'rule' : 'review'
-    rules.push({ id, order, enabled, conditions: read.conditions, category, confidence, note: textOf(row.fields.note) })
+    rules.push({ id, order, enabled, conditions: read.conditions, category, confidence, note: textOf(row.fields.note), ...(known.length === 0 ? {} : { labels: known }) })
   }
   return { rules: inTryingOrder(rules), problems }
 }
 
 /** Why an enabled rule cannot be tried, the first check that fails, or none. */
-function enabledRuleRefusals(confidence: string, category: string, read: ReturnType<typeof conditionsOf>, definedCategories: ReadonlySet<string>): string[] {
+function enabledRuleRefusals(confidence: string, category: string, labelled: boolean, read: ReturnType<typeof conditionsOf>, definedCategories: ReadonlySet<string>): string[] {
   if (confidence !== 'rule' && confidence !== 'review') {
     return [words.reading.unknownConfidence(confidence)]
   }
   if (confidence === 'rule' && !definedCategories.has(category)) {
     return [words.reading.undefinedCategory(category)]
+  }
+  if (labelled && category === '') {
+    return [words.reading.labelsWithoutCategory]
   }
   if (read.unreadable.length > 0) {
     return read.unreadable

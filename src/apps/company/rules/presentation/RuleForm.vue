@@ -8,6 +8,8 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
+import type { Label } from '../../../../shared/categorising/domain/labels'
 import CategoryPicker from '../../transactions/presentation/CategoryPicker.vue'
 import type { Category } from '../../workbook/domain/workbook'
 import { CONDITION_COLUMNS } from '../../../../shared/categorising/domain/rule'
@@ -18,13 +20,19 @@ import { words as ruleWords } from '../domain/words'
 import { placementChoices } from './placementWords'
 import { words } from './words'
 
-/** One rules row as a form: its conditions from the tab's columns, what it files, and where it is tried. */
+/** One rules row as a form: its conditions from the tab's columns, what it files and labels, and where it is tried. */
 const props = defineProps<{
   rules: readonly Rule[]
   categories: readonly Category[]
+  /** The labels it may put on rows, or null on books from before items, which keep none and show no labels field. */
+  labels: readonly Label[] | null
+  /** Why the name typed last into the labels cannot be a label, or null. */
+  labelRefused: string | null
   /** The id the rule has on the tab now, when an existing rule is edited. */
   editingId: string | null
 }>()
+
+const emit = defineEmits<{ 'create-label': [name: string] }>()
 
 const draft = defineModel<RuleDraft>({ required: true })
 
@@ -151,6 +159,24 @@ function presenceOf(value: DraftCondition['value']): string {
         <USelect :model-value="draft.confidence" :items="confidenceItems" class="w-full" :aria-label="words.form.confidence" @update:model-value="update('confidence', $event as RuleConfidence)" />
       </UFormField>
     </FormGrid>
+
+    <UFormField
+      v-if="labels !== null"
+      :label="words.form.labels"
+      :help="draft.category === '' ? words.form.labelsNeedCategory : words.form.labelsHelp"
+      :error="labelRefused ?? false"
+      data-testid="rule-labels"
+    >
+      <LabelsSelect
+        :model-value="draft.labels"
+        :labels="labels"
+        :name="words.form.labels"
+        :disabled="draft.category === '' && draft.labels.length === 0"
+        class="w-full"
+        @update:model-value="update('labels', $event)"
+        @create="emit('create-label', $event)"
+      />
+    </UFormField>
 
     <UFormField :label="words.form.note" :help="words.form.noteHelp">
       <UTextarea :model-value="draft.note" :rows="2" autoresize class="w-full" :aria-label="words.form.note" @update:model-value="update('note', String($event))" />

@@ -21,7 +21,7 @@ import { ownerPayments } from './domain/ownerPayments'
 import { publishedOwnerPayments } from './application/moneyWithOwner'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { TRIPS_ROUTE } from './presentation/trips/tripLinks'
-import { categoriesToSort } from './preset/presentation/categoriesToSort'
+import { categoriesToSort, missingCategoriesToSort } from './preset/presentation/categoriesToSort'
 import { categoryClassHelp } from './preset/presentation/categoryClassHelp'
 import { categoryNamingWords } from './presentation/categoryNamingWords'
 import { words as packWords } from './presentation/words'
@@ -72,6 +72,7 @@ export const hrDooPack: PackContribution = {
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
   categoryClassHelp,
   categoriesToSort,
+  missingCategoriesToSort,
   categoryNamingWords,
   onboarding: packWords.onboarding,
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.

@@ -1,3 +1,4 @@
+import type { RecordId } from '../../storage/domain/recordId'
 import { naturalOrder } from '../../text/naturalOrder'
 
 /** `rule` files a row at full confidence. `review` writes `ai`, so the row waits on Needs review. */
@@ -29,6 +30,8 @@ export interface Rule {
   readonly category: string
   readonly confidence: RuleConfidence
   readonly note: string
+  /** The labels it puts on the rows it files, beside those they carry. Left out while it puts on none, and a rule with labels has a category. */
+  readonly labels?: readonly RecordId[]
 }
 
 /** The condition columns, in their stored order. */

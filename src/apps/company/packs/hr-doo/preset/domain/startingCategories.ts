@@ -2,9 +2,13 @@ import { OWNER_SHARE_ROLES } from '../../../../owner-share/domain/ownerShare'
 import { RECEIVABLE_ROLES } from '../../../../receivables/domain/invoiceMatching'
 import { classOf } from '../../../../settings/domain/categoryClasses'
 import type { DefinedBucket } from '../../../../workbook/domain/bucket'
-import { newerClassDismissed } from '../../../../workbook/domain/dismissals'
+import { missingCategoryDismissed, newerClassDismissed } from '../../../../workbook/domain/dismissals'
 import type { Dismissal } from '../../../../workbook/domain/dismissals'
-import type { StartingCategory } from '../../../../workbook/domain/packPart'
+import type { MissingStartingCategory, StartingCategory } from '../../../../workbook/domain/packPart'
+import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
+import { inTryingOrder } from '../../../../../../shared/categorising/domain/rule'
+import type { Rule } from '../../../../../../shared/categorising/domain/rule'
+import { startingRules } from './startingRules'
 import type { VatTreatment } from '../../../../workbook/domain/vatTreatment'
 import { PACK_ROLES } from '../../domain/packRoles'
 import { CATEGORY_CLASSES } from './taxClassOf'
@@ -144,4 +148,48 @@ export function startingChange(category: { readonly slug: string; readonly roles
   if (change === null) return null
   if (change.kind === 'class') return carried === change.from ? change : null
   return carried === classOf(newer, CATEGORY_CLASSES)?.role && change.added.every((role) => !category.roles.includes(role)) ? change : null
+}
+
+/**
+ * The starting categories the books lack by short name that a starting rule of the day files into, unless the person dismissed
+ * the offer, each with those rules that no rule of the books has the id of.
+ */
+export function missingStartingCategories(
+  categories: readonly { readonly slug: string }[],
+  rules: readonly Pick<Rule, 'id' | 'order'>[],
+  dismissals: readonly Dismissal[],
+  on: CivilDate,
+): MissingStartingCategory[] {
+  const held = new Set(categories.map((category) => category.slug))
+  const seeded = startingRules(on)
+  const filed = new Set(seeded.map((rule) => rule.category))
+  return STARTING_CATEGORIES.filter((category) => filed.has(category.slug) && !held.has(category.slug) && !missingCategoryDismissed(dismissals, category.slug)).map((category) => ({
+    category,
+    rules: seeded.flatMap((rule, index) => (rule.category !== category.slug || rules.some((book) => sameRuleId(book.id, rule.id)) ? [] : [{ rule, before: startingPlaceOf(seeded, index, rules) }])),
+  }))
+}
+
+function sameRuleId(one: string, other: string): boolean {
+  return one.toLowerCase() === other.toLowerCase()
+}
+
+/**
+ * The rule of the books a missing starting rule is tried just before, so it keeps its place among the starting rules the books
+ * hold: the first later one, else the rule after the last earlier one, else the books' first rule, since new books try their
+ * starting rules ahead of the person's own. Null puts it last.
+ */
+function startingPlaceOf(seeded: readonly Rule[], index: number, rules: readonly Pick<Rule, 'id' | 'order'>[]): string | null {
+  const heldOf = (starting: Rule) => rules.find((book) => sameRuleId(book.id, starting.id))
+  const later = seeded
+    .slice(index + 1)
+    .map(heldOf)
+    .find((book) => book !== undefined)
+  if (later !== undefined) return later.id
+  const ordered = inTryingOrder(rules)
+  const earlier = seeded.slice(0, index).flatMap((starting) => {
+    const book = heldOf(starting)
+    return book === undefined ? [] : [ordered.indexOf(book)]
+  })
+  const after = earlier.length === 0 ? 0 : Math.max(...earlier) + 1
+  return ordered[after]?.id ?? null
 }

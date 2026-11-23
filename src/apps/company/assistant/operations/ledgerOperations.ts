@@ -11,7 +11,7 @@ import { writeRuleSave, writeRulesChange } from '../../rules/application/ruleWri
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
 import { withoutDismissed } from '../../rules/domain/dismissedSuggestions'
 import { ruleNameOf } from '../../rules/domain/proposeRule'
-import { readRules } from '../../rules/domain/readRules'
+import { readRules, ruleLabelIdsIn } from '../../rules/domain/readRules'
 import { ruleAgainst, ruleCoverage } from '../../rules/domain/ruleCoverage'
 import { blankDraft, draftChange, draftForRow, draftOfRule } from '../../rules/domain/ruleDraft'
 import type { DraftCondition, RuleDraft } from '../../rules/domain/ruleDraft'
@@ -26,14 +26,15 @@ import { fitsPairSide, pairSidesWith } from '../../transactions/domain/pairSides
 import { confirmation, confirmedRowsRefiledBy, recategorisation } from '../../transactions/domain/verdictChanges'
 import { invoicesRefiledOff } from '../../receivables/domain/invoicePayments'
 import type { RowVerdict } from '../../transactions/domain/verdictChanges'
-import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
+import { CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
+import { storesItems } from '../../workbook/domain/rowItems'
 import { displayNamesOf } from '../../workbook/domain/displayName'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { storedSplitsOf } from '../../workbook/domain/storedSplits'
 import { rowsOfOneItem, wholeItemId } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { FLAG_OR_NULL, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
+import { FLAG_OR_NULL, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, found, inputOf } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
@@ -44,11 +45,13 @@ import { en as splitWords } from '../../../../shared/ui/words'
 import { absMoney, moneyFromAmount, negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { NO_RECORDS, recordWithId, recordsOf } from '../../../../shared/storage/domain/recordsRead'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 const ROW = LEDGER_RECORDS.name
 const CATEGORY = CATEGORY_RECORDS.name
 const RULE = RULE_RECORDS.name
 const SPLIT_PART = ITEM_RECORDS.name
+const LABEL = LABEL_RECORDS.name
 
 const CONFIDENCE_OR_NULL = { type: ['string', 'null'], description: 'rule files the row, review files it and leaves it waiting on To review, or null to leave it.' } as const
 
@@ -84,32 +87,34 @@ const OPERATIONS: readonly AssistantOperation[] = [
       'The rows waiting on To review that it settles are filed in the same change, and so are rows a person confirmed that it now files elsewhere, each warned on the card. Rows a rule filed, and rows another rule decides, keep their category, and the card warns on each the rules now disagree with.',
       'on no adds it switched off, and null adds it on. before is the rule it is tried just before, or null for after every rule. With name null Kuna names it from the category and the payee or account holder.',
       'Every condition must hold. A rule looks for something beyond the direction, such as words, an IBAN, a bank code or a card purchase.',
+      'label is a label the rule puts on the rows it files, beside their own labels, or null for none. The waiting rows it settles take it now, and rows it filed before keep theirs. Books from before items keep no labels.',
     ].join(' '),
-    input: inputOf({ row: TEXT_OR_NULL, category: TEXT, name: RULE_NAME, on: FLAG_OR_NULL, before: TEXT_OR_NULL, ...RULE_FIELDS }),
-    refs: { row: ROW, category: CATEGORY, before: RULE },
+    input: inputOf({ row: TEXT_OR_NULL, category: TEXT, name: RULE_NAME, on: FLAG_OR_NULL, before: TEXT_OR_NULL, label: TEXT_OR_NULL, ...RULE_FIELDS }),
+    refs: { row: ROW, category: CATEGORY, before: RULE, label: LABEL },
     spellings: ['payeeWords'],
     creates: RULE,
     alone: false,
-    example: { row: null, category: 'category', name: null, on: null, before: null, ...CONDITIONS_LEFT, payeeWords: 'MARKET', direction: 'out', confidence: 'rule', note: null },
+    example: { row: null, category: 'category', name: null, on: null, before: null, label: null, ...CONDITIONS_LEFT, payeeWords: 'MARKET', direction: 'out', confidence: 'rule', note: null },
   },
   {
     name: 'change-rule',
     about:
-      'Changes a rule: its name, what it looks for, its category, on or off, whether it settles rows or leaves them waiting, and where it is tried, before another rule or last. Null leaves a field as it is. Waiting rows it now settles are filed in the same change.',
+      'Changes a rule: its name, what it looks for, its category, a label in place of its labels, on or off, whether it settles rows or leaves them waiting, and where it is tried, before another rule or last. Null leaves a field as it is. Waiting rows it now settles are filed in the same change and take its labels, and rows it filed before keep theirs.',
     input: inputOf({
       rule: TEXT,
       name: { ...RULE_NAME, description: 'A new short name in lower case with hyphens, or null to keep it.' },
       category: TEXT_OR_NULL,
+      label: TEXT_OR_NULL,
       on: FLAG_OR_NULL,
       before: TEXT_OR_NULL,
       last: FLAG_OR_NULL,
       ...RULE_FIELDS,
     }),
-    refs: { rule: RULE, category: CATEGORY, before: RULE },
+    refs: { rule: RULE, category: CATEGORY, before: RULE, label: LABEL },
     spellings: ['payeeWords'],
     creates: null,
     alone: false,
-    example: { rule: 'rule', name: null, category: null, on: 'no', before: null, last: null, ...CONDITIONS_LEFT, confidence: null, note: null },
+    example: { rule: 'rule', name: null, category: null, label: null, on: 'no', before: null, last: null, ...CONDITIONS_LEFT, confidence: null, note: null },
   },
   {
     name: 'delete-rule',
@@ -254,14 +259,15 @@ function writeRules(card: CompanyCard, change: RulesTabChange, settledBy: string
   const { workbook } = card
   const rows = recordsOf(card.records().rules)
   const defined = new Set(workbook.categories.map((category) => category.slug))
+  const labels = ruleLabelIdsOf(card)
   const context = categorisationContextOf(workbook)
-  const preview = previewRulesChange(rows, change, defined, readRules(rows, defined).rules, rowsOfOneItem(workbook.transactions, workbook.splits), context)
+  const preview = previewRulesChange(rows, change, defined, labels, readRules(rows, defined, labels).rules, rowsOfOneItem(workbook.transactions, workbook.splits), context)
   if (preview.refusals.length > 0) throw new StepRefused(preview.refusals.join(' '))
   const refiled = settledBy === null ? [] : confirmedRowsRefiledBy(settledBy, preview.backtest.humanConflicts)
   if (settledBy === null) {
     writeRulesChange(card.unit, change)
   } else {
-    writeRuleSave(card.unit, workbook, card.records(), change, settledBy, refiled)
+    writeRuleSave(card.unit, workbook, card.records(), change, settledBy, labels, refiled)
   }
   const names = displayNamesOf(workbook)
   const label = (row: Transaction) => row.counterparty || names.category(row.category)
@@ -273,10 +279,22 @@ function writeRules(card: CompanyCard, change: RulesTabChange, settledBy: string
   }
 }
 
+/** The labels the card's rules may put on rows: the books' labels as the card's earlier steps left them, or none on books from before items. */
+function ruleLabelIdsOf(card: CompanyCard) {
+  return ruleLabelIdsIn(card.workbook.labels, storesItems(card.records()))
+}
+
+/** The labels a `label` field puts on a rule's rows, or `kept` for null. Books from before items keep no labels. */
+function ruleLabelsFrom(card: CompanyCard, value: unknown, kept: readonly RecordId[]): readonly RecordId[] {
+  if (value === null) return kept
+  if (!storesItems(card.records())) throw new StepRefused('These books keep their rows the way older versions of Kuna did, so they keep no labels. Propose move-to-items first.')
+  return [found(card.workbook.labels, card.idOf(value), 'label').id]
+}
+
 function addRule(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const { workbook } = card
-  const rules = readRules(recordsOf(card.records().rules), new Set(workbook.categories.map((category) => category.slug))).rules
+  const rules = readRules(recordsOf(card.records().rules), new Set(workbook.categories.map((category) => category.slug)), ruleLabelIdsOf(card)).rules
   const category = categoryOf(card, field['category'])
   const row = field['row'] === null ? null : rowOf(card, field['row'])
   const start = row === null ? blankDraft(rules) : draftForRow({ ...row, category: category.slug }, workbook, categorisationContextOf(workbook), installedPack().workbook?.directionPairedRoles ?? [])
@@ -287,6 +305,7 @@ function addRule(card: CompanyCard, step: ProposalStep): void {
     id: ruleNameFrom(field['name'], rules, null) ?? ruleNameOf(category.slug, holder, rules),
     enabled: flagOf(field['on']) ?? true,
     category: category.slug,
+    labels: ruleLabelsFrom(card, field['label'], []),
     conditions: conditionsFromInput(start.conditions, field),
     confidence: confidenceOf(field['confidence'], start.confidence),
     note: (field['note'] as string | null) ?? start.note,
@@ -314,7 +333,7 @@ function ruleNameFrom(value: unknown, rules: readonly Rule[], renamed: string | 
 /** The rule a field names as the rule editor opens it, among the rules as the card's earlier steps left them. */
 function openedRule(card: CompanyCard, value: unknown) {
   const rows = recordsOf(card.records().rules)
-  const rules = readRules(rows, new Set(card.workbook.categories.map((category) => category.slug))).rules
+  const rules = readRules(rows, new Set(card.workbook.categories.map((category) => category.slug)), ruleLabelIdsOf(card)).rules
   const id = card.idOf(value).toLowerCase()
   const rule = rules.find((candidate) => candidate.id.toLowerCase() === id)
   const opened = rule === undefined ? null : draftOfRule(rule, rows, rules)
@@ -331,6 +350,7 @@ function changeRule(card: CompanyCard, step: ProposalStep): void {
   const draft: RuleDraft = {
     ...opened.draft,
     category: field['category'] === null ? opened.draft.category : categoryOf(card, field['category']).slug,
+    labels: ruleLabelsFrom(card, field['label'], opened.draft.labels),
     enabled: on ?? opened.draft.enabled,
     conditions: conditionsFromInput(opened.draft.conditions, field),
     confidence: confidenceOf(field['confidence'], opened.draft.confidence),

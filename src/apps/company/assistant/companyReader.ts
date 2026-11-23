@@ -188,6 +188,7 @@ type RuleView = RuleConditionValues & {
   readonly enabled: boolean
   readonly confidence: string
   readonly category: string
+  readonly labels: readonly RecordId[]
   readonly note: string
 }
 
@@ -339,6 +340,7 @@ const RULE_FIELDS: FieldDocs<RuleView> = {
   enabled: { exposure: 'plain', meaning: 'Switched on.' },
   confidence: { exposure: 'plain', meaning: 'rule files the row, review files it and leaves it waiting on To review.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category it files into.' },
+  labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels it puts on the rows it files, beside their own. Rows it filed before keep theirs.' },
   note: { exposure: 'free-text', meaning: "The owner's note on it." },
   payeeWords: { exposure: 'party', meaning: "Words the other side's name must hold." },
   descriptionWords: { exposure: 'free-text', meaning: 'Words the description must hold.' },
@@ -468,6 +470,7 @@ function ruleOf(rule: Workbook['rules'][number]): RuleView {
     enabled: rule.enabled,
     confidence: rule.confidence,
     category: rule.category,
+    labels: rule.labels ?? [],
     note: rule.note,
     ...ruleConditionValues(rule.conditions),
   }

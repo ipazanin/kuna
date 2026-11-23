@@ -24,3 +24,8 @@ export function dismissalOfGroup(kind: CoverageKind, group: CoverageGroup<unknow
 export function dismissalOfNewerClass(category: string, on: CivilDate): Dismissal {
   return { kind: 'newer-class', key: category, category, dismissedOn: on, id: recordIdOf(DISMISSAL_RECORDS, newRecordId()) }
 }
+
+/** What dismisses the offer of a starting category these books lack: the category's short name as its key, and the day. */
+export function dismissalOfMissingCategory(category: string, on: CivilDate): Dismissal {
+  return { kind: 'missing-category', key: category, category, dismissedOn: on, id: recordIdOf(DISMISSAL_RECORDS, newRecordId()) }
+}

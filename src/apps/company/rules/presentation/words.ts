@@ -87,6 +87,9 @@ export const en = {
     reviewHelp: 'Files it as ai, so it waits on Transactions, To review.',
     note: 'Note',
     noteHelp: 'Why the rule exists and why it sits where it does.',
+    labels: 'Labels',
+    labelsHelp: 'The rows it files from now on take these labels beside their own. Rows it filed before keep theirs.',
+    labelsNeedCategory: 'A rule puts labels only on rows it files under a category, so pick one first.',
     enabled: 'Enabled',
     enabledHelp: 'A rule that is off stays on the tab and is never tried.',
   },
@@ -107,6 +110,8 @@ export const en = {
     none: 'None.',
     accept: 'I have looked at these rows and want the change anyway',
     acceptHelp: 'Rows already filed keep their category. Only rows filed after the change follow it.',
+    labelsGained: (rule: string, labels: readonly string[]) =>
+      `From now on ${rule} puts ${labels.join(', ')} on the rows it files, beside their own labels. Rows it filed before keep theirs, so label those with Select rows on Transactions.`,
   },
   change: {
     title: 'Change the rules',
@@ -244,6 +249,9 @@ export const hr: Translation<typeof en> = {
     reviewHelp: 'Stavku označava kao „ai”, pa čeka u Transakcijama, na kartici Za provjeru.',
     note: 'Napomena',
     noteHelp: 'Zašto pravilo postoji i zašto je na tom mjestu.',
+    labels: 'Oznake',
+    labelsHelp: 'Stavke koje odsad razvrsta dobivaju ove oznake uz svoje. Stavke koje je razvrstalo prije zadržavaju svoje.',
+    labelsNeedCategory: 'Pravilo stavlja oznake samo na stavke koje razvrstava u kategoriju, pa najprije odaberite kategoriju.',
     enabled: 'Uključeno',
     enabledHelp: 'Isključeno pravilo ostaje u datoteci i nikad se ne isprobava.',
   },
@@ -264,6 +272,8 @@ export const hr: Translation<typeof en> = {
     none: 'Nema.',
     accept: 'Vidim ove stavke i ipak želim promjenu',
     acceptHelp: 'Već razvrstane stavke zadržavaju kategoriju. Promjenu prate samo stavke razvrstane nakon nje.',
+    labelsGained: (rule, labels) =>
+      `Odsad ${rule} stavlja ${labels.join(', ')} na stavke koje razvrsta, uz njihove oznake. Stavke koje je razvrstalo prije zadržavaju svoje, pa njih označite u Transakcijama s Odaberi stavke.`,
   },
   change: {
     title: 'Promijeni pravila',

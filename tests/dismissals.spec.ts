@@ -63,7 +63,7 @@ describe('the dismissed tab', () => {
 
     expect(reading.facts).toEqual([{ kind: 'exception', key: 'name:corner shop', category: '', dismissedOn: null, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-3') }])
     expect(reading.problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      ['name:kiosk', '"rule" is not a kind of suggestion. Use not-covered, exception, newer-class'],
+      ['name:kiosk', '"rule" is not a kind of suggestion. Use not-covered, exception, newer-class, missing-category'],
       ['unnamed', 'no key'],
       ['name:bakery, Tuesday', 'dismissed_on "Tuesday" is not a date cell'],
       [`${DESK_KEY}, 2026-10-21`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],

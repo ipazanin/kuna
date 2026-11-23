@@ -23,6 +23,15 @@ export interface RowVerdict {
   readonly verdict: LedgerVerdict
 }
 
+/** A row a rule files, with the labels the rule puts on it beside those it carries. */
+export interface RuleFiling extends RowVerdict {
+  readonly labels: readonly RecordId[]
+}
+
+function ruleFiling(id: RecordId, verdict: Verdict): RuleFiling {
+  return { id, verdict: { category: verdict.category, flaggedBy: 'rule' }, labels: verdict.labels ?? [] }
+}
+
 type ReviewedRow = Pick<Transaction, 'id' | 'category' | 'flaggedBy' | 'bucket'>
 
 /** A person agrees with the category the row has: it stays, and `flagged_by` takes their review label. Null for a row whose category is not defined. */
@@ -49,11 +58,11 @@ export function withVerdict(entry: LedgerEntry, verdict: LedgerVerdict, categori
 
 /**
  * The rows a new rule settles that still wait on review: flagged `ai` or unclassified, never a row
- * a person confirmed. Each takes the rule's category and `rule`, as a sync or an import would have
+ * a person confirmed. Each takes the rule's category and `rule`, and its labels, as a sync or an import would have
  * written had the rule existed.
  */
-export function waitingRowsSettledBy(ruleId: string, transactions: readonly (ReviewedRow & CategorisableRow)[], rules: readonly Rule[], context: CategorisationContext): RowVerdict[] {
-  const verdicts: RowVerdict[] = []
+export function waitingRowsSettledBy(ruleId: string, transactions: readonly (ReviewedRow & CategorisableRow)[], rules: readonly Rule[], context: CategorisationContext): RuleFiling[] {
+  const verdicts: RuleFiling[] = []
   for (const transaction of transactions) {
     if (isHumanConfirmed(transaction) || (transaction.flaggedBy !== 'ai' && transaction.bucket !== UNCLASSIFIED)) {
       continue
@@ -62,17 +71,15 @@ export function waitingRowsSettledBy(ruleId: string, transactions: readonly (Rev
     if (verdict.ruleId?.toLowerCase() !== ruleId.toLowerCase() || verdict.flaggedBy !== 'rule') {
       continue
     }
-    verdicts.push({ id: transaction.id, verdict: { category: verdict.category, flaggedBy: 'rule' } })
+    verdicts.push(ruleFiling(transaction.id, verdict))
   }
   return verdicts
 }
 
 /**
  * The rows a person confirmed that a rule now files elsewhere, out of the rows whose verdict a rule change alters. Each takes the
- * rule's category and `rule`. Rows another rule decides, or the rule leaves waiting, are not among them.
+ * rule's category and `rule`, and its labels. Rows another rule decides, or the rule leaves waiting, are not among them.
  */
-export function confirmedRowsRefiledBy(ruleId: string, conflicts: readonly { readonly transaction: Pick<Transaction, 'id'>; readonly after: Verdict }[]): RowVerdict[] {
-  return conflicts
-    .filter(({ after }) => after.flaggedBy === 'rule' && after.ruleId?.toLowerCase() === ruleId.toLowerCase())
-    .map(({ transaction, after }) => ({ id: transaction.id, verdict: { category: after.category, flaggedBy: 'rule' } }))
+export function confirmedRowsRefiledBy(ruleId: string, conflicts: readonly { readonly transaction: Pick<Transaction, 'id'>; readonly after: Verdict }[]): RuleFiling[] {
+  return conflicts.filter(({ after }) => after.flaggedBy === 'rule' && after.ruleId?.toLowerCase() === ruleId.toLowerCase()).map(({ transaction, after }) => ruleFiling(transaction.id, after))
 }

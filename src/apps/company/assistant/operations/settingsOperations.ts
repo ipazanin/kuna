@@ -31,6 +31,8 @@ import {
 import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { displayNamesOf } from '../../workbook/domain/displayName'
+import { newestBookingOf } from '../../workbook/domain/workbook'
+import { addStartingCategory } from '../../categories/application/startingCategoryWrites'
 import type { CategoryClass } from '../../workbook/domain/packPart'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS } from '../../workbook/domain/coreKinds'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
@@ -179,6 +181,16 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
         colour: null,
         ownerShare: '',
       },
+    },
+    {
+      name: 'add-starting-category',
+      about:
+        'Adds a category new books start with that these books lack, with the starting rules that file into it, as Settings, General, Categories to sort offers it. category is its short name as Categories to sort lists it. Each rule takes its place among the starting rules the books hold, or goes ahead of their own rules when they hold none of those.',
+      input: inputOf({ category: TEXT }),
+      refs: {},
+      creates: CATEGORY,
+      alone: false,
+      example: { category: 'vat' },
     },
     {
       name: 'change-category',
@@ -368,6 +380,18 @@ function addCategory(card: CompanyCard, step: ProposalStep): void {
   card.made(step.as, slug)
 }
 
+function addStartingCategoryStep(card: CompanyCard, step: ProposalStep): void {
+  const slug = String(fieldsOf(step)['category']).trim().toLowerCase()
+  const { workbook } = card
+  const missing = installedPack()
+    .missingCategoriesToSort(workbook, newestBookingOf(workbook.transactions) ?? today())
+    .flatMap((line) => line.missing ?? [])
+    .find((offer) => offer.category.slug === slug)
+  if (missing === undefined) throw new StepRefused('Categories to sort offers no starting category of that short name. Read the categories to see which these books hold.')
+  addStartingCategory(card.unit, card.records(), workbook.rules, missing)
+  card.made(step.as, slug)
+}
+
 function changeCategory(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const slug = card.idOf(field['category']).toLowerCase()
@@ -540,6 +564,7 @@ const PLANS: Readonly<Record<string, (card: CompanyCard, step: ProposalStep) => 
   'set-setting': setSetting,
   'remove-setting': removeSetting,
   'add-category': addCategory,
+  'add-starting-category': addStartingCategoryStep,
   'change-category': changeCategory,
   'delete-category': deleteCategory,
   'add-account': addAccount,

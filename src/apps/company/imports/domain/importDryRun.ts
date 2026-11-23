@@ -13,6 +13,7 @@ import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { BY_HAND_SOURCES } from '../../workbook/domain/workbook'
 import type { CompanyPeriod, Transaction } from '../../workbook/domain/workbook'
 import { intakeRefusal, newAccountSources } from './importIntake'
@@ -126,6 +127,8 @@ export interface ImportDryRun {
   readonly accounts: readonly AddedAccount[]
   /** The new entries whose money pays invoices or pays back what a pack keeps, each as the items it becomes, which confirming writes. */
   readonly payments: readonly RowPayments[]
+  /** The labels the rule that files each new entry puts on it, by the entry's row id, for the entries whose rule puts on any. */
+  readonly ruleLabels: ReadonlyMap<string, readonly RecordId[]>
   readonly newRows: number
   readonly inLedger: number
 }
@@ -248,6 +251,7 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
     removed,
     accounts: [...accounts.values()],
     payments,
+    ruleLabels: ruleLabelsOf(statements, added),
     newRows: added.length,
     inLedger: rows.filter((row) => row.inLedger).length,
   }
@@ -266,6 +270,20 @@ function withPayments(statements: readonly DryRunStatement[], added: readonly Le
       return pays === undefined ? row : { ...row, pays }
     }),
   }))
+}
+
+/** The labels each new entry takes from the rule that files it, by its row id, the entry found by its account and reference. */
+function ruleLabelsOf(statements: readonly DryRunStatement[], added: readonly LedgerEntry[]): ReadonlyMap<string, readonly RecordId[]> {
+  const entryOf = new Map(added.map((entry) => [`${entry.account} ${entry.reference}`, entry]))
+  return new Map(
+    statements.flatMap((statement) =>
+      statement.rows.flatMap((row) => {
+        const rowId = row.inLedger ? null : entryOf.get(`${statement.account} ${row.reference}`)?.rowId
+        const labels = row.verdict?.labels
+        return rowId === null || rowId === undefined || labels === undefined ? [] : [[rowId, labels] as const]
+      }),
+    ),
+  )
 }
 
 /** Where a statement of a new account would start it: the balance before its first entry, on that entry's day. */

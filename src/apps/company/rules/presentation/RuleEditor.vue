@@ -17,6 +17,9 @@ import { draftChange } from '../domain/ruleDraft'
 import type { EditedRule, RuleDraft } from '../domain/ruleDraft'
 import type { RulesTabChange } from '../domain/rulesTabChange'
 import { rulesChangeInWords } from '../domain/ruleSummary'
+import { ruleLabelIdsIn } from '../domain/readRules'
+import { useTypedLabels } from '../../labels/presentation/useTypedLabels'
+import { storesItems } from '../../workbook/domain/rowItems'
 import RuleChangeReview from './RuleChangeReview.vue'
 import RuleForm from './RuleForm.vue'
 import { words } from './words'
@@ -33,7 +36,8 @@ export interface RuleEditorSource {
 
 /**
  * Adds, edits or deletes one rule with its back-test beside the form, live. A save files the rows still
- * waiting for review that the rule settles in the same write, so one Undo takes back both.
+ * waiting for review that the rule settles in the same write, with the rule's labels and the labels typed into the form, so one
+ * Undo takes back all of it.
  */
 const props = defineProps<{
   source: RuleEditorSource | null
@@ -52,6 +56,7 @@ const recordWrites = useRecordWrites(store)
 const draft = ref<RuleDraft | null>(props.source?.draft ?? null)
 const accepted = ref(false)
 const deleting = ref(false)
+const typed = useTypedLabels()
 
 watch(
   () => props.source,
@@ -59,8 +64,17 @@ watch(
     draft.value = source?.draft ?? null
     accepted.value = false
     deleting.value = false
+    typed.forget()
   },
 )
+
+/** The labels the form offers, the books' and those typed into it, or null on books from before items, which keep none. */
+const labelChoices = computed(() => (state.records !== null && storesItems(state.records) ? typed.choices.value : null))
+const ruleLabels = computed(() => ruleLabelIdsIn(labelChoices.value ?? [], labelChoices.value !== null))
+
+function createLabel(name: string): void {
+  if (draft.value !== null) draft.value = { ...draft.value, labels: typed.withTyped(draft.value.labels, name) }
+}
 
 const change = computed((): RulesTabChange | null => {
   const workbook = state.workbook
@@ -71,7 +85,10 @@ const change = computed((): RulesTabChange | null => {
   return draftChange(draft.value, workbook.rules, recordsOf(records.rules), edited)
 })
 
-const preview = useRulesChangePreview(() => (open.value ? change.value : null))
+const preview = useRulesChangePreview(
+  () => (open.value ? change.value : null),
+  () => labelChoices.value ?? [],
+)
 
 watch(change, () => {
   accepted.value = false
@@ -86,7 +103,7 @@ const waiting = computed(() => {
   const records = state.records
   const pending = change.value
   if (deleting.value || draft.value === null || workbook === null || records === null || pending === null) return []
-  return waitingRowsSettledBySave(workbook, records.rules, pending, draft.value.id.trim())
+  return waitingRowsSettledBySave(workbook, records.rules, pending, draft.value.id.trim(), ruleLabels.value)
 })
 
 async function save(): Promise<void> {
@@ -96,7 +113,13 @@ async function save(): Promise<void> {
   if (pending === null || draft.value === null || workbook === null || records === null || !canSave.value) return
   const settledBy = draft.value.id.trim()
   const filed = waiting.value.length
-  const written = await recordWrites.write(rulesChangeInWords(pending), (unit) => writeRuleSave(unit, workbook, records, pending, settledBy), {
+  const carried = new Set(draft.value.labels)
+  const labels = ruleLabels.value
+  const work = (unit: Parameters<typeof writeRuleSave>[0]) => {
+    typed.addCarried(unit, carried)
+    writeRuleSave(unit, workbook, records, pending, settledBy, labels)
+  }
+  const written = await recordWrites.write(rulesChangeInWords(pending), work, {
     key: SAVE_RULE_KEY,
     failedTitle: words.editor.notSaved,
     ...(filed === 0 ? {} : { description: plural(words.editor.filedBy(filed, settledBy), filed) }),
@@ -126,7 +149,7 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
   >
     <div v-if="deleting" class="flex flex-col gap-4" data-testid="rule-delete">
       <p class="type-body">{{ words.editor.leavesTab }}</p>
-      <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
+      <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" :labels="labelChoices ?? []" />
     </div>
     <div v-else-if="draft" class="flex flex-col gap-6" data-testid="rule-editor">
       <UAlert v-if="split" icon="i-lucide-split" color="warning" variant="subtle" :title="words.editor.splitTitle(splitRows, split.length)" data-testid="rule-split">
@@ -140,13 +163,21 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
           <p class="mt-2">{{ words.editor.startsOn(names.category(split[0]!.category)) }}</p>
         </template>
       </UAlert>
-      <RuleForm v-model="draft" :rules="state.workbook?.rules ?? []" :categories="state.workbook?.categories ?? []" :editing-id="source?.edited?.id ?? null" />
+      <RuleForm
+        v-model="draft"
+        :rules="state.workbook?.rules ?? []"
+        :categories="state.workbook?.categories ?? []"
+        :labels="labelChoices"
+        :label-refused="typed.refused.value"
+        :editing-id="source?.edited?.id ?? null"
+        @create-label="createLabel"
+      />
       <section class="flex flex-col gap-3 border-t border-default pt-5">
         <header>
           <h2 class="type-card-title">{{ words.editor.backtest }}</h2>
           <p class="mt-0.5 type-caption">{{ words.editor.backtestHelp }}</p>
         </header>
-        <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
+        <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" :labels="labelChoices ?? []" />
         <UAlert v-if="waiting.length" icon="i-lucide-inbox" color="info" variant="subtle" :description="words.editor.filedOnSave" data-testid="rule-files-waiting" />
       </section>
     </div>

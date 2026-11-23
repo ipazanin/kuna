@@ -30,7 +30,7 @@ import type { RuleEditorSource } from './RuleEditor.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 
-/** The rules tab in the order rules are tried, each switched, moved, edited, deleted or added through the same checked write. */
+/** The rules tab in the order rules are tried, each with what it files and the labels it puts on, and each switched, moved, edited, deleted or added through the same checked write. */
 const { state } = useWorkbook()
 
 const workbook = computed(() => state.workbook)
@@ -41,6 +41,7 @@ const summary = computed(() => {
   return words.tab.summary(ordered.value.length, on)
 })
 const bucketBySlug = computed(() => new Map((workbook.value?.categories ?? []).map((category) => [category.slug, category.bucket])))
+const labelNames = computed(() => new Map((workbook.value?.labels ?? []).map((label) => [label.id, label.name])))
 
 /** How many ledger rows each rule decides today. */
 const decided = computed(() => {
@@ -167,7 +168,20 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
           <p v-if="rule.note" class="mt-1.5 type-caption">{{ rule.note }}</p>
         </div>
         <div class="rule-outcome">
-          <CategoryChip :category="rule.category" :bucket="bucketBySlug.get(rule.category) ?? UNCLASSIFIED" />
+          <span class="flex min-w-0 flex-wrap items-center gap-1.5">
+            <CategoryChip :category="rule.category" :bucket="bucketBySlug.get(rule.category) ?? UNCLASSIFIED" />
+            <UBadge
+              v-for="label in rule.labels ?? []"
+              :key="label"
+              :label="labelNames.get(label) ?? ''"
+              icon="i-lucide-tag"
+              color="neutral"
+              variant="subtle"
+              size="sm"
+              class="max-w-full"
+              data-testid="rule-label"
+            />
+          </span>
           <p class="figure type-caption">{{ words.tab.decides(decided.get(rule.id) ?? 0, rule.order) }}</p>
         </div>
         <div class="rule-actions">

@@ -124,7 +124,8 @@ export function dryRunFor(
  * The write of an import: the accounts it adds, the copied rows its entries take the place of, as the app read them, then its
  * ledger entries with their items, in the shape the books keep, and what of them pays back the records the pack keeps. A first
  * payment placed on an invoice starts placing the books' client payments. A copied row's items go to the bank's row that takes
- * its place, still paying the invoices they paid, since the two agree on the amount. A copied row the records on screen no longer
+ * its place, still paying the invoices they paid, since the two agree on the amount. A new entry's items carry the labels of the
+ * rule that files it. A copied row the records on screen no longer
  * hold stays, and the ledger then refuses entries that do not run on. The books forget each held statement the import files, so
  * one Undo puts back both.
  */
@@ -141,7 +142,7 @@ export function writeImport(unit: UnitOfWork, run: ImportDryRun, books: CompanyB
       .add({ ...accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }), sources: account.sources })
   }
   const removed = run.removed.flatMap((copied) => recordWithId(records.ledger, copied.id)?.record ?? [])
-  replaceLedgerRows(unit, records, removed, run.added, run.payments)
+  replaceLedgerRows(unit, records, removed, run.added, run.payments, run.ruleLabels)
   installedPack().linkRepayments(unit, records, run.payments)
   forgetSettledStatements(unit, books, run.statements)
 }

@@ -1,8 +1,12 @@
 import { cellText } from '../../../../shared/text/cellText'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { idsText } from '../../../../shared/storage/domain/storedFields'
+import { LABEL_RECORDS } from '../../workbook/domain/coreKinds'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
 import { categorise } from '../../../../shared/categorising/domain/categorise'
 import { proposeRule, unusedId } from './proposeRule'
+import { ruleLabelIdsOf } from './readRules'
 import type { RuleTabRow } from './readRules'
 import { CONDITION_COLUMNS, inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
@@ -40,6 +44,8 @@ export interface RuleDraft {
   readonly enabled: boolean
   readonly conditions: readonly DraftCondition[]
   readonly category: string
+  /** The labels it puts on the rows it files, by their ids. */
+  readonly labels: readonly RecordId[]
   readonly confidence: RuleConfidence
   readonly note: string
   /** The rule it is tried just before, or null for after every rule. */
@@ -61,6 +67,7 @@ export function draftFromFields(fields: RuleFields, before: string | null): Rule
     enabled: cellText(fields.enabled).toUpperCase() !== 'FALSE',
     conditions: CONDITION_COLUMNS.flatMap((column) => (cellText(fields[column]) === '' ? [] : [{ column, value: fields[column]! }])),
     category: cellText(fields.category).toLowerCase(),
+    labels: ruleLabelIdsOf(fields),
     confidence: confidence === 'review' ? 'review' : 'rule',
     note: cellText(fields.note),
     before,
@@ -95,6 +102,7 @@ function fieldsOfDraft(draft: RuleDraft): RuleFields {
     rule: draft.id.trim(),
     enabled: draft.enabled,
     category: draft.category,
+    label_ids: idsText(draft.labels, LABEL_RECORDS),
     confidence: draft.confidence,
     note: draft.note.trim(),
   }
@@ -120,15 +128,15 @@ export function draftForRow(
 
 /** A rule with nothing in it yet, tried after every other. */
 export function blankDraft(rules: readonly Rule[]): RuleDraft {
-  return { id: unusedId('new-rule', rules), enabled: true, conditions: [], category: '', confidence: 'rule', note: '', before: null }
+  return { id: unusedId('new-rule', rules), enabled: true, conditions: [], category: '', labels: [], confidence: 'rule', note: '', before: null }
 }
 
-/** The draft and the tab row of a rule on the tab, or null when the copy on screen has no row for it. */
+/** The draft and the tab row of a rule on the tab, or null when the copy on screen has no row for it. The draft keeps only the labels the rule reads with, so a save drops one the labels tab lacks. */
 export function draftOfRule(rule: Rule, rows: readonly RuleTabRow[], rules: readonly Rule[]): { readonly draft: RuleDraft; readonly edited: EditedRule } | null {
   const row = rows.find((candidate) => sameId(candidate.fields.rule, rule.id))
   if (row === undefined) {
     return null
   }
   const before = ruleTriedAfter(rules, rule.id)
-  return { draft: draftFromFields(row.fields, before), edited: { id: rule.id, expected: row.fields, order: rule.order, before } }
+  return { draft: { ...draftFromFields(row.fields, before), labels: rule.labels ?? [] }, edited: { id: rule.id, expected: row.fields, order: rule.order, before } }
 }

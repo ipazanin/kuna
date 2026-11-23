@@ -140,7 +140,9 @@ describe('every Company operation', () => {
         const before = change.verb === 'change' ? (change.before as Readonly<Record<string, unknown>>) : null
         const shown = group.lines[at]!.fields.map((field) => field.name)
         const rolesShownAsTaxClass = shown.includes(words.fields.taxClass)
-        const expected = namesSet(change.kind, before, change.after as Readonly<Record<string, unknown>>).filter((name) => !(rolesShownAsTaxClass && name === words.fields.roles))
+        const after = change.after as Readonly<Record<string, unknown>>
+        const familyAsBucket = change.kind.name === CATEGORY_RECORDS.name && after['family'] === after['bucket']
+        const expected = namesSet(change.kind, before, after).filter((name) => !(rolesShownAsTaxClass && name === words.fields.roles) && !(familyAsBucket && name === words.fields.family))
         expect(shown).toEqual(expect.arrayContaining(expected))
       }
       const accepted = await desk.accept()
@@ -193,6 +195,7 @@ describe('rules', () => {
     name: null,
     on: null,
     before: null,
+    label: null,
     ...conditionsLeft,
     confidence: null,
     note: null,
@@ -202,6 +205,7 @@ describe('rules', () => {
     rule: desk.ref(RULE_RECORDS.name, id),
     name: null,
     category: null,
+    label: null,
     on: null,
     before: null,
     last: null,
@@ -223,6 +227,36 @@ describe('rules', () => {
     if (accepted.kind === 'done') await accepted.undo!()
     expect(desk.row('REF-8')).toMatchObject({ flaggedBy: 'ai' })
     expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).not.toContain('office-market')
+  })
+
+  it('puts the label it takes on the waiting rows the rule settles, and on the rule', async () => {
+    const desk = await labelledDesk()
+    const berlin = desk.store.state.workbook!.labels[0]!
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'MARKET', label: desk.ref(LABEL_RECORDS.name, berlin.id) }) }])
+    await desk.accept()
+    expect(storedRule(desk, 'office-market').labels).toEqual([berlin.id])
+    expect(storedItemsOfRow(desk.store.state.records!.items, desk.row('REF-8')).map((item) => item.labels)).toEqual([[berlin.id]])
+  })
+
+  it('takes a label in place of the labels of a rule it changes, and refuses one on books from before items', async () => {
+    const labelled = await labelledDesk()
+    const berlin = labelled.store.state.workbook!.labels[0]!
+    await labelled.propose([{ op: 'change-rule', input: changeRuleInput(labelled, 'merchant-model', { label: labelled.ref(LABEL_RECORDS.name, berlin.id) }) }])
+    await labelled.accept()
+    expect(storedRule(labelled, 'merchant-model').labels).toEqual([berlin.id])
+
+    const before = await companyDesk(
+      used,
+      {},
+      {
+        labels: [
+          ['name', 'id'],
+          ['Berlin', 'berlin'],
+        ],
+      },
+    )
+    const answer = await before.propose([{ op: 'add-rule', input: ruleInput(before, { payeeWords: 'MARKET', label: before.ref(LABEL_RECORDS.name, before.store.state.workbook!.labels[0]!.id) }) }])
+    expect(answer.isError).toBe(true)
   })
 
   it('re-files each confirmed row the rule now files elsewhere, each on its own warned line, with one Undo', async () => {
@@ -902,7 +936,7 @@ describe('a flag on a card', () => {
     const change = { kind: CATEGORY_RECORDS, verb: 'change', before: category, after: { ...category, flagged: true } } as const
     const checked = { title: 'A title', changes: [{ rules: {} as RuledChange['rules'], change }], kinds: [CATEGORY_RECORDS], written: [], found: [] }
 
-    const [group] = proposalGroupsOf(checked, workbook, [], null, new Set())
+    const [group] = proposalGroupsOf(checked, { workbook, records: desk.store.state.records! }, [], null, new Set())
     expect(group!.lines[0]!.fields.find((field) => field.name === 'flagged')).toMatchObject({ before: sharedWords.no, after: sharedWords.yes })
   })
 })

@@ -10,8 +10,8 @@ import { classSharesDay, installedPack } from '../../packs/packContribution'
 import { vatTreatmentLabel } from '../../settings/presentation/vatTreatmentLabel'
 import { placementWords } from '../../rules/presentation/placementWords'
 import { words as ruleFormWords } from '../../rules/presentation/words'
-import { readRules } from '../../rules/domain/readRules'
-import type { RuleTabRow } from '../../rules/domain/readRules'
+import { readRules, ruleLabelIdsIn } from '../../rules/domain/readRules'
+import type { RuleLabelIds, RuleTabRow } from '../../rules/domain/readRules'
 import { conditionInWords } from '../../rules/domain/ruleSummary'
 import {
   ACCOUNT_RECORDS,
@@ -32,6 +32,8 @@ import { invoiceNumberOf } from '../../workbook/domain/invoicesReading'
 import { moneyFormatOf } from '../../settings/domain/settings'
 import { isDefinedBucket } from '../../workbook/domain/bucket'
 import type { Workbook } from '../../workbook/domain/workbook'
+import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
+import { storesItems } from '../../workbook/domain/rowItems'
 import type { CardNote, ProposalField, ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
 import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
@@ -66,19 +68,25 @@ function filedBy(flaggedBy: string): string | null {
   return words.filedBy.person
 }
 
-/** A rule as the card says it: what it looks for, where it files, and whether it is off or leaves rows waiting. Its name is the line's label. */
-function ruleInWords(row: RuleTabRow, workbook: Workbook, names: DisplayNames): string | null {
-  const [rule] = readRules([row], new Set(workbook.categories.map((category) => category.slug))).rules
+/** A rule as the card says it: what it looks for, where it files, the labels it puts on, and whether it is off or leaves rows waiting. Its name is the line's label. */
+function ruleInWords(row: RuleTabRow, workbook: Workbook, ruleLabels: RuleLabelIds, names: DisplayNames): string | null {
+  const [rule] = readRules([row], new Set(workbook.categories.map((category) => category.slug)), ruleLabels).rules
   if (rule === undefined) return null
   const conditions = rule.conditions.map(conditionInWords).join(', ')
-  return [words.rule(conditions, names.category(rule.category)), ...(rule.enabled ? [] : [words.ruleOff]), ...(rule.confidence === 'review' ? [words.ruleReview] : [])].join(', ')
+  const labels = (rule.labels ?? []).map((id) => workbook.labels.find((label) => label.id === id)?.name ?? '')
+  return [
+    words.rule(conditions, names.category(rule.category)),
+    ...(labels.length === 0 ? [] : [words.ruleLabels(labels)]),
+    ...(rule.enabled ? [] : [words.ruleOff]),
+    ...(rule.confidence === 'review' ? [words.ruleReview] : []),
+  ].join(', ')
 }
 
 /** A value as a person reads it on screen: money in the books' format, days in words, categories and accounts by their names, and a category's bucket, VAT and tax class as the categories editor names them. */
-function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, workbook: Workbook, names: DisplayNames): string | null {
+function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, workbook: Workbook, ruleLabels: RuleLabelIds, names: DisplayNames): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
-  if (isKind(kind, RULE_RECORDS, record) && field === 'fields') return ruleInWords(record, workbook, names)
+  if (isKind(kind, RULE_RECORDS, record) && field === 'fields') return ruleInWords(record, workbook, ruleLabels, names)
   const money = (amount: Money) => formatMoney(amount, 'negative', moneyFormatOf(workbook.settings))
   if (isKind(kind, LEDGER_RECORDS, record) && field === 'amount') return money(record.amount)
   if ((isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'amount') return money(record.amount)
@@ -213,14 +221,16 @@ export function fieldsInLabel(kind: RecordKind<unknown>): ReadonlySet<string> {
 }
 
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words, with the card's notes on the group of their kind. Each kind reads through its own screens' describer. */
-export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, notes: readonly CardNote[], pack: PackOperations | null, moved: ReadonlySet<string>): readonly ProposalGroup[] {
+export function proposalGroupsOf(checked: CheckedWrite, books: CompanyBooks, notes: readonly CardNote[], pack: PackOperations | null, moved: ReadonlySet<string>): readonly ProposalGroup[] {
+  const { workbook } = books
   const names = displayNamesOf(workbook)
+  const ruleLabels = ruleLabelIdsIn(workbook.labels, storesItems(books.records))
   const packs = pack?.describer(workbook) ?? null
   const placements = movedRules(checked, workbook.rules, moved)
   const core: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
-    shown: (kind, field, record) => shownValue(kind, field, record, workbook, names),
+    shown: (kind, field, record) => shownValue(kind, field, record, workbook, ruleLabels, names),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, workbook, names, packs?.settingNames ?? {}),
     reading: categoryReading,
     inLabel: fieldsInLabel,

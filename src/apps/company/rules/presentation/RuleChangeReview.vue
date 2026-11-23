@@ -2,11 +2,15 @@
 import { computed } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
+import UBadge from '@nuxt/ui/components/Badge.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import CutText from '../../../../shared/ui/CutText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import type { Label } from '../../../../shared/categorising/domain/labels'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -19,12 +23,14 @@ import { words as transactionWords } from '../../transactions/presentation/words
 import { words } from './words'
 
 /**
- * What a rules change would do to the ledger, before it is saved: why it cannot be saved, the rows
- * it settles, the agreements it breaks and the confirmed rows it disagrees with. The last two need
+ * What a rules change would do to the ledger, before it is saved: why it cannot be saved, the labels a rule gains, the rows
+ * it settles with the labels they take, the agreements it breaks and the confirmed rows it disagrees with. The last two need
  * an explicit yes.
  */
 const props = defineProps<{
   preview: RulesChangePreview<Transaction>
+  /** The labels the rules may name, such as the books' and those typed into the form, which give each its name. */
+  labels: readonly Label[]
 }>()
 
 const accepted = defineModel<boolean>('accepted', { required: true })
@@ -71,6 +77,10 @@ const lists = computed(() => [
 
 const needsAcceptance = computed(() => props.preview.backtest.brokenAgreements.length + props.preview.backtest.humanConflicts.length > 0)
 
+function labelNames(ids: readonly RecordId[] | undefined): string[] {
+  return (ids ?? []).flatMap((id) => props.labels.find((label) => label.id === id)?.name ?? [])
+}
+
 function shown(changes: readonly VerdictChange<Transaction>[]): readonly VerdictChange<Transaction>[] {
   return changes.slice(0, SHOWN_ROWS)
 }
@@ -85,6 +95,10 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
         </ul>
       </template>
     </UAlert>
+
+    <NoteLine v-for="gained in preview.labelsGained" :key="gained.ruleId" size="body" icon="i-lucide-tag" data-testid="rule-labels-gained">
+      {{ words.backtest.labelsGained(gained.ruleId, labelNames(gained.labels)) }}
+    </NoteLine>
 
     <section v-for="list in lists" :key="list.key" class="flex flex-col gap-2" :data-testid="`backtest-${list.key}`">
       <header class="flex items-baseline gap-2">
@@ -108,6 +122,19 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
               <span>{{ words.backtest.after }}</span>
               <CategoryChip :category="change.after.category" :bucket="bucketOf(change.after.category)" />
               <span v-if="change.after.flaggedBy === 'ai'" class="text-muted">{{ words.backtest.waitsForReview }}</span>
+              <template v-if="list.key !== 'broken'">
+                <UBadge
+                  v-for="name in labelNames(change.after.labels)"
+                  :key="name"
+                  :label="name"
+                  icon="i-lucide-tag"
+                  color="neutral"
+                  variant="subtle"
+                  size="sm"
+                  class="max-w-full"
+                  data-testid="backtest-label"
+                />
+              </template>
             </span>
           </span>
           <span v-if="change.from !== change.transaction.category" class="type-caption" data-testid="backtest-stored">{{ words.backtest.storedAs(names.category(change.transaction.category)) }}</span>

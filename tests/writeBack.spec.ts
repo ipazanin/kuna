@@ -261,7 +261,15 @@ describe.each([
     const opened = draftOfRule(workbook.rules[0]!, rows, workbook.rules)!
     const deletion: RulesTabChange = { appended: null, edited: [], removed: opened.edited.expected }
 
-    const preview = previewRulesChange(rows, deletion, new Set(workbook.categories.map((category) => category.slug)), workbook.rules, workbook.transactions, categorisationContextOf(workbook))
+    const preview = previewRulesChange(
+      rows,
+      deletion,
+      new Set(workbook.categories.map((category) => category.slug)),
+      new Set(),
+      workbook.rules,
+      workbook.transactions,
+      categorisationContextOf(workbook),
+    )
     expect(preview.refusals).toEqual([])
     expect(preview.backtest.brokenAgreements.map((change) => change.transaction.counterparty)).toEqual(['MODEL API INC'])
     expect(rulesChangeInWords(deletion)).toBe('Deleted merchant-model')

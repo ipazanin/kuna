@@ -115,7 +115,12 @@ export function slugListOf(field: StoredField | undefined): string[] {
 
 /** The records of a kind a field names by their keys, separated by `|` as `idsText` writes them, or by commas as older books do, such as `k1 | k2` or `k1, k2`. */
 export function idsOf(field: StoredField | undefined, kind: RecordKind): RecordId[] {
-  return textOf(field)
+  return idsInText(textOf(field), kind)
+}
+
+/** The records of a kind a cell's text names by their keys, as `idsOf` reads a field. */
+export function idsInText(text: string, kind: RecordKind): RecordId[] {
+  return text
     .split(/[|,]/)
     .map((key) => key.trim())
     .filter((key) => key !== '')

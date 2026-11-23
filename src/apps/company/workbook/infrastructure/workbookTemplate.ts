@@ -31,6 +31,7 @@ const RULE_COLUMN_NOTES: Readonly<Record<(typeof RULE_COLUMNS)[number], string>>
   is_card: 'Condition: TRUE for a card purchase, or blank.',
   foreign_currency: "Condition: TRUE for a payment in a currency other than the account's, or blank.",
   category: 'What the rule files the row as, from the categories tab. A review rule may leave it blank.',
+  label_ids: "The labels the rule puts on the rows it files, by the ids in the labels tab's id column, separated by |. A rule with labels needs a category. Optional.",
   confidence: 'rule files the row as settled. review files it as ai, so it waits for review.',
   note: 'Why the rule exists and why it sits where it does. Optional.',
 }
@@ -214,13 +215,13 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
   dismissed: [
     {
       name: 'kind',
-      note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}. The first two are the lists of confirmed rows no rule repeats on Settings, Category rules, and newer-class is the tax class Categories to sort suggests for a category. Required.`,
+      note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}. The first two are the lists of confirmed rows no rule repeats on Settings, Category rules, newer-class is the tax class Categories to sort suggests for a category, and missing-category is a category new books start with that Categories to sort offers. Required.`,
     },
     {
       name: 'key',
-      note: "The counterparty the suggestion groups its rows by: iban: and the IBAN, or name: and the name in lower case without accents. An exception adds | and the id of the rule it differs from. A newer-class row holds the category's short name. Required.",
+      note: "The counterparty the suggestion groups its rows by: iban: and the IBAN, or name: and the name in lower case without accents. An exception adds | and the id of the rule it differs from. A newer-class or missing-category row holds the category's short name. Required.",
     },
-    { name: 'category', note: "The category most of the group's rows were in when it was dismissed, or for newer-class the category itself. Optional." },
+    { name: 'category', note: "The category most of the group's rows were in when it was dismissed, or for newer-class and missing-category the category itself. Optional." },
     { name: 'dismissed_on', note: 'The day it was dismissed, as a date cell. Optional.' },
     ID_TEMPLATE_COLUMN,
   ],

@@ -1,4 +1,5 @@
 import type { CoverageGroup, RuleCoverage } from '../domain/ruleCoverage'
+import { COVERAGE_KINDS } from '../../workbook/domain/dismissals'
 import type { CoverageKind, Dismissal } from '../../workbook/domain/dismissals'
 
 /** A dismissal of a group of confirmed rows. */
@@ -24,7 +25,7 @@ export interface ShownCoverage<Row> {
  * join it, whatever their category. A dismissal of another kind of suggestion is left out.
  */
 export function withoutDismissed<Row>(coverage: RuleCoverage<Row>, dismissals: readonly Dismissal[]): ShownCoverage<Row> {
-  const ofCoverage = dismissals.filter((dismissal): dismissal is CoverageDismissal => dismissal.kind !== 'newer-class')
+  const ofCoverage = dismissals.filter((dismissal): dismissal is CoverageDismissal => (COVERAGE_KINDS as readonly string[]).includes(dismissal.kind))
   const groupsOf = (kind: CoverageKind): readonly CoverageGroup<Row>[] => (kind === 'not-covered' ? coverage.notCovered : coverage.exceptions)
   const isDismissed = (kind: CoverageKind, group: CoverageGroup<Row>): boolean => ofCoverage.some((dismissal) => dismissal.kind === kind && dismissal.key === group.key)
   return {

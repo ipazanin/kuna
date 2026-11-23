@@ -60,6 +60,13 @@ export const en = {
     newerClass: (carried: string, newer: string) => `It carries "${carried}", and new books give it "${newer}". Pick that one on Settings, Categories.`,
     newerRoles: (roles: readonly string[]) =>
       `New books also give it ${listInWords(roles.map((role) => `"${role}"`))}, which puts its costs on the profit and loss line the accountant uses. Add it on Settings, Categories.`,
+    missing: (taxClass: string | null, rules: number): EnglishForms => {
+      const start = taxClass === null ? 'New books start with this category' : `New books start with this category as "${taxClass}"`
+      return {
+        one: `${start}, and with ${rules} rule that files into it. Add puts both in.`,
+        other: rules === 0 ? `${start}. Add puts it in.` : `${start}, and with ${rules} rules that file into it. Add puts them all in.`,
+      }
+    },
   },
 }
 
@@ -106,6 +113,14 @@ export const hr: Translation<typeof en> = {
     newerClass: (carried, newer) => `Ima porezni tretman „${carried}”, a nova datoteka ovoj kategoriji daje „${newer}”. Odaberite taj tretman u Postavkama, Kategorije.`,
     newerRoles: (roles) =>
       `Nova datoteka ovoj kategoriji daje i ${listInWords(roles.map((role) => `„${role}”`))}, pa njezini troškovi idu u redak računa dobiti i gubitka koji koristi računovođa. Dodajte to u Postavkama, Kategorije.`,
+    missing: (taxClass, rules): CroatianForms => {
+      const start = taxClass === null ? 'Nova datoteka počinje s ovom kategorijom' : `Nova datoteka počinje s ovom kategorijom, s poreznim tretmanom „${taxClass}”`
+      return {
+        one: `${start} i s ${rules} pravilom koje razvrstava u nju. „Dodaj” unosi oboje.`,
+        few: `${start} i s ${rules} pravila koja razvrstavaju u nju. „Dodaj” unosi sve.`,
+        other: rules === 0 ? `${start}. „Dodaj” je unosi.` : `${start} i s ${rules} pravila koja razvrstavaju u nju. „Dodaj” unosi sve.`,
+      }
+    },
   },
 }
 

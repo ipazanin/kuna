@@ -110,8 +110,8 @@ function companyWork(appName: string, sets: readonly CompanyOperationSet[], pack
   return {
     appName,
     plan: (unit, books, steps) => planned(unit, books, sets, steps),
-    card: (checked, { workbook }, told) => ({
-      groups: proposalGroupsOf(checked, workbook, told.notes, pack, told.movedRules),
+    card: (checked, books, told) => ({
+      groups: proposalGroupsOf(checked, books, told.notes, pack, told.movedRules),
       outside: [],
       heldBack: told.heldBack.length === 0 ? null : told.heldBack.join(' '),
     }),

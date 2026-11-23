@@ -56,6 +56,8 @@ export const en = {
     renumberedRules: (count: number) => `Renumbered ${count} rules`,
     switched: (on: boolean, id: string) => `${on ? 'Switched on' : 'Switched off'} ${id}`,
     edited: (id: string, columns: readonly string[], renumbered: string) => `Edited ${id}: ${columns.join(', ')}${renumbered}`,
+    /** What the form calls the labels a rule puts on the rows it files, where an edit names the stored column. */
+    labelIds: 'Labels',
   },
   /** Why a row of the rules tab is left out. */
   reading: {
@@ -71,6 +73,9 @@ export const en = {
     trueFalseOrBlank: (column: string, text: string) => `${column} is "${text}", and it is TRUE, FALSE or blank`,
     trueOrBlank: (column: string, text: string) => `${column} is "${text}", and it is TRUE or blank`,
     revenueCode: (code: string) => `revenue_code is "${code}", and it is four digits`,
+    labelsWithoutCategory: 'it puts labels on rows and files them under no category, so it needs a category',
+    noLabel: (label: string) => `the labels tab holds no label ${label}, so the rule puts on none of it`,
+    noLabelsBeforeItems: 'books from before items keep no labels, so the rule puts on none',
   },
   /** Why a change to the rules tab cannot be made to the rows it holds now. */
   tab: {
@@ -127,6 +132,7 @@ export const hr: Translation<typeof en> = {
     renumberedRules: (count) => plural({ one: `Prenumerirano je ${count} pravilo`, few: `Prenumerirana su ${count} pravila`, other: `Prenumerirano je ${count} pravila` }, count),
     switched: (on, id) => `${on ? 'Uključeno' : 'Isključeno'}: ${id}`,
     edited: (id, columns, renumbered) => `Uređeno: ${id} (${columns.map((column) => `„${column}”`).join(', ')})${renumbered}`,
+    labelIds: 'Oznake',
   },
   reading: {
     unknownColumns: (columns) => `${columns}: nije stupac koji pravilo može provjeravati`,
@@ -141,6 +147,9 @@ export const hr: Translation<typeof en> = {
     trueFalseOrBlank: (column, text) => `${column} je „${text}”, a smije biti TRUE, FALSE ili prazno`,
     trueOrBlank: (column, text) => `${column} je „${text}”, a smije biti TRUE ili prazno`,
     revenueCode: (code) => `revenue_code je „${code}”, a mora imati četiri znamenke`,
+    labelsWithoutCategory: 'stavlja oznake na stavke, a ne razvrstava ih ni u jednu kategoriju, pa mu treba kategorija',
+    noLabel: (label) => `u kartici labels nema oznake ${label}, pa je pravilo ne stavlja`,
+    noLabelsBeforeItems: 'datoteke iz vremena prije dijelova ne vode oznake, pa pravilo ne stavlja nijednu',
   },
   tab: {
     gone: (id) => `nijedan redak pravila više nema oznaku „${id}”`,

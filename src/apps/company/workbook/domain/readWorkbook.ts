@@ -1,4 +1,4 @@
-import { readRules } from '../../rules/domain/readRules'
+import { readRules, ruleLabelIdsIn } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { readSettingsTab } from '../../settings/domain/settings'
 import type { Settings } from '../../settings/domain/settings'
@@ -207,7 +207,7 @@ export interface CompanyBooks {
  * Turns the records into the workbook the screens read, with the rules across records: keys that
  * more than one record holds, and references to categories and clients that the workbook lacks. A
  * missing kind reads as empty, and settings default. The rules are read against the categories
- * read here. Books in either shape read alike: each ledger row counts as its items, as
+ * and the labels read here. Books in either shape read alike: each ledger row counts as its items, as
  * `ledgerItemsOf` files it. The pack, when one is installed, then makes its part from its
  * records, the values of its settings keys and core's workbook.
  */
@@ -225,13 +225,14 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
   const clientSlugs = new Set(clients.map((client) => client.slug))
   const categorySlugs = new Set(categories.map((category) => category.slug))
   const ledger = keep('ledger', readLedger(records.ledger, categories))
-  const rules = readRules(recordsOf(records.rules), categorySlugs)
+  const labelsRead = readLabels(records.labels)
+  const rules = readRules(recordsOf(records.rules), categorySlugs, ruleLabelIdsIn(labelsRead.facts, storesItems(records)))
   problems.push(...tabProblems('rules', rules.problems))
   const items = ledgerItemsOf(records, ledger, categories)
   problems.push(...items.problems)
   const { transactions } = items
   const invoices = keep('invoices', readInvoices(records.invoices, clientSlugs))
-  const labels = keep('labels', readLabels(records.labels))
+  const labels = keep('labels', labelsRead)
   const core: Workbook = {
     ...identity,
     transactions,

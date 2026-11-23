@@ -75,3 +75,27 @@ function changedOrders(sequence: readonly (Rule | null)[]): Map<string, number> 
   })
   return changed
 }
+
+/** Rules added together, each with its order, and the rules already there whose order changes to make room, by id. */
+export interface RulesPlaced {
+  readonly added: readonly Rule[]
+  readonly renumbered: ReadonlyMap<string, number>
+}
+
+/**
+ * Where several new rules go, each placed in turn as `placeBefore` places one, just before the rule its `before` names, or
+ * last when that is null or names no rule there is. A rule placed earlier counts as there for the ones after it.
+ */
+export function placeRules(rules: readonly Rule[], adding: readonly { readonly rule: Rule; readonly before: string | null }[]): RulesPlaced {
+  let placed: Rule[] = [...rules]
+  for (const { rule, before } of adding) {
+    const placement = placeBefore(placed, null, before !== null && placed.some((held) => held.id === before) ? before : null)
+    placed = [...placed.map((held) => ({ ...held, order: placement.renumbered.get(held.id) ?? held.order })), { ...rule, order: placement.order }]
+  }
+  const ids = new Set(adding.map(({ rule }) => rule.id))
+  const orders = new Map(rules.map((rule) => [rule.id, rule.order]))
+  return {
+    added: placed.filter((rule) => ids.has(rule.id)),
+    renumbered: new Map(placed.filter((rule) => !ids.has(rule.id) && orders.get(rule.id) !== rule.order).map((rule) => [rule.id, rule.order])),
+  }
+}

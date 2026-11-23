@@ -75,6 +75,12 @@ export interface StartingCategory {
   readonly vat: VatTreatment
 }
 
+/** A category new books start with that a book lacks, with the starting rules that file into it, each tried just before the rule `before` names. */
+export interface MissingStartingCategory {
+  readonly category: StartingCategory
+  readonly rules: readonly { readonly rule: Rule; readonly before: string | null }[]
+}
+
 /**
  * How a pack makes its part of the workbook: the settings keys it reads, which core leaves to it,
  * and the part made from its records once core's records are read.

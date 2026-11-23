@@ -146,8 +146,8 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/company/rules/domain/ruleDraft.ts#RuleDraft',
     columns: 'conditions',
     operations: [
-      { name: 'add-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
-      { name: 'change-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
+      { name: 'add-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
+      { name: 'change-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
     ],
   },
   {
@@ -155,8 +155,8 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/company/rules/domain/ruleDraft.ts#RuleDraft',
     columns: 'conditions',
     operations: [
-      { name: 'add-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
-      { name: 'change-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
+      { name: 'add-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
+      { name: 'change-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
     ],
   },
   {

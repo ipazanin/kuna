@@ -262,6 +262,11 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
 
 export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
   {
+    reason:
+      'Add on Categories to sort, which writes a starting category and its rules as the pack defines them, picked by the short name add-starting-category takes. The person types none of their fields.',
+    paths: ['src/apps/company/categories/application/startingCategoryWrites.ts#addStartingCategory'],
+  },
+  {
     reason: 'Which listings Fetch today asked a once-a-day quote of, which this browser keeps so a reload asks them no more. The person types nothing for it.',
     paths: ['src/apps/investments/prices/infrastructure/vendorUsage.ts#rememberQuoteAsks'],
   },

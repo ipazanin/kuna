@@ -376,6 +376,9 @@ describe('Company record labels and sentences in Croatian', () => {
     expect(rulesChangeInWords({ appended: added, edited: [renumbered('a', '100', '200')], removed: null })).toBe('Dodano: merchant-bistro, i prenumerirano je 1 pravilo')
     expect(rulesChangeInWords({ appended: added, edited: [renumbered('a', '100', '200'), renumbered('b', '200', '300')], removed: null })).toBe('Dodano: merchant-bistro, i prenumerirana su 2 pravila')
     expect(rulesChangeInWords({ appended: null, edited: [], removed: added })).toBe('Obrisano: merchant-bistro')
+    expect(rulesChangeInWords({ appended: null, edited: [{ id: 'merchant-bistro', expected: added, fields: { ...added, label_ids: 'label-0001' } }], removed: null })).toBe(
+      'Uređeno: merchant-bistro („Oznake”)',
+    )
   })
 
   it('writes two years of the ruleset each with its own full stop', async () => {
