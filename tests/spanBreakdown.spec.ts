@@ -29,7 +29,7 @@ const november = row(OTP, '2026-11-02', -50, 'Food/Groceries', { payee: 'Corner 
 const transactions = [unreached, september, refund, topUp, arrived, salary, october, november]
 const items = [...wholeItems([unreached, september, refund, topUp, arrived, salary]), labelled(october, TRIP, WORK), ...wholeItems([november])]
 const rows = countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items }, RATES)
-const book = { categories: CATEGORIES, labels: [TRIP, WORK], accounts: ACCOUNTS }
+const book = { categories: CATEGORIES, labels: [TRIP, WORK], accounts: ACCOUNTS, payees: [] }
 
 const SEPTEMBER_TO_OCTOBER = { from: civil('2026-09-01'), to: civil('2026-10-31') }
 const breakdown = (grouping: Grouping, range = SEPTEMBER_TO_OCTOBER) => spanBreakdown(rows, book, range, grouping)

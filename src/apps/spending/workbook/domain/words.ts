@@ -10,6 +10,7 @@ import type { StoredFields } from '../../../../shared/storage/domain/storedField
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 import type { DueProblem } from './budget'
+import type { PayeeProblem } from '../../payees/domain/payeeDetails'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. A field keeps its name as the file stores it, such as opened_on.
 // An entry is unos, and a limit ograničenje.
@@ -131,6 +132,10 @@ export const en = {
   payeeNotAnIban: (iban: string) => `${iban} is not an IBAN`,
   payeeIbanTaken: (iban: string, holder: string) => `another payee, ${holder}, holds the IBAN ${iban} too`,
   payeeNotAnOib: (taxId: string) => `${taxId} has eleven digits but is not a valid OIB`,
+  /** A payee write refused for a problem of the payee, named by its first name. */
+  payeeRefused: (name: string, reason: string) => (name === '' ? `A payee ${reason}.` : `${name}: ${reason}.`),
+  /** A write refused because the file keeps rows as files did before items, by what the file cannot keep. */
+  beforeItems: (keeps: KeptAfterItems) => `A file from before items keeps no ${{ labels: 'labels', 'shared-cost': 'shared cost', event: 'event chosen by hand' }[keeps]}. Move it to items first.`,
   sharedCostCategoryAlone: 'is filed under In a shared cost, which only a part of an entry that joins a shared cost takes',
   sharedCostNotSpendingOrIncome: 'names a category that is neither spending nor income, so it counts nowhere',
   sharedCostNoEvent: 'names an event that is not in the file, so it joins an event by its day',
@@ -253,6 +258,9 @@ export const hr: Translation<typeof en> = {
   payeeNotAnIban: (iban) => `${iban} nije IBAN`,
   payeeIbanTaken: (iban, holder) => `i drugi primatelj ili platitelj, ${holder}, ima IBAN ${iban}`,
   payeeNotAnOib: (taxId) => `${taxId} ima jedanaest znamenki, ali nije valjan OIB`,
+  payeeRefused: (name, reason) => (name === '' ? `Primatelj ili platitelj ${reason}.` : `${name}: ${reason}.`),
+  beforeItems: (keeps) =>
+    `Datoteka iz vremena prije dijelova unosa ne čuva ${{ labels: 'oznake', 'shared-cost': 'zajednički trošak', event: 'ručno odabran događaj' }[keeps]}. Najprije je prebacite na dijelove.`,
   sharedCostCategoryAlone: 'stoji pod U zajedničkom trošku, a tamo ide samo dio unosa koji je u zajedničkom trošku',
   sharedCostNotSpendingOrIncome: 'navodi kategoriju koja nije ni potrošnja ni prihod, pa se nigdje ne broji',
   sharedCostNoEvent: 'navodi događaj kojeg nema u datoteci, pa se događaju pridružuje po svom danu',
@@ -287,3 +295,22 @@ function monthLabelOf(text: string): string {
 }
 
 export const words = language === 'hr' ? hr : en
+
+/** What a file from before items cannot keep until it moves to items. */
+export type KeptAfterItems = 'labels' | 'shared-cost' | 'event'
+
+/** A payee's problem in the words of the file's problems, which a refused payee write says too. */
+export function payeeReason(problem: PayeeProblem): string {
+  switch (problem.kind) {
+    case 'no-name':
+      return words.payeeNoName
+    case 'name-taken':
+      return words.payeeNameTaken(problem.name, problem.holder)
+    case 'not-an-iban':
+      return words.payeeNotAnIban(problem.iban)
+    case 'iban-taken':
+      return words.payeeIbanTaken(problem.iban, problem.holder)
+    case 'not-an-oib':
+      return words.payeeNotAnOib(problem.taxId)
+  }
+}

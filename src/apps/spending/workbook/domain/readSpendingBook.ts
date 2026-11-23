@@ -69,9 +69,8 @@ import {
 import type { SpendingSettings } from './spendingSettings'
 import type { StoredRow, Transaction } from './transaction'
 import { readDropped, readHeld, readTransactions } from './transactionReading'
-import { words } from './words'
+import { payeeReason, words } from './words'
 import { oldMarksCount } from '../../payees/domain/payeeDirectory'
-import type { PayeeProblem } from '../../payees/domain/payeeDetails'
 import type { MemberProblem } from '../../sharedCosts/domain/sharedCostMembers'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { doubted, readEach } from '../../../../shared/storage/domain/recordsRead'
@@ -229,22 +228,6 @@ export interface SpendingBook {
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly SpendingProblem[]
-}
-
-/** A payee's problem in the words of the file's problems. */
-function payeeReason(problem: PayeeProblem): string {
-  switch (problem.kind) {
-    case 'no-name':
-      return words.payeeNoName
-    case 'name-taken':
-      return words.payeeNameTaken(problem.name, problem.holder)
-    case 'not-an-iban':
-      return words.payeeNotAnIban(problem.iban)
-    case 'iban-taken':
-      return words.payeeIbanTaken(problem.iban, problem.holder)
-    case 'not-an-oib':
-      return words.payeeNotAnOib(problem.taxId)
-  }
 }
 
 const SHORTCUT_PART_REASONS: ShortcutPartReasons = {

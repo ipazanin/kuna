@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { clearPayee, mergePayees, renamePayee, savePayee, setPayeeParty } from '../src/apps/spending/payees/application/payeeWrites'
 import { newPayee } from '../src/apps/spending/payees/domain/payeeDetails'
@@ -50,7 +50,7 @@ describe('payee writes', () => {
     expect(store.state.workbook!.payees).toEqual([{ ...market, ibans: [MARKET_IBAN] }])
     expect(store.state.workbook!.problems).toEqual([])
     await expect(store.write('Saved', (unit) => savePayee(unit, store.state.records!, { ...newPayee('Bakery'), ibans: [MARKET_IBAN] }))).rejects.toThrow(
-      'Corner market already holds the IBAN HR6212345670000000001.',
+      'Bakery: another payee, Corner market, holds the IBAN HR6212345670000000001 too.',
     )
   })
 
@@ -160,9 +160,34 @@ describe('the move of the old person setting', () => {
     expect(store.state.workbook!.problems.filter((problem) => problem.kind === 'setting')).toEqual([])
   })
 
+  it('lets a new payee of two marked names take the place of both marks', async () => {
+    const store = await spendingStore([], 'Ana Horvat\nA. Horvat\nMarko Kovač')
+
+    await store.write('Saved', (unit) => savePayee(unit, store.state.records!, { ...newPayee('Ana Horvat', 'person'), names: ['Ana Horvat', 'A. Horvat'] }))
+
+    expect(store.state.workbook!.payees).toMatchObject([
+      { names: ['Ana Horvat', 'A. Horvat'], party: 'person' },
+      { names: ['Marko Kovač'], party: 'person' },
+    ])
+  })
+
   it('leaves a setting row found beside payees out of the marks, doubted', async () => {
     const store = await spendingStore([payee('bakery', ['Bakery'])], 'Ana Horvat')
 
     expect(store.state.workbook!.problems).toMatchObject([{ kind: 'setting', reason: 'is read no more, since each payee now says whether they are a person' }])
+  })
+})
+
+describe('a refused payee write', () => {
+  it("says the payee's problem in the words the file's problems use, in Croatian too", async () => {
+    vi.resetModules()
+    vi.doMock('../src/shared/text/language', async (original) => ({ ...(await original<object>()), language: 'hr' }))
+    const croatian = await import('../src/apps/spending/workbook/domain/words')
+    vi.doUnmock('../src/shared/text/language')
+
+    expect(croatian.words.payeeRefused('Pekara', croatian.payeeReason({ kind: 'iban-taken', iban: MARKET_IBAN, holder: 'Corner market' }))).toBe(
+      'Pekara: i drugi primatelj ili platitelj, Corner market, ima IBAN HR6212345670000000001.',
+    )
+    expect(croatian.words.payeeRefused('', croatian.payeeReason({ kind: 'no-name' }))).toBe('Primatelj ili platitelj nema naziv.')
   })
 })

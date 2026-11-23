@@ -12,6 +12,8 @@ import type { SharedCost } from '../../workbook/domain/sharedCost'
 import { SHARED_COST_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import { words as bookWords } from '../../workbook/domain/words'
+import { words } from '../domain/words'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -104,8 +106,8 @@ export function joinSharedCost(
   language: Language,
   parts: ReadonlySet<RecordId> = new Set(),
 ): readonly Category[] {
-  if (isBeforeItems(records)) throw new Error('A file from before items keeps no shared cost. Move it to items first.')
-  if (rows.some((row) => row.pair !== null)) throw new Error('A move between your accounts stays whole, so it joins no shared cost.')
+  if (isBeforeItems(records)) throw new Error(bookWords.beforeItems('shared-cost'))
+  if (rows.some((row) => row.pair !== null)) throw new Error(words.moveStaysWhole)
   const filing = sharedCostFiling(categories, language)
   const joined = rowsWithParts(
     records,

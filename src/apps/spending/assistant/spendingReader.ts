@@ -520,6 +520,7 @@ function payeesReport(book: SpendingBook, rates: RateBook, period: string | null
   const totals = payeeTotals(
     countedRows(book, rates).filter((row) => counted(row.day)),
     book.categories,
+    book,
   )
   const side = (shown: PayeeSide, word: string): readonly ReportFigure[] => {
     const { top, rest } = payeesRanked(totals, shown, PAYEES_NAMED)
@@ -600,7 +601,7 @@ const PAYEE_FIELDS: FieldDocs<PayeeLine> = {
 /** Every payee of all time, with the categories their entries usually go under. */
 function payeeLines(book: SpendingBook, rates: RateBook): readonly PayeeLine[] {
   const [usualOut, usualIn] = [usualCategories(book, 'out'), usualCategories(book, 'in')]
-  return payeeTotals(countedRows(book, rates), book.categories).map((payee) => ({
+  return payeeTotals(countedRows(book, rates), book.categories, book).map((payee) => ({
     id: payee.key,
     name: payee.name,
     ibans: payee.ibans,

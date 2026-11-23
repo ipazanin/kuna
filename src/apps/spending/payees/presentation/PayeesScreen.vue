@@ -43,24 +43,21 @@ const periodOptions = PAYEE_PERIODS.map((value) => ({ value, label: words.period
 
 const rows = computed(() => (state.workbook === null ? [] : countedRows(state.workbook, everydayRates(rates.value))))
 const categories = computed(() => state.workbook?.categories ?? [])
-const everyPayee = computed(() => payeeTotals(rows.value, categories.value))
+const directory = computed(() => (state.workbook === null ? payeeDirectory([], []) : payeeDirectory(state.workbook.payees, state.workbook.readings.settings.facts)))
+const everyPayee = computed(() => payeeTotals(rows.value, categories.value, directory.value))
 const totals = computed(() => {
   const counted = inPeriod(period.value, today())
   return payeeTotals(
     rows.value.filter((row) => counted(row.day)),
     categories.value,
+    directory.value,
   )
 })
 const subtitle = computed(() => {
   if (waiting.value) return rateWords.loading
   return unratedNote(totals.value.reduce((sum, payee) => sum + payee.unrated, 0))
 })
-const people = computed(() => {
-  const book = state.workbook
-  if (book === null) return new Set<string>()
-  const directory = payeeDirectory(book.payees, book.readings.settings.facts)
-  return new Set(totals.value.filter((payee) => isPerson(directory, payee.name)).map((payee) => payee.key))
-})
+const people = computed(() => new Set(totals.value.filter((payee) => isPerson(directory.value, payee.name)).map((payee) => payee.key)))
 </script>
 
 <template>
@@ -76,7 +73,7 @@ const people = computed(() => {
           <RankedPayeesCard :totals="totals" side="paid" :period="period" :subtitle="subtitle" />
           <RankedPayeesCard :totals="totals" side="received" :period="period" :subtitle="subtitle" />
         </DashboardGrid>
-        <AllPayeesCard :totals="totals" :period="period" :people="people" />
+        <AllPayeesCard :totals="totals" :period="period" :people="people" :payees="directory.payees" />
       </template>
     </template>
   </section>

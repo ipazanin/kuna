@@ -8,6 +8,7 @@ import { labelTotals } from '../../labels/domain/labelTotals'
 import { payeeTotals } from '../../payees/domain/payeeTotals'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
+import type { Payee } from '../../workbook/domain/payee'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
@@ -64,7 +65,7 @@ function categoryLines(rows: readonly CountedRow[], categories: readonly Categor
 /** The span's money grouped one way, every line counted as Spending's month counts it. */
 export function spanBreakdown(
   rows: readonly CountedRow[],
-  book: { readonly categories: readonly Category[]; readonly labels: readonly Label[]; readonly accounts: readonly Pick<Account, 'id' | 'name'>[] },
+  book: { readonly categories: readonly Category[]; readonly labels: readonly Label[]; readonly accounts: readonly Pick<Account, 'id' | 'name'>[]; readonly payees: readonly Payee[] },
   range: DateRange,
   grouping: Grouping,
 ): SpanBreakdown {
@@ -74,7 +75,7 @@ export function spanBreakdown(
       case 'category':
         return categoryLines(inSpan, book.categories)
       case 'payee':
-        return payeeTotals(inSpan, book.categories).map(({ ibans: _ibans, ...payee }) => ({ ...payee, children: [] }))
+        return payeeTotals(inSpan, book.categories, book).map(({ ibans: _ibans, ...payee }) => ({ ...payee, children: [] }))
       case 'label':
         return labelTotals(inSpan, book.categories, book.labels)
           .filter((label) => label.rows > 0)

@@ -313,6 +313,10 @@ export const kunaPlugin = {
       ["VElement[name='label'] VElement[rawName='DayField']"],
       'A DayField names itself with aria-label or a UFormField. A label around it sends a tap on the day to its calendar button.',
     ),
+    'worded-refusals': refusedSyntax(
+      ["ThrowStatement > NewExpression[callee.name='Error'] > Literal.arguments", "ThrowStatement > NewExpression[callee.name='Error'] > TemplateLiteral.arguments"],
+      "A refused write reaches the person as the error's message, so it reads from the module's domain words in the person's language, never from a sentence written here.",
+    ),
     'device-storage': refusedSyntax(
       ["Identifier[name='localStorage']"],
       'A choice kept on this device goes through src/shared/device/deviceChoice.ts, which gives the default where a private window denies the storage.',

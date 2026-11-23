@@ -6,6 +6,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { addEvent, changeEvent, deleteEvent } from '../application/eventWrites'
 import { eventProblem, newEvent } from '../domain/events'
+import { words as eventWords } from '../domain/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SpendingEvent } from '../../workbook/domain/event'
 import { words as spendingWords } from '../../words'
@@ -49,9 +50,9 @@ const days = computed(() => {
 const errors = computed(() => {
   const problem = days.value === null ? null : eventProblem(name.value, days.value)
   return {
-    name: name.value.trim() === '' ? words.dialog.blank : null,
+    name: name.value.trim() === '' ? eventWords.blank : null,
     from: parseCivilDate(from.value) === null ? words.dialog.noDay : null,
-    to: parseCivilDate(to.value) === null ? words.dialog.noDay : problem === 'ends-before' ? words.dialog.endsBefore : null,
+    to: parseCivilDate(to.value) === null ? words.dialog.noDay : problem === 'ends-before' ? eventWords.endsBefore : null,
   }
 })
 

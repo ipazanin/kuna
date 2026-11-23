@@ -8,6 +8,7 @@ import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/appl
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
+import { words } from '../../workbook/domain/words'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -76,7 +77,7 @@ export function deleteLabel(unit: UnitOfWork, records: LabelRecords, label: Labe
  * items first.
  */
 export function labelRows(unit: UnitOfWork, records: LabelRecords, rows: readonly Transaction[], label: RecordId, on: boolean, parts: ReadonlySet<RecordId> = new Set()): void {
-  if (isBeforeItems(records)) throw new Error('A file from before items keeps no labels. Move it to items first.')
+  if (isBeforeItems(records)) throw new Error(words.beforeItems('labels'))
   const itemsOf = heldItemsOf(records)
   const labelled = on ? withLabel : withoutLabel
   writeRows(

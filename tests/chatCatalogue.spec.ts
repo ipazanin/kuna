@@ -86,6 +86,7 @@ const APPS: readonly CatalogueApp[] = [
     '/spending/budgets',
     '/spending/sorting',
     '/spending/payees',
+    '/spending/payee',
     '/spending/analysis',
     '/spending/accounts',
     '/spending/account',

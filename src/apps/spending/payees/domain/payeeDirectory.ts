@@ -1,6 +1,7 @@
 import { holdsName, keyOfPayee, payeeProblem } from './payeeDetails'
 import { payeeKey } from './payeeKey'
 import type { Payee } from '../../workbook/domain/payee'
+import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { PERSON_PAYEES_KEY } from '../../workbook/domain/spendingSettings'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { flaggedAsPerson, personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
@@ -33,7 +34,7 @@ export function payeeDirectory(payees: readonly Payee[], settings: readonly Sett
  * The payee a row belongs to. A payee that lists the row's name, once folded, is the one. Then a payee that lists the row's IBAN
  * is, unless another payee lists the row's name. Null when neither finds one, and the row's name alone then tells its payee.
  */
-export function payeeOfRow(directory: PayeeDirectory, row: Pick<Transaction, 'payee' | 'counterpartyIban'>): Payee | null {
+export function payeeOfRow(directory: Pick<PayeeDirectory, 'payees'>, row: Pick<Transaction, 'payee' | 'counterpartyIban'>): Payee | null {
   const named = directory.payees.find((payee) => holdsName(payee, row.payee))
   if (named !== undefined) return named
   const iban = normaliseIban(row.counterpartyIban)
@@ -41,7 +42,7 @@ export function payeeOfRow(directory: PayeeDirectory, row: Pick<Transaction, 'pa
 }
 
 /** What tells the row's payee from another: its payee's first name folded, or its own name folded when no payee finds it. */
-export function rowPayeeKey(directory: PayeeDirectory, row: Pick<Transaction, 'payee' | 'counterpartyIban'>): string {
+export function rowPayeeKey(directory: Pick<PayeeDirectory, 'payees'>, row: Pick<Transaction, 'payee' | 'counterpartyIban'>): string {
   const payee = payeeOfRow(directory, row)
   return payee === null ? payeeKey(row.payee) : keyOfPayee(payee)
 }
@@ -64,4 +65,25 @@ export function personPayeesByWords(payees: readonly Payee[], name: string): rea
 /** The people among the payees, each with every name and IBAN, which the chat sends under an alias. */
 export function personPayees(directory: PayeeDirectory): readonly Pick<Payee, 'names' | 'ibans'>[] {
   return [...directory.payees.filter((payee) => payee.party === 'person'), ...directory.markedPeople.map((name) => ({ names: [name], ibans: [] }))]
+}
+
+/**
+ * The payee a page's `?payee=` names, by their key and the name they show under. A key of any name of a payee you keep details of
+ * is that payee, under its first name, so a link to a name it was renamed from or merged with still opens it. Another key is the
+ * payee their newest entry, part of one or shared cost spells it, counting only those no payee you keep details of gathers. Null
+ * when none names them.
+ */
+export function payeeNamed(book: Pick<SpendingBook, 'transactions' | 'items' | 'sharedCosts' | 'payees'>, key: unknown): { readonly key: string; readonly name: string } | null {
+  if (typeof key !== 'string' || key === '') return null
+  const record = book.payees.find((payee) => holdsName(payee, key))
+  if (record !== undefined) return { key: keyOfPayee(record), name: record.names[0] ?? '' }
+  const days = new Map(book.transactions.map((row) => [row.id, row.date]))
+  const parts = book.items.flatMap((item) => {
+    const date = item.transaction === null ? undefined : days.get(item.transaction)
+    return date === undefined || item.payee === '' ? [] : [{ date, payee: item.payee, counterpartyIban: '' }]
+  })
+  const named = [...book.transactions, ...parts, ...book.sharedCosts.map(({ day, payee }) => ({ date: day, payee, counterpartyIban: '' }))]
+    .filter((row) => rowPayeeKey(book, row) === key)
+    .reduce<Pick<Transaction, 'date' | 'payee'> | null>((newest, row) => (newest === null || row.date >= newest.date ? row : newest), null)
+  return named === null ? null : { key, name: named.payee.trim() }
 }

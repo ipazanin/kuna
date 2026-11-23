@@ -1,5 +1,4 @@
 import { holdsName, mergedPayees, newPayee, payeeProblem, renamedPayee, saysOnlyItsName, tidiedPayee, withParty, withoutDetails } from '../domain/payeeDetails'
-import type { PayeeProblem } from '../domain/payeeDetails'
 import { isPerson, oldMarksCount, payeeDirectory, payeeOfRow, personPayeesByWords } from '../domain/payeeDirectory'
 import { payeeKey } from '../domain/payeeKey'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
@@ -9,6 +8,7 @@ import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { PAYEE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { PERSON_PAYEES_KEY } from '../../workbook/domain/spendingSettings'
+import { payeeReason, words } from '../../workbook/domain/words'
 import { personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { recordsOf, sameRecord } from '../../../../shared/storage/domain/recordsRead'
@@ -26,21 +26,6 @@ export const PAYEE_WRITES: WriteRules<Payee> = {
 /** What a payee write reads of the file: the payees, and the settings for the old marks of payees as people it moves. */
 export type PayeeRecords = Pick<SpendingRecords, 'payees' | 'settings'>
 
-function refusalOf(problem: PayeeProblem): string {
-  switch (problem.kind) {
-    case 'no-name':
-      return 'A payee needs a name.'
-    case 'name-taken':
-      return `${problem.holder} is already called ${problem.name}. Merge the two payees instead.`
-    case 'not-an-iban':
-      return `${problem.iban} is not an IBAN.`
-    case 'iban-taken':
-      return `${problem.holder} already holds the IBAN ${problem.iban}.`
-    case 'not-an-oib':
-      return `${problem.taxId} has eleven digits but is not a valid OIB.`
-  }
-}
-
 /**
  * Writes the payees as `change` leaves them, after moving the old marks of payees as people onto payees, in one write so one
  * Undo takes back both. The move runs while the old marks count as `oldMarksCount` says: a marked name becomes a payee who is a
@@ -54,7 +39,7 @@ function writePayees(unit: UnitOfWork, records: PayeeRecords, change: (payees: r
   const touched = after.filter((payee) => !stored.some((held) => sameRecord(held, payee)))
   for (const payee of touched) {
     const problem = payeeProblem(payee, after)
-    if (problem !== null) throw new Error(refusalOf(problem))
+    if (problem !== null) throw new Error(words.payeeRefused(payee.names[0] ?? '', payeeReason(problem)))
   }
   const writes = unit.of(PAYEE_WRITES)
   for (const payee of touched) {
@@ -67,14 +52,17 @@ function writePayees(unit: UnitOfWork, records: PayeeRecords, change: (payees: r
 }
 
 /**
- * The payees with this one in place of the one of its id, or added. A payee of `takesOver` that holds one of its names gives up its
- * place to it. A payee left with one name and no detail goes, since its rows read the same without it.
+ * The payees with this one in place of the one of its id, or added. Every payee of `takesOver` that holds one of its names goes,
+ * and the first gives up its place to it when no payee has its id. A payee left with one name and no detail goes, since its rows
+ * read the same without it.
  */
 function withPayee(payees: readonly Payee[], payee: Payee, takesOver: readonly Payee[] = []): readonly Payee[] {
   const tidied = tidiedPayee(payee)
-  const held = payees.find((other) => other.id === tidied.id) ?? takesOver.find((other) => tidied.names.some((name) => holdsName(other, name)))
-  if (saysOnlyItsName(tidied)) return payees.filter((other) => other !== held)
-  return held === undefined ? [...payees, tidied] : payees.map((other) => (other === held ? { ...tidied, id: held.id } : other))
+  const taken = takesOver.filter((other) => tidied.names.some((name) => holdsName(other, name)))
+  const held = payees.find((other) => other.id === tidied.id) ?? taken[0]
+  const left = payees.filter((other) => other === held || !taken.includes(other))
+  if (saysOnlyItsName(tidied)) return left.filter((other) => other !== held)
+  return held === undefined ? [...left, tidied] : left.map((other) => (other === held ? { ...tidied, id: held.id } : other))
 }
 
 /** Keeps the payee's details, adding the payee when the file has none of its id. A new payee of a name the old setting marked takes the place of that mark. */

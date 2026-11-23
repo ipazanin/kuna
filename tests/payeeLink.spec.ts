@@ -52,10 +52,12 @@ describe("a payee's link to Entries", () => {
     const onPayees = payeeTotals(
       rows.filter((shown) => counted(shown.day)),
       CATEGORIES,
+      { payees: [] },
     )
     const onEntries = payeeTotals(
       rows.filter((shown) => rangeContains(range, shown.day)),
       CATEGORIES,
+      { payees: [] },
     )
 
     expect(onPayees.map((payee) => payee.spent)).toEqual([euros(1800)])

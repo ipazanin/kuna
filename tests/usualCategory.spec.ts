@@ -18,7 +18,7 @@ function filed(payee: string, path: string, amount = -10, fields: Partial<Stored
   return row(OTP, `2026-10-${String(day).padStart(2, '0')}`, amount, path, { payee, categorisedBy: 'person', ...fields })
 }
 
-function usualCategory(book: Pick<SpendingBook, 'transactions' | 'items'>, payee: string, side: EntrySide) {
+function usualCategory(book: Pick<SpendingBook, 'transactions' | 'items' | 'payees'>, payee: string, side: EntrySide) {
   return usualCategories(book, side).get(payeeKey(payee)) ?? null
 }
 

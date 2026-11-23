@@ -3,10 +3,12 @@ import { computed, ref, watch } from 'vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { words } from './words'
+import { keyOfPayee } from '../domain/payeeDetails'
 import { payeeKey } from '../domain/payeeKey'
 import type { PayeeTotals } from '../domain/payeeTotals'
 import type { PayeePeriod } from '../domain/payeePeriod'
-import { payeeLink } from '../../overview/presentation/spendingLinks'
+import { payeePageLink } from '../../overview/presentation/spendingLinks'
+import type { Payee } from '../../workbook/domain/payee'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { groupedIban } from '../../../../shared/text/iban'
@@ -15,12 +17,14 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
-/** Every payee of the period from A to Z, each with the IBANs their bank rows carry and opening their entries, found by name or IBAN. */
+/** Every payee of the period from A to Z, each with their IBANs and opening their entries, found by any of their names or an IBAN. */
 const props = defineProps<{
   totals: readonly PayeeTotals[]
   period: PayeePeriod
   /** The keys of the payees who are people. */
   people: ReadonlySet<string>
+  /** The payees you keep details of, whose other names find them too. */
+  payees: readonly Payee[]
 }>()
 
 const find = ref('')
@@ -30,7 +34,8 @@ watch([find, () => props.period], () => (allShown.value = false))
 const found = computed(() => {
   const name = payeeKey(find.value)
   const iban = normaliseIban(find.value)
-  return props.totals.filter((payee) => name === '' || payee.key.includes(name) || (iban !== '' && payee.ibans.some((held) => held.includes(iban))))
+  const namesOf = new Map(props.payees.map((payee) => [keyOfPayee(payee), payee.names.map(payeeKey)]))
+  return props.totals.filter((payee) => name === '' || (namesOf.get(payee.key) ?? [payee.key]).some((held) => held.includes(name)) || (iban !== '' && payee.ibans.some((held) => held.includes(iban))))
 })
 const lines = computed(() =>
   (allShown.value ? found.value : found.value.slice(0, FIRST_SHOWN)).map((payee) => ({
@@ -52,7 +57,7 @@ const lines = computed(() =>
     <p v-else-if="lines.length === 0" class="px-4 py-4 type-body sm:px-5" data-testid="spending-payees-all-unmatched">{{ words.all.unmatched }}</p>
     <ul v-else class="flex flex-col py-2">
       <li v-for="line in lines" :key="line.payee.key" class="border-t border-default first:border-t-0">
-        <ListRow :to="payeeLink(line.payee.key, period)" :title="line.payee.name" :caption="line.caption" data-testid="spending-payees-all-row">
+        <ListRow :to="payeePageLink(line.payee.key, period)" :title="line.payee.name" :caption="line.caption" data-testid="spending-payees-all-row">
           <template v-if="line.ibans.length > 0" #details>
             <span v-for="iban in line.ibans" :key="iban" class="figure type-caption break-all" data-testid="spending-payee-iban">{{ iban }}</span>
           </template>

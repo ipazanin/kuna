@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { entriesAndSharedCosts, eurosOfNewSharedCost, listedOnItsOwn } from '../src/apps/spending/sharedCosts/domain/sharedCostEntries'
 import type { EntriesLine } from '../src/apps/spending/sharedCosts/domain/sharedCostEntries'
-import { payeeNamed } from '../src/apps/spending/overview/presentation/spendingLinks'
+import { payeeNamed } from '../src/apps/spending/payees/domain/payeeDirectory'
 import { payeeKey } from '../src/apps/spending/payees/domain/payeeKey'
 import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
 import type { SharedCost } from '../src/apps/spending/workbook/domain/sharedCost'
@@ -77,6 +77,6 @@ describe("Entries' shared costs", () => {
   })
 
   it("find the shared cost's payee for Entries' payee filter, though no entry names them", () => {
-    expect(payeeNamed({ transactions: ROWS, items: items(ROWS), sharedCosts: [GIFT] }, payeeKey('Ana'))).toEqual({ key: payeeKey('Ana'), name: 'Ana' })
+    expect(payeeNamed({ transactions: ROWS, items: items(ROWS), sharedCosts: [GIFT], payees: [] }, payeeKey('Ana'))).toEqual({ key: payeeKey('Ana'), name: 'Ana' })
   })
 })

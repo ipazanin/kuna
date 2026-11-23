@@ -1,4 +1,6 @@
-import { payeeKey } from './payeeKey'
+import { rowPayeeKey } from './payeeDirectory'
+import type { PayeeDirectory } from './payeeDirectory'
+import { keyOfPayee } from './payeeDetails'
 import { partTotals } from '../../analytics/domain/partTotals'
 import type { KeepsPart, PartTotals } from '../../analytics/domain/partTotals'
 import type { CountedPart, CountedRow } from '../../analytics/domain/countedRow'
@@ -14,9 +16,12 @@ import type { Money } from '../../../../shared/money/money'
  */
 export interface PayeeTotals extends PartTotals {
   readonly key: string
-  /** The payee as their newest counted part spells it. */
+  /** The payee's first name when a payee you keep details of finds their parts, else as their newest counted part spells it. */
   readonly name: string
-  /** The IBANs their counted parts carry, each once, newest first. A part counting under a payee other than its entry's carries none. */
+  /**
+   * The IBANs of the payee you keep details of, then those their counted parts carry, each once, newest first. A part counting under a
+   * payee other than its entry's carries none.
+   */
   readonly ibans: readonly string[]
 }
 
@@ -24,8 +29,8 @@ export interface PayeeTotals extends PartTotals {
 const SPENT_OR_RECEIVED: KeepsPart = (_row, part) => part.side === 'spending' || part.side === 'income'
 
 /** Whether any part of the row counts under the payee of the key, so a list by payee shows an entry under each payee its parts name. */
-export function countsUnderPayee(row: CountedRow, key: string): boolean {
-  return row.parts.some((part) => payeeKey(part.payee) === key)
+export function countsUnderPayee(row: CountedRow, key: string, directory: Pick<PayeeDirectory, 'payees'>): boolean {
+  return row.parts.some((part) => rowPayeeKey(directory, part) === key)
 }
 
 /** A payee's parts of one row, by their places in it. */
@@ -35,15 +40,17 @@ interface PayeeParts {
 }
 
 /**
- * Every payee with a part filed under spending or income, by name. A part counts under its own payee, or the entry's while it
- * has none, so one entry can count under two payees, each with its own parts only. A part with no payee names none.
+ * Every payee with a part filed under spending or income. A part counts under its own payee, or the entry's while it has none, so
+ * one entry can count under two payees, each with its own parts only. A payee you keep details of gathers the parts of each of its
+ * names and IBANs, as `payeeOfRow` finds them, a part with no name included. A part no payee finds counts under its own name, and
+ * one with no name names none.
  */
-export function payeeTotals(rows: readonly CountedRow[], categories: readonly Category[]): readonly PayeeTotals[] {
+export function payeeTotals(rows: readonly CountedRow[], categories: readonly Category[], directory: Pick<PayeeDirectory, 'payees'>): readonly PayeeTotals[] {
   const byId = new Map(categories.map((category) => [category.id, category]))
   const byKey = new Map<string, PayeeParts[]>()
   for (const row of rows) {
     rowSide(row, byId).forEach((side, place) => {
-      const key = payeeKey(row.parts[place]!.payee)
+      const key = rowPayeeKey(directory, row.parts[place]!)
       if (key === '' || !SPENT_OR_RECEIVED(row, side, place)) return
       const held = byKey.get(key)
       const last = held?.at(-1)
@@ -55,6 +62,7 @@ export function payeeTotals(rows: readonly CountedRow[], categories: readonly Ca
   const totals = [...byKey].map(([key, counted]): PayeeTotals => {
     const newestFirst = [...counted].sort((one, other) => other.row.day.localeCompare(one.row.day))
     const partsOf = ({ row, places }: PayeeParts): readonly CountedPart[] => row.parts.filter((_part, place) => places.has(place))
+    const record = directory.payees.find((payee) => keyOfPayee(payee) === key)
     const ibans = newestFirst
       .flatMap(partsOf)
       .map((part) => normaliseIban(part.counterpartyIban))
@@ -62,8 +70,8 @@ export function payeeTotals(rows: readonly CountedRow[], categories: readonly Ca
     const placesOf = new Map(counted.map(({ row, places }) => [row, places]))
     return {
       key,
-      name: partsOf(newestFirst[0]!)[0]!.payee.trim(),
-      ibans: [...new Set(ibans)],
+      name: record?.names[0] ?? partsOf(newestFirst[0]!)[0]!.payee.trim(),
+      ibans: [...new Set([...(record?.ibans ?? []), ...ibans])],
       ...partTotals(
         counted.map(({ row }) => row),
         byId,

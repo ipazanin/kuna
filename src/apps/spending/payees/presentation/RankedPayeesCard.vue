@@ -5,7 +5,7 @@ import { words } from './words'
 import { payeeAmount, payeesRanked } from '../domain/payeeTotals'
 import type { PayeeSide, PayeeTotals } from '../domain/payeeTotals'
 import type { PayeePeriod } from '../domain/payeePeriod'
-import { payeeLink } from '../../overview/presentation/spendingLinks'
+import { payeePageLink } from '../../overview/presentation/spendingLinks'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -37,7 +37,7 @@ const lines = computed(() =>
     <p v-if="lines.length === 0" class="px-4 pb-4 type-body sm:px-5" :data-testid="`spending-payees-${side}-none`">{{ sideWords.none }}</p>
     <ul v-else class="row-list near-figures flex flex-col py-2">
       <li v-for="line in lines" :key="line.payee.key" class="border-t border-default first:border-t-0">
-        <ListRow :to="payeeLink(line.payee.key, period)" :title="line.payee.name" :caption="line.caption" data-testid="spending-payee-open">
+        <ListRow :to="payeePageLink(line.payee.key, period)" :title="line.payee.name" :caption="line.caption" data-testid="spending-payee-open">
           <template #amount>
             <MoneyText :cents="line.amount" :data-amount="line.amount" />
           </template>

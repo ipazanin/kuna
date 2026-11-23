@@ -4,11 +4,8 @@ import type { Label } from '../../../../shared/categorising/domain/labels'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingEvent } from '../../workbook/domain/event'
-import { payeeKey } from '../../payees/domain/payeeKey'
 import { OPENING_PERIOD } from '../../payees/domain/payeePeriod'
 import type { PayeePeriod } from '../../payees/domain/payeePeriod'
-import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { Transaction } from '../../workbook/domain/transaction'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
@@ -32,6 +29,8 @@ export const SPENDING_SORTING_ROUTE = '/spending/sorting'
 export const SORTING_CARDS = { categories: 'categories', labels: 'labels', rules: 'rules' } as const
 export const SPENDING_EVENTS_ROUTE = '/spending/events'
 export const SPENDING_PAYEES_ROUTE = '/spending/payees'
+/** One payee's page, named by their key in `?payee=` with the Payees period in `?period=`. */
+export const SPENDING_PAYEE_ROUTE = '/spending/payee'
 /** Spending's money over any span, grouped, over time, year against year and what stays, each tab in `?tab=`. */
 export const SPENDING_ANALYSIS_ROUTE = '/spending/analysis'
 /** The tabs of Analysis, Breakdown first, which stays out of the address. */
@@ -154,22 +153,13 @@ export function payeeLink(key: string, period: PayeePeriod): RouteLocationRaw {
   return entriesLink(ENTRIES_MONTHS_OF_PERIOD[period], { payee: key })
 }
 
+/** A payee's page over the period of the Payees tab it came from, which leaves the opening one out of `?period=`. */
+export function payeePageLink(key: string, period: PayeePeriod): RouteLocationRaw {
+  return { path: SPENDING_PAYEE_ROUTE, query: { payee: key, ...(period === OPENING_PERIOD ? {} : { period }) } }
+}
+
 /** The months a page's `?month=` names, or null when it names none, which Entries reads as this month. */
 export function entriesMonthsNamed(key: unknown): EntriesMonths | null {
   if (key === ALL_MONTHS || key === LAST_12_MONTHS) return key
   return typeof key === 'string' ? parseMonthKey(key) : null
-}
-
-/** The payee a page's `?payee=` names, spelt as their newest entry, part of one or shared cost spells it, or null when none names them. */
-export function payeeNamed(book: Pick<SpendingBook, 'transactions' | 'items' | 'sharedCosts'>, key: unknown): { readonly key: string; readonly name: string } | null {
-  if (typeof key !== 'string' || key === '') return null
-  const days = new Map(book.transactions.map((row) => [row.id, row.date]))
-  const parts = book.items.flatMap((item) => {
-    const date = item.transaction === null ? undefined : days.get(item.transaction)
-    return date === undefined || item.payee === '' ? [] : [{ date, payee: item.payee }]
-  })
-  const named = [...book.transactions, ...parts, ...book.sharedCosts.map(({ day, payee }) => ({ date: day, payee }))]
-    .filter((row) => payeeKey(row.payee) === key)
-    .reduce<Pick<Transaction, 'date' | 'payee'> | null>((newest, row) => (newest === null || row.date >= newest.date ? row : newest), null)
-  return named === null ? null : { key, name: named.payee.trim() }
 }

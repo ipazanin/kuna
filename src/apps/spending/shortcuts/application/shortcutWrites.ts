@@ -8,6 +8,7 @@ import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { Shortcut, ShortcutPart } from '../../workbook/domain/shortcut'
 import { ITEM_RECORDS, SHORTCUT_PART_RECORDS, SHORTCUT_RECORDS } from '../../workbook/domain/spendingKinds'
 import { BY_DAYS } from '../../workbook/domain/event'
+import { words } from '../domain/words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -83,7 +84,7 @@ export function moveShortcut(unit: UnitOfWork, shown: readonly Shortcut[], short
  */
 export function entryOfShortcut({ shortcut, parts }: ShortcutWithParts, day: CivilDate, newKey: () => string = newRecordId): ItemizedRow {
   const [first] = parts
-  if (first === undefined) throw new Error('A quick add with no part writes nothing.')
+  if (first === undefined) throw new Error(words.noPart)
   const whole = newEntry({ account: shortcut.account, date: day, amount: shortcutAmount(parts), payee: shortcut.payee, category: first.category, note: first.note, labels: first.labels })
   if (parts.length === 1) return whole
   return {

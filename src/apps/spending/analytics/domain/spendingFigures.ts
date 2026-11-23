@@ -38,7 +38,7 @@ export interface SpendingFigures {
   trendsOn(day: CivilDate): CategoryTrend[]
 }
 
-export function spendingFigures(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'categories' | 'budgets' | 'items' | 'labels' | 'sharedCosts'>, rates: RateBook): SpendingFigures {
+export function spendingFigures(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'categories' | 'budgets' | 'items' | 'labels' | 'sharedCosts' | 'payees'>, rates: RateBook): SpendingFigures {
   const rows = countedRows(book, rates)
   const categories = new Map(book.categories.map((category) => [category.id, category]))
   const months = new Map<MonthKey, MonthTotals>()

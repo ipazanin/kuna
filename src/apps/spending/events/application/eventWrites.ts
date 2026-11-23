@@ -1,5 +1,6 @@
 import { heldItemsOf, waitingItemsOf, writeRows } from '../../entries/application/rowRecords'
 import { eventProblem } from '../domain/events'
+import { words as eventWords } from '../domain/words'
 import { SHARED_COST_WRITES } from '../../sharedCosts/application/sharedCostRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
@@ -9,6 +10,7 @@ import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { EVENT_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import { words } from '../../workbook/domain/words'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
@@ -28,7 +30,7 @@ type EventRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | '
 
 function refuseProblem(event: Pick<SpendingEvent, 'name' | 'days'>): void {
   const problem = eventProblem(event.name, event.days)
-  if (problem !== null) throw new Error(problem === 'blank' ? 'An event needs a name.' : "An event's last day cannot be before its first.")
+  if (problem !== null) throw new Error(problem === 'blank' ? eventWords.blank : eventWords.endsBefore)
 }
 
 /** Adds the event, which `newEvent` made. Its rows join it by their days, with no write to them. */
@@ -75,7 +77,7 @@ export function deleteEvent(unit: UnitOfWork, records: EventRecords, event: Spen
  * no choice, so it moves to items first.
  */
 export function chooseEvent(unit: UnitOfWork, records: EventRecords, rows: readonly Transaction[], choice: EventChoice, parts: ReadonlySet<RecordId> = new Set()): void {
-  if (isBeforeItems(records)) throw new Error('A file from before items keeps no event chosen by hand. Move it to items first.')
+  if (isBeforeItems(records)) throw new Error(words.beforeItems('event'))
   const itemsOf = heldItemsOf(records)
   writeRows(
     unit,

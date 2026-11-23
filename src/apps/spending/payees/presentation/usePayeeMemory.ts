@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import type { Ref } from 'vue'
 
-import { payeeKey } from '../domain/payeeKey'
+import { rowPayeeKey } from '../domain/payeeDirectory'
 import { usualCategories } from '../domain/usualCategory'
 import type { EntrySide } from '../domain/usualCategory'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -21,7 +21,7 @@ export function usePayeeMemory(category: Ref<string>, pickable: () => ReadonlySe
 
   function fill(payee: string, side: EntrySide | 'transfer'): void {
     if (side === 'transfer' || byHand.value || (category.value !== '' && !filled.value)) return
-    const usual = (side === 'out' ? usualOut : usualIn).value?.get(payeeKey(payee)) ?? null
+    const usual = (side === 'out' ? usualOut : usualIn).value?.get(rowPayeeKey(state.workbook ?? { payees: [] }, { payee, counterpartyIban: '' })) ?? null
     const shown = usual !== null && pickable().has(usual)
     if (!shown && !filled.value) return
     category.value = shown ? usual : ''

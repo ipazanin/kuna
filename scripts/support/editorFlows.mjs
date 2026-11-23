@@ -13751,8 +13751,9 @@ const SPENDING_PAYEE_WORDS = { en: spendingPayeesEnglish, hr: spendingPayeesCroa
 
 /**
  * On the sample Spending file's Payees: This month and All time each keep the period in the address, and Last 12 months
- * takes it out again. The largest payee of money out opens Entries on the last twelve months filtered to it, with a chip for
- * each and the same total as the row tapped, and the payee's chip takes the payee off.
+ * takes it out again. The largest payee of money out opens their page on the period, showing the money out the row showed, and
+ * its Money out tile opens Entries on the same months filtered to them, with a chip for each and the same total, on Last 12
+ * months and again on All time. The payee's chip takes the payee off.
  */
 export function spendingPayeesFlowIn(language) {
   const words = SPENDING_PAYEE_WORDS[language]
@@ -13774,17 +13775,7 @@ export function spendingPayeesFlowIn(language) {
     }
     await inspect?.('the Payees tab')
     await shoot('spending-payees')
-    const first = await page.waitForSelector('[data-testid="spending-payees-paid"] [data-testid="spending-payee-open"]', { visible: true, timeout: 5_000 })
-    const name = await first.$eval('.list-row-title', (title) => title.textContent?.trim() ?? '')
-    const paid = await first.$eval('[data-amount]', (amount) => amount.getAttribute('data-amount'))
-    await first.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await press(first)
-    await page.waitForSelector('[data-testid="spending-filter-total"]', { visible: true, timeout: 10_000 })
-    const months = await page.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('month'))
-    if (months !== 'last-12-months') throw new Error(`Entries opened from ${name} on Last 12 months shows ${months ?? 'this month'}`)
-    const total = await page.$eval('[data-testid="spending-filter-total"]', (row) => ({ text: row.textContent ?? '', spent: row.querySelector('[data-spent]')?.getAttribute('data-spent') ?? null }))
-    if (!total.text.includes(name)) throw new Error(`Entries opened from ${name} sums up another: ${total.text}`)
-    if (total.spent !== paid) throw new Error(`Entries opened from ${name} sums ${total.spent} where Payees shows ${paid}`)
+    const { name } = await openPayeeEntries(page, press, 'last-12-months', () => shoot('spending-payee'))
     const phone = (await page.$('[data-testid="spending-filter-chips"]')) !== null
     if (phone) await expectNoFittingChipFolded(page)
     // A phone's one line of chips folds those it has no room for behind "+N more", whose pop-up lists them.
@@ -13808,7 +13799,43 @@ export function spendingPayeesFlowIn(language) {
       .catch(() => {
         throw new Error("the payee's chip did not take the payee off")
       })
+    await page.evaluate(() => (window.location.hash = '#/spending/payees?period=all'))
+    await page.waitForSelector('[data-testid="spending-payees-paid"] [data-testid="spending-payee-open"]', { visible: true, timeout: 10_000 })
+    await openPayeeEntries(page, press, 'all')
   }
+}
+
+/**
+ * Opens the largest payee of money out on Payees, checks that their page keeps the period and shows the money out the row showed,
+ * then opens Entries from the page's Money out tile and checks it shows the months of the period and sums the same. Gives the
+ * payee's name.
+ */
+async function openPayeeEntries(page, press, months, onPage = async () => {}) {
+  const period = new URLSearchParams(page.url().split('#')[1]?.split('?')[1] ?? '').get('period')
+  const first = await page.waitForSelector('[data-testid="spending-payees-paid"] [data-testid="spending-payee-open"]', { visible: true, timeout: 5_000 })
+  const name = await first.$eval('.list-row-title', (title) => title.textContent?.trim() ?? '')
+  const paid = await first.$eval('[data-amount]', (amount) => amount.getAttribute('data-amount'))
+  await first.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await press(first)
+  const tile = await page.waitForSelector('[data-testid="spending-payee-out"]', { visible: true, timeout: 10_000 })
+  const address = await page.evaluate(() => ({ path: window.location.hash.split('?')[0], period: new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('period') }))
+  if (address.path !== '#/spending/payee' || address.period !== period)
+    throw new Error(`${name} on Payees opened ${address.path} on ${address.period ?? 'Last 12 months'}, not their page on ${period ?? 'Last 12 months'}`)
+  const title = await page.$eval('[data-testid="screen-title"]', (heading) => heading.textContent?.trim() ?? '')
+  if (title !== name) throw new Error(`${name} on Payees opened the page of ${title}`)
+  const shown = await tile.$eval('[data-amount]', (amount) => amount.getAttribute('data-amount'))
+  if (shown !== paid) throw new Error(`${name}'s page shows ${shown} out where Payees shows ${paid}`)
+  await onPage()
+  const link = await tile.$('a')
+  await link.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await press(link)
+  await page.waitForSelector('[data-testid="spending-filter-total"]', { visible: true, timeout: 10_000 })
+  const opened = await page.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('month'))
+  if (opened !== months) throw new Error(`Entries opened from ${name}'s page shows ${opened ?? 'this month'}, not ${months}`)
+  const total = await page.$eval('[data-testid="spending-filter-total"]', (row) => ({ text: row.textContent ?? '', spent: row.querySelector('[data-spent]')?.getAttribute('data-spent') ?? null }))
+  if (!total.text.includes(name)) throw new Error(`Entries opened from ${name} sums up another: ${total.text}`)
+  if (total.spent !== paid) throw new Error(`Entries opened from ${name} sums ${total.spent} where Payees shows ${paid}`)
+  return { name }
 }
 
 /** Every one line of filter chips folds a chip behind "+N more" only when that chip has no room left beside Clear. */

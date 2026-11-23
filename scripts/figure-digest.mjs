@@ -883,9 +883,10 @@ async function spendingGroups(addGroup, loansBook) {
       payeeTotals(
         countedRows(workbook, rates.everyday).filter((row) => counted(row.day)),
         workbook.categories,
+        workbook,
       ),
     )
-    add('spending.payees.all', () => payeeTotals(countedRows(workbook, rates.everyday), workbook.categories))
+    add('spending.payees.all', () => payeeTotals(countedRows(workbook, rates.everyday), workbook.categories, workbook))
   }
   // A file with no shared cost keeps this digest without the group. Each shared cost with the keys of its members and what it counts.
   if (workbook.sharedCosts.length > 0) {

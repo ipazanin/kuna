@@ -77,7 +77,7 @@ describe("a shared cost's count", () => {
   })
 
   it('counts 57.08 under Ana on one entry, and no shop, friend or part payee on any payee line', () => {
-    const totals = payeeTotals(rowsOf(EVERY_ROW), CATEGORIES)
+    const totals = payeeTotals(rowsOf(EVERY_ROW), CATEGORIES, { payees: [] })
 
     expect(totals.map(({ name, spent, rows, latest, ibans }) => ({ name, spent, rows, latest, ibans }))).toEqual([
       { name: 'Ana', spent: euros(57.08), rows: 1, latest: civil('2026-11-20'), ibans: [] },
@@ -102,7 +102,7 @@ describe("a shared cost's count", () => {
   })
 
   it('counts on a line of its own on Analysis by account, so each account leaves its members out and the lines add up', () => {
-    const breakdown = spanBreakdown(rowsOf(EVERY_ROW), { categories: CATEGORIES, labels: [], accounts: ACCOUNTS }, monthRange(november), 'account')
+    const breakdown = spanBreakdown(rowsOf(EVERY_ROW), { categories: CATEGORIES, labels: [], accounts: ACCOUNTS, payees: [] }, monthRange(november), 'account')
 
     expect(breakdown.total.spent).toEqual(euros(57.08))
     expect(breakdown.lines.map(({ key, spent }) => [key, spent])).toEqual([

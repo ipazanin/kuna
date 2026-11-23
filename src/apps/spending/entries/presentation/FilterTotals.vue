@@ -65,6 +65,7 @@ const lines = computed(() => {
       : payeeTotals(
           rows.filter((row) => inMonths(row.day)),
           book.categories,
+          book,
         )
           .filter((totals) => totals.key === payee.key)
           .map((totals) => ({ key: totals.key, heading: `${payee.name} · ${entries(totals.rows)}`, totals }))),

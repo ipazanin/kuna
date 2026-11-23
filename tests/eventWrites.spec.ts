@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { removeSplitOf } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
@@ -100,7 +100,9 @@ describe('writing events', () => {
     await store.write('Changed', (unit) => changeEvent(unit, store.state.workbook!.events[0]!, { name: 'Praha', days }))
     expect(store.state.workbook!.events).toEqual([{ id: prague.id, name: 'Praha', days }])
 
-    await expect(store.write('Changed', (unit) => changeEvent(unit, store.state.workbook!.events[0]!, { name: 'Praha', days: { from: days.to, to: days.from } }))).rejects.toThrow()
+    await expect(store.write('Changed', (unit) => changeEvent(unit, store.state.workbook!.events[0]!, { name: 'Praha', days: { from: days.to, to: days.from } }))).rejects.toThrow(
+      'The last day cannot be before the first',
+    )
     expect(store.state.workbook!.problems).toEqual([])
   })
 
@@ -206,5 +208,18 @@ describe('what a person chose for money, through a re-split', () => {
     const left = [part('room', -200, { event: PRAGUE.id }), part('breakfast', -100, { event: OUT_OF_EVENTS })]
 
     expect(carriedChoices(found, left).map((item) => item.event)).toEqual([PRAGUE.id, OUT_OF_EVENTS])
+  })
+})
+
+describe('a refused event write', () => {
+  it("says what is wrong in the dialog's words and the book's, in Croatian too", async () => {
+    vi.resetModules()
+    vi.doMock('../src/shared/text/language', async (original) => ({ ...(await original<object>()), language: 'hr' }))
+    const eventWords = await import('../src/apps/spending/events/domain/words')
+    const bookWords = await import('../src/apps/spending/workbook/domain/words')
+    vi.doUnmock('../src/shared/text/language')
+
+    expect([eventWords.words.blank, eventWords.words.endsBefore]).toEqual(['Upiši naziv', 'Zadnji dan ne može biti prije prvog'])
+    expect(bookWords.words.beforeItems('event')).toBe('Datoteka iz vremena prije dijelova unosa ne čuva ručno odabran događaj. Najprije je prebacite na dijelove.')
   })
 })

@@ -1,4 +1,4 @@
-import { payeeKey } from './payeeKey'
+import { rowPayeeKey } from './payeeDirectory'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -33,11 +33,14 @@ function usualOf(categories: readonly RecordId[]): RecordId | null {
   return usual
 }
 
-/** Every payee's usual category on one side, money out or money in, by the payee's key, in one pass over the book. */
-export function usualCategories(book: Pick<SpendingBook, 'transactions' | 'items'>, side: EntrySide): ReadonlyMap<string, RecordId> {
+/**
+ * Every payee's usual category on one side, money out or money in, by the payee's key, in one pass over the book. A payee you keep
+ * details of reads the entries of each of its names and IBANs, as `rowPayeeKey` keys them.
+ */
+export function usualCategories(book: Pick<SpendingBook, 'transactions' | 'items' | 'payees'>, side: EntrySide): ReadonlyMap<string, RecordId> {
   const byKey = new Map<string, RecordId[]>()
   for (const { row, category } of filedOnSide(book, book.transactions, side)) {
-    const key = payeeKey(row.payee)
+    const key = rowPayeeKey(book, row)
     const held = byKey.get(key)
     if (key === '') continue
     if (held === undefined) byKey.set(key, [category])

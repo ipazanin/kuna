@@ -53,7 +53,7 @@ describe("payees' totals", () => {
   ]
   const transactions = [topUp, topUpIn, market, dinner, share, rent, lent, waiting, broker, nameless]
   const items = [...wholeItems(transactions.filter((entry) => entry !== market)), ...parts]
-  const totals = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items }, RATES), CATEGORIES)
+  const totals = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items }, RATES), CATEGORIES, { payees: [] })
 
   it('count only money filed under spending and income, as Overview does: a refund lowers what was paid', () => {
     const ana = totals.find((payee) => payee.key === payeeKey('Ana Example'))!
@@ -81,7 +81,7 @@ describe("payees' totals", () => {
   })
 
   it('count a row the rates do not reach as nothing and say so', () => {
-    const market = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items }, NO_RATES), CATEGORIES).find((payee) => payee.name === 'Corner market')!
+    const market = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items }, NO_RATES), CATEGORIES, { payees: [] }).find((payee) => payee.name === 'Corner market')!
 
     expect([market.spent, market.rows, market.unrated]).toEqual([euros(0), 1, 1])
   })
@@ -89,7 +89,7 @@ describe("payees' totals", () => {
 
 describe('payees ranked on a side', () => {
   const shops = Array.from({ length: 12 }, (_, place) => row(OTP, '2026-10-05', -(place + 1), 'Food/Groceries', { payee: `Shop ${place + 1}` }))
-  const totals = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: shops, items: wholeItems(shops) }, RATES), CATEGORIES)
+  const totals = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: shops, items: wholeItems(shops) }, RATES), CATEGORIES, { payees: [] })
 
   it('show the ten largest and the rest as one line', () => {
     const ranked = payeesRanked(totals, 'paid')

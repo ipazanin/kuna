@@ -207,7 +207,7 @@ function storedWithItems(rows: readonly Transaction[], items: readonly Transacti
 /** The parts of a Spending book a test may give, with its setting rows in place of the settings they make and its bank-link records, which old link settings stand in for while there are none. */
 type BookParts = Pick<
   SpendingBook,
-  'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'dropped' | 'stored' | 'bankLinks' | 'sharedCosts'
+  'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'dropped' | 'stored' | 'bankLinks' | 'sharedCosts' | 'payees'
 > & {
   readonly settingRows: readonly SettingRow[]
 }

@@ -260,6 +260,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/assistant-operations', files: ['src/apps/**/assistant/operations/**/*.ts'], rules: { 'kuna/proposal-work': 'error', 'kuna/card-reasons': 'error' } },
     { name: 'kuna/window-queries', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/window-queries': 'error' } },
     { name: 'kuna/device-storage', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/device/deviceChoice.ts'], rules: { 'kuna/device-storage': 'error' } },
+    { name: 'kuna/worded-refusals', files: ['src/apps/spending/*/application/*Writes.ts'], rules: { 'kuna/worded-refusals': 'error' } },
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     { name: 'kuna/link-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/link-rows': 'error' } },

@@ -10,8 +10,9 @@ import { categoriesOfRow } from '../../categories/domain/rowSide'
 import { partsInEvent } from '../../events/domain/eventMembership'
 import { eventsNewestFirst } from '../../events/domain/events'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
-import { ALL_MONTHS, LAST_12_MONTHS, accountNamed, categoryIdNamed, entriesMonthsNamed, entriesSpanNamed, eventNamed, labelNamed, payeeNamed } from '../../overview/presentation/spendingLinks'
+import { ALL_MONTHS, LAST_12_MONTHS, accountNamed, categoryIdNamed, entriesMonthsNamed, entriesSpanNamed, eventNamed, labelNamed } from '../../overview/presentation/spendingLinks'
 import type { EntriesMonths } from '../../overview/presentation/spendingLinks'
+import { payeeNamed } from '../../payees/domain/payeeDirectory'
 import { countsUnderPayee } from '../../payees/domain/payeeTotals'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { SharedCostEntry } from '../../sharedCosts/domain/sharedCostEntries'
@@ -152,7 +153,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     },
   })
 
-  const pickedPayee = computed(() => payeeNamed(book() ?? { transactions: [], items: [], sharedCosts: [] }, route.query.payee))
+  const pickedPayee = computed(() => payeeNamed(book() ?? { transactions: [], items: [], sharedCosts: [], payees: [] }, route.query.payee))
   const dropPayee = (): void => changeQuery({ payee: null, ...monthLeft(pickedLabel.value === null && pickedEvent.value === null) })
 
   /** Every month, the last twelve, then each from the oldest entry's to this one, newest first, and the picked one when it lies outside them. */
@@ -192,13 +193,14 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     const byId = new Map(categories.value.map((candidate) => [candidate.id, candidate]))
     const inEvent = during === null ? null : partsInEvent(events.value, during.id)
     const paid = pickedPayee.value
+    const directory = book() ?? { payees: [] }
     return (row: EuroRow): boolean =>
       shown(row.transaction.date) &&
       (onAccount === null || row.transaction.account === onAccount.id) &&
       (under === null || categoriesOfRow(row).some((id) => under.has(id))) &&
       (carried === null || labelsOf(row.items).includes(carried.id)) &&
       (inEvent === null || keepsAnyPart(countedRowOf(row), byId, inEvent)) &&
-      (paid === null || countsUnderPayee(countedRowOf(row), paid.key))
+      (paid === null || countsUnderPayee(countedRowOf(row), paid.key, directory))
   })
 
   /**
@@ -215,13 +217,14 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     const during = pickedEvent.value
     const inEvent = during === null ? null : partsInEvent(events.value, during.id)
     const paid = pickedPayee.value
+    const directory = book() ?? { payees: [] }
     return ({ sharedCost, counted, members }: SharedCostEntry): boolean =>
       shown(sharedCost.day) &&
       (onAccount === null || members.some(({ row }) => row.transaction.account === onAccount.id)) &&
       (under === null || under.has(sharedCost.category) || picked?.kind === 'shared-cost') &&
       (carried === null || sharedCost.labels.includes(carried.id)) &&
       (inEvent === null || keepsAnyPart(counted, byId, inEvent)) &&
-      (paid === null || countsUnderPayee(counted, paid.key))
+      (paid === null || countsUnderPayee(counted, paid.key, directory))
   })
 
   /** The filters that narrow the list, each as a chip names it. This month is where the list starts, and every month goes with a label, an event or a payee, so none of them is a filter. */

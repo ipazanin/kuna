@@ -6,7 +6,7 @@ import { monthTotals } from '../src/apps/spending/analytics/domain/monthTotals'
 import { spanBreakdown } from '../src/apps/spending/analytics/domain/spanBreakdown'
 import { newEntry, retypedEntry, unsplitItem, writeEntry, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { entrySplit, halfAndHalf } from '../src/apps/spending/entries/domain/entrySplit'
-import { payeeNamed } from '../src/apps/spending/overview/presentation/spendingLinks'
+import { payeeNamed } from '../src/apps/spending/payees/domain/payeeDirectory'
 import { payeeKey } from '../src/apps/spending/payees/domain/payeeKey'
 import { countsUnderPayee, payeeTotals } from '../src/apps/spending/payees/domain/payeeTotals'
 import { splitIntoParts } from '../src/apps/spending/links/domain/instalmentParts'
@@ -40,7 +40,7 @@ const [yours, hers] = [
   { ...wholeItems([meal])[0]!, amount: accountMoneyFromAmount(-42) },
   { ...wholeItems([meal])[0]!, id: recordIdOf(ITEM_RECORDS, 'meal-ana'), amount: accountMoneyFromAmount(-42), category: GIFTS.id, payee: 'Ana' },
 ] satisfies TransactionItem[]
-const book = { sharedCosts: [], accounts: ACCOUNTS, transactions: [meal], items: [yours, hers] }
+const book = { sharedCosts: [], payees: [], accounts: ACCOUNTS, transactions: [meal], items: [yours, hers] }
 const rows = countedRows(book, RATES)
 
 describe('a part that counts under a payee of its own', () => {
@@ -49,7 +49,7 @@ describe('a part that counts under a payee of its own', () => {
   })
 
   it('counts 42.00 under the bistro and 42.00 under Ana, one entry each, and only the bistro keeps the IBAN', () => {
-    const totals = payeeTotals(rows, CATEGORIES)
+    const totals = payeeTotals(rows, CATEGORIES, book)
 
     expect(totals.map(({ name, spent, rows: entries, latest, ibans }) => ({ name, spent, entries, latest, ibans }))).toEqual([
       { name: 'Ana', spent: euros(42), entries: 1, latest: civil('2026-11-14'), ibans: [] },
@@ -58,7 +58,7 @@ describe('a part that counts under a payee of its own', () => {
   })
 
   it('counts the same on Analysis by payee', () => {
-    const lines = spanBreakdown(rows, { categories: CATEGORIES, labels: [], accounts: ACCOUNTS }, monthRange(monthKey(2026, 11)), 'payee').lines
+    const lines = spanBreakdown(rows, { ...book, categories: CATEGORIES, labels: [] }, monthRange(monthKey(2026, 11)), 'payee').lines
 
     expect(lines.map((line) => [line.name, line.spent])).toEqual([
       ['Ana', euros(42)],
@@ -67,14 +67,14 @@ describe('a part that counts under a payee of its own', () => {
   })
 
   it("counts a part whose payee is the entry's own under the entry's spelling and IBAN", () => {
-    const totals = payeeTotals(countedRows({ ...book, items: [{ ...yours, payee: 'HARBOUR BISTRO' }, hers] }, RATES), CATEGORIES)
+    const totals = payeeTotals(countedRows({ ...book, items: [{ ...yours, payee: 'HARBOUR BISTRO' }, hers] }, RATES), CATEGORIES, book)
 
     expect(totals.find((payee) => payee.key === payeeKey('Harbour bistro'))).toMatchObject({ name: 'Harbour bistro', ibans: [BISTRO_IBAN] })
   })
 
   it('counts all of an entry not split under another payee, and nothing under the entry payee', () => {
     const flowers = row(OTP, '2026-11-02', -30, 'Family and gifts/Gifts', { payee: 'Florist' })
-    const totals = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: [flowers], items: [{ ...wholeItems([flowers])[0]!, payee: 'Ana' }] }, RATES), CATEGORIES)
+    const totals = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: [flowers], items: [{ ...wholeItems([flowers])[0]!, payee: 'Ana' }] }, RATES), CATEGORIES, book)
 
     expect(totals.map((payee) => [payee.name, payee.spent])).toEqual([['Ana', euros(30)]])
   })
@@ -86,7 +86,7 @@ describe('a part that counts under a payee of its own', () => {
   it('lists the entry under each payee its parts count under, and under no other', () => {
     const [counted] = rows
 
-    expect([payeeKey('Ana'), payeeKey('Harbour bistro'), payeeKey('Florist')].map((key) => countsUnderPayee(counted!, key))).toEqual([true, true, false])
+    expect([payeeKey('Ana'), payeeKey('Harbour bistro'), payeeKey('Florist')].map((key) => countsUnderPayee(counted!, key, book))).toEqual([true, true, false])
   })
 })
 

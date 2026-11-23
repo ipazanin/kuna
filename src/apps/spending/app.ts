@@ -9,6 +9,7 @@ import {
   SPENDING_BUDGETS_ROUTE,
   SPENDING_EVENTS_ROUTE,
   SPENDING_OVERVIEW_ROUTE,
+  SPENDING_PAYEE_ROUTE,
   SPENDING_PAYEES_ROUTE,
   SPENDING_REVIEW_LINK,
   SPENDING_SETTINGS_ROUTE,
@@ -95,6 +96,14 @@ export const spendingApp: AppContribution = {
     SORTING,
     EVENTS,
     PAYEES,
+    {
+      path: SPENDING_PAYEE_ROUTE,
+      needsRecord: true,
+      under: SPENDING_PAYEES_ROUTE,
+      title: screenWords.payee,
+      icon: 'i-lucide-user-round',
+      component: () => import('./payees/presentation/PayeeScreen.vue'),
+    },
     ANALYSIS,
     ACCOUNTS,
     {
