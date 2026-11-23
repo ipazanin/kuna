@@ -11,6 +11,7 @@ import { LIMIT_OPERATIONS, isLimitStep, writeLimitStep } from './limitOperations
 import { LINK_OPERATIONS, isLinkStep, writeLinkStep } from './linkOperations'
 import { FILING_IMPORTED_ROWS, RULE_OPERATIONS, editRuleStep, editsRules, isRuleStep } from './ruleOperations'
 import type { CardRuleEdits } from './ruleOperations'
+import { SHARED_COST_OPERATIONS, isSharedCostStep, writeSharedCostStep } from './sharedCostOperations'
 import { SHORTCUT_OPERATIONS, isShortcutStep, writeShortcutStep } from './shortcutOperations'
 import { SPLIT_OPERATIONS, isSplitStep, writeSplitStep } from './splitOperations'
 import { TRANSFER_OPERATIONS, isTransferStep, writeTransferStep } from './transferOperations'
@@ -66,6 +67,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   ...PAYEE_AND_FILE_OPERATIONS,
   ...LABEL_OPERATIONS,
   ...EVENT_OPERATIONS,
+  ...SHARED_COST_OPERATIONS,
   ...SHORTCUT_OPERATIONS,
   ...REVIEW_OPERATIONS,
   ...WAITING_RECEIPT_OPERATIONS,
@@ -168,6 +170,12 @@ function plannedSteps(
         book = { ...book, events: [...book.events, added] }
         if (as !== null) made.set(as, added.id)
       }
+      continue
+    }
+    if (isSharedCostStep(operation)) {
+      const { added, categories } = writeSharedCostStep(unit, book, records(), operation, field, idOf)
+      book = { ...book, categories: [...book.categories, ...categories], sharedCosts: added === null ? book.sharedCosts : [...book.sharedCosts, added] }
+      if (added !== null && as !== null) made.set(as, added.id)
       continue
     }
     if (isCategoryStep(operation)) {

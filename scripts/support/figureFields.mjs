@@ -1,7 +1,7 @@
 /**
  * The fields of a record that hold no figure, as its parsed record names them and as its stored cells do. A Spending row's are
  * the bank's words and marks, which spending.read.statements hashes, who filed the row, and its link, which spending.published.links
- * hashes, and so is the link of a Spending row's item, whose labels spending.labels hashes, which of them a rule put on, and whose event spending.events hashes, whose payee spending.payees hashes, and whether a link split it off. A Spending account's are where its rows come from on which days, which spending.read.sources hashes, the cells a file from before periods kept that in, and its cards, which spending.read.cards hashes, and so is an Investments account's,
+ * hashes, and so is the link of a Spending row's item, whose labels spending.labels hashes, which of them a rule put on, and whose event spending.events hashes, whose payee spending.payees hashes, whose shared cost spending.shared-costs hashes, and whether a link split it off. A Spending account's are where its rows come from on which days, which spending.read.sources hashes, the cells a file from before periods kept that in, and its cards, which spending.read.cards hashes, and so is an Investments account's,
  * with its start day, which investments.read.sources hashes. A Company ledger row's are the bank's words and marks and who flagged it, which read.workbook hashes, and a Company account's are where its rows come from on which days, which read.sources hashes, and the cells a file from before periods kept that in.
  */
 export const SPENDING_ROW = {
@@ -9,8 +9,8 @@ export const SPENDING_ROW = {
   cells: new Set(['description', 'counterparty_iban', 'import_key', 'statement', 'categorised_by', 'moved_at', 'pocket', 'cash_withdrawal', 'pending', 'link']),
 }
 export const SPENDING_ITEM = {
-  record: new Set(['link', 'labels', 'ruleLabels', 'event', 'splitByLink', 'payee']),
-  cells: new Set(['link', 'labels', 'rule_labels', 'event', 'split_by_link', 'payee']),
+  record: new Set(['link', 'labels', 'ruleLabels', 'event', 'splitByLink', 'payee', 'sharedCost']),
+  cells: new Set(['link', 'labels', 'rule_labels', 'event', 'split_by_link', 'payee', 'shared_cost']),
 }
 export const SPENDING_ACCOUNT = { record: new Set(['sources', 'cards']), cells: new Set(['sources', 'rows_from', 'also_from', 'cards']) }
 export const INVESTMENT_ACCOUNT = { record: new Set(['sources']), cells: new Set(['sources', 'rows_from', 'starts_on', 'also_from']) }

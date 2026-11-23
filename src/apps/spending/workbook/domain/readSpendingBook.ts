@@ -1,4 +1,3 @@
-import { labelNameProblem } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import type { Account } from './account'
 import { readAccounts } from './accountReading'
@@ -7,6 +6,14 @@ import type { Budget } from './budget'
 import { readBudgets } from './budgetReading'
 import type { Category } from './category'
 import { readCategories } from './categoryReading'
+import { readEvents } from './eventReading'
+import { readLabels } from './labelReading'
+import { readPayees } from './payeeReading'
+import { readSharedCosts, withMembers } from './sharedCostReading'
+import type { SharedCostProblem } from './sharedCostReading'
+import type { SharedCost } from './sharedCost'
+import { readShortcutParts, readShortcuts, withParts } from './shortcutReading'
+import type { ShortcutPartReasons } from './shortcutReading'
 import type { TransactionItem } from './transactionItem'
 import { itemsBeforeItems, readParts, withItems, withKnownNames } from './transactionItemReading'
 import { isBeforeItems } from './beforeItems'
@@ -37,6 +44,7 @@ import {
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
+  SHARED_COST_RECORDS,
   SHORTCUT_PART_RECORDS,
   SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
@@ -62,13 +70,11 @@ import type { SpendingSettings } from './spendingSettings'
 import type { StoredRow, Transaction } from './transaction'
 import { readDropped, readHeld, readTransactions } from './transactionReading'
 import { words } from './words'
-import { eventProblem } from '../../events/domain/events'
-import { shortcutPartProblem } from '../../shortcuts/domain/shortcuts'
-import { payeeProblem } from '../../payees/domain/payeeDetails'
 import { oldMarksCount } from '../../payees/domain/payeeDirectory'
 import type { PayeeProblem } from '../../payees/domain/payeeDetails'
+import type { MemberProblem } from '../../sharedCosts/domain/sharedCostMembers'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
-import { doubted, problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
+import { doubted, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { ANY_VALUE, readSettingRows } from '../../../../shared/storage/domain/settingRows'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
@@ -122,6 +128,7 @@ export interface SpendingRecords {
   readonly recipes: RecordsRead<SavedRecipe>
   readonly payees: RecordsRead<Payee>
   readonly bankLinks: RecordsRead<BankLink>
+  readonly sharedCosts: RecordsRead<SharedCost>
   readonly settings: RecordsRead<SettingRow>
 }
 
@@ -144,6 +151,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   recipes: RECIPE_RECORDS,
   payees: PAYEE_RECORDS,
   bankLinks: BANK_LINK_RECORDS,
+  sharedCosts: SHARED_COST_RECORDS,
   settings: SETTING_RECORDS,
 }
 
@@ -167,6 +175,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     recipes: of(SPENDING_PARTS.recipes),
     payees: of(SPENDING_PARTS.payees),
     bankLinks: of(SPENDING_PARTS.bankLinks),
+    sharedCosts: of(SPENDING_PARTS.sharedCosts),
     settings: of(SPENDING_PARTS.settings),
   }
 }
@@ -210,6 +219,8 @@ export interface SpendingBook {
   readonly payees: readonly Payee[]
   /** The bank approvals the book keeps, or in a book from before bank-link records those its old settings hold. */
   readonly bankLinks: readonly BankLink[]
+  /** The shared costs, each counting its rows' money on its own day, in the order of the file. */
+  readonly sharedCosts: readonly SharedCost[]
   readonly settings: SpendingSettings
   /** The accounts a file from before periods keeps, with the periods worked out from their rows, which the next write of their rows stores. */
   readonly sourcesWorkedOut: readonly Account[]
@@ -218,65 +229,6 @@ export interface SpendingBook {
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly SpendingProblem[]
-}
-
-/** Labels count, but one whose name another label has once folded is doubted, since the two read as one. */
-function readLabels(read: RecordsRead<Label>): Reading<Label> {
-  const labels = read.records.map((stored) => stored.record)
-  return doubted(
-    readEach(read, () => []),
-    read,
-    (label) => (labelNameProblem(label.name, labels, label.id) === 'taken' ? words.labelNameShared(label.name) : null),
-  )
-}
-
-/** Events count when their name is not blank and their last day is not before their first. Names may repeat. */
-function readEvents(read: RecordsRead<SpendingEvent>): Reading<SpendingEvent> {
-  return readEach(read, ({ record: event }) => {
-    const problem = eventProblem(event.name, event.days)
-    if (problem === null) return []
-    return [problem === 'blank' ? words.eventNameBlank : words.eventEndsBefore]
-  })
-}
-
-/** Why a shortcut does not count: it names no account in the file. */
-function readShortcuts(read: RecordsRead<Shortcut>, accounts: ReadonlyMap<string, Account>): Reading<Shortcut> {
-  return readEach(read, ({ record: shortcut }) => (accounts.has(shortcut.account) ? [] : [words.noAccount]))
-}
-
-const SHORTCUT_PART_REASONS = {
-  zero: words.amountIsZero,
-  'mixed-ways': words.shortcutMixedWays,
-  'unknown-category': words.noCategory,
-  'between-accounts': words.shortcutBetweenAccounts,
-  'unknown-label': words.shortcutNoLabel,
-} as const
-
-/** The parts of shortcuts as `shortcutPartProblem` says, each of a shortcut that counts, all of a shortcut's or none. */
-function readShortcutParts(read: RecordsRead<ShortcutPart>, shortcuts: readonly Shortcut[], categories: readonly Category[], labels: readonly Label[]): Reading<ShortcutPart> {
-  const counted = new Set(shortcuts.map((shortcut) => shortcut.id))
-  const siblingsOf = (part: ShortcutPart): readonly ShortcutPart[] => read.records.map((stored) => stored.record).filter((other) => other.shortcut === part.shortcut && other !== part)
-  const ownReason = (part: ShortcutPart): string | null => {
-    if (!counted.has(part.shortcut)) return words.noShortcut
-    const problem = shortcutPartProblem(part, siblingsOf(part), { categories, labels })
-    return problem === null ? null : SHORTCUT_PART_REASONS[problem]
-  }
-  const broken = new Set(read.records.filter((stored) => ownReason(stored.record) !== null).map((stored) => stored.record.shortcut))
-  return readEach(read, ({ record: part }) => {
-    const own = ownReason(part)
-    if (own !== null) return [own]
-    return broken.has(part.shortcut) ? [words.shortcutPartLeftOut] : []
-  })
-}
-
-/** The shortcuts with a part that counts, in order, and those without as left out. */
-function withParts(reading: Reading<Shortcut>, read: RecordsRead<Shortcut>, parts: readonly ShortcutPart[]): Reading<Shortcut> {
-  const held = new Set(parts.map((part) => part.shortcut))
-  const left = read.records.filter((stored) => reading.facts.includes(stored.record) && !held.has(stored.record.id))
-  return {
-    facts: reading.facts.filter((shortcut) => held.has(shortcut.id)).sort((earlier, later) => earlier.order - later.order),
-    problems: [...reading.problems, ...left.map((stored) => problemOf(stored, words.shortcutWithoutPart))],
-  }
 }
 
 /** A payee's problem in the words of the file's problems. */
@@ -295,13 +247,33 @@ function payeeReason(problem: PayeeProblem): string {
   }
 }
 
-/** Payees count as `payeeProblem` says, each against every other stored payee, so two that share a name or an IBAN both stay out. */
-function readPayees(read: RecordsRead<Payee>): Reading<Payee> {
-  const payees = read.records.map((stored) => stored.record)
-  return readEach(read, ({ record: payee }) => {
-    const problem = payeeProblem(payee, payees)
-    return problem === null ? [] : [payeeReason(problem)]
-  })
+const SHORTCUT_PART_REASONS: ShortcutPartReasons = {
+  problems: {
+    zero: words.amountIsZero,
+    'mixed-ways': words.shortcutMixedWays,
+    'unknown-category': words.noCategory,
+    'between-accounts': words.shortcutBetweenAccounts,
+    'shared-cost': words.sharedCostCategoryAlone,
+    'unknown-label': words.shortcutNoLabel,
+  },
+  noShortcut: words.noShortcut,
+  leftOut: words.shortcutPartLeftOut,
+  withoutPart: words.shortcutWithoutPart,
+}
+
+const SHARED_COST_REASONS: { readonly [Problem in SharedCostProblem]: string } = {
+  'no-category': words.noCategory,
+  'not-spending-or-income': words.sharedCostNotSpendingOrIncome,
+  'unknown-label': words.shortcutNoLabel,
+  'unknown-event': words.sharedCostNoEvent,
+}
+
+const MEMBER_REASONS: { readonly [Problem in MemberProblem]: string } = {
+  'no-row': words.memberNoRow,
+  'not-filed-in': words.memberNotFiledIn,
+  linked: words.memberLinked,
+  unknown: words.memberNoSharedCost,
+  'without-shared-cost': words.sharedCostCategoryAlone,
 }
 
 /**
@@ -323,7 +295,9 @@ function readSettings(read: RecordsRead<SettingRow>, payees: readonly Payee[], l
  * A file from before items keeps an entry's category, note and link on the entry while it is not split, which then names a category that counts, and its
  * parts as lines, and is read as the items they make. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, a second category of a fixed
  * kind, a label named as another is once folded and an item that names a label or an event the file lacks count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
- * `readHeld` refuses. A payee keeps a name, and no other payee holds any of its names once folded or any of its IBANs.
+ * `readHeld` refuses. A payee keeps a name, and no other payee holds any of its names once folded or any of its IBANs. A shared cost
+ * that names a category, a label or an event that is not a spending or income one the file holds counts but is doubted, and so is an item
+ * that breaks the rule of a member of one.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const beforeItems = isBeforeItems(records)
@@ -336,23 +310,29 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const budgets = readBudgets(records.budgets, categories.facts)
   const receipts = readReceipts(records.receipts, new Set(rows.facts.map((row) => row.id)), accountsById)
   const lines = beforeItems ? readParts(records.lines, rows.facts, receipts.facts, categoryIds, true) : readEach(records.lines, () => [words.lineAfterMove])
-  const labels = readLabels(records.labels)
+  const labels = readLabels(records.labels, words.labelNameShared)
   const rules = readRules(records.rules, categories.facts, accounts.facts, labels.facts)
-  const events = readEvents(records.events)
-  const ownShortcuts = readShortcuts(records.shortcuts, accountsById)
-  const shortcutParts = readShortcutParts(records.shortcutParts, ownShortcuts.facts, categories.facts, labels.facts)
-  const shortcuts = withParts(ownShortcuts, records.shortcuts, shortcutParts.facts)
-  const items = withKnownNames(
-    readParts(records.items, rows.facts, receipts.facts, categoryIds, beforeItems),
+  const events = readEvents(records.events, { blank: words.eventNameBlank, 'ends-before': words.eventEndsBefore })
+  const ownShortcuts = readShortcuts(records.shortcuts, accountsById, words.noAccount)
+  const shortcutParts = readShortcutParts(records.shortcutParts, ownShortcuts.facts, { categories: categories.facts, labels: labels.facts }, SHORTCUT_PART_REASONS)
+  const shortcuts = withParts(ownShortcuts, records.shortcuts, shortcutParts.facts, SHORTCUT_PART_REASONS)
+  const sharedCosts = readSharedCosts(records.sharedCosts, { categories: categories.facts, labels: labels.facts, events: events.facts }, SHARED_COST_REASONS)
+  const items = withMembers(
+    withKnownNames(
+      readParts(records.items, rows.facts, receipts.facts, categoryIds, beforeItems),
+      records.items,
+      new Set(labels.facts.map((label) => label.id)),
+      new Set(events.facts.map((event) => event.id)),
+    ),
     records.items,
-    new Set(labels.facts.map((label) => label.id)),
-    new Set(events.facts.map((event) => event.id)),
+    { sharedCosts: sharedCosts.facts, categories: categories.facts },
+    MEMBER_REASONS,
   )
   const transactions = beforeItems ? rows : withItems(rows, records.transactions, items, records.items)
   const held = readHeld(records.held, accountsById, transactions.facts)
   const dropped = readDropped(records.dropped, accountsById)
   const recipes = readEach(records.recipes, () => [])
-  const payees = readPayees(records.payees)
+  const payees = readPayees(records.payees, payeeReason)
   const bankLinks = readEach(records.bankLinks, () => [])
   const settings = readSettings(records.settings, payees.facts, bankLinks.facts)
   const readings: SpendingReadings = {
@@ -373,6 +353,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     recipes,
     payees,
     bankLinks,
+    sharedCosts,
     settings,
   }
   return {
@@ -392,6 +373,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     recipes: recipes.facts,
     payees: payees.facts,
     bankLinks: bankLinksOf(bankLinks.facts, settings.facts),
+    sharedCosts: sharedCosts.facts,
     settings: spendingSettingsOf(settings.facts),
     sourcesWorkedOut: accounts.facts.filter((account) => worked.ids.has(account.id)),
     stored: { transactions: records.transactions, lines: records.lines, items: records.items },

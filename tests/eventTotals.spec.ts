@@ -72,7 +72,7 @@ describe("an event's totals", () => {
   const fuel = row(OTP, '2026-10-20', -50, 'Transport/Fuel')
   const transactions = [flight, hotel, streaming, dinners, salary, paidBack, fuel]
   const items = [chosen(flight, PRAGUE.id), ...wholeItems([hotel, dinners, salary, paidBack, fuel]), chosen(streaming, OUT_OF_EVENTS)]
-  const totals = (events: readonly SpendingEvent[]) => eventTotals(countedRows({ accounts: ACCOUNTS, transactions, items }, RATES), CATEGORIES, events)
+  const totals = (events: readonly SpendingEvent[]) => eventTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items }, RATES), CATEGORIES, events)
 
   it('count as the month counts, in euros at the rate of each row, with a refund lowering its group and a part put in or taken out by hand', () => {
     const [prague] = totals([PRAGUE])

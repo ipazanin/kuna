@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import type { BreakdownLine } from '../src/apps/spending/analytics/domain/spanBreakdown'
-import { breakdownChart } from '../src/apps/spending/analytics/presentation/breakdownChart'
+import { breakdownChart, lineName } from '../src/apps/spending/analytics/presentation/breakdownChart'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import type { BarSeries } from '../src/shared/charts/echarts'
 import { euros } from './fixtures/ledger'
@@ -42,5 +42,12 @@ describe("Analysis' breakdown chart", () => {
     expect(rest?.color).toBe(GREY)
     expect(rest?.decal).toBeDefined()
     for (const group of groups) expect(group).not.toEqual(rest)
+  })
+
+  it('names the line on no account Shared costs under accounts, and leaves a blank name blank elsewhere', () => {
+    const noAccount = { ...line('', 80), key: null }
+    expect(lineName(noAccount, 'account')).toBe('Shared costs')
+    expect(lineName({ ...line('', 80), name: '' }, 'payee')).toBe('')
+    expect(lineName(line('Main', 80), 'account')).toBe('Main')
   })
 })

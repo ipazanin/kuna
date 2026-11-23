@@ -9,6 +9,7 @@ import type { DroppedRow } from './droppedRow'
 import type { Receipt } from './receipt'
 import type { SavedRecipe } from './savedRecipe'
 import type { Payee } from './payee'
+import type { SharedCost } from './sharedCost'
 import type { BankLink } from '../../../../shared/bank-sync/domain/bankLink'
 import type { SpendingRule } from './spendingRule'
 import type { Shortcut, ShortcutPart } from './shortcut'
@@ -90,6 +91,10 @@ export const PAYEE_RECORDS = recordKind<Payee>('payee', {
 export const BANK_LINK_RECORDS = recordKind<BankLink>('bank-link', {
   en: { one: 'bank link', many: 'bank links', article: 'a' },
   hr: { one: 'veza s bankom', of: 'veze s bankom', few: 'veze s bankom', other: 'veza s bankom', gender: 'feminine' },
+})
+export const SHARED_COST_RECORDS = recordKind<SharedCost>('shared-cost', {
+  en: { one: 'shared cost', many: 'shared costs', article: 'a' },
+  hr: { one: 'zajednički trošak', of: 'zajedničkog troška', few: 'zajednička troška', other: 'zajedničkih troškova', gender: 'masculine' },
 })
 export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
   en: { one: 'setting', many: 'settings', article: 'a' },

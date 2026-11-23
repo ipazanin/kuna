@@ -141,6 +141,18 @@ export const CHAT_ONLY_EXCEPTIONS: readonly ChatOnlyException[] = [
     writes: ['investments: src/apps/investments/transactions/application/transactionWrites.ts#transactionRecordKind'],
   },
   {
+    reason: "A shared cost and the rows it holds, which the chat makes, changes and deletes. Entries' shared cost dialog and its Make a shared cost button come in the next stage of the same issue.",
+    writes: [
+      'spending: src/apps/spending/sharedCosts/application/sharedCostRecords.ts#SHARED_COST_WRITES.add',
+      'spending: src/apps/spending/sharedCosts/application/sharedCostRecords.ts#SHARED_COST_WRITES.remove',
+      'spending: src/apps/spending/sharedCosts/application/sharedCostWrites.ts#addSharedCost',
+      'spending: src/apps/spending/sharedCosts/application/sharedCostWrites.ts#changeSharedCost',
+      'spending: src/apps/spending/sharedCosts/application/sharedCostWrites.ts#deleteSharedCost',
+      'spending: src/apps/spending/sharedCosts/application/sharedCostWrites.ts#joinSharedCost',
+      'spending: src/apps/spending/sharedCosts/application/sharedCostWrites.ts#leaveSharedCost',
+    ],
+  },
+  {
     reason: 'A statement imported with the rules that come with it, in one write. The Import screen imports a statement and changes rules as two writes.',
     writes: ['spending: src/apps/spending/statements/application/statementWrites.ts#importWithRules'],
   },

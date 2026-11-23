@@ -263,6 +263,7 @@ describe('a line remembered from a confirmed receipt', () => {
     labels: [],
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   })
   const OLD = '5e000000-0000-4000-8000-000000008001'

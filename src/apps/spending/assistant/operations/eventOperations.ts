@@ -101,7 +101,7 @@ function choiceOf(book: SpendingBook, operation: string, field: Readonly<Record<
 export function writeEventStep(
   unit: UnitOfWork,
   book: SpendingBook,
-  records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts'>,
+  records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'sharedCosts'>,
   operation: string,
   field: Readonly<Record<string, never>>,
   idOf: (value: unknown) => string,

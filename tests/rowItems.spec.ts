@@ -33,6 +33,7 @@ function part(key: string, of: { readonly id: TransactionItem['transaction'] }, 
     labels: [],
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   }
 }
@@ -76,7 +77,7 @@ describe("a Spending row's items", () => {
 
   it('counts a row of one item at its whole euros, the same as the row', () => {
     const bakery = row(OTP, '2026-10-12', -6.5, 'Food/Groceries')
-    const [counted] = countedRows({ accounts: ACCOUNTS, transactions: [bakery], items: wholeItems([bakery]) }, NO_RATES)
+    const [counted] = countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: [bakery], items: wholeItems([bakery]) }, NO_RATES)
     expect(rowSide(counted!, new Map(CATEGORIES.map((held) => [held.id, held])))).toEqual([{ category: groceries, side: 'spending', counted: moneyFromAmount(6.5) }])
   })
 })
@@ -101,6 +102,7 @@ describe('a row of a file from before items', () => {
         labels: [],
         ruleLabels: [],
         event: BY_DAYS,
+        sharedCost: null,
         splitByLink: false,
       },
     ])

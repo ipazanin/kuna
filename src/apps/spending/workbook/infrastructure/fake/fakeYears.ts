@@ -187,6 +187,7 @@ export function fakeYearsDocument(savedAt: string, day: CivilDate): WorkbookDocu
         labels,
         ruleLabels: [],
         event: BY_DAYS,
+        sharedCost: null,
         splitByLink: false,
       })
     }

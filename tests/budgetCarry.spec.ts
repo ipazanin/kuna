@@ -88,7 +88,7 @@ describe('a limit with carry-over', () => {
 
 describe('what a limit counts as spent', () => {
   function spentOn(budgets: readonly Budget[], path: string, rows = ROWS): Money | undefined {
-    return spendingFigures({ accounts: ACCOUNTS, categories: CATEGORIES, labels: [], transactions: rows, budgets, items: bookItems(rows) }, RATES)
+    return spendingFigures({ sharedCosts: [], accounts: ACCOUNTS, categories: CATEGORIES, labels: [], transactions: rows, budgets, items: bookItems(rows) }, RATES)
       .limitsIn(month('2026-10'))
       .find((entry) => entry.category === category(path).id)?.spent
   }
@@ -116,7 +116,15 @@ describe('what a limit counts as spent', () => {
 
 describe('the rows a limit counts as nothing', () => {
   const hotel = row(REVOLUT_USD, '2026-10-20', -400, 'Travel/Accommodation', { payee: 'Hotel' })
-  const book = { accounts: ACCOUNTS, categories: CATEGORIES, labels: [], transactions: [...ROWS, hotel], budgets: [budget(1, 'Travel', '2026-10', 500)], items: bookItems([...ROWS, hotel]) }
+  const book = {
+    sharedCosts: [],
+    accounts: ACCOUNTS,
+    categories: CATEGORIES,
+    labels: [],
+    transactions: [...ROWS, hotel],
+    budgets: [budget(1, 'Travel', '2026-10', 500)],
+    items: bookItems([...ROWS, hotel]),
+  }
 
   it('says a dollar row the rates do not reach counts as nothing in its month, and in the months its carry reaches', () => {
     const figures = spendingFigures(book, NO_RATES)

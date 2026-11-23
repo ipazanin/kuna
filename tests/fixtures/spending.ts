@@ -205,7 +205,10 @@ function storedWithItems(rows: readonly Transaction[], items: readonly Transacti
 }
 
 /** The parts of a Spending book a test may give, with its setting rows in place of the settings they make and its bank-link records, which old link settings stand in for while there are none. */
-type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'dropped' | 'stored' | 'bankLinks'> & {
+type BookParts = Pick<
+  SpendingBook,
+  'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'dropped' | 'stored' | 'bankLinks' | 'sharedCosts'
+> & {
   readonly settingRows: readonly SettingRow[]
 }
 
@@ -238,6 +241,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     recipes: [],
     payees: [],
     bankLinks: [],
+    sharedCosts: [],
     stored: given.items === undefined ? storedBeforeItems(transactions) : storedWithItems(transactions, given.items),
     ...given,
   }
@@ -266,6 +270,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
       recipes: counting(book.recipes),
       payees: counting(book.payees),
       bankLinks: counting(book.bankLinks),
+      sharedCosts: counting(book.sharedCosts),
       settings: counting(settingRows),
     },
     problems: [],

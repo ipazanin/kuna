@@ -16,7 +16,7 @@ const transactions = [
   row(OTP, '2026-03-09', -30, 'Food/Eating out'),
   row(OTP, '2026-11-02', -25, 'Food/Groceries'),
 ]
-const rows = countedRows({ accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
+const rows = countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
 const totalsOf = (asked: MonthKey) => monthTotals(rows, CATEGORIES, asked)
 
 describe("a category's months", () => {

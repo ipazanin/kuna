@@ -110,6 +110,7 @@ export function entrySplit(
       labels,
       ruleLabels: heldRuleLabels({ labels, ruleLabels: kept?.ruleLabels ?? [] }),
       event: draft.choices?.event ?? kept?.event ?? BY_DAYS,
+      sharedCost: null,
       splitByLink: false,
     }
   })
@@ -153,6 +154,7 @@ export function differenceItem(
         labels: [],
         ruleLabels: [],
         event: BY_DAYS,
+        sharedCost: null,
         splitByLink: false,
       }
 }

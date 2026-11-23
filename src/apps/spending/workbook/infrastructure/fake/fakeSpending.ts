@@ -25,6 +25,7 @@ import {
   BANK_LINK_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
+  SHARED_COST_RECORDS,
   SHORTCUT_PART_RECORDS,
   SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
@@ -41,6 +42,7 @@ import type { BankLink } from '../../../../../shared/bank-sync/domain/bankLink'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../domain/transaction'
 import type { DroppedRow } from '../../domain/droppedRow'
 import type { Payee } from '../../domain/payee'
+import type { SharedCost } from '../../domain/sharedCost'
 import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../../../shared/bank-sync/infrastructure/fake/fakeBankSync'
 import type { Transaction } from '../../domain/transaction'
 import type { RowLink } from '../../domain/rowLink'
@@ -299,6 +301,7 @@ function assetRows(day: CivilDate, idOf: (path: string) => RecordId): { readonly
     link: null,
     labels: [],
     ruleLabels: [],
+    sharedCost: null,
     splitByLink: false,
     event: BY_DAYS,
   })
@@ -348,6 +351,7 @@ function treatedMealParts(rows: readonly FakeRow[], twoBack: MonthKey, idOf: (pa
     labels: [],
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   }))
 }
@@ -688,6 +692,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
     labels,
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   })
   return {
@@ -956,6 +961,8 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
     )
   }
   if (set === 'sample') transactions.push(...yearlyCostAndFeeRows(oneBack, day, idOf))
+  const sharedGift = set === 'sample' ? sharedGiftEntries(oneBack, month, day, idOf) : { sharedCosts: [], rows: [], lines: [] }
+  transactions.push(...sharedGift.rows)
   const loanEntries = set === 'foreign' ? { rows: [], lines: [] } : loanRows(twoBack, oneBack, day, idOf)
   transactions.push(...loanEntries.rows)
   // Each account opens with what makes its balance on the day the worked example's.
@@ -990,12 +997,61 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...stored(DROPPED_ROW_RECORDS, bankSync === 'pending-books' ? [droppedHotel(day)] : []),
       ...stored(RECIPE_RECORDS, set === 'statements' ? fakeRecipes() : []),
       ...stored(PAYEE_RECORDS, set === 'people' ? fakePayees() : []),
+      ...stored(SHARED_COST_RECORDS, sharedGift.sharedCosts),
       ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
       ...stored(BANK_LINK_RECORDS, fakeBankLinks(bankSync, day)),
     },
     rows: transactions,
-    lines: [...receipts.lines, ...loanEntries.lines, ...assetEntries.lines, ...(set === 'people' ? treatedMealParts(transactions, twoBack, idOf) : [])],
+    lines: [...receipts.lines, ...loanEntries.lines, ...assetEntries.lines, ...sharedGift.lines, ...(set === 'people' ? treatedMealParts(transactions, twoBack, idOf) : [])],
   }
+}
+
+/**
+ * The sample's shared gift for Ana, all made up: 40.14, 81.10 and 50.00 paid in three shops on the 20th of last month, 171.24 in
+ * all, with Luka paying back 57.08 on the 25th and Petra 57.08 on the 5th of this month, so last month counts 57.08 under Gifts.
+ */
+function sharedGiftEntries(
+  oneBack: MonthKey,
+  month: MonthKey,
+  day: CivilDate,
+  idOf: (path: string) => RecordId,
+): { readonly sharedCosts: readonly SharedCost[]; readonly rows: readonly FakeRow[]; readonly lines: readonly TransactionItem[] } {
+  const gift: SharedCost = {
+    id: fixedId(SHARED_COST_RECORDS, 2421),
+    day: dayIn(oneBack, 20, day),
+    payee: 'Ana',
+    category: idOf('Family and gifts/Gifts'),
+    labels: [],
+    event: BY_DAYS,
+    note: 'Birthday gift',
+    settled: false,
+  }
+  const filedIn = idOf('In a shared cost')
+  const paid: readonly [RecordId, CivilDate, number, string][] = [
+    [OTP, dayIn(oneBack, 20, day), -40.14, 'Bookshop'],
+    [REVOLUT_EUR, dayIn(oneBack, 20, day), -81.1, 'Toy shop'],
+    [OTP, dayIn(oneBack, 20, day), -50, 'Flower shop'],
+    [OTP, dayIn(oneBack, 25, day), 57.08, 'Luka'],
+    [OTP, dayIn(month, 5, day), 57.08, 'Petra'],
+  ]
+  const rows = paid.map(([account, date, amount, payee], place): FakeRow => ({
+    ...NO_BANK_FACTS,
+    id: fixedId(TRANSACTION_RECORDS, 2401 + place),
+    account,
+    date,
+    amount: accountMoneyFromAmount(amount),
+    payee,
+    category: filedIn,
+    note: '',
+    source: 'typed',
+    pair: null,
+    link: null,
+    labels: [],
+    event: BY_DAYS,
+    categorisedBy: 'person',
+  }))
+  const lines = rows.map((row): TransactionItem => ({ ...wholeItemOf(row, row), sharedCost: gift.id }))
+  return { sharedCosts: [gift], rows, lines }
 }
 
 /**
@@ -1067,6 +1123,7 @@ function loanRows(twoBack: MonthKey, oneBack: MonthKey, day: CivilDate, idOf: (p
     link: null,
     labels: [],
     ruleLabels: [],
+    sharedCost: null,
     splitByLink: false,
     event: BY_DAYS,
   })
@@ -1119,6 +1176,7 @@ export function fakeBeforeItemsDocument(savedAt: string, day: CivilDate = today(
     labels: [],
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   })
   const splitLeg = splitTransfer && leg !== undefined ? [legParts(1971, -150), legParts(1972, -50)] : []
@@ -1167,6 +1225,7 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
     labels: [],
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   })
   return {

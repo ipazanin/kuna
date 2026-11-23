@@ -140,7 +140,7 @@ export const RULE_CODEC: RecordCodec<SpendingRule> = withIdField(RULE_RECORDS, w
 )
 
 /**
- * Why a rule does not count: it names a category, a label or an account that does not count, or it spots a withdrawal off Between
+ * Why a rule does not count: it names a category, a label or an account that does not count, it files into In a shared cost, or it spots a withdrawal off Between
  * my accounts or into an account that is not cash.
  */
 export function readRules(read: RecordsRead<SpendingRule>, categories: readonly Category[], accounts: readonly Account[], labels: readonly Label[]): Reading<SpendingRule> {
@@ -151,6 +151,7 @@ export function readRules(read: RecordsRead<SpendingRule>, categories: readonly 
   const reading = readEach(read, ({ record: rule }) => {
     const category = rule.category === null ? null : categoryOf.get(rule.category)
     if (category === undefined) return [words.noCategory]
+    if (category?.kind === 'shared-cost') return [words.ruleSharedCost]
     if (rule.labels.some((label) => !labelIds.has(label))) return [words.shortcutNoLabel]
     if (rule.conditions.some((condition) => 'accounts' in condition && condition.accounts.some((account) => !accountIds.has(account)))) return [words.noAccount]
     if (rule.withdrawal === null) return []

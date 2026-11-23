@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
+import { lineName } from './breakdownChart'
 import { words } from './words'
 import type { BreakdownLine, Grouping, SpanBreakdown } from '../domain/spanBreakdown'
 import { formatCount } from '../../../../shared/money/moneyFormat'
@@ -34,7 +35,7 @@ const rows = computed(() =>
   }),
 )
 const savedShown = computed(() => rows.value.some(({ line }) => line.saved !== 0))
-const nameOf = (line: BreakdownLine): string => (line.name === '' ? words.analysis.breakdown.noAccount : line.name)
+const nameOf = (line: BreakdownLine): string => lineName(line, props.grouping)
 const heading = words.analysis.breakdown.heading
 </script>
 

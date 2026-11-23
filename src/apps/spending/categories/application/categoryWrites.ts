@@ -1,6 +1,7 @@
 import { BUDGET_WRITES } from '../../budgets/application/budgetWrites'
 import { heldItemsOf, waitingItemsOf, writeRows } from '../../entries/application/rowRecords'
 import { RULE_WRITES } from '../../statements/application/ruleRecords'
+import { SHARED_COST_WRITES } from '../../sharedCosts/application/sharedCostRecords'
 import { SHORTCUT_PART_WRITES } from '../../shortcuts/application/shortcutWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isFixedKind } from '../../workbook/domain/category'
@@ -14,7 +15,7 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** A category keeps its children, entries, parts of entries, limits, rules and parts of quick adds, and a fixed one is never deleted, but Undo takes back one a write added. */
+/** A category keeps its children, entries, parts of entries, limits, rules, parts of quick adds and shared costs, and a fixed one is never deleted, but Undo takes back one a write added. */
 export const CATEGORY_WRITES: WriteRules<Category> = {
   kind: CATEGORY_RECORDS,
   reads: SPENDING_KINDS,
@@ -24,7 +25,7 @@ export const CATEGORY_WRITES: WriteRules<Category> = {
     ...change.edits.flatMap((edit) =>
       !change.undoing && edit.after === null && edit.before !== null && 'record' in edit.before && isFixedKind(edit.before.record.kind) ? [words.fixedKept(edit.before.label)] : [],
     ),
-    ...dependentRefusals(['categories', 'transactions', 'budgets', 'rules', 'shortcutParts', 'lines', 'items'], fresh, after),
+    ...dependentRefusals(['categories', 'transactions', 'budgets', 'rules', 'shortcutParts', 'lines', 'items', 'sharedCosts'], fresh, after),
   ],
 }
 
@@ -34,7 +35,7 @@ export function newCategory(category: Omit<Category, 'id'>): Category {
 }
 
 /**
- * Deletes the category, moves its entries, parts of entries, rules and parts of quick adds to another and deletes its limits, all in one write, so one Undo puts it all
+ * Deletes the category, moves its entries, parts of entries, rules, parts of quick adds and shared costs to another and deletes its limits, all in one write, so one Undo puts it all
  * back. The other category keeps its own limits, whose carry would change if they took on the deleted one's history.
  */
 export function deleteInto(unit: UnitOfWork, records: SpendingRecords, category: Category, target: Category): void {
@@ -57,6 +58,9 @@ export function deleteInto(unit: UnitOfWork, records: SpendingRecords, category:
   recordsOf(records.shortcutParts)
     .filter((part) => part.category === category.id)
     .forEach((part) => unit.of(SHORTCUT_PART_WRITES).change(part, { ...part, category: target.id }))
+  recordsOf(records.sharedCosts)
+    .filter((sharedCost) => sharedCost.category === category.id)
+    .forEach((sharedCost) => unit.of(SHARED_COST_WRITES).change(sharedCost, { ...sharedCost, category: target.id }))
   recordsOf(records.budgets)
     .filter((budget) => budget.category === category.id)
     .forEach((budget) => unit.of(BUDGET_WRITES).remove(budget))

@@ -20,7 +20,7 @@ const transactions = [
   row(OTP, '2026-10-03', -200, 'Between my accounts'),
   row(REVOLUT_USD, '2026-10-08', -30, 'Bought assets'),
 ]
-const rows = countedRows({ accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
+const rows = countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
 const totalsOf = (asked: MonthKey) => monthTotals(rows, CATEGORIES, asked)
 
 describe('what a month kept', () => {

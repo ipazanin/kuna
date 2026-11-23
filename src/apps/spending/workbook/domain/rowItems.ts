@@ -42,7 +42,22 @@ export interface WholeFiling {
 
 /** The one item of a row not split, with all of its money, which no link split off. */
 export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels, ruleLabels = [], event = BY_DAYS, countsUnder = '' }: WholeFiling): TransactionItem {
-  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, payee: countsUnder, link, labels, ruleLabels, event, splitByLink: false }
+  return {
+    id: wholeRowItemId(row),
+    transaction: row.id,
+    receipt: null,
+    printed: '',
+    note,
+    amount: row.amount,
+    category,
+    payee: countsUnder,
+    link,
+    labels,
+    ruleLabels,
+    event,
+    sharedCost: null,
+    splitByLink: false,
+  }
 }
 
 /** The items of any row, the ones the items given name it in, in their order. */
@@ -59,14 +74,20 @@ export function largestItem<Item extends Pick<TransactionItem, 'amount'>>(items:
   return items.reduce<Item | null>((largest, item) => (largest === null || Math.abs(item.amount) > Math.abs(largest.amount) ? item : largest), null)
 }
 
-/** The row's one item under another category, for a row not split, which a rule, the pairing or To review files. */
+/** The row's items under another category, for a row not split, which a rule, the pairing or To review files. A part filed elsewhere leaves its shared cost. */
 export function refiledItems(items: readonly TransactionItem[], category: RecordId | null): readonly TransactionItem[] {
-  return items.map((item) => ({ ...item, category }))
+  return items.map((item) => ({ ...item, category, sharedCost: null }))
 }
 
-/** The row's items as a transfer's leg under the transfer category, a move between your own accounts, so no part counts under a payee of its own. */
+/** The parts that wait on To review under the category, and the rest as they are, so a split's filed parts keep theirs. A row with no part waiting files all of it, as `refiledItems` does. */
+export function filedWaitingItems(items: readonly TransactionItem[], category: RecordId): readonly TransactionItem[] {
+  if (!waitsOnReview(items)) return refiledItems(items, category)
+  return items.map((item) => (item.category === null ? { ...item, category, sharedCost: null } : item))
+}
+
+/** The row's items as a transfer's leg under the transfer category, a move between your own accounts, so no part counts under a payee of its own or in a shared cost. */
 export function transferLegItems(items: readonly TransactionItem[], category: RecordId): readonly TransactionItem[] {
-  return items.map((item) => ({ ...item, category, payee: '' }))
+  return items.map((item) => ({ ...item, category, payee: '', sharedCost: null }))
 }
 
 /** Each of the row's items linked to the record in another app, as linking a whole row links it. */
@@ -125,7 +146,7 @@ export function holdsReceipt(items: readonly Pick<TransactionItem, 'receipt'>[])
   return items.some((item) => item.receipt !== null)
 }
 
-/** Whether the row waits on To review: its one item has no category yet. */
+/** Whether the row waits on To review: an item of it has no category yet. */
 export function waitsOnReview(items: readonly Pick<TransactionItem, 'category'>[]): boolean {
   return items.some((item) => item.category === null)
 }

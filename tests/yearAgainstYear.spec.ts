@@ -16,7 +16,7 @@ const transactions = [
   row(OTP, '2026-01-12', -70, 'Transport/Fuel'),
   row(OTP, '2026-03-02', -20, 'Transport/Fuel'),
 ]
-const rows = countedRows({ accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
+const rows = countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
 const totalsOf = (asked: MonthKey) => monthTotals(rows, CATEGORIES, asked)
 
 describe('a year against the year before', () => {

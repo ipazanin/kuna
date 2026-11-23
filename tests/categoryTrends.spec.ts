@@ -19,7 +19,7 @@ function monthly(path: string, amounts: readonly number[]) {
 }
 
 function trendsOf(transactions: ReturnType<typeof monthly>) {
-  const rows = countedRows({ accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
+  const rows = countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items: wholeItems(transactions) }, NO_RATES)
   return categoryTrends(
     (asked: MonthKey) => monthTotals(rows, CATEGORIES, asked),
     CATEGORIES,

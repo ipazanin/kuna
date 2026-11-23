@@ -101,6 +101,7 @@ export function entryOfShortcut({ shortcut, parts }: ShortcutWithParts, day: Civ
       labels: part.labels,
       ruleLabels: [],
       event: BY_DAYS,
+      sharedCost: null,
       splitByLink: false,
     })),
   }

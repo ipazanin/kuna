@@ -176,6 +176,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
       labels,
       ruleLabels: lineRuleLabels(labels, replaced),
       event,
+      sharedCost: null,
       splitByLink: false,
     }
   })

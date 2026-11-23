@@ -134,6 +134,7 @@ export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkP
       link: target.link,
       labels: labelsOf(entry.items),
       ruleLabels: ruleLabelsOf(entry.items),
+      sharedCost: null,
       splitByLink: false,
     }
     return { entry: { row: { ...entry.row, categorisedBy: 'person' }, items: [whole] }, interest: null, added: principalAdded }

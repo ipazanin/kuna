@@ -36,6 +36,10 @@ export const en = {
     byDays: (event: string | null) => (event === null ? 'By date' : `By date: ${event}`),
     noEvent: 'Kept out of events',
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row of the statement is left out.', other: `${count} rows of the statement are left out.` }),
+    membersBackToReview: (count: number): EnglishForms => ({
+      one: '1 part of an entry goes back to To review and counts nowhere until it is filed again.',
+      other: `${count} parts of entries go back to To review and count nowhere until each is filed again.`,
+    }),
     fields: {
       name: 'Name',
       kind: 'Type',
@@ -56,6 +60,9 @@ export const en = {
       labels: 'Labels',
       event: 'Event',
       days: 'Days',
+      day: 'Day',
+      settled: 'Settled',
+      sharedCost: 'Shared cost',
       link: linkEn.label,
       from: 'From',
       conditions: 'Looks for',
@@ -120,6 +127,8 @@ export const en = {
     receipt: "Fiscal receipts and the entry each split. A receipt for a card payment the bank has not brought yet has no entry and waits on its account until the bank's row comes.",
     waitingReceipt: "Receipts with no entry yet, waiting for the bank's row of their payment, which To review lists. They count nowhere until then.",
     line: 'The parts of every entry. A whole entry is one part, and one a receipt or a person split has its lines or parts. The figures count the parts.',
+    sharedCost:
+      'Money several entries make together, such as a gift paid in three shops that two friends paid back their share of. It counts what its parts add up to on its own day, under its own payee, category, labels and event, and its parts count nowhere else.',
     waiting: 'The rows waiting on To review for a category, which count nowhere until filed.',
     linkInstalment: (loan: string, due: string) => `the instalment of the bank loan ${loan} due ${due}, in Loans`,
     linkInterim: (loan: string, due: string) => `the interim interest of the bank loan ${loan} due ${due}, in Loans`,
@@ -274,6 +283,11 @@ export const hr: Translation<typeof en> = {
       few: `Izostavljena su ${count} retka izvoda.`,
       other: `Izostavljeno je ${count} redaka izvoda.`,
     }),
+    membersBackToReview: (count): CroatianForms => ({
+      one: `${count} dio unosa vraća se pod Za pregled i ne broji se nigdje dok se ponovno ne razvrsta.`,
+      few: `${count} dijela unosa vraćaju se pod Za pregled i ne broje se nigdje dok se svaki ponovno ne razvrsta.`,
+      other: `${count} dijelova unosa vraća se pod Za pregled i ne broji se nigdje dok se svaki ponovno ne razvrsta.`,
+    }),
     fields: {
       name: 'Naziv',
       kind: 'Vrsta',
@@ -294,6 +308,9 @@ export const hr: Translation<typeof en> = {
       labels: 'Oznake',
       event: 'Događaj',
       days: 'Dani',
+      day: 'Dan',
+      settled: 'Podmireno',
+      sharedCost: 'Zajednički trošak',
       link: linkHr.label,
       from: 'Od',
       conditions: 'Uvjeti',
@@ -358,6 +375,8 @@ export const hr: Translation<typeof en> = {
     receipt: 'Fiskalni računi i unos koji je svaki podijelio. Fiskalni račun za plaćanje karticom koje banka još nije donijela nema unos i čeka na svom računu dok ne stigne redak iz banke.',
     waitingReceipt: 'Fiskalni računi još bez unosa, koji čekaju redak iz banke za svoje plaćanje i navedeni su pod Za pregled. Do tada se ne broje nigdje.',
     line: 'Dijelovi svakog unosa. Cijeli unos je jedan dio, a unos podijeljen fiskalnim računom ili ručno ima svoje stavke ili dijelove. Iznosi broje dijelove.',
+    sharedCost:
+      'Novac koji čini više unosa zajedno, kao poklon plaćen u tri trgovine za koji su dva prijatelja vratila svoj dio. Broji zbroj svojih dijelova na svoj dan, pod svojim primateljem, kategorijom, oznakama i događajem, a njegovi se dijelovi drugdje ne broje.',
     waiting: 'Retci koji pod Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
     linkInstalment: (loan, due) => `rata kredita ${loan} s dospijećem ${due}, u Kreditima`,
     linkInterim: (loan, due) => `interkalarna kamata kredita ${loan} s dospijećem ${due}, u Kreditima`,

@@ -17,8 +17,8 @@ export type EntrySide = 'out' | 'in'
 /**
  * The categories an entry can be filed under, one list per group: the children of each spending group for money out, or
  * of each income group and then each spending group for money in, where it is a refund, under the group's name, a group
- * without children as itself, then Saved to investments, For the company and Loan principal, and Between my accounts for an entry that
- * has it or with `withTransfer`. Hidden categories, and the children of a hidden group, are left out but for the one the entry already has.
+ * without children as itself, then the fixed categories, and Between my accounts for an entry that has it or with `withTransfer`.
+ * In a shared cost is offered only to the part already in it, since only joining a shared cost files there. Hidden categories, and the children of a hidden group, are left out but for the one the entry already has.
  */
 export function entryCategoryChoices(categories: readonly Category[], side: EntrySide, own: RecordId | null, withTransfer = false): CategoryChoice[][] {
   const shown = (category: Category): boolean => !category.hidden || category.id === own
@@ -31,7 +31,9 @@ export function entryCategoryChoices(categories: readonly Category[], side: Entr
       return picked.length === 0 ? [] : [[{ type: 'label' as const, label: group.name }, ...picked.map(choice)]]
     }),
   )
-  const fixed = fixedCategories(categories).filter((category) => (!isTransferCategory(category) || withTransfer || category.id === own) && shown(category))
+  const fixed = fixedCategories(categories).filter(
+    (category) => (category.kind !== 'shared-cost' || category.id === own) && (!isTransferCategory(category) || withTransfer || category.id === own) && shown(category),
+  )
   return [...groups, ...(fixed.length === 0 ? [] : [fixed.map(choice)])]
 }
 

@@ -37,7 +37,7 @@ const transactions = [toRevolut, paint, hotel, dinners, paidBack, shop, lastDay]
 const items = [labelled(toRevolut, PRAGUE), labelled(paint, FLAT), labelled(hotel, PRAGUE), labelled(dinners, PRAGUE), labelled(paidBack, PRAGUE), ...shopParts, labelled(lastDay, PRAGUE)]
 
 function totalsOf(rates: RateBook) {
-  return labelTotals(countedRows({ accounts: ACCOUNTS, transactions, items }, rates), CATEGORIES, [PRAGUE, FLAT, GARDEN])
+  return labelTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions, items }, rates), CATEGORIES, [PRAGUE, FLAT, GARDEN])
 }
 
 describe("a label's totals", () => {

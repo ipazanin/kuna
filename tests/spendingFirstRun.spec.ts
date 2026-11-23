@@ -30,10 +30,11 @@ const FIXED = [
   ['Loan principal', 'Glavnica kredita', 'repayment'],
   ['Loans to and from people', 'Posudbe', 'informal-loan'],
   ['Bought assets', 'Kupljena imovina', 'asset'],
+  ['In a shared cost', 'U zajedničkom trošku', 'shared-cost'],
 ] as const
 
-// Eleven spending groups with 39 children, Income with 8, and the six fixed categories.
-const STARTER_COUNT = 11 + 39 + 1 + 8 + 6
+// Eleven spending groups with 39 children, Income with 8, and the seven fixed categories.
+const STARTER_COUNT = 11 + 39 + 1 + 8 + 7
 
 const downloads: { readonly contents: unknown; readonly fileName: string; readonly type: string }[] = []
 
@@ -93,7 +94,7 @@ describe('the Spending first run on the fake Drive', () => {
     expect(fakeDriveSession().file(fakeDriveSession().file(store.state.choice!.id).parents[0]!).name).toBe('spending')
     expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company' })
     const stored = decodeDocument(await fakeDriveSession().download(store.state.choice!.id))
-    expect(stored).toMatchObject({ app: 'spending', schema: { spending: 12 } })
+    expect(stored).toMatchObject({ app: 'spending', schema: { spending: 13 } })
     expect(Object.keys(stored.records)).toEqual(['category'])
     expect(store.state.workbook!.categories.filter((category) => category.parent === null).map((category) => category.name)).toEqual([...ENGLISH_GROUPS, ...FIXED.map(([en]) => en)])
     expect(spendingApp.firstRun()).toBe(false)
@@ -166,7 +167,7 @@ describe('the starter categories', () => {
     return categories.filter((category) => category.parent === null).map((group) => [group.name, group.kind, categories.filter((child) => child.parent === group.id).map((child) => child.name)])
   }
 
-  it('are eleven spending groups, Income and the six fixed categories, in English for a first run in English', () => {
+  it('are eleven spending groups, Income and the seven fixed categories, in English for a first run in English', () => {
     const tree = treeOf('en')
 
     expect(tree.map(([name]) => name)).toEqual([...ENGLISH_GROUPS, ...FIXED.map(([en]) => en)])
@@ -195,7 +196,7 @@ describe('the starter categories', () => {
     const categories = starterCategories('en')
 
     expect(new Set(categories.map((category) => category.id)).size).toBe(categories.length)
-    expect(categories.filter((category) => category.parent === null).map((category) => category.order)).toEqual(Array.from({ length: 18 }, (_, place) => place + 1))
+    expect(categories.filter((category) => category.parent === null).map((category) => category.order)).toEqual(Array.from({ length: 19 }, (_, place) => place + 1))
     expect(categories.filter((category) => category.parent === categories[0]!.id).map((category) => category.order)).toEqual([1, 2, 3])
     expect(categories.every((category) => category.colour === '' && !category.hidden)).toBe(true)
   })

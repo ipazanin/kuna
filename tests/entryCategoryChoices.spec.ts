@@ -31,4 +31,11 @@ describe('the categories an entry can be filed under', () => {
     expect(money('in', null, true)).toContain('Between my accounts')
     expect(money('out', 'Between my accounts')).toContain('Between my accounts')
   })
+
+  it('offers In a shared cost only to a part already in one, so a member keeps its category and no other part can join this way', () => {
+    expect(money('out', null)).not.toContain('In a shared cost')
+    expect(money('in', null, true)).not.toContain('In a shared cost')
+    expect(money('out', 'In a shared cost')).toContain('In a shared cost')
+    expect(money('in', 'In a shared cost')).toContain('In a shared cost')
+  })
 })

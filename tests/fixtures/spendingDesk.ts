@@ -15,6 +15,7 @@ import { codecOfSpendingKind } from '../../src/apps/spending/workbook/applicatio
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
 import type { TransactionItem } from '../../src/apps/spending/workbook/domain/transactionItem'
+import type { SharedCost } from '../../src/apps/spending/workbook/domain/sharedCost'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'
 import {
@@ -29,6 +30,7 @@ import {
   SHORTCUT_PART_RECORDS,
   SHORTCUT_RECORDS,
   SETTING_RECORDS,
+  SHARED_COST_RECORDS,
   TRANSACTION_RECORDS,
 } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import { RECIPE_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
@@ -98,6 +100,7 @@ const RENT = category('category-rent', 'Rent', 'spending', null, 2)
 const SALARY = category('category-salary', 'Salary', 'income', null, 1)
 const TRANSFER = category('category-transfer', 'Between my accounts', 'transfer', null, 1)
 const FOR_COMPANY = category('category-company', 'For the company', 'company', null, 1)
+const IN_SHARED_COST = category('category-shared-cost', 'In a shared cost', 'shared-cost', null, 1)
 
 const HOUSING_LOAN_KEY = 'made-up-housing-loan'
 const HOUSING_LOAN_OCTOBER: RowLink = { app: 'loans', kind: 'bank-loan', key: HOUSING_LOAN_KEY, due: on('2026-10-15') }
@@ -149,7 +152,7 @@ function row(key: string, date: string, amount: number, payee: string, fields: P
   }
 }
 
-/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, a typed row split by hand, cash taken out with no cash leg yet, and a Revolut payment a waiting receipt may be. */
+/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, a typed row split by hand, cash taken out with no cash leg yet, a Revolut payment a waiting receipt may be, and a gift a shared cost holds. */
 const ROWS: readonly StoredRow[] = [
   row('transaction-typed', '2026-10-12', -45.3, 'Corner market', { source: 'typed', category: GROCERIES.id, categorisedBy: 'person' }),
   row('transaction-receipt', '2026-10-14', -20, 'Bakery', { category: GROCERIES.id, categorisedBy: 'person', importKey: 'made-up-2' }),
@@ -162,6 +165,7 @@ const ROWS: readonly StoredRow[] = [
   row('transaction-split', '2026-10-30', -60, 'Hardware store', { source: 'typed', category: RENT.id, categorisedBy: 'person' }),
   row('transaction-withdrawal', '2026-10-29', -50, 'Cash at Ilica ATM', { account: REVOLUT.id, importKey: 'made-up-9', category: TRANSFER.id, cashWithdrawal: true }),
   row('transaction-waiting-match', '2026-10-27', -18, 'KIOSK TISAK', { account: REVOLUT.id, importKey: 'made-up-10', category: GROCERIES.id, categorisedBy: 'rule' }),
+  row('transaction-gift', '2026-10-22', -15, 'Toy shop', { account: SAVINGS.id, source: 'typed', category: IN_SHARED_COST.id, categorisedBy: 'person' }),
 ]
 
 /** A label the hand split's rent part carries. */
@@ -184,9 +188,24 @@ function handPart(key: string, amount: number, category: Category, labels: reado
     labels: labels.map((label) => label.id),
     ruleLabels: [],
     event,
+    sharedCost: null,
     splitByLink: false,
   }
 }
+
+/** A gift for a friend paid in a toy shop, whose one part the shared cost holds. */
+const GIFT: SharedCost = {
+  id: recordIdOf(SHARED_COST_RECORDS, 'shared-cost-gift'),
+  day: on('2026-10-22'),
+  payee: 'Ana',
+  category: RESTAURANTS.id,
+  labels: [],
+  event: BY_DAYS,
+  note: '',
+  settled: false,
+}
+
+const GIFT_PART: TransactionItem = { ...handPart('line-gift', -15, IN_SHARED_COST), transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-gift'), sharedCost: GIFT.id }
 
 const HAND_PARTS: readonly TransactionItem[] = [handPart('line-hardware-rent', -40, RENT, [RENOVATION]), handPart('line-hardware-groceries', -20, GROCERIES, [], TRIP.id)]
 
@@ -204,6 +223,7 @@ const RECEIPT_LINE: TransactionItem = {
   labels: [],
   ruleLabels: [],
   event: BY_DAYS,
+  sharedCost: null,
   splitByLink: false,
 }
 
@@ -253,6 +273,7 @@ export const WAITING_LINE: TransactionItem = {
   labels: [],
   ruleLabels: [],
   event: BY_DAYS,
+  sharedCost: null,
   splitByLink: false,
 }
 
@@ -381,6 +402,8 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   shortcut: SHORTCUT.id,
   label: RENOVATION.id,
   event: TRIP.id,
+  'shared-cost': GIFT.id,
+  'transaction-shared': recordIdOf(TRANSACTION_RECORDS, 'transaction-gift'),
   'bank-account-missing': 'uid-pounds GBP',
   'bank-account-update': 'uid-current EUR',
   'bank-account-left-out': 'uid-left-out EUR',
@@ -447,8 +470,16 @@ export type DeskShape = 'items' | 'before-items'
 
 /** The desk's rows and their parts as a file of the shape stores them. */
 function storedEntries(shape: DeskShape): WorkbookDocument['records'] {
-  if (shape === 'before-items') return { ...stored(TRANSACTION_RECORDS, ROWS), ...stored(LINE_RECORDS, [...HAND_PARTS, RECEIPT_LINE, WAITING_LINE].map(plainLineOf)) }
-  const partsOf = rowItemsOf({ items: [...HAND_PARTS, RECEIPT_LINE] })
+  // A file from before items keeps no shared cost, so it holds no gift row.
+  if (shape === 'before-items')
+    return {
+      ...stored(
+        TRANSACTION_RECORDS,
+        ROWS.filter((held) => held.id !== GIFT_PART.transaction),
+      ),
+      ...stored(LINE_RECORDS, [...HAND_PARTS, RECEIPT_LINE, WAITING_LINE].map(plainLineOf)),
+    }
+  const partsOf = rowItemsOf({ items: [...HAND_PARTS, RECEIPT_LINE, GIFT_PART] })
   const items = [...ROWS.flatMap((stored) => (partsOf(stored).length > 0 ? partsOf(stored) : [wholeItemOf(stored, { ...stored, labels: [] })])), WAITING_LINE]
   return {
     ...stored(
@@ -462,7 +493,8 @@ function storedEntries(shape: DeskShape): WorkbookDocument['records'] {
 export async function spendingDesk(used: Set<string>, ports: SpendingPorts = deskPorts(), shape: DeskShape = 'items'): Promise<SpendingDesk> {
   const document = spendingDocumentOf('2026-11-07T09:00:00.000Z', {
     ...stored(ACCOUNT_RECORDS, [CURRENT, SAVINGS, DOLLARS, WALLET, REVOLUT]),
-    ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
+    ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY, IN_SHARED_COST]),
+    ...stored(SHARED_COST_RECORDS, [GIFT]),
     ...storedEntries(shape),
     ...stored(RULE_RECORDS, [RULE, LATER_RULE]),
     ...stored(SHORTCUT_RECORDS, [SHORTCUT, SHORTCUT_BREAD]),

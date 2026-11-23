@@ -272,8 +272,8 @@ describe('problems in the Spending file, listed by kind', () => {
 
     expect(book.categories.filter((category) => category.kind === 'saving').map((category) => category.name)).toEqual(['Saved to investments', 'Broker transfers'])
     expect(book.problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      ['Saved to investments', 'another category is of kind saving too. Each of transfer, saving, company, repayment, informal-loan and asset is one category'],
-      ['Broker transfers', 'another category is of kind saving too. Each of transfer, saving, company, repayment, informal-loan and asset is one category'],
+      ['Saved to investments', 'another category is of kind saving too. Each of transfer, saving, company, repayment, informal-loan, asset and shared-cost is one category'],
+      ['Broker transfers', 'another category is of kind saving too. Each of transfer, saving, company, repayment, informal-loan, asset and shared-cost is one category'],
     ])
   })
 

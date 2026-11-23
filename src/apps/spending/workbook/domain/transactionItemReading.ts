@@ -6,7 +6,7 @@ import { flagOf, requiredAccountMoney } from './fieldReading'
 import { optionalReference, requiredReference } from './recordReference'
 import { rowLinkOf, rowLinkText } from './rowLink'
 import type { RowLink } from './rowLink'
-import { CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, SHARED_COST_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import { words } from './words'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
@@ -52,13 +52,13 @@ export function linkOf(fields: StoredFields): RowLink | null {
 }
 
 /** An item's `event` field: blank while it joins an event by its day, `out` when taken out of every event, or the key of the event it was put in. */
-function eventChoiceOf(fields: StoredFields): EventChoice {
+export function eventChoiceOf(fields: StoredFields): EventChoice {
   const key = textOf(fields.event).trim()
   if (key === '') return BY_DAYS
   return key === OUT_OF_EVENTS ? OUT_OF_EVENTS : recordIdOf(EVENT_RECORDS, key)
 }
 
-function eventChoiceText(choice: EventChoice): string | null {
+export function eventChoiceText(choice: EventChoice): string | null {
   if (choice === BY_DAYS) return null
   const event = eventPutIn(choice)
   return event === null ? OUT_OF_EVENTS : keyOfRecordId(EVENT_RECORDS, event)
@@ -82,6 +82,7 @@ export function transactionItemOf(fields: StoredFields, id: RecordId | null): Tr
     amount,
     category,
     payee: textOf(fields.payee).trim(),
+    sharedCost: optionalReference(fields, 'shared_cost', SHARED_COST_RECORDS),
     link: linkOf(fields),
     labels,
     ruleLabels: heldRuleLabels({ labels, ruleLabels: idsOf(fields.rule_labels, LABEL_RECORDS) }),
@@ -97,6 +98,7 @@ export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS
     amount: amountText(item.amount),
     category: item.category === null ? null : keyOfRecordId(CATEGORY_RECORDS, item.category),
     payee: item.payee,
+    shared_cost: item.sharedCost === null ? null : keyOfRecordId(SHARED_COST_RECORDS, item.sharedCost),
     link: item.link === null ? null : rowLinkText(item.link),
     labels: idsText(item.labels, LABEL_RECORDS),
     rule_labels: idsText(heldRuleLabels(item), LABEL_RECORDS),
@@ -147,7 +149,7 @@ type Part = Pick<TransactionItem, 'transaction' | 'receipt' | 'amount' | 'catego
 /**
  * The parts of entries and the lines of waiting receipts. A part names a whole that counts, and when a receipt split it, that
  * entry's receipt, and a category that counts. The parts of a whole add up to it and count all or none. A file moved to items
- * also lets only the one item of a row waiting on review go without a category, and never splits a transfer's leg.
+ * also lets a part of a row waiting on review go without a category, such as one a deleted shared cost sent back, and never splits a transfer's leg.
  */
 export function readParts<P extends Part>(read: RecordsRead<P>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>, beforeItems: boolean): Reading<P> {
   const wholes = wholeOfParts(transactions, receipts)
@@ -163,7 +165,7 @@ export function readParts<P extends Part>(read: RecordsRead<P>, transactions: re
     if (part.receipt !== null && receiptOf.get(part.receipt)?.transaction !== part.transaction) return words.noReceipt
     const many = (siblings.get(whole)?.length ?? 0) > 1
     if (!beforeItems && many && part.transaction !== null && legs.has(part.transaction)) return words.transferLegSplit
-    if (part.category === null) return beforeItems || many || part.transaction === null ? words.uncategorisedNotAlone : null
+    if (part.category === null) return beforeItems || part.transaction === null ? words.uncategorisedNotAlone : null
     return categories.has(part.category) ? null : words.noCategory
   }
   const brokenWholes = new Set<RecordId | null>()

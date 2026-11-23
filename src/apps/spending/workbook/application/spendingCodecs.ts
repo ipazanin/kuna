@@ -4,6 +4,7 @@ import { CATEGORY_CODEC } from '../domain/categoryReading'
 import { EVENT_CODEC } from '../domain/eventReading'
 import { LABEL_CODEC } from '../domain/labelReading'
 import { PAYEE_CODEC } from '../domain/payeeReading'
+import { SHARED_COST_CODEC } from '../domain/sharedCostReading'
 import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
@@ -68,6 +69,7 @@ const SPENDING_CODECS = [
   RECIPE_CODEC,
   PAYEE_CODEC,
   BANK_LINK_CODEC,
+  SHARED_COST_CODEC,
   SETTING_CODEC,
 ] as readonly RecordCodec<unknown>[]
 

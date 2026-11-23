@@ -14,7 +14,7 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** Why a part of a shortcut does not count: its amount is zero, it goes the other way from a sibling, or its category or a label is not one a part can take. */
-export type ShortcutPartProblem = 'zero' | 'mixed-ways' | 'unknown-category' | 'between-accounts' | 'unknown-label'
+export type ShortcutPartProblem = 'zero' | 'mixed-ways' | 'unknown-category' | 'between-accounts' | 'shared-cost' | 'unknown-label'
 
 /** A shortcut with its parts, in the order of the file. */
 export interface ShortcutWithParts {
@@ -37,6 +37,7 @@ export function shortcutPartProblem(
   const category = book.categories.find((candidate) => candidate.id === part.category)
   if (category === undefined) return 'unknown-category'
   if (isTransferCategory(category)) return 'between-accounts'
+  if (category.kind === 'shared-cost') return 'shared-cost'
   const labels = new Set(book.labels.map((label) => label.id))
   return part.labels.every((label) => labels.has(label)) ? null : 'unknown-label'
 }

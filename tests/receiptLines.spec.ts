@@ -28,6 +28,7 @@ function line(key: string, amount: number, onReceipt = true): TransactionItem {
     labels: [],
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   }
 }

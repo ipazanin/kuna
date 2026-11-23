@@ -31,9 +31,10 @@ const byId = <R extends { readonly id: string }>(records: readonly R[]): R[] => 
 
 /** What the book says, the same in either shape: each row as its items file it, every item, and the receipts. A file from before items keeps no labels and no mark of the parts a link split off. */
 function seen(book: SpendingBook) {
-  // A file from before items keeps no labels and no event chosen by hand, so neither is compared.
-  const items = book.items.map(({ splitByLink: _splitByLink, labels: _labels, event: _event, ...item }) => item)
-  return { rows: byId(filedRows(book)), items: byId(items), receipts: byId(book.receipts), problems: book.problems }
+  // A file from before items keeps no labels, no event chosen by hand and no shared cost, so none is compared, nor the rows a shared cost holds.
+  const members = new Set(book.items.filter((item) => item.sharedCost !== null).map((item) => item.transaction))
+  const items = book.items.filter((item) => item.sharedCost === null).map(({ splitByLink: _splitByLink, labels: _labels, event: _event, sharedCost: _sharedCost, ...item }) => item)
+  return { rows: byId(filedRows(book).filter((row) => !members.has(row.id))), items: byId(items), receipts: byId(book.receipts), problems: book.problems }
 }
 
 /** The desk once the operation's example is written, with the ids it made counted from one. */
@@ -110,7 +111,10 @@ describe('the move to items', () => {
     expect(isBeforeItems(store.state.records!)).toBe(false)
     expect(store.state.records!.lines.records).toEqual([])
     expect(seen(store.state.workbook!)).toEqual(seen(moved.store.state.workbook!))
-    expect(store.state.records!.transactions.records.map(({ fields }) => fields)).toEqual(moved.store.state.records!.transactions.records.map(({ fields }) => fields))
+    const members = new Set(moved.store.state.workbook!.items.filter((item) => item.sharedCost !== null).map((item) => item.transaction))
+    expect(store.state.records!.transactions.records.map(({ fields }) => fields)).toEqual(
+      moved.store.state.records!.transactions.records.filter(({ record }) => !members.has(record.id)).map(({ fields }) => fields),
+    )
     expect(recordsChangeInWords(receipt!, null)).toMatch(/^Changed 11 entries/)
     await store.undo(store.state.writes.at(-1)!)
     expect(store.state.records!.transactions.records.map(({ fields }) => fields)).toEqual(old.transactions.records.map(({ fields }) => fields))

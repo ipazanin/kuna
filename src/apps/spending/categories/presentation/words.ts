@@ -25,6 +25,7 @@ export const en = {
     repayment: 'Loan principal',
     'informal-loan': 'Loans to and from people',
     asset: 'Bought assets',
+    'shared-cost': 'In a shared cost',
   } satisfies Record<FixedKind, string>,
   /** What money in a category of each kind counts as, where a card names the kind. */
   kinds: {
@@ -36,6 +37,7 @@ export const en = {
     repayment: 'Loan principal',
     'informal-loan': 'Loans to and from people',
     asset: 'Bought assets',
+    'shared-cost': 'In a shared cost',
   } satisfies Record<CategoryKind, string>,
   /** What each fixed category counts as, under its name. */
   fixedCounts: {
@@ -45,6 +47,7 @@ export const en = {
     repayment: 'Lowers what the loan still owes, not counted as spending',
     'informal-loan': 'Money lent to or borrowed from people, not counted as spending or income',
     asset: 'Paid for something you own, such as a car or a flat, not counted as spending',
+    'shared-cost': 'Part of a shared cost, which counts it on its own day',
   } satisfies Record<FixedKind, string>,
   dialog: {
     addGroupTitle: 'Add a group',
@@ -96,7 +99,15 @@ export const hr: Translation<typeof en> = {
   moveDown: (name) => `Pomakni „${name}” dolje`,
   edit: (name) => `Uredi „${name}”`,
   fixedHeading: 'Izvan potrošnje i prihoda',
-  fixedKinds: { transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku', repayment: 'Glavnica kredita', 'informal-loan': 'Posudbe', asset: 'Kupljena imovina' },
+  fixedKinds: {
+    transfer: 'Između mojih računa',
+    saving: 'Prijenos u ulaganja',
+    company: 'Za tvrtku',
+    repayment: 'Glavnica kredita',
+    'informal-loan': 'Posudbe',
+    asset: 'Kupljena imovina',
+    'shared-cost': 'U zajedničkom trošku',
+  },
   kinds: {
     spending: 'Potrošnja',
     income: 'Prihodi',
@@ -106,6 +117,7 @@ export const hr: Translation<typeof en> = {
     repayment: 'Glavnica kredita',
     'informal-loan': 'Posudbe',
     asset: 'Kupljena imovina',
+    'shared-cost': 'U zajedničkom trošku',
   },
   fixedCounts: {
     transfer: 'Ne ulazi ni u potrošnju, ni u prihode, ni u ograničenja',
@@ -114,6 +126,7 @@ export const hr: Translation<typeof en> = {
     repayment: 'Smanjuje preostali dug kredita, ne ulazi u potrošnju',
     'informal-loan': 'Novac posuđen ljudima ili od njih, ne ulazi ni u potrošnju ni u prihode',
     asset: 'Plaćeno za nešto što posjedujete, poput auta ili stana, ne ulazi u potrošnju',
+    'shared-cost': 'Dio zajedničkog troška, koji ga broji na svoj dan',
   },
   dialog: {
     addGroupTitle: 'Dodaj skupinu',

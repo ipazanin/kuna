@@ -21,7 +21,7 @@ import type { Account } from '../../workbook/domain/account'
 import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
-import { refiledItems, rowItemsOf, transferLegItems } from '../../workbook/domain/rowItems'
+import { filedWaitingItems, refiledItems, rowItemsOf, transferLegItems } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { ruleWithConditions, withDraftAdded } from '../../workbook/domain/spendingRule'
@@ -67,11 +67,15 @@ export function importGivingDays(unit: UnitOfWork, records: EntryRecords, given:
   writeDryRun(unit, records, run)
 }
 
-/** Each row's items under the category you picked, in one write, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it, and counts under no payee of its own. */
+/**
+ * Each row's parts that wait under the category you picked, or all of a row with none waiting, in one write, which a rule change
+ * then leaves alone. A split row's filed parts keep theirs, such as when one part comes back from a deleted shared cost. A row
+ * under Between my accounts stays a lone leg, so a later statement can still pair it, and counts under no payee of its own.
+ */
 export function fileRows(unit: UnitOfWork, records: EntryRecords, rows: readonly Transaction[], category: Category): void {
   const itemsOf = heldItemsOf(records)
   const transfer = isTransferCategory(category)
-  const filedItems = (row: Transaction): readonly TransactionItem[] => (transfer ? transferLegItems(itemsOf(row), category.id) : refiledItems(itemsOf(row), category.id))
+  const filedItems = (row: Transaction): readonly TransactionItem[] => (transfer ? transferLegItems(itemsOf(row), category.id) : filedWaitingItems(itemsOf(row), category.id))
   writeRows(
     unit,
     records,

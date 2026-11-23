@@ -1,6 +1,7 @@
 import { heldItemsOf, waitingItemsOf, writeRows } from '../../entries/application/rowRecords'
 import { withLabel, withoutLabel } from '../../../../shared/categorising/domain/labels'
 import type { Label } from '../../../../shared/categorising/domain/labels'
+import { SHARED_COST_WRITES } from '../../sharedCosts/application/sharedCostRecords'
 import { SHORTCUT_PART_WRITES } from '../../shortcuts/application/shortcutWrites'
 import { RULE_WRITES } from '../../statements/application/ruleRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
@@ -19,11 +20,11 @@ export const LABEL_WRITES: WriteRules<Label> = {
   reads: SPENDING_KINDS,
   undoable: true,
   read: (read, records) => bookWith(LABEL_RECORDS, read, records).readings.labels,
-  refusals: (_change, fresh, after) => dependentRefusals(['labels', 'items', 'shortcutParts', 'rules'], fresh, after),
+  refusals: (_change, fresh, after) => dependentRefusals(['labels', 'items', 'shortcutParts', 'rules', 'sharedCosts'], fresh, after),
 }
 
 /** The rows and items a label write reads of the file. */
-type LabelRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'shortcutParts' | 'rules'>
+type LabelRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'shortcutParts' | 'rules' | 'sharedCosts'>
 
 /** Adds the label, which `newLabel` made, so the same write can put it on rows. */
 export function addLabel(unit: UnitOfWork, label: Label): void {
@@ -36,7 +37,7 @@ export function renameLabel(unit: UnitOfWork, label: Label, name: string): void 
 }
 
 /**
- * Deletes the label and takes it off every item, waiting receipt's line, part of a quick add and rule in the same write, so one Undo
+ * Deletes the label and takes it off every item, waiting receipt's line, part of a quick add, rule and shared cost in the same write, so one Undo
  * puts it all back. A rule that only added the label goes with it.
  */
 export function deleteLabel(unit: UnitOfWork, records: LabelRecords, label: Label): void {
@@ -56,6 +57,9 @@ export function deleteLabel(unit: UnitOfWork, records: LabelRecords, label: Labe
   recordsOf(records.shortcutParts)
     .filter((part) => part.labels.includes(label.id))
     .forEach((part) => unit.of(SHORTCUT_PART_WRITES).change(part, { ...part, labels: part.labels.filter((held) => held !== label.id) }))
+  recordsOf(records.sharedCosts)
+    .filter((sharedCost) => sharedCost.labels.includes(label.id))
+    .forEach((sharedCost) => unit.of(SHARED_COST_WRITES).change(sharedCost, { ...sharedCost, labels: sharedCost.labels.filter((held) => held !== label.id) }))
   recordsOf(records.rules)
     .filter((rule) => rule.labels.includes(label.id))
     .forEach((rule) => {

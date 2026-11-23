@@ -1,5 +1,6 @@
 import { heldItemsOf, waitingItemsOf, writeRows } from '../../entries/application/rowRecords'
 import { eventProblem } from '../domain/events'
+import { SHARED_COST_WRITES } from '../../sharedCosts/application/sharedCostRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import { BY_DAYS } from '../../workbook/domain/event'
@@ -19,11 +20,11 @@ export const EVENT_WRITES: WriteRules<SpendingEvent> = {
   reads: SPENDING_KINDS,
   undoable: true,
   read: (read, records) => bookWith(EVENT_RECORDS, read, records).readings.events,
-  refusals: (_change, fresh, after) => dependentRefusals(['events', 'items'], fresh, after),
+  refusals: (_change, fresh, after) => dependentRefusals(['events', 'items', 'sharedCosts'], fresh, after),
 }
 
 /** The rows and items an event write reads of the file. */
-type EventRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts'>
+type EventRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts' | 'sharedCosts'>
 
 function refuseProblem(event: Pick<SpendingEvent, 'name' | 'days'>): void {
   const problem = eventProblem(event.name, event.days)
@@ -44,7 +45,7 @@ export function changeEvent(unit: UnitOfWork, event: SpendingEvent, changed: Pic
 }
 
 /**
- * Deletes the event and puts every part put in it by hand, of a row or a waiting receipt's line, back on its day in the same
+ * Deletes the event and puts every part and shared cost put in it by hand, of a row or a waiting receipt's line, back on its day in the same
  * write, so one Undo puts it all back.
  */
 export function deleteEvent(unit: UnitOfWork, records: EventRecords, event: SpendingEvent): void {
@@ -62,6 +63,9 @@ export function deleteEvent(unit: UnitOfWork, records: EventRecords, event: Spen
       .filter((receipt) => receipt.transaction === null && holds(waitingOf(receipt.id)))
       .map((receipt) => ({ receipt: receipt.id, lines: backOnDays(waitingOf(receipt.id)) })),
   )
+  recordsOf(records.sharedCosts)
+    .filter((sharedCost) => sharedCost.event === event.id)
+    .forEach((sharedCost) => unit.of(SHARED_COST_WRITES).change(sharedCost, { ...sharedCost, event: BY_DAYS }))
   unit.of(EVENT_WRITES).remove(event)
 }
 

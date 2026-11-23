@@ -12,6 +12,10 @@ export interface NoFieldPaths {
 
 export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   {
+    reason: 'The shared cost a part is in, which join-shared-cost and leave-shared-cost set. The entry, transfer and receipt forms keep it as the part has it, so nobody types it there.',
+    fields: ['spending: TransactionItem.sharedCost'],
+  },
+  {
     reason: 'What Kuna files in a category of its own, which the starters and a link set and a rename keeps, so nobody types it.',
     fields: ['spending: Category.role'],
   },

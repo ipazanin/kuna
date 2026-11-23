@@ -1,6 +1,7 @@
 import { conditionTestOf, ruleTestOf, words as statementWords } from '../../statements/presentation/words'
 import { deletesRecords } from '../../accounts/domain/startDayMove'
 import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
+import type { SharedCost } from '../../workbook/domain/sharedCost'
 import type { SpendingEvent } from '../../workbook/domain/event'
 import { sideOf } from '../../categories/domain/rowSide'
 import { eventMembership } from '../../events/domain/eventMembership'
@@ -23,7 +24,18 @@ import type { StoredRow, Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import {
+  ACCOUNT_RECORDS,
+  BUDGET_RECORDS,
+  CATEGORY_RECORDS,
+  EVENT_RECORDS,
+  ITEM_RECORDS,
+  LABEL_RECORDS,
+  RECEIPT_RECORDS,
+  RULE_RECORDS,
+  SHARED_COST_RECORDS,
+  TRANSACTION_RECORDS,
+} from '../../workbook/domain/spendingKinds'
 import { RECIPE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { recipeInWords } from '../../statements/presentation/recipeWords'
 import { words } from '../words'
@@ -100,6 +112,9 @@ function shownValue(
   if (value === null || value === undefined || value === '') return null
   if ((isKind(kind, TRANSACTION_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'link')
     return record.link === null ? null : linkText(linkStateOf(record.link, targetsOf(record.link.app)), sourceOf(record.link.app))
+  if (isKind(kind, SHARED_COST_RECORDS, record) && field === 'labels') return record.labels.length === 0 ? null : record.labels.map((label) => namesOf.get(label) ?? label).join(', ')
+  if (isKind(kind, SHARED_COST_RECORDS, record) && field === 'event')
+    return record.event === BY_DAYS ? words.proposals.byDays(null) : record.event === OUT_OF_EVENTS ? words.proposals.noEvent : (namesOf.get(record.event) ?? record.event)
   if (isKind(kind, ITEM_RECORDS, record) && field === 'labels') return record.labels.length === 0 ? null : record.labels.map((label) => namesOf.get(label) ?? label).join(', ')
   if (isKind(kind, ITEM_RECORDS, record) && field === 'event')
     return record.event === BY_DAYS ? words.proposals.byDays(byDaysOf(record)) : record.event === OUT_OF_EVENTS ? words.proposals.noEvent : (namesOf.get(record.event) ?? record.event)
@@ -140,7 +155,7 @@ function shownValue(
 /**
  * What the record is called on screen: an entry by its payee or else its first item's category, a rule by the payee or IBAN it
  * files, a limit by its category, a part of an entry by its entry's payee and then its words or else its category, such as
- * `Landlord · Rent`, an account, a category and a label by its name, and an event by its name and days.
+ * `Landlord · Rent`, an account, a category and a label by its name, an event by its name and days, and a shared cost by its payee and day.
  */
 function labelOf(
   kind: RecordKind<unknown>,
@@ -161,6 +176,7 @@ function labelOf(
   }
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record) || isKind(kind, LABEL_RECORDS, record)) return record.name
   if (isKind(kind, EVENT_RECORDS, record)) return `${record.name} · ${dayRangeLabel(record.days)}`
+  if (isKind(kind, SHARED_COST_RECORDS, record)) return [record.payee, dayLabel(record.day)].filter((words) => words !== '').join(' · ')
   return fallback
 }
 
@@ -248,6 +264,13 @@ function handoverNote(handover: SourceHandover, book: SpendingBook): ProposalNot
   return { label: handover.account.name, text: [`${shown.title}.`, ...shown.days, ...(shown.rows.length === 0 ? [] : [`${listInWords(shown.rows)}.`]), ...shown.notes].join(' '), tone: 'warning' }
 }
 
+/** What deleting a shared cost does to its members, as its dialog warns: they go back to To review. Null when it holds none. */
+function membersNote(sharedCost: SharedCost, book: SpendingBook): ProposalNote | null {
+  const members = book.items.filter((item) => item.sharedCost === sharedCost.id).length
+  if (members === 0) return null
+  return { label: [sharedCost.payee, dayLabel(sharedCost.day)].filter((words) => words !== '').join(' · '), text: plural(words.proposals.membersBackToReview(members), members), tone: 'warning' }
+}
+
 /** How many rows already in the book the card's rules would change, which Only new rows leaves as they are. */
 function refiledNote(rows: number): ProposalNote {
   const { apply } = statementWords.rules
@@ -256,7 +279,7 @@ function refiledNote(rows: number): ProposalNote {
 
 /** What a new category, account or part of an entry holds unless a person sets it, which a card leaves off its add. */
 export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
-  if (kind.name === ITEM_RECORDS.name) return { labels: [], ruleLabels: [], event: BY_DAYS, splitByLink: false }
+  if (kind.name === ITEM_RECORDS.name) return { labels: [], ruleLabels: [], event: BY_DAYS, sharedCost: null, splitByLink: false }
   if (kind.name === RULE_RECORDS.name) return { labels: [], stop: false }
   return kind.name === CATEGORY_RECORDS.name ? NEW_CATEGORY_DEFAULTS : kind.name === ACCOUNT_RECORDS.name ? NEW_ACCOUNT_DEFAULTS : {}
 }
@@ -318,6 +341,11 @@ export function proposalGroupsOf(
       return note === null ? [] : [{ noun: ACCOUNT_RECORDS.noun, note }]
     }),
     ...(refiled === 0 ? [] : [{ noun: RULE_RECORDS.noun, note: refiledNote(refiled) }]),
+    ...checked.changes.flatMap(({ change }) => {
+      if (change.verb !== 'remove' || change.kind.name !== SHARED_COST_RECORDS.name) return []
+      const note = membersNote(change.before as SharedCost, before)
+      return note === null ? [] : [{ noun: SHARED_COST_RECORDS.noun, note }]
+    }),
   ]
   return withNotes(
     proposalGroups(checked, () => describer),

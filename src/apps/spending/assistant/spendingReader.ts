@@ -5,7 +5,7 @@ import type { Label } from '../../../shared/categorising/domain/labels'
 import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
-import { countedRows } from '../analytics/domain/countedRow'
+import { countedRows, sharedCostCounts } from '../analytics/domain/countedRow'
 import { countedAccounts } from '../rates/domain/euroRows'
 import { eventTotals } from '../events/domain/eventTotals'
 import { labelTotals } from '../labels/domain/labelTotals'
@@ -34,6 +34,7 @@ import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
 import { BY_DAYS, OUT_OF_EVENTS } from '../workbook/domain/event'
 import type { SpendingEvent } from '../workbook/domain/event'
+import type { SharedCost } from '../workbook/domain/sharedCost'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
 import type { TransactionItem } from '../workbook/domain/transactionItem'
@@ -53,6 +54,7 @@ import {
   RULE_RECORDS,
   BANK_LINK_RECORDS,
   SETTING_RECORDS,
+  SHARED_COST_RECORDS,
   SHORTCUT_PART_RECORDS,
   SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
@@ -185,7 +187,7 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
   kind: {
     exposure: 'plain',
     meaning:
-      'spending, income, saving, transfer, company, repayment, a bank loan principal paid back, informal-loan, money lent to, borrowed from or paid back between you and a person, or asset, money paid for something the person bought to own, such as a car or a flat. Only spending and income count as such in the figures.',
+      'spending, income, saving, transfer, company, repayment, a bank loan principal paid back, informal-loan, money lent to, borrowed from or paid back between you and a person, asset, money paid for something the person bought to own, such as a car or a flat, or shared-cost, the parts a shared cost holds, which its shared cost counts. Only spending and income count as such in the figures.',
   },
   parent: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The group it sits in, or none for a group.' },
   order: { exposure: 'plain', meaning: 'Its place among its siblings.' },
@@ -370,6 +372,11 @@ const itemFields = (
     meaning:
       "Who this part of the money counts under on the payee report and Analysis by payee, when that is not the entry's payee, or empty for the entry's payee. The entry's payee stays who was paid.",
   },
+  sharedCost: {
+    exposure: 'ref',
+    to: SHARED_COST_RECORDS.name,
+    meaning: 'The shared cost this money is part of, or none. A part in one sits under In a shared cost and counts nowhere, since its shared cost counts its money.',
+  },
   link: {
     exposure: 'free-text',
     meaning: 'The record in another app this money is, such as the loan instalment it pays, or empty. It changes no figure: the part counts by its category.',
@@ -526,6 +533,44 @@ function payeesReport(book: SpendingBook, rates: RateBook, period: string | null
     ...side('received', 'received'),
     { label: 'entries left out because no exchange rate reaches them yet', count: totals.reduce((sum, payee) => sum + payee.unrated, 0) },
   ]
+}
+
+/** A shared cost as the chat reads it, with how many parts it holds and what it counts now. */
+interface SharedCostLine extends SharedCost {
+  readonly members: number
+  readonly counts: Money | null
+}
+
+const sharedCostFields = (events: () => readonly SpendingEvent[]): FieldDocs<SharedCostLine> => ({
+  id: { exposure: 'ref', to: SHARED_COST_RECORDS.name, meaning: 'The shared cost.' },
+  day: { exposure: 'plain', meaning: 'The day it counts on, whatever the days of its parts, so a repayment in a later month lowers this month.' },
+  payee: { exposure: 'party', meaning: 'Who it counts under on the payee report and Analysis by payee, or empty for none. Its parts count under nobody.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The spending or income category it counts under.' },
+  labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels it carries.' },
+  event: {
+    exposure: 'plain',
+    meaning: 'by-days when it joins the event its day falls in, out when taken out of every event, or the event it was put in by hand.',
+    read: (sharedCost) => eventRead(sharedCost.event, events()),
+  },
+  note: { exposure: 'free-text', meaning: "The owner's note, or empty." },
+  settled: { exposure: 'plain', meaning: 'yes once nobody owes anything more on it. It changes nothing it counts.' },
+  members: { exposure: 'plain', meaning: 'How many parts of entries it holds: what was paid and what was paid back.' },
+  counts: {
+    exposure: 'plain',
+    amount: 'app',
+    sign: 'either',
+    meaning: "What it counts now in euros: its parts added up, each at its own day's rate, below zero for money out. Unknown while a rate is missing.",
+  },
+})
+
+/** Every shared cost with what it counts, as the figures count it. */
+function sharedCostLines(book: SpendingBook, rates: RateBook): readonly SharedCostLine[] {
+  const counts = sharedCostCounts(book, rates)
+  return book.sharedCosts.map((sharedCost) => ({
+    ...sharedCost,
+    members: book.items.filter((item) => item.sharedCost === sharedCost.id).length,
+    counts: counts.get(sharedCost.id)?.parts[0]?.euros ?? null,
+  }))
 }
 
 /** One payee as the chat reads it, derived from the entries. It is no record of the file. */
@@ -774,6 +819,14 @@ export function spendingReader(reading: SpendingReading): AppReader {
         rows: () => rows((book) => [...book.transactions.flatMap((row) => itemsOf(book, row)), ...book.items.filter((line) => line.transaction === null)]),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),
         payCheck,
+      }),
+      readableKind<SharedCostLine>({
+        kind: SHARED_COST_RECORDS,
+        about: words.reads.sharedCost,
+        fields: sharedCostFields(() => reading.book()?.events ?? []),
+        dated: 'day',
+        rows: () => rows((book) => sharedCostLines(book, reading.rates())),
+        currencyOf: () => EURO,
       }),
       readableKind<BankAccountLine>({
         kind: BANK_ACCOUNT_LINES,

@@ -23,13 +23,21 @@ export function payeeOfAll(items: readonly Pick<TransactionItem, 'payee'>[]): st
   return first !== undefined && rest.every((item) => samePayee(item.payee, first.payee)) ? first.payee : ''
 }
 
+/** The item, in the shared cost of the part of its id it replaces while it keeps that part's category, so a write that rebuilds a member keeps it a member. */
+function withSharedCostKept(found: readonly TransactionItem[], item: TransactionItem): TransactionItem {
+  if (item.sharedCost !== null) return item
+  const kept = found.find((held) => held.id === item.id && held.category === item.category && held.sharedCost !== null)
+  return kept === undefined ? item : { ...item, sharedCost: kept.sharedCost }
+}
+
 /**
  * The items a write leaves, with what a person put on the items they replace. A part that kept its id and did not grow keeps its
  * own labels and event choice. A new part or one that grew takes every label of the parts it took money from, and, while it
- * goes by its day, the event choice of the largest of them, so a re-split loses neither.
+ * goes by its day, the event choice of the largest of them, so a re-split loses neither. A part that kept its id and its category
+ * stays in its shared cost.
  */
 export function carriedChoices(found: readonly TransactionItem[], left: readonly TransactionItem[]): readonly TransactionItem[] {
-  const labelled = carriedLabels(found, left)
+  const labelled = carriedLabels(found, left).map((item) => withSharedCostKept(found, item))
   const replacements = partReplacements(found, labelled)
   if (replacements.length === 0) return labelled
   const foundById = new Map(found.map((item) => [item.id, item]))

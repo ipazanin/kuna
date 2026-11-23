@@ -101,6 +101,7 @@ export function splitIntoParts(entry: ItemizedRow, parts: readonly LinkedPart[],
       labels,
       ruleLabels,
       event,
+      sharedCost: null,
       splitByLink: true,
     }))
   return { row: { ...entry.row, categorisedBy: 'person' }, items }

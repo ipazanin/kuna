@@ -40,7 +40,7 @@ const [yours, hers] = [
   { ...wholeItems([meal])[0]!, amount: accountMoneyFromAmount(-42) },
   { ...wholeItems([meal])[0]!, id: recordIdOf(ITEM_RECORDS, 'meal-ana'), amount: accountMoneyFromAmount(-42), category: GIFTS.id, payee: 'Ana' },
 ] satisfies TransactionItem[]
-const book = { accounts: ACCOUNTS, transactions: [meal], items: [yours, hers] }
+const book = { sharedCosts: [], accounts: ACCOUNTS, transactions: [meal], items: [yours, hers] }
 const rows = countedRows(book, RATES)
 
 describe('a part that counts under a payee of its own', () => {
@@ -74,7 +74,7 @@ describe('a part that counts under a payee of its own', () => {
 
   it('counts all of an entry not split under another payee, and nothing under the entry payee', () => {
     const flowers = row(OTP, '2026-11-02', -30, 'Family and gifts/Gifts', { payee: 'Florist' })
-    const totals = payeeTotals(countedRows({ accounts: ACCOUNTS, transactions: [flowers], items: [{ ...wholeItems([flowers])[0]!, payee: 'Ana' }] }, RATES), CATEGORIES)
+    const totals = payeeTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: [flowers], items: [{ ...wholeItems([flowers])[0]!, payee: 'Ana' }] }, RATES), CATEGORIES)
 
     expect(totals.map((payee) => [payee.name, payee.spent])).toEqual([['Ana', euros(30)]])
   })

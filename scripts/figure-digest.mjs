@@ -188,7 +188,7 @@ import { rowLinksOf } from '../src/apps/spending/facts.ts'
 import { NO_RATES } from '../src/shared/money/rateBook.ts'
 import { keyOfRecordId } from '../src/shared/storage/domain/recordId.ts'
 import { accountOnDay, countedAccounts } from '../src/apps/spending/rates/domain/euroRows.ts'
-import { countedRows } from '../src/apps/spending/analytics/domain/countedRow.ts'
+import { countedRows, sharedCostCounts } from '../src/apps/spending/analytics/domain/countedRow.ts'
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals.ts'
 import { labelTotals as companyLabelTotals } from '../src/apps/company/labels/domain/labelTotals.ts'
 import { eventTotals } from '../src/apps/spending/events/domain/eventTotals.ts'
@@ -884,6 +884,13 @@ async function spendingGroups(addGroup, loansBook) {
       ),
     )
     add('spending.payees.all', () => payeeTotals(countedRows(workbook, rates.everyday), workbook.categories))
+  }
+  // A file with no shared cost keeps this digest without the group. Each shared cost with the keys of its members and what it counts.
+  if (workbook.sharedCosts.length > 0) {
+    const counts = sharedCostCounts(workbook, rates.everyday)
+    add('spending.shared-costs', () =>
+      workbook.sharedCosts.map((sharedCost) => [sharedCost, workbook.items.filter((item) => item.sharedCost === sharedCost.id).map((item) => item.id), counts.get(sharedCost.id)]),
+    )
   }
   // Analysis over the twelve months up to the day, by every grouping, and each category's average month, trend, year against last year and the months' kept money.
   const analysisMonths = monthsFrom(addMonths(thisMonth, -11), thisMonth)

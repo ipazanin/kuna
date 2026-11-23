@@ -564,6 +564,7 @@ describe('reading receipts and lines', () => {
       recipes: read([]),
       payees: read([]),
       bankLinks: read([]),
+      sharedCosts: read([]),
       settings: read([]),
     })
 

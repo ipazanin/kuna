@@ -84,6 +84,7 @@ const REFUSALS: Readonly<Record<ShortcutPartProblem, string>> = {
   'mixed-ways': 'Every part of a quick add goes the same way.',
   'unknown-category': 'A part names a category that is not in the file.',
   'between-accounts': 'A quick add never writes Between my accounts. add-transfer moves money between two accounts.',
+  'shared-cost': 'A quick add never writes In a shared cost. join-shared-cost puts an entry in one once it is written.',
   'unknown-label': 'A part names a label that is not in the file.',
 }
 

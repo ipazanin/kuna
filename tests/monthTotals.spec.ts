@@ -15,7 +15,7 @@ import { civil, euros, month } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, category, row, transactionId, bookItems } from './fixtures/spending'
 
 function totalsOf(rows: readonly Transaction[], asked: string, rates: RateBook = RATES) {
-  return monthTotals(countedRows({ accounts: ACCOUNTS, transactions: rows, items: bookItems(rows) }, rates), CATEGORIES, month(asked))
+  return monthTotals(countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: rows, items: bookItems(rows) }, rates), CATEGORIES, month(asked))
 }
 
 /** A row's lines, as a receipt split it, in the row's currency. */
@@ -33,6 +33,7 @@ function linesOf(transaction: Transaction, parts: readonly (readonly [number, st
     labels: [],
     ruleLabels: [],
     event: BY_DAYS,
+    sharedCost: null,
     splitByLink: false,
   }))
 }
@@ -42,6 +43,7 @@ describe("a split row's totals", () => {
   const totals = monthTotals(
     countedRows(
       {
+        sharedCosts: [],
         accounts: ACCOUNTS,
         transactions: [split],
         items: linesOf(split, [
@@ -66,6 +68,7 @@ describe("a split row's totals", () => {
   it('leaves out a line on a category that counts nowhere, as an R1 line for the company', () => {
     const rows = countedRows(
       {
+        sharedCosts: [],
         accounts: ACCOUNTS,
         transactions: [split],
         items: linesOf(split, [
@@ -83,6 +86,7 @@ describe("a split row's totals", () => {
     const paid = row(OTP, '2026-10-12', -22, 'Food/Groceries')
     const rows = countedRows(
       {
+        sharedCosts: [],
         accounts: ACCOUNTS,
         transactions: [paid],
         items: linesOf(paid, [
@@ -100,6 +104,7 @@ describe("a split row's totals", () => {
     const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')
     const rows = countedRows(
       {
+        sharedCosts: [],
         accounts: ACCOUNTS,
         transactions: [dollars],
         items: linesOf(dollars, [
@@ -121,6 +126,7 @@ describe("a split row's totals", () => {
     const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Food/Groceries')
     const rows = countedRows(
       {
+        sharedCosts: [],
         accounts: ACCOUNTS,
         transactions: [dollars],
         items: linesOf(dollars, [
@@ -142,6 +148,7 @@ describe("a split row's totals", () => {
     const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')
     const rows = countedRows(
       {
+        sharedCosts: [],
         accounts: ACCOUNTS,
         transactions: [dollars],
         items: linesOf(dollars, [
@@ -168,7 +175,7 @@ describe("a month's totals", () => {
   })
 
   it("counts a span of days as a month's totals count, and a month's span as that month", () => {
-    const rows = countedRows({ accounts: ACCOUNTS, transactions: ROWS, items: bookItems(ROWS) }, RATES)
+    const rows = countedRows({ sharedCosts: [], accounts: ACCOUNTS, transactions: ROWS, items: bookItems(ROWS) }, RATES)
     const { month: _month, ...october } = totalsOf(ROWS, '2026-10')
 
     expect(rangeTotals(rows, CATEGORIES, { from: civil('2026-10-01'), to: civil('2026-10-31') })).toEqual(october)

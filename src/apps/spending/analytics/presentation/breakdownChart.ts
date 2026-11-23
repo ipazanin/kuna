@@ -30,6 +30,11 @@ interface Bar {
   readonly line: BreakdownLine | null
 }
 
+/** A line's name as Analysis shows it. Under accounts, the line on no account holds the shared costs. */
+export function lineName(line: BreakdownLine, grouping: Grouping): string {
+  return grouping === 'account' && line.key === null ? words.analysis.breakdown.sharedCosts : line.name
+}
+
 /**
  * What each line of a span spent, the most on top. Groups of categories wear their own colours and every one that spent shows.
  * Payees, labels and accounts are an open list, so the four largest take the first four series colours and the rest is one grey bar.
@@ -40,7 +45,7 @@ export function breakdownChart(lines: readonly BreakdownLine[], grouping: Groupi
     if (grouping === 'category') return spendingRanked(lines, lines.length).top.map((line) => ({ name: line.name, spent: line.spent, colour: tokenColour(colourOfLine(line)), line }))
     const { top, rest } = spendingRanked(lines, OPEN_LIST_SHOWN)
     return [
-      ...top.map((line, place) => ({ name: line.name === '' ? words.analysis.breakdown.noAccount : line.name, spent: line.spent, colour: tokens.series[place] ?? tokens.deemphasis, line })),
+      ...top.map((line, place) => ({ name: lineName(line, grouping), spent: line.spent, colour: tokens.series[place] ?? tokens.deemphasis, line })),
       ...(rest === null ? [] : [{ name: plural(words.analysis.breakdown.others(rest.lines), rest.lines), spent: rest.spent, colour: tokens.deemphasis, line: null }]),
     ]
   })()

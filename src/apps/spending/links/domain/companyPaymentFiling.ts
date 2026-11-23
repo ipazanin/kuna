@@ -139,6 +139,7 @@ export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, pl
     labels,
     ruleLabels,
     event,
+    sharedCost: null,
     splitByLink: several,
   }))
   return { entry: { row: { ...entry.row, categorisedBy: 'person' }, items }, interest: null, added }
