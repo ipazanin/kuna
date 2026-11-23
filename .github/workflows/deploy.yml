@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: ['main']
+  # Every width the visual check knows, each night, since a push checks only the widths a design review looks at.
+  schedule:
+    - cron: '23 2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -10,8 +13,9 @@ permissions:
   pages: write
   id-token: write
 
+# Per event, so the nightly run never cancels a push that is on its way to deploy.
 concurrency:
-  group: 'pages'
+  group: pages-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -53,6 +57,7 @@ jobs:
           path: ./dist
 
   # Side by side with verify, each on its own machine, since one machine takes nearly two hours for all of them.
+  # A push runs the visual shards at the four widths a design review looks at, and the nightly run at all nine.
   # The touch check splits by width, since each width is one session whose steps build on each other.
   checks:
     name: ${{ matrix.check }} check ${{ matrix.selection }}
@@ -61,16 +66,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { check: visual, selection: --shard 1/10 }
-          - { check: visual, selection: --shard 2/10 }
-          - { check: visual, selection: --shard 3/10 }
-          - { check: visual, selection: --shard 4/10 }
-          - { check: visual, selection: --shard 5/10 }
-          - { check: visual, selection: --shard 6/10 }
-          - { check: visual, selection: --shard 7/10 }
-          - { check: visual, selection: --shard 8/10 }
-          - { check: visual, selection: --shard 9/10 }
-          - { check: visual, selection: --shard 10/10 }
+          - { check: visual, selection: --shard 1/16 }
+          - { check: visual, selection: --shard 2/16 }
+          - { check: visual, selection: --shard 3/16 }
+          - { check: visual, selection: --shard 4/16 }
+          - { check: visual, selection: --shard 5/16 }
+          - { check: visual, selection: --shard 6/16 }
+          - { check: visual, selection: --shard 7/16 }
+          - { check: visual, selection: --shard 8/16 }
+          - { check: visual, selection: --shard 9/16 }
+          - { check: visual, selection: --shard 10/16 }
+          - { check: visual, selection: --shard 11/16 }
+          - { check: visual, selection: --shard 12/16 }
+          - { check: visual, selection: --shard 13/16 }
+          - { check: visual, selection: --shard 14/16 }
+          - { check: visual, selection: --shard 15/16 }
+          - { check: visual, selection: --shard 16/16 }
           # The shards run with hidden scrollbars, so the shell's flows and the docked chat run once more with a classic scrollbar's gutter.
           - { check: visual, selection: "--classic-scrollbars --only 'sidebar*,chat-resize,shell-squeeze,menu-lit,skip-link,quick-jump*'" }
           - { check: touch, selection: --widths 360 }
@@ -91,13 +102,14 @@ jobs:
       - name: Check
         run: |
           npm run build:fake
-          npm run check:${{ matrix.check }} -- --serve fake ${{ matrix.selection }}
+          npm run check:${{ matrix.check }} -- --serve fake ${{ matrix.selection }} ${{ matrix.check == 'visual' && startsWith(matrix.selection, '--shard') && github.event_name != 'schedule' && '--widths 360,640,1024,1440' || '' }}
       # The shots go with the runner, so only the processes, profiles and containers a run leaves count here.
       - name: Nothing left over
         if: always()
         run: npm run check:leftovers -- --with-shots
 
   deploy:
+    if: github.event_name != 'schedule'
     needs: [verify, checks]
     environment:
       name: github-pages

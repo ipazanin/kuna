@@ -2133,11 +2133,12 @@ The screen names are in `SCREENS` at the top of `scripts/real-shots.mjs`. The sh
 `--out` is always a scratch folder outside the repo, and they never go into a commit, an issue or a PR.
 Neither the seeds nor the plugin reach a production build, and `assert-no-fake-bytes` checks that.
 
-CI runs the full checks side by side on twelve machines, since one machine takes nearly two hours. The
-visual check takes `--shard 3/10` for the third of ten shares: screen and flow names are dealt out in
-turn, and every width and theme of a name stays in its share, so the dashboard grids are still compared
-across widths. The touch check runs each width as one session whose steps build on each other, so it
-splits by `--widths` instead.
+CI runs the checks side by side on 22 machines, since one machine takes nearly two hours. The visual
+check takes `--shard 3/16` for the third of sixteen shares: screen and flow names are dealt out in turn,
+and every width and theme of a name stays in its share. A push runs the shards at 360, 640, 1024 and
+1440 px, the widths a design review looks at, and deploys when they pass. A nightly run checks all nine
+widths and compares the dashboard grids across 768, 1440 and 1920 px, without deploying. The touch check
+runs each width as one session whose steps build on each other, so it splits by `--widths` instead.
 
 `check:pwa` serves the production build itself and sends every other origin to a dead proxy, so it
 needs no preview and makes no call to Google.
