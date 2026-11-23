@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { NO_REGION, typedAssetTerms } from '../src/apps/assets/asset/presentation/assetTexts'
+import { typedAssetTerms } from '../src/apps/assets/asset/presentation/assetTexts'
 import type { AssetTexts } from '../src/apps/assets/asset/presentation/assetTexts'
 import { typedValuationTerms } from '../src/apps/assets/asset/presentation/valuationTexts'
 import { percentFromBasisPoints } from '../src/shared/money/percent'
 import { civil } from './fixtures/ledger'
 
-const car: AssetTexts = { name: 'Car', kind: 'car', bought: '2024-05-10', price: '20000', region: NO_REGION, firstRegistration: '2024-05-10', share: '' }
+const car: AssetTexts = { name: 'Car', kind: 'car', bought: '2024-05-10', price: '20000', region: '', firstRegistration: '2024-05-10', share: '' }
 
 describe('typedAssetTerms', () => {
   it('reports a price that is not an amount', () => {

@@ -2,10 +2,9 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import InstrumentDialog from '../../holdings/presentation/InstrumentDialog.vue'
-import { NOT_SET } from '../../holdings/presentation/instrumentForm'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import { listingLine } from '../../holdings/presentation/holdingText'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { words } from './words'
@@ -23,24 +22,21 @@ const props = defineProps<{
 }>()
 
 const adding = ref(false)
-const items = computed<{ label: string; value: string; description: string; isin: string }[]>(() => [
-  ...(props.optional ? [{ label: words.fields.noHolding, value: NOT_SET, description: '', isin: '' }] : []),
-  ...props.book.instruments.map((candidate) => ({ label: candidate.name, value: candidate.id, description: listingLine(candidate), isin: candidate.isin ?? '' })),
-])
+const items = computed(() => props.book.instruments.map((candidate) => ({ label: candidate.name, value: candidate.id as string, description: listingLine(candidate), isin: candidate.isin ?? '' })))
 </script>
 
 <template>
   <UFormField :label="label" :help="words.fields.holdingHelp" :error="error" class="sm:col-span-2">
     <div class="flex items-center gap-2">
-      <USelectMenu
-        :model-value="optional ? instrument || NOT_SET : instrument"
+      <OptionalSelect
+        v-model="instrument"
         :items="items"
-        value-key="value"
+        :none="optional ? words.fields.noHolding : words.fields.pickHolding"
+        :search="words.fields.holdingSearch"
+        :clearable="optional"
         :filter-fields="['label', 'description', 'isin']"
-        :search-input="{ placeholder: words.fields.holdingSearch }"
         class="min-w-0 flex-1"
         :data-testid="testId"
-        @update:model-value="instrument = $event === NOT_SET ? '' : $event"
       />
       <UButton :label="words.fields.newHolding" icon="i-lucide-plus" color="neutral" variant="outline" class="shrink-0" :data-testid="`${testId}-new`" @click="adding = true" />
     </div>

@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 
 import { INSTRUMENT_WRITES } from '../../holdings/application/holdingWrites'
 import InstrumentDialog from '../../holdings/presentation/InstrumentDialog.vue'
@@ -13,6 +12,7 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 
 /** Which instrument Performance compares the portfolio with, the last close the prices file holds of it, and a way to add one that is not held. */
 const store = useInvestmentsBooks()
@@ -22,12 +22,9 @@ const { sources } = usePortfolio()
 const text = words.benchmark
 const BENCHMARK_KEY = 'benchmark'
 
-/** Kept apart from every record id, so the select can offer no benchmark at all. */
-const NONE = 'none'
-
 const instruments = computed(() => state.workbook?.book.instruments ?? [])
 const chosen = computed(() => benchmarkOf(instruments.value))
-const items = computed(() => [{ label: text.none, value: NONE }, ...instruments.value.map((instrument) => ({ label: `${instrument.name} (${instrument.symbol})`, value: instrument.id }))])
+const items = computed(() => instruments.value.map((instrument) => ({ label: `${instrument.name} (${instrument.symbol})`, value: instrument.id as string })))
 const closeLine = computed(() => {
   const standing = sources.value === null ? null : benchmarkState(sources.value)
   if (standing === null || standing.kind === 'none') return ''
@@ -54,14 +51,16 @@ async function choose(value: string): Promise<void> {
   <AppCard v-if="state.workbook !== null" :title="text.title" :subtitle="text.subtitle" data-testid="investments-benchmark">
     <div class="flex flex-col gap-3 px-4 pt-1 pb-4 sm:px-5">
       <UFormField :label="text.compareWith" :help="closeLine === '' ? text.help : closeLine">
-        <USelect
-          :model-value="chosen?.id ?? NONE"
+        <OptionalSelect
+          :model-value="chosen?.id ?? ''"
           :items="items"
+          :none="text.none"
+          :search="false"
           :loading="writes.saving(BENCHMARK_KEY)"
           :disabled="writes.saving(BENCHMARK_KEY)"
           class="w-full"
           data-testid="benchmark-choice"
-          @update:model-value="choose(String($event))"
+          @update:model-value="choose"
         />
       </UFormField>
       <div>

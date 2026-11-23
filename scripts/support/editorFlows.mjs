@@ -14660,3 +14660,115 @@ export function clientDialogFlowIn(language) {
 }
 
 export const clientDialogFlow = clientDialogFlowIn('en')
+
+/** Presses the cross that clears an OptionalSelect, found inside its trigger by its own word, which the field's label follows for a screen reader. */
+async function clearChoice(page, press, trigger, language) {
+  const label = (language === 'en' ? uiEnglish : uiCroatian).clearChoice
+  const cross = await page.waitForSelector(`${trigger} [aria-label="${label}"]`, { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error(`${trigger} shows no ${label} cross`)
+  })
+  await press(cross)
+  await page.waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, `${trigger} [aria-label="${label}"]`)
+  await delay(200)
+}
+
+/** Waits until a select's trigger reads exactly this text. */
+async function triggerReads(page, trigger, wanted) {
+  await page
+    .waitForFunction((selector, text) => document.querySelector(selector)?.textContent?.trim() === text, { timeout: 5_000 }, trigger, wanted)
+    .catch(async () => {
+      throw new Error(`${trigger} reads "${await page.$eval(trigger, (element) => element.textContent?.trim())}", not "${wanted}"`)
+    })
+}
+
+/** Opens To review and waits until a row of this payee waits there. */
+async function waitsOnReview(page, payee) {
+  await page.evaluate(() => {
+    window.location.hash = '#/spending/transactions?tab=review'
+  })
+  await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="spending-review-row"]')].some((row) => row.textContent?.includes(wanted)), { timeout: 10_000 }, payee)
+    .catch(() => {
+      throw new Error(`${payee} with no category does not wait on To review`)
+    })
+}
+
+/**
+ * On the sample Spending file's Entries: the category of a filed row is cleared by the cross in the field, which then reads
+ * No category in grey, and once saved the row waits on To review until Undo files it again. A new entry added with
+ * no category waits there too until its Undo. A category cleared by hand stays clear when the payee is typed again.
+ */
+export function spendingCategoryClearFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const dialog = words.spendingEntries.dialog
+  const trigger = `${SPENDING_ENTRY_DIALOG} [data-testid="spending-entry-category"]`
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Hotel Old Town', -24000)
+    await shootAt(page, shoot, trigger, 'spending-entry-category-filled', { inspected: () => inspect?.("a filed entry's category with its cross") })
+    await clearChoice(page, press, trigger, language)
+    await triggerReads(page, trigger, dialog.noCategory)
+    await shootAt(page, shoot, trigger, 'spending-entry-category-cleared', { inspected: () => inspect?.("an entry's category cleared by the cross") })
+    await saveSpendingEntry(page, press, dialog.saved)
+    await waitsOnReview(page, 'Hotel Old Town')
+    await delay(300)
+    await inspect?.('a cleared row waiting on To review')
+    await shoot('spending-review-cleared-row')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/transactions'
+    })
+    await newSpendingEntry(page, press, words, 'out')
+    await typeAmount(page, press, 'spending-entry-amount', '12')
+    await fill(page, 'spending-entry-payee', 'Market stall by the station')
+    await triggerReads(page, trigger, dialog.noCategory)
+    await saveSpendingEntry(page, press, dialog.added)
+    await waitsOnReview(page, 'Market stall by the station')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/transactions'
+    })
+    await newSpendingEntry(page, press, words, 'out')
+    await typePayee(page, press, 'corner market')
+    await page.keyboard.press('Escape')
+    await payeeListGone(page)
+    await triggerReads(page, trigger, words.spendingStarter.Groceries)
+    await clearChoice(page, press, trigger, language)
+    await typePayee(page, press, 'corner market')
+    await page.keyboard.press('Escape')
+    await payeeListGone(page)
+    await triggerReads(page, trigger, dialog.noCategory)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/**
+ * On the gallery's OptionalSelect: the cross empties the picked field, which then reads Not set in grey and offers no cross,
+ * and the keyboard picks Kitchen and then the Not set row, the list's first, with the arrows and Enter.
+ */
+export function optionalSelectFlow() {
+  return async (page, { press, shoot }) => {
+    const trigger = '[data-testid="gallery-optional-picked"]'
+    await shootAt(page, shoot, trigger, 'optional-select-picked')
+    await clearChoice(page, press, trigger, 'en')
+    await triggerReads(page, trigger, 'Not set')
+    await shootAt(page, shoot, trigger, 'optional-select-cleared')
+    await choose(page, press, await page.$(trigger), 'Kitchen')
+    await triggerReads(page, trigger, 'Kitchen')
+    await page.$eval(trigger, (element) => element.focus())
+    await page.keyboard.press('ArrowDown')
+    await page.waitForSelector('[role="listbox"]', { visible: true, timeout: 5_000 })
+    await delay(200)
+    await page.keyboard.press('Home')
+    await page.keyboard.press('Enter')
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await triggerReads(page, trigger, 'Not set')
+    const focused = await page.evaluate((selector) => document.activeElement === document.querySelector(selector), trigger)
+    if (!focused) throw new Error('the focus left the field once Not set was picked by the keyboard')
+  }
+}

@@ -27,6 +27,7 @@ export const en = {
   shownOf: (shown: number, total: number) => `${shown} of ${total} shown`,
   verdict: { unchanged: 'unchanged', better: 'better', worse: 'worse' },
   pickDay: 'Pick a day',
+  clearChoice: 'Clear',
   periodBar: {
     presets: { l3: 'Last 3 months', l12: 'Last 12 months', year: 'Year', quarter: 'Quarter', month: 'Month', custom: 'Custom', all: 'All time' },
     period: 'Period',
@@ -125,6 +126,7 @@ export const hr: Translation<typeof en> = {
   shownOf: (shown, total) => `Prikazano ${shown} od ${total}`,
   verdict: { unchanged: 'bez promjene', better: 'bolje', worse: 'lošije' },
   pickDay: 'Odaberi dan',
+  clearChoice: 'Očisti polje',
   periodBar: {
     presets: { l3: 'Zadnja 3 mjeseca', l12: 'Zadnjih 12 mjeseci', year: 'Godina', quarter: 'Tromjesečje', month: 'Mjesec', custom: 'Prilagođeno', all: 'Sve' },
     period: 'Razdoblje',

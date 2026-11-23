@@ -24,6 +24,7 @@ import type { RecordId } from '../../shared/storage/domain/recordId'
 import { recordKind } from '../../shared/storage/domain/recordKind'
 import MoneyInput from '../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
+import OptionalSelect from '../../shared/ui/OptionalSelect.vue'
 import { moneyFromCents, plainAmount } from '../../shared/money/money'
 import { typedAmount } from '../../shared/money/typedAmount'
 import GallerySection from './GallerySection.vue'
@@ -103,6 +104,26 @@ const pickedCurrency = ref('EUR')
 const namedCurrency = ref('USD')
 const optionalCurrency = ref('')
 const keptCurrency = ref('EUR')
+const GALLERY_ROOMS = [
+  { label: 'Kitchen', value: 'kitchen' },
+  { label: 'Living room', value: 'living' },
+  { label: 'Bedroom', value: 'bedroom' },
+]
+const GALLERY_PLACES = [
+  [
+    { label: 'Kitchen', value: 'kitchen' },
+    { label: 'Living room', value: 'living' },
+  ],
+  [
+    { label: 'Garage', value: 'garage' },
+    { label: 'Garden', value: 'garden' },
+  ],
+]
+const emptyRoom = ref('')
+const pickedRoom = ref('kitchen')
+const keptRoom = ref('bedroom')
+const groupedPlace = ref('garden')
+const fixedRoom = ref('living')
 const readMoney = computed(() => typedAmount(typedMoney.value))
 
 const ROWS = [
@@ -240,6 +261,36 @@ const ROWS = [
         <UFormField label="Disabled" help="An account with entries keeps its currency.">
           <CurrencySelect v-model="keptCurrency" search="Find a currency" disabled class="w-full" />
         </UFormField>
+      </FormGrid>
+    </AppCard>
+  </GallerySection>
+
+  <GallerySection
+    id="optional-select"
+    title="OptionalSelect"
+    description="A select whose field may stay empty, bound with v-model to a string that is blank while nothing is picked. Once picked it shows a cross beside its chevron, named Clear and the field's label, which empties it by mouse or touch, and the words for empty, the list's first row, do so by keyboard, screen reader and search. While empty the field shows those words in grey and only the chevron. A short list passes search as false, and a field that must keep its value passes clearable as false, which drops the cross and the row and leaves the words for empty as its prompt."
+  >
+    <AppCard as="div" class="p-5">
+      <FormGrid>
+        <UFormField label="Empty">
+          <OptionalSelect v-model="emptyRoom" :items="GALLERY_ROOMS" none="Not set" :search="false" class="w-full" data-testid="gallery-optional-empty" />
+        </UFormField>
+        <UFormField label="Picked" help="The cross clears it, and so does Not set in the list.">
+          <OptionalSelect v-model="pickedRoom" :items="GALLERY_ROOMS" none="Not set" :search="false" class="w-full" data-testid="gallery-optional-picked" />
+        </UFormField>
+        <UFormField label="Grouped, with search">
+          <OptionalSelect v-model="groupedPlace" :items="GALLERY_PLACES" none="No place" search="Find a place" class="w-full" data-testid="gallery-optional-grouped" />
+        </UFormField>
+        <UFormField label="Disabled">
+          <OptionalSelect v-model="keptRoom" :items="GALLERY_ROOMS" none="Not set" :search="false" disabled class="w-full" />
+        </UFormField>
+        <UFormField label="Not clearable" help="Such as a field that must keep its value while a link holds it.">
+          <OptionalSelect v-model="fixedRoom" :items="GALLERY_ROOMS" none="Not set" :search="false" :clearable="false" class="w-full" />
+        </UFormField>
+        <p class="type-caption sm:col-span-2">
+          The picked field holds <span class="identifier">{{ pickedRoom || 'blank' }}</span
+          >.
+        </p>
       </FormGrid>
     </AppCard>
   </GallerySection>

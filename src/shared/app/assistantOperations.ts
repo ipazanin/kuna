@@ -20,6 +20,8 @@ export interface AssistantOperation {
    * A field of a list's items is named by the list and the field, such as `parts.category`.
    */
   readonly refs: Readonly<Record<string, string>>
+  /** Fields of `refs` that also take `NONE_REF`, which takes off the record they hold, such as an entry's category. */
+  readonly noneRefs?: readonly string[]
   /** What it creates that a later step may name by `$`, or null. */
   readonly creates: string | null
   /** Text fields where an alias stands for every way its person was written, so the step gets the list, such as the words of a rule. */
@@ -64,6 +66,9 @@ function filled(
 function takesNull(schema: StrictSchema): boolean {
   return schema.type === 'null' || (Array.isArray(schema.type) && schema.type.includes('null'))
 }
+
+/** What a field of an operation's `noneRefs` takes in place of a ref to hold no record. */
+export const NONE_REF = 'none'
 
 /** What an operation's `refs` names a field that takes a file attached to the chat, such as a statement to import. */
 export const ATTACHMENT_REF = 'attachment'

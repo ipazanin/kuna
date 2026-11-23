@@ -5,7 +5,7 @@ import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/invest
 import { FUND_MIX_WRITES, TARGET_WRITES, replaceRows } from '../src/apps/investments/holdings/application/mixWrites'
 import { fundMixChanges, fundMixFaults, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/domain/fundMixDraft'
 import { instrumentFaults, instrumentOfTexts, instrumentTexts, withQuoting } from '../src/apps/investments/holdings/domain/instrumentDraft'
-import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { COUNTRY_ITEMS, SECTOR_ITEMS, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
 import { fundMixErrors, instrumentErrors } from '../src/apps/investments/holdings/presentation/words'
 import { writeCheck } from '../src/apps/investments/checks/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
@@ -548,12 +548,10 @@ describe('the instrument form', () => {
     expect(typeItems('gram').map((item) => item.value)).toEqual(['gold'])
   })
 
-  it('offers no type, sector or country whose value is blank or the Not set row’s stand-in, since a list item cannot be blank', () => {
+  it('offers no type, sector or country whose value is blank, since a list item cannot be blank', () => {
     const values = [...typeItems('unit'), ...SECTOR_ITEMS, ...COUNTRY_ITEMS].map((item) => item.value)
 
     expect(values).not.toContain('')
-    expect(values).not.toContain(NOT_SET)
-    expect(NOT_SET).not.toBe('')
   })
 
   it('keeps a fund’s dividends as typed, blank as none, and drops them once the type is no longer a fund', () => {

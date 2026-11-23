@@ -334,6 +334,13 @@ export const kunaPlugin = {
       ],
       "A row of a list that opens a page is a ListRow with to, which draws its arrow on the title's line.",
     ),
+    'optional-selects': refusedSyntax(
+      [
+        "VElement[rawName=/^(?:USelect|USelectMenu|u-select|u-select-menu)$/] > VStartTag > VAttribute[directive=false][key.name='clear']",
+        "VElement[rawName=/^(?:USelect|USelectMenu|u-select|u-select-menu)$/] > VStartTag > VAttribute[directive=true][key.argument.name='clear']",
+      ],
+      'A select whose field may stay empty is an OptionalSelect, which gives it the cross and the row for empty together.',
+    ),
     'record-rows': refusedSyntax(
       ["VElement[name='tr'] VElement[name='th']:has(VAttribute[directive=false][key.name='scope'][value.value='row']) VElement[rawName=/^(?:DrillLink|drill-link|RouterLink|router-link)$/]"],
       "A table row that stands for a record is a RecordRow, which opens the record from anywhere on the row. A link in a row's heading cell names the row's record.",

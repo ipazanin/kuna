@@ -222,9 +222,19 @@ section + section > .group-row:not(tr) {
   }
 }
 
+/* A picked OptionalSelect shows its cross beside the chevron, and the field's text stops short of both. */
+[data-slot='trailing']:has(> [data-slot='trailingClear']) {
+  gap: 0.375rem;
+}
+
+[data-slot='base']:has(> [data-slot='trailing'] > [data-slot='trailingClear']) {
+  padding-inline-end: 3.75rem;
+}
+
 /*
- * The phone layout. Every control a thumb can reach is at least 44 by 44 px. The rule is unlayered,
- * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
+ * The phone layout. Every control a thumb can reach is at least 44 by 44 px, but only below the phone breakpoint.
+ * The height is unlayered, so it wins over the Tailwind sizes of Nuxt UI's small buttons. The width sits in the
+ * components layer, below utilities, so a field's own min-w-* still sets how narrow it may get, other than min-w-0.
  */
 @media (max-width: 639px) {
   :where(
@@ -242,7 +252,26 @@ section + section > .group-row:not(tr) {
   ),
   :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'], [aria-hidden='true'])) {
     min-height: 44px;
+
+    /* min-w-0 lets a control shrink in a flex row so its text is cut short, but never below the tap target. */
+    &.min-w-0 {
+      min-width: 44px;
+    }
+  }
+
+  /* The cross that clears an OptionalSelect takes the whole height before the chevron, as wide as it is tall. */
+  [data-slot='trailing']:has(> [data-slot='trailingClear']) {
+    gap: 0;
+  }
+
+  [data-slot='base']:has(> [data-slot='trailing'] > [data-slot='trailingClear']) {
+    padding-inline-end: 4.75rem;
+  }
+
+  [data-slot='trailingClear'] {
     min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
   }
 
   /* A row of a select or a suggestion list keeps its text in the middle of the height it grows to. */
@@ -266,6 +295,27 @@ section + section > .group-row:not(tr) {
     width: fit-content;
     align-items: center;
     min-height: 44px;
+  }
+}
+
+@layer components {
+  @media (max-width: 639px) {
+    :where(
+      button:not([role='switch'], [role='checkbox'], [role='radio']),
+      a[href],
+      select,
+      textarea,
+      [role='button'],
+      [role='combobox'],
+      [role='tab'],
+      [role='menuitem'],
+      [role='menuitemcheckbox'],
+      [role='option'],
+      [data-slot='base']:has(> [data-slot='segment'])
+    ),
+    :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'], [aria-hidden='true'])) {
+      min-width: 44px;
+    }
   }
 }
 

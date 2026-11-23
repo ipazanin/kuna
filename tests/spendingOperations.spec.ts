@@ -221,6 +221,31 @@ describe('transfers', () => {
     expect(rowOf(desk, out!.id)).toMatchObject({ note: 'Rent money', pair: into!.id, date: out!.date, amount: out!.amount })
   })
 
+  it("takes the category off with none, filing a bank row by nobody and keeping a typed row the person's, as the entry dialog does", async () => {
+    const desk = await spendingDesk(used)
+    const bankRow = EXAMPLE_RECORDS['transaction-waiting-match']!
+    const typedRow = EXAMPLE_RECORDS['transaction']!
+
+    expect((await desk.propose([changeEntry(desk, bankRow, { category: 'none' }), changeEntry(desk, typedRow, { category: 'none' })])).isError).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(rowOf(desk, bankRow)).toMatchObject({ category: null, categorisedBy: null })
+    expect(rowOf(desk, typedRow)).toMatchObject({ category: null, categorisedBy: 'person' })
+  })
+
+  it("refuses none for the category of a split entry, a transfer's leg and a linked entry, which keep theirs", async () => {
+    const desk = await spendingDesk(used)
+    for (const [entry, reason] of [
+      ['transaction-split', 'split-entry'],
+      ['transaction-paired', 'Between my accounts'],
+      ['transaction-linked', 'link'],
+    ] as const) {
+      const answer = await desk.propose([changeEntry(desk, EXAMPLE_RECORDS[entry]!, { category: 'none' })])
+      expect(answer.isError).toBe(true)
+      expect(answer.text).toContain(reason)
+    }
+  })
+
   it('refuses a payee on one leg of a transfer, and takes one once a kind makes the leg a plain entry', async () => {
     const desk = await spendingDesk(used)
     await desk.propose([

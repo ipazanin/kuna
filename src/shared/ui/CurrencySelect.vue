@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { CURRENCY_CODES, EURO } from '../money/currencyCode'
+import OptionalSelect from './OptionalSelect.vue'
 
 /** A currency picked by its code from every code Kuna knows, with the ones a screen names first and a search over the rest. */
 const currency = defineModel<string>({ required: true })
@@ -13,29 +14,32 @@ const props = withDefaults(
     search: string
     /** Codes listed before the rest, such as the ones a file already names. */
     first?: readonly string[]
-    /** The label of a choice of no currency, for a field that may stay empty. */
+    /** The words for no currency, for a field that may stay empty, which a cross in the field clears. */
     none?: string
+    /** The label of a real choice stored as a blank currency, such as reading it from a column, which offers no cross. */
+    blankChoice?: string
   }>(),
-  { first: () => [EURO], none: '' },
+  { first: () => [EURO], none: '', blankChoice: '' },
 )
 
-/** Stands in for no currency, since the list allows no item with a blank value. */
-const NO_CURRENCY = '-'
+/** Stands in for the blank choice, since the list allows no item with a blank value. */
+const BLANK_CHOICE = '-'
 
-const items = computed(() => {
+const codes = computed(() => {
   const first = new Set(props.first)
-  const codes = [...first, ...CURRENCY_CODES.filter((code) => !first.has(code))].map((code) => ({ label: code, value: code }))
-  return props.none === '' ? codes : [{ label: props.none, value: NO_CURRENCY }, ...codes]
+  return [...first, ...CURRENCY_CODES.filter((code) => !first.has(code))].map((code) => ({ label: code, value: code }))
 })
+const items = computed(() => (props.blankChoice === '' ? codes.value : [{ label: props.blankChoice, value: BLANK_CHOICE }, ...codes.value]))
 
 const picked = computed({
-  get: () => (currency.value === '' && props.none !== '' ? NO_CURRENCY : currency.value),
+  get: () => (currency.value === '' && props.blankChoice !== '' ? BLANK_CHOICE : currency.value),
   set: (code: string) => {
-    currency.value = code === NO_CURRENCY ? '' : code
+    currency.value = code === BLANK_CHOICE ? '' : code
   },
 })
 </script>
 
 <template>
-  <USelectMenu v-model="picked" :items="items" value-key="value" :search-input="{ placeholder: search }" />
+  <OptionalSelect v-if="none !== ''" v-model="currency" :items="codes" :none="none" :search="search" />
+  <USelectMenu v-else v-model="picked" :items="items" value-key="value" :search-input="{ placeholder: search }" />
 </template>

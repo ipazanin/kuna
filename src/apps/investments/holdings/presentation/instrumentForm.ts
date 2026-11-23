@@ -9,9 +9,6 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { countryName } from '../../../../shared/text/countryName'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
 
-/** The value of a list's Not set row, since a list item cannot carry a blank value. No type, sector, country or record id is a dash. */
-export const NOT_SET = '-' as const
-
 /** The types the quoting allows: only a bond is quoted in percent and only gold in grams. */
 export function typeItems(quoted: Quoting['kind']): { readonly value: InstrumentType; readonly label: string }[] {
   const allowed = quoted === 'unit' ? INSTRUMENT_TYPES : [TYPE_OF_QUOTING[quoted]]

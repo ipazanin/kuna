@@ -1,5 +1,5 @@
 import { ITEM_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
-import type { Transaction } from './transaction'
+import type { CategorisedBy, Transaction } from './transaction'
 import type { TransactionItem } from './transactionItem'
 import { rowLinkText } from './rowLink'
 import type { RowLink } from './rowLink'
@@ -149,6 +149,22 @@ export function holdsReceipt(items: readonly Pick<TransactionItem, 'receipt'>[])
 /** Whether the row waits on To review: an item of it has no category yet. */
 export function waitsOnReview(items: readonly Pick<TransactionItem, 'category'>[]): boolean {
   return items.some((item) => item.category === null)
+}
+
+/**
+ * Who filed a row after a person typed over it, from its items' categories before and after, part by part. A bank's row whose
+ * category the person cleared is filed by nobody again, as if the bank just brought it, so it may pair as a transfer and a rule
+ * may file it. A typed row stays the person's, and so does a row whose category the person changed. Otherwise the filer stays.
+ */
+export function filerAfterTyping(
+  row: Pick<Transaction, 'source' | 'categorisedBy'>,
+  before: readonly Pick<TransactionItem, 'category'>[],
+  after: readonly Pick<TransactionItem, 'category'>[],
+): CategorisedBy | null {
+  const changed = after.length !== before.length || after.some((part, place) => part.category !== before[place]?.category)
+  if (!changed) return row.categorisedBy
+  const cleared = after.every((part) => part.category === null)
+  return cleared && row.source === 'statement' ? null : 'person'
 }
 
 /** Tells whether all of a row's money moves between your own accounts, as a transfer's leg does: each of its items is under a transfer category. */

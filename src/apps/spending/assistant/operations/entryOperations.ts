@@ -19,6 +19,7 @@ import { isSplit, itemizedRow, wholeItemOf } from '../../workbook/domain/rowItem
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { NONE_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { absAccountMoney, accountMoneyFromAmount, negateAccountMoney } from '../../../../shared/money/accountMoney'
@@ -46,7 +47,7 @@ export const ENTRY_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'change-entry',
     about:
-      "Files a row under a category, or fixes its account, kind, date, amount, payee or note. kind is out or in, and sets the amount's sign. A row a statement brought keeps its account and what the bank said, and on an account the bank fills its date and amount too. A transfer's leg given a kind or another category becomes a plain entry, and its other leg goes. Otherwise a leg takes a new account, date or amount only through change-transfer, and no payee. countsUnder is as in add-entry, for an entry not split. Null leaves a field as it is.",
+      "Files a row under a category, or fixes its account, kind, date, amount, payee or note. kind is out or in, and sets the amount's sign. A row a statement brought keeps its account and what the bank said, and on an account the bank fills its date and amount too. A transfer's leg given a kind or another category becomes a plain entry, and its other leg goes. Otherwise a leg takes a new account, date or amount only through change-transfer, and no payee. countsUnder is as in add-entry, for an entry not split. category none takes the category off, so the entry waits on To review, and a row a statement brought is then filed by nobody, so it may pair as a transfer and a rule may file it again. A split entry, a transfer's leg and a linked entry keep theirs. Null leaves a field as it is.",
     input: inputOf({
       entry: TEXT,
       account: TEXT_OR_NULL,
@@ -59,6 +60,7 @@ export const ENTRY_OPERATIONS: readonly AssistantOperation[] = [
       countsUnder: COUNTS_UNDER,
     }),
     refs: { entry: TRANSACTION_RECORDS.name, account: ACCOUNT_RECORDS.name, category: CATEGORY_RECORDS.name },
+    noneRefs: ['category'],
     creates: null,
     alone: false,
     example: { entry: 'transaction', account: null, kind: null, category: 'category', date: null, amount: null, payee: null, note: 'Checked', countsUnder: null },
@@ -110,13 +112,16 @@ function changeEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingReco
   const accountOf = (value: unknown): Account => found(book.accounts, idOf(value), 'account')
   const before = itemizedRow(book, found(book.transactions, idOf(field['entry']), 'row'))
   const kind = choiceOf(['out', 'in'], field['kind'], 'kind')
-  const filedUnder: Category | null = field['category'] === null ? null : found(book.categories, idOf(field['category']), 'category')
+  const uncategorised = field['category'] === NONE_REF
+  const filedUnder: Category | null = field['category'] === null || uncategorised ? null : found(book.categories, idOf(field['category']), 'category')
   const onlyFiled = [field['account'], field['kind'], field['date'], field['amount'], field['payee'], field['note'], field['countsUnder']].every((value) => value === null)
   const legs = legsOf(book, before.row)
   const plain = legs !== null && (kind !== null || (filedUnder !== null && !isTransferCategory(filedUnder)))
   const [whole] = before.items
-  if (isSplit(before.items) && (filedUnder !== null || field['note'] !== null || field['countsUnder'] !== null))
+  if (isSplit(before.items) && (filedUnder !== null || uncategorised || field['note'] !== null || field['countsUnder'] !== null))
     throw new StepRefused('That entry is split, so each part keeps its own category, note and payee it counts under. split-entry changes them.')
+  if (uncategorised && legs !== null) throw new StepRefused("That entry is a transfer's leg, so it keeps Between my accounts. A kind of out or in makes it a plain entry first.")
+  if (uncategorised && whole?.link != null) throw new StepRefused('That entry is linked, so it keeps its category until the link is taken off on its dialog.')
   if (onlyFiled && filedUnder !== null && legs === null) {
     fileRows(unit, records, [before.row], filedUnder)
     return
@@ -133,7 +138,7 @@ function changeEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingReco
     pair: plain ? null : before.row.pair,
   }
   const filing = {
-    category: filedUnder?.id ?? whole?.category ?? null,
+    category: uncategorised ? null : (filedUnder?.id ?? whole?.category ?? null),
     note: (field['note'] as string | null) ?? whole?.note ?? '',
     link: whole?.link ?? null,
     labels: whole?.labels ?? [],

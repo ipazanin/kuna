@@ -20,6 +20,7 @@ import { entryCategoryChoices } from '../../entries/presentation/categoryChoices
 import { addLabel } from '../../labels/application/labelWrites'
 import { newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import { loanTargets } from '../../links/application/loanRecords'
 import { paidLoansIn } from '../../links/domain/linkTarget'
 import { ruleLinks } from '../../links/presentation/ruleLinks'
@@ -67,9 +68,8 @@ const asking = ref<RuleAsk | null>(null)
 const ANOTHER_ACCOUNT = 'another'
 const CASH_BY_CURRENCY = 'cash'
 const goesTo = ref(ANOTHER_ACCOUNT)
-const NO_LOAN = 'none'
-/** The loan the rows pay as its link reads, or none. */
-const pays = ref(NO_LOAN)
+/** The loan the rows pay as its link reads, or blank for none. */
+const pays = ref('')
 
 const book = computed(() => store.state.workbook)
 const categories = computed(() => book.value?.categories ?? [])
@@ -107,7 +107,7 @@ const linkItems = computed(() => {
 })
 /** Whether the record picked is an asset, whose rows keep the category whole. */
 const linksAsset = computed(() => assetItems.value.some((item) => item.value === pays.value))
-const link = computed((): RowLink | null => (pickedCategory.value === null || isTransfer.value || pays.value === NO_LOAN ? null : rowLinkOf(pays.value)))
+const link = computed((): RowLink | null => (pickedCategory.value === null || isTransfer.value || pays.value === '' ? null : rowLinkOf(pays.value)))
 const withdrawal = computed((): RuleWithdrawal | null =>
   !isTransfer.value || goesTo.value === ANOTHER_ACCOUNT ? null : { cashAccount: cashAccounts.value.find((account) => account.id === goesTo.value)?.id ?? null },
 )
@@ -135,7 +135,7 @@ watch(open, (opened) => {
   created.value = []
   stop.value = rule?.stop ?? false
   goesTo.value = rule?.withdrawal == null ? ANOTHER_ACCOUNT : (rule.withdrawal.cashAccount ?? CASH_BY_CURRENCY)
-  pays.value = rule?.link == null ? NO_LOAN : rowLinkText(rule.link)
+  pays.value = rule?.link == null ? '' : rowLinkText(rule.link)
   tried.value = false
   asking.value = null
 })
@@ -259,14 +259,7 @@ function removeCondition(place: number): void {
         :label="words.rules.dialog.pays"
         :help="link === null ? '' : linksAsset ? words.rules.dialog.assetHelp : words.rules.dialog.paysHelp"
       >
-        <USelectMenu
-          v-model="pays"
-          :items="[{ value: NO_LOAN, label: words.rules.dialog.noLoan }, ...linkItems]"
-          value-key="value"
-          :search-input="false"
-          class="w-full"
-          data-testid="spending-rule-dialog-pays"
-        />
+        <OptionalSelect v-model="pays" :items="linkItems" :none="words.rules.dialog.noLoan" :search="false" class="w-full" data-testid="spending-rule-dialog-pays" />
       </UFormField>
       <UFormField :label="words.rules.dialog.labels" :help="words.rules.dialog.labelsHelp">
         <LabelsSelect v-model="labels" :labels="labelChoices" :name="words.rules.dialog.labels" class="w-full" @create="withTyped" />

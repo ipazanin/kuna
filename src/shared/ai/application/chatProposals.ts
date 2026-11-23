@@ -1,4 +1,4 @@
-import { ATTACHMENT_REF, cardWarnings } from '../../app/assistantOperations'
+import { ATTACHMENT_REF, NONE_REF, cardWarnings } from '../../app/assistantOperations'
 import type { AppProposer, CheckedProposal, ProposalStep } from '../../app/assistantOperations'
 import type { ChatAttachment } from '../domain/chatAttachments'
 import { schemaProblems } from '../domain/strictSchema'
@@ -106,6 +106,8 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
       const spellings = typeof value === 'string' && operation.spellings?.includes(field) === true ? reads.pseudonyms.spellingsOf(value) : []
       const itemSpellings = (operation.spellings ?? []).flatMap((name) => (name.startsWith(`${field}.`) ? [name.slice(field.length + 1)] : []))
       resolved[field] = spellings.length > 1 ? spellings : Array.isArray(value) && itemSpellings.length > 0 ? spelledItems(value, itemSpellings, reads.pseudonyms) : restoredIn(value, reads.pseudonyms)
+    } else if (value === NONE_REF && operation.noneRefs?.includes(field) === true) {
+      resolved[field] = NONE_REF
     } else if (kind === ATTACHMENT_REF) {
       const attachment = attachments.find((held) => held.id === value)
       if (attachment === undefined) return `${operation.name}: ${field} is not the id of a file attached to this chat.`

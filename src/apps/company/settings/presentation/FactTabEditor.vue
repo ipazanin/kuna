@@ -13,14 +13,12 @@ import { draftOutcomes, draftsOfRecords, fieldsOfDrafts, kindOfColumn, madeOfDra
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import DayField from '../../../../shared/ui/DayField.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import type { DraftFieldKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
 import IbanTagsField from './IbanTagsField.vue'
 import { words } from './words'
-
-// A select item cannot carry an empty value, so the blank choice travels as this.
-const BLANK_CHOICE = '-'
 
 const props = defineProps<{
   /** The records as stored, refused ones included, so they can be fixed here. */
@@ -79,13 +77,7 @@ function choicesOf(column: EditorColumn, draft: RecordDraft): ChoiceItem[] | nul
   if (choices === null) return null
   const current = draft.fields[column.name] ?? ''
   const unknown = current !== '' && !choices.some((choice) => choice.value === current) ? [{ value: current, label: current }] : []
-  return [...(column.blankLabel === undefined ? [] : [{ value: BLANK_CHOICE, label: column.blankLabel }]), ...choices, ...unknown]
-}
-
-/** An empty value shows the placeholder. */
-function choiceValue(column: EditorColumn, draft: RecordDraft): string {
-  const current = draft.fields[column.name] ?? ''
-  return current === '' && column.blankLabel !== undefined ? BLANK_CHOICE : current
+  return [...choices, ...unknown]
 }
 
 /**
@@ -103,10 +95,6 @@ function opener(index: number): (() => void) | null {
 
 function update(index: number, column: string, text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, fields: { ...draft.fields, [column]: text } } : draft))
-}
-
-function choose(index: number, column: string, choice: unknown): void {
-  update(index, column, choice === BLANK_CHOICE ? '' : String(choice ?? ''))
 }
 
 function addRow(): void {
@@ -144,15 +132,26 @@ function save(): void {
               <span v-if="place === 0 && openLabels[index] !== null" class="inline-flex min-h-8 items-center" :class="column.width">
                 <DrillLink :to="null" :open="opener(index)" :label="openLabels[index]!" class="font-medium text-highlighted" data-testid="open-row">{{ draft.fields[column.name] }}</DrillLink>
               </span>
+              <OptionalSelect
+                v-else-if="choicesOf(column, draft) && column.blankLabel !== undefined"
+                :model-value="draft.fields[column.name] ?? ''"
+                :items="choicesOf(column, draft) ?? []"
+                :none="column.blankLabel"
+                :search="false"
+                :aria-label="column.label"
+                size="sm"
+                :class="column.width"
+                @update:model-value="update(index, column.name, $event)"
+              />
               <USelect
                 v-else-if="choicesOf(column, draft)"
-                :model-value="choiceValue(column, draft)"
+                :model-value="draft.fields[column.name] ?? ''"
                 :items="choicesOf(column, draft) ?? []"
                 :placeholder="column.placeholderOf?.(fieldReader(draft)) || words.factTab.choose"
                 :aria-label="column.label"
                 size="sm"
                 :class="column.width"
-                @update:model-value="choose(index, column.name, $event)"
+                @update:model-value="update(index, column.name, String($event ?? ''))"
               />
               <UCheckbox
                 v-else-if="kindOf(column, draft) === 'flag'"

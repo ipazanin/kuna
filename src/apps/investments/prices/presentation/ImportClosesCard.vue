@@ -3,13 +3,13 @@ import { ref, watch } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { ClosesCsvRefusal } from '../domain/closesCsv'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import { fetchAddedInBackground } from './pricesStep'
 import { runProblem } from './runProblem'
 import { useClosesImport } from './useClosesImport'
@@ -36,9 +36,9 @@ function refusal(reason: ClosesCsvRefusal): string {
   return reason.kind === 'unreadable' ? text.refused.unreadable(reason.line) : reason.kind === 'repeated-day' ? text.refused['repeated-day'](reason.day) : text.refused[reason.kind]
 }
 
-/** Why a file read well still has no holding, or null once it has one. */
-function unmatched(row: ClosesFileRow): string | null {
-  return row.line !== null ? null : row.matches.length === 0 ? text.noMatch : text.twoMatch
+/** Why a file read well still has no holding, while it has none, and that a file with no holding is left out. */
+function holdingHelp(row: ClosesFileRow): string {
+  return row.line !== null ? text.leftOut : `${row.matches.length === 0 ? text.noMatch : text.twoMatch} ${text.leftOut}`
 }
 
 function clearFiles(): void {
@@ -75,14 +75,15 @@ async function importCloses(): Promise<void> {
           <span class="type-label break-all">{{ row.name }}</span>
           <p v-if="row.reading.kind === 'refused'" class="type-body text-error" data-testid="closes-import-refused">{{ refusal(row.reading.refusal) }}</p>
           <template v-else>
-            <UFormField v-if="row.matches.length !== 1" :label="text.holding" :help="unmatched(row) ?? ''">
-              <USelect
-                v-bind="row.line === null ? {} : { modelValue: row.line.instrument.id }"
-                :items="closesImport.holdings.value.map((instrument) => ({ value: instrument.id, label: `${instrument.name} (${instrument.symbol})` }))"
-                :placeholder="text.pick"
+            <UFormField v-if="row.matches.length !== 1" :label="text.holding" :help="holdingHelp(row)">
+              <OptionalSelect
+                :model-value="row.line?.instrument.id ?? ''"
+                :items="closesImport.holdings.value.map((instrument) => ({ value: instrument.id as string, label: `${instrument.name} (${instrument.symbol})` }))"
+                :none="text.notSet"
+                :search="false"
                 class="w-full"
                 data-testid="closes-import-holding"
-                @update:model-value="closesImport.pick(row.name, String($event))"
+                @update:model-value="closesImport.pick(row.name, $event)"
               />
             </UFormField>
             <p v-else-if="row.line !== null" class="type-row-title">{{ row.line.instrument.name }} ({{ row.line.instrument.symbol }})</p>

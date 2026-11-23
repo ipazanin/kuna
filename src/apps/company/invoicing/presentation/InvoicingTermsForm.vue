@@ -3,13 +3,13 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
 import { UNREADABLE_AMOUNT, amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import { settingsErrors } from '../../settings/domain/settings'
 import type { BillingAmountField, BillingItemField, BillingTerms, InvoicingField, Settings } from '../../settings/domain/settings'
 import { words } from './words'
@@ -81,7 +81,11 @@ function updateBillingAmount(field: BillingAmountField, text: string): void {
 }
 
 const billingItemChoices = ref<string[]>([])
-const itemChoices = computed(() => [...new Set([...props.billingItems, ...BILLING_TERMS.map(({ item }) => draft.value.billing[item]), ...billingItemChoices.value])].filter((item) => item !== ''))
+const itemChoices = computed(() =>
+  [...new Set([...props.billingItems, ...BILLING_TERMS.map(({ item }) => draft.value.billing[item]), ...billingItemChoices.value])]
+    .filter((item) => item !== '')
+    .map((item) => ({ label: item, value: item })),
+)
 
 function createBillingItem(field: BillingItemField, text: string): void {
   const typed = text.trim()
@@ -91,9 +95,7 @@ function createBillingItem(field: BillingItemField, text: string): void {
   }
 }
 
-/** The value of the client list's Not set row, since a list item cannot carry a blank value. No slug is a dash. */
-const NOT_SET = '-'
-const clientItems = computed(() => [{ label: words.terms.notSet, value: NOT_SET }, ...props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug }))])
+const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
 
 /**
  * A field with `lines` is a text box that grows, so a long path or subject wraps instead of scrolling inside the card. An `identifier`
@@ -145,25 +147,26 @@ function updateInvoicing(field: InvoicingField, value: string): void {
             />
           </UFormField>
           <UFormField :label="words.terms.item(term.label)" :error="errors[term.item] ?? false">
-            <USelectMenu
+            <OptionalSelect
               :model-value="draft.billing[term.item]"
               :items="itemChoices"
               create-item
-              :placeholder="words.terms.notSet"
-              :search-input="{ placeholder: words.terms.searchItem }"
+              :none="words.terms.notSet"
+              :search="words.terms.searchItem"
               class="w-full"
-              @update:model-value="updateBilling(term.item, String($event ?? ''))"
+              @update:model-value="updateBilling(term.item, $event)"
               @create="createBillingItem(term.item, $event)"
             />
           </UFormField>
         </template>
         <UFormField :label="words.terms.client" :help="words.terms.clientHelp" class="sm:col-span-2">
-          <USelectMenu
-            :model-value="draft.billing.client || NOT_SET"
+          <OptionalSelect
+            :model-value="draft.billing.client"
             :items="clientItems"
-            value-key="value"
+            :none="words.terms.notSet"
+            :search="words.terms.searchClient"
             class="w-full"
-            @update:model-value="updateBilling('client', $event === NOT_SET ? '' : String($event))"
+            @update:model-value="updateBilling('client', $event)"
           />
         </UFormField>
       </FormGrid>

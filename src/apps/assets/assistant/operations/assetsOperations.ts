@@ -3,9 +3,9 @@ import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../sha
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { ASSET_SHARE_WRITES, ASSET_WRITES, VALUATION_WRITES, newAsset, newAssetShare, newValuation, removeAsset } from '../../asset/application/assetWrites'
 import { shareChangeErrors } from '../../asset/presentation/words'
-import { NO_REGION, typedAssetTerms } from '../../asset/presentation/assetTexts'
+import { typedAssetTerms } from '../../asset/presentation/assetTexts'
 import type { AssetTexts } from '../../asset/presentation/assetTexts'
-import { NO_LOAN, loanChoices, loanReasonOf } from '../../asset/presentation/loanChoices'
+import { loanChoices, loanReasonOf } from '../../asset/presentation/loanChoices'
 import { typedValuationTerms } from '../../asset/presentation/valuationTexts'
 import type { ValuationTexts } from '../../asset/presentation/valuationTexts'
 import type { LoansOnScreen } from '../../loans/application/assetLoans'
@@ -165,7 +165,7 @@ function loanOf(named: string | null, kept: string | null, loans: LoansOnScreen,
   const reason = loanReasonOf(loans)
   if (reason !== '') throw new StepRefused(`${reason}.`)
   if (named === NONE) return null
-  const free = loanChoices(loans, taken, editing).filter((choice) => choice.value !== NO_LOAN && choice.label === named)
+  const free = loanChoices(loans, taken, editing).filter((choice) => choice.label === named)
   if (free.length === 0) throw new StepRefused(`${named} is not a bank loan Loans lists that no other asset names.`)
   if (free.length > 1) throw new StepRefused(`More than one bank loan in Loans is called ${named}. Rename one in Loans first.`)
   return free[0]!.value
@@ -184,7 +184,7 @@ function assetOf(field: Fields, before: Asset | null, loans: LoansOnScreen, take
     kind,
     bought: dayText(field['bought'], before?.bought ?? null),
     price: price === null ? (before?.price != null ? plainAmount(before.price) : '') : before !== null && price === 0 ? '' : amountText(price),
-    region: region === null ? (before?.region ?? NO_REGION) : region === NONE ? NO_REGION : (choiceOf(HOUSE_REGIONS, region, 'region') ?? NO_REGION),
+    region: region === null ? (before?.region ?? '') : region === NONE ? '' : (choiceOf(HOUSE_REGIONS, region, 'region') ?? ''),
     firstRegistration: dayText(firstRegistration, before?.firstRegistration ?? null),
     share: partText(field['share'] as number | null, before?.share),
   }

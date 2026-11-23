@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 
+import OptionalSelect from '../../ui/OptionalSelect.vue'
 import { words } from './words'
 
 /**
@@ -19,22 +19,12 @@ const props = withDefaults(
 )
 const column = defineModel<string>({ required: true })
 
-/** A select's value for "the file has no such column", since an item takes no blank value. Headers are trimmed, so none is a single space. */
-const NO_COLUMN = ' '
-
-const items = computed(() => {
-  const picks = [...new Set([...(props.columns ?? []).filter((header) => header.trim() !== ''), ...(column.value === '' ? [] : [column.value])])].map((header) => ({ label: header, value: header }))
-  return props.optional ? [{ label: words.noColumn, value: NO_COLUMN }, ...picks] : picks
-})
-const picked = computed({
-  get: () => (column.value === '' && props.optional ? NO_COLUMN : column.value),
-  set: (value: string) => {
-    column.value = value === NO_COLUMN ? '' : value
-  },
-})
+const items = computed(() =>
+  [...new Set([...(props.columns ?? []).filter((header) => header.trim() !== ''), ...(column.value === '' ? [] : [column.value])])].map((header) => ({ label: header, value: header })),
+)
 </script>
 
 <template>
-  <USelect v-if="columns !== null" v-model="picked" :items="items" :placeholder="words.chooseColumn" class="w-full" />
+  <OptionalSelect v-if="columns !== null" v-model="column" :items="items" :none="optional ? words.noColumn : words.chooseColumn" :search="false" :clearable="optional" class="w-full" />
   <UInput v-else v-model="column" :placeholder="optional ? words.noColumn : words.typeColumn" autocomplete="off" class="w-full" />
 </template>

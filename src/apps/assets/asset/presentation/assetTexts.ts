@@ -6,16 +6,14 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { isWhole, typedPart } from '../../../../shared/money/yourPart'
 
-/** What the region select holds for no region, since a select's value cannot be empty. */
-export const NO_REGION = 'none'
-
 /** What the asset dialog's fields hold while they are typed. */
 export interface AssetTexts {
   readonly name: string
   readonly kind: AssetKind
   readonly bought: string
   readonly price: string
-  readonly region: HouseRegion | typeof NO_REGION
+  /** Blank for no region. */
+  readonly region: HouseRegion | ''
   readonly firstRegistration: string
   /** Your part in percent, blank when it is all yours. */
   readonly share: string
@@ -65,7 +63,7 @@ export function typedAssetTerms(texts: AssetTexts): { readonly errors: AssetErro
       kind: texts.kind,
       bought,
       price,
-      region: texts.kind === 'home' && texts.region !== NO_REGION ? texts.region : null,
+      region: texts.kind === 'home' && texts.region !== '' ? texts.region : null,
       firstRegistration: texts.kind === 'car' ? (registered ?? null) : null,
       ...(share === null || isWhole(share) ? {} : { share }),
     },

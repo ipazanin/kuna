@@ -5,7 +5,7 @@ import { rowSide } from '../src/apps/spending/categories/domain/rowSide'
 import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
 import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import { itemsOfStoredRow, plainLineOf, storedBeforeItems } from '../src/apps/spending/workbook/domain/beforeItems'
-import { hasParts, holdsReceipt, isSplit, largestItem, rowItemsOf, waitsOnReview, wholeItemOf, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
+import { filerAfterTyping, hasParts, holdsReceipt, isSplit, largestItem, rowItemsOf, waitsOnReview, wholeItemOf, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -153,5 +153,23 @@ describe('a row of a file from before items', () => {
       [recordIdOf(LINE_RECORDS, held!.id.slice('item:'.length)), ''],
       [recordIdOf(LINE_RECORDS, 'rest'), 'Bread'],
     ])
+  })
+})
+
+describe('who filed a row after a person typed over it', () => {
+  const groceriesId = groceries.id
+  const clothes = category('Personal/Clothes and shoes').id
+  it.each([
+    ['a bank row a rule filed, cleared', 'statement', 'rule', [groceriesId], [null], null],
+    ['a bank row the person filed, cleared', 'statement', 'person', [groceriesId], [null], null],
+    ['a typed row, cleared', 'typed', 'person', [groceriesId], [null], 'person'],
+    ['a bank row filed under another category', 'statement', 'rule', [groceriesId], [clothes], 'person'],
+    ['a waiting bank row filed by the person', 'statement', null, [null], [groceriesId], 'person'],
+    ['a bank row a rule filed, its category kept', 'statement', 'rule', [groceriesId], [groceriesId], 'rule'],
+    ["an empty row the person left so, such as Not a pair's leg, saved untouched", 'statement', 'person', [null], [null], 'person'],
+    ['a split bank row with one part filed elsewhere', 'statement', 'rule', [groceriesId, clothes], [groceriesId, groceriesId], 'person'],
+  ] as const)('%s', (_, source, categorisedBy, before, after, filer) => {
+    const parts = (categories: readonly (typeof groceriesId | null)[]) => categories.map((category) => ({ category }))
+    expect(filerAfterTyping({ source, categorisedBy }, parts(before), parts(after))).toBe(filer)
   })
 })

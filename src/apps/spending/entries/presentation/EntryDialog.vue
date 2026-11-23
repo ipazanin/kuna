@@ -4,7 +4,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
 import EntryPartFields from './EntryPartFields.vue'
@@ -62,6 +61,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import { words as uiWords } from '../../../../shared/ui/words'
 import { EURO } from '../../../../shared/money/currencyCode'
 
@@ -220,7 +220,7 @@ watch(open, (opened) => {
   lineFilings.value = Object.fromEntries(entryLines.value.flatMap((line) => (line.receipt === null ? [] : [[line.id, lineFilingOf(line)]])))
   tried.value = false
   adding.value = null
-  memory.filled.value = false
+  memory.start()
   openedAs.value = formNow.value
 })
 
@@ -273,7 +273,7 @@ const errors = computed(() => ({
   amount: positiveAmount(amount.value) === null ? words.dialog.anAmount : null,
   toAmount: arrivedError.value,
   category:
-    kind.value !== 'transfer' && !split.value && !pickable.value.has(category.value)
+    kind.value !== 'transfer' && !split.value && category.value !== '' && !pickable.value.has(category.value)
       ? words.dialog.pickCategory
       : partFiling.joins(category.value) && wholeItem.value?.link != null
         ? sharedCostWords.unlinkFirst
@@ -305,7 +305,7 @@ async function save(): Promise<void> {
 /** One entry of the signed amount added, or changed in place, which drops the other leg of what was a transfer. */
 function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
   const filing = partFiling.filing.value
-  const filed = partFiling.fieldsOf(category.value)
+  const filed = category.value === '' ? { category: null, sharedCost: null } : partFiling.fieldsOf(category.value)
   const records = store.state.records
   if ((filed === null && !split.value) || records === null) return null
   const entry = newEntry({
@@ -442,11 +442,12 @@ async function remove(): Promise<void> {
           :error="(tried && errors.category) || false"
           :ui="{ container: 'flex flex-col' }"
         >
-          <USelectMenu
+          <OptionalSelect
             v-model="category"
             :items="categoryItems"
-            value-key="value"
-            :placeholder="words.dialog.pickCategory"
+            :none="words.dialog.noCategory"
+            :search="words.dialog.findCategory"
+            :clearable="wholeItem?.link == null"
             class="w-full"
             data-testid="spending-entry-category"
             @update:model-value="memory.pickedByHand"

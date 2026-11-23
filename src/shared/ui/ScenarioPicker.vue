@@ -69,7 +69,7 @@ const baseItems = computed(() => props.options.filter((option) => props.picked.i
     </div>
     <label v-if="baseItems.length > 1" class="flex items-center gap-2 type-body sm:ms-auto">
       <span class="shrink-0">{{ againstLabel }}</span>
-      <USelect :model-value="base" :items="baseItems" size="sm" class="min-w-48" data-testid="scenario-base" @update:model-value="emit('base', String($event))" />
+      <USelect :model-value="base" :items="baseItems" size="sm" class="min-w-0 flex-1 sm:min-w-48 sm:flex-none" data-testid="scenario-base" @update:model-value="emit('base', String($event))" />
     </label>
   </div>
 </template>

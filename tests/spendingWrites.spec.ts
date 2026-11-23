@@ -14,7 +14,9 @@ import { answerHeldRow } from '../src/apps/spending/bankSync/application/heldRow
 import { fileRows, joinWithTyped, notAPair, pairRows, writeDryRun, writeRules } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
+import { isPairable } from '../src/apps/spending/pairing/domain/transferPairs'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
+import { itemizedRow } from '../src/apps/spending/workbook/domain/rowItems'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
 import { fixedByBank } from '../src/apps/spending/entries/domain/bankRows'
@@ -394,6 +396,36 @@ describe('a statement in the Spending file', () => {
     })
     expect(retypedEntry(filed, typedOther).row).toMatchObject({ importKey: 'kept', categorisedBy: 'person' })
     expect(retypedEntry(filed, typedOther).items).toMatchObject([{ id: typed.items[0]!.id, amount: accountMoneyFromAmount(-6), category: category('Food/Groceries').id }])
+  })
+
+  it("files a bank row nobody's once its category is cleared, so it waits on To review and may pair, while a typed row cleared stays the person's", () => {
+    const typed = coffee('2026-10-19', -5)
+    const filed = { ...typed, row: { ...typed.row, importKey: 'kept', source: 'statement' as const, categorisedBy: 'rule' as const, cashWithdrawal: true } }
+    const cleared = newEntry({ account: OTP.id, date: civil('2026-10-19'), amount: accountMoneyFromAmount(-5), payee: 'Coffee', category: null, note: '', labels: [] })
+
+    const bankRow = retypedEntry(filed, cleared)
+    const typedRow = retypedEntry(typed, cleared)
+
+    expect(bankRow.row).toMatchObject({ source: 'statement', categorisedBy: null, cashWithdrawal: true })
+    expect(bankRow.items).toMatchObject([{ category: null, sharedCost: null }])
+    expect(isPairable(bankRow.row)).toBe(true)
+    expect(typedRow.row).toMatchObject({ source: 'typed', categorisedBy: 'person' })
+  })
+
+  it('puts a bank row a rule filed back on To review once its category is cleared, and one Undo files it again', async () => {
+    const store = await spendingStore()
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -7)], fileNotes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
+    await store.write('Rule', (unit) => writeRules(unit, store.state.workbook!, rulesInto([{ test: 'payee_contains', values: ['shop'], not: false }], category('Food/Groceries').id), null))
+    const [filed] = store.state.workbook!.transactions
+    const cleared = newEntry({ account: filed!.account, date: filed!.date, amount: filed!.amount, payee: filed!.payee, category: null, note: '', labels: [] })
+
+    const clearing = await store.write('Saved', (unit) => writeEntry(unit, store.state.records!, itemizedRow(store.state.workbook!, filed!), cleared, null))
+
+    expect(filedRows(store.state.workbook!)).toMatchObject([{ category: null, categorisedBy: null }])
+    expect(reviewQueue(store.state.workbook!, civil('2026-10-30')).waiting.map((waiting) => waiting.row.id)).toEqual([filed!.id])
+    await store.undo(store.state.writes.find((write) => write.receipt === clearing)!)
+    expect(filedRows(store.state.workbook!)).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
   })
 
   it('makes a rule and files the rows waiting in one write', async () => {

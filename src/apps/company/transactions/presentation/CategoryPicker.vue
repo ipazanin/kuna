@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import type { Category } from '../../workbook/domain/workbook'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
@@ -24,13 +24,11 @@ const props = withDefaults(
 
 const chosen = defineModel<string | undefined>()
 
-/** The menu needs a value for "No category" that is not blank. Slugs are trimmed, so none starts with a space. */
-const NONE = ' none'
-
-const menuValue = computed({
-  get: () => (chosen.value === '' && props.allowNone ? NONE : chosen.value),
-  set: (value: string | undefined) => {
-    chosen.value = value === NONE ? '' : value
+/** The pick as the shared select binds it, blank while no category is picked. */
+const optionalValue = computed({
+  get: () => chosen.value ?? '',
+  set: (value: string) => {
+    chosen.value = value
   },
 })
 
@@ -42,47 +40,48 @@ interface Choice {
   readonly value: string
   /** The category's slug, which the menu shows beside or under the label as room allows. */
   readonly description?: string
-  /** The category's colour, null for "No category". */
-  readonly colour: string | null
+  readonly colour: string
 }
 
-const items = computed<Choice[]>(() => [
-  ...(props.allowNone ? [{ label: words.noCategory, value: NONE, colour: null }] : []),
-  ...props.categories
+const items = computed<Choice[]>(() =>
+  props.categories
     .map((category): Choice => ({ label: names.value.category(category.slug), value: category.slug, description: category.slug, colour: colours.value(category.slug, category.bucket) }))
     .sort((left, right) => naturalOrder(left.label, right.label)),
-])
+)
 
-const picked = computed(() => items.value.find((item) => item.value === menuValue.value) ?? null)
+const picked = computed(() => items.value.find((item) => item.value === chosen.value) ?? null)
+
+const MENU_UI = {
+  content: 'w-max min-w-[max(16rem,var(--reka-combobox-trigger-width))] max-w-[calc(100vw-1.5rem)]',
+  itemWrapper: 'flex-row flex-wrap items-baseline gap-x-3',
+  itemDescription: 'identifier ms-auto',
+}
+const MENU_CONTENT = { align: 'start', collisionPadding: 12 } as const
 </script>
 
 <template>
-  <USelectMenu
-    v-bind="menuValue === undefined ? {} : { modelValue: menuValue }"
+  <OptionalSelect
+    v-model="optionalValue"
     :items="items"
-    value-key="value"
+    :none="allowNone ? words.noCategory : placeholder"
+    :search="words.picker.search"
+    :clearable="allowNone"
     :filter-fields="['label', 'value']"
-    :search-input="{ placeholder: words.picker.search }"
-    :content="{ align: 'start', collisionPadding: 12 }"
-    :ui="{
-      content: 'w-max min-w-[max(16rem,var(--reka-combobox-trigger-width))] max-w-[calc(100vw-1.5rem)]',
-      itemWrapper: 'flex-row flex-wrap items-baseline gap-x-3',
-      itemDescription: 'identifier ms-auto',
-    }"
+    :content="MENU_CONTENT"
+    :ui="MENU_UI"
     :disabled="disabled"
     :loading="loading"
     color="neutral"
     variant="outline"
     class="min-w-48"
-    @update:model-value="menuValue = $event"
   >
     <span v-if="picked" class="flex min-w-0 items-center gap-1.5">
-      <span v-if="picked.colour" class="size-2 shrink-0 rounded-[2px]" :style="{ background: picked.colour }" aria-hidden="true" />
+      <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: picked.colour }" aria-hidden="true" />
       <span class="truncate">{{ picked.label }}</span>
     </span>
-    <span v-else class="text-muted">{{ placeholder }}</span>
+    <span v-else class="text-muted">{{ allowNone ? words.noCategory : placeholder }}</span>
     <template #item-leading="{ item }">
-      <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: item.colour ?? 'transparent' }" aria-hidden="true" />
+      <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: 'colour' in item ? item.colour : 'transparent' }" aria-hidden="true" />
     </template>
-  </USelectMenu>
+  </OptionalSelect>
 </template>

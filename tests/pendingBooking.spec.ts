@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { newEntry, retypedEntry } from '../src/apps/spending/entries/application/entryWrites'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import { payeeCondition } from '../src/apps/spending/workbook/domain/spendingRule'
@@ -169,6 +170,28 @@ describe('a row the bank had not booked yet', () => {
     const hold = waiting(OTP, '2026-10-20', -40, 'PAYMENT 1', { categorisedBy: null, category: null })
     const run = statementDryRun(spendingBook([hold], { rules: [fuel] }), syncOf([synced(OTP, '2026-10-21', -40, 'INA ILICA', { description: 'PAYMENT 1' })]), DAY)
 
+    expect(run.changed.map(({ after, items }) => [after.categorisedBy, items?.map((item) => item.category)])).toEqual([['rule', [category('Transport/Fuel').id]]])
+  })
+
+  it('is filed by the rules again when the bank books it, once a person cleared its category while it was pending', () => {
+    const fuel: SpendingRule = {
+      id: recordIdOf(RULE_RECORDS, 'fuel'),
+      order: 1,
+      conditions: [payeeCondition({ payee: 'INA', counterpartyIban: '' })!],
+      category: category('Transport/Fuel').id,
+      labels: [],
+      stop: false,
+      withdrawal: null,
+      link: null,
+    }
+    const hold = waiting(OTP, '2026-10-20', -40, 'PAYMENT 1')
+    const typed = newEntry({ account: OTP.id, date: hold.date, amount: hold.amount, payee: hold.payee, category: null, note: '', labels: [] })
+    const cleared = retypedEntry({ row: hold, items: wholeItems([hold]) }, typed)
+    const book = spendingBook([cleared.row], { items: [...cleared.items], rules: [fuel] })
+
+    const run = statementDryRun(book, syncOf([synced(OTP, '2026-10-21', -40, 'INA ILICA', { description: 'PAYMENT 1' })]), DAY)
+
+    expect(cleared.row).toMatchObject({ categorisedBy: null, pending: true })
     expect(run.changed.map(({ after, items }) => [after.categorisedBy, items?.map((item) => item.category)])).toEqual([['rule', [category('Transport/Fuel').id]]])
   })
 

@@ -4,10 +4,9 @@ import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 
 import { ASSET_WRITES, newAsset, removeAsset } from '../application/assetWrites'
-import { loanChoices, loanReasonOf, NO_LOAN } from './loanChoices'
+import { loanChoices, loanReasonOf } from './loanChoices'
 import { assetLoans } from '../../loans/application/assetLoans'
 import { assetLink } from '../../overview/domain/assetRoute'
 import { ASSETS_OVERVIEW_ROUTE } from '../../overview/presentation/assetLinks'
@@ -17,7 +16,7 @@ import { ASSET_KINDS, HOUSE_REGIONS } from '../../workbook/domain/asset'
 import type { AssetKind, HouseRegion } from '../../workbook/domain/asset'
 import type { AssetWithValuations } from '../../workbook/domain/readAssetBook'
 import { words as assetsWords } from '../../words'
-import { typedAssetTerms, NO_REGION } from './assetTexts'
+import { typedAssetTerms } from './assetTexts'
 import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
@@ -28,6 +27,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 
 /** Something you own: what it is, when it was bought and for how much, a flat's region or a car's first registration, your part of it, and the bank loan on it, picked from Loans. */
 const open = defineModel<boolean>('open', { required: true })
@@ -42,7 +42,7 @@ const writes = useRecordWrites(store)
 const router = useRouter()
 
 const KIND_OPTIONS = ASSET_KINDS.map((kind) => ({ value: kind, label: valueWords.kinds[kind] }))
-const REGION_ITEMS = [{ label: words.assetDialog.noRegion, value: NO_REGION }, ...HOUSE_REGIONS.map((region) => ({ label: valueWords.regions[region], value: region }))]
+const REGION_ITEMS = HOUSE_REGIONS.map((region) => ({ label: valueWords.regions[region], value: region }))
 
 const loans = computed(() => assetLoans(today()))
 const loanItems = computed(() => loanChoices(loans.value, store.state.workbook ?? { assets: [] }, props.entry?.asset ?? null))
@@ -52,9 +52,9 @@ const name = ref('')
 const kind = ref<AssetKind>('home')
 const bought = ref('')
 const price = ref('')
-const region = ref<HouseRegion | typeof NO_REGION>(NO_REGION)
+const region = ref<HouseRegion | ''>('')
 const firstRegistration = ref('')
-const loan = ref(NO_LOAN)
+const loan = ref('')
 const share = ref('')
 const note = ref('')
 const tried = ref(false)
@@ -66,9 +66,9 @@ watch(open, (opened) => {
   kind.value = asset?.kind ?? 'home'
   bought.value = asset?.bought ?? ''
   price.value = asset === null || asset.price === null ? '' : plainAmount(asset.price)
-  region.value = asset?.region ?? NO_REGION
+  region.value = asset?.region ?? ''
   firstRegistration.value = asset?.firstRegistration ?? ''
-  loan.value = asset?.loan ?? NO_LOAN
+  loan.value = asset?.loan ?? ''
   share.value = partShown(asset?.share)
   note.value = asset?.note ?? ''
   tried.value = false
@@ -83,7 +83,7 @@ async function save(): Promise<void> {
   tried.value = true
   const { terms } = typed.value
   if (terms === null) return
-  const asset = newAsset({ ...terms, loan: loan.value === NO_LOAN ? null : loan.value, note: note.value })
+  const asset = newAsset({ ...terms, loan: loan.value === '' ? null : loan.value, note: note.value })
   const before = props.entry?.asset ?? null
   if (before === null) {
     if (await writes.write(words.assetDialog.added, (unit) => unit.of(ASSET_WRITES).add(asset), { failedTitle: assetsWords.form.notAdded })) {
@@ -122,7 +122,7 @@ async function remove(): Promise<void> {
         <MoneyInput v-model="price" :placeholder="assetsWords.form.amountPlaceholder" class="w-full" data-testid="asset-price" />
       </UFormField>
       <UFormField v-if="kind === 'home'" :label="words.assetDialog.region" :help="valueWords.indexDefinition" class="sm:col-span-2">
-        <USelect v-model="region" :items="REGION_ITEMS" class="w-full" data-testid="asset-region" />
+        <OptionalSelect v-model="region" :items="REGION_ITEMS" :none="words.assetDialog.noRegion" :search="false" class="w-full" data-testid="asset-region" />
       </UFormField>
       <UFormField
         v-if="kind === 'car'"
@@ -137,7 +137,7 @@ async function remove(): Promise<void> {
         <UInput v-model="share" inputmode="decimal" placeholder="100" class="w-full" data-testid="asset-share" />
       </UFormField>
       <UFormField :label="words.assetDialog.loan" :help="loanReason" class="sm:col-span-2">
-        <USelect v-model="loan" :items="loanItems" :disabled="loanReason !== ''" class="w-full" data-testid="asset-loan" />
+        <OptionalSelect v-model="loan" :items="loanItems" :none="words.assetDialog.noLoan" :search="false" :disabled="loanReason !== ''" class="w-full" data-testid="asset-loan" />
       </UFormField>
       <UFormField :label="assetsWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" data-testid="asset-note" />

@@ -16,7 +16,7 @@ import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { EventChoice } from '../../workbook/domain/event'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { RowLink } from '../../workbook/domain/rowLink'
-import { isSplit, largestItem, linkOfItems, unlinkedItems, wholeItemOf } from '../../workbook/domain/rowItems'
+import { filerAfterTyping, isSplit, largestItem, linkOfItems, unlinkedItems, wholeItemOf } from '../../workbook/domain/rowItems'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -58,13 +58,13 @@ export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' 
 /**
  * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still skips
  * it. A row not split keeps its one item's id and link and takes the typed amount, category, note, labels, event and payee it
- * counts under, and a category you changed is yours from then on. A split row keeps its items, each with the labels, event and
+ * counts under. Who filed it follows `filerAfterTyping`. A split row keeps its items, each with the labels, event and
  * payee of the typed part of its id, and a receipt's line takes that part's category and note too, while its amount stays the
  * receipt's. A part left counting under the entry's new payee keeps no payee of its own. A part takes the typed shared cost, and one
  * typed with none stays in its own while it keeps its category, so filing it elsewhere takes it out.
  */
 export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
-  const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before.row
+  const { description, counterpartyIban, importKey, statement, movedAt, pocket, cashWithdrawal, pending, id, source } = before.row
   const [held] = before.items
   const [filing] = typed.items
   const whole = held !== undefined && filing !== undefined && !isSplit(before.items)
@@ -75,8 +75,8 @@ export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedR
     const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, sharedCost: typedPart.sharedCost, note: typedPart.note }
     return { ...part, labels: typedPart?.labels ?? part.labels, event: typedPart?.event ?? part.event, ...refiled, payee: ownPayee(typedPart?.payee ?? part.payee) }
   })
-  const filedAnew = whole ? held.category !== filing.category : parts.some((part, place) => part.category !== before.items[place]?.category)
-  const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: filedAnew ? 'person' : before.row.categorisedBy }
+  const categorisedBy = filerAfterTyping(before.row, before.items, whole ? [filing] : parts)
+  const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, cashWithdrawal, pending, id, source, categorisedBy }
   if (!whole) return { row, items: parts }
   return {
     row,
