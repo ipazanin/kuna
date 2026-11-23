@@ -19,6 +19,7 @@ import { ownerLoans } from '../ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { filedShareCapital } from '../shareCapital'
 import { words } from './words'
 
 /**
@@ -113,22 +114,40 @@ function unexplainedItems(accrual: AccrualYear): YearEndOpenItem[] {
     [accrual.bridge.unexplainedBeforeTax, words.openItems.beforeTaxDiffers],
     [accrual.bridge.unexplainedAfterTax, words.openItems.afterTaxDiffers],
   ]
-  return gaps.flatMap(([gap, title]): YearEndOpenItem[] =>
-    gap === null
+  const balance: YearEndOpenItem[] =
+    accrual.balanceGap === null
       ? []
       : [
           {
-            key: gap.id,
+            key: 'unexplained-balance',
             group: 'unexplained',
-            title,
+            title: words.openItems.balanceDiffers,
             on: null,
             settledBy: words.openItems.findTheRows,
-            figure: gap.figure,
+            figure: accrual.balanceGap,
             rules: [],
             settled: false,
           },
-        ],
-  )
+        ]
+  return [
+    ...gaps.flatMap(([gap, title]): YearEndOpenItem[] =>
+      gap === null
+        ? []
+        : [
+            {
+              key: gap.id,
+              group: 'unexplained',
+              title,
+              on: null,
+              settledBy: words.openItems.findTheRows,
+              figure: gap.figure,
+              rules: [],
+              settled: false,
+            },
+          ],
+    ),
+    ...balance,
+  ]
 }
 
 function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
@@ -252,8 +271,7 @@ function assetDecisionItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules
   const years = decision.windowYearsFromRegistration.count
   // Compared as text, so an anniversary on 29 February needs no calendar day of its own.
   const anniversary = `${yearOf(registered) + years}${registered.slice(4)}`
-  const capitalLine = workbook.yearEndLines.find((line) => line.year === accrual.year && line.statement === 'balance' && line.line === 'share-capital')
-  const capital = capitalLine?.figure.kind === 'money' ? capitalLine.figure.amount : rules('hr.ztd.min-share-capital', registered).value.minimumShareCapital.cents
+  const capital = filedShareCapital(workbook.yearEndLines, accrual.year)?.amount ?? rules('hr.ztd.min-share-capital', registered).value.minimumShareCapital.cents
   const above = moneyAt(capital, decision.priceShareOfCapital.basisPoints)
   const purchases = accrual.bookings.filter(
     (entry) => entry.treatment === 'capitalised' && yearOf(entry.booking.date) === accrual.year && entry.booking.date < anniversary && negateMoney(entry.booking.amount) > above,

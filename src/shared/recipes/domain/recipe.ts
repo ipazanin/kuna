@@ -29,8 +29,20 @@ export type RecipeFile = XmlFile | TableFile
 /** Where rows are in a file, and what each row is. A row no kind takes is asked about, never guessed at. */
 export interface RecipeSection {
   readonly name: string
-  /** A section element and its row element, such as `Trades/Trade`. A table file leaves it blank. */
+  /**
+   * A section element and its row element, such as `Trades/Trade`, or for a section `within` another only the row element,
+   * such as `Ntry`. A table file leaves it blank.
+   */
   readonly rows: string
+  /** An XML section whose rows are children of each row of an earlier section, such as a statement's entries, so each row knows whose it is. */
+  readonly within?: string
+  /**
+   * How an XML row's columns are read: by default as the row element's attributes, and with `elements` as paths of child
+   * elements from the row, each step taking the first child of its name. A column such as `Acct/Id/IBAN` reads the text of
+   * the element it ends on, `Amt@Ccy` an attribute of it, and a last step written `Ustrd*` the texts of every such child,
+   * joined with a space. A path that finds no element reads as a blank cell.
+   */
+  readonly cells?: 'elements'
   /** Only rows that pass every test belong to the section. Other rows of the file are not the document's business. */
   readonly keep: readonly RowTest[]
   /** The columns a question about a row shows, each only where the row has it. */
@@ -92,3 +104,10 @@ export type RecipeMisfit =
   | { readonly kind: 'no-root'; readonly root: string }
   | { readonly kind: 'no-section'; readonly section: string }
   | { readonly kind: 'no-column'; readonly section: string; readonly column: string }
+
+/**
+ * A file's rows by the recipe's sections, or why it is not that kind of file. `parents` gives, for each section within another,
+ * the place among that section's rows of the row each of its rows sits in.
+ */
+export type RecipeFileReading =
+  { readonly kind: 'read'; readonly rows: SourceRows; readonly parents: ReadonlyMap<string, readonly number[]> } | { readonly kind: 'misfit'; readonly misfit: RecipeMisfit }

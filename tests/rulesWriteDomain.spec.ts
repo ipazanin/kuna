@@ -21,7 +21,7 @@ function rule(id: string, order: number, conditions: RuleCondition[], category =
   return { id, order, enabled: true, conditions, category, confidence: 'rule', note: '' }
 }
 
-const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', sources: BY_HAND_SOURCES }], clients: [], settings: DEFAULT_SETTINGS })
+const context = categorisationContextOf({ accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', bank: '', sources: BY_HAND_SOURCES }], clients: [], settings: DEFAULT_SETTINGS })
 
 describe('rule fields', () => {
   it('reads back as the rule they were written from', () => {
@@ -199,7 +199,7 @@ describe('rule coverage', () => {
   it('groups card purchases settled against the bank account by their merchants', () => {
     const settlement = 'XX00FAKE0000000003'
     const cardContext = categorisationContextOf({
-      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', sources: BY_HAND_SOURCES }],
+      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', bank: '', sources: BY_HAND_SOURCES }],
       clients: [],
       settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [settlement] },
     })

@@ -56,7 +56,7 @@ describe('readWorkbook', () => {
         id: recordIdOf(LEDGER_RECORDS, JSON.stringify(['main', 'FAKE-1'])),
       }),
     ])
-    expect(workbook.accounts).toEqual([{ slug: 'main', label: '', iban: 'HR1234567890123456789', currency: '', sources: BY_HAND_SOURCES }])
+    expect(workbook.accounts).toEqual([{ slug: 'main', label: '', iban: 'HR1234567890123456789', currency: '', bank: '', sources: BY_HAND_SOURCES }])
   })
 
   it('reads the optional label of a category, keeping its slug as the identity', () => {

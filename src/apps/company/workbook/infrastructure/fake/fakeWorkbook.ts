@@ -303,7 +303,7 @@ export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: Fak
     setting: [...(records.setting ?? []), recordFields(setting(PAYMENTS_PLACED))],
     item: withFakeLabels(withInvoicePayments(before, records.item ?? [])),
     label: FAKE_LABELS,
-    account: withAccountSources(records.account ?? [], records['ledger-row'] ?? []),
+    account: withAccountBanks(withAccountSources(records.account ?? [], records['ledger-row'] ?? [])),
     'hr-doo.owner-advance': withAdvanceLabels(withStaffAdvances(records['hr-doo.owner-advance'] ?? [], staff)),
   }
 }
@@ -325,6 +325,14 @@ function withAccountSources(accounts: readonly RecordFields[], ledger: readonly 
   const fileFrom = newest === '' ? '' : addDays(parseCivilDate(newest)!, 1)
   return accounts.map((account) => (account.account === 'main' ? { ...account, sources: `mail ${first}, provider-file ${fileFrom}` } : { ...account, sources: 'by-hand' }))
 }
+
+/** The main account at the made-up bank, whose name a table recipe of its exports finds it by. */
+function withAccountBanks(accounts: readonly RecordFields[]): readonly RecordFields[] {
+  return accounts.map((account) => (account.account === 'main' ? { ...account, bank: FAKE_BANK } : account))
+}
+
+/** The made-up bank the main account is at. */
+export const FAKE_BANK = 'Example banka'
 
 /**
  * The owner advances with the staff's after them, which books on the items tab keep open. Books from before items leave them out,

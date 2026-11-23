@@ -16,7 +16,7 @@ export const SPENDING_ACCOUNT = { record: new Set(['sources', 'cards']), cells: 
 export const INVESTMENT_ACCOUNT = { record: new Set(['sources']), cells: new Set(['sources', 'rows_from', 'starts_on', 'also_from']) }
 /** A Company item leaves out its labels, which company.labels hashes. Its invoice is a figure, since what an invoice is owed reads it. */
 export const COMPANY_ITEM = { record: new Set(['labels']), cells: new Set(['label_ids']) }
-export const COMPANY_ACCOUNT = { record: new Set(['sources']), cells: new Set(['sources', 'rows_from', 'starts_on', 'also_from']) }
+export const COMPANY_ACCOUNT = { record: new Set(['sources', 'bank']), cells: new Set(['sources', 'rows_from', 'starts_on', 'also_from', 'bank']) }
 /** A cost the owner paid leaves out its labels, which company.labels hashes. */
 export const COMPANY_ADVANCE = { record: new Set(['labels']), cells: new Set(['label_ids']) }
 export const COMPANY_LEDGER_ROW = {

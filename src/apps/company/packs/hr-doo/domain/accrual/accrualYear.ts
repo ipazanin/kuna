@@ -96,6 +96,8 @@ export interface AccrualYear {
   /** Every adjustment: those in the bridge, those to the tax base and the placements. */
   readonly adjustments: readonly AccrualAdjustment[]
   readonly bridge: AccrualBridge
+  /** What the balance sheet's other lines leave beyond the filed share capital, or null when they agree or none is filed. */
+  readonly balanceGap: TracedFigure | null
   readonly taxBase: TaxBase
   readonly liability: CitLiability
   /** Each category's accrual figure in the year, for the konto lines that name it. */
@@ -498,6 +500,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
       unexplainedBeforeTax: unexplained('unexplained-before-tax', 'profit-before-tax', profitBeforeTax),
       unexplainedAfterTax: unexplained('unexplained-after-tax', 'profit-after-tax', profitAfterTax),
     },
+    balanceGap: balance.unexplained,
     taxBase: base,
     liability,
     categoryTotals,

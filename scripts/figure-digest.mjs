@@ -325,19 +325,21 @@ if (companyAsked) {
   const rates = (await ratesOfInput(installedPack().ratesDemand(booked), options.fake !== undefined)).everyday
 
   // company.labels hashes the labels and what each item carries, so the read groups leave them out.
-  const { labels: _labelRecords, ...recordsWithoutLabels } = records
-  const { labels: _labels, itemLabels: _itemLabels, ...workbookWithoutLabels } = raw
+  const { labels: _labelRecords, recipes: _recipeRecords, ...recordsWithoutLabels } = records
+  const { labels: _labels, itemLabels: _itemLabels, recipes: _recipes, ...workbookWithoutLabels } = raw
   group('read.records', companyFiguresOf(recordsWithoutLabels))
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
   // Where each account's rows come from has a group of its own, so read.workbook stays as it was before accounts said it.
   // The day the bank's statement mail was read up to is where the next search starts, which moves no figure.
   const { statementsMailReadTo: _readTo, ...settingsWithoutReadTo } = raw.settings
-  const withoutSources = { ...workbookWithoutLabels, settings: settingsWithoutReadTo, accounts: raw.accounts.map(({ sources: _sources, ...account }) => account) }
+  const withoutSources = { ...workbookWithoutLabels, settings: settingsWithoutReadTo, accounts: raw.accounts.map(({ sources: _sources, bank: _bank, ...account }) => account) }
   group('read.workbook', [withoutSources, raw.categories.map((category) => [category.label, category.family, category.colour.stored, category.roles])])
   group(
     'read.sources',
     raw.accounts.map((account) => account.sources),
   )
+  // The bank of each account and the recipes Import reads files with move no figure, so read.records and read.workbook leave them out.
+  group('read.recipes', [raw.accounts.map((account) => account.bank), raw.recipes])
   group('settings.problems', booked.problems)
   group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
   group('company.labels', () => [

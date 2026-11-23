@@ -422,3 +422,26 @@ describe('accrualYear with an owner share', () => {
     expect(lineAmount(closed, 'balance', 'share-capital')).toBe(euros(2500))
   })
 })
+
+describe('accrualYear share capital', () => {
+  it('takes the share capital the balance sheet filed, and shows what the other lines leave beyond it as a difference', () => {
+    // The studio's other lines leave 2,500.00, which matches the capital paid in, so a filed 3,000.00 leaves 500.00 unexplained.
+    const filed = accrual(2025, exampleStudio({ yearEndLines: [yearEndLine(2025, 'balance', 'share-capital', 3000)] }))
+
+    expect(lineAmount(filed, 'balance', 'share-capital')).toBe(euros(3000))
+    expect(filed.balanceGap?.amount).toBe(euros(-500))
+    expect(filed.balanceGap?.steps.map((entry) => entry.amount)).toEqual([euros(2500), euros(-3000)])
+  })
+
+  it('keeps a filed share capital in a later year, and shows no difference while the lines agree', () => {
+    const later = accrual(2025, exampleStudio({ yearEndLines: [yearEndLine(2024, 'balance', 'share-capital', 2500)] }))
+
+    expect(lineAmount(later, 'balance', 'share-capital')).toBe(euros(2500))
+    expect(later.balanceGap).toBeNull()
+  })
+
+  it('works the share capital out from the other lines while no balance sheet states it', () => {
+    expect(accrual(2025).balanceGap).toBeNull()
+    expect(lineAmount(accrual(2025), 'balance', 'share-capital')).toBe(euros(2500))
+  })
+})

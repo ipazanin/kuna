@@ -12,7 +12,7 @@ import type { TestMail } from './fixtures/mailbox'
 
 const MAIN_IBAN = 'XX00FAKE0000000001'
 const OTHER_IBAN = 'XX00FAKE0000000099'
-const MAIN: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', sources: [{ source: 'mail', from: civil('2026-10-01') }] }
+const MAIN: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', bank: '', sources: [{ source: 'mail', from: civil('2026-10-01') }] }
 
 /** A camt.053 statement of one entry, numbered `sequence` and made on `day`. */
 function camt(iban: string, sequence: number, day: string): string {

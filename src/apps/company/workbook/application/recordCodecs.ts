@@ -10,6 +10,7 @@ import { HELD_STATEMENT_CODEC } from '../domain/heldStatementsReading'
 import { INVOICE_CODEC } from '../domain/invoicesReading'
 import { LABEL_CODEC } from '../domain/labelReading'
 import { LEDGER_CODEC } from '../domain/ledgerReading'
+import { RECIPE_CODEC } from '../domain/recipesReading'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { ITEM_CODEC } from '../domain/splitsReading'
@@ -29,6 +30,7 @@ const CORE_CODECS = [
   LABEL_CODEC,
   DISMISSAL_CODEC,
   HELD_STATEMENT_CODEC,
+  RECIPE_CODEC,
 ] as readonly RecordCodec<unknown>[]
 
 /** How every kind is stored: core's kinds, then the installed pack's. */

@@ -5,16 +5,20 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { listInWords } from '../../../../shared/text/listInWords'
+import { plural } from '../../../../shared/text/translation'
+import { sharedBanks } from '../../workbook/domain/accountBanks'
 import { slugInWords } from '../../workbook/domain/slugInWords'
 import type { SlugUses } from '../../workbook/domain/slug'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { NEW_ACCOUNT_DRAFT, accountDraftErrors, accountDraftsOf, accountsOfDrafts, sourcesOfDraft } from '../domain/accountDrafts'
 import type { AccountDraft } from '../domain/accountDrafts'
-import type { CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
+import type { Account, CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
 import type { PeriodDraft } from '../../../../shared/app/periodDrafts'
 import type { HandoverWords } from '../../../../shared/ui/sourceHandover'
+import BankNameField from '../../../../shared/ui/BankNameField.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import SourceHandoverAlert from '../../../../shared/ui/SourceHandoverAlert.vue'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { words } from './words'
@@ -30,8 +34,10 @@ const props = defineProps<{
   saving: boolean
   /** The file takes no changes, which switches its Save off. */
   refused: boolean
-  /** Where each account's rows come from on which days, by its name, as the workbook reads it. */
-  sources: ReadonlyMap<string, readonly CompanyPeriod[]>
+  /** The accounts as the workbook reads them, with where each one's rows come from on which days and its bank. */
+  accounts: readonly Pick<Account, 'slug' | 'sources' | 'bank'>[]
+  /** The bank names a bank field suggests. */
+  banks: readonly string[]
   /** Why a saved account's new periods may not be written, or the rows saving them takes out of the ledger. */
   periodsCheck: (account: string, after: readonly CompanyPeriod[]) => { readonly fault: string | null; readonly warning: HandoverWords | null }
 }>()
@@ -41,7 +47,7 @@ const emit = defineEmits<{
 }>()
 
 const stored = computed(() => storedOf(props.records))
-const savedDrafts = computed(() => accountDraftsOf(stored.value, props.sources))
+const savedDrafts = computed(() => accountDraftsOf(stored.value, props.accounts))
 const drafts = ref<AccountDraft[]>(savedDrafts.value)
 watch(savedDrafts, (saved) => {
   drafts.value = saved
@@ -66,6 +72,14 @@ const checks = computed(
     ),
 )
 
+/** Beside each row whose bank and currency another row shares, as typed, why a recipe for that bank would refuse its files. */
+const sharedBankLines = computed(() =>
+  sharedBanks(
+    drafts.value.map((draft) => ({ bank: draft.bank.trim(), currency: draft.currency.trim() })),
+    props.currency,
+  ).map((shared) => (shared === null ? null : plural(words.accounts.sharedBank(shared.bank, shared.currency, shared.accounts), shared.accounts))),
+)
+
 /** Each row's faults, with periods the write would refuse said under them. */
 const errors = computed(() => {
   const found = new Map(accountDraftErrors(drafts.value, usedNames.value))
@@ -75,7 +89,7 @@ const errors = computed(() => {
   return found
 })
 
-function update<Field extends 'account' | 'label' | 'iban' | 'currency' | 'periods'>(index: number, field: Field, value: AccountDraft[Field]): void {
+function update<Field extends 'account' | 'label' | 'iban' | 'currency' | 'bank' | 'periods'>(index: number, field: Field, value: AccountDraft[Field]): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: value } : draft))
 }
 
@@ -135,6 +149,7 @@ function save(): void {
           <th scope="col" class="text-start">{{ words.accounts.columns.label }}</th>
           <th scope="col" class="text-start">{{ words.accounts.columns.iban }}</th>
           <th scope="col" class="text-start">{{ words.accounts.columns.currency }}</th>
+          <th scope="col" class="text-start">{{ words.accounts.columns.bank }}</th>
           <th scope="col">
             <span class="sr-only">{{ words.accounts.columns.delete }}</span>
           </th>
@@ -142,7 +157,7 @@ function save(): void {
       </thead>
       <tbody>
         <tr v-if="drafts.length === 0">
-          <td colspan="5" class="text-muted">{{ words.accounts.none }}</td>
+          <td colspan="6" class="text-muted">{{ words.accounts.none }}</td>
         </tr>
         <template v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`">
           <tr data-testid="account-row">
@@ -187,6 +202,19 @@ function save(): void {
               <p v-if="errors.get(index)?.currency" class="field-error">{{ errors.get(index)?.currency }}</p>
             </td>
             <td>
+              <div class="w-48">
+                <BankNameField
+                  :model-value="draft.bank"
+                  :banks="banks"
+                  :aria-label="words.accounts.columns.bank"
+                  size="sm"
+                  data-testid="account-bank"
+                  @update:model-value="update(index, 'bank', $event)"
+                />
+                <NoteLine v-if="sharedBankLines[index]" tone="warning" class="mt-1 whitespace-normal" data-testid="account-shared-bank">{{ sharedBankLines[index] }}</NoteLine>
+              </div>
+            </td>
+            <td>
               <UButton
                 icon="i-lucide-trash-2"
                 color="neutral"
@@ -200,7 +228,7 @@ function save(): void {
             </td>
           </tr>
           <tr class="sources-row" data-testid="account-sources">
-            <td colspan="5" class="cell-wraps">
+            <td colspan="6" class="cell-wraps">
               <div class="sources sticky left-3 flex flex-col gap-2">
                 <div v-for="(period, place) in draft.periods" :key="place" class="flex flex-wrap items-center gap-x-4 gap-y-2" role="group" :aria-label="words.accounts.sources.source(place + 1)">
                   <div class="flex items-center gap-2">

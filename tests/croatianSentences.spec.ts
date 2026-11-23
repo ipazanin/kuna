@@ -337,7 +337,7 @@ describe('Company names Kuna seeds, in Croatian', () => {
 
   it('keeps a label the file gives and the words of a slug Kuna never seeded', async () => {
     const { displayName, displayNamesOf } = await inCroatian(() => import('../src/apps/company/workbook/domain/displayName'))
-    const names = displayNamesOf({ categories: [], accounts: [{ slug: 'travel', label: '', iban: '', currency: '', sources: BY_HAND_SOURCES }] })
+    const names = displayNamesOf({ categories: [], accounts: [{ slug: 'travel', label: '', iban: '', currency: '', bank: '', sources: BY_HAND_SOURCES }] })
 
     expect(displayName('office-rent', 'Ured u Splitu')).toBe('Ured u Splitu')
     expect(displayName('ai-services')).toBe('AI services')

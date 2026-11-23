@@ -30,6 +30,7 @@ import { moneyLine } from './accrualLines'
 import type { MoneyLine } from './accrualLines'
 import { asPlaced, placementJudgement } from './closedYear'
 import { revenueByDelivery } from './revenueByDelivery'
+import { filedShareCapital } from '../shareCapital'
 import { words } from './words'
 
 export interface BalanceSheetContext {
@@ -61,14 +62,17 @@ export interface BalanceSheet {
   readonly placements: readonly AccrualAdjustment[]
   /** Before any placement moves part of another liability onto its line. */
   readonly grantDeferred: MoneyLine
+  /** What the other lines leave beyond the share capital the accountant filed, or null when they agree or no capital is filed. */
+  readonly unexplained: TracedFigure | null
 }
 
 const LIABILITY_LINES = ['payables-suppliers', 'payables-employees', 'payables-taxes', 'payables-loans', 'accruals-deferred-income'] as const
 const RECEIVABLE_LINES = ['receivables-trade', 'receivables-members-employees', 'receivables-state', 'receivables-other', 'prepaid-accrued-income'] as const
 
 /**
- * The balance sheet at 31 December. Share capital is what the balance sheet leaves once the other
- * lines are in, so it equals the capital paid in only while every other line is right.
+ * The balance sheet at 31 December. Share capital is the company's registered capital as the accountant's latest balance sheet
+ * states it, and whatever the other lines leave beyond it is not explained, so a wrong line shows as a difference rather than
+ * hiding in the capital. Before any year-end tab states the capital, it is what the other lines leave for it.
  */
 export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const { workbook, year, bookings, books, rules } = context
@@ -209,19 +213,31 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   put('profit-of-year', context.profitAfterTax, context.profitJudgements)
 
   const equity = broughtForward(context)
+  let unexplained: TracedFigure | null = null
   if (equity !== null) {
     put('reserves', equity.reserves)
     put('retained-earnings', equity.retained)
     const liabilities = totalOf(words.balance.liabilities, liabilityLines)
     const steps = [totalAssets, deducted(liabilities), deducted(context.profitAfterTax), deducted(equity.retained), deducted(equity.reserves)]
-    const shareCapital = tracedFigure(words.balance.shareCapital, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps)
-    put('share-capital', shareCapital, [...judgementsOf([...assetLines, ...liabilityLines]), ...context.profitJudgements])
+    const leftOver = tracedFigure(words.balance.shareCapital, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps)
+    const filed = filedShareCapital(workbook.yearEndLines, year)
+    const judgements = [...judgementsOf([...assetLines, ...liabilityLines]), ...context.profitJudgements]
+    if (filed === null) {
+      put('share-capital', leftOver, judgements)
+    } else {
+      const capital = tracedFigure(words.balance.shareCapitalFiled(filed.year), filed.amount, 'accountant', [])
+      put('share-capital', capital)
+      if (leftOver.amount !== capital.amount) {
+        unexplained = tracedFigure(words.balance.notBalanced, subtractMoney(leftOver.amount, capital.amount), 'ledger', leftOver.rules, [leftOver, deducted(capital)])
+      }
+    }
   }
 
   return {
     lines: [...ours].map(([line, entry]) => moneyLine('balance', line, entry.figure, entry.judgements)),
     placements: placements.map((placement) => placement.adjustment),
     grantDeferred: moneyLine('grant', 'deferred-at-year-end', deferred, deferredJudgements),
+    unexplained,
   }
 }
 

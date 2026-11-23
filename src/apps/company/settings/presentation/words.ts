@@ -88,7 +88,7 @@ export const en = {
     count: (count: number): EnglishForms => ({ one: `${count} account`, other: `${count} accounts` }),
     subtitle: (currency: string) =>
       `Your bank accounts, by the names ledger rows use. A blank currency means ${currency}. An account the bank's statements fill takes them from the statements folder, by mail or dropped there, and no sheet or copied row.`,
-    columns: { account: 'Account', label: 'Shown as', iban: 'IBAN', currency: 'Currency', rowsFrom: 'Rows come in', startsOn: 'From', delete: 'Delete' },
+    columns: { account: 'Account', label: 'Shown as', iban: 'IBAN', currency: 'Currency', bank: 'Bank', rowsFrom: 'Rows come in', startsOn: 'From', delete: 'Delete' },
     rowsFrom: { mail: "Bank's statements", providerFile: 'Camt file you import', byHand: 'By hand' },
     sources: {
       firstFrom: 'From, blank for its start',
@@ -112,6 +112,10 @@ export const en = {
       brings: 'The new source brings its own rows. Undo puts these back until it does.',
     },
     none: 'No accounts yet. Add the accounts your ledger rows name.',
+    sharedBank: (bank: string, currency: string, count: number): EnglishForms => ({
+      one: `${bank} holds ${count} ${currency} account, so a recipe cannot tell which one a file is for.`,
+      other: `${bank} holds ${count} ${currency} accounts, so a recipe cannot tell which one a file is for.`,
+    }),
     removeNew: 'Remove this new account',
     deleteName: (name: string) => `Delete ${name || 'this account'}`,
     add: 'Add account',
@@ -335,7 +339,7 @@ export const hr: Translation<typeof en> = {
     count: (count) => ({ one: `${count} račun`, few: `${count} računa`, other: `${count} računa` }),
     subtitle: (currency) =>
       `Vaši računi u banci, po nazivima koje koriste stavke evidencije. Prazna valuta znači ${currency}. Račun koji pune izvodi banke dobiva ih iz mape izvoda, poštom ili spremljene ondje, a ne prima tablicu ni prepisane stavke.`,
-    columns: { account: 'Račun', label: 'Prikazuje se kao', iban: 'IBAN', currency: 'Valuta', rowsFrom: 'Stavke dolaze', startsOn: 'Od', delete: 'Obriši' },
+    columns: { account: 'Račun', label: 'Prikazuje se kao', iban: 'IBAN', currency: 'Valuta', bank: 'Banka', rowsFrom: 'Stavke dolaze', startsOn: 'Od', delete: 'Obriši' },
     rowsFrom: { mail: 'Izvodi banke', providerFile: 'Camt datoteka koju uvezete', byHand: 'Ručno' },
     sources: {
       firstFrom: 'Od, prazno za njegov početak',
@@ -360,6 +364,11 @@ export const hr: Translation<typeof en> = {
       brings: 'Novi izvor donosi svoje stavke. Poništavanje vraća ove dok ih ne donese.',
     },
     none: 'Još nema računa. Dodajte račune koje navode stavke evidencije.',
+    sharedBank: (bank, currency, count) => ({
+      one: `${bank} ima ${count} račun u valuti ${currency}, pa recept ne može razaznati za koji je datoteka.`,
+      few: `${bank} ima ${count} računa u valuti ${currency}, pa recept ne može razaznati za koji je datoteka.`,
+      other: `${bank} ima ${count} računa u valuti ${currency}, pa recept ne može razaznati za koji je datoteka.`,
+    }),
     removeNew: 'Ukloni ovaj novi račun',
     deleteName: (name) => (name === '' ? 'Obriši ovaj račun' : `Obriši „${name}”`),
     add: 'Dodaj račun',

@@ -14,8 +14,8 @@ import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromCents } from '../src/shared/money/money'
 import { sheetJs } from '../src/shared/xlsx/sheetGrids'
 import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
-import { fileShapeOf } from '../src/apps/company/imports/domain/profileGuess'
-import { readTabularStatement } from '../src/apps/company/imports/domain/tabularStatement'
+import { fileShapeOf } from '../src/apps/company/imports/domain/recipeGuess'
+import { tableRecipe, withAccountBank } from './fixtures/companyRecipes'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
@@ -183,16 +183,22 @@ describe.each([
     for (const iban of [ACCOUNT_IBAN, PAYER_IBAN, TELECOM_IBAN]) expect(sent).not.toContain(iban)
   })
 
-  it("is read on Import by the profile it guesses, each day off the cell's serial, and runs on from the opening it gives", async () => {
+  it("is read on Import by the recipe it guesses, each day as the sheet's own day cell, and runs on from the opening it gives", async () => {
     const bytes = await statementSheet(bookType)
     const loaded = await loadImportFile(name, bytes.buffer)
     if (loaded.kind !== 'table') throw new Error('expected a spreadsheet')
-    const shape = fileShapeOf(loaded.grid)
+    const shape = fileShapeOf(loaded.cells)
 
     expect(shape?.headerRow).toBe(3)
-    expect(shape?.guess).toMatchObject({ date: 'Datum knjiženja', amount: { debit: 'Isplata', credit: 'Uplata' }, balance: 'Stanje', counterpartyIban: 'IBAN primatelja / platitelja' })
-    const reading = readTabularStatement(loaded.grid, { ...shape!.guess, name: 'primjer', account: 'main' }, name, 'e'.repeat(64))
-    if (!('statement' in reading)) throw new Error(reading.refusal)
+    expect(shape?.guess).toMatchObject({
+      date: { column: 'Datum knjiženja', format: 'yyyy-MM-dd HH:mm:ss' },
+      amount: { debit: 'Isplata', credit: 'Uplata' },
+      mark: 'point',
+      columns: { balance: 'Stanje', counterpartyIban: 'IBAN primatelja / platitelja' },
+    })
+    const recipe = tableRecipe({ ...shape!.guess, name: 'primjer' }, 'Primjer banka')
+    const [reading] = statementReadings(loaded, withAccountBank(workbook, 'main', 'Primjer banka'), recipe)
+    if (reading === undefined || !('statement' in reading)) throw new Error(JSON.stringify(reading))
     expect(reading.statement.rows.map((row) => [row.date, row.amount, row.balance])).toEqual([
       ['2031-11-01', moneyFromCents(50_000), moneyFromCents(150_000)],
       ['2031-11-02', moneyFromCents(-40_000), moneyFromCents(110_000)],

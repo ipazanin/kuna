@@ -31,7 +31,7 @@ export const en = {
     noEntries: 'The statement has no booked entries, so importing it writes nothing.',
     allHeld: 'Every entry is on the ledger already, so importing it writes nothing.',
     importedBefore: (label: string, noneMatch: boolean) =>
-      `Rows of ${label} are on the ledger already, so this file was imported before, and ${noneMatch ? 'none' : 'only some'} of its entries match them now, such as after a change to its profile. Nothing of it is written.`,
+      `Rows of ${label} are on the ledger already, so this file was imported before, and ${noneMatch ? 'none' : 'only some'} of its entries match them now, such as after a change to its recipe. Nothing of it is written.`,
     gap: 'Rows the ledger lacks sit between rows it already holds, so the statement does not continue where the ledger leaves the account. Nothing of it is written.',
     partlyHeld: (held: number, fresh: number) => {
       const onLedger = plural({ one: `${held} entry is on the ledger already.`, other: `${held} entries are on the ledger already.` }, held)
@@ -79,7 +79,7 @@ export const hr: Translation<typeof en> = {
     noEntries: 'Izvod nema proknjiženih stavki, pa njegov uvoz ništa ne upisuje.',
     allHeld: 'Sve su stavke već u evidenciji, pa uvoz ništa ne upisuje.',
     importedBefore: (label, noneMatch) =>
-      `Stavke izvoda ${label} već su u evidenciji, pa je ova datoteka već uvezena, a ${noneMatch ? 'nijedna njezina stavka sada im ne odgovara' : 'samo im neke njezine stavke sada odgovaraju'}, na primjer nakon promjene profila. Ništa se iz nje ne upisuje.`,
+      `Stavke izvoda ${label} već su u evidenciji, pa je ova datoteka već uvezena, a ${noneMatch ? 'nijedna njezina stavka sada im ne odgovara' : 'samo im neke njezine stavke sada odgovaraju'}, na primjer nakon promjene recepta. Ništa se iz nje ne upisuje.`,
     gap: 'Stavke kojih nema u evidenciji nalaze se između stavki koje već postoje, pa se izvod ne nastavlja na zadnju stavku računa u evidenciji. Ništa se iz njega ne upisuje.',
     partlyHeld: (held, fresh) => `Stavke izvoda već u evidenciji: ${held}. Nove stavke koje dolaze nakon njih: ${fresh}.`,
     noReference: (count) =>

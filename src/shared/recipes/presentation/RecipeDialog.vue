@@ -13,25 +13,30 @@ import NoteLine from '../../ui/NoteLine.vue'
  * A table recipe in its editor, with Save, and Delete for one the app keeps. The app holds the draft, words what it still
  * lacks as `errors`, and writes it on `save`. The errors show after the first Save.
  */
-const props = defineProps<{
-  title: string
-  description: string
-  fields: TableRecipeFields
-  fieldLabels: Readonly<Record<string, string>>
-  kindLabels: Readonly<Record<string, string>>
-  columns: readonly string[] | null
-  banks: readonly string[]
-  /** What the recipe still lacks, in the app's words, by where it sits. */
-  errors: RecipeErrors
-  saveLabel: string
-  cancelLabel: string
-  /** The label of Delete, or null for a recipe the app does not keep yet. */
-  deleteLabel: string | null
-  saving: boolean
-  deleting: boolean
-  /** The app takes no changes now. */
-  changesRefused: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    description: string
+    fields: TableRecipeFields
+    fieldLabels: Readonly<Record<string, string>>
+    kindLabels: Readonly<Record<string, string>>
+    columns: readonly string[] | null
+    banks: readonly string[]
+    /** What the recipe still lacks, in the app's words, by where it sits. */
+    errors: RecipeErrors
+    saveLabel: string
+    cancelLabel: string
+    /** The label of Delete, or null for a recipe the app does not keep yet. */
+    deleteLabel: string | null
+    saving: boolean
+    deleting: boolean
+    /** The app takes no changes now. */
+    changesRefused: boolean
+    /** Whether a column may name each row's currency, so the currency may be left to it. */
+    rowCurrencies?: boolean
+  }>(),
+  { rowCurrencies: true },
+)
 const open = defineModel<boolean>('open', { required: true })
 const draft = defineModel<TableRecipeDraft>('draft', { required: true })
 const bank = defineModel<string>('bank', { required: true })
@@ -66,6 +71,7 @@ function save(): void {
         :columns="columns"
         :banks="banks"
         :errors="shown"
+        :row-currencies="rowCurrencies"
       />
       <NoteLine v-if="shown.across !== null" tone="warning" size="body" data-testid="recipe-problem">{{ shown.across }}</NoteLine>
     </form>

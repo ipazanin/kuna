@@ -120,6 +120,31 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
     }
   }
 
+  /** What the balance sheet's other lines leave beside the filed share capital, as an open line of its own under it. */
+  function withBalanceGap(rows: readonly ComparisonRow[]): readonly ComparisonRow[] {
+    const gap = accrual.balanceGap
+    if (gap === null) return rows
+    const gapRow: ComparisonRow = {
+      key: 'balance-unexplained',
+      label: words.comparison.unexplainedDifference,
+      printed: words.comparison.unexplainedPrinted,
+      accountant: { cents: ZERO },
+      ours: { cents: gap.amount },
+      oursTo: drillOf(gap),
+      cash: null,
+      cashTo: null,
+      difference: null,
+      residual: gap.amount,
+      status: 'open',
+      explainedBy: [],
+      oursSteps: stepsOf(gap, drillOf),
+      cashSteps: [],
+      rules: ruleChips(gap.rules),
+    }
+    const capital = rows.findIndex((row) => row.key === 'balance-share-capital')
+    return capital === -1 ? [...rows, gapRow] : [...rows.slice(0, capital + 1), gapRow, ...rows.slice(capital + 1)]
+  }
+
   return {
     lines: {
       parts: statusCounts.map(({ status, count }): DonutPart<number> => ({ key: status, label: STATUS_WORDING[status].label, value: count, colour: STATUS_TONES[status], to: statements })),
@@ -138,7 +163,8 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       residual('unexplained-after-tax', words.bridge.notExplainedAfterTax, bridge.unexplainedAfterTax),
     ],
     tables: TABLES.map((table) => {
-      const rows = comparison.lines.filter((line) => table.statements.includes(line.statement) && (line.statement !== 'grant' || GRANT_LINES[line.line] === table.key)).map(rowOf)
+      const compared = comparison.lines.filter((line) => table.statements.includes(line.statement) && (line.statement !== 'grant' || GRANT_LINES[line.line] === table.key)).map(rowOf)
+      const rows = table.key === 'balance' ? withBalanceGap(compared) : compared
       return { ...table, rows, summary: statusesInWords(rows) }
     }),
     recorded: comparison.recorded.map((entry) => ({

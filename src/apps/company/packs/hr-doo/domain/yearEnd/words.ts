@@ -44,6 +44,7 @@ export const en = {
   },
   openItems: {
     beforeTaxDiffers: 'Profit before tax differs from the accountant’s',
+    balanceDiffers: 'The balance sheet leaves a difference beside the share capital',
     afterTaxDiffers: 'Profit after tax differs from the accountant’s',
     findTheRows: 'Find the rows behind it: the lines and konto groups that differ point to the categories, and a missing role or vat treatment is the usual cause.',
     noInvoiceIn: (month: string, next: string) => `No invoice delivers work in ${month}, while invoice ${next} came after it`,
@@ -115,6 +116,7 @@ export const hr: Translation<typeof en> = {
   },
   openItems: {
     beforeTaxDiffers: 'Dobit prije oporezivanja razlikuje se od knjigovođine',
+    balanceDiffers: 'Bilanca ostavlja razliku pokraj temeljnog kapitala',
     afterTaxDiffers: 'Dobit nakon oporezivanja razlikuje se od knjigovođine',
     findTheRows: 'Pronađite stavke iza nje: pozicije i grupe konta koje se razlikuju upućuju na kategorije, a uobičajen je uzrok nedostajuća uloga ili PDV tretman.',
     noInvoiceIn: (month, next) => `Nijedan račun ne isporučuje rad u ${monthCase(month, 'locative')}, a račun ${next} došao je nakon njega`,

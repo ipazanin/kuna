@@ -2185,46 +2185,81 @@ async function sheetRefused(page) {
   await delay(300)
 }
 
-/** Import: drop the sample bank export, make and save a profile from the guess, see the dry run refuse it onto main, and delete the profile. */
+/** The name a flow gives the recipe it writes, in the language on screen. */
+const RECIPE_NAMES = { en: 'Example banka export', hr: 'Izvoz Primjer banke' }
+
+/** Opens the recipe dialog for a new recipe of the file on Import, gives it a name and returns once it shows. */
+async function writeRecipe(page, press, name) {
+  await pressSelector(page, press, '[data-testid="recipe-write"]')
+  const input = await page
+    .waitForSelector('[data-testid="recipe-dialog"] [data-testid="recipe-name"] input, [data-testid="recipe-dialog"] input[data-testid="recipe-name"]', { visible: true, timeout: 10_000 })
+    .catch(() => {
+      throw new Error('no recipe dialog for an export no saved recipe fits')
+    })
+  await setField(input, name)
+  await delay(300)
+}
+
+/** Import: drop the sample bank export, write and save a recipe from the guess, see the dry run refuse it onto main, and delete the recipe. */
 export function importTableFlowIn(language, path) {
   const words = SCREEN_WORDS[language]
-  const panel = words.imports.panel
+  const recipe = words.imports.recipe
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropFile(page, path)
-    const name = await page
-      .waitForSelector('[data-testid="profile-editor"] input[data-testid="profile-name"], [data-testid="profile-editor"] [data-testid="profile-name"] input', { timeout: 10_000 })
-      .catch(() => {
-        throw new Error('no profile editor for an export no saved profile fits')
-      })
-    await setField(name, 'example-bank')
-    await sheetRefused(page)
-    await inspect?.('the new profile')
-    await shoot('import-profile')
-    await pressSelector(page, press, '[data-testid="profile-save"]')
-    await toast(page, panel.profileSaved)
-    await inspect?.('the profile saved')
+    await writeRecipe(page, press, RECIPE_NAMES[language])
+    await inspect?.('the new recipe')
+    await shoot('import-recipe')
+    await pressSelector(page, press, '[data-testid="recipe-save"]')
+    await toast(page, recipe.saved)
+    await inspect?.('the recipe saved')
     await dismissToasts(page)
-    await page
-      .waitForFunction(() => !document.querySelector('[data-testid="profile-editor"]'), { timeout: 10_000 })
-      .catch(() => {
-        throw new Error('the saved profile is not the one picked')
-      })
+    await page.waitForSelector('[data-testid="recipe-reads-into"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the saved recipe is not the one picked')
+    })
     await sheetRefused(page)
     await shoot('import-table-dry-run')
 
-    await pressSelector(page, press, '[data-testid="profile-delete"]')
-    await toast(page, panel.profileDeleted)
-    await inspect?.('the profile deleted')
-    await page.waitForSelector('[data-testid="profile-editor"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('the deleted profile is still the one picked')
-    })
-    if (await page.$('[data-testid="profile-choice"]')) throw new Error('the saved profile menu stayed after its only profile was deleted')
+    await pressSelector(page, press, '[data-testid="recipe-edit"]')
+    await pressSelector(page, press, '[data-testid="recipe-delete"]')
+    await toast(page, recipe.deleted)
+    await inspect?.('the recipe deleted')
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="recipe-reads-into"]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the deleted recipe is still the one picked')
+      })
+    if (await page.$('[data-testid="recipe-choice"]')) throw new Error('the saved recipe menu stayed after its only recipe was deleted')
     await dismissToasts(page)
   }
 }
 
 export const importTableFlow = (path) => importTableFlowIn('en', path)
+
+/** Import in books that still hold an import profile: the Move notice, pressed, gone once the profile is a recipe, and back with Undo. */
+export function profileMoveFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="profile-move"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('no Move notice on Import for books that hold an import profile')
+    })
+    await delay(300)
+    await inspect?.('the Move notice')
+    await shoot('import-profile-move')
+    await pressSelector(page, press, '[data-testid="profile-move-confirm"]')
+    await toast(page, words.imports.move.moved)
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="profile-move"]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the Move notice stayed once the profiles moved')
+      })
+    await undoIn(page, press, words)
+    await page.waitForSelector('[data-testid="profile-move"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Undo did not bring the import profile back')
+    })
+  }
+}
 
 /** Presses Undo in the toast of the last write and waits for the toast that says it was undone, in the language on screen. */
 async function undoIn(page, press, words) {
@@ -2244,8 +2279,8 @@ async function undoIn(page, press, words) {
 
 /**
  * The Import tab in a language: the sample camt.053 statement's dry run, confirmed with the rows
- * that wait for review said and undone, then the sample bank export with a profile guessed from it
- * and its dry run, the profile left unsaved.
+ * that wait for review said and undone, then the sample bank export with a recipe guessed from it
+ * in its dialog, the recipe left unsaved.
  */
 export function importFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
@@ -2268,14 +2303,10 @@ export function importFlowIn(language, paths) {
     await dryRunSays(page, addsFour)
 
     await dropFile(page, paths.table)
-    const name = await page.waitForSelector('[data-testid="profile-editor"] [data-testid="profile-name"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('no profile editor for an export no saved profile fits')
-    })
-    await elementSays(page, '[data-testid="profile-editor"]', [words.imports.profile.name, words.imports.profile.saveNew], 'the profile editor is not in its language')
-    await setField((await name.$('input')) ?? name, 'example-bank')
-    await sheetRefused(page)
-    await inspect?.('the guessed profile')
-    await shoot('import-profile')
+    await writeRecipe(page, press, RECIPE_NAMES[language])
+    await elementSays(page, '[role="dialog"]', [words.imports.recipe.addTitle, words.imports.recipe.save], 'the recipe dialog is not in its language')
+    await inspect?.('the guessed recipe')
+    await shoot('import-recipe')
   }
 }
 

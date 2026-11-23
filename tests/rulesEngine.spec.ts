@@ -18,8 +18,8 @@ const CLIENT_IBAN = 'XX00FAKE0000000042'
 
 const context = categorisationContextOf({
   accounts: [
-    { slug: 'main', iban: OWN_IBAN, currency: '', sources: BY_HAND_SOURCES },
-    { slug: 'sterling', iban: 'XX00FAKE0000000002', currency: 'gbp', sources: BY_HAND_SOURCES },
+    { slug: 'main', iban: OWN_IBAN, currency: '', bank: '', sources: BY_HAND_SOURCES },
+    { slug: 'sterling', iban: 'XX00FAKE0000000002', currency: 'gbp', bank: '', sources: BY_HAND_SOURCES },
   ],
   clients: [{ slug: 'acme', name: 'Acme', ibans: [CLIENT_IBAN], invoicing: NO_CLIENT_INVOICING }],
   settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [CARD_SETTLEMENT_IBAN] },

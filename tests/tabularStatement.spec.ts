@@ -4,9 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { readProfile, profileValue } from '../src/apps/company/imports/domain/importProfile'
 import type { ImportProfile } from '../src/apps/company/imports/domain/importProfile'
 import type { ImportedStatement, StatementReading } from '../src/apps/company/imports/domain/importedStatement'
-import { fileShapeOf } from '../src/apps/company/imports/domain/profileGuess'
-import { dateOf, moneyOf, readTabularStatement } from '../src/apps/company/imports/domain/tabularStatement'
-import type { CellGrid } from '../src/apps/company/imports/domain/tabularStatement'
+import { fileShapeOf } from '../src/apps/company/imports/domain/recipeGuess'
+import { recipeOfProfile } from '../src/apps/company/imports/domain/profileRecipe'
+import { tableRecipesOf } from '../src/apps/company/imports/domain/tableRecipes'
+import { readTabularStatement } from '../src/apps/company/imports/domain/tabularStatement'
+import type { TableCells } from '../src/apps/company/imports/domain/tabularStatement'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { parseSettings, settingsTabEntries } from '../src/apps/company/settings/domain/settings'
 import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -15,13 +17,13 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 /** The shape of a Croatian bank's xlsx export, every value invented: a title, the header, rows newest first, a total. */
 const HEADER = ['Datum valute', 'Datum knjiženja', 'Naziv primatelja / platitelja', 'IBAN primatelja / platitelja', 'Opis plaćanja', 'Isplata', 'Uplata', 'Stanje']
-const CROATIAN: (string | number)[][] = [
+const CROATIAN: (string | XLSX.CellObject)[][] = [
   ['Promet po računu'],
   ['Razdoblje: 01.03.2031. - 05.03.2031.'],
   [],
   HEADER,
   ['05.03.2031', '05.03.2031.', 'Brightdesk Accounting', 'HR0624070001234567890', 'Knjigovodstvo 2/2031', '1.250,00', '', '5.432,10'],
-  [47911, 47911, 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', '', '6.682,10'],
+  [{ t: 'n', v: 47911, z: 'dd.mm.yyyy' }, { t: 'n', v: 47911, z: 'dd.mm.yyyy' }, 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', '', '6.682,10'],
   ['03.03.2031', '03.03.2031', 'Northwind Analytics Ltd', 'HR6324020069999988888', 'Invoice 3-1-31', '', '6.500,00', '6.685,50'],
   ['01.03.2031', '01.03.2031', 'Primjer banka d.d.', '', 'Naknada za vođenje računa', '14,50', '', '185,50'],
   ['Ukupno', '', '', '', '1.267,90', '6.500,00', ''],
@@ -41,13 +43,21 @@ const PROFILE: ImportProfile = {
   reference: '',
 }
 
-async function gridOfXlsx(grid: readonly (readonly (string | number)[])[]): Promise<CellGrid> {
+async function gridOfXlsx(grid: readonly (readonly (string | XLSX.CellObject)[])[]): Promise<TableCells> {
   const book = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(grid.map((row) => [...row])), 'Promet')
   const bytes = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
   const loaded = await loadImportFile('promet-2031-03.xlsx', bytes)
   if (loaded.kind !== 'table') throw new Error('expected a spreadsheet')
-  return loaded.grid
+  return loaded.cells
+}
+
+/** A file read by the recipe a profile moves to, into the profile's account. */
+function readByProfile(cells: TableCells, profile: ImportProfile, fileName: string, fileHash: string): StatementReading {
+  const saved = recipeOfProfile(profile, [{ slug: profile.account, bank: '', currency: '' }], 'EUR')
+  const [table] = saved === null ? [] : tableRecipesOf([saved])
+  if (table === undefined) throw new Error('the profile moves to no recipe')
+  return readTabularStatement(cells, table.recipe, profile.account, fileName, fileHash)
 }
 
 function statementOf(reading: StatementReading): ImportedStatement {
@@ -62,9 +72,9 @@ function refusalOf(reading: StatementReading): string {
 
 const HASH = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9'
 
-describe('reading a bank’s spreadsheet export by its profile', () => {
+describe('reading a bank’s spreadsheet export by the recipe its profile moves to', () => {
   it('reads a Croatian xlsx with a decimal comma, text and serial dates, split columns and a total row', async () => {
-    const statement = statementOf(readTabularStatement(await gridOfXlsx(CROATIAN), PROFILE, 'promet-2031-03.xlsx', HASH))
+    const statement = statementOf(readByProfile(await gridOfXlsx(CROATIAN), PROFILE, 'promet-2031-03.xlsx', HASH))
 
     expect(statement.rows.map((row) => [row.date, row.amount, row.balance, row.counterparty])).toEqual([
       ['2031-03-01', moneyFromCents(-1_450), moneyFromCents(18_550), 'Primjer banka d.d.'],
@@ -77,16 +87,16 @@ describe('reading a bank’s spreadsheet export by its profile', () => {
       label: 'promet-2031-03 (a1b2c3d4)',
       opening: moneyFromCents(20_000),
       closing: moneyFromCents(543_210),
-      source: { kind: 'table', profile: 'primjer-banka', fileHash: HASH },
+      source: { kind: 'table', recipe: 'primjer-banka', fileHash: HASH },
     })
     expect(statement.notes).toEqual(['Row 9 has no date, so it is skipped.'])
     expect(statement.rows.every((row) => /^row-[0-9a-f]{16}-1$/.test(row.reference))).toBe(true)
   })
 
   it('gives the same row the same key in a later export that overlaps it', async () => {
-    const first = statementOf(readTabularStatement(await gridOfXlsx(CROATIAN), PROFILE, 'march.xlsx', HASH))
+    const first = statementOf(readByProfile(await gridOfXlsx(CROATIAN), PROFILE, 'march.xlsx', HASH))
     const later = [...CROATIAN.slice(0, 4), ['06.03.2031', '06.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', '', '5.428,70'], ...CROATIAN.slice(4, 6)]
-    const second = statementOf(readTabularStatement(await gridOfXlsx(later), PROFILE, 'later.xlsx', HASH.replace('a1', 'ff')))
+    const second = statementOf(readByProfile(await gridOfXlsx(later), PROFILE, 'later.xlsx', HASH.replace('a1', 'ff')))
 
     expect(second.rows.slice(0, 2).map((row) => row.reference)).toEqual(first.rows.slice(2).map((row) => row.reference))
     expect(second.rows[2]?.reference).not.toBe(first.rows[2]?.reference)
@@ -99,7 +109,7 @@ describe('reading a bank’s spreadsheet export by its profile', () => {
       ['04.03.2031', '04.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', ''],
       ['04.03.2031', '04.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', ''],
     ]
-    const statement = statementOf(readTabularStatement(await gridOfXlsx(twice), noBalance, 'twice.csv', HASH))
+    const statement = statementOf(readByProfile(await gridOfXlsx(twice), noBalance, 'twice.csv', HASH))
 
     expect(statement.rows.map((row) => row.reference.slice(-2))).toEqual(['-1', '-2'])
     expect(statement.rows[0]?.reference.slice(0, -2)).toBe(statement.rows[1]?.reference.slice(0, -2))
@@ -112,13 +122,13 @@ describe('reading a bank’s spreadsheet export by its profile', () => {
     const negativeCredit = [HEADER.slice(0, 7), ['04.03.2031', '04.03.2031', 'Northwind Analytics Ltd', '', 'Povrat', '', '-50,00']]
     const noBalance: ImportProfile = { ...PROFILE, balance: '' }
 
-    expect(statementOf(readTabularStatement(await gridOfXlsx(signedDebit), noBalance, 'debit.xlsx', HASH)).rows[0]?.amount).toBe(moneyFromCents(-340))
-    expect(refusalOf(readTabularStatement(await gridOfXlsx(negativeCredit), noBalance, 'credit.xlsx', HASH))).toContain('row 2: the credit "-50,00" is negative')
+    expect(statementOf(readByProfile(await gridOfXlsx(signedDebit), noBalance, 'debit.xlsx', HASH)).rows[0]?.amount).toBe(moneyFromCents(-340))
+    expect(refusalOf(readByProfile(await gridOfXlsx(negativeCredit), noBalance, 'credit.xlsx', HASH))).toContain('row 2: the credit "-50,00" is negative')
   })
 
   it('keeps a reference column the bank gives', async () => {
     const withReference = [[...HEADER, 'Referenca'], ...CROATIAN.slice(4, 5).map((row) => [...row, 'R-2031-77'])]
-    const statement = statementOf(readTabularStatement(await gridOfXlsx(withReference), { ...PROFILE, reference: 'Referenca' }, 'ref.xlsx', HASH))
+    const statement = statementOf(readByProfile(await gridOfXlsx(withReference), { ...PROFILE, reference: 'Referenca' }, 'ref.xlsx', HASH))
 
     expect(statement.rows[0]?.reference).toBe('R-2031-77')
   })
@@ -129,7 +139,12 @@ describe('reading a bank’s spreadsheet export by its profile', () => {
       CROATIAN.map((row) => (row[4] === 'Kartično plaćanje' ? [...row.slice(0, 7), '6.682,20'] : row)),
       /Row 6 says the balance is €6,682\.20, but row 7's €6,685\.50 plus .€3\.40 is €6,682\.10/,
     ],
-    ['a date the format does not read', CROATIAN.map((row) => (row[0] === '01.03.2031' ? ['2031-03-01', '2031-03-01', ...row.slice(2)] : row)), /row 8: "2031-03-01" is not a dd\.mm\.yyyy date/],
+    [
+      'a date the format does not read',
+      CROATIAN.map((row) => (row[0] === '01.03.2031' ? ['2031/03/01', '2031/03/01', ...row.slice(2)] : row)),
+      /row 8: "2031\/03\/01" is not a date written as dd\.MM\.yyyy/,
+    ],
+    ['an amount finer than a cent', CROATIAN.map((row) => (row[0] === '01.03.2031' ? [...row.slice(0, 5), '14,505', '', row[7]!] : row)), /row 8: "14,505" is not an amount/],
     [
       'a row with both a debit and a credit',
       CROATIAN.map((row) => (row[0] === '01.03.2031' ? [...row.slice(0, 6), '1,00', row[7]!] : row)),
@@ -137,19 +152,19 @@ describe('reading a bank’s spreadsheet export by its profile', () => {
     ],
     ['dates in no order', [HEADER, CROATIAN[4]!, CROATIAN[7]!, CROATIAN[6]!], /run neither oldest first nor newest first/],
   ])('refuses %s', async (_case, grid, reason) => {
-    expect(refusalOf(readTabularStatement(await gridOfXlsx(grid), PROFILE, 'bad.xlsx', HASH))).toMatch(reason)
+    expect(refusalOf(readByProfile(await gridOfXlsx(grid), PROFILE, 'bad.xlsx', HASH))).toMatch(reason)
   })
 
-  it('refuses a file no row of which carries the profile’s columns', async () => {
-    expect(refusalOf(readTabularStatement(await gridOfXlsx([['Date', 'Amount']]), PROFILE, 'other.xlsx', HASH))).toMatch(
-      /No row in the first 40 of other\.xlsx carries every column of the profile primjer-banka/,
+  it('refuses a file no row of which carries the recipe’s columns', async () => {
+    expect(refusalOf(readByProfile(await gridOfXlsx([['Date', 'Amount']]), PROFILE, 'other.xlsx', HASH))).toMatch(
+      /No row in the first 40 of other\.xlsx carries every column of the recipe primjer-banka/,
     )
   })
 
   it('reads a csv’s amounts as written, with a semicolon between fields', async () => {
     const csv = [HEADER.join(';'), '01.03.2031;01.03.2031;Primjer banka d.d.;;Naknada;14,50;;185,50'].join('\n')
     const loaded = await loadImportFile('promet.csv', new TextEncoder().encode(csv).buffer as ArrayBuffer)
-    const statement = statementOf(readTabularStatement(loaded.kind === 'table' ? loaded.grid : [], PROFILE, 'promet.csv', HASH))
+    const statement = statementOf(readByProfile(loaded.kind === 'table' ? loaded.cells : [], PROFILE, 'promet.csv', HASH))
 
     expect(statement.rows[0]).toMatchObject({ amount: moneyFromCents(-1_450), balance: moneyFromCents(18_550) })
   })
@@ -159,41 +174,10 @@ describe('reading a bank’s spreadsheet export by its profile', () => {
     const latin2 = (text: string): number[] => [...text].map((character) => ({ ć: 0xe6, Č: 0xc8 })[character] ?? character.charCodeAt(0))
     const bytes = new Uint8Array([...latin2('Datum;Opis plaćanja;Iznos\n'), ...latin2('01.03.2031;Članarina;-3,40')])
     const loaded = await loadImportFile('promet.csv', bytes.buffer)
-    const grid = loaded.kind === 'table' ? loaded.grid : []
+    const grid = loaded.kind === 'table' ? loaded.cells : []
 
     expect(grid[0]).toEqual(['Datum', 'Opis plaćanja', 'Iznos'])
     expect(grid[1]).toEqual(['01.03.2031', 'Članarina', '-3,40'])
-  })
-})
-
-describe('text amounts and dates', () => {
-  it.each([
-    ['1.234,56', 'comma', 123_456],
-    ['-80,00', 'comma', -8_000],
-    ['80,00-', 'comma', -8_000],
-    ['1 234,5 EUR', 'comma', 123_450],
-    ['1,234.56', 'point', 123_456],
-    [12.5, 'comma', 1_250],
-  ] as const)('reads %s with a decimal %s', (cell, decimal, cents) => {
-    expect(moneyOf(cell, decimal)).toBe(cents)
-  })
-
-  it.each([['1.234,567'], ['abc'], ['-1,00-'], ['12.50'], ['1.23.4,5'], ['12 50']])('refuses %s with a decimal comma', (cell) => {
-    expect(moneyOf(cell, 'comma')).toBeNull()
-  })
-
-  it.each([['12,50'], ['1,23,4.5']])('refuses %s with a decimal point', (cell) => {
-    expect(moneyOf(cell, 'point')).toBeNull()
-  })
-
-  it('reads each date format, a trailing dot and a time, and an Excel serial', () => {
-    expect(dateOf('5.3.2031.', 'dd.mm.yyyy')).toBe('2031-03-05')
-    expect(dateOf('05.03.2031 14:20', 'dd.mm.yyyy')).toBe('2031-03-05')
-    expect(dateOf('03/05/2031', 'mm/dd/yyyy')).toBe('2031-03-05')
-    expect(dateOf('05/03/2031', 'dd/mm/yyyy')).toBe('2031-03-05')
-    expect(dateOf('2031-03-05T00:00:00', 'yyyy-mm-dd')).toBe('2031-03-05')
-    expect(dateOf(47911, 'dd.mm.yyyy')).toBe('2031-03-04')
-    expect(dateOf('31.02.2031', 'dd.mm.yyyy')).toBeNull()
   })
 })
 
@@ -229,10 +213,17 @@ describe('import profiles', () => {
     expect(settingsTabEntries(settings, null).at(-1)).toEqual({ key: 'import_profile_primjer-banka', value: profileValue(PROFILE) })
   })
 
-  it('guesses the header row, the columns, the date format and the decimal mark of an export it has not seen', async () => {
+  it('guesses the header row, the columns, the day format and the decimal mark of an export it has not seen', async () => {
     const shape = fileShapeOf(await gridOfXlsx(CROATIAN))
 
     expect(shape?.headerRow).toBe(3)
-    expect(shape?.guess).toEqual({ ...PROFILE, name: '', account: '' })
+    expect(shape?.guess).toEqual({
+      name: '',
+      date: { column: 'Datum knjiženja', format: 'dd.MM.yyyy' },
+      amount: { debit: 'Isplata', credit: 'Uplata' },
+      mark: 'comma',
+      columns: { balance: 'Stanje', counterpartyIban: 'IBAN primatelja / platitelja', description: 'Opis plaćanja', counterparty: 'Naziv primatelja / platitelja' },
+      kinds: [{ kind: 'entry', test: null }],
+    })
   })
 })

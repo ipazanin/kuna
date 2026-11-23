@@ -17,6 +17,7 @@ import {
   CATEGORY_RECORDS,
   CLIENT_RECORDS,
   HELD_STATEMENT_RECORDS,
+  RECIPE_RECORDS,
   INVOICE_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
@@ -175,6 +176,7 @@ interface AccountView {
   readonly label: string
   readonly currency: string
   readonly iban: string
+  readonly bank: string
   readonly sources: string
 }
 
@@ -275,6 +277,23 @@ const HELD_STATEMENT_FIELDS: FieldDocs<HeldStatementView> = {
   mailedOn: { exposure: 'plain', meaning: 'The day the bank mailed it. Each sync searches the mail back to it while it waits.' },
 }
 
+/** A recipe of Import as the chat reads it, by the fields save-recipe takes. */
+interface RecipeView {
+  readonly id: string
+  readonly name: string
+  readonly bank: string
+  readonly currency: string
+  readonly format: string
+}
+
+const RECIPE_FIELDS: FieldDocs<RecipeView> = {
+  id: { exposure: 'ref', to: RECIPE_RECORDS.name, meaning: 'The recipe, which delete-recipe names.' },
+  name: { exposure: 'free-text', meaning: 'What Import calls it.' },
+  bank: { exposure: 'free-text', meaning: 'The bank of the account its rows go to, with its currency.' },
+  currency: { exposure: 'plain', meaning: 'The currency of the account its rows go to.' },
+  format: { exposure: 'plain', meaning: 'table for a csv or a sheet, xml for an XML file.' },
+}
+
 const LABEL_FIELDS: FieldDocs<Label> = {
   id: { exposure: 'ref', to: LABEL_RECORDS.name, meaning: 'The label.' },
   name: { exposure: 'plain', meaning: 'The name the owner gave it, such as a conference or an office fit-out.' },
@@ -304,6 +323,7 @@ const ACCOUNT_FIELDS: FieldDocs<AccountView> = {
   label: { exposure: 'plain', meaning: 'What the screens call it.' },
   currency: { exposure: 'plain', meaning: "Its currency, or empty for the books' own." },
   iban: { exposure: 'identifier', meaning: "The account's own IBAN." },
+  bank: { exposure: 'free-text', meaning: 'The bank that keeps it, as the person names it, or empty. A table recipe of Import finds its account by bank and currency.' },
   sources: {
     exposure: 'plain',
     meaning:
@@ -631,6 +651,15 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
         rows: () => rows((workbook) => waitingStatements(workbook.heldStatements).map(({ id, label, iban, mailedOn }) => ({ id, label, iban, mailedOn }))),
         currencyOf: currency,
       }),
+      readableKind({
+        kind: RECIPE_RECORDS,
+        about: words.reads.recipe,
+        fields: RECIPE_FIELDS,
+        dated: null,
+        rows: () =>
+          rows((workbook) => workbook.recipes.map((saved) => ({ id: String(saved.id), name: saved.recipe.name, bank: saved.bank, currency: saved.currency ?? '', format: saved.recipe.file.format }))),
+        currencyOf: currency,
+      }),
       readableKind({ kind: LABEL_RECORDS, about: words.reads.label, fields: LABEL_FIELDS, dated: null, rows: () => rows((workbook) => workbook.labels), currencyOf: currency }),
       readableKind({
         kind: CATEGORY_RECORDS,
@@ -664,6 +693,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
               label: displayNamesOf(workbook).account(account.slug),
               currency: account.currency,
               iban: account.iban,
+              bank: account.bank,
               sources: periodsText(account.sources),
             })),
           ),

@@ -37,8 +37,10 @@ const props = withDefaults(
     /** The bank names to suggest. */
     banks: readonly string[]
     errors?: RecipeErrors
+    /** Whether a column may name each row's currency, so the currency may be left to it. */
+    rowCurrencies?: boolean
   }>(),
-  { errors: () => NO_RECIPE_ERRORS },
+  { errors: () => NO_RECIPE_ERRORS, rowCurrencies: true },
 )
 const draft = defineModel<TableRecipeDraft>({ required: true })
 const bank = defineModel<string>('bank', { required: true })
@@ -137,7 +139,7 @@ function removeKind(at: number): void {
         <BankNameField v-model="bank" :banks="banks" data-testid="recipe-bank" />
       </UFormField>
       <UFormField :label="words.currency" :error="errors.fields.currency ?? false">
-        <CurrencySelect v-model="currency" :search="words.findCurrency" :none="words.currencyFromColumn" class="w-full" data-testid="recipe-currency" />
+        <CurrencySelect v-model="currency" :search="words.findCurrency" :none="rowCurrencies ? words.currencyFromColumn : ''" class="w-full" data-testid="recipe-currency" />
       </UFormField>
       <UFormField :label="words.day" :error="errors.fields.day ?? false">
         <RecipeColumnField :model-value="draft.date.column" :columns="columns" data-testid="recipe-day" @update:model-value="update({ date: { ...draft.date, column: $event } })" />

@@ -24,6 +24,7 @@ import type { RecordProblem, WorkbookSource } from '../../../../shared/storage/d
 import type { VatTreatment } from './vatTreatment'
 import type { LedgerSplit } from './splits'
 import type { Label } from '../../../../shared/categorising/domain/labels'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 
 export interface Category {
   readonly slug: string
@@ -62,6 +63,8 @@ export interface Account {
   readonly iban: string
   /** Blank when the tab does not say, which means the workbook's currency. */
   readonly currency: string
+  /** The bank that keeps it, as the person names it, which a table recipe finds its account by. Blank when none is named. */
+  readonly bank: string
   /**
    * Where its rows come from, from each period's day until the next period's. The first may start on a day, and the account then
    * takes no row before it. As the accounts tab says it or, for an account that does not say, as `derivedSources` reads it from its rows.
@@ -233,6 +236,7 @@ export interface WorkbookProblem extends RecordProblem {
     | 'labels'
     | 'dismissed'
     | 'held-statements'
+    | 'recipes'
 }
 
 /** A tab's record problems as the workbook lists them. */
@@ -280,6 +284,8 @@ export interface Workbook {
   readonly dismissals: readonly Dismissal[]
   /** The statements the sync read from the bank's mail and holds for the person, in the order the tab holds them. */
   readonly heldStatements: readonly HeldStatement[]
+  /** The recipes Import reads a bank's table files with, in the order the file keeps them. */
+  readonly recipes: readonly SavedRecipe[]
   readonly settings: Settings
   /** Each pack's part, by its key's name, which `packPart` reads. */
   readonly packParts: Readonly<Record<string, unknown>>

@@ -21,6 +21,8 @@ const FIELDS: TableRecipeFields = {
     { kind: 'declined', reads: false },
   ],
 }
+/** Fields with no column for a row's currency, for books whose accounts each hold one currency. */
+const ONE_CURRENCY_FIELDS: TableRecipeFields = { ...FIELDS, optional: FIELDS.optional.filter((optional) => optional.field !== 'currency') }
 const FIELD_LABELS = { amount: 'Amount', debit: 'Money out', credit: 'Money in', payee: 'Payee', currency: 'Row currency' }
 const KIND_LABELS = { booked: 'Booked rows', declined: 'Declined rows, counted' }
 const HEADER = ['Datum', 'Opis', 'Isplata', 'Uplata', 'Status']
@@ -54,13 +56,24 @@ const TYPED_ERRORS = recipeErrorsOf([
   { place: 'bank', text: 'Give the bank whose accounts take the rows.' },
   { place: 'amount', text: 'Pick the amount column, or both the money out and money in columns.' },
 ])
+
+const oneCurrency = ref<TableRecipeDraft>({
+  name: 'Example bank business account',
+  date: { column: 'Datum', format: 'dd.MM.yyyy' },
+  amount: { column: 'Iznos' },
+  mark: 'comma',
+  columns: { payee: 'Opis' },
+  kinds: [{ kind: 'booked', test: null }],
+})
+const oneCurrencyBank = ref('Example bank')
+const oneCurrencyCode = ref('EUR')
 </script>
 
 <template>
   <GallerySection
     id="table-recipe-editor"
     title="TableRecipeEditor"
-    description="A table recipe column by column, from src/shared/recipes: its name, bank and currency, the day and how it is written, one amount or money out and in, the columns the app reads besides, the decimal mark, and the kinds of row in the order rows are tried. Columns are picked from an open file's header, or typed with none. The second is typed, as Settings opens it, with one amount column, the currency read from a column, and the problems a Save shows under their fields."
+    description="A table recipe column by column, from src/shared/recipes: its name, bank and currency, the day and how it is written, one amount or money out and in, the columns the app reads besides, the decimal mark, and the kinds of row in the order rows are tried. Columns are picked from an open file's header, or typed with none. The second is typed, as Settings opens it, with one amount column, the currency read from a column, and the problems a Save shows under their fields. The third leaves no column to name a row's currency, as Company's import recipes do, so its currency is always picked."
   >
     <div class="flex flex-col gap-8">
       <TableRecipeEditor
@@ -83,6 +96,17 @@ const TYPED_ERRORS = recipeErrorsOf([
         :columns="null"
         :banks="['Example bank', 'Revolut']"
         :errors="TYPED_ERRORS"
+      />
+      <TableRecipeEditor
+        v-model="oneCurrency"
+        v-model:bank="oneCurrencyBank"
+        v-model:currency="oneCurrencyCode"
+        :fields="ONE_CURRENCY_FIELDS"
+        :field-labels="FIELD_LABELS"
+        :kind-labels="KIND_LABELS"
+        :columns="['Datum', 'Opis', 'Iznos']"
+        :banks="['Example bank', 'Revolut']"
+        :row-currencies="false"
       />
     </div>
   </GallerySection>

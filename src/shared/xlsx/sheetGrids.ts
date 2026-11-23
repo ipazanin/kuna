@@ -45,17 +45,6 @@ export async function readEveryTab(bytes: ArrayBuffer | Uint8Array): Promise<She
   })
 }
 
-/**
- * The first sheet of a file SheetJS reads, xlsx, xls or ods as bytes, or a csv's text, whose cells
- * stay as written so `1.234,56` is not read as a number. The cells start from A1.
- */
-export async function readFirstSheet(contents: ArrayBuffer | string): Promise<(SheetCell | undefined)[][]> {
-  const XLSX = await sheetJs()
-  const book = typeof contents === 'string' ? XLSX.read(contents, { type: 'string', raw: true }) : XLSX.read(contents, { type: 'array', cellText: false })
-  const sheet = book.Sheets[book.SheetNames[0] ?? '']
-  return sheet === undefined ? [] : gridOf(XLSX, sheet)
-}
-
 const SECONDS_PER_DAY = 86_400
 
 /** A day cell's serial number as `yyyy-MM-dd HH:mm:ss` to the nearest second, or `yyyy-MM-dd` for a day with no time. */

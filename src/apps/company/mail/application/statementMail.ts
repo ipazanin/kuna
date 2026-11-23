@@ -2,9 +2,9 @@ import { readMail } from '../../../../shared/mail/application/mailReading'
 import type { Mailbox, PlannedMail } from '../../../../shared/mail/application/mailReading'
 import { mailQuery } from '../../../../shared/mail/domain/mailSource'
 import type { MailSearch, MailWindow } from '../../../../shared/mail/domain/mailSource'
-import { accountsByIban, statementReadings } from '../../imports/application/importStatements'
+import { accountsByIban } from '../../imports/application/importStatements'
 import type { LoadedImportFile } from '../../imports/application/importStatements'
-import { camtStatementHead } from '../../imports/domain/camtStatement'
+import { firstCamtLabel, readCamtStatements } from '../../imports/domain/camtStatement'
 import type { StatementReading } from '../../imports/domain/importedStatement'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { words } from './words'
@@ -66,11 +66,12 @@ export async function readStatementMail(ports: StatementMailPorts): Promise<Stat
         const read = known.get(seen) ?? (await loaded(ports, attachment.name, await bytes()))
         known.set(seen, read)
         if (read.kind === 'failed') return { entry: { ...at, kind: 'not-read', reason: read.reason }, readings: [] }
-        const head = read.file.kind === 'camt' ? camtStatementHead(read.file.document, ibans) : null
-        if (head === null) return { entry: { ...at, kind: 'not-read', reason: words.statements.notCamt }, readings: [] }
+        const file = read.file.kind === 'camt' ? read.file : null
+        const label = file === null ? null : firstCamtLabel(file.reading)
+        if (file === null || label === null) return { entry: { ...at, kind: 'not-read', reason: words.statements.notCamt }, readings: [] }
         return {
-          entry: { ...at, kind: 'read', label: head.label },
-          readings: statementReadings(read.file, workbook, null).map((reading) => ({ reading, origin: originOf(message, attachment.name, reading) })),
+          entry: { ...at, kind: 'read', label },
+          readings: readCamtStatements(file.reading, file.fileName, ibans).map((reading) => ({ reading, origin: originOf(message, attachment.name, reading) })),
         }
       }),
     ),

@@ -1,4 +1,3 @@
-import { capitalised } from '../../../../shared/text/capitalised'
 import { words } from './words'
 
 /** How a text date is written. A date cell is read as a date whatever the profile says. */
@@ -15,10 +14,9 @@ export type DecimalMark = (typeof DECIMAL_MARKS)[number]
 export type AmountColumns = { readonly signed: string } | { readonly debit: string; readonly credit: string }
 
 /**
- * How one bank's spreadsheet export reads as ledger rows, saved on the settings tab as
- * `import_profile_<name>` so it follows the workbook. Each column is named by its header text, so
- * the header row is found in the file wherever it sits. A blank optional column means the export
- * has none.
+ * How one bank's spreadsheet export read as ledger rows before Import kept recipes, saved on the settings tab as
+ * `import_profile_<name>`. Each column is named by its header text. A blank optional column means the export has none. Import
+ * reads a profile as the recipe the move to recipes keeps, and the move takes the profile rows off the settings.
  */
 export interface ImportProfile {
   /** Lower-case letters and digits with single hyphens. */
@@ -57,7 +55,7 @@ export function profileKey(name: string): string {
 }
 
 /** Null when the name can be a profile's. */
-export function profileNameProblem(name: string): string | null {
+function profileNameProblem(name: string): string | null {
   return NAME_PATTERN.test(name) ? null : words.profile.badName
 }
 
@@ -138,27 +136,4 @@ export function profileValue(profile: ImportProfile): string {
     .filter(([, column]) => column !== '')
     .map(([word, column]) => `${word}=${column}`)
     .join('; ')
-}
-
-/** The header texts a profile reads, which a file must carry in one row. */
-export function profileColumns(profile: ImportProfile): string[] {
-  const amount = 'signed' in profile.amount ? [profile.amount.signed] : [profile.amount.debit, profile.amount.credit]
-  return [profile.date, ...amount, ...Object.values(OPTIONAL_COLUMNS).map((field) => profile[field])].filter((column) => column !== '')
-}
-
-/** Null when every column of the profile can be saved: a header with a semicolon or an equals sign would not read back. */
-export function profileColumnProblem(profile: ImportProfile): string | null {
-  const unsaveable = profileColumns(profile).find((column) => /[;=]/.test(column))
-  return unsaveable === undefined ? null : words.profile.unsaveableColumn(unsaveable)
-}
-
-/** What a profile being made still lacks before it can read a file, as a sentence, or null when it can. */
-export function profileDraftProblem(profile: ImportProfile): string | null {
-  if (profileNameProblem(profile.name) !== null) return words.profile.draft.name
-  if (profile.account === '') return words.profile.draft.account
-  if (profile.date === '') return words.profile.draft.date
-  const { amount } = profile
-  if ('signed' in amount ? amount.signed === '' : amount.debit === '' || amount.credit === '') return words.profile.draft.amount
-  const column = profileColumnProblem(profile)
-  return column === null ? null : `${capitalised(column)}.`
 }

@@ -25,6 +25,7 @@ import type { RecordFields } from '../src/shared/storage/domain/recordFields'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
+import { camtFile } from '../src/apps/company/imports/infrastructure/importFiles'
 
 const used = new Set<string>()
 
@@ -121,7 +122,7 @@ describe('money placed on an invoice', () => {
 describe('an import of a client payment', () => {
   /** The sample statement's dry run, its client payment from Northwind holding 7,120.00 of which invoice 10-1-26 has 500.00 open. */
   function sampleRun(store: Store, startsPlacing = true): ImportDryRun {
-    const file = { kind: 'camt' as const, fileName: 'statement.xml', document: new DOMParser().parseFromString(sampleCamtXml(), 'application/xml') }
+    const file = camtFile('statement.xml', sampleCamtXml())
     return dryRunFor(statementReadings(file, store.state.workbook!, null), booksOf(store), new Map(), new Map(), new Map(), startsPlacing)
   }
 
@@ -204,7 +205,7 @@ describe('an import of a client payment', () => {
       party: '<Dbtr><Pty><Nm>Northwind Analytics Ltd</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>XX00FAKE0000000000000010</IBAN></Id></DbtrAcct>',
       description: 'Invoice 9-1-26',
     }
-    const file = { kind: 'camt' as const, fileName: 'statement.xml', document: new DOMParser().parseFromString(sampleCamtXml(undefined, [northwind, lumen]), 'application/xml') }
+    const file = camtFile('statement.xml', sampleCamtXml(undefined, [northwind, lumen]))
     const readings = statementReadings(file, matched, null)
     const [question] = dryRunFor(readings, booksOf(store), new Map()).statements[0]!.questions
     const run = dryRunFor(readings, booksOf(store), new Map(), new Map(), new Map([[question!.key, { booked: question!.copied.id, keep: 'file' as const }]]))

@@ -9,7 +9,8 @@ import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWri
 import { dryRunFor, importTitle, newAccountNameProblem, statementReadings, writeImport } from '../src/apps/company/imports/application/importStatements'
 import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { ImportDryRun } from '../src/apps/company/imports/domain/importDryRun'
-import type { ImportProfile } from '../src/apps/company/imports/domain/importProfile'
+import type { TableRecipeDraft } from '../src/shared/recipes/domain/tableRecipeDraft'
+import { tableRecipe, withAccountBank } from './fixtures/companyRecipes'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { LedgerEntry } from '../src/apps/company/workbook/domain/ledgerReading'
@@ -24,6 +25,7 @@ import { AN_ID, browserHarness, forgetCaches, driveHarness, ruleRow, workbookGri
 import type { WriteBackHarness } from './fixtures/writeBack'
 import { factText, noteText, refusalText } from '../src/apps/company/imports/presentation/dryRunWords'
 import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
+import { camtFile } from '../src/apps/company/imports/infrastructure/importFiles'
 
 const used = new Set<string>()
 
@@ -56,13 +58,9 @@ function grids(): Record<string, CellValue[][]> {
   }
 }
 
-function camtFile(xml: string, fileName = 'statement.xml') {
-  return { kind: 'camt' as const, fileName, document: new DOMParser().parseFromString(xml, 'application/xml') }
-}
-
 function dryRun(store: WorkbookStore<CompanyBooks>, xml: string, starts: ReadonlyMap<string, Money> = new Map()): ImportDryRun {
   const workbook = store.state.workbook!
-  return dryRunFor(statementReadings(camtFile(xml), workbook, null), companyBooksOf(store.state)!, starts)
+  return dryRunFor(statementReadings(camtFile('statement.xml', xml), workbook, null), companyBooksOf(store.state)!, starts)
 }
 
 /** The ledger rows confirming would write, as the tab holds them. */
@@ -268,30 +266,25 @@ describe.each([
   })
 })
 
-describe('a tabular import through its profile', () => {
+describe('a tabular import through its recipe', () => {
   it('works balances out from the ledger when the export gives none', async () => {
     const { store } = await driveHarness(used, grids())
-    const profile: ImportProfile = {
+    const draft: TableRecipeDraft = {
       name: 'bank',
-      account: 'main',
-      date: 'Datum',
-      dateFormat: 'dd.mm.yyyy',
-      decimal: 'comma',
-      amount: { signed: 'Iznos' },
-      balance: '',
-      counterparty: 'Naziv',
-      counterpartyIban: '',
-      description: 'Opis',
-      reference: '',
+      date: { column: 'Datum', format: 'dd.MM.yyyy' },
+      amount: { column: 'Iznos' },
+      mark: 'comma',
+      columns: { counterparty: 'Naziv', description: 'Opis' },
+      kinds: [{ kind: 'entry', test: null }],
     }
     const grid = [
       ['Datum', 'Naziv', 'Opis', 'Iznos'],
       ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'],
       ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00'],
     ]
-    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
-    const workbook = store.state.workbook!
-    const run = dryRunFor(statementReadings(file, workbook, profile), companyBooksOf(store.state)!, new Map())
+    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: grid }
+    const workbook = withAccountBank(store.state.workbook!, 'main', 'Primjer banka')
+    const run = dryRunFor(statementReadings(file, workbook, tableRecipe(draft, 'Primjer banka')), companyBooksOf(store.state)!, new Map())
 
     expect(run.statements[0]?.notes.map(noteText)).toEqual([])
     expect(run.statements[0]?.facts.map(factText)).toEqual(['The file gives no balances, so they are worked out from €1,000.00, where the ledger leaves main on 5 Oct 2026.'])
@@ -299,39 +292,42 @@ describe('a tabular import through its profile', () => {
       [46312, -3.4, 8146.6, 'promet (ffffffff)'],
       [46311, 7150, 8150, 'promet (ffffffff)'],
     ])
-    const elsewhere = dryRunFor(statementReadings(file, workbook, { ...profile, account: 'nowhere' }), companyBooksOf(store.state)!, new Map())
-    expect(elsewhere.statements[0]?.refusal).toMatchObject({ kind: 'unreadable', reason: expect.stringMatching(/is for nowhere, which is not on the accounts tab/) })
+    const elsewhere = dryRunFor(statementReadings(file, workbook, tableRecipe(draft, 'Other banka')), companyBooksOf(store.state)!, new Map())
+    expect(elsewhere.statements[0]?.refusal).toMatchObject({
+      kind: 'unreadable',
+      reason: 'No account of Other banka keeps EUR. Give the account the file is of the bank Other banka on Settings, Accounts.',
+    })
+    const twice = { ...workbook, accounts: workbook.accounts.map((account) => ({ ...account, bank: 'Primjer banka' })) }
+    expect(statementReadings(file, twice, tableRecipe(draft, 'primjer BANKA'))[0]).toMatchObject({
+      refusal: expect.stringMatching(/are both accounts of primjer BANKA in EUR, so the file could be either's/),
+    })
   })
 
-  it('finds a file it imported on the ledger, and refuses it once a changed profile gives its rows other keys', async () => {
+  it('finds a file it imported on the ledger, and refuses it once a changed recipe gives its rows other keys', async () => {
     const { store } = await driveHarness(used, grids())
-    const profile: ImportProfile = {
+    const draft: TableRecipeDraft = {
       name: 'bank',
-      account: 'main',
-      date: 'Datum',
-      dateFormat: 'dd.mm.yyyy',
-      decimal: 'comma',
-      amount: { signed: 'Iznos' },
-      balance: '',
-      counterparty: 'Naziv',
-      counterpartyIban: '',
-      description: 'Opis',
-      reference: '',
+      date: { column: 'Datum', format: 'dd.MM.yyyy' },
+      amount: { column: 'Iznos' },
+      mark: 'comma',
+      columns: { counterparty: 'Naziv', description: 'Opis' },
+      kinds: [{ kind: 'entry', test: null }],
     }
     const grid = [
       ['Datum', 'Naziv', 'Opis', 'Iznos'],
       ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'],
       ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00'],
     ]
-    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
-    const runOf = (read: ImportProfile) => dryRunFor(statementReadings(file, store.state.workbook!, read), companyBooksOf(store.state)!, new Map())
-    await importRows(store, runOf(profile).added)
+    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: grid }
+    const runOf = (read: TableRecipeDraft) =>
+      dryRunFor(statementReadings(file, withAccountBank(store.state.workbook!, 'main', 'Primjer banka'), tableRecipe(read, 'Primjer banka')), companyBooksOf(store.state)!, new Map())
+    await importRows(store, runOf(draft).added)
 
-    expect(runOf(profile)).toMatchObject({ newRows: 0, inLedger: 2 })
-    const changed = runOf({ ...profile, description: 'Naziv' })
+    expect(runOf(draft)).toMatchObject({ newRows: 0, inLedger: 2 })
+    const changed = runOf({ ...draft, columns: { counterparty: 'Naziv' } })
     expect(changed.newRows).toBe(0)
     expect(refusalText(changed.statements[0]!.refusal!)).toBe(
-      'Rows of promet (ffffffff) are on the ledger already, so this file was imported before, and none of its entries match them now, such as after a change to its profile. Nothing of it is written.',
+      'Rows of promet (ffffffff) are on the ledger already, so this file was imported before, and none of its entries match them now, such as after a change to its recipe. Nothing of it is written.',
     )
   })
 })
@@ -344,7 +340,7 @@ describe('an account from a camt file', () => {
     const { store } = await driveHarness(used, grids())
     const workbook = store.state.workbook!
 
-    expect(statementReadings(camtFile(newAccountStatement()), workbook, null)[0]).toMatchObject({ statement: { account: '' }, newAccount: { iban: NEW_IBAN, currency: 'EUR' } })
+    expect(statementReadings(camtFile('statement.xml', newAccountStatement()), workbook, null)[0]).toMatchObject({ statement: { account: '' }, newAccount: { iban: NEW_IBAN, currency: 'EUR' } })
     const waiting = dryRun(store, newAccountStatement())
     expect(waiting.statements[0]).toMatchObject({ account: '', refusal: null, start: null, newAccount: { iban: NEW_IBAN, currency: 'EUR', opening: moneyFromCents(25_000), date: '2031-03-11' } })
     expect(waiting.statements[0]!.rows.every((row) => row.verdict === null)).toBe(true)
@@ -354,7 +350,7 @@ describe('an account from a camt file', () => {
   it('files the statement under the name the person gives, starts it at the statement’s opening, and adds the account with the rows in one write', async () => {
     const { store } = await driveHarness(used, grids())
     const workbook = store.state.workbook!
-    const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
+    const readings = statementReadings(camtFile('statement.xml', newAccountStatement()), workbook, null)
     const run = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]))
 
     expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', sources: BY_HAND_SOURCES }])
@@ -373,7 +369,7 @@ describe('an account from a camt file', () => {
 
   it("adds an account named from a statement of the folder as filled by the bank's statements from its first entry's day", async () => {
     const { store } = await driveHarness(used, grids())
-    const readings = statementReadings(camtFile(newAccountStatement()), store.state.workbook!, null)
+    const readings = statementReadings(camtFile('statement.xml', newAccountStatement()), store.state.workbook!, null)
     const run = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]), new Map(), true, 'automation')
 
     expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR', sources: [{ source: 'mail', from: '2031-03-11' }] }])
@@ -384,7 +380,7 @@ describe('an account from a camt file', () => {
   it('names no account with a name the accounts tab has, or one the app cannot use', async () => {
     const { store } = await driveHarness(used, grids())
     const workbook = store.state.workbook!
-    const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
+    const readings = statementReadings(camtFile('statement.xml', newAccountStatement()), workbook, null)
 
     for (const name of ['savings', 'Main Account', '']) {
       expect(dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, name]]))).toMatchObject({ newRows: 0, accounts: [] })

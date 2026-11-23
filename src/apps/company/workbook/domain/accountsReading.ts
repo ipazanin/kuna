@@ -51,6 +51,7 @@ export function accountOf(fields: StoredFields, id: RecordId | null): AccountRec
     label: textOf(fields.label),
     iban: normaliseIban(textOf(fields.iban)),
     currency: textOf(fields.currency).toUpperCase(),
+    bank: textOf(fields.bank).trim(),
     sources: fields.sources === undefined ? storedSourcesOf(fields) : sourcesOfText(textOf(fields.sources)),
     id: keyedId(id),
   }
@@ -67,6 +68,7 @@ export const ACCOUNT_CODEC: RecordCodec<AccountRecord> = {
       iban: account.iban,
       currency: account.currency,
       label: account.label,
+      bank: account.bank,
       sources: account.sources === null ? '' : periodsText(account.sources),
     }),
 }

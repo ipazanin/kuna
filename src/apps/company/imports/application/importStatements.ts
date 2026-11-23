@@ -15,45 +15,57 @@ import { startPlacingPayments } from '../../receivables/application/invoicePayme
 import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
 import { forgetSettledStatements } from './heldStatementWrites'
 import { installedPack } from '../../packs/packContribution'
-import { readCamtDocument } from '../domain/camtStatement'
+import { readCamtStatements } from '../domain/camtStatement'
+import type { RecipeFileReading } from '../../../../shared/recipes/domain/recipe'
 import { importDryRun } from '../domain/importDryRun'
 import type { DryRunInputs, ImportDryRun } from '../domain/importDryRun'
 import { replaceLedgerRows } from '../../transactions/application/itemWrites'
-import { profileColumns } from '../domain/importProfile'
-import type { ImportProfile } from '../domain/importProfile'
-import { headerRowOf } from '../../../../shared/recipes/domain/headerRow'
+import { recipeAccount, tableRecipesOf } from '../domain/tableRecipes'
+import type { TableRecipe } from '../domain/tableRecipes'
+import { recipeOfProfile } from '../domain/profileRecipe'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import type { StatementReading } from '../domain/importedStatement'
 import { readTabularStatement } from '../domain/tabularStatement'
 import { words } from './words'
-import type { CellGrid } from '../domain/tabularStatement'
+import type { TableCells } from '../domain/tabularStatement'
 
-/** A file dropped on Import, as far as reading it goes: a camt document, or a spreadsheet's first sheet as cells. */
+/** A file dropped on Import, as far as reading it goes: a camt document's rows as its recipe reads them, or a spreadsheet's first sheet as text. */
 export type LoadedImportFile =
-  { readonly kind: 'camt'; readonly fileName: string; readonly document: Document } | { readonly kind: 'table'; readonly fileName: string; readonly fileHash: string; readonly grid: CellGrid }
+  | { readonly kind: 'camt'; readonly fileName: string; readonly reading: RecipeFileReading }
+  | { readonly kind: 'table'; readonly fileName: string; readonly fileHash: string; readonly cells: TableCells }
 
 /** The workbook's account for each IBAN on the accounts tab, normalised. */
 export function accountsByIban(workbook: Pick<Workbook, 'accounts'>): ReadonlyMap<string, string> {
   return new Map(workbook.accounts.filter((account) => account.iban !== '').map((account) => [account.iban, account.slug]))
 }
 
-/** The statements a loaded file holds: a camt document's, or a spreadsheet's by the profile, refused for an account the accounts tab lacks. */
-export function statementReadings(file: LoadedImportFile, workbook: Pick<Workbook, 'accounts'>, profile: ImportProfile | null): StatementReading[] {
+/**
+ * The recipes Import reads a bank's table files with: the ones the books keep, then each import profile the settings still hold,
+ * read as the recipe the move to recipes would keep, so a profile is read the one way a recipe is.
+ */
+export function importRecipes(workbook: Pick<Workbook, 'recipes' | 'accounts' | 'settings'>): TableRecipe[] {
+  const profiles = workbook.settings.importProfiles.flatMap((profile) => recipeOfProfile(profile, workbook.accounts, workbook.settings.currency) ?? [])
+  return tableRecipesOf([...workbook.recipes, ...profiles])
+}
+
+/**
+ * The statements a loaded file holds: a camt document's, or a table file's by the recipe, into the one account of the recipe's
+ * bank and currency, refused when no account or two of them are.
+ */
+export function statementReadings(file: LoadedImportFile, workbook: Pick<Workbook, 'accounts' | 'settings'>, saved: SavedRecipe | null): StatementReading[] {
   if (file.kind === 'camt') {
-    return readCamtDocument(file.document, file.fileName, accountsByIban(workbook))
+    return readCamtStatements(file.reading, file.fileName, accountsByIban(workbook))
   }
-  if (profile === null) {
+  const [table] = saved === null ? [] : tableRecipesOf([saved])
+  if (table === undefined) {
     return []
   }
-  if (!workbook.accounts.some((account) => account.slug === profile.account)) {
-    return [
-      {
-        fileName: file.fileName,
-        label: file.fileName,
-        refusal: words.profileWithoutAccount(profile.name, profile.account),
-      },
-    ]
+  const found = recipeAccount(table.saved, workbook.accounts, workbook.settings.currency)
+  if (found.kind !== 'found') {
+    const refusal = found.kind === 'none' ? words.noRecipeAccount(found.bank, found.currency) : words.twoRecipeAccounts(found.bank, found.currency, found.accounts)
+    return [{ fileName: file.fileName, label: file.fileName, refusal }]
   }
-  return [readTabularStatement(file.grid, profile, file.fileName, file.fileHash)]
+  return [readTabularStatement(file.cells, table.recipe, found.account, file.fileName, file.fileHash)]
 }
 
 /** Why a name the person typed for a new account cannot be used, or null. `taken` are the names the accounts tab and the other new accounts hold. */
@@ -140,9 +152,4 @@ export function importTitle(run: Pick<ImportDryRun, 'accounts' | 'newRows'>): st
     run.accounts.map((account) => account.slug),
     run.newRows,
   )
-}
-
-/** The saved profiles whose columns all head one row of the file, in the order the settings tab lists them. */
-export function fittingProfiles(grid: CellGrid, profiles: readonly ImportProfile[]): ImportProfile[] {
-  return profiles.filter((profile) => headerRowOf(grid, profileColumns(profile)) !== null)
 }

@@ -103,6 +103,21 @@ describe('yearEndOpenItems', () => {
     expect(keys(capital, 'compliance')).not.toContain('asset-purchase-decision')
   })
 
+  it('lists what the balance sheet leaves beside a filed share capital as not explained', () => {
+    const items = openItems(exampleStudio({ yearEndLines: [yearEndLine(2025, 'balance', 'share-capital', 3000)] }))
+
+    expect(items.find((item) => item.key === 'unexplained-balance')).toMatchObject({ group: 'unexplained', figure: { amount: euros(-500) } })
+  })
+
+  it('lets the share capital balance the sheet of a first-year company with 2,500.00 paid in and no filed balance sheet, with no open item', () => {
+    const firstYear = exampleStudio()
+    const accrual = accrualYear(firstYear, 2025, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null })
+
+    expect(accrual.lines.find((line) => line.statement === 'balance' && line.line === 'share-capital')).toMatchObject({ figure: { amount: euros(2500) } })
+    expect(accrual.balanceGap).toBeNull()
+    expect(openItems(firstYear).some((item) => item.key === 'unexplained-balance')).toBe(false)
+  })
+
   it('lists no loan items for a year without loans to the owner', () => {
     const workbook = exampleStudio()
     const withoutLoans = exampleStudio({

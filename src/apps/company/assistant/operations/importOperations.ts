@@ -2,14 +2,16 @@ import { fieldsOf } from './companyCard'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { words } from './words'
 import { dryRunFor, writeImport } from '../../imports/application/importStatements'
-import { DATE_FORMATS, DECIMAL_MARKS, profileDraftProblem, profileKey, profileValue } from '../../imports/domain/importProfile'
-import type { ImportProfile } from '../../imports/domain/importProfile'
+import { companyTableRecipeOf, TABLE_RECIPE_FIELDS } from '../../imports/domain/tableRecipes'
+import type { TableRecipeProblem } from '../../imports/domain/tableRecipes'
+import { deleteRecipe, moveProfilesToRecipes, newRecipeId, saveRecipe } from '../../imports/application/recipeWrites'
+import { tableRecipeInput } from '../../../../shared/app/recipeInput'
+import { draftOfInput } from '../../../../shared/recipes/domain/draftInput'
+import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { TranscribedRefused, transcribedStatement } from '../../imports/domain/importedStatement'
 import { factText, noteText, refusalText, transcribedRefusalText } from '../../imports/presentation/dryRunWords'
 import type { StatementReading } from '../../imports/domain/importedStatement'
-import { removeSettings, setSettings } from '../../settings/application/settingWrites'
-import { heldSettingValue } from '../../settings/domain/settings'
-import { ACCOUNT_RECORDS, HELD_STATEMENT_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, HELD_STATEMENT_RECORDS, LEDGER_RECORDS, RECIPE_RECORDS } from '../../workbook/domain/coreKinds'
 import { passOverHeldStatement } from '../../imports/application/heldStatementWrites'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -100,51 +102,48 @@ const OPERATIONS: readonly AssistantOperation[] = [
     example: { statement: 'held-statement-1' },
   },
   {
-    name: 'save-import-profile',
-    about:
-      "Saves how one bank's sheet reads, as Import's profile editor does: the columns by their header text, the account it is for, the date format and the decimal mark. amount is one signed column, or debit and credit two columns. Blank leaves a column out.",
-    input: inputOf({
-      name: TEXT,
-      account: TEXT,
-      date: TEXT,
-      dateFormat: { type: 'string', enum: [...DATE_FORMATS] },
-      decimal: { type: 'string', enum: [...DECIMAL_MARKS] },
-      amount: TEXT,
-      debit: TEXT,
-      credit: TEXT,
-      balance: TEXT,
-      counterparty: TEXT,
-      counterpartyIban: TEXT,
-      description: TEXT,
-      reference: TEXT,
-    }),
-    refs: { account: ACCOUNT_RECORDS.name },
-    creates: null,
-    alone: false,
-    example: {
-      name: 'bank-sheet',
-      account: 'account',
-      date: 'Datum',
-      dateFormat: 'dd.mm.yyyy',
-      decimal: 'comma',
-      amount: '',
-      debit: 'Isplata',
-      credit: 'Uplata',
-      balance: 'Stanje',
-      counterparty: 'Partner',
-      counterpartyIban: '',
-      description: 'Opis',
-      reference: '',
-    },
-  },
-  {
-    name: 'delete-import-profile',
-    about: 'Deletes a saved import profile by its name, so no sheet is read by it again.',
-    input: inputOf({ name: TEXT }),
+    name: 'save-recipe',
+    about: [
+      "Saves how one bank's export reads, as Import's recipe editor does, so Import reads the next one with no AI: the columns by their header text, the bank and currency of the account it fills, how the day is written and the decimal mark.",
+      "bank is the bank of the account that takes the rows, as Settings, Accounts names it, and currency that account's currency. Import refuses a file when no account or two accounts have that bank and currency.",
+      'amountColumn holds one amount, money out below zero, or is null when debitColumn and creditColumn hold money out and money in. A sheet writes a day cell as yyyy-MM-dd and a number cell with a point.',
+      'kinds are tried in order, the first a row passes taking it. A kind with column null takes every row, equals takes a row whose column holds one of the values in any case, and equals null a row whose column is filled. entry is a row that comes in, and left-out a row only counted.',
+    ].join(' '),
+    input: inputOf({ bank: TEXT, currency: TEXT, ...tableRecipeInput(TABLE_RECIPE_FIELDS) }),
     refs: {},
     creates: null,
     alone: false,
-    example: { name: 'saved-profile' },
+    example: {
+      bank: 'Example banka',
+      currency: 'EUR',
+      name: 'Example banka export',
+      dateColumn: 'Datum',
+      dateFormat: 'dd.MM.yyyy',
+      amountColumn: null,
+      debitColumn: 'Isplata',
+      creditColumn: 'Uplata',
+      decimalMark: 'comma',
+      columns: { balance: 'Stanje', counterparty: 'Partner', counterpartyIban: null, description: 'Opis', reference: null },
+      kinds: [{ kind: 'entry', column: null, equals: null }],
+    },
+  },
+  {
+    name: 'delete-recipe',
+    about: 'Deletes a saved import recipe, so no file is read by it again. An account keeps the bank the recipe named.',
+    input: inputOf({ recipe: TEXT }),
+    refs: { recipe: RECIPE_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { recipe: 'recipe' },
+  },
+  {
+    name: 'move-import-profiles',
+    about: "Moves the import profiles the settings still hold to recipes, as Move to recipes on Import does: a recipe for each, and the bank each profile's account takes from it.",
+    input: inputOf({}),
+    refs: {},
+    creates: null,
+    alone: false,
+    example: {},
   },
 ]
 
@@ -310,45 +309,68 @@ function passOverHeldStatementOf(card: CompanyCard, step: ProposalStep): void {
   passOverHeldStatement(card.unit, stored, today())
 }
 
-function saveImportProfile(card: CompanyCard, step: ProposalStep): void {
-  const field = fieldsOf(step)
-  const text = (name: string): string => String(field[name]).trim()
-  const signed = text('amount')
-  const profile: ImportProfile = {
-    name: text('name').toLowerCase(),
-    account: card.idOf(field['account']).toLowerCase(),
-    date: text('date'),
-    dateFormat: field['dateFormat'],
-    decimal: field['decimal'],
-    amount: signed !== '' ? { signed } : { debit: text('debit'), credit: text('credit') },
-    balance: text('balance'),
-    counterparty: text('counterparty'),
-    counterpartyIban: text('counterpartyIban'),
-    description: text('description'),
-    reference: text('reference'),
+/** Why a recipe the step drafts cannot be kept, in words the model fixes it by. */
+function recipeProblemText(problem: TableRecipeProblem): string {
+  switch (problem.kind) {
+    case 'no-name':
+      return 'name names the recipe.'
+    case 'no-date':
+      return 'dateColumn names the column of the day.'
+    case 'no-format':
+      return 'dateFormat says how the day is written.'
+    case 'no-amount':
+      return 'amountColumn names the amount, or debitColumn and creditColumn both name theirs.'
+    case 'no-kind':
+      return 'kinds holds at least one kind.'
+    case 'nothing-comes-in':
+      return 'At least one kind is entry.'
+    case 'unknown-kind':
+      return `${problem.name} is no kind Company reads.`
+    case 'test-no-column':
+      return `The ${problem.name} kind tests no column.`
+    case 'test-no-value':
+      return `The ${problem.name} kind's equals holds no value.`
+    case 'doubled-column':
+      return `Two fields read the column ${problem.column}. Each reads a column of its own.`
+    case 'no-bank':
+      return 'bank names the bank of the account that takes the rows.'
+    case 'no-currency':
+      return "currency is the account's currency code, such as EUR."
+    case 'unreadable':
+      return 'Kuna could not keep the recipe as drafted. Check its columns and kinds.'
   }
-  const problem = profileDraftProblem(profile)
-  if (problem !== null) throw new StepRefused(problem)
-  const settings = card.records().settings
-  if (heldSettingValue(settings, profileKey(profile.name)) !== null) throw new StepRefused(`A profile is saved as ${profile.name} already. Delete it first, or pick another name.`)
-  setSettings(card.unit, settings, [{ key: profileKey(profile.name), value: profileValue(profile) }])
 }
 
-function deleteImportProfile(card: CompanyCard, step: ProposalStep): void {
-  const key = profileKey(String(fieldsOf(step)['name']).trim().toLowerCase())
-  const settings = card.records().settings
-  if (heldSettingValue(settings, key) === null) throw new StepRefused('No import profile is saved by that name.')
-  removeSettings(card.unit, settings, [key])
+function saveRecipeStep(card: CompanyCard, step: ProposalStep): void {
+  const field = fieldsOf(step)
+  const name = String(field['name']).trim()
+  if (card.workbook.recipes.some((recipe) => recipe.recipe.name === name)) throw new StepRefused(`A recipe is saved as ${name} already. Delete it first, or pick another name.`)
+  const made = companyTableRecipeOf(newRecipeId(), draftOfInput(field), field['bank'], currencyCodeOf(String(field['currency']).trim().toUpperCase()))
+  if ('problems' in made) throw new StepRefused(made.problems.map(recipeProblemText).join(' '))
+  saveRecipe(card.unit, null, made.saved)
 }
 
-/** What the chat can import into the ledger and how Import reads a bank's sheet, through Import's own dry run and writes. */
+function deleteRecipeStep(card: CompanyCard, step: ProposalStep): void {
+  const id = card.idOf(fieldsOf(step)['recipe'])
+  const saved = card.workbook.recipes.find((recipe) => String(recipe.id) === id)
+  if (saved === undefined) throw new StepRefused('That recipe is no longer in the books.')
+  deleteRecipe(card.unit, saved)
+}
+
+function moveImportProfiles(card: CompanyCard): void {
+  if (card.workbook.settings.importProfiles.length === 0) throw new StepRefused('The settings hold no import profile to move.')
+  moveProfilesToRecipes(card.unit, { records: card.records(), workbook: card.workbook })
+}
+
+/** What the chat can import into the ledger and the recipes Import reads a bank's sheet with, through Import's own dry run and writes. */
 export function importOperations(held: HeldStatements): CompanyOperationSet {
   const plans: Readonly<Record<string, (card: CompanyCard, step: ProposalStep) => void>> = {
     'import-statement': importStatement,
     'file-held-statements': (card, step) => fileHeldStatements(card, step, held),
     'pass-over-held-statement': passOverHeldStatementOf,
-    'save-import-profile': saveImportProfile,
-    'delete-import-profile': deleteImportProfile,
+    'save-recipe': saveRecipeStep,
+    'delete-recipe': deleteRecipeStep,
+    'move-import-profiles': moveImportProfiles,
   }
   return { operations: OPERATIONS, planStep: (card, step) => plans[step.operation]!(card, step) }
 }

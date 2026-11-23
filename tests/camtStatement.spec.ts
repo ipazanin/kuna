@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { readCamtDocument } from '../src/apps/company/imports/domain/camtStatement'
+import { readCamtStatements } from '../src/apps/company/imports/domain/camtStatement'
 import type { ImportedStatement, StatementReading } from '../src/apps/company/imports/domain/importedStatement'
-import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
+import { camtFile, loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { moneyFromCents } from '../src/shared/money/money'
 
 /** Two consecutive statements of one account, anonymised from real Erste files: same structure, every value invented. */
@@ -16,7 +16,8 @@ const OWN_IBAN = 'HR2923400091110000001'
 const ACCOUNTS = new Map([[OWN_IBAN, 'main']])
 
 function read(xml: string, accounts: ReadonlyMap<string, string> = ACCOUNTS): StatementReading[] {
-  return readCamtDocument(new DOMParser().parseFromString(xml, 'application/xml'), 'statement.xml', accounts)
+  const file = camtFile('statement.xml', xml)
+  return file.kind === 'camt' ? readCamtStatements(file.reading, file.fileName, accounts) : []
 }
 
 function statementOf(xml: string): ImportedStatement {
@@ -87,7 +88,7 @@ describe('reading a camt.053 statement', () => {
     const loaded = await loadImportFile('erste-debits.xml', new Uint8Array(bytes).buffer)
 
     expect(loaded.kind).toBe('camt')
-    expect(loaded.kind === 'camt' && readCamtDocument(loaded.document, loaded.fileName, ACCOUNTS)).toHaveLength(1)
+    expect(loaded.kind === 'camt' && readCamtStatements(loaded.reading, loaded.fileName, ACCOUNTS)).toHaveLength(1)
   })
 
   it('reads each Stmt of a document that carries two', () => {

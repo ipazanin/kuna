@@ -7,7 +7,7 @@ import { periodsText } from '../../../../shared/app/accountSource'
 import { draftsOfPeriods, periodsOfDrafts } from '../../../../shared/app/periodDrafts'
 import type { PeriodDraft, PeriodDraftProblem } from '../../../../shared/app/periodDrafts'
 import { BY_HAND_SOURCES } from '../../workbook/domain/workbook'
-import type { CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
+import type { Account, CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 import { madeOfDrafts } from './recordDrafts'
@@ -26,6 +26,8 @@ export interface AccountDraft {
   readonly label: string
   readonly iban: string
   readonly currency: string
+  /** The bank that keeps it. Blank names none. */
+  readonly bank: string
   /** Where its rows come from, each source from the day typed, the first from its own day or, blank, from the account's start. */
   readonly periods: readonly PeriodDraft<CompanySource>[]
 }
@@ -35,10 +37,15 @@ export function sourcesOfDraft(draft: Pick<AccountDraft, 'periods'>): { readonly
   return periodsOfDrafts(draft.periods, ['mail'])
 }
 
-/** The drafts of the stored accounts, as the workbook holds their text, each with where its rows come from as the workbook reads it by its name. */
-export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], sources: ReadonlyMap<string, readonly CompanyPeriod[]>): AccountDraft[] {
+/**
+ * The drafts of the stored accounts, as the workbook holds their text, each with where its rows come from and its bank as the
+ * workbook reads them by its name, so a bank an import profile gives shows until the profiles move to recipes.
+ */
+export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], accounts: readonly Pick<Account, 'slug' | 'sources' | 'bank'>[]): AccountDraft[] {
+  const read = new Map(accounts.map((account) => [account.slug, account]))
   return stored.map(({ fields }, saved) => {
     const text = (name: string): string => textOf(fields[name])
+    const account = read.get(slugOf(fields.account))
     return {
       saved,
       savedName: text('account'),
@@ -46,13 +53,14 @@ export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], source
       label: text('label'),
       iban: text('iban'),
       currency: text('currency'),
-      periods: draftsOfPeriods(sources.get(slugOf(fields.account)) ?? BY_HAND_SOURCES),
+      bank: account?.bank ?? text('bank'),
+      periods: draftsOfPeriods(account?.sources ?? BY_HAND_SOURCES),
     }
   })
 }
 
 /** A new account's draft: kept by hand, with nothing typed. */
-export const NEW_ACCOUNT_DRAFT: AccountDraft = { saved: null, savedName: '', account: '', label: '', iban: '', currency: '', periods: draftsOfPeriods(BY_HAND_SOURCES) }
+export const NEW_ACCOUNT_DRAFT: AccountDraft = { saved: null, savedName: '', account: '', label: '', iban: '', currency: '', bank: '', periods: draftsOfPeriods(BY_HAND_SOURCES) }
 
 /** The accounts the drafts make, each over the fields its stored record holds. */
 export function accountsOfDrafts(stored: readonly StoredRecord<unknown>[], drafts: readonly AccountDraft[]): MadeDraft<AccountRecord>[] {
@@ -111,6 +119,7 @@ function accountFieldsOf(draft: AccountDraft, stored: StoredFields): StoredField
     label: draft.label.trim(),
     iban: normaliseIban(draft.iban),
     currency: draft.currency.trim().toUpperCase(),
+    bank: draft.bank.trim(),
     sources: periods === null ? draft.periods.map((period) => `${period.source} ${period.from}`.trim()).join(', ') : periodsText(periods),
     rows_from: '',
     starts_on: '',

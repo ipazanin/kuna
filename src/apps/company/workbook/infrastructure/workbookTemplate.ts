@@ -116,6 +116,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'iban', note: "The account's IBAN. Optional." },
     { name: 'currency', note: 'Optional. The app counts in the currency from the settings tab and reports an account in another one.' },
     { name: 'label', note: 'What the screens call the account, such as Main account. Optional. Blank shows the account name.' },
+    { name: 'bank', note: "The bank that keeps the account, such as Example banka. Import's table recipes find the account by its bank and currency. Optional." },
     {
       name: 'sources',
       note: "Where the account's rows come from, in order, each later one with the day it takes over, such as by-hand, mail 2026-03-01: mail when each sync reads the bank's statements from the bank's mail, provider-file for the bank's camt file you bring on Import or to the chat, by-hand for its sheets, camt files and the chat's copies. The first may carry a day, before which the account takes no row, and mail first needs one. Blank is worked out from its rows once.",
@@ -230,6 +231,15 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'iban', note: 'The account the statement is of, as an IBAN. Optional.' },
     { name: 'mailed_on', note: 'The day the mail came, as a date cell. Each sync searches the mail back to it while the statement waits. Required.' },
     { name: 'passed_over_on', note: 'The day the person passed the statement over, as a date cell. Blank while it waits on Import. Filing it deletes the row. Optional.' },
+    ID_TEMPLATE_COLUMN,
+  ],
+  recipes: [
+    { name: 'name', note: "What Import calls the recipe, such as the bank's export it reads. Required." },
+    { name: 'bank', note: 'The bank whose account takes the rows, as the accounts tab names it. Required.' },
+    { name: 'currency', note: 'The currency of the account that takes the rows, such as EUR. Import reads the file into the one account of that bank and currency. Optional.' },
+    { name: 'format', note: 'table for a csv or a spreadsheet, xml for an XML file. Required.' },
+    { name: 'root', note: "An XML file's root element. Blank for a table. Optional." },
+    { name: 'sections', note: 'How the recipe reads the file, as Kuna writes it: the columns it reads and the kinds of rows, in JSON. Edit it on Import. Required.' },
     ID_TEMPLATE_COLUMN,
   ],
 }

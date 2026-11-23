@@ -78,7 +78,7 @@ describe('new books of a Croatian d.o.o.', () => {
 
 describe('getting set up', () => {
   /** An account the bank's statements fill from 1 November. */
-  const BY_MAIL: Account = { slug: 'main', iban: 'HR1210010051863000160', currency: '', sources: [{ source: 'mail', from: civil('2026-11-01') }] }
+  const BY_MAIL: Account = { slug: 'main', iban: 'HR1210010051863000160', currency: '', bank: '', sources: [{ source: 'mail', from: civil('2026-11-01') }] }
   const keysOf = (document: WorkbookDocument) => gettingSetUp({ ...read(document).workbook, accounts: [BY_MAIL] }).map((line) => line.key)
 
   it("lists what new books lack once an account takes the bank's statements, asks a Croatian d.o.o. for nothing more, and each line goes once it is done", () => {

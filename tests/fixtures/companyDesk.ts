@@ -7,6 +7,8 @@ import type { SetUpAnswer } from '../../src/apps/company/assistant/operations/se
 import type { GmailForDrafts } from '../../src/apps/company/invoicing/application/invoiceGoogle'
 import type { StatementReading } from '../../src/apps/company/imports/domain/importedStatement'
 import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/readRules'
+import { RECIPE_CODEC } from '../../src/apps/company/workbook/domain/recipesReading'
+import { tableRecipe } from './companyRecipes'
 import type { CompanyBooks } from '../../src/apps/company/workbook/domain/readWorkbook'
 import type { Transaction } from '../../src/apps/company/workbook/domain/workbook'
 import type { ChatReads } from '../../src/shared/ai/application/chatReads'
@@ -34,6 +36,16 @@ const LEDGER: CellValue[][] = [
   [46299, 'main', 's-001', 'PAPER CORNER', '', 'Card refund', 10, 0, 'office', 'ivan', 'REF-3', '', '', '', '', '', '', ''],
   [46299, 'main', 's-001', 'PAPER CORNER', '', 'Card purchase', -10, -10, 'office', 'ivan', 'REF-2', '', '', '', '', '', '', ''],
 ]
+
+const RECIPE_COLUMNS = ['name', 'bank', 'currency', 'format', 'sections', 'id']
+
+/** A saved recipe of a bank's export, as the recipes tab holds it. */
+const RECIPE_CELLS = RECIPE_CODEC.fieldsOf(
+  tableRecipe(
+    { name: 'Primjer banka export', date: { column: 'Datum', format: 'dd.MM.yyyy' }, amount: { column: 'Iznos' }, mark: 'comma', columns: {}, kinds: [{ kind: 'entry', test: null }] },
+    'Primjer banka',
+  ),
+)
 
 const CATEGORY_COLUMNS = ['category', 'label', 'family', 'bucket', 'roles', 'vat', 'owner_share']
 
@@ -77,6 +89,7 @@ function deskGrids(): Record<string, CellValue[][]> {
       ['mail_id', 'attachment', 'label', 'iban', 'mailed_on', 'passed_over_on', 'id'],
       ['mail-1', 'IZV_1.xml', '2026-10-06-statement-001', '', 46302, '', 'held-statement-1'],
     ],
+    recipes: [RECIPE_COLUMNS, RECIPE_COLUMNS.map((column) => String(RECIPE_CELLS[column] ?? ''))],
   }
 }
 

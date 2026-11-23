@@ -42,6 +42,7 @@ export const en = {
     label: "The company's labels, each grouping parts of ledger rows across categories and months, such as a conference or an office fit-out.",
     setting: "The settings that say how the company's figures and invoices read.",
     heldStatement: "The statements the sync of the bank's mail holds for the person, which wait on Import until they are filed or passed over.",
+    recipe: "How Import reads a bank's export, each recipe with the bank and currency of the account its rows go to.",
   },
   reports: {
     month: {
@@ -120,6 +121,7 @@ export const hr: Translation<typeof en> = {
     label: 'Oznake tvrtke, svaka skuplja dijelove redaka evidencije preko kategorija i mjeseci, poput konferencije ili uređenja ureda.',
     setting: 'Postavke koje određuju kako se čitaju iznosi i računi tvrtke.',
     heldStatement: 'Izvodi koje sinkronizacija pošte banke zadržava za osobu i koji čekaju na Uvozu dok se ne upišu ili preskoče.',
+    recipe: 'Kako Uvoz čita izvoz banke, svaki recept s bankom i valutom računa na koji idu njegovi retci.',
   },
   reports: {
     month: {

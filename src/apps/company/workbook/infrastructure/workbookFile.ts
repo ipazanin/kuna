@@ -127,6 +127,7 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Partial<R
     ...(onItemsTab ? { items: gridFor('items', tabs.items), labels: gridFor('labels', tabs.labels) } : { splits: gridFor('splits', tabs.splits) }),
     dismissed: gridFor('dismissed', tabs.dismissed),
     'held-statements': gridFor('held-statements', tabs['held-statements']),
+    recipes: gridFor('recipes', tabs.recipes),
   }
 }
 

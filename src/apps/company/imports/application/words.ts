@@ -22,7 +22,9 @@ function rowsImported(count: number): string {
 }
 
 export const en = {
-  profileWithoutAccount: (profile: string, account: string) => `The profile ${profile || 'being made'} is for ${account || 'no account'}, which is not on the accounts tab. Pick one of its accounts.`,
+  noRecipeAccount: (bank: string, currency: string) => `No account of ${bank} keeps ${currency}. Give the account the file is of the bank ${bank} on Settings, Accounts.`,
+  twoRecipeAccounts: (bank: string, currency: string, accounts: readonly string[]) =>
+    `${listInWords(accounts)} are both accounts of ${bank} in ${currency}, so the file could be either's. Give one of them another bank on Settings, Accounts.`,
   alreadyAnAccount: (name: string) => `${name} is already an account`,
   /** "Imported 4 rows", or "Added main and imported 4 rows" when the import adds accounts. */
   imported: (accounts: readonly string[], rows: number) => {
@@ -51,12 +53,9 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  profileWithoutAccount: (profile, account) => {
-    const named = profile === '' ? 'Profil koji izrađujete' : `Profil „${profile}”`
-    return account === ''
-      ? `${named} nema račun u banci. Odaberite jedan od računa iz postavki.`
-      : `${named} odnosi se na račun „${account}”, kojeg nema među računima u banci. Odaberite jedan od njih.`
-  },
+  noRecipeAccount: (bank, currency) => `Nijedan račun banke ${bank} nije u valuti ${currency}. Računu ove datoteke upišite banku ${bank} u Postavkama, Računi u banci.`,
+  twoRecipeAccounts: (bank, currency, accounts) =>
+    `Računi ${listInWords(accounts.map((account) => `„${account}”`))} oba su u banci ${bank} i u valuti ${currency}, pa datoteka može biti bilo kojeg od njih. Jednom od njih upišite drugu banku u Postavkama, Računi u banci.`,
   alreadyAnAccount: (name) => `„${name}” već je račun u banci`,
   imported: (accounts, rows) => {
     if (accounts.length === 0) return capitalised(rowsImported(rows))

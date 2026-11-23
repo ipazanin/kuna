@@ -26,6 +26,7 @@ import { shortfallRate } from '../ownerLoanInterest'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { filedShareCapital } from '../shareCapital'
 import { words } from './words'
 
 /** The ways the year's profit can go to the owner, which a screen switches between. */
@@ -533,10 +534,9 @@ function paidOutOfLedger(year: number, rows: readonly Transaction[], workbook: H
 
 /** The share capital from the latest year-end tab before the year, else the statutory minimum. */
 function shareCapitalOf(workbook: HrDooWorkbook, year: number, rules: RuleSource): TracedFigure {
-  const lines = workbook.yearEndLines.filter((line) => line.year < year && line.statement === 'balance' && line.line === 'share-capital')
-  const latest = lines.reduce<(typeof lines)[number] | null>((found, line) => (found === null || line.year > found.year ? line : found), null)
-  if (latest !== null && latest.figure.kind === 'money') {
-    return tracedFigure(words.capacity.shareCapitalAt(latest.year), latest.figure.amount, 'accountant', [])
+  const filed = filedShareCapital(workbook.yearEndLines, year - 1)
+  if (filed !== null) {
+    return tracedFigure(words.capacity.shareCapitalAt(filed.year), filed.amount, 'accountant', [])
   }
   const minimum = rules('hr.ztd.min-share-capital', civilDate(year, 12, 31))
   return tracedFigure(words.capacity.minimumCapital, minimum.value.minimumShareCapital.cents, 'ledger', [minimum.citation])

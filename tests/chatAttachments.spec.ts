@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { readCamtDocument } from '../src/apps/company/imports/domain/camtStatement'
+import { readCamtStatements } from '../src/apps/company/imports/domain/camtStatement'
 import { statementTies as companyStatementTies } from '../src/shared/money/statementTies'
 import { recipeStatement } from '../src/apps/spending/statements/domain/recipeStatement'
 import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
@@ -30,6 +30,7 @@ import type { CellSheet } from '../src/shared/ai/domain/chatAttachments'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { readFirstSheetCells } from '../src/shared/xlsx/sheetGrids'
 import { ACCOUNTS, CATEGORIES, REVOLUT_EUR } from './fixtures/spending'
+import { camtFile } from '../src/apps/company/imports/infrastructure/importFiles'
 
 const MEGABYTE = 1024 * 1024
 
@@ -174,8 +175,8 @@ describe('statement files the import screens read', () => {
   })
 
   it("reads the camt file through Company's reader, and its entries tie to its printed balances", () => {
-    const document = new DOMParser().parseFromString(fixture('camt.xml').toString('utf8'), 'application/xml')
-    const [reading] = readCamtDocument(document, 'camt.xml', new Map([['HR2923400091110000001', 'main']]))
+    const file = camtFile('camt.xml', fixture('camt.xml').toString('utf8'))
+    const [reading] = file.kind === 'camt' ? readCamtStatements(file.reading, file.fileName, new Map([['HR2923400091110000001', 'main']])) : []
     if (reading === undefined || !('statement' in reading)) throw new Error(`expected a statement, got ${JSON.stringify(reading)}`)
     const { opening, closing, rows } = reading.statement
     if (opening === null || closing === null) throw new Error('expected printed balances')

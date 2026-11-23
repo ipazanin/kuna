@@ -22,6 +22,7 @@ import { handoverWords } from './sourceHandoverWords'
 import type { HandoverWords } from '../../../../shared/ui/sourceHandover'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import AccountsEditor from './AccountsEditor.vue'
+import { accountBankNames } from '../../workbook/domain/accountBanks'
 import { storedCount } from './settingsCounts'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
@@ -36,7 +37,8 @@ const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RE
 const accountsInUse = computed(() => accountUses(recordsOnScreen))
 const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
 
-const sources = computed(() => new Map((state.workbook?.accounts ?? []).map((account) => [account.slug, account.sources])))
+const readAccounts = computed(() => state.workbook?.accounts ?? [])
+const banks = computed(() => accountBankNames(readAccounts.value))
 
 /**
  * What saving the account's new periods does: why the write would refuse them, in its words, or the rows it takes out of the
@@ -77,7 +79,8 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
       :currency="settings.currency"
       :saving="writes.saving('save')"
       :refused="writes.refused.value"
-      :sources="sources"
+      :accounts="readAccounts"
+      :banks="banks"
       :periods-check="periodsCheck"
       @save="saveAccounts"
     />

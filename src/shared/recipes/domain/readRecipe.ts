@@ -78,13 +78,21 @@ function sectionOf(value: unknown): RecipeSection | null {
   const fields = fieldsOf(value.fields ?? {})
   const kinds = listOf(value.kinds, kindOf)
   if (keep === null || fields === null || kinds === null || kinds.length === 0) return null
-  return { name: value.name, rows: value.rows, keep, shown: (value.shown as readonly string[] | undefined) ?? [], fields, kinds }
+  if ((value.within !== undefined && (!isText(value.within) || value.within.trim() === '')) || (value.cells !== undefined && value.cells !== 'elements')) return null
+  const within = value.within === undefined ? {} : { within: value.within }
+  const cells = value.cells === undefined ? {} : { cells: 'elements' as const }
+  return { name: value.name, rows: value.rows, ...within, ...cells, keep, shown: (value.shown as readonly string[] | undefined) ?? [], fields, kinds }
+}
+
+/** Whether each section a section sits within comes before it, so a file's rows are read in one pass. */
+function withinEarlier(sections: readonly RecipeSection[]): boolean {
+  return sections.every((section, at) => section.within === undefined || sections.slice(0, at).some((earlier) => earlier.name === section.within))
 }
 
 /**
  * A recipe a record or the chat holds, from its file format and its sections written as JSON, or null for anything Kuna could
- * not run: text that is not JSON, a test, a field or a kind of a shape it does not know, a section with no kind, and a table
- * file with other than one section. A recipe read here runs as one Kuna brings does.
+ * not run: text that is not JSON, a test, a field or a kind of a shape it does not know, a section with no kind, a section
+ * within one that does not come before it, and a table file with other than one section. A recipe read here runs as one Kuna brings does.
  */
 export function readRecipe(id: string, name: string, file: RecipeFile, sectionsJson: string): Recipe | null {
   let parsed: unknown
@@ -94,6 +102,6 @@ export function readRecipe(id: string, name: string, file: RecipeFile, sectionsJ
     return null
   }
   const sections = listOf(parsed, sectionOf)
-  if (sections === null || sections.length === 0 || (file.format === 'table' && sections.length !== 1)) return null
+  if (sections === null || sections.length === 0 || (file.format === 'table' && sections.length !== 1) || !withinEarlier(sections)) return null
   return { id, name, file, sections }
 }

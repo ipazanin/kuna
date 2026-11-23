@@ -58,15 +58,17 @@ export const en = {
     reviewReasons: { noReference: 'no bank reference', reversal: 'reversal', valueDate: 'value date used', batched: 'batched entry' },
   },
   table: {
-    noHeader: (searched: number, fileName: string, profile: string, columns: readonly string[]) =>
-      `No row in the first ${searched} of ${fileName} carries every column of the profile ${profile}: ${columns.map((column) => `"${column}"`).join(', ')}.`,
+    noHeader: (searched: number, fileName: string, recipe: string, columns: readonly string[]) =>
+      `No row in the first ${searched} of ${fileName} carries every column of the recipe ${recipe}: ${columns.map((column) => `"${column}"`).join(', ')}.`,
     noDate: (row: number) => `Row ${row} has no date, so it is skipped.`,
     labelForDate: (row: number, text: string) => `Row ${row} reads "${text}" where the date goes, so it is skipped.`,
-    notADate: (row: number, text: string, format: string) => `row ${row}: "${text}" is not a ${format} date`,
+    notADate: (row: number, text: string, format: string) => `row ${row}: "${text}" is not a date written as ${format}`,
     rowProblem: (row: number, problem: string) => `row ${row}: ${problem}`,
     balanceNotAmount: (row: number, text: string) => `row ${row}: the balance "${text}" is not an amount`,
-    unreadable: (fileName: string, profile: string, problems: readonly string[], more: number) =>
-      `${fileName} has rows the profile ${profile} cannot read, so nothing of it is imported: ${problems.join('; ')}${more > 0 ? `, and ${more} more` : ''}.`,
+    unreadable: (fileName: string, recipe: string, problems: readonly string[], more: number) =>
+      `${fileName} has rows the recipe ${recipe} cannot read, so nothing of it is imported: ${problems.join('; ')}${more > 0 ? `, and ${more} more` : ''}.`,
+    noKind: (row: number) => `row ${row}: no kind of the recipe takes it`,
+    leftOut: (count: number) => plural({ one: `The recipe leaves ${count} row out.`, other: `The recipe leaves ${count} rows out.` }, count),
     noRows: (fileName: string) => `${fileName} holds no rows with a date under the header row.`,
     noAmount: 'no amount',
     amountNotAmount: (text: string) => `the amount "${text}" is not an amount`,
@@ -87,13 +89,6 @@ export const en = {
     badDateFormat: (format: string, formats: readonly string[]) => `date_format "${format}" is not one of ${formats.join(', ')}`,
     badDecimal: (decimal: string) => `decimal "${decimal}" is neither comma nor point`,
     amountColumns: 'the profile needs either amount, or both debit and credit',
-    unsaveableColumn: (column: string) => `the column "${column}" holds ; or =, which a saved profile cannot hold`,
-    draft: {
-      name: 'Give the profile a name: lower-case letters and digits with single hyphens, such as otp-business.',
-      account: 'Pick the account the export is for.',
-      date: 'Pick the date column.',
-      amount: 'Pick the amount columns.',
-    },
   },
 }
 
@@ -127,15 +122,17 @@ export const hr: Translation<typeof en> = {
     reviewReasons: { noReference: 'nema bankovne reference', reversal: 'storno', valueDate: 'korišten datum valute', batched: 'skupna stavka' },
   },
   table: {
-    noHeader: (searched, fileName, profile, columns) =>
-      `Nijedan od prvih ${searched} redaka datoteke „${fileName}” nema sve stupce profila „${profile}”: ${columns.map((column) => `„${column}”`).join(', ')}.`,
+    noHeader: (searched, fileName, recipe, columns) =>
+      `Nijedan od prvih ${searched} redaka datoteke „${fileName}” nema sve stupce recepta „${recipe}”: ${columns.map((column) => `„${column}”`).join(', ')}.`,
     noDate: (row) => `Redak ${row} nema datum, pa se preskače.`,
     labelForDate: (row, text) => `U retku ${row} umjesto datuma piše „${text}”, pa se preskače.`,
-    notADate: (row, text, format) => `redak ${row}: „${text}” nije datum oblika ${format}`,
+    notADate: (row, text, format) => `redak ${row}: „${text}” nije datum zapisan kao ${format}`,
     rowProblem: (row, problem) => `redak ${row}: ${problem}`,
     balanceNotAmount: (row, text) => `redak ${row}: saldo „${text}” nije iznos`,
-    unreadable: (fileName, profile, problems, more) =>
-      `Datoteka „${fileName}” ima retke koje profil „${profile}” ne može pročitati, pa se ništa iz nje ne uvozi: ${problems.join('; ')}${more > 0 ? ` i još ${more}` : ''}.`,
+    unreadable: (fileName, recipe, problems, more) =>
+      `Datoteka „${fileName}” ima retke koje recept „${recipe}” ne može pročitati, pa se ništa iz nje ne uvozi: ${problems.join('; ')}${more > 0 ? ` i još ${more}` : ''}.`,
+    noKind: (row) => `redak ${row}: nijedna vrsta recepta ga ne uzima`,
+    leftOut: (count) => plural({ one: `Recept izostavlja ${count} redak.`, few: `Recept izostavlja ${count} retka.`, other: `Recept izostavlja ${count} redaka.` }, count),
     noRows: (fileName) => `Datoteka „${fileName}” nema redaka s datumom ispod retka zaglavlja.`,
     noAmount: 'nema iznosa',
     amountNotAmount: (text) => `„${text}” u stupcu iznosa nije iznos`,
@@ -156,13 +153,6 @@ export const hr: Translation<typeof en> = {
     badDateFormat: (format, formats) => `date_format „${format}” nije nijedan od ovih: ${formats.join(', ')}`,
     badDecimal: (decimal) => `polje decimal „${decimal}” nije ni „comma” ni „point”`,
     amountColumns: 'profil treba ili polje amount, ili polja debit i credit',
-    unsaveableColumn: (column) => `stupac „${column}” sadrži ; ili =, a spremljeni profil to ne može sadržavati`,
-    draft: {
-      name: 'Dajte profilu naziv: mala slova i znamenke s pojedinačnim crticama, na primjer otp-business.',
-      account: 'Odaberite račun u banci na koji se izvoz odnosi.',
-      date: 'Odaberite stupac datuma.',
-      amount: 'Odaberite stupce iznosa.',
-    },
   },
 }
 

@@ -22,6 +22,7 @@ export function emptyCompany(changes: Partial<Workbook> = {}): Workbook {
     itemLabels: new Map(),
     dismissals: [],
     heldStatements: [],
+    recipes: [],
     settings: DEFAULT_SETTINGS,
     packParts: {},
     problems: [],

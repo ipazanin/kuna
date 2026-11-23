@@ -39,7 +39,7 @@
  * Salaries with five made-up employees, its gross to net chart's tap-then-drill, the one problem's build-up and rows, the People tab and the Over time table,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
- * with a profile made for it, each confirmed and undone, and the profile deleted, the same Import in Croatian with a held statement and the Mail card's list, an invoice made and re-exported, and in
+ * with a recipe written for it, each confirmed and undone, and the recipe deleted, the same Import in Croatian with a held statement and the Mail card's list, an invoice made and re-exported, and in
  * Croatian an invoice added, edited, deleted and undone, made and re-exported, a client's second IBAN and the rest of the year filled and undone, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on Settings, Category rules, a rule's note changed and the rule deleted from
  * its editor, each undone, in both modes, the same split, change of category, rule editor, dismissal and

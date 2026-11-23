@@ -178,6 +178,8 @@ export const en = {
     howBuilt: (label: string) => `${label}, how ours is built`,
     line: 'Line',
     status: 'Status',
+    unexplainedDifference: 'Unexplained difference',
+    unexplainedPrinted: 'What the other lines leave beside the share capital',
   },
   konto: {
     asBooked: 'Konto, as the accountant books it',
@@ -369,6 +371,8 @@ export const hr: Translation<typeof en> = {
     howBuilt: (label) => `${label}, kako ju je aplikacija izračunala`,
     line: 'Pozicija',
     status: 'Stanje',
+    unexplainedDifference: 'Neobjašnjena razlika',
+    unexplainedPrinted: 'Ono što ostale pozicije ostavljaju pokraj temeljnog kapitala',
   },
   konto: {
     asBooked: 'Konto, kako ga knjiži knjigovođa',

@@ -1,37 +1,36 @@
-import { civilDate, civilDateFromSerial } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { decimalOfMarkedText, inEuros, roundedDecimal } from '../../../../shared/money/decimal'
-import { absMoney, addMoney, moneyFromAmount, negateMoney, subtractMoney } from '../../../../shared/money/money'
+import { inEuros, roundedDecimal } from '../../../../shared/money/decimal'
+import type { Decimal } from '../../../../shared/money/decimal'
+import { absMoney, addMoney, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { HEADER_SEARCH_ROWS, headerKey, headerRowOf } from '../../../../shared/recipes/domain/headerRow'
+import { HEADER_SEARCH_ROWS } from '../../../../shared/recipes/domain/headerRow'
+import { sectionColumns } from '../../../../shared/recipes/domain/recipe'
+import type { Recipe, TableFile } from '../../../../shared/recipes/domain/recipe'
+import { runRecipe } from '../../../../shared/recipes/domain/runRecipe'
+import type { AskedRow, RecipeRow } from '../../../../shared/recipes/domain/runRecipe'
+import { tableRows } from '../../../../shared/recipes/domain/tableRows'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
-import { profileColumns } from './importProfile'
-import type { DateFormat, DecimalMark, ImportProfile } from './importProfile'
 import { NO_SIGNALS, StatementRefused } from './importedStatement'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 import { words } from './words'
 
-/** A cell of a bank's statement file: text, a number, a date as a serial number, or a flag. */
-export type StatementCell = string | number | boolean
-
-/** A sheet's cells from A1, row by row, as a spreadsheet file holds them. */
-export type CellGrid = readonly (readonly (StatementCell | undefined)[])[]
+/** A table file's first sheet as text from A1, row by row, as `readFirstSheetCells` reads it. */
+export type TableCells = readonly (readonly string[])[]
 
 /**
- * The rows of a bank's spreadsheet export, read by a profile: the header row found by its texts,
- * then every row below with a date, put in booking order oldest first when the file lists newest
- * first. A row without a date, or with a label such as "Total" where the date goes, is skipped and
- * noted. A row with a date that cannot be read refuses the file, since leaving a payment out would
- * break every balance after it.
- * With a balance column each row's balance must follow from the row before. A row without a
- * reference column, or with a blank one, gets a key of its account, date, amount, balance and text
- * with its count among equal rows of the file, so the same row in a later export gets the same key.
+ * The rows of a bank's table file, read by a recipe into the account its bank and currency find: the header row found by its
+ * column names, then every row below in booking order, oldest first when the file lists newest first. A row whose date is blank,
+ * or holds a label such as "Total" where the date goes, is skipped and noted, and so is a row the recipe leaves out. A row with
+ * a date or an amount that cannot be read, or that no kind takes, refuses the file, since leaving a payment out would break
+ * every balance after it. With a balance column each row's balance must follow from the row before. A row without a reference
+ * column, or with a blank one, gets a key of its account, date, amount, balance and text with its count among equal rows of
+ * the file, so the same row in a later export gets the same key.
  */
-export function readTabularStatement(grid: CellGrid, profile: ImportProfile, fileName: string, fileHash: string): StatementReading {
+export function readTabularStatement(cells: TableCells, recipe: Recipe<TableFile>, account: string, fileName: string, fileHash: string): StatementReading {
   const label = `${fileName.replace(/\.[^.]+$/, '') || fileName} (${fileHash.slice(0, 8)})`
   try {
-    return { statement: tabularStatement(grid, profile, fileName, fileHash, label) }
+    return { statement: tabularStatement(cells, recipe, account, fileName, fileHash, label) }
   } catch (failure) {
     if (failure instanceof StatementRefused) {
       return { fileName, label, refusal: failure.message }
@@ -52,72 +51,94 @@ interface ReadRow {
   readonly reference: string
 }
 
-function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: string, fileHash: string, label: string): ImportedStatement {
-  const headerIndex = headerRowOf(grid, profileColumns(profile))
-  if (headerIndex === null) {
-    throw new StatementRefused(words.table.noHeader(HEADER_SEARCH_ROWS, fileName, profile.name, profileColumns(profile)))
+/** A decimal in whole cents, or null for one finer than a cent, which the ledger cannot hold. */
+function centsOf(amount: Decimal | null): Money | null {
+  return amount === null || roundedDecimal(amount, 2) !== amount ? null : inEuros(amount, null)
+}
+
+/** Why the recipe did not read a row: a blank date or a label where it goes is noted, and anything else stops the file. */
+function askedNoteOrProblem(asked: AskedRow, fileRow: number, formats: string): { readonly note: string } | { readonly problem: string } {
+  if (asked.why.kind !== 'unreadable') return { problem: words.table.noKind(fileRow) }
+  const { field, text } = asked.why
+  switch (field) {
+    case 'date':
+    case 'time':
+      if (text === '') return { note: words.table.noDate(fileRow) }
+      // A label such as a total holds no digit where the date goes. Anything else is a date the recipe misreads.
+      return /\d/.test(text) ? { problem: words.table.notADate(fileRow, text, formats) } : { note: words.table.labelForDate(fileRow, text) }
+    case 'amount':
+      return { problem: words.table.rowProblem(fileRow, text === '' ? words.table.noAmount : words.table.amountNotAmount(text)) }
+    case 'balance':
+      return { problem: words.table.balanceNotAmount(fileRow, text) }
+    default:
+      return { problem: words.table.rowProblem(fileRow, words.table.notAnAmount(text)) }
   }
-  const header = grid[headerIndex]!.map((cell) => headerKey(cellString(cell)))
-  const columnOf = (name: string): number => (name === '' ? -1 : header.indexOf(headerKey(name)))
-  const cellAt = (row: readonly (StatementCell | undefined)[], name: string): StatementCell | undefined => {
-    const column = columnOf(name)
-    return column < 0 ? undefined : row[column]
+}
+
+function tabularStatement(cells: TableCells, recipe: Recipe<TableFile>, account: string, fileName: string, fileHash: string, label: string): ImportedStatement {
+  const [section] = recipe.sections
+  const table = tableRows(recipe, cells)
+  const run = table.kind === 'read' ? runRecipe(recipe, table.rows) : null
+  if (section === undefined || table.kind === 'misfit' || run === null || run.kind === 'misfit') {
+    throw new StatementRefused(words.table.noHeader(HEADER_SEARCH_ROWS, fileName, recipe.name, section === undefined ? [] : sectionColumns(section)))
   }
+  const source = table.rows.get(section.name) ?? []
+  const cellOf = (place: number, field: string): string => {
+    const column = [section.fields, ...section.kinds.map((kind) => kind.fields)].find((fields) => fields[field] !== undefined)?.[field]?.from
+    return column === undefined ? '' : (source[place]?.get(column) ?? '')
+  }
+  const formats = [...new Set(section.kinds.flatMap((kind) => Object.values(kind.fields).flatMap((field) => (field.as === 'date' ? field.formats : []))))].join(', ')
   const notes: string[] = []
   const problems: string[] = []
   const rows: ReadRow[] = []
-  grid.slice(headerIndex + 1).forEach((cells, offset) => {
-    const fileRow = headerIndex + 2 + offset
-    if (cells.every((cell) => cellString(cell) === '')) return
-    const dateCell = cellAt(cells, profile.date)
-    if (cellString(dateCell) === '') {
-      notes.push(words.table.noDate(fileRow))
-      return
+  let leftOut = 0
+  const events = [...run.rows.map((row) => ({ place: row.place, row })), ...run.asked.map((asked) => ({ place: asked.place ?? 0, asked }))].sort((one, other) => one.place - other.place)
+  for (const event of events) {
+    const fileRow = table.lines[event.place] ?? 0
+    if ('asked' in event) {
+      const outcome = askedNoteOrProblem(event.asked, fileRow, formats)
+      if ('note' in outcome) notes.push(outcome.note)
+      else problems.push(outcome.problem)
+      continue
     }
-    const date = dateOf(dateCell, profile.dateFormat)
-    if (date === null) {
-      // A label such as a total holds no digit where the date goes. Anything else is a date the profile misreads.
-      if (typeof dateCell === 'string' && !/\d/.test(dateCell)) {
-        notes.push(words.table.labelForDate(fileRow, cellString(dateCell)))
-      } else {
-        problems.push(words.table.notADate(fileRow, cellString(dateCell), profile.dateFormat))
-      }
-      return
+    const { row } = event
+    if (row.kind !== 'entry') {
+      leftOut += 1
+      continue
     }
-    const amount = amountOfRow(cells, profile, cellAt)
+    const amount = amountOfRow(row, (field) => cellOf(row.place, field))
     if (typeof amount === 'string') {
       problems.push(words.table.rowProblem(fileRow, amount))
-      return
+      continue
     }
-    let balance: Money | null = null
-    if (profile.balance !== '') {
-      balance = moneyOf(cellAt(cells, profile.balance), profile.decimal)
-      if (balance === null) {
-        problems.push(words.table.balanceNotAmount(fileRow, cellString(cellAt(cells, profile.balance))))
-        return
-      }
+    const balanceRead = row.decimals.balance ?? null
+    const balance = centsOf(balanceRead)
+    if (balanceRead !== null && balance === null) {
+      problems.push(words.table.balanceNotAmount(fileRow, cellOf(row.place, 'balance')))
+      continue
     }
     rows.push({
       fileRow,
-      date,
+      date: row.dates.date!,
       amount,
       balance,
-      counterparty: cellString(cellAt(cells, profile.counterparty)),
-      counterpartyIban: cellString(cellAt(cells, profile.counterpartyIban)),
-      description: cellString(cellAt(cells, profile.description)),
-      reference: cellString(cellAt(cells, profile.reference)),
+      counterparty: row.texts.counterparty ?? '',
+      counterpartyIban: row.texts.counterpartyIban ?? '',
+      description: row.texts.description ?? '',
+      reference: row.texts.reference ?? '',
     })
-  })
+  }
   if (problems.length > 0) {
-    throw new StatementRefused(words.table.unreadable(fileName, profile.name, problems.slice(0, 5), Math.max(0, problems.length - 5)))
+    throw new StatementRefused(words.table.unreadable(fileName, recipe.name, problems.slice(0, 5), Math.max(0, problems.length - 5)))
   }
   if (rows.length === 0) {
     throw new StatementRefused(words.table.noRows(fileName))
   }
+  if (leftOut > 0) notes.push(words.table.leftOut(leftOut))
   const ordered = inBookingOrder(rows, fileName)
   checkBalances(ordered)
   const withoutReference = ordered.filter((row) => row.reference === '')
-  const keys = occurrenceKeys(withoutReference.map((row) => rowFacts(profile.account, row)))
+  const keys = occurrenceKeys(withoutReference.map((row) => rowFacts(account, row)))
   const keyOfRow = new Map(withoutReference.map((row, index) => [row, keys[index]]))
   const imported: ImportedRow[] = ordered.map((row) => {
     const reference = row.reference === '' ? `row-${keyOfRow.get(row)}` : row.reference
@@ -137,9 +158,9 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
   const last = ordered[ordered.length - 1]!
   return {
     fileName,
-    source: { kind: 'table', profile: profile.name, fileHash },
+    source: { kind: 'table', recipe: recipe.name, fileHash },
     label,
-    account: profile.account,
+    account,
     opening: first.balance === null ? null : subtractMoney(first.balance, first.amount),
     closing: last.balance,
     rows: imported,
@@ -148,21 +169,16 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
 }
 
 /** The row's signed amount: the signed column, or the credit less the debit, where exactly one of the two holds an amount. */
-function amountOfRow(
-  cells: readonly (StatementCell | undefined)[],
-  profile: ImportProfile,
-  cellAt: (row: readonly (StatementCell | undefined)[], name: string) => StatementCell | undefined,
-): Money | string {
-  if ('signed' in profile.amount) {
-    const cell = cellAt(cells, profile.amount.signed)
-    return moneyOf(cell, profile.decimal) ?? (cellString(cell) === '' ? words.table.noAmount : words.table.amountNotAmount(cellString(cell)))
+function amountOfRow(row: RecipeRow, cellOf: (field: string) => string): Money | string {
+  if ('amount' in row.decimals) {
+    return centsOf(row.decimals.amount ?? null) ?? words.table.amountNotAmount(cellOf('amount'))
   }
-  const debitCell = cellAt(cells, profile.amount.debit)
-  const creditCell = cellAt(cells, profile.amount.credit)
-  const debit = cellString(debitCell) === '' ? null : moneyOf(debitCell, profile.decimal)
-  const credit = cellString(creditCell) === '' ? null : moneyOf(creditCell, profile.decimal)
-  if ((cellString(debitCell) !== '' && debit === null) || (cellString(creditCell) !== '' && credit === null)) {
-    return words.table.notAnAmount(cellString(debit === null && cellString(debitCell) !== '' ? debitCell : creditCell))
+  const debitRead = row.decimals.debit ?? null
+  const creditRead = row.decimals.credit ?? null
+  const debit = centsOf(debitRead)
+  const credit = centsOf(creditRead)
+  if ((debitRead !== null && debit === null) || (creditRead !== null && credit === null)) {
+    return words.table.notAnAmount(debitRead !== null && debit === null ? cellOf('debit') : cellOf('credit'))
   }
   const debitPart = debit === null || debit === 0 ? null : debit
   const creditPart = credit === null || credit === 0 ? null : credit
@@ -173,7 +189,7 @@ function amountOfRow(
     return debit === null && credit === null ? words.table.neitherColumn : words.table.zero
   }
   if (creditPart !== null && creditPart < 0) {
-    return words.table.negativeCredit(cellString(creditCell))
+    return words.table.negativeCredit(cellOf('credit'))
   }
   return debitPart !== null ? negateMoney(absMoney(debitPart)) : creditPart!
 }
@@ -201,45 +217,7 @@ function checkBalances(rows: readonly ReadRow[]): void {
   })
 }
 
-/** A text date in the profile's format, or a date cell's serial number. */
-export function dateOf(cell: StatementCell | undefined, format: DateFormat): CivilDate | null {
-  if (typeof cell === 'number') {
-    return Number.isFinite(cell) && cell > 0 && cell < 2_958_466 ? civilDateFromSerial(cell) : null
-  }
-  const text = cellString(cell)
-  const patterns: Record<DateFormat, { readonly pattern: RegExp; readonly order: readonly [number, number, number] }> = {
-    'dd.mm.yyyy': { pattern: /^(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})\.?(?:\s.*)?$/, order: [3, 2, 1] },
-    'dd/mm/yyyy': { pattern: /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s.*)?$/, order: [3, 2, 1] },
-    'mm/dd/yyyy': { pattern: /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s.*)?$/, order: [3, 1, 2] },
-    'yyyy-mm-dd': { pattern: /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/, order: [1, 2, 3] },
-  }
-  const { pattern, order } = patterns[format]
-  const match = pattern.exec(text)
-  if (match === null) return null
-  try {
-    return civilDate(Number(match[order[0]]), Number(match[order[1]]), Number(match[order[2]]))
-  } catch {
-    return null
-  }
-}
-
-/**
- * A number cell, or text such as `1.234,56`, `-80,00` or `1,234.56 EUR` by the decimal mark, in whole cents. Null for
- * anything else, such as `12.50` read with a decimal comma, which is not a grouped thousand, or `1.234,567`.
- */
-export function moneyOf(cell: StatementCell | undefined, decimal: DecimalMark): Money | null {
-  if (typeof cell === 'number') {
-    return Number.isFinite(cell) ? moneyFromAmount(cell) : null
-  }
-  const amount = decimalOfMarkedText(cellString(cell), decimal)
-  return amount === null || roundedDecimal(amount, 2) !== amount ? null : inEuros(amount, null)
-}
-
 /** The facts that tell a row from every other row of its account, so a key from another export of the same row matches. */
 function rowFacts(account: string, row: ReadRow): string[] {
   return [account, row.date, String(row.amount), String(row.balance ?? ''), fold(row.description), fold(row.counterparty), normaliseIban(row.counterpartyIban)]
-}
-
-function cellString(cell: StatementCell | undefined): string {
-  return cell === undefined ? '' : String(cell).trim()
 }

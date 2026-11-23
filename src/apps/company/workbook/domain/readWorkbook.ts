@@ -6,6 +6,7 @@ import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import type { AccountRecord } from './accountsReading'
 import { readAccounts } from './accountsReading'
 import { accountsWithSources, folderFiledOnSync } from './accountSources'
+import { accountsWithBanks } from './accountBanks'
 import type { BillingItem } from './billingPlan'
 import { readBillingPlan } from './billingPlanReading'
 import type { CategoryRecord } from './categoriesReading'
@@ -23,6 +24,7 @@ import {
   ITEM_RECORDS,
   LABEL_RECORDS,
   LEDGER_RECORDS,
+  RECIPE_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SPLIT_PART_RECORDS,
@@ -30,6 +32,8 @@ import {
 import type { Dismissal } from './dismissals'
 import type { HeldStatement } from './heldStatements'
 import { readHeldStatements } from './heldStatementsReading'
+import { readRecipes } from './recipesReading'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import type { Label } from '../../../../shared/categorising/domain/labels'
 import { readLabels } from './labelReading'
 import { readDismissals } from './dismissalsReading'
@@ -67,6 +71,7 @@ export interface WorkbookRecordTypes {
   readonly labels: Label
   readonly dismissed: Dismissal
   readonly 'held-statements': HeldStatement
+  readonly recipes: SavedRecipe
 }
 
 /** What a storage holds of every kind of record. */
@@ -90,6 +95,7 @@ const CORE_PARTS: ReadonlyMap<string, keyof WorkbookRecordTypes> = new Map([
   [LABEL_RECORDS.name, 'labels'],
   [DISMISSAL_RECORDS.name, 'dismissed'],
   [HELD_STATEMENT_RECORDS.name, 'held-statements'],
+  [RECIPE_RECORDS.name, 'recipes'],
 ])
 
 /** What the records hold of a kind, core's or the installed pack's. */
@@ -125,6 +131,7 @@ export function workbookRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     labels: of(LABEL_RECORDS),
     dismissed: of(DISMISSAL_RECORDS),
     'held-statements': of(HELD_STATEMENT_RECORDS),
+    recipes: of(RECIPE_RECORDS),
     pack: packRecordsOf(
       (pack?.kinds ?? []).map((rules) => rules.kind),
       (kind) => of(kind),
@@ -229,7 +236,10 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     ...identity,
     transactions,
     categories,
-    accounts: accountsWithSources(withoutIds(keep('accounts', readAccounts(records.accounts, settings.currency))), transactions, folderFiledOnSync(records.settings)),
+    accounts: accountsWithBanks(
+      accountsWithSources(withoutIds(keep('accounts', readAccounts(records.accounts, settings.currency))), transactions, folderFiledOnSync(records.settings)),
+      settings.importProfiles,
+    ),
     rules: rules.rules,
     invoices,
     clients,
@@ -239,6 +249,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     rowsKeptWhole: new Map(),
     dismissals: keep('dismissed', readDismissals(records.dismissed)),
     heldStatements: keep('held-statements', readHeldStatements(records['held-statements'])),
+    recipes: keep('recipes', readRecipes(records.recipes)),
     settings,
     packParts: {},
     problems,

@@ -65,6 +65,7 @@ export function emptyWorkbookTabs(on: CivilDate, settings: Settings = DEFAULT_SE
     labels: [],
     dismissed: [],
     'held-statements': [],
+    recipes: [],
   }
 }
 

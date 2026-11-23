@@ -76,6 +76,7 @@ function exampleRecords(desk: CompanyDesk): Readonly<Record<string, string>> {
     'account-unused': 'fresh',
     rule: 'merchant-model',
     'held-statement-1': desk.store.state.workbook!.heldStatements[0]!.id,
+    recipe: String(desk.store.state.workbook!.recipes[0]!.id),
   }
 }
 

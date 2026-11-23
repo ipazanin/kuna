@@ -2,7 +2,9 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Recipe, RecipeSection, XmlFile } from '../src/shared/recipes/domain/recipe'
-import { runRecipe } from '../src/shared/recipes/domain/runRecipe'
+import { dateFrom, runRecipe } from '../src/shared/recipes/domain/runRecipe'
+import { readRecipe } from '../src/shared/recipes/domain/readRecipe'
+import { CAMT_RECIPE } from '../src/apps/company/imports/domain/camtRecipe'
 import type { RecipeRow, RecipeRun } from '../src/shared/recipes/domain/runRecipe'
 import { fileNameFits, readRecipeFile } from '../src/shared/recipes/infrastructure/recipeFile'
 import { decimalOfMarkedText, decimalOfText } from '../src/shared/money/decimal'
@@ -84,6 +86,12 @@ describe('a recipe run', () => {
     expect(read).toMatchObject({ dates: { day: '2026-11-02' }, texts: { time: '' } })
   })
 
+  it('reads a day alone in a format with a time of day, as a sheet writes a whole day', () => {
+    expect(dateFrom('2026-11-02', ['yyyy-MM-dd HH:mm:ss'])).toBe('2026-11-02')
+    expect(dateFrom('2026-11-02 14:06:00', ['yyyy-MM-dd HH:mm:ss'])).toBe('2026-11-02')
+    expect(dateFrom('02.11.2026', ['yyyy-MM-dd HH:mm:ss'])).toBeNull()
+  })
+
   it('tells kinds apart by the sign of a number and passes over rows the section does not keep', () => {
     const rows = readRows(runXml([row({ amount: '-3' }), row({ id: '2', level: 'SUMMARY' })].join('')))
     expect(rows.map((read) => [read.kind, read.texts.key])).toEqual([['out', '1']])
@@ -146,6 +154,70 @@ describe('a recipe run', () => {
   it('fails a file with another root, and one that is not XML', () => {
     expect(readRecipeFile(XML_RECIPE, bytesOf('<Other />'))).toEqual({ kind: 'misfit', misfit: { kind: 'no-root', root: 'Report' } })
     expect(readRecipeFile(XML_RECIPE, bytesOf('not xml at all'))).toEqual({ kind: 'misfit', misfit: { kind: 'not-readable' } })
+  })
+})
+
+describe('an XML recipe that reads elements', () => {
+  const NESTED: Recipe<XmlFile> = {
+    id: 'nested',
+    name: 'Nested report',
+    file: { format: 'xml', root: 'Report' },
+    sections: [
+      { name: 'Statements', rows: 'List/Statement', cells: 'elements', keep: [], shown: [], fields: { id: { from: 'Id', as: 'text' } }, kinds: [{ kind: 'statement', when: [], fields: {} }] },
+      {
+        name: 'Entries',
+        rows: 'Entry',
+        within: 'Statements',
+        cells: 'elements',
+        keep: [],
+        shown: [],
+        fields: {
+          amount: { from: 'Amt', as: 'decimal' },
+          currency: { from: 'Amt@Ccy', as: 'text' },
+          payee: { from: 'Party/Name', as: 'text', blank: true },
+          lines: { from: 'Note/Line*', as: 'text', blank: true },
+        },
+        kinds: [{ kind: 'entry', when: [{ column: 'Status/Code', is: ['BOOK'] }], fields: {} }],
+      },
+    ],
+  }
+  const xml = (body: string): ArrayBuffer => bytesOf(`<x:Report xmlns:x="urn:example"><x:List>${body}</x:List></x:Report>`)
+  const entry = (amount: string, status = 'BOOK', extra = ''): string => `<x:Entry><x:Amt Ccy="EUR">${amount}</x:Amt><x:Status><x:Code>${status}</x:Code></x:Status>${extra}</x:Entry>`
+
+  it('reads child text, an attribute and the joined lines by local name, and tells which row of the section above each row sits in', () => {
+    const file = readRecipeFile(
+      NESTED,
+      xml(
+        `<x:Statement><x:Id>1</x:Id>${entry('1.5', 'BOOK', '<x:Note><x:Line> a </x:Line><x:Line/><x:Line>b</x:Line></x:Note>')}</x:Statement><x:Statement><x:Id>2</x:Id>${entry('2')}${entry('3', 'PDNG')}</x:Statement>`,
+      ),
+    )
+    if (file.kind === 'misfit') throw new Error('expected rows')
+    const run = runRecipe(NESTED, file.rows)
+
+    expect(file.parents.get('Entries')).toEqual([0, 1, 1])
+    expect(
+      readRows(run)
+        .filter((row) => row.section === 'Entries')
+        .map((row) => [row.place, row.decimals.amount, row.texts.currency, row.texts.payee, row.texts.lines]),
+    ).toEqual([
+      [0, decimalOfText('1.5'), 'EUR', null, 'a b'],
+      [1, decimalOfText('2'), 'EUR', null, null],
+    ])
+    expect(run.kind === 'read' && run.asked.map((asked) => [asked.section, asked.place])).toEqual([['Entries', 2]])
+  })
+
+  it('reads back from its JSON, and refuses a section within one that comes after it', () => {
+    const [statements, entries] = NESTED.sections
+
+    expect(readRecipe(NESTED.id, NESTED.name, NESTED.file, JSON.stringify(NESTED.sections))).toEqual(NESTED)
+    expect(readRecipe(NESTED.id, NESTED.name, NESTED.file, JSON.stringify([entries, statements]))).toBeNull()
+    expect(readRecipe(CAMT_RECIPE.id, CAMT_RECIPE.name, CAMT_RECIPE.file, JSON.stringify(CAMT_RECIPE.sections))).toEqual(CAMT_RECIPE)
+  })
+
+  it('takes a section within one as present with no rows when the rows it sits in hold none', () => {
+    const file = readRecipeFile(NESTED, xml('<x:Statement><x:Id>1</x:Id></x:Statement>'))
+
+    expect(file.kind === 'read' && file.rows.get('Entries')).toEqual([])
   })
 })
 

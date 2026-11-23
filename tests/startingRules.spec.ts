@@ -47,7 +47,7 @@ describe('startingRules', () => {
   it('files interest on a late contribution or tax apart from the payment itself, though both go to the same account under the same code', () => {
     const rules = startingRules(civil('2026-03-01'))
     const context = categorisationContextOf({
-      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', sources: BY_HAND_SOURCES }],
+      accounts: [{ slug: 'main', iban: 'XX00FAKE0000000001', currency: '', bank: '', sources: BY_HAND_SOURCES }],
       clients: [{ slug: 'acme', name: 'Acme', ibans: [], invoicing: NO_CLIENT_INVOICING }],
       settings: DEFAULT_SETTINGS,
     })

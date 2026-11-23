@@ -6,7 +6,7 @@ import type { Translation } from '../../text/translation'
 
 export const en = {
   name: 'Name',
-  nameHelp: 'What Import and Settings call the file, such as the bank and the account.',
+  nameHelp: 'What Kuna calls this kind of file, such as by its bank and account.',
   bank: 'Bank',
   bankHelp: 'The bank whose accounts take the rows.',
   currency: 'Currency',
@@ -40,7 +40,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   name: 'Naziv',
-  nameHelp: 'Kako Uvoz i Postavke zovu datoteku, primjerice po banci i računu.',
+  nameHelp: 'Kako Kuna zove ovu vrstu datoteke, primjerice po banci i računu.',
   bank: 'Banka',
   bankHelp: 'Banka čiji računi primaju retke.',
   currency: 'Valuta',

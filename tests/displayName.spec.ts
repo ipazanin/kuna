@@ -29,7 +29,7 @@ describe('displayNamesOf', () => {
   it('names the categories and accounts of a workbook, and any slug the tabs do not define', () => {
     const names = displayNamesOf({
       categories: [{ slug: 'rent-owner', label: 'Office rent', family: 'owner', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: [], vat: 'none', ownerShare: null }],
-      accounts: [{ slug: 'main', label: '', iban: '', currency: '', sources: BY_HAND_SOURCES }],
+      accounts: [{ slug: 'main', label: '', iban: '', currency: '', bank: '', sources: BY_HAND_SOURCES }],
     })
 
     expect(names.category('rent-owner')).toBe('Office rent')

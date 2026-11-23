@@ -12,6 +12,7 @@ import type { ItemRecord } from './splitsReading'
 import type { SplitTabRow } from './splitsReading'
 import type { Invoice } from './workbook'
 import type { Label } from '../../../../shared/categorising/domain/labels'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 
 export const LEDGER_RECORDS = recordKind<LedgerEntry>('ledger-row', {
   en: { one: 'ledger row', many: 'ledger rows', article: 'a' },
@@ -64,4 +65,8 @@ export const HELD_STATEMENT_RECORDS = recordKind<HeldStatement>('held-statement'
 export const LABEL_RECORDS = recordKind<Label>('label', {
   en: { one: 'label', many: 'labels', article: 'a' },
   hr: { one: 'oznaka', of: 'oznake', few: 'oznake', other: 'oznaka', gender: 'feminine' },
+})
+export const RECIPE_RECORDS = recordKind<SavedRecipe>('recipe', {
+  en: { one: 'recipe', many: 'recipes', article: 'a' },
+  hr: { one: 'recept', of: 'recepta', few: 'recepta', other: 'recepata', gender: 'masculine' },
 })

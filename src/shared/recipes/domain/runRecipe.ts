@@ -50,9 +50,12 @@ function passes(test: RowTest, row: SourceRow): boolean {
   return number !== null && (test.sign === 'above-zero' ? number > DECIMAL_ZERO : number < DECIMAL_ZERO)
 }
 
-/** Reads a date or a time written in exactly one of the formats. A format's letters match digits and anything else matches itself. */
+/**
+ * Reads a date or a time written in exactly one of the formats. A format's letters match digits and anything else matches
+ * itself. A format with a time of day also reads its day alone, as a sheet writes a day cell that holds no time.
+ */
 function partsByFormat(text: string, formats: readonly string[]): Readonly<Record<string, string>> | null {
-  for (const format of formats) {
+  for (const format of formats.flatMap((written) => (written.includes(' HH') ? [written, written.slice(0, written.indexOf(' HH'))] : [written]))) {
     const pattern = format.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/yyyy|MM|dd|HH|mm|ss/g, (token) => `(?<${token}>\\d{${token.length}})`)
     const groups = new RegExp(`^${pattern}$`).exec(text)?.groups
     if (groups !== undefined) return groups
@@ -60,7 +63,8 @@ function partsByFormat(text: string, formats: readonly string[]): Readonly<Recor
   return null
 }
 
-function dateFrom(text: string, formats: readonly string[]): CivilDate | null {
+/** The day a text writes in one of a recipe's day formats, or null when it fits none. */
+export function dateFrom(text: string, formats: readonly string[]): CivilDate | null {
   const parts = partsByFormat(text, formats)
   if (parts === null || parts.yyyy === undefined || parts.MM === undefined || parts.dd === undefined) return null
   return parseCivilDate(`${parts.yyyy}-${parts.MM}-${parts.dd}`)

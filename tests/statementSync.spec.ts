@@ -24,6 +24,7 @@ import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Account } from '../src/apps/company/workbook/domain/workbook'
 import { emptyCompany } from './fixtures/emptyCompany'
 import { civil } from './fixtures/ledger'
+import { camtFile } from '../src/apps/company/imports/infrastructure/importFiles'
 
 const used = new Set<string>()
 
@@ -309,15 +310,7 @@ describe("filing the statements a sync read against another device's sync", () =
     const harness = await driveHarness(used, grids())
     const { store, drive } = harness
     const workbook = store.state.workbook!
-    const run = dryRunFor(
-      statementReadings({ kind: 'camt', fileName: 'x.xml', document: new DOMParser().parseFromString(MAIN_003, 'application/xml') }, workbook, null),
-      companyBooksOf(store.state)!,
-      new Map(),
-      new Map(),
-      new Map(),
-      true,
-      'automation',
-    )
+    const run = dryRunFor(statementReadings(camtFile('x.xml', MAIN_003), workbook, null), companyBooksOf(store.state)!, new Map(), new Map(), new Map(), true, 'automation')
     const filedElsewhere = {
       date: '2026-10-06',
       account: 'main',
@@ -351,7 +344,7 @@ describe("filing the statements a sync read against another device's sync", () =
 })
 
 describe('the statement mail step of a sync', () => {
-  const BY_MAIL: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', sources: [{ source: 'mail', from: civil('2026-11-01') }] }
+  const BY_MAIL: Account = { slug: 'main', iban: MAIN_IBAN, currency: '', bank: '', sources: [{ source: 'mail', from: civil('2026-11-01') }] }
   const BY_HAND_TOO: Account = { ...BY_MAIL, slug: 'savings', iban: SAVINGS_IBAN, sources: [{ source: 'by-hand', from: null }] }
   const named = emptyCompany({
     accounts: [BY_HAND_TOO],
