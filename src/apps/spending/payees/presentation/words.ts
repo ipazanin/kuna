@@ -22,6 +22,13 @@ export const en = {
   newest: (day: string) => `newest ${day}`,
   person: 'Person',
   newPayee: (name: string) => `New payee: ${name}`,
+  countsUnder: {
+    label: 'Counts under',
+    folded: (payee: string) => `Counts under ${payee}`,
+    noPayee: 'Count it under a payee',
+    placeholder: 'Pick or type a name',
+    search: 'Find or type a name',
+  },
   filledFromPayee: "Filled from this payee's last entries",
   empty: {
     title: 'No payees yet',
@@ -53,6 +60,13 @@ export const hr: Translation<typeof en> = {
   newest: (day) => `zadnji ${day}`,
   person: 'Osoba',
   newPayee: (name) => `Novi: ${name}`,
+  countsUnder: {
+    label: 'Vodi se pod',
+    folded: (payee) => `Vodi se pod: ${payee}`,
+    noPayee: 'Vodi ga pod primateljem',
+    placeholder: 'Odaberi ili upiši ime',
+    search: 'Pretraži ili upiši ime',
+  },
   filledFromPayee: 'Prema zadnjim unosima ovog primatelja ili platitelja',
   empty: {
     title: 'Još nema primatelja ni platitelja',

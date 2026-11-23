@@ -27,6 +27,9 @@ import type { PartKey } from '../../entries/presentation/useLabelsAndEvents'
 import { lastUsedAccount, rememberLastAccount } from '../../entries/infrastructure/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import CountsUnderField from '../../payees/presentation/CountsUnderField.vue'
+import { partPayeeOf } from '../../payees/domain/payeeKey'
+import { payeeOfAll } from '../../workbook/domain/carriedChoices'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
@@ -94,6 +97,7 @@ watch(open, (opened) => {
   pickedPlace.value = null
   pickedCategory.value = ''
   lines.value = null
+  partPayees.value = {}
   start([])
   keepPhoto.value = false
   tried.value = false
@@ -138,6 +142,13 @@ watch(opening, (after, before) => {
     partEvents.value[part] = moved.event
   }
 })
+/** Who each part counts under once you picked it, by the part's key. A part not picked counts under who the payment's parts all counted under. */
+const partPayees = ref<Record<PartKey, string>>({})
+const entryPayee = computed(() => chosenRow.value?.payee || merchant.value.trim())
+const openingPayee = computed(() => partPayeeOf(payeeOfAll(chosenRow.value === null ? [] : rowItemsOf({ items: book.value?.items ?? [] })(chosenRow.value)), entryPayee.value))
+const payeeOfPart = (part: PartKey): string => partPayees.value[part] ?? openingPayee.value
+const payeeChosen = (part: PartKey): { readonly payee?: string } => (part in partPayees.value ? { payee: partPayees.value[part]! } : {})
+
 /** What a part saves with: the labels and event it shows, or nothing on a file from before parts, which keeps none. */
 const choicesOf = (part: PartKey): { readonly choices?: PartChoices } => (labelling.value ? { choices: choicesOfPart(part) } : {})
 
@@ -202,7 +213,13 @@ const typedLines = computed(() => {
   return typedReceiptLines(
     categories.value,
     sum,
-    given.map((amount, place) => ({ amount, category: picked[place]!.id, note: fields?.[place]?.note ?? '', ...choicesOf(fields?.[place]?.id ?? WHOLE) })),
+    given.map((amount, place) => ({
+      amount,
+      category: picked[place]!.id,
+      note: fields?.[place]?.note ?? '',
+      ...choicesOf(fields?.[place]?.id ?? WHOLE),
+      ...payeeChosen(fields?.[place]?.id ?? WHOLE),
+    })),
   )
 })
 const linesRefusal = computed(() => (typedLines.value !== null && 'refused' in typedLines.value ? entryWords.split.refusals[typedLines.value.refused] : null))
@@ -322,8 +339,9 @@ function closeAsked(wanted: boolean): void {
       <UFormField :label="words.merchant" :help="words.merchantHelp" :class="{ 'sm:col-span-2': lines !== null }">
         <UInput v-model="merchant" class="w-full" data-testid="spending-receipt-merchant" />
       </UFormField>
-      <UFormField v-if="lines === null" :label="words.category" :error="(tried && errors.category) || false">
+      <UFormField v-if="lines === null" :label="words.category" :error="(tried && errors.category) || false" :ui="{ container: 'flex flex-col' }">
         <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.pickCategory" class="w-full" data-testid="spending-receipt-category" />
+        <CountsUnderField :model-value="payeeOfPart(WHOLE)" :entry-payee="entryPayee" :name="entryWords.dialog.countsUnder" class="order-last mt-1" @update:model-value="partPayees[WHOLE] = $event" />
       </UFormField>
       <LabelsAndEventFields
         v-if="lines === null && labelling"
@@ -358,6 +376,9 @@ function closeAsked(wanted: boolean): void {
           </template>
           <template #rest="{ cents }">
             <AccountMoneyText :cents="cents" :currency="EURO" />
+          </template>
+          <template #beside="{ field, place: partPlace }">
+            <CountsUnderField :model-value="payeeOfPart(field.id)" :entry-payee="entryPayee" :name="entryWords.split.partCountsUnder(partPlace)" @update:model-value="partPayees[field.id] = $event" />
           </template>
           <template v-if="labelling" #part="{ field, place: partPlace }">
             <LabelsAndEventFields

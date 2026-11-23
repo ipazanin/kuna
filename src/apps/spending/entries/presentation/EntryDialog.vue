@@ -7,6 +7,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
+import EntryPartFields from './EntryPartFields.vue'
 import EntrySplitDialog from './EntrySplitDialog.vue'
 import LabelsAndEventFields from './LabelsAndEventFields.vue'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
@@ -16,20 +17,19 @@ import TransferToFields from './TransferToFields.vue'
 import { positiveAmount, useTransferTyping } from './useTransferTyping'
 import { useLabelsAndEvents } from './useLabelsAndEvents'
 import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
-import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
 import { sourceOf } from '../../links/application/linkTargets'
 import { addInAppWords } from '../../links/presentation/addInApp'
 import type { AddInApp } from '../../links/presentation/addInApp'
 import AddInAppForm from '../../links/presentation/AddInAppForm.vue'
 import EntryLinkField from '../../links/presentation/EntryLinkField.vue'
 import { words as linkWords } from '../../links/presentation/words'
+import CountsUnderField from '../../payees/presentation/CountsUnderField.vue'
 import PayeeField from '../../payees/presentation/PayeeField.vue'
 import { usePayeeMemory } from '../../payees/presentation/usePayeeMemory'
 import { words as payeeWords } from '../../payees/presentation/words'
 import { lineRefilesOf, refiledReceiptLines } from '../../receipts/domain/receiptLines'
 import type { LineFiling } from '../../receipts/domain/receiptLines'
 import EntryReceipt from '../../receipts/presentation/EntryReceipt.vue'
-import ReceiptLineFiling from '../../receipts/presentation/ReceiptLineFiling.vue'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
 import { shortcutOffer } from '../../shortcuts/presentation/shortcutOffer'
@@ -59,7 +59,6 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
-import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { words as uiWords } from '../../../../shared/ui/words'
 import { EURO } from '../../../../shared/money/currencyCode'
 
@@ -95,7 +94,10 @@ const labels = ref<readonly RecordId[]>([])
 const event = ref<EventChoice>(BY_DAYS)
 const day = computed(() => parseCivilDate(date.value))
 const kit = useLabelsAndEvents(() => day.value)
-const { labelChoices, labelling: keepsLabels, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventItems, start, addCarried } = kit
+const { labelling: keepsLabels, partLabels, partEvents, start, addCarried } = kit
+/** Who an entry not split counts under, and each part of a split one by the part's id, blank for the entry's payee. */
+const countsUnder = ref('')
+const partPayees = ref<Record<string, string>>({})
 /** The category and note of each receipt line by its id, which its heading follows and Save files the line under. */
 const lineFilings = ref<Record<string, LineFiling>>({})
 const lineRefiles = computed(() => lineRefilesOf(categories.value, entryLines.value, lineFilings.value))
@@ -115,6 +117,8 @@ const formNow = computed(() =>
     date.value,
     payee.value,
     note.value,
+    countsUnder.value,
+    partPayees.value,
     labels.value,
     partLabels.value,
     event.value,
@@ -202,6 +206,8 @@ watch(open, (opened) => {
   date.value = entry?.date ?? today()
   payee.value = entry?.payee ?? ''
   note.value = wholeItem.value?.note ?? ''
+  countsUnder.value = wholeItem.value?.payee ?? ''
+  partPayees.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.payee]))
   labels.value = wholeItem.value?.labels ?? []
   event.value = wholeItem.value?.event ?? BY_DAYS
   start(entryLines.value.map((line) => ({ part: line.id, labels: line.labels, event: line.event })))
@@ -290,10 +296,22 @@ function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): 
   const filed = categories.value.find((candidate) => candidate.id === category.value)
   const records = store.state.records
   if ((filed === undefined && !split.value) || records === null) return null
-  const entry = newEntry({ account: fromAccount.id, date: on, amount, payee: payee.value, category: filed?.id ?? null, note: note.value, labels: split.value ? [] : labels.value, event: event.value })
+  const entry = newEntry({
+    account: fromAccount.id,
+    date: on,
+    amount,
+    payee: payee.value,
+    category: filed?.id ?? null,
+    note: note.value,
+    labels: split.value ? [] : labels.value,
+    event: event.value,
+    countsUnder: countsUnder.value,
+  })
   const lines = refiledReceiptLines(categories.value, entryLines.value, lineRefiles.value.refiles)
   if ('refused' in lines) return null
-  const parts = split.value ? lines.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels, event: partEvents.value[part.id] ?? part.event })) : entry.items
+  const parts = split.value
+    ? lines.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels, event: partEvents.value[part.id] ?? part.event, payee: partPayees.value[part.id] ?? part.payee }))
+    : entry.items
   const before = props.entry === null ? null : { row: props.entry, items: entryLines.value }
   const other = legs.value?.find((leg) => leg.id !== before?.row.id) ?? null
   const carried = new Set(parts.flatMap((part) => part.labels))
@@ -403,7 +421,13 @@ async function remove(): Promise<void> {
         <UFormField :label="words.dialog.payee">
           <PayeeField v-model="payee" @update:model-value="memory.fill($event, kind)" />
         </UFormField>
-        <UFormField v-if="!split" :label="words.dialog.category" :help="memory.filled.value ? payeeWords.filledFromPayee : ''" :error="(tried && errors.category) || false">
+        <UFormField
+          v-if="!split"
+          :label="words.dialog.category"
+          :help="memory.filled.value ? payeeWords.filledFromPayee : ''"
+          :error="(tried && errors.category) || false"
+          :ui="{ container: 'flex flex-col' }"
+        >
           <USelectMenu
             v-model="category"
             :items="categoryItems"
@@ -413,6 +437,7 @@ async function remove(): Promise<void> {
             data-testid="spending-entry-category"
             @update:model-value="memory.pickedByHand"
           />
+          <CountsUnderField v-model="countsUnder" :entry-payee="payee" :name="words.dialog.countsUnder" class="order-last mt-1" />
         </UFormField>
       </template>
       <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
@@ -438,32 +463,19 @@ async function remove(): Promise<void> {
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ splitNote }}</p>
         <RowLines :lines="lineRefiles.lines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full">
-          <template v-if="labelling || receipt !== null" #line="{ line, title }">
-            <span class="flex min-w-0 flex-1 flex-col gap-1.5">
-              <ReceiptLineFiling v-if="lineFilings[line.id] !== undefined" v-model="lineFilings[line.id]!" :categories="categories" :title="title" />
-              <NoteLine v-if="tried && lineRefusals.has(line.id)" tone="error" data-testid="spending-entry-line-refused">{{ lineRefusals.get(line.id) }}</NoteLine>
-              <LabelsSelect
-                v-if="labelling"
-                :model-value="partLabels[line.id] ?? []"
-                :labels="labelChoices"
-                :name="words.dialog.partLabels(title)"
-                size="sm"
-                class="w-full"
-                data-testid="spending-entry-part-labels"
-                @update:model-value="labelPart(line.id, $event)"
-                @create="labelPart(line.id, withTyped(partLabels[line.id] ?? [], $event, line.id))"
-              />
-              <NoteLine v-if="labelRefused !== null && labelRefused.part === line.id" tone="error" data-testid="spending-entry-part-label-refused">{{ labelRefused.text }}</NoteLine>
-              <USelect
-                v-if="labelling && events.length > 0"
-                v-model="partEvents[line.id]"
-                :items="eventItems(line.category)"
-                :aria-label="words.dialog.partEvent(title)"
-                size="sm"
-                class="w-full"
-                data-testid="spending-entry-part-event"
-              />
-            </span>
+          <template #line="{ line, title }">
+            <EntryPartFields
+              v-model:filing="lineFilings[line.id]"
+              :payee="partPayees[line.id] ?? line.payee"
+              :line="line"
+              :title="title"
+              :entry-payee="payee"
+              :categories="categories"
+              :kit="kit"
+              :labelling="labelling"
+              :refusal="(tried && lineRefusals.get(line.id)) || null"
+              @update:payee="partPayees[line.id] = $event"
+            />
           </template>
         </RowLines>
         <EntryReceipt v-if="receipt !== null && entry !== null" :entry="entry" :receipt="receipt" @removed="open = false" />

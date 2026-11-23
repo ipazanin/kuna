@@ -6449,6 +6449,60 @@ export function spendingSplitFlowIn(language) {
   }
 }
 
+/**
+ * On the people Spending file's Entries: Half and half splits this month's Corner market row in two under its category, the
+ * first part taking the odd cent and part 2's Counts under open, which Ana Horvat is picked for. The row then reads
+ * "Corner market · Ana Horvat" with a part line under her, its entry dialog shows each part's Counts under, and Remove the split takes the parts off.
+ */
+export function spendingHalfAndHalfFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { split } = words.spendingEntries
+  const ana = 'Ana Horvat'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Corner market', -4530)
+    const folded = await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="counts-under"][data-folded="true"]`)
+    if (folded.length !== 1) throw new Error('the entry dialog shows no folded Counts under beside the category of an entry not split')
+    await pressSelector(page, press, '[data-testid="spending-entry-split"]')
+    await page.waitForSelector(SPENDING_SPLIT_DIALOG, { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="split-half-and-half"]')
+    await delay(300)
+    const parts = await page.$$(`${SPENDING_SPLIT_DIALOG} [data-testid="split-part"]`)
+    if (parts.length !== 2) throw new Error(`Half and half left ${parts.length} parts, not two`)
+    const first = await parts[0].$eval('[data-testid="split-part-amount"] input, input[data-testid="split-part-amount"]', (input) => input.value)
+    if (!first.includes('22') || !first.includes('65')) throw new Error(`Half and half gave part 1 "${first}", not 22.65 with the odd cent`)
+    if ((await parts[0].$('[data-testid="counts-under"][data-folded="true"]')) === null) throw new Error("part 1 of Half and half does not count under the entry's payee, folded")
+    const picker = await parts[1].$('[data-testid="counts-under-pick"]')
+    if (picker === null) throw new Error("Half and half leaves part 2's Counts under folded")
+    await inspect?.("Half and half, part 2's Counts under open")
+    await shoot('spending-half-and-half')
+    await choose(page, press, picker, ana)
+    await delay(300)
+    await inspect?.('part 2 of Half and half counting under Ana Horvat')
+    await shoot('spending-half-and-half-picked')
+    await pressSelector(page, press, '[data-testid="spending-split-save"]')
+    await toast(page, split.saved)
+    await dialogGone(page, SPENDING_SPLIT_DIALOG)
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await dismissToasts(page)
+    await rowLinesAre(page, `Corner market · ${ana}`, -4530, 2)
+    await inspect?.('Entries with a part counting under Ana Horvat')
+    await shoot('spending-half-and-half-done')
+
+    await openSpendingRow(page, press, `Corner market · ${ana}`, -4530)
+    const lineFields = await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-entry-part-fields"] [data-testid="counts-under"]`)
+    if (lineFields.length !== 2) throw new Error(`the split entry's dialog shows ${lineFields.length} Counts under fields, not one per part`)
+    await delay(300)
+    await inspect?.("the entry dialog of the split entry, each part's Counts under")
+    await shoot('spending-half-and-half-entry')
+    await pressSelector(page, press, '[data-testid="spending-entry-remove-split"]')
+    await toast(page, split.removed)
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await rowLinesAre(page, 'Corner market', -4530, 0)
+    await dismissToasts(page)
+  }
+}
+
 const SPENDING_ACCOUNT_DIALOG = '[data-testid="spending-account-dialog"]'
 
 /** Opens the account dialog from the account's own screen and waits for it to settle. */

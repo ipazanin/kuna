@@ -58,6 +58,10 @@ export function useLabelsAndEvents(day: () => CivilDate | null) {
     partLabels.value = { ...partLabels.value, [part]: picked }
   }
 
+  function eventPart(part: PartKey, event: EventChoice): void {
+    partEvents.value = { ...partEvents.value, [part]: event }
+  }
+
   /**
    * The choices of a part's event under its category: first the event its day gives it, then each event, newest first, and no
    * event. Two events of one name read apart by their days.
@@ -96,7 +100,7 @@ export function useLabelsAndEvents(day: () => CivilDate | null) {
     created.value.filter((label) => carried.has(label.id)).forEach((label) => addLabel(unit, label))
   }
 
-  return { labelChoices, labelling, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventItems, start, addParts, addCarried }
+  return { labelChoices, labelling, labelRefused, partLabels, partEvents, events, withTyped, labelPart, eventPart, eventItems, start, addParts, addCarried }
 }
 
 /** The labels and events of one dialog's parts, which `LabelsAndEventFields` reads and adds typed labels to. */

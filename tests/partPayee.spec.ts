@@ -94,10 +94,20 @@ describe('keeping a part payee through other writes', () => {
   const typedFlowers = (countsUnder?: string, note = '', payee = 'Florist') =>
     newEntry({ account: OTP.id, date: civil('2026-11-02'), amount: accountMoneyFromAmount(-30), payee, category: GIFTS.id, note, labels: [], ...(countsUnder === undefined ? {} : { countsUnder }) })
 
-  it('keeps who an entry not split counts under when the entry dialog, which types none, saves a new note', () => {
+  it('takes who the entry dialog types an entry not split counts under, and blank brings it back to the entry payee', () => {
     const before = typedFlowers('Ana')
 
-    expect(retypedEntry(before, typedFlowers(undefined, 'For her birthday')).items.map((item) => [item.note, item.payee])).toEqual([['For her birthday', 'Ana']])
+    expect(retypedEntry(before, typedFlowers('Ana', 'For her birthday')).items.map((item) => [item.note, item.payee])).toEqual([['For her birthday', 'Ana']])
+    expect(retypedEntry(before, typedFlowers('Marko')).items.map((item) => item.payee)).toEqual(['Marko'])
+    expect(retypedEntry(before, typedFlowers(undefined)).items.map((item) => item.payee)).toEqual([''])
+  })
+
+  it('takes the payee the entry dialog types on a part split by hand, and keeps the others', () => {
+    const before = { row: meal, items: [yours, hers] }
+    const typed = { row: meal, items: [{ ...yours, payee: 'Marko' }, hers] }
+
+    expect(retypedEntry(before, typed).items.map((item) => item.payee)).toEqual(['Marko', hers.payee])
+    expect(retypedEntry(before, { row: meal, items: [] }).items.map((item) => item.payee)).toEqual([yours.payee, hers.payee])
   })
 
   it("keeps no payee of its own once the entry's payee is retyped to the one it counted under", () => {

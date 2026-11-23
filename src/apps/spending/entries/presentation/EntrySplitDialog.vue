@@ -8,9 +8,11 @@ import LabelsAndEventFields from './LabelsAndEventFields.vue'
 import { useLabelsAndEvents } from './useLabelsAndEvents'
 import { words } from './words'
 import { writeEntrySplit } from '../application/entryWrites'
-import { entrySplit, newPartChoices } from '../domain/entrySplit'
+import { entrySplit, halfAndHalf, newPartChoices } from '../domain/entrySplit'
 import type { ItemDraft } from '../domain/entrySplit'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import CountsUnderField from '../../payees/presentation/CountsUnderField.vue'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
@@ -29,7 +31,7 @@ import SplitEditor from '../../../../shared/ui/SplitEditor.vue'
 import { givenParts, splitField } from '../../../../shared/ui/splitFields'
 import type { SplitField } from '../../../../shared/ui/splitFields'
 
-/** The parts you split an entry into, each with an amount, a category, an optional note, labels and an event, and one part that takes the rest. */
+/** The parts you split an entry into, each with an amount, a category, who it counts under, an optional note, labels and an event, and one part that takes the rest. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -45,6 +47,9 @@ const writes = useRecordWrites(store)
 /** Each part holds the id of the entry's part it opened, which it keeps. */
 const parts = ref<SplitField<RecordId>[]>([])
 const tried = ref(false)
+/** Who each part counts under by the field's id, blank for the entry's payee, and the parts whose picker is open. */
+const payees = ref<Record<number, string>>({})
+const payeesOpen = ref<Record<number, boolean>>({})
 
 const heldItems = computed(() => rowItemsOf({ items: store.state.workbook?.items ?? [] })(props.entry))
 /** Whether the entry is split already, so the dialog changes the split rather than making one. */
@@ -65,6 +70,8 @@ watch(open, (opened) => {
           const rest = place === held.length - 1
           return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category ?? '', part.note, rest, part.id)
         })
+  payees.value = Object.fromEntries(parts.value.map((field) => [field.id, held.find((part) => part.id === field.held)?.payee ?? '']))
+  payeesOpen.value = {}
   start(
     parts.value.flatMap((field) => {
       const part = held.find((candidate) => candidate.id === field.held)
@@ -75,6 +82,17 @@ watch(open, (opened) => {
 
 /** A part added in the editor, or the rest of an entry not split yet, starts with what `newPartChoices` gives it. */
 watch(parts, (fields) => addParts(fields.map((field) => ({ part: field.id, ...newPartChoices(heldItems.value) }))))
+
+/** Two parts in place of any there were, the first taking the odd cent, both under the entry's category, and part 2's payee open to pick. */
+function halveEntry(): void {
+  const held = heldItems.value
+  const category = mainCategoryOf(held) ?? ''
+  const [half] = halfAndHalf(whole.value)
+  const halves = [splitField<RecordId>(amountForTyping(half), category, changing.value ? '' : (held[0]?.note ?? ''), false, held[0]?.id ?? null), splitField<RecordId>('', category, '', true)]
+  parts.value = halves
+  payees.value = {}
+  payeesOpen.value = { [halves[1]!.id]: true }
+}
 
 const categories = computed(() => store.state.workbook?.categories ?? [])
 const side = computed(() => (props.entry.amount < 0 ? 'out' : 'in'))
@@ -105,6 +123,7 @@ const outcome = computed(() => {
       amount: amount === 'rest' ? 'rest' : signed(amount),
       category: categoryOf(part)!,
       note: part.note,
+      payee: payees.value[part.id] ?? '',
       choices: { labels: labelsOf(part), event: partEvents.value[part.id] ?? BY_DAYS },
     }
   })
@@ -142,6 +161,18 @@ async function save(): Promise<void> {
         </template>
         <template #rest="{ cents }">
           <AccountMoneyText :cents="cents" :currency="currency" />
+        </template>
+        <template #tools>
+          <UButton :label="words.split.halfAndHalf" icon="i-lucide-divide" color="neutral" variant="outline" size="sm" data-testid="split-half-and-half" @click="halveEntry" />
+        </template>
+        <template #beside="{ field, place }">
+          <CountsUnderField
+            v-model:open="payeesOpen[field.id]"
+            :model-value="payees[field.id] ?? ''"
+            :entry-payee="entry.payee"
+            :name="words.split.partCountsUnder(place)"
+            @update:model-value="payees[field.id] = $event"
+          />
         </template>
         <template v-if="labelling" #part="{ field, place }">
           <LabelsAndEventFields

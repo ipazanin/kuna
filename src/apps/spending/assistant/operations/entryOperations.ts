@@ -138,7 +138,7 @@ function changeEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingReco
     link: whole?.link ?? null,
     labels: whole?.labels ?? [],
     event: whole?.event ?? BY_DAYS,
-    countsUnder: countsUnderTyped(givenPartPayee(records, field['countsUnder']), typed.payee),
+    countsUnder: countsUnderTyped(givenPartPayee(records, field['countsUnder']), typed.payee, whole?.payee ?? ''),
   }
   const onAccount = accountOf(before.row.account)
   if (fixedByBank(before.row, onAccount) && (typed.date !== before.row.date || typed.amount !== before.row.amount))
@@ -154,11 +154,11 @@ function changeEntry(unit: UnitOfWork, book: SpendingBook, records: SpendingReco
 }
 
 /**
- * The payee change-entry types for the money to count under. Left out, it types none, so the entry keeps who it counted under. A
- * blank one types the entry's payee, which folds to blank and so clears another payee.
+ * The payee change-entry types for the money to count under. Left out, it types the one the entry counted under, so the entry
+ * keeps it. A blank one types the entry's payee, which folds to blank and so clears another payee.
  */
-function countsUnderTyped(given: string | null, entryPayee: string): string {
-  if (given === null) return ''
+function countsUnderTyped(given: string | null, entryPayee: string, held: string): string {
+  if (given === null) return held
   return given.trim() === '' ? entryPayee : given
 }
 

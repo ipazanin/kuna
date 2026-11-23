@@ -55,8 +55,8 @@ export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' 
 /**
  * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still skips
  * it. A row not split keeps its one item's id and link and takes the typed amount, category, note, labels, event and payee it
- * counts under, keeping the payee it counted under when the typed one names none, and a category you changed is yours from then on. A split row keeps its items, each with the labels and event of
- * the typed part of its id, and a receipt's line takes that part's category, note and payee too, while its amount stays the
+ * counts under, and a category you changed is yours from then on. A split row keeps its items, each with the labels, event and
+ * payee of the typed part of its id, and a receipt's line takes that part's category and note too, while its amount stays the
  * receipt's. A part left counting under the entry's new payee keeps no payee of its own.
  */
 export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
@@ -68,15 +68,13 @@ export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedR
   const ownPayee = (payee: string): string => partPayeeOf(payee, typed.row.payee)
   const parts = before.items.map((part) => {
     const typedPart = typedParts.get(part.id)
-    const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, note: typedPart.note, payee: typedPart.payee }
-    const retyped = { ...part, labels: typedPart?.labels ?? part.labels, event: typedPart?.event ?? part.event, ...refiled }
-    return { ...retyped, payee: ownPayee(retyped.payee) }
+    const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, note: typedPart.note }
+    return { ...part, labels: typedPart?.labels ?? part.labels, event: typedPart?.event ?? part.event, ...refiled, payee: ownPayee(typedPart?.payee ?? part.payee) }
   })
   const filedAnew = whole ? held.category !== filing.category : parts.some((part, place) => part.category !== before.items[place]?.category)
   const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: filedAnew ? 'person' : before.row.categorisedBy }
   if (!whole) return { row, items: parts }
-  const payee = ownPayee(filing.payee === '' ? held.payee : filing.payee)
-  return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels, event: filing.event, payee }] }
+  return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels, event: filing.event, payee: ownPayee(filing.payee) }] }
 }
 
 /** A transfer's leg typed over a row, which keeps the row's labels, since a transfer is labelled by selecting it on Entries. */

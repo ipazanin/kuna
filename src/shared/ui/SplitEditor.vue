@@ -32,6 +32,10 @@ defineSlots<{
   whole(): unknown
   category(scope: { field: SplitField<Held>; place: number }): unknown
   rest(scope: { cents: Cents }): unknown
+  /** More of a part's fields under its category, such as who it counts under. */
+  beside?(scope: { field: SplitField<Held>; place: number }): unknown
+  /** Shortcuts above the parts that set them all at once. */
+  tools?(): unknown
   /** More fields of a part under its note, such as the labels it carries. */
   part?(scope: { field: SplitField<Held>; place: number }): unknown
 }>()
@@ -78,6 +82,9 @@ function takeRest(id: number): void {
       <span class="text-toned">{{ wholeLabel }}</span>
       <span class="font-medium"><slot name="whole" /></span>
     </p>
+    <div v-if="$slots.tools" class="flex flex-wrap gap-2" data-testid="split-tools">
+      <slot name="tools" />
+    </div>
     <ol class="flex flex-col gap-5" :aria-label="words.split.parts">
       <li
         v-for="(field, index) in parts"
@@ -127,6 +134,9 @@ function takeRest(id: number): void {
         <UFormField :label="words.split.category" :error="(tried && categoryError(field)) || false">
           <slot name="category" :field="field" :place="index + 1" />
         </UFormField>
+        <div v-if="$slots.beside" class="sm:col-start-2">
+          <slot name="beside" :field="field" :place="index + 1" />
+        </div>
         <UFormField :label="words.split.note" class="col-span-full">
           <UInput v-model="field.note" :placeholder="words.split.notePlaceholder" class="w-full" data-testid="split-part-note" />
         </UFormField>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { moneyFromCents, negateMoney } from '../../shared/money/money'
@@ -55,6 +56,16 @@ const LABELS: readonly Label[] = [
 const labelled = ref<SplitField[]>([splitField('30.00', 'restaurants', 'Dinner', false), splitField('', 'household', '', true)])
 const partLabels = ref<Record<number, readonly RecordId[]>>({ [labelled.value[0]!.id]: [LABELS[0]!.id] })
 
+/** Made-up people a part may count under, for the specimen with the beside and tools slots. */
+const PEOPLE = ['The shop', 'A friend']
+const shared = ref<SplitField[]>([splitField('22.65', 'restaurants', '', false), splitField('', 'restaurants', '', true)])
+const sharedWith = ref<Record<number, string>>({ [shared.value[1]!.id]: 'A friend' })
+
+function halve(): void {
+  shared.value = [splitField('22.65', 'restaurants', '', false), splitField('', 'restaurants', '', true)]
+  sharedWith.value = { [shared.value[1]!.id]: 'A friend' }
+}
+
 function categoryError(field: SplitField): string | null {
   return field.category === '' ? 'Choose a category' : null
 }
@@ -64,7 +75,7 @@ function categoryError(field: SplitField): string | null {
   <GallerySection
     id="split-editor"
     title="SplitEditor"
-    description="The whole above its parts, each with an amount, a category and a note, and one part that takes the rest. The equals button makes a part the rest, and the part that was the rest keeps its figure. A rest of nothing shows in red with why. Remove stays off while two parts are left. The part slot adds fields of a part under its note, such as its labels."
+    description="The whole above its parts, each with an amount, a category and a note, and one part that takes the rest. The equals button makes a part the rest, and the part that was the rest keeps its figure. A rest of nothing shows in red with why. Remove stays off while two parts are left. The part slot adds fields of a part under its note, such as its labels. The beside slot adds fields under a part's category, such as who it counts under, and the tools slot holds shortcuts above the parts, such as Half and half."
   >
     <DashboardGrid>
       <AppCard v-for="specimen in SPECIMENS" :key="specimen.title" :title="specimen.title">
@@ -110,6 +121,34 @@ function categoryError(field: SplitField): string | null {
                 class="w-full"
                 @update:model-value="partLabels = { ...partLabels, [field.id]: $event }"
               />
+            </template>
+          </SplitEditor>
+        </div>
+      </AppCard>
+      <AppCard title="Who each part counts under, with a shortcut above the parts">
+        <div class="px-4 pt-3 pb-4 sm:px-5">
+          <SplitEditor v-model="shared" whole-label="The payment, money out" :whole="WHOLE" :typed="typedAmount" :tried="false" :category-error="categoryError">
+            <template #whole>
+              <MoneyText :cents="negateMoney(WHOLE)" tone="flow" />
+            </template>
+            <template #tools>
+              <UButton label="Half and half" icon="i-lucide-divide" color="neutral" variant="outline" size="sm" @click="halve" />
+            </template>
+            <template #category="{ field }">
+              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" class="w-full" />
+            </template>
+            <template #beside="{ field, place }">
+              <USelect
+                :model-value="sharedWith[field.id] ?? PEOPLE[0]"
+                :items="PEOPLE"
+                :aria-label="`Who part ${place} counts under`"
+                size="sm"
+                class="w-full"
+                @update:model-value="sharedWith = { ...sharedWith, [field.id]: $event }"
+              />
+            </template>
+            <template #rest="{ cents }">
+              <MoneyText :cents="cents" />
             </template>
           </SplitEditor>
         </div>
