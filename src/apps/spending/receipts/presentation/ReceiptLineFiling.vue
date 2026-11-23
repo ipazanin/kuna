@@ -6,18 +6,21 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import type { Category } from '../../workbook/domain/category'
+import type { SharedCost } from '../../workbook/domain/sharedCost'
 
-/** The category and words of one receipt line in the entry dialog, which Save files it under. Its amount stays the receipt's. */
+/** The category, or the shared cost it is in, and words of one receipt line in the entry dialog, which Save files it under. Its amount stays the receipt's. */
 const filing = defineModel<{ category: string; note: string }>({ required: true })
 
 const props = defineProps<{
   categories: readonly Category[]
+  /** The shared costs the line's category picker offers beside the categories. */
+  sharedCosts: readonly { readonly sharedCost: SharedCost; readonly name: string }[]
   /** How the line reads, which names its fields for a screen reader. */
   title: string
 }>()
 
 const held = computed(() => props.categories.find((category) => category.id === filing.value.category)?.id ?? null)
-const choices = computed(() => entryCategoryChoices(props.categories, 'out', held.value))
+const choices = computed(() => entryCategoryChoices(props.categories, 'out', held.value, { sharedCosts: props.sharedCosts }))
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 <script lang="ts">
 /** What a To review row's buttons write. */
-export type ReviewAction = 'file' | 'join' | 'pair' | 'link'
+export type ReviewAction = 'file' | 'join' | 'pair' | 'link' | 'share'
 </script>
 
 <script setup lang="ts">
@@ -15,7 +15,9 @@ import type { CashMovementOffer } from '../../links/domain/cashMovementOffers'
 import { choiceText, instalmentText, words as linkWords } from '../../links/presentation/words'
 import { words } from './words'
 import { rowCaption, rowTitle } from './rowParts'
-import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
+import { entryCategoryChoices, pickedFilingOf } from '../../entries/presentation/categoryChoices'
+import { words as sharedCostWords } from '../../sharedCosts/presentation/words'
+import type { SharedCost } from '../../workbook/domain/sharedCost'
 import { entryAsked } from '../../entries/presentation/entryAsked'
 import { words as entryWords } from '../../entries/presentation/words'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
@@ -47,6 +49,10 @@ const props = defineProps<{
   picked: boolean | null
   /** Whether the row's write of that kind is saving, so the button that started it spins. */
   saving: (action: ReviewAction) => boolean
+  /** The shared costs the row's picker offers, none for a row that cannot join one. */
+  sharedCosts: readonly { readonly sharedCost: SharedCost; readonly name: string }[]
+  /** The one shared cost not settled that money in may be a repayment for, or null. */
+  repayment: { readonly sharedCost: SharedCost; readonly name: string } | null
 }>()
 
 const emit = defineEmits<{
@@ -54,6 +60,7 @@ const emit = defineEmits<{
   join: []
   pair: []
   link: []
+  share: [sharedCost: SharedCost]
   receipt: [entry: AskedElement]
   pick: []
 }>()
@@ -65,7 +72,7 @@ const currency = computed(() => account.value?.currency ?? EURO)
 const asked = computed(() => entryAsked(props.waiting.row, account.value))
 const { ask, marked } = useChatElement(asked, 'row')
 
-const items = computed(() => entryCategoryChoices(props.categories, props.waiting.row.amount < 0 ? 'out' : 'in', null, true))
+const items = computed(() => entryCategoryChoices(props.categories, props.waiting.row.amount < 0 ? 'out' : 'in', null, { withTransfer: true, sharedCosts: props.sharedCosts }))
 
 const typedLine = computed(() => {
   const match = props.waiting.maybeTyped
@@ -109,8 +116,18 @@ const transferLine = computed(() => {
 })
 
 function chose(id: string | undefined): void {
-  const category = props.categories.find((candidate) => candidate.id === id)
-  if (category !== undefined) emit('file', category)
+  const picked = pickedFilingOf(
+    id ?? '',
+    props.categories,
+    props.sharedCosts.map(({ sharedCost }) => sharedCost),
+  )
+  if (picked === null) return
+  if ('sharedCost' in picked) emit('share', props.sharedCosts.find(({ sharedCost }) => sharedCost.id === picked.sharedCost)!.sharedCost)
+  else
+    emit(
+      'file',
+      props.categories.find((candidate) => candidate.id === picked.category)!,
+    )
 }
 </script>
 
@@ -146,6 +163,18 @@ function chose(id: string | undefined): void {
     <div v-if="offerLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 type-aside" data-testid="spending-review-offer">{{ offerLine }}</span>
       <UButton color="neutral" variant="outline" icon="i-lucide-link" :label="linkWords.link" :loading="saving('link')" data-testid="spending-review-link" @click="emit('link')" />
+    </div>
+    <div v-if="repayment !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span class="min-w-0 flex-1 basis-48 type-aside" data-testid="spending-review-repayment">{{ sharedCostWords.mayRepay(repayment.name) }}</span>
+      <UButton
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-users"
+        :label="sharedCostWords.putIn"
+        :loading="saving('share')"
+        data-testid="spending-review-share"
+        @click="emit('share', repayment!.sharedCost)"
+      />
     </div>
     <div v-if="transferLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 type-aside" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>

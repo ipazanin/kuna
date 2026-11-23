@@ -6,6 +6,7 @@ import CountsUnderField from '../../payees/presentation/CountsUnderField.vue'
 import type { LineFiling } from '../../receipts/domain/receiptLines'
 import ReceiptLineFiling from '../../receipts/presentation/ReceiptLineFiling.vue'
 import type { Category } from '../../workbook/domain/category'
+import type { SharedCost } from '../../workbook/domain/sharedCost'
 import { BY_DAYS } from '../../workbook/domain/event'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
@@ -20,6 +21,8 @@ defineProps<{
   title: string
   entryPayee: string
   categories: readonly Category[]
+  /** The shared costs the line's category picker offers. */
+  sharedCosts: readonly { readonly sharedCost: SharedCost; readonly name: string }[]
   kit: LabelsAndEvents
   labelling: boolean
   /** Why Save cannot file the receipt line under its category, shown once saving was tried. */
@@ -29,7 +32,7 @@ defineProps<{
 
 <template>
   <span class="flex min-w-0 flex-1 flex-col gap-1.5" data-testid="spending-entry-part-fields">
-    <ReceiptLineFiling v-if="filing !== undefined" :model-value="filing" :categories="categories" :title="title" @update:model-value="filing = $event" />
+    <ReceiptLineFiling v-if="filing !== undefined" :model-value="filing" :categories="categories" :shared-costs="sharedCosts" :title="title" @update:model-value="filing = $event" />
     <NoteLine v-if="refusal !== null" tone="error" data-testid="spending-entry-line-refused">{{ refusal }}</NoteLine>
     <CountsUnderField v-model="payee" :entry-payee="entryPayee" :name="words.dialog.partCountsUnder(title)" compact />
     <LabelsAndEventFields

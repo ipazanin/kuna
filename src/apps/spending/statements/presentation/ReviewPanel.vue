@@ -31,6 +31,12 @@ import { changesHeldRule } from './ruleAsk'
 import type { RuleAsk } from './ruleAsk'
 import { ruleTestOf, words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
+import { joinSharedCost } from '../../sharedCosts/application/sharedCostWrites'
+import { onlyOpenSharedCost } from '../../sharedCosts/domain/openSharedCosts'
+import { sharedCostOffers } from '../../sharedCosts/presentation/sharedCostNames'
+import { words as sharedCostWords } from '../../sharedCosts/presentation/words'
+import { rowItemsOf } from '../../workbook/domain/rowItems'
+import type { SharedCost } from '../../workbook/domain/sharedCost'
 import { payeeKey, samePayee } from '../../payees/domain/payeeKey'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { transferCategoryOf } from '../../workbook/domain/category'
@@ -51,6 +57,7 @@ import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
+import { usePhoneLayout } from '../../../../shared/layout/viewport'
 
 /** The rows waiting for a category, filed one by one or picked and filed under one category at once, the withdrawals waiting for their cash leg, the receipts waiting for the bank's row, the transfers the pairing made and the lone legs waiting for their other side. */
 const store = useSpendingBooks()
@@ -92,6 +99,8 @@ const ruleSays = computed(() => (book.value === null ? null : ruleVerdicts(book.
 const categories = computed(() => book.value?.categories ?? [])
 const transfer = computed(() => transferCategoryOf(categories.value))
 
+const phone = usePhoneLayout()
+
 /** A first import waits with thousands of rows, each with a menu, which a phone cannot lay out at once. */
 const allShown = ref(false)
 const shownWaiting = computed(() => (allShown.value ? (queue.value?.waiting ?? []) : (queue.value?.waiting ?? []).slice(0, FIRST_SHOWN)))
@@ -100,7 +109,24 @@ const shownWaiting = computed(() => (allShown.value ? (queue.value?.waiting ?? [
 const picked = ref<ReadonlySet<RecordId> | null>(null)
 const pickedRows = computed(() => (queue.value?.waiting ?? []).flatMap(({ row }) => (picked.value?.has(row.id) === true ? [row] : [])))
 const allPicked = computed(() => (queue.value?.waiting ?? []).every(({ row }) => picked.value?.has(row.id) === true))
-const pickedCategories = computed(() => entryCategoryChoices(categories.value, pickedRows.value.some((row) => row.amount < 0) ? 'out' : 'in', null, true))
+/** The shared costs a waiting row can join, and the one money in may be a repayment for. A row whose waiting parts carry a link joins none, since its money counts in another app. */
+const sharedCosts = computed(() => sharedCostOffers(book.value))
+const repayment = computed(() => {
+  const only = book.value === null ? null : onlyOpenSharedCost(book.value.sharedCosts)
+  return sharedCosts.value.find(({ sharedCost }) => sharedCost.id === only?.id) ?? null
+})
+const itemsOf = computed(() => rowItemsOf({ items: book.value?.items ?? [] }))
+const waitingParts = (row: Transaction) => {
+  const items = itemsOf.value(row)
+  return items.some((item) => item.category === null) ? items.filter((item) => item.category === null) : items
+}
+const joinable = (row: Transaction): boolean => row.pair === null && waitingParts(row).every((item) => item.link === null)
+const pickedCategories = computed(() =>
+  entryCategoryChoices(categories.value, pickedRows.value.some((row) => row.amount < 0) ? 'out' : 'in', null, {
+    withTransfer: true,
+    sharedCosts: pickedRows.value.every(joinable) ? sharedCosts.value : [],
+  }),
+)
 /** The category the bulk menu shows, blank so it shows its placeholder again after each choice. */
 const pickedCategory = ref('')
 
@@ -188,11 +214,28 @@ async function file(row: Transaction, category: Category): Promise<void> {
   await fileUnder([row], category, words.review.filed, reviewKey('file', row))
 }
 
-/** Files the picked rows under one category, which ends the picking once written and keeps the picks when it is not. */
+/** Puts the rows' waiting parts in the shared cost in one write with one Undo. Resolves to whether it went through. */
+function shareIn(rows: readonly Transaction[], sharedCost: SharedCost, key: string): Promise<boolean> {
+  const records = store.state.records
+  if (records === null || rows.length === 0) return Promise.resolve(false)
+  const parts = new Set(rows.flatMap((row) => waitingParts(row).map((item) => item.id)))
+  return writes.write(sharedCostWords.joined, (unit) => void joinSharedCost(unit, records, categories.value, rows, sharedCost, language, parts), { key, failedTitle: words.review.notWritten })
+}
+
+async function share(row: Transaction, sharedCost: SharedCost): Promise<void> {
+  await shareIn([row], sharedCost, reviewKey('share', row))
+}
+
+/** Files the picked rows under one category or puts them in a shared cost, which ends the picking once written and keeps the picks when it is not. */
 async function filePicked(id: string | undefined): Promise<void> {
   pickedCategory.value = ''
-  const category = categories.value.find((candidate) => candidate.id === id)
   const rows = pickedRows.value
+  const sharedCost = sharedCosts.value.find((offer) => offer.sharedCost.id === id)?.sharedCost
+  if (sharedCost !== undefined) {
+    if (await shareIn(rows, sharedCost, 'file-picked')) picked.value = null
+    return
+  }
+  const category = categories.value.find((candidate) => candidate.id === id)
   if (category === undefined) return
   if (await fileUnder(rows, category, plural(words.review.filedUnder(rows.length, category.name), rows.length), 'file-picked')) picked.value = null
 }
@@ -281,7 +324,7 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
         <template #actions>
           <UButton
             v-if="picked === null"
-            :label="words.review.select"
+            v-bind="phone ? {} : { label: words.review.select }"
             :aria-label="words.review.selectHelp"
             icon="i-lucide-list-checks"
             size="sm"
@@ -304,10 +347,13 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
             :offer="offerOf(waiting.row)"
             :picked="picked === null ? null : picked.has(waiting.row.id)"
             :saving="(action: ReviewAction) => writes.saving(reviewKey(action, waiting.row))"
+            :shared-costs="joinable(waiting.row) ? sharedCosts : []"
+            :repayment="waiting.row.amount > 0 && joinable(waiting.row) ? repayment : null"
             @file="file(waiting.row, $event)"
             @link="link(waiting.row)"
             @join="join(waiting)"
             @pair="pair(waiting)"
+            @share="share(waiting.row, $event)"
             @receipt="emit('receipt', $event)"
             @pick="pick(waiting.row)"
           />

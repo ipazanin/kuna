@@ -8,6 +8,9 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
 import EntryPartFields from './EntryPartFields.vue'
+import { usePartFiling } from './usePartFiling'
+import { sharedCostHomes } from '../../sharedCosts/presentation/sharedCostNames'
+import { words as sharedCostWords } from '../../sharedCosts/presentation/words'
 import EntrySplitDialog from './EntrySplitDialog.vue'
 import LabelsAndEventFields from './LabelsAndEventFields.vue'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
@@ -27,7 +30,7 @@ import CountsUnderField from '../../payees/presentation/CountsUnderField.vue'
 import PayeeField from '../../payees/presentation/PayeeField.vue'
 import { usePayeeMemory } from '../../payees/presentation/usePayeeMemory'
 import { words as payeeWords } from '../../payees/presentation/words'
-import { lineRefilesOf, refiledReceiptLines } from '../../receipts/domain/receiptLines'
+import { lineFilingOf, lineRefilesOf, refiledReceiptLines } from '../../receipts/domain/receiptLines'
 import type { LineFiling } from '../../receipts/domain/receiptLines'
 import EntryReceipt from '../../receipts/presentation/EntryReceipt.vue'
 import RowLines from '../../receipts/presentation/RowLines.vue'
@@ -100,7 +103,7 @@ const countsUnder = ref('')
 const partPayees = ref<Record<string, string>>({})
 /** The category and note of each receipt line by its id, which its heading follows and Save files the line under. */
 const lineFilings = ref<Record<string, LineFiling>>({})
-const lineRefiles = computed(() => lineRefilesOf(categories.value, entryLines.value, lineFilings.value))
+const lineRefiles = computed(() => lineRefilesOf(partFiling.filing.value.categories, entryLines.value, lineFilings.value, partFiling.joining.value))
 /** Why Save cannot file a changed receipt line under its category, by the line's id. */
 const lineRefusals = computed(() => new Map([...lineRefiles.value.refused].map(([line, refusal]) => [line, words.split.refusals[refusal]])))
 const tried = ref(false)
@@ -142,6 +145,9 @@ const legs = computed((): readonly [Transaction, Transaction] | null => {
 /** The entry's items: the one that holds all of its money, or what a receipt or you split it into. */
 const entryLines = computed(() => (props.entry === null ? [] : rowItemsOf({ items: store.state.workbook?.items ?? [] })(props.entry)))
 const split = computed(() => isSplit(entryLines.value))
+/** The shared costs the pickers offer beside the categories, and what a pick files a part under. */
+const partFiling = usePartFiling(() => entryLines.value.map((line) => line.sharedCost))
+const homes = computed(() => sharedCostHomes(store.state.workbook))
 /** The one item of an entry not split, whose category and note the form edits. */
 const wholeItem = computed(() => (split.value ? null : (entryLines.value[0] ?? null)))
 const receipt = computed(() => (store.state.workbook?.receipts ?? []).find((held) => held.transaction === props.entry?.id) ?? null)
@@ -180,7 +186,7 @@ const kindOptions = computed(() => [
   ...(transferCategory.value !== null && (choosable.value.length > 1 || legs.value !== null) ? [{ value: 'transfer' as const, label: words.dialog.kinds.transfer }] : []),
 ])
 
-const categoryItems = computed(() => (kind.value === 'transfer' ? [] : entryCategoryChoices(categories.value, kind.value, wholeItem.value?.category ?? null)))
+const categoryItems = computed(() => (kind.value === 'transfer' ? [] : entryCategoryChoices(categories.value, kind.value, wholeItem.value?.category ?? null, { sharedCosts: partFiling.offers.value })))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
 const memory = usePayeeMemory(category, () => pickable.value)
 
@@ -202,7 +208,7 @@ watch(open, (opened) => {
   amount.value = entry === null ? '' : amountForTyping(absAccountMoney((pair?.[0] ?? entry).amount))
   toAmount.value = pair === null ? '' : amountForTyping(absAccountMoney(pair[1].amount))
   lessArrived.value = false
-  category.value = wholeItem.value?.category ?? ''
+  category.value = wholeItem.value?.sharedCost ?? wholeItem.value?.category ?? ''
   date.value = entry?.date ?? today()
   payee.value = entry?.payee ?? ''
   note.value = wholeItem.value?.note ?? ''
@@ -211,7 +217,7 @@ watch(open, (opened) => {
   labels.value = wholeItem.value?.labels ?? []
   event.value = wholeItem.value?.event ?? BY_DAYS
   start(entryLines.value.map((line) => ({ part: line.id, labels: line.labels, event: line.event })))
-  lineFilings.value = Object.fromEntries(entryLines.value.flatMap((line) => (line.receipt === null ? [] : [[line.id, { category: line.category ?? '', note: line.note }]])))
+  lineFilings.value = Object.fromEntries(entryLines.value.flatMap((line) => (line.receipt === null ? [] : [[line.id, lineFilingOf(line)]])))
   tried.value = false
   adding.value = null
   memory.filled.value = false
@@ -266,7 +272,12 @@ function openedAfter(on: CivilDate, onAccount: Account | null): string | null {
 const errors = computed(() => ({
   amount: positiveAmount(amount.value) === null ? words.dialog.anAmount : null,
   toAmount: arrivedError.value,
-  category: kind.value !== 'transfer' && !split.value && !pickable.value.has(category.value) ? words.dialog.pickCategory : null,
+  category:
+    kind.value !== 'transfer' && !split.value && !pickable.value.has(category.value)
+      ? words.dialog.pickCategory
+      : partFiling.joins(category.value) && wholeItem.value?.link != null
+        ? sharedCostWords.unlinkFirst
+        : null,
   account: from.value === null ? words.dialog.pickAccount : null,
   toAccount: kind.value === 'transfer' && (to.value === null || to.value.id === from.value?.id) ? words.dialog.otherAccount : null,
   lines: [...lineRefusals.value.values()][0] ?? null,
@@ -293,21 +304,23 @@ async function save(): Promise<void> {
 
 /** One entry of the signed amount added, or changed in place, which drops the other leg of what was a transfer. */
 function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
-  const filed = categories.value.find((candidate) => candidate.id === category.value)
+  const filing = partFiling.filing.value
+  const filed = partFiling.fieldsOf(category.value)
   const records = store.state.records
-  if ((filed === undefined && !split.value) || records === null) return null
+  if ((filed === null && !split.value) || records === null) return null
   const entry = newEntry({
     account: fromAccount.id,
     date: on,
     amount,
     payee: payee.value,
-    category: filed?.id ?? null,
+    category: filed?.category ?? null,
+    sharedCost: filed?.sharedCost ?? null,
     note: note.value,
     labels: split.value ? [] : labels.value,
     event: event.value,
     countsUnder: countsUnder.value,
   })
-  const lines = refiledReceiptLines(categories.value, entryLines.value, lineRefiles.value.refiles)
+  const lines = refiledReceiptLines(filing.categories, entryLines.value, lineRefiles.value.refiles)
   if ('refused' in lines) return null
   const parts = split.value
     ? lines.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels, event: partEvents.value[part.id] ?? part.event, payee: partPayees.value[part.id] ?? part.payee }))
@@ -317,6 +330,7 @@ function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): 
   const carried = new Set(parts.flatMap((part) => part.labels))
   return (unit) => {
     addCarried(unit, carried)
+    filing.addFor(unit, parts)
     writeEntry(unit, records, before, { row: entry.row, items: parts }, other)
   }
 }
@@ -462,7 +476,7 @@ async function remove(): Promise<void> {
       />
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ splitNote }}</p>
-        <RowLines :lines="lineRefiles.lines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full">
+        <RowLines :lines="lineRefiles.lines" :categories="partFiling.filing.value.categories" :currency="from?.currency ?? EURO" :homes="homes" class="w-full">
           <template #line="{ line, title }">
             <EntryPartFields
               v-model:filing="lineFilings[line.id]"
@@ -471,6 +485,7 @@ async function remove(): Promise<void> {
               :title="title"
               :entry-payee="payee"
               :categories="categories"
+              :shared-costs="partFiling.offers.value"
               :kit="kit"
               :labelling="labelling"
               :refusal="(tried && lineRefusals.get(line.id)) || null"

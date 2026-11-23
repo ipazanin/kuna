@@ -370,6 +370,7 @@ import {
   spendingReceiptFlowIn,
   spendingSplitFlowIn,
   spendingHalfAndHalfFlowIn,
+  spendingSharedCostFlowIn,
   spendingAccountDialogFlowIn,
   spendingAccountBankNameFlowIn,
   spendingSettingsRecipesFlowIn,
@@ -844,7 +845,12 @@ async function fakeSpendingShows(sample) {
     },
     overdrawn: both(-overdrawn.cents),
     newest: { payee: newest.transaction.payee, amount: formatAccountMoney(newest.transaction.amount, newest.account.currency, 'always') },
-    payees: [...new Set(sample.book.transactions.filter((row) => monthOf(row.date) === month).map((row) => row.payee))],
+    // A row wholly in a shared cost shows only under the shared cost, on the shared cost's day.
+    payees: [
+      ...new Set(
+        sample.book.transactions.filter((row) => monthOf(row.date) === month && sample.book.items.some((item) => item.transaction === row.id && item.sharedCost === null)).map((row) => row.payee),
+      ),
+    ],
   }
 }
 
@@ -7135,6 +7141,24 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=people&lang=hr' },
+  },
+  {
+    name: 'spending-shared-cost',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingSharedCostFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-shared-cost-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingSharedCostFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
   },
   {
     name: 'chat-split-card',

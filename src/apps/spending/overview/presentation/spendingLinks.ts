@@ -160,15 +160,15 @@ export function entriesMonthsNamed(key: unknown): EntriesMonths | null {
   return typeof key === 'string' ? parseMonthKey(key) : null
 }
 
-/** The payee a page's `?payee=` names, spelt as their newest entry or part of one spells it, or null when none names them. */
-export function payeeNamed(book: Pick<SpendingBook, 'transactions' | 'items'>, key: unknown): { readonly key: string; readonly name: string } | null {
+/** The payee a page's `?payee=` names, spelt as their newest entry, part of one or shared cost spells it, or null when none names them. */
+export function payeeNamed(book: Pick<SpendingBook, 'transactions' | 'items' | 'sharedCosts'>, key: unknown): { readonly key: string; readonly name: string } | null {
   if (typeof key !== 'string' || key === '') return null
   const days = new Map(book.transactions.map((row) => [row.id, row.date]))
   const parts = book.items.flatMap((item) => {
     const date = item.transaction === null ? undefined : days.get(item.transaction)
     return date === undefined || item.payee === '' ? [] : [{ date, payee: item.payee }]
   })
-  const named = [...book.transactions, ...parts]
+  const named = [...book.transactions, ...parts, ...book.sharedCosts.map(({ day, payee }) => ({ date: day, payee }))]
     .filter((row) => payeeKey(row.payee) === key)
     .reduce<Pick<Transaction, 'date' | 'payee'> | null>((newest, row) => (newest === null || row.date >= newest.date ? row : newest), null)
   return named === null ? null : { key, name: named.payee.trim() }

@@ -118,6 +118,7 @@ import {
   sendInChat,
 } from './chatFlows.mjs'
 import { delay, pressSelector, typeDay } from './pressing.mjs'
+import { en as sharedCostEnglish, hr as sharedCostCroatian } from '../../src/apps/spending/sharedCosts/presentation/words.ts'
 import { scrollbarGutter, shellRoom } from './shellFlows.mjs'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
@@ -6500,6 +6501,163 @@ export function spendingHalfAndHalfFlowIn(language) {
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
     await rowLinesAre(page, 'Corner market', -4530, 0)
     await dismissToasts(page)
+  }
+}
+
+const SPENDING_SHARED_COST_DIALOG = '[data-testid="spending-shared-cost-dialog"]'
+
+/**
+ * On the sample Spending file's Entries of last month: the gift for Ana shows as one shared cost with its five entries under it,
+ * Petra's repayment from this month among them. Its dialog, like the one that makes a shared cost, shows who it counts under
+ * open. Settled marks it and Undo takes that back. An entry's category picker offers it under Shared costs. Two money-out entries
+ * picked with Select, while the shared cost shows a dashed box, then make a shared cost of their own, which Undo takes back too.
+ * Delete sends the gift's entries to To review and Undo brings it back. Once deleted for good and a new one made, the only one not
+ * settled, To review offers Petra's repayment to it and Put it in joins it.
+ */
+export function spendingSharedCostFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const shared = language === 'en' ? sharedCostEnglish : sharedCostCroatian
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const sharedRows = async () => (await page.$$('[data-testid="spending-shared-cost"]')).length
+    await page.evaluate(() => {
+      const now = new Date()
+      const back = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      location.hash = `#/spending/transactions?month=${back.getFullYear()}-${String(back.getMonth() + 1).padStart(2, '0')}`
+    })
+    const row = await page.waitForSelector('[data-testid="spending-shared-cost"]', { visible: true, timeout: 10_000 })
+    const members = await row.$$('[data-testid="spending-shared-cost-member"]')
+    if (members.length !== 5) throw new Error(`the gift for Ana lists ${members.length} entries under it, not five`)
+    if (!(await row.evaluate((element) => element.textContent ?? '')).includes('Petra')) throw new Error("the gift for Ana does not list Petra's repayment from this month under it")
+    await shootAt(page, shoot, row, 'spending-shared-cost', { inspected: () => inspect?.('a shared cost on Entries with its entries under it') })
+
+    await pressSelector(page, press, '[data-testid="spending-shared-cost-open"]')
+    await page.waitForSelector(SPENDING_SHARED_COST_DIALOG, { visible: true, timeout: 10_000 })
+    await delay(300)
+    if (!(await page.$(`${SPENDING_SHARED_COST_DIALOG} [data-testid="counts-under-pick"]`))) throw new Error('the shared cost dialog folds who it counts under, though that names it')
+    await inspect?.('the shared cost dialog')
+    await shoot('spending-shared-cost-dialog')
+    await pressSelector(page, press, '[data-testid="spending-shared-cost-settled"]')
+    await pressSelector(page, press, '[data-testid="spending-shared-cost-save"]')
+    await toast(page, shared.dialog.saved)
+    await dialogGone(page, SPENDING_SHARED_COST_DIALOG)
+    await page.waitForSelector('[data-testid="spending-shared-cost"] [data-testid="spending-shared-cost-settled"]', { visible: true, timeout: 5_000 })
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+
+    await pressSelector(page, press, SPENDING_ROW)
+    await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 10_000 })
+    await delay(300)
+    const entryCategory = await page.$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-entry-category"]`)
+    await entryCategory.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(entryCategory)
+    const group = await page
+      .waitForFunction(
+        (label) => [...document.querySelectorAll('[role="listbox"] *')].find((element) => element.children.length === 0 && element.textContent?.trim() === label) ?? null,
+        { timeout: 5_000 },
+        shared.sharedCosts,
+      )
+      .then((handle) => handle.asElement())
+      .catch(() => {
+        throw new Error("an entry's category picker offers no Shared costs group")
+      })
+    await shootAt(page, shoot, group, 'spending-shared-cost-picker', { inspected: () => inspect?.("an entry's category picker with its Shared costs group") })
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+
+    await pressSelector(page, press, '[data-testid="spending-select"]')
+    const out = []
+    for (const candidate of await page.$$(SPENDING_ROW)) {
+      if (Number(await candidate.evaluate((element) => element.dataset.amount)) < 0) out.push(candidate)
+      if (out.length === 2) break
+    }
+    if (out.length < 2) throw new Error('last month has fewer than two money-out entries to make a shared cost of')
+    for (const picked of out) {
+      await picked.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await press(picked)
+      await delay(150)
+    }
+    if (!(await page.$eval('[data-testid="spending-shared-cost-open"]', (element) => element.disabled))) throw new Error('the shared cost still opens while entries are being picked')
+    await shootAt(page, shoot, '[data-testid="spending-shared-cost-open"]', 'spending-shared-cost-picking', { inspected: () => inspect?.('a shared cost on Entries while entries are being picked') })
+    await shootAt(page, shoot, '[data-testid="selection-bar"]', 'spending-shared-cost-selection-bar')
+    await pressSelector(page, press, '[data-testid="spending-selection-shared-cost"]')
+    await page.waitForSelector(SPENDING_SHARED_COST_DIALOG, { visible: true, timeout: 10_000 })
+    await delay(300)
+    if (!(await page.$(`${SPENDING_SHARED_COST_DIALOG} [data-testid="counts-under-pick"]`))) throw new Error('making a shared cost folds who it counts under, though that names it')
+    const trigger = await page.$(`${SPENDING_SHARED_COST_DIALOG} [data-testid="spending-shared-cost-category"]`)
+    await trigger.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(trigger)
+    const option = await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 })
+    await press(option)
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await delay(300)
+    await inspect?.('making a shared cost of two picked entries')
+    await shoot('spending-shared-cost-make')
+    await pressSelector(page, press, '[data-testid="spending-shared-cost-save"]')
+    await toast(page, shared.dialog.made)
+    await dialogGone(page, SPENDING_SHARED_COST_DIALOG)
+    if ((await sharedRows()) !== 2) throw new Error('making a shared cost did not list a second one on Entries')
+    await undoIn(page, press, words)
+    if ((await sharedRows()) !== 1) throw new Error('Undo did not take back the shared cost just made')
+    await dismissToasts(page)
+
+    const deleteGift = async () => {
+      await pressSelector(page, press, '[data-testid="spending-shared-cost-open"]')
+      await page.waitForSelector(SPENDING_SHARED_COST_DIALOG, { visible: true, timeout: 10_000 })
+      await delay(300)
+      await pressSelector(page, press, '[data-testid="spending-shared-cost-delete"]')
+      await toast(page, shared.dialog.deleted(5).other)
+      await dialogGone(page, SPENDING_SHARED_COST_DIALOG)
+      if ((await sharedRows()) !== 0) throw new Error('Delete left the gift for Ana on Entries')
+    }
+    await deleteGift()
+    await undoIn(page, press, words)
+    if ((await sharedRows()) !== 1) throw new Error('Undo did not bring the deleted gift for Ana back')
+    await dismissToasts(page)
+
+    await deleteGift()
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="spending-select"]')
+    const spent = []
+    for (const candidate of await page.$$(SPENDING_ROW)) {
+      if (Number(await candidate.evaluate((element) => element.dataset.amount)) < 0) spent.push(candidate)
+      if (spent.length === 2) break
+    }
+    for (const picked of spent) {
+      await picked.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await press(picked)
+      await delay(150)
+    }
+    await pressSelector(page, press, '[data-testid="spending-selection-shared-cost"]')
+    await page.waitForSelector(SPENDING_SHARED_COST_DIALOG, { visible: true, timeout: 10_000 })
+    await delay(300)
+    const makeCategory = await page.$(`${SPENDING_SHARED_COST_DIALOG} [data-testid="spending-shared-cost-category"]`)
+    await makeCategory.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(makeCategory)
+    await press(await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 }))
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="spending-shared-cost-save"]')
+    await toast(page, shared.dialog.made)
+    await dialogGone(page, SPENDING_SHARED_COST_DIALOG)
+    await dismissToasts(page)
+
+    await page.evaluate(() => {
+      location.hash = '#/spending/transactions?tab=review'
+    })
+    const repayment = await page
+      .waitForFunction(() => document.querySelector('[data-testid="spending-review-repayment"]')?.closest('li') ?? null, { timeout: 10_000 })
+      .then((handle) => handle.asElement())
+      .catch(() => {
+        throw new Error('To review offers no repayment line once one shared cost is not settled')
+      })
+    if (!(await repayment.evaluate((element) => element.textContent ?? '')).includes('Petra')) throw new Error("To review's repayment line is not on Petra's repayment")
+    await shootAt(page, shoot, repayment, 'spending-review-shared-cost-repayment', {
+      inspected: () => inspect?.('a money-in row on To review that may be a repayment for the one shared cost not settled'),
+    })
+    await press(await repayment.$('[data-testid="spending-review-share"]'))
+    await toast(page, shared.joined)
   }
 }
 

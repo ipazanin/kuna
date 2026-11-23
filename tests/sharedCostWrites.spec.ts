@@ -72,7 +72,7 @@ describe('making a shared cost', () => {
     const book = () => store.state.workbook!
 
     await store.write('Shared', (unit) => {
-      addSharedCost(unit, GIFT)
+      addSharedCost(unit, store.state.records!, GIFT)
       joinSharedCost(unit, store.state.records!, book().categories, [bookshop, toyShop, marko], GIFT, 'en')
     })
 
@@ -102,7 +102,7 @@ describe('making a shared cost', () => {
     const book = () => store.state.workbook!
 
     await store.write('Shared', (unit) => {
-      addSharedCost(unit, GIFT)
+      addSharedCost(unit, store.state.records!, GIFT)
       joinSharedCost(unit, store.state.records!, book().categories, [dinner], GIFT, 'en', new Set([cake.id]))
     })
 
@@ -118,30 +118,45 @@ describe('making a shared cost', () => {
 
     await expect(
       store.write('Shared', (unit) => {
-        addSharedCost(unit, GIFT)
+        addSharedCost(unit, store.state.records!, GIFT)
         joinSharedCost(unit, store.state.records!, store.state.workbook!.categories, [linked], GIFT, 'en')
       }),
     ).rejects.toThrow()
     expect(store.state.workbook!.sharedCosts).toEqual([])
   })
 
-  it('refuses a shared cost under a fixed category, which would count nowhere', async () => {
+  it.each(['Between my accounts', 'For the company', 'Saved to investments'])('refuses a shared cost under %s, a fixed category, which would count nowhere', async (fixed) => {
     const store = await storeWith([bookshop])
 
-    await expect(store.write('Shared', (unit) => addSharedCost(unit, { ...GIFT, category: category('Between my accounts').id }))).rejects.toThrow()
+    await expect(store.write('Shared', (unit) => addSharedCost(unit, store.state.records!, { ...GIFT, category: category(fixed).id }))).rejects.toThrow()
+    expect(store.state.workbook!.sharedCosts).toEqual([])
   })
 })
 
 describe('changing a shared cost', () => {
+  it('refuses to move a shared cost under a fixed category', async () => {
+    const store = await storeWith([bookshop])
+    const book = () => store.state.workbook!
+    await store.write('Shared', (unit) => {
+      addSharedCost(unit, store.state.records!, GIFT)
+      joinSharedCost(unit, store.state.records!, book().categories, [bookshop], GIFT, 'en')
+    })
+
+    await expect(
+      store.write('Changed', (unit) => changeSharedCost(unit, store.state.records!, book().sharedCosts[0]!, { ...book().sharedCosts[0]!, category: category('For the company').id })),
+    ).rejects.toThrow()
+    expect(book().sharedCosts[0]!.category).toBe(GIFTS.id)
+  })
+
   it('sets Settled and a new day, and counts its members on the new day', async () => {
     const store = await storeWith([bookshop])
     const book = () => store.state.workbook!
     await store.write('Shared', (unit) => {
-      addSharedCost(unit, GIFT)
+      addSharedCost(unit, store.state.records!, GIFT)
       joinSharedCost(unit, store.state.records!, book().categories, [bookshop], GIFT, 'en')
     })
 
-    await store.write('Changed', (unit) => changeSharedCost(unit, book().sharedCosts[0]!, { ...book().sharedCosts[0]!, day: civil('2026-12-01'), settled: true }))
+    await store.write('Changed', (unit) => changeSharedCost(unit, store.state.records!, book().sharedCosts[0]!, { ...book().sharedCosts[0]!, day: civil('2026-12-01'), settled: true }))
 
     expect(book().sharedCosts[0]).toMatchObject({ day: civil('2026-12-01'), settled: true })
     const figures = spendingFigures(book(), RATES)
@@ -152,7 +167,7 @@ describe('changing a shared cost', () => {
     const store = await storeWith([dinner], [meal, cake])
     const book = () => store.state.workbook!
     await store.write('Shared', (unit) => {
-      addSharedCost(unit, { ...GIFT, category: EATING_OUT.id })
+      addSharedCost(unit, store.state.records!, { ...GIFT, category: EATING_OUT.id })
       joinSharedCost(unit, store.state.records!, book().categories, [dinner], GIFT, 'en', new Set([cake.id]))
     })
 
@@ -170,7 +185,7 @@ describe('deleting a shared cost', () => {
     const store = await storeWith([dinner, bookshop], [meal, cake])
     const book = () => store.state.workbook!
     await store.write('Shared', (unit) => {
-      addSharedCost(unit, GIFT)
+      addSharedCost(unit, store.state.records!, GIFT)
       joinSharedCost(unit, store.state.records!, book().categories, [dinner, bookshop], GIFT, 'en', new Set([cake.id]))
     })
 
@@ -204,7 +219,7 @@ describe('deleting what a shared cost names', () => {
   it('moves it to the category its own is deleted into, and takes off a deleted label and event', async () => {
     const store = await storeWith([bookshop])
     const book = () => store.state.workbook!
-    await store.write('Shared', (unit) => addSharedCost(unit, { ...GIFT, labels: [PARTY.id], event: BIRTHDAY.id }))
+    await store.write('Shared', (unit) => addSharedCost(unit, store.state.records!, { ...GIFT, labels: [PARTY.id], event: BIRTHDAY.id }))
 
     await store.write('Label', (unit) => deleteLabel(unit, store.state.records!, PARTY))
     await store.write('Event', (unit) => deleteEvent(unit, store.state.records!, BIRTHDAY))

@@ -134,6 +134,7 @@ export const en = {
       'unknown-category': 'Pick a category for every part.',
       'group-with-children': 'Pick a category inside the group.',
       'between-accounts': 'A part never goes under Between my accounts.',
+      'linked-member': 'A part linked to a record in another app counts there, so it joins no shared cost. Unlink it first.',
     },
   },
 }
@@ -263,6 +264,7 @@ export const hr: Translation<typeof en> = {
       'unknown-category': 'Odaberite kategoriju za svaki dio.',
       'group-with-children': 'Odaberite kategoriju unutar skupine.',
       'between-accounts': 'Dio nikad ne ide pod Između mojih računa.',
+      'linked-member': 'Dio povezan sa zapisom u drugoj aplikaciji broji se tamo, pa ne ide u zajednički trošak. Prvo ga odvežite.',
     },
   },
 }

@@ -316,6 +316,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/company/labels/application/labelWrites.ts#deleteLabel',
       'src/apps/spending/events/application/eventWrites.ts#deleteEvent',
       'src/apps/spending/shortcuts/application/shortcutWrites.ts#deleteShortcut',
+      'src/apps/spending/sharedCosts/application/sharedCostWrites.ts#deleteSharedCost',
     ],
   },
   {
@@ -329,6 +330,9 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/events/application/eventWrites.ts#chooseEvent',
       'src/apps/spending/shortcuts/application/shortcutWrites.ts#moveShortcut',
       'src/apps/spending/statements/application/statementWrites.ts#fileRows',
+      'src/apps/spending/sharedCosts/application/sharedCostWrites.ts#joinSharedCost',
+      'src/apps/spending/sharedCosts/application/sharedCostWrites.ts#leaveSharedCost',
+      'src/apps/spending/sharedCosts/application/sharedCostWrites.ts#sharedCostFiling',
       'src/apps/spending/statements/application/statementWrites.ts#joinWithTyped',
       'src/apps/spending/statements/application/statementWrites.ts#notAPair',
       'src/apps/spending/statements/application/statementWrites.ts#pairRows',

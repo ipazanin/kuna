@@ -7,12 +7,15 @@ import type { Category } from '../../workbook/domain/category'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** The parts a receipt or you split an entry into, each with its category's colour, who it counts under when that is not the entry's payee, and its amount, and under each what the `line` slot holds, such as its labels in the entry dialog, which then sits nearer its own part than the next. Built of spans, so it fits inside a row's button. */
+/** The parts a receipt or you split an entry into, each with its category's colour, who it counts under when that is not the entry's payee or the shared cost it is in, and its amount, and under each what the `line` slot holds, such as its labels in the entry dialog, which then sits nearer its own part than the next. Built of spans, so it fits inside a row's button. */
 const props = defineProps<{
   lines: readonly TransactionItem[]
   categories: readonly Category[]
   currency: CurrencyCode
+  /** The names of the shared costs the parts may be in, by their ids. */
+  homes?: ReadonlyMap<RecordId, string>
 }>()
 
 const colours = computed(() => categoryColours(props.categories))
@@ -21,7 +24,7 @@ const shown = computed(() =>
     const category = props.categories.find((candidate) => candidate.id === line.category)
     return {
       line,
-      name: [category?.name ?? '', line.payee.trim(), line.note].filter((part) => part !== '').join(' · '),
+      name: [category?.name ?? '', (line.sharedCost === null ? undefined : props.homes?.get(line.sharedCost)) ?? line.payee.trim(), line.note].filter((part) => part !== '').join(' · '),
       colour: category === undefined ? 'var(--chart-deemphasis)' : `var(${colours.value(category)})`,
       tone: partTone(category),
     }

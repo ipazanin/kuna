@@ -131,14 +131,14 @@ const NOTHING_ADDED: SharedCostStep = { added: null, categories: [] }
 export function writeSharedCostStep(
   unit: UnitOfWork,
   book: SpendingBook,
-  records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>,
+  records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'payees' | 'settings'>,
   operation: string,
   field: Readonly<Record<string, never>>,
   idOf: (value: unknown) => string,
 ): SharedCostStep {
   if (operation === 'add-shared-cost') {
     const sharedCost = newSharedCost(draftOf(book, field, idOf, null))
-    addSharedCost(unit, sharedCost)
+    addSharedCost(unit, records, sharedCost)
     return { added: sharedCost, categories: [] }
   }
   if (operation === 'leave-shared-cost') {
@@ -152,7 +152,7 @@ export function writeSharedCostStep(
     return NOTHING_ADDED
   }
   if (operation === 'change-shared-cost') {
-    changeSharedCost(unit, sharedCost, { ...draftOf(book, field, idOf, sharedCost), settled: flagOf(field['settled'], sharedCost.settled) })
+    changeSharedCost(unit, records, sharedCost, { ...draftOf(book, field, idOf, sharedCost), settled: flagOf(field['settled'], sharedCost.settled) })
     return NOTHING_ADDED
   }
   if (isBeforeItems(records)) throw new StepRefused('This file stores entries the way older versions of Kuna did, so it keeps no shared cost. Propose move-to-items first.')

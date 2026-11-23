@@ -6,6 +6,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { entryCategoryChoices } from './categoryChoices'
 import LabelsAndEventFields from './LabelsAndEventFields.vue'
 import { useLabelsAndEvents } from './useLabelsAndEvents'
+import { usePartFiling } from './usePartFiling'
 import { words } from './words'
 import { writeEntrySplit } from '../application/entryWrites'
 import { entrySplit, halfAndHalf, newPartChoices } from '../domain/entrySplit'
@@ -65,10 +66,10 @@ watch(open, (opened) => {
   const [whole] = held
   parts.value =
     !changing.value && whole !== undefined
-      ? [splitField<RecordId>('', whole.category ?? '', whole.note, false, whole.id), splitField<RecordId>('', '', '', true)]
+      ? [splitField<RecordId>('', whole.sharedCost ?? whole.category ?? '', whole.note, false, whole.id), splitField<RecordId>('', '', '', true)]
       : held.map((part, place) => {
           const rest = place === held.length - 1
-          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category ?? '', part.note, rest, part.id)
+          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.sharedCost ?? part.category ?? '', part.note, rest, part.id)
         })
   payees.value = Object.fromEntries(parts.value.map((field) => [field.id, held.find((part) => part.id === field.held)?.payee ?? '']))
   payeesOpen.value = {}
@@ -86,7 +87,7 @@ watch(parts, (fields) => addParts(fields.map((field) => ({ part: field.id, ...ne
 /** Two parts in place of any there were, the first taking the odd cent, both under the entry's category, and part 2's payee open to pick. */
 function halveEntry(): void {
   const held = heldItems.value
-  const category = mainCategoryOf(held) ?? ''
+  const category = held.length === 1 ? (held[0]!.sharedCost ?? held[0]!.category ?? '') : (mainCategoryOf(held) ?? '')
   const [half] = halfAndHalf(whole.value)
   const halves = [splitField<RecordId>(amountForTyping(half), category, changing.value ? '' : (held[0]?.note ?? ''), false, held[0]?.id ?? null), splitField<RecordId>('', category, '', true)]
   parts.value = halves
@@ -99,15 +100,18 @@ const side = computed(() => (props.entry.amount < 0 ? 'out' : 'in'))
 /** The entry read above zero, as each part is typed. */
 const whole = computed(() => absAccountMoney(props.entry.amount))
 
-/** The category a part names, or null while it names none. */
+/** The shared costs a part's picker offers beside the categories, and the category and shared cost a pick files a part under. */
+const partFiling = usePartFiling(() => heldItems.value.map((part) => part.sharedCost))
+
+/** The category a part names, or null while it names none or a shared cost. */
 function categoryOf(part: SplitField<RecordId>): RecordId | null {
   return categories.value.find((category) => category.id === part.category)?.id ?? null
 }
 
-const choicesOf = (part: SplitField<RecordId>) => entryCategoryChoices(categories.value, side.value, categoryOf(part))
+const choicesOf = (part: SplitField<RecordId>) => entryCategoryChoices(categories.value, side.value, categoryOf(part), { sharedCosts: partFiling.offers.value })
 
 function categoryError(part: SplitField<RecordId>): string | null {
-  return categoryOf(part) === null ? words.split.refusals['unknown-category'] : null
+  return partFiling.fieldsOf(part.category) === null ? words.split.refusals['unknown-category'] : null
 }
 
 const signed = (amount: AccountMoney): AccountMoney => (props.entry.amount < 0 ? negateAccountMoney(amount) : amount)
@@ -116,18 +120,20 @@ const outcome = computed(() => {
   const book = store.state.workbook
   const given = givenParts(parts.value, typedAccountAmount)
   if (book === null || given === null || parts.value.some((part) => categoryError(part) !== null)) return null
+  const filing = partFiling.filing.value
   const drafts = parts.value.map((part, place): ItemDraft => {
     const amount = given[place]!
     return {
       id: part.held,
       amount: amount === 'rest' ? 'rest' : signed(amount),
-      category: categoryOf(part)!,
+      ...partFiling.fieldsOf(part.category)!,
       note: part.note,
       payee: payees.value[part.id] ?? '',
       choices: { labels: labelsOf(part), event: partEvents.value[part.id] ?? BY_DAYS },
     }
   })
-  return entrySplit(book, props.entry, drafts)
+  const split = entrySplit({ ...book, categories: filing.categories }, props.entry, drafts)
+  return 'refused' in split ? split : { ...split, filing }
 })
 
 const refusal = computed(() => (outcome.value !== null && 'refused' in outcome.value ? words.split.refusals[outcome.value.refused] : null))
@@ -140,6 +146,7 @@ async function save(): Promise<void> {
   const carried = new Set(split.parts.flatMap((part) => part.labels))
   const work = (unit: UnitOfWork) => {
     addCarried(unit, carried)
+    split.filing.addFor(unit, split.parts)
     writeEntrySplit(unit, records, split)
   }
   if (await writes.write(changing.value ? words.split.changed : words.split.saved, work, { key: 'split', failedTitle: spendingWords.form.notSaved })) {

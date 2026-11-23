@@ -29,7 +29,12 @@ export type ReceiptDraft = Omit<Receipt, 'id' | 'transaction' | 'account'>
  * A line the owner confirmed, its amount signed as the row is, with the labels and event choice they set on it, or none to start
  * it with those of `openingLineChoices`, and the payee it counts under, or none to start it with `payeeOfAll`.
  */
-export type ReceiptPart = Pick<TransactionItem, 'printed' | 'note' | 'amount'> & { readonly category: RecordId; readonly choices?: PartChoices; readonly payee?: string }
+export type ReceiptPart = Pick<TransactionItem, 'printed' | 'note' | 'amount'> & {
+  readonly category: RecordId
+  readonly choices?: PartChoices
+  readonly payee?: string
+  readonly sharedCost?: RecordId | null
+}
 
 /** A line of a receipt as you type it: its amount above zero, or the rest of the total, its category, your words and, when you set them, its labels and event choice. */
 export interface TypedLine {
@@ -39,6 +44,8 @@ export interface TypedLine {
   readonly choices?: PartChoices
   /** Who the line counts under, blank for the entry's payee. Left out, it starts with `payeeOfAll`. */
   readonly payee?: string
+  /** The shared cost the line joins, its category then In a shared cost. Left out, none. */
+  readonly sharedCost?: RecordId | null
 }
 
 /**
@@ -59,13 +66,14 @@ export function typedReceiptLines(
   )
   if ('refused' in placed) return placed
   return {
-    parts: lines.map(({ note, category, choices, payee }, place) => ({
+    parts: lines.map(({ note, category, choices, payee, sharedCost }, place) => ({
       printed: '',
       note: note.trim(),
       amount: placed.parts[place]!,
       category,
       ...(choices === undefined ? {} : { choices }),
       ...(payee === undefined ? {} : { payee }),
+      ...(sharedCost === undefined ? {} : { sharedCost }),
     })),
   }
 }
@@ -161,7 +169,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
   const opening = openingLineChoices(replaced)
   const openingPayee = payeeOfAll(replaced)
   const entryPayee = row?.payee ?? receipt.merchant
-  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory, choices, payee }): TransactionItem => {
+  const lines = parts.map(({ printed, note, amount: lineAmount, category: lineCategory, choices, payee, sharedCost }): TransactionItem => {
     const { labels, event } = choices ?? opening
     return {
       id: recordIdOf(ITEM_RECORDS, newKey()),
@@ -176,7 +184,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
       labels,
       ruleLabels: lineRuleLabels(labels, replaced),
       event,
-      sharedCost: null,
+      sharedCost: sharedCost ?? null,
       splitByLink: false,
     }
   })

@@ -117,7 +117,7 @@ const namedWithGroup = (category: Category): string => [category.name, groupOf(c
 /** No category first, then the categories a rule can file into, each child with its group as its description. */
 const categoryItems = computed(() => [
   [{ value: NO_CATEGORY, label: words.rules.dialog.noCategory }],
-  ...entryCategoryChoices(categories.value, 'in', pickedCategory.value?.id ?? null, true).map((choices) =>
+  ...entryCategoryChoices(categories.value, 'in', pickedCategory.value?.id ?? null, { withTransfer: true }).map((choices) =>
     choices.map((choice) => {
       const category = categories.value.find((candidate) => candidate.id === choice.value)
       const group = category === undefined ? null : groupOf(category)

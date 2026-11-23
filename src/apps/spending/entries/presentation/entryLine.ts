@@ -8,7 +8,7 @@ import { words } from './words'
 
 /**
  * How an entry reads in a list: who was paid or paid you, or its category when it names nobody, then each other payee a part
- * counts under, and under it its category or Waits on review, its account and its note.
+ * counts under, and under it its category or Waits on review, with the shared cost it is in, its account and its note.
  */
 export interface EntryLine {
   readonly title: string
@@ -18,11 +18,12 @@ export interface EntryLine {
 }
 
 /** An entry of several parts leaves its category and note to them. One part, a receipt's line too, reads as the entry. */
-export function entryLine(row: EuroRow, categories: ReadonlyMap<RecordId, Category>, showAccount: boolean): EntryLine {
+export function entryLine(row: EuroRow, categories: ReadonlyMap<RecordId, Category>, showAccount: boolean, homes: ReadonlyMap<RecordId, string> = new Map()): EntryLine {
   const { transaction, account } = row
   const shown = mainCategoryOf(row.items)
   const category = shown === null ? null : (categories.get(shown) ?? null)
-  const categoryName = category?.name ?? words.waitsOnReview
+  const home = row.items.length === 1 && row.items[0]!.sharedCost !== null ? homes.get(row.items[0]!.sharedCost) : undefined
+  const categoryName = [category?.name ?? words.waitsOnReview, ...(home === undefined ? [] : [home])].join(' · ')
   const split = hasParts(row.items)
   const others = row.items
     .map((item) => item.payee.trim())

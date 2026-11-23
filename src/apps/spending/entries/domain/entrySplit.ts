@@ -32,6 +32,8 @@ export interface ItemDraft {
   readonly choices?: PartChoices
   /** Who the part counts under, blank for the entry's payee. Left out, the part keeps its own, and a new part counts under the entry's payee. */
   readonly payee?: string
+  /** The shared cost the part joins, its category then In a shared cost. Null takes it out. Left out, a part that keeps its id and its category stays in its shared cost, and any other is in none. */
+  readonly sharedCost?: RecordId | null
 }
 
 /** The labels and event choice a part added to a split starts with: the labels every part of the entry carries and the event choice of the largest. */
@@ -42,9 +44,10 @@ export function newPartChoices(held: readonly Pick<TransactionItem, 'amount' | '
 
 /**
  * Why an entry cannot be split as given, beside why its parts cannot be placed: it is a transfer's leg, a receipt split it,
- * it has fewer than two parts, or a part names a category that is not in the file, a group with children, or Between my accounts.
+ * it has fewer than two parts, a part linked to a record in another app would join a shared cost, or a part names a category that
+ * is not in the file, a group with children, or Between my accounts.
  */
-export type SplitRefusal = PartsRefusal | 'transfer-leg' | 'receipt' | 'too-few' | PartCategoryRefusal
+export type SplitRefusal = PartsRefusal | 'transfer-leg' | 'receipt' | 'too-few' | 'linked-member' | PartCategoryRefusal
 
 /** An entry split by hand: the row with its items as the file holds them, the row filed by you, and its parts. */
 export interface EntrySplit {
@@ -110,10 +113,11 @@ export function entrySplit(
       labels,
       ruleLabels: heldRuleLabels({ labels, ruleLabels: kept?.ruleLabels ?? [] }),
       event: draft.choices?.event ?? kept?.event ?? BY_DAYS,
-      sharedCost: null,
+      sharedCost: draft.sharedCost !== undefined ? draft.sharedCost : kept !== undefined && kept.category === draft.category ? kept.sharedCost : null,
       splitByLink: false,
     }
   })
+  if (parts.some((part) => part.sharedCost !== null && part.link !== null)) return { refused: 'linked-member' }
   const chosen = new Set(drafts.flatMap((draft, place) => (draft.choices === undefined ? [] : [parts[place]!.id])))
   return { before: { row, items: held }, row: { ...row, categorisedBy: 'person' }, parts, chosen }
 }

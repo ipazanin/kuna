@@ -43,13 +43,16 @@ export interface TypedFiling {
   readonly event?: EventChoice
   /** Who the money counts under when that is not the entry's payee, such as the friend a meal paid for. Left out or blank, the entry's payee. */
   readonly countsUnder?: string
+  /** The shared cost the entry is in, its category then In a shared cost. Left out, none. */
+  readonly sharedCost?: RecordId | null
 }
 
 /** A new typed entry, its text trimmed, with an id of its own and one item with all of its money. */
 export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee'> & TypedFiling): ItemizedRow {
-  const { category, note, labels, event, countsUnder = '', ...typed } = entry
+  const { category, note, labels, event, countsUnder = '', sharedCost = null, ...typed } = entry
   const row: Transaction = { ...typed, ...NO_BANK_FACTS, payee: entry.payee.trim(), source: 'typed', pair: null, categorisedBy: 'person', id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
-  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null, labels, countsUnder: partPayeeOf(countsUnder, row.payee), ...(event === undefined ? {} : { event }) })] }
+  const item = wholeItemOf(row, { category, note: note.trim(), link: null, labels, countsUnder: partPayeeOf(countsUnder, row.payee), ...(event === undefined ? {} : { event }) })
+  return { row, items: [{ ...item, sharedCost }] }
 }
 
 /**
@@ -57,7 +60,8 @@ export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' 
  * it. A row not split keeps its one item's id and link and takes the typed amount, category, note, labels, event and payee it
  * counts under, and a category you changed is yours from then on. A split row keeps its items, each with the labels, event and
  * payee of the typed part of its id, and a receipt's line takes that part's category and note too, while its amount stays the
- * receipt's. A part left counting under the entry's new payee keeps no payee of its own.
+ * receipt's. A part left counting under the entry's new payee keeps no payee of its own. A part takes the typed shared cost, and one
+ * typed with none stays in its own while it keeps its category, so filing it elsewhere takes it out.
  */
 export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
   const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before.row
@@ -68,13 +72,16 @@ export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedR
   const ownPayee = (payee: string): string => partPayeeOf(payee, typed.row.payee)
   const parts = before.items.map((part) => {
     const typedPart = typedParts.get(part.id)
-    const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, note: typedPart.note }
+    const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, sharedCost: typedPart.sharedCost, note: typedPart.note }
     return { ...part, labels: typedPart?.labels ?? part.labels, event: typedPart?.event ?? part.event, ...refiled, payee: ownPayee(typedPart?.payee ?? part.payee) }
   })
   const filedAnew = whole ? held.category !== filing.category : parts.some((part, place) => part.category !== before.items[place]?.category)
   const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: filedAnew ? 'person' : before.row.categorisedBy }
   if (!whole) return { row, items: parts }
-  return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels, event: filing.event, payee: ownPayee(filing.payee) }] }
+  return {
+    row,
+    items: [{ ...held, amount: row.amount, category: filing.category, sharedCost: filing.sharedCost, note: filing.note, labels: filing.labels, event: filing.event, payee: ownPayee(filing.payee) }],
+  }
 }
 
 /** A transfer's leg typed over a row, which keeps the row's labels, since a transfer is labelled by selecting it on Entries. */

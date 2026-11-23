@@ -23,6 +23,8 @@ import type { PartChoices } from '../../entries/domain/entrySplit'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import LabelsAndEventFields from '../../entries/presentation/LabelsAndEventFields.vue'
 import { useLabelsAndEvents } from '../../entries/presentation/useLabelsAndEvents'
+import { usePartFiling } from '../../entries/presentation/usePartFiling'
+import { words as sharedCostWords } from '../../sharedCosts/presentation/words'
 import type { PartKey } from '../../entries/presentation/useLabelsAndEvents'
 import { lastUsedAccount, rememberLastAccount } from '../../entries/infrastructure/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
@@ -177,12 +179,17 @@ const placeItems = computed(() => [
   { value: NEW_ENTRY, label: waits.value ? words.waitForBank : words.newEntry },
 ])
 
-/** The category of the row picked is the first offer. */
+const chosenItems = computed(() => (chosenRow.value === null ? [] : rowItemsOf({ items: book.value?.items ?? [] })(chosenRow.value)))
+/** The shared costs a line can join, none for a receipt that waits for the bank's row, since only a row's part joins one. */
+const partFiling = usePartFiling(() => chosenItems.value.map((item) => item.sharedCost))
+const sharedCosts = computed(() => (newEntryPlaced.value && waits.value ? [] : partFiling.offers.value))
+/** The category of the row picked is the first offer, or the shared cost a row of one part is in. */
 const chosenCategory = computed(() => {
-  const items = chosenRow.value === null ? [] : rowItemsOf({ items: book.value?.items ?? [] })(chosenRow.value)
+  const items = chosenItems.value
+  if (items.length === 1 && items[0]!.sharedCost !== null) return items[0]!.sharedCost
   return items.length === 0 ? null : mainCategoryOf(items)
 })
-const categoryItems = computed(() => entryCategoryChoices(categories.value, 'out', chosenCategory.value))
+const categoryItems = computed(() => entryCategoryChoices(categories.value, 'out', chosenCategory.value, { sharedCosts: sharedCosts.value }))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
 const category = computed<string>({
   get: () => (pickedCategory.value !== '' ? pickedCategory.value : (chosenCategory.value ?? '')),
@@ -198,7 +205,7 @@ function typeLines(): void {
   lines.value = typed
 }
 
-const lineItems = computed(() => entryCategoryChoices(categories.value, 'out', null))
+const lineItems = computed(() => entryCategoryChoices(categories.value, 'out', null, { sharedCosts: sharedCosts.value }))
 const linePickable = computed(() => new Set(lineItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
 const lineCategoryError = (field: SplitField): string | null => (linePickable.value.has(field.category) ? null : words.pickCategory)
 const totalInAccount = computed(() => (total.value === null ? null : accountMoneyOfEuros(total.value)))
@@ -208,14 +215,14 @@ const typedLines = computed(() => {
   const sum = total.value
   const fields = lines.value
   const given = fields === null ? ['rest' as const] : givenParts(fields, typedAccountAmount)
-  const picked = (fields === null ? [category.value] : fields.map((field) => field.category)).map((id) => categories.value.find((candidate) => candidate.id === id))
-  if (sum === null || given === null || picked.some((found) => found === undefined)) return null
+  const picked = (fields === null ? [category.value] : fields.map((field) => field.category)).map((value) => partFiling.fieldsOf(value))
+  if (sum === null || given === null || picked.some((found) => found === null)) return null
   return typedReceiptLines(
-    categories.value,
+    partFiling.filing.value.categories,
     sum,
     given.map((amount, place) => ({
       amount,
-      category: picked[place]!.id,
+      ...picked[place]!,
       note: fields?.[place]?.note ?? '',
       ...choicesOf(fields?.[place]?.id ?? WHOLE),
       ...payeeChosen(fields?.[place]?.id ?? WHOLE),
@@ -249,7 +256,16 @@ const errors = computed(() => ({
         : beforeStartDay(newAccount.value, issuedOn.value)
           ? entryWords.dialog.beforeOpened(newAccount.value.openedOn)
           : null,
-  category: lines.value === null ? (!pickable.value.has(category.value) ? words.pickCategory : null) : lines.value.some((field) => lineCategoryError(field) !== null) ? words.pickCategory : null,
+  category:
+    lines.value === null
+      ? !pickable.value.has(category.value)
+        ? words.pickCategory
+        : null
+      : lines.value.some((field) => lineCategoryError(field) !== null)
+        ? words.pickCategory
+        : chosenItems.value.some((item) => item.link !== null) && lines.value.some((field) => partFiling.joins(field.category))
+          ? sharedCostWords.unlinkFirst
+          : null,
 }))
 
 async function save(): Promise<void> {
@@ -278,12 +294,15 @@ async function save(): Promise<void> {
     longitude: photoPlace.value?.longitude ?? '',
   }
   const carried = new Set(typed.parts.flatMap((part) => part.choices?.labels ?? []))
+  const filing = partFiling.filing.value
   const outcome = await saves.save(keepPhoto.value && keepReason.value === null ? { file, issuedOn: day } : null, (photoId) =>
     writes.write(
       words.saved,
       (unit) => {
         addCarried(unit, carried)
-        writeReceiptSplit(unit, records, receiptSplit({ ...draft, photo: photoId }, where, typed.parts))
+        const split = receiptSplit({ ...draft, photo: photoId }, where, typed.parts)
+        filing.addFor(unit, split.lines)
+        writeReceiptSplit(unit, records, split)
       },
       { failedTitle: words.notSaved },
     ),

@@ -374,13 +374,19 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntrySplit',
     type: 'src/apps/spending/entries/domain/entrySplit.ts#ItemDraft',
-    operations: [{ name: 'split-entry', prefix: 'parts.', renames: { id: 'parts.part' } }],
+    operations: [{ name: 'split-entry', prefix: 'parts.', renames: { id: 'parts.part', sharedCost: 'join-shared-cost:sharedCost' } }],
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry',
     type: 'src/apps/spending/receipts/domain/receiptLines.ts#LineRefile',
-    operations: [{ name: 'refile-receipt', prefix: 'lines.' }],
+    operations: [{ name: 'refile-receipt', prefix: 'lines.', renames: { sharedCost: 'join-shared-cost:sharedCost' } }],
   },
+  {
+    path: 'src/apps/spending/sharedCosts/application/sharedCostWrites.ts#addSharedCost',
+    type: 'src/apps/spending/sharedCosts/application/sharedCostWrites.ts#SharedCostDraft',
+    operations: [{ name: 'add-shared-cost', renames: { settled: 'change-shared-cost:settled' } }],
+  },
+  { path: 'src/apps/spending/sharedCosts/application/sharedCostWrites.ts#changeSharedCost', from: ['changed'], operations: ['change-shared-cost'] },
   { path: 'src/apps/spending/labels/application/labelWrites.ts#addLabel', type: 'src/shared/categorising/domain/labels.ts#Label', operations: ['add-label'] },
   { path: 'src/apps/spending/labels/application/labelWrites.ts#renameLabel', from: ['name'], operations: ['rename-label'] },
   {

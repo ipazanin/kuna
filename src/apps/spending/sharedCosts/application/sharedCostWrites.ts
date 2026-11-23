@@ -3,6 +3,8 @@ import { fixedCategoryIn } from '../../categories/domain/starterCategories'
 import { heldItemsOf, writeRows } from '../../entries/application/rowRecords'
 import type { RowWrite } from '../../entries/application/rowRecords'
 import { SHARED_COST_WRITES } from './sharedCostRecords'
+import { addPartPayees } from '../../payees/application/payeeWrites'
+import type { PartPayeeRecords } from '../../payees/application/payeeWrites'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
@@ -27,14 +29,47 @@ export function newSharedCost(draft: SharedCostDraft): SharedCost {
   return { ...draft, payee: draft.payee.trim(), note: draft.note.trim(), id: recordIdOf(SHARED_COST_RECORDS, newRecordId()) }
 }
 
-/** Adds the shared cost, which `newSharedCost` made, so the same write can put rows in it. */
-export function addSharedCost(unit: UnitOfWork, sharedCost: SharedCost): void {
+/**
+ * Adds the shared cost, which `newSharedCost` made, so the same write can put rows in it. A payee no record or entry names yet,
+ * such as the friend a gift was for, joins the payees as a person in the same write, as a part's payee does.
+ */
+export function addSharedCost(unit: UnitOfWork, records: PartPayeeRecords, sharedCost: SharedCost): void {
+  addPartPayees(unit, records, [sharedCost])
   unit.of(SHARED_COST_WRITES).add(sharedCost)
 }
 
-/** The shared cost with what a person set, Settled included. Its members stay, and it counts their money under its new day, payee, category, labels and event. */
-export function changeSharedCost(unit: UnitOfWork, sharedCost: SharedCost, changed: SharedCostDraft): void {
-  unit.of(SHARED_COST_WRITES).change(sharedCost, { ...changed, payee: changed.payee.trim(), note: changed.note.trim(), id: sharedCost.id })
+/** The shared cost with what a person set, Settled included. Its members stay, and it counts their money under its new day, payee, category, labels and event. A new payee joins the payees as `addSharedCost` adds one. */
+export function changeSharedCost(unit: UnitOfWork, records: PartPayeeRecords, sharedCost: SharedCost, changed: SharedCostDraft): void {
+  const after = { ...changed, payee: changed.payee.trim(), note: changed.note.trim(), id: sharedCost.id }
+  addPartPayees(unit, records, [after])
+  unit.of(SHARED_COST_WRITES).change(sharedCost, after)
+}
+
+/** What a picker files a part under: a category, or a shared cost the part joins. */
+export type PickedFiling = { readonly category: RecordId } | { readonly sharedCost: RecordId }
+
+/** The fields of a part a filing sets. */
+export interface FilingFields {
+  readonly category: RecordId
+  readonly sharedCost: RecordId | null
+}
+
+/**
+ * How a write files parts as a picker gives them: under a category and out of any shared cost, or in a shared cost under In a
+ * shared cost. A file made before that category lacks it, so `categories` holds it as the write adds it, and `addFor` adds it in
+ * the write once a part joins.
+ */
+export function sharedCostFiling(categories: readonly Category[], language: Language) {
+  const filedIn = fixedCategoryIn(categories, 'shared-cost', language)
+  return {
+    categories: filedIn.added ? [...categories, filedIn.category] : categories,
+    filedIn: filedIn.category.id,
+    added: filedIn.added ? filedIn.category : null,
+    fields: (picked: PickedFiling): FilingFields => ('sharedCost' in picked ? { category: filedIn.category.id, sharedCost: picked.sharedCost } : { category: picked.category, sharedCost: null }),
+    addFor: (unit: UnitOfWork, parts: readonly Pick<TransactionItem, 'sharedCost'>[]): void => {
+      if (filedIn.added && parts.some((part) => part.sharedCost !== null)) unit.of(CATEGORY_WRITES).add(filedIn.category)
+    },
+  }
 }
 
 /** Each row with the items `change` gives the picked parts, or all of its items when none of them is picked, as a write of rows. */
@@ -71,20 +106,20 @@ export function joinSharedCost(
 ): readonly Category[] {
   if (isBeforeItems(records)) throw new Error('A file from before items keeps no shared cost. Move it to items first.')
   if (rows.some((row) => row.pair !== null)) throw new Error('A move between your accounts stays whole, so it joins no shared cost.')
-  const filedIn = fixedCategoryIn(categories, 'shared-cost', language)
-  if (filedIn.added) unit.of(CATEGORY_WRITES).add(filedIn.category)
-  writeRows(
-    unit,
+  const filing = sharedCostFiling(categories, language)
+  const joined = rowsWithParts(
     records,
-    rowsWithParts(
-      records,
-      rows,
-      parts,
-      (item) => ({ ...item, category: filedIn.category.id, sharedCost: sharedCost.id }),
-      (row) => ({ ...row, categorisedBy: 'person' }),
-    ),
+    rows,
+    parts,
+    (item) => ({ ...item, ...filing.fields({ sharedCost: sharedCost.id }) }),
+    (row) => ({ ...row, categorisedBy: 'person' }),
   )
-  return filedIn.added ? [filedIn.category] : []
+  filing.addFor(
+    unit,
+    joined.flatMap((write) => write.items ?? []),
+  )
+  writeRows(unit, records, joined)
+  return filing.added === null ? [] : [filing.added]
 }
 
 /** Takes the rows out of their shared cost, every part of each or with `parts` those parts alone. Each takes its shared cost's category and counts again under its own labels, event and payee. */

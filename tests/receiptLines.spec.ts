@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { retypedEntry } from '../src/apps/spending/entries/application/entryWrites'
 import { lineRefilesOf, refiledReceiptLines } from '../src/apps/spending/receipts/domain/receiptLines'
-import { ITEM_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ITEM_RECORDS, RECEIPT_RECORDS, SHARED_COST_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -40,6 +40,15 @@ describe("a receipt's lines filed anew", () => {
     const refiled = refiledReceiptLines(CATEGORIES, [bread!, coffee!], [{ line: coffee!.id, category: eatingOut.id, note: ' Espresso ', payee: ' Ana ' }])
 
     expect(refiled).toEqual([bread, { ...coffee, category: eatingOut.id, note: 'Espresso', payee: 'Ana' }])
+  })
+
+  it('keep a line in its shared cost when only its words or payee change, and take it out once its category changes or it is given none', () => {
+    const shared = recordIdOf(SHARED_COST_RECORDS, 'made-up-shared')
+    const member = { ...coffee!, sharedCost: shared }
+
+    expect(refiledReceiptLines(CATEGORIES, [member], [{ line: member.id, category: member.category!, note: 'Espresso', payee: '' }])).toEqual([{ ...member, note: 'Espresso' }])
+    expect(refiledReceiptLines(CATEGORIES, [member], [{ line: member.id, category: eatingOut.id, note: '', payee: '' }])).toEqual([{ ...member, category: eatingOut.id, sharedCost: null }])
+    expect(refiledReceiptLines(CATEGORIES, [member], [{ line: member.id, category: member.category!, note: '', payee: '', sharedCost: null }])).toEqual([{ ...member, sharedCost: null }])
   })
 
   it('refuse a part split by hand, a line of another entry, a group with children and Between my accounts', () => {
@@ -91,7 +100,7 @@ describe("a receipt's lines as the entry dialog holds them", () => {
       [coffee!.id]: { category: eatingOut.id, note: 'Espresso' },
     })
 
-    expect(filed.refiles).toEqual([{ line: coffee!.id, category: eatingOut.id, note: 'Espresso', payee: '' }])
+    expect(filed.refiles).toEqual([{ line: coffee!.id, category: eatingOut.id, sharedCost: null, note: 'Espresso', payee: '' }])
     expect(filed.refused.size).toBe(0)
     expect(filed.lines).toEqual([
       { ...bread, note: ' ' },

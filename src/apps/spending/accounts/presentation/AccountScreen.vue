@@ -9,6 +9,7 @@ import { euroLine } from './euroLine'
 import { words } from './words'
 import { accountBalance } from '../domain/accountBalance'
 import EntryDialog from '../../entries/presentation/EntryDialog.vue'
+import { sharedCostHomes } from '../../sharedCosts/presentation/sharedCostNames'
 import EntryList from '../../entries/presentation/EntryList.vue'
 import ReceiptPhotoPicker from '../../receipts/presentation/ReceiptPhotoPicker.vue'
 import { useReceiptRows } from '../../receipts/presentation/useReceiptRows'
@@ -88,7 +89,8 @@ const rows = computed(() => {
   return entriesNewestFirst({ accounts: [shown], transactions: book.transactions, items: book.items }, everydayRates(rates.value))
 })
 const expanded = ref(false)
-const listed = computed(() => (expanded.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))
+const listed = computed(() => (expanded.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)).map((row) => ({ kind: 'entry' as const, row })))
+const homes = computed(() => sharedCostHomes(state.workbook))
 
 /** One line for each source of the account's rows, with its days and how many rows each origin brought on them. */
 const sourceLines = computed((): readonly ChangeLine[] => {
@@ -165,9 +167,10 @@ function openEntry(picked: Transaction): void {
         <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5">{{ words.noEntries }}</p>
         <template v-else>
           <EntryList
-            :rows="listed"
+            :lines="listed"
             :categories="state.workbook?.categories ?? []"
             :labels="state.workbook?.labels ?? []"
+            :homes="homes"
             :show-account="false"
             heading="h3"
             :takes-receipt="takesReceipt"

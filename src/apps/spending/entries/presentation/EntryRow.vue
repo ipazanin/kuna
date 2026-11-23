@@ -12,6 +12,7 @@ import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
 import { hasParts, holdsReceipt } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -35,6 +36,8 @@ const props = defineProps<{
   takesReceipt: boolean
   /** Whether a row of the list holds a receipt, so every row keeps the box its mark sits in. */
   receiptBoxes: boolean
+  /** The names of the shared costs its parts may be in, by their ids. */
+  homes: ReadonlyMap<RecordId, string>
 }>()
 
 const emit = defineEmits<{ open: [entry: Transaction]; receipt: [entry: AskedElement] }>()
@@ -61,7 +64,7 @@ const { marked } = useChatElement(asked, 'row')
         <NoteLine v-if="row.transaction.pending" as="span" tone="muted" icon="i-lucide-clock" data-testid="spending-row-pending">{{ words.notBookedYet }}</NoteLine>
         <NoteLine v-if="link !== null" as="span" :tone="LINK_TONE[link.look]" :icon="link.icon" data-testid="spending-row-link">{{ link.text }}</NoteLine>
         <NoteLine v-if="labels !== ''" as="span" tone="muted" icon="i-lucide-tag" data-testid="spending-row-labels">{{ labels }}</NoteLine>
-        <RowLines v-if="hasParts(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" />
+        <RowLines v-if="hasParts(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" :homes="homes" />
       </span>
       <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
         <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" :tone="rowTone(row.items, categories)" />

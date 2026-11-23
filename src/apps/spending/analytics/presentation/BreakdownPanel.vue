@@ -78,10 +78,13 @@ function colourOfLine(line: BreakdownLine): string {
 }
 const chart = computed(() => breakdownChart(breakdown.value.lines, grouping.value, colourOfLine, spanWords.value, chartTokens()))
 
-/** The group a line stands for, as Entries narrows to it, or null for the rows on no account. */
+/** The group a line stands for, as Entries narrows to it. The line of the rows on no account is the shared costs, which Entries lists under In a shared cost. */
 function groupOf(line: BreakdownLine): EntriesGroup | null {
   const key = line.key
-  if (key === null) return null
+  if (key === null) {
+    const filedIn = props.book.categories.find((category) => category.kind === 'shared-cost')
+    return grouping.value === 'account' && filedIn !== undefined ? { category: filedIn } : null
+  }
   switch (grouping.value) {
     case 'category': {
       const category = categoriesById.value.get(key)

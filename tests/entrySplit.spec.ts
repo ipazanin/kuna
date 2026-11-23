@@ -19,7 +19,17 @@ import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/s
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import {
+  ACCOUNT_RECORDS,
+  CATEGORY_RECORDS,
+  EVENT_RECORDS,
+  ITEM_RECORDS,
+  LABEL_RECORDS,
+  LINE_RECORDS,
+  RECEIPT_RECORDS,
+  SHARED_COST_RECORDS,
+  TRANSACTION_RECORDS,
+} from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
@@ -97,6 +107,21 @@ describe('an entry split by hand', () => {
 
     const oneLink = held.map((piece) => ({ ...piece, link: movement }))
     expect(splitOf(spend, drafts, { ...BOOK, items: oneLink }).parts.map((piece) => piece.link)).toEqual([movement, movement, movement])
+  })
+
+  it('keeps a part left without a shared cost in its own while it keeps its id and category, and takes it out when its category changes or it is given none', () => {
+    const shared = recordIdOf(SHARED_COST_RECORDS, 'made-up-shared')
+    const [whole] = wholeItems([spend])
+    const held = [
+      { ...whole!, amount: accountMoneyFromAmount(-60), sharedCost: shared },
+      { ...whole!, id: recordIdOf(ITEM_RECORDS, 'made-up-member'), amount: accountMoneyFromAmount(-40), sharedCost: shared },
+    ]
+    const book = { ...BOOK, items: held }
+    const drafts = [part(-50, GROCERIES, 'Note only', held[0]!.id), part(-30, RESTAURANTS, '', held[1]!.id), part('rest', GROCERIES)]
+    expect(splitOf(spend, drafts, book).parts.map((piece) => piece.sharedCost)).toEqual([shared, null, null])
+
+    const takenOut = [{ ...drafts[0]!, sharedCost: null }, drafts[1]!, drafts[2]!]
+    expect(splitOf(spend, takenOut, book).parts.map((piece) => piece.sharedCost)).toEqual([null, null, null])
   })
 
   it('gives each part the labels and event choice it was given', () => {

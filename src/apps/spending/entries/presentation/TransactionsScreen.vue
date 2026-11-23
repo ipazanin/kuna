@@ -16,7 +16,12 @@ import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
 import QuickAddCard from '../../shortcuts/presentation/QuickAddCard.vue'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import { takesNewRowsByHand } from '../../workbook/domain/account'
-import { entriesNewestFirst } from '../../rates/domain/euroRows'
+import { entriesAndSharedCosts } from '../../sharedCosts/domain/sharedCostEntries'
+import SharedCostDialog from '../../sharedCosts/presentation/SharedCostDialog.vue'
+import { sharedCostHomes } from '../../sharedCosts/presentation/sharedCostNames'
+import { words as sharedCostWords } from '../../sharedCosts/presentation/words'
+import type { SharedCost } from '../../workbook/domain/sharedCost'
+import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as screenWords } from '../../screenWords'
@@ -43,7 +48,7 @@ import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
-/** The entries of a month or of every month by day, newest first, found by account, category, label, event and payee, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat, or picked to be labelled or put in an event while rows are being selected, with the rows to review and the statement import on tabs of their own. */
+/** The entries of a month or of every month by day, newest first, found by account, category, label, event and payee, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat, with each shared cost and its entries under it, or picked to be labelled, put in an event or made a shared cost while rows are being selected, with the rows to review and the statement import on tabs of their own. */
 const { state } = useSpendingBooks()
 const rates = useRates()
 const filters = useEntryFilters(() => state.workbook)
@@ -53,18 +58,29 @@ const categories = computed(() => state.workbook?.categories ?? [])
 const transactions = computed(() => state.workbook?.transactions ?? [])
 const labels = computed(() => state.workbook?.labels ?? [])
 
+/** The entries and shared costs the filters leave, newest first, a shared cost with its entries under it. */
 const rows = computed(() => {
   const book = state.workbook
   if (book === null) return []
-  const shows = filters.shows
-  return entriesNewestFirst(book, everydayRates(rates.value)).filter((row) => shows(row))
+  const { shows, showsSharedCost } = filters
+  return entriesAndSharedCosts(book, everydayRates(rates.value)).filter((line) => (line.kind === 'entry' ? shows(line.row) : showsSharedCost(line.entry)))
 })
+const homes = computed(() => sharedCostHomes(state.workbook))
 
 /** The entries picked to be labelled or put in an event, or null while a tap opens an entry. A file from before items keeps neither, so it offers its move instead. */
 const picked = ref<ReadonlySet<RecordId> | null>(null)
 const canLabel = computed(() => state.workbook !== null && !isBeforeItems(state.workbook.stored))
 const pickedRows = computed(() => (picked.value === null ? [] : transactions.value.filter((row) => picked.value!.has(row.id))))
 const pickerOpen = ref(false)
+/** The shared cost its dialog changes, or null while it makes one from the picked entries. */
+const sharedCostOpen = ref(false)
+const openedSharedCost = ref<SharedCost | null>(null)
+const phone = usePhoneLayout()
+
+function openSharedCost(sharedCost: SharedCost | null): void {
+  openedSharedCost.value = sharedCost
+  sharedCostOpen.value = true
+}
 const eventPickerOpen = ref(false)
 const hasEvents = computed(() => (state.workbook?.events.length ?? 0) > 0)
 
@@ -166,13 +182,23 @@ function openEntry(entry: Transaction | null): void {
               data-testid="spending-selection-event"
               @click="eventPickerOpen = true"
             />
+            <UButton
+              v-bind="phone ? {} : { label: sharedCostWords.make }"
+              :aria-label="sharedCostWords.make"
+              icon="i-lucide-users"
+              color="neutral"
+              variant="outline"
+              :disabled="picked.size === 0"
+              data-testid="spending-selection-shared-cost"
+              @click="openSharedCost(null)"
+            />
             <UButton :label="words.labelling.label" icon="i-lucide-tag" :disabled="picked.size === 0" data-testid="spending-selection-label" @click="pickerOpen = true" />
           </SelectionBar>
           <AppCard v-if="transactions.length > 0" data-testid="spending-transactions">
             <EntryFilters :filters="filters">
               <UButton
                 v-if="canLabel && picked === null && rows.length > 0"
-                :label="words.labelling.select"
+                v-bind="phone ? {} : { label: words.labelling.select }"
                 :aria-label="words.labelling.selectHelp"
                 icon="i-lucide-list-checks"
                 size="sm"
@@ -187,7 +213,8 @@ function openEntry(entry: Transaction | null): void {
             <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="spending-transactions-none">{{ words.noMatch }}</p>
             <template v-else>
               <EntryList
-                :rows="listed"
+                :lines="listed"
+                :homes="homes"
                 :categories="categories"
                 :labels="labels"
                 :picked="picked"
@@ -195,6 +222,7 @@ function openEntry(entry: Transaction | null): void {
                 data-testid="spending-transactions-list"
                 @open="openEntry"
                 @pick="pick"
+                @open-shared-cost="openSharedCost"
                 @receipt="receiptPicker?.take($event)"
               />
               <ShowAllButton v-if="filters.manyMonths && rows.length > FIRST_SHOWN" v-model:expanded="allShown" :total="rows.length" class="px-4 pb-4 sm:px-5" />
@@ -211,6 +239,7 @@ function openEntry(entry: Transaction | null): void {
     </PageTabs>
     <EntryDialog v-if="state.workbook !== null" v-model:open="dialogOpen" :entry="editing" />
     <ReceiptDialog v-if="state.workbook !== null" v-model:open="receiptOpen" />
+    <SharedCostDialog v-if="state.workbook !== null" v-model:open="sharedCostOpen" :shared-cost="openedSharedCost" :rows="openedSharedCost === null ? pickedRows : []" @made="picked = null" />
     <LabelPicker v-if="state.workbook !== null" v-model:open="pickerOpen" :rows="pickedRows" @done="picked = null" />
     <EventPicker v-if="state.workbook !== null && hasEvents" v-model:open="eventPickerOpen" :rows="pickedRows" @done="picked = null" />
     <ReceiptPhotoPicker v-if="assistKeyKept" ref="receiptPicker" />

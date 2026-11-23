@@ -14,7 +14,8 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 /**
  * Who an entry or one of its parts counts under, blank for the entry's payee. While blank it folds to a quiet "Counts under
  * Harbour bistro". Open, it picks from the payees, people first, or takes a typed name, and picking the entry's payee folds it.
- * Compact, it is small without its heading, as under a line of the entry dialog, where its name says whose it is.
+ * Compact, it is small without its heading, as under a line of the entry dialog, where its name says whose it is. A form whose
+ * record the payee names, such as a shared cost, binds `open` to true and keeps it open.
  */
 const payee = defineModel<string>({ required: true })
 const unfolded = defineModel<boolean>('open', { default: false })

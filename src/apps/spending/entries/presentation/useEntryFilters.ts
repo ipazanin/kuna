@@ -14,6 +14,7 @@ import { ALL_MONTHS, LAST_12_MONTHS, accountNamed, categoryIdNamed, entriesMonth
 import type { EntriesMonths } from '../../overview/presentation/spendingLinks'
 import { countsUnderPayee } from '../../payees/domain/payeeTotals'
 import type { EuroRow } from '../../rates/domain/euroRows'
+import type { SharedCostEntry } from '../../sharedCosts/domain/sharedCostEntries'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -151,7 +152,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     },
   })
 
-  const pickedPayee = computed(() => payeeNamed(book() ?? { transactions: [], items: [] }, route.query.payee))
+  const pickedPayee = computed(() => payeeNamed(book() ?? { transactions: [], items: [], sharedCosts: [] }, route.query.payee))
   const dropPayee = (): void => changeQuery({ payee: null, ...monthLeft(pickedLabel.value === null && pickedEvent.value === null) })
 
   /** Every month, the last twelve, then each from the oldest entry's to this one, newest first, and the picked one when it lies outside them. */
@@ -200,6 +201,29 @@ export function useEntryFilters(book: () => SpendingBook | null) {
       (paid === null || countsUnderPayee(countedRowOf(row), paid.key))
   })
 
+  /**
+   * Whether a shared cost shows under the filters, by its own day, category, labels, event and payee, and by an account any of its
+   * entries is on. Its own category is In a shared cost too, so that filter lists every shared cost.
+   */
+  const showsSharedCost = computed(() => {
+    const shown = inMonths.value
+    const onAccount = pickedAccount.value
+    const picked = pickedCategory.value
+    const under = picked === null ? null : new Set(categories.value.filter((candidate) => candidate.id === picked.id || candidate.parent === picked.id).map((candidate) => candidate.id))
+    const carried = pickedLabel.value
+    const byId = new Map(categories.value.map((candidate) => [candidate.id, candidate]))
+    const during = pickedEvent.value
+    const inEvent = during === null ? null : partsInEvent(events.value, during.id)
+    const paid = pickedPayee.value
+    return ({ sharedCost, counted, members }: SharedCostEntry): boolean =>
+      shown(sharedCost.day) &&
+      (onAccount === null || members.some(({ row }) => row.transaction.account === onAccount.id)) &&
+      (under === null || under.has(sharedCost.category) || picked?.kind === 'shared-cost') &&
+      (carried === null || sharedCost.labels.includes(carried.id)) &&
+      (inEvent === null || keepsAnyPart(counted, byId, inEvent)) &&
+      (paid === null || countsUnderPayee(counted, paid.key))
+  })
+
   /** The filters that narrow the list, each as a chip names it. This month is where the list starts, and every month goes with a label, an event or a payee, so none of them is a filter. */
   const groupPicked = computed(() => pickedLabel.value !== null || pickedEvent.value !== null || pickedPayee.value !== null)
   const active = computed((): readonly ActiveFilter[] => [
@@ -245,6 +269,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     labels,
     events,
     shows,
+    showsSharedCost,
     active,
   })
 }

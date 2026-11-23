@@ -18,7 +18,7 @@ describe('the categories an entry can be filed under', () => {
   })
 
   const money = (side: 'out' | 'in', own: string | null, withTransfer = false) =>
-    entryCategoryChoices(CATEGORIES, side, own === null ? null : category(own).id, withTransfer).flatMap((group) => group.map((choice) => choice.label))
+    entryCategoryChoices(CATEGORIES, side, own === null ? null : category(own).id, { withTransfer }).flatMap((group) => group.map((choice) => choice.label))
 
   it('offers money in the income categories and then the spending ones, where it is a refund, and money out no income', () => {
     expect(money('in', null)).toEqual(expect.arrayContaining(['Salary', 'Clothes and shoes', 'Saved to investments', 'For the company']))
@@ -30,6 +30,18 @@ describe('the categories an entry can be filed under', () => {
     expect(money('out', null)).not.toContain('Between my accounts')
     expect(money('in', null, true)).toContain('Between my accounts')
     expect(money('out', 'Between my accounts')).toContain('Between my accounts')
+  })
+
+  it('offers a shared cost no fixed category, money in or out, so it always counts under spending or income', () => {
+    const forSharedCost = (side: 'out' | 'in', own: string | null) =>
+      entryCategoryChoices(CATEGORIES, side, own === null ? null : category(own).id, { withFixed: false }).flatMap((group) => group.map((choice) => choice.label))
+    for (const side of ['out', 'in'] as const) {
+      expect(forSharedCost(side, null)).not.toContain('For the company')
+      expect(forSharedCost(side, null)).not.toContain('Saved to investments')
+      expect(forSharedCost(side, null)).not.toContain('Between my accounts')
+      expect(forSharedCost(side, null)).not.toContain('In a shared cost')
+    }
+    expect(forSharedCost('in', null)).toEqual(expect.arrayContaining(['Salary', 'Clothes and shoes']))
   })
 
   it('offers In a shared cost only to a part already in one, so a member keeps its category and no other part can join this way', () => {

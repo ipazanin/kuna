@@ -71,9 +71,13 @@ export function countedRowOf(row: EuroRow): CountedRow {
  * known yet, neither is the sum.
  */
 function sharedCostRowOf(sharedCost: SharedCost, members: readonly (Money | null)[]): CountedRow {
-  const euros = members.reduce<Money | null>((sum, member) => (sum === null || member === null ? null : addMoney(sum, member)), ZERO)
   const { day, category, labels, event, payee } = sharedCost
-  return { day, account: null, parts: [{ category, labels, event, payee, counterpartyIban: '', euros }] }
+  return { day, account: null, parts: [{ category, labels, event, payee, counterpartyIban: '', euros: sharedCostEuros(members) }] }
+}
+
+/** What a shared cost counts in euros: its members' euros added up, or null while one of them is not known yet. */
+export function sharedCostEuros(members: readonly (Money | null)[]): Money | null {
+  return members.reduce<Money | null>((sum, member) => (sum === null || member === null ? null : addMoney(sum, member)), ZERO)
 }
 
 type CountedBook = Pick<SpendingBook, 'accounts' | 'transactions' | 'items' | 'sharedCosts'>
