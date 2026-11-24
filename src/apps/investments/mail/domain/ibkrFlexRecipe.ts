@@ -1,6 +1,7 @@
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import type { RecipeField, RecipeFields, Recipe, RowTest, XmlFile } from '../../../../shared/recipes/domain/recipe'
+import { factKey } from '../../../../shared/text/factKey'
 
 const DATE_FORMATS = ['yyyyMMdd;HHmmss', 'yyyyMMdd']
 
@@ -171,6 +172,9 @@ export const IBKR_FLEX_RECIPE: Recipe<XmlFile> = {
     },
   ],
 }
+
+/** A hash of the recipe as this version of Kuna runs it. A reading kept by another version is read again, since its rows may not fit. */
+export const IBKR_FLEX_FINGERPRINT = factKey([JSON.stringify(IBKR_FLEX_RECIPE)])
 
 /** The mail IBKR sends the report in, until the person changes that: its sender, and any subject and contents. */
 export const IBKR_FLEX_MAIL: Pick<MailReader, 'senders' | 'subject' | 'contents'> = { senders: ['donotreply@interactivebrokers.com'], subject: '', contents: '' }

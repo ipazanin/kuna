@@ -1,5 +1,5 @@
 import { heldRefusals } from '../../holdings/application/heldRefusals'
-import { mailOwnedRefusals } from '../../holdings/application/intakeRefusals'
+import { importKeyRefusals, mailOwnedRefusals } from '../../holdings/application/intakeRefusals'
 import { HAND_PRICE_WRITES } from '../../holdings/application/holdingWrites'
 import type { TransactionKind, TransactionRecord } from '../domain/listedTransactions'
 import { INVESTMENT_KINDS, bookWith } from '../../workbook/application/investmentWriteGuards'
@@ -15,13 +15,16 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** A trade moves units, so no write of it may leave a sale beyond what its account holds. Like every record on an account, one by hand stays off the days the mail fills it. */
+/**
+ * A trade moves units, so no write of it may leave a sale beyond what its account holds. Like every record on an account, one by hand stays off
+ * the days the mail fills it. Like every record an import writes, it takes no import key another record holds.
+ */
 export const TRADE_WRITES: WriteRules<Trade> = {
   kind: TRADE_RECORDS,
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(TRADE_RECORDS, read, records).readings.trades,
-  refusals: (change, fresh, after) => [...mailOwnedRefusals(change, after), ...heldRefusals(fresh, after)],
+  refusals: (change, fresh, after) => [...mailOwnedRefusals(change, after), ...importKeyRefusals(change, after), ...heldRefusals(fresh, after)],
 }
 
 export const INCOME_WRITES: WriteRules<Income> = {
@@ -29,7 +32,7 @@ export const INCOME_WRITES: WriteRules<Income> = {
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(INCOME_RECORDS, read, records).readings.income,
-  refusals: (change, _fresh, after) => mailOwnedRefusals(change, after),
+  refusals: (change, _fresh, after) => [...mailOwnedRefusals(change, after), ...importKeyRefusals(change, after)],
 }
 
 export const CASH_MOVEMENT_WRITES: WriteRules<CashMovement> = {
@@ -37,7 +40,7 @@ export const CASH_MOVEMENT_WRITES: WriteRules<CashMovement> = {
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(CASH_MOVEMENT_RECORDS, read, records).readings.cashMovements,
-  refusals: (change, _fresh, after) => mailOwnedRefusals(change, after),
+  refusals: (change, _fresh, after) => [...mailOwnedRefusals(change, after), ...importKeyRefusals(change, after)],
 }
 
 export const EXCHANGE_WRITES: WriteRules<Exchange> = {
@@ -45,7 +48,7 @@ export const EXCHANGE_WRITES: WriteRules<Exchange> = {
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(EXCHANGE_RECORDS, read, records).readings.exchanges,
-  refusals: (change, _fresh, after) => mailOwnedRefusals(change, after),
+  refusals: (change, _fresh, after) => [...mailOwnedRefusals(change, after), ...importKeyRefusals(change, after)],
 }
 
 /** A transfer of units may not move more than its account holds on its day. */
@@ -54,7 +57,7 @@ export const TRANSFER_WRITES: WriteRules<Transfer> = {
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(TRANSFER_RECORDS, read, records).readings.transfers,
-  refusals: (change, fresh, after) => [...mailOwnedRefusals(change, after), ...heldRefusals(fresh, after)],
+  refusals: (change, fresh, after) => [...mailOwnedRefusals(change, after), ...importKeyRefusals(change, after), ...heldRefusals(fresh, after)],
 }
 
 /** A split changes the units every later sale and transfer counts on, and may not empty a lot. */
@@ -63,7 +66,7 @@ export const SPLIT_WRITES: WriteRules<Split> = {
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(SPLIT_RECORDS, read, records).readings.splits,
-  refusals: (_change, fresh, after) => heldRefusals(fresh, after),
+  refusals: (change, fresh, after) => [...importKeyRefusals(change, after), ...heldRefusals(fresh, after)],
 }
 
 /** A spin-off gives the units a later sale of the received instrument counts on. */
@@ -72,7 +75,7 @@ export const SPIN_OFF_WRITES: WriteRules<SpinOff> = {
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(SPIN_OFF_RECORDS, read, records).readings.spinOffs,
-  refusals: (_change, fresh, after) => heldRefusals(fresh, after),
+  refusals: (change, fresh, after) => [...importKeyRefusals(change, after), ...heldRefusals(fresh, after)],
 }
 
 /** The rules of each kind of record the transaction dialog writes. */

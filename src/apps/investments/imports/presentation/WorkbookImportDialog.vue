@@ -16,7 +16,7 @@ export interface ReportReview {
 import { computed, nextTick, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { asksAboutAccount } from '../domain/importChoices'
+import { reviewQuestions } from '../domain/importChoices'
 import { writeWorkbookImport } from '../application/workbookImport'
 import ImportAccountsStep from './ImportAccountsStep.vue'
 import ImportDryRunStep from './ImportDryRunStep.vue'
@@ -66,19 +66,12 @@ watch(open, (opened) => {
 
 const steps = computed((): ImportStep[] => {
   const run = settled.value
-  if (run === null) return props.report ? ['dry-run'] : ['file', 'accounts', 'instruments', 'questions', 'dry-run']
-  const asks =
-    run.splits.some((split) => split.listed === null) ||
-    run.spinOffs.some((spinOff) => !spinOff.answeredByRow) ||
-    (run.dryRun.report?.asked.length ?? 0) > 0 ||
-    run.dryRun.questions.lookAlikes.length > 0
+  const book = workbookImport.book.value
+  if (run === null || book === null) return props.report ? ['dry-run'] : ['file', 'accounts', 'instruments', 'questions', 'dry-run']
+  const asked = reviewQuestions(run, book)
+  const asks = asked.splits.length > 0 || asked.spinOffs.length > 0 || asked.asked > 0 || asked.lookAlikes > 0
   if (props.report) {
-    return [
-      ...(run.accounts.some(asksAboutAccount) ? ['accounts' as const] : []),
-      ...(run.instruments.some(({ question }) => question.known === null && question.offer === null) ? ['instruments' as const] : []),
-      ...(asks ? ['questions' as const] : []),
-      'dry-run',
-    ]
+    return [...(asked.accounts.length > 0 ? ['accounts' as const] : []), ...(asked.instruments.length > 0 ? ['instruments' as const] : []), ...(asks ? ['questions' as const] : []), 'dry-run']
   }
   return ['file', ...(run.accounts.length > 0 ? ['accounts' as const] : []), ...(run.instruments.length > 0 ? ['instruments' as const] : []), ...(asks ? ['questions' as const] : []), 'dry-run']
 })

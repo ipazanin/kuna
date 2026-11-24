@@ -26,6 +26,17 @@ export function importedByKey(book: InvestmentBook): Map<string, ImportedRecord>
   return new Map(importableRecords(book).flatMap((imported) => imported.record.importKeys.map((key) => [key, imported] as const)))
 }
 
+/**
+ * The keys a record took that another record of the book holds too. A key names one row of one file, so a second
+ * record with it is that row booked twice. `before` is the record as it was, whose keys it keeps without a check.
+ */
+export function keysHeldTwice(book: InvestmentBook, record: { readonly id: RecordId; readonly importKeys: readonly string[] }, before: readonly string[]): string[] {
+  const taken = record.importKeys.filter((key) => !before.includes(key))
+  if (taken.length === 0) return []
+  const others = new Set(importableRecords(book).flatMap((imported) => (imported.record.id === record.id ? [] : imported.record.importKeys)))
+  return taken.filter((key) => others.has(key))
+}
+
 /** The account each of the workbook's Account texts was imported into, read off the records its rows already made. */
 export function knownAccountsOf(inKuna: readonly RowEntry[], keyed: ReadonlyMap<string, ImportedRecord>): Map<string, RecordId> {
   const known = new Map<string, RecordId>()

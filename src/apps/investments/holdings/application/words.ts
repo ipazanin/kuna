@@ -21,6 +21,7 @@ export const en = {
   startInFiledYear: (year: number, firstOpen: CivilDate) => `${year} is a filed tax year. Pick ${dayLabel(firstOpen)} or later.`,
   rowsOfAnotherSource: (count: number) =>
     `${count === 1 ? 'One row' : `${count} rows`} of the old source would stay on days the new source fills. Save from the account's dialog, which takes them out.`,
+  importKeyHeld: 'Kuna holds this row of the file already, so it is not booked a second time. Sync to see it.',
   undoAfterHandover: "The new source has brought rows on those days since, so Undo would keep both. Move the day back in the account's dialog instead.",
 }
 
@@ -36,6 +37,7 @@ export const hr: Translation<typeof en> = {
   startInFiledYear: (year, firstOpen) => withFullStop(`Porez za ${year}. je prijavljen. Odaberite od ${dayLabel(firstOpen)}`),
   rowsOfAnotherSource: (count) =>
     `${plural({ one: `${count} redak starog izvora ostao bi`, few: `${count} retka starog izvora ostala bi`, other: `${count} redaka starog izvora ostalo bi` }, count)} na danima koje puni novi izvor. Spremite u dijalogu računa, koji ih uklanja.`,
+  importKeyHeld: 'Kuna već ima ovaj redak datoteke, pa se ne upisuje drugi put. Sinkronizirajte da ga vidite.',
   undoAfterHandover: 'Novi izvor od tada je donio retke za te dane, pa bi poništavanje zadržalo oba. Umjesto toga vratite dan u dijalogu računa.',
 }
 

@@ -113,7 +113,8 @@
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
  * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept, with a key another browser saved taken by the sync on open, a key this browser kept lost to another browser's newer removal and a key the Investments file's old keys file held (`?keys=`), and with late prices, its General tab, on a file another device left in the Drive bin (`?investments=binned`) in Croatian too, three made-up CSV files of closes imported on it, Remove the Investments file on the sample on Drive asked first, cancelled and removed to the first run in English and Croatian, the same for the sample kept in this browser (`?investments=browser`), the sync on open of the binned file with its steps,
  * IBKR's report by mail read by a sync, reviewed from the Overview, its account answered and accepted with one Undo, with rows not seen yet asked
- * about and one left out (`?fake=flex-unseen`), with a report that no longer fits (`?fake=flex-misfit`) and its Settings card switched on, each in Croatian too,
+ * about and one left out (`?fake=flex-unseen`), with a report that no longer fits (`?fake=flex-misfit`) and its Settings card switched on, imported by the sync
+ * with nothing to ask and Undo on its step (`?investments=mail-known`), held back by a holding matched by symbol alone (`?investments=mail-symbol`), each in Croatian too,
  * the fetch after the import waiting out the fake vendor's minute and then back at its close, Company's
  * Overview, Transactions with its To review and Import tabs, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
  * Year, Salaries and Owner in Croatian in the fake file on Drive, in this browser and with one and five employees, Salaries for one
@@ -486,6 +487,7 @@ import {
   investmentsImportFlowIn,
   investmentsMailCardFlowIn,
   investmentsMailUploadFlowIn,
+  investmentsMailAutoFlowIn,
   investmentsMailFlowIn,
   loansDriveFlow,
   loansDriveFlowIn,
@@ -10606,6 +10608,42 @@ const FLOWS = [
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
     queries: { drive: '&investments=mail&prices=sample&fake=flex-misfit&lang=hr' },
+  },
+  {
+    name: 'investments-mail-known',
+    hash: '#/investments',
+    title: 'Overview',
+    run: investmentsMailAutoFlowIn('en', 'known'),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=mail-known&prices=sample' },
+  },
+  {
+    name: 'investments-mail-known-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: investmentsMailAutoFlowIn('hr', 'known'),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=mail-known&prices=sample&lang=hr' },
+  },
+  {
+    name: 'investments-mail-symbol',
+    hash: '#/investments',
+    title: 'Overview',
+    run: investmentsMailAutoFlowIn('en', 'symbol'),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=mail-symbol&prices=sample' },
+  },
+  {
+    name: 'investments-mail-symbol-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: investmentsMailAutoFlowIn('hr', 'symbol'),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=mail-symbol&prices=sample&lang=hr' },
   },
   {
     name: 'investments-mail-card',

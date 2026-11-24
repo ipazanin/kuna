@@ -10783,6 +10783,61 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
 }
 
 /**
+ * IBKR's report by mail imported by a sync with nothing to ask. With `known`, the sync writes it with no toast and its step
+ * says what went in, with Undo on the step, which brings the review back, and the next sync leaves those rows for the
+ * person. With `symbol`, a holding that matches by its symbol alone holds the report back, and the review warns on it until
+ * another holding is picked.
+ */
+export function investmentsMailAutoFlowIn(language, variant) {
+  const croatian = language === 'hr'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    await syncAndSettle(page, press)
+    if (variant === 'known') {
+      await noToast(page, 'a sync that imported the report showed a toast')
+      if ((await page.$('[data-testid="mail-report-review"]')) !== null) throw new Error('the Overview still offers the review after the sync imported the report')
+      await openKunaSettings(page)
+      await stepSays(page, SYNC_CARD, 'ibkr-mail', 'done', croatian ? /uvezeno je 30 zapisa/ : /imported 30 records/)
+      await inspect?.('the step that imported the report')
+      await shoot('investments-mail-imported-step')
+      await pressSelector(page, press, `${SYNC_CARD} ${SYNC_STEPS} [data-step="ibkr-mail"] [data-testid="sync-step-undo"]`)
+      await page.evaluate(() => {
+        window.location.hash = '#/investments'
+      })
+      await page.waitForSelector('[data-testid="mail-report-review"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('Undo on the step did not bring the review back')
+      })
+      await dismissToasts(page)
+      await syncAndSettle(page, press)
+      await openKunaSettings(page)
+      await stepSays(page, SYNC_CARD, 'ibkr-mail', 'done', croatian ? /poništili/ : /you undid/)
+      await inspect?.('the step after Undo, which leaves the rows for the review')
+      await shoot('investments-mail-undone-step')
+      return
+    }
+    await pressSelector(page, press, '[data-testid="mail-report-open"]')
+    await importStep(page, 'instruments')
+    const warned = await page.waitForSelector('[data-testid="import-instrument-match"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the holdings step does not warn on a holding that matches by its symbol alone')
+    })
+    await inspect?.('the holding that matches by symbol')
+    await shootAt(page, shoot, warned, 'investments-mail-symbol-only')
+    const choices = await page.$$('[data-testid="import-instrument-choice"]')
+    const last = choices.at(-1)
+    if (last === undefined) throw new Error('the holdings step offers no choice')
+    await press(last)
+    // Another holding Kuna has, the third choice after the one offered and New holding. A new holding's guess would show the report's English description on a Croatian screen.
+    const option = await page.waitForFunction(() => document.querySelectorAll('[role="option"]')[2] ?? null, { timeout: 5_000 })
+    await press(option.asElement())
+    await page.waitForSelector('[data-testid="import-instrument-match"]', { hidden: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the warning stays once another holding is picked')
+    })
+    await inspect?.('the holding once another one is picked')
+    await shoot('investments-mail-symbol-other')
+  }
+}
+
+/**
  * A Flex report saved by hand, dropped on Upload a report in the report's card: one that no longer fits says why, and the
  * made-up report opens the same review as a mailed one, whose Accept writes it with one Undo.
  */

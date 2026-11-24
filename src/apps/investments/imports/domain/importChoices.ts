@@ -80,6 +80,46 @@ export function asksAboutAccount(step: Pick<AccountStep, 'question' | 'choice'>)
   return step.question.known === null || step.choice.kind === 'new'
 }
 
+/** Why the holdings step asks about a holding: none in Kuna fits, or one matches by symbol alone. */
+export type InstrumentAsked = 'none-fits' | 'symbol-only'
+
+/**
+ * Why the holdings step asks the person about a holding, or null when it does not: an earlier import of its rows wrote to
+ * one Kuna has, or a holding in Kuna has the rows' ISIN, which no other holding may share. The rows never go to a holding
+ * matched by symbol alone unseen.
+ */
+export function instrumentAsked(question: InstrumentQuestion, book: InvestmentBook): InstrumentAsked | null {
+  if (question.known !== null && book.instruments.some((instrument) => instrument.id === question.known)) return null
+  if (question.offer === null) return 'none-fits'
+  return question.proposal.isin !== null && question.offer.isin === question.proposal.isin ? null : 'symbol-only'
+}
+
+/** What a review asks the person before its rows can go in, each list empty when nothing of its kind is asked. */
+export interface ReviewQuestions {
+  readonly accounts: readonly AccountStep[]
+  readonly instruments: readonly InstrumentStep[]
+  /** Splits no vendor lists near their day. */
+  readonly splits: readonly SplitStep[]
+  /** Spin-offs whose row does not answer them whole. */
+  readonly spinOffs: readonly SpinOffStep[]
+  /** Rows that look like a record Kuna has. */
+  readonly lookAlikes: number
+  /** A report's rows its recipe would not guess at. */
+  readonly asked: number
+}
+
+/** What the review of a settled import asks about, which its dialog shows as steps, the chat refuses on and a sync waits for. */
+export function reviewQuestions(settled: SettledImport, book: InvestmentBook): ReviewQuestions {
+  return {
+    accounts: settled.accounts.filter(asksAboutAccount),
+    instruments: settled.instruments.filter(({ question }) => instrumentAsked(question, book) !== null),
+    splits: settled.splits.filter((split) => split.listed === null),
+    spinOffs: settled.spinOffs.filter((spinOff) => !spinOff.answeredByRow),
+    lookAlikes: settled.dryRun.questions.lookAlikes.length,
+    asked: settled.dryRun.report?.asked.length ?? 0,
+  }
+}
+
 /** The accounts a mailed report's rows may go to: those the mail fills on some day, by where each one's rows come from. Null for a file or an upload, which may go to any. */
 type MailAccounts = ReadonlyMap<RecordId, readonly InvestmentPeriod[]> | null
 

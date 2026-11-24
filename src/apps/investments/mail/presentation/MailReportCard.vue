@@ -12,13 +12,14 @@ import { mailReaderFaults, mailReaderTexts, withMailField } from '../domain/mail
 import type { MailReaderField } from '../domain/mailReaderTexts'
 import MailReportReview from './MailReportReview.vue'
 import MailReportUpload from './MailReportUpload.vue'
-import { MAIL_SCOPE, misfitLine, useMailReports, writeMailReader } from './useMailReports'
+import { misfitLine } from './mailStepResult'
+import { MAIL_SCOPE, useMailReports, writeMailReader } from './useMailReports'
 import { mailReaderErrors, words } from './words'
 import { accountSources } from '../../imports/domain/accountIntake'
 import { earliestFrom } from '../../../../shared/app/accountSource'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import type { MailReader } from '../../workbook/domain/mailReader'
-import { dateFormat } from '../../../../shared/calendar/dateFormat'
+import { dateFormat, dayAndTime } from '../../../../shared/calendar/dateFormat'
 import MailSearchResults from '../../../../shared/mail/presentation/MailSearchResults.vue'
 import type { MailResultRow, MailSearchShown } from '../../../../shared/mail/presentation/MailSearchResults.vue'
 import { words as mailFilingWords } from '../../../../shared/mail/presentation/words'
@@ -77,6 +78,8 @@ async function switchTo(turnedOn: boolean): Promise<void> {
   if (turnedOn && current.senders.length === 0) return
   await saveReader({ ...current, on: turnedOn }, 'on')
 }
+
+const readOn = computed(() => (state.readAt === null ? null : words.card.readOn(dayAndTime(new Date(state.readAt)))))
 
 const search = computed((): MailSearchShown | null => (state.plan === null ? null : { window: state.plan.window, query: state.plan.query, why: words.card.searchedFrom }))
 
@@ -146,8 +149,9 @@ function rowOf(entry: ReportMail, index: number): MailResultRow {
       <div class="flex flex-col gap-3">
         <h3 class="type-card-title">{{ words.card.lastSync }}</h3>
         <p v-if="state.stopped !== null" class="type-aside" data-testid="investments-mail-stopped">{{ state.stopped }}</p>
-        <p v-else-if="state.plan === null" class="type-aside">{{ mailFilingWords.plan.noSyncYet }}</p>
-        <template v-else>
+        <p v-if="state.plan === null && state.stopped === null" class="type-aside">{{ words.card.noReadYet }}</p>
+        <template v-else-if="state.plan !== null">
+          <p v-if="readOn !== null" class="type-caption" data-testid="investments-mail-read-on">{{ readOn }}</p>
           <MailSearchResults :search="search" :entries="state.plan.mails" :row-of="rowOf" />
           <p v-if="state.plan.mails.length === 0" class="type-body" data-testid="investments-mail-none">{{ words.card.noMailFound }}</p>
         </template>

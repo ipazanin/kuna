@@ -4,6 +4,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
+import { instrumentAsked } from '../domain/importChoices'
 import type { InstrumentStep, SettledImport } from '../domain/importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
@@ -39,6 +40,13 @@ function itemsOf(step: InstrumentStep): { value: string; label: string }[] {
     { value: NEW, label: words.instruments.newHolding },
     ...others.map((instrument) => ({ value: instrument.id as string, label: instrument.name })),
   ]
+}
+
+/** A warning while the holding offered by its symbol alone is the one picked, so the person checks it is the right one. */
+function matchNote(step: InstrumentStep): string | null {
+  const held = book.value
+  const offered = step.choice.kind === 'existing' && step.choice.instrument === step.question.offer?.id
+  return offered && held !== null && instrumentAsked(step.question, held) === 'symbol-only' ? words.instruments.symbolOnly : null
 }
 
 function pick(step: InstrumentStep, value: string): void {
@@ -103,6 +111,7 @@ function opened(step: InstrumentStep): boolean {
             @update:model-value="change(step, $event)"
           />
         </FormGrid>
+        <NoteLine v-if="matchNote(step) !== null" tone="warning" data-testid="import-instrument-match">{{ matchNote(step) }}</NoteLine>
         <template v-if="step.choice.kind === 'new'">
           <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <NoteLine v-if="needsLook(step)" tone="warning" data-testid="import-instrument-guess">{{ words.instruments.needsLook }}</NoteLine>

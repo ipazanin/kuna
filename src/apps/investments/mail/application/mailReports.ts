@@ -20,6 +20,23 @@ export interface MailReportPlan {
   readonly mails: readonly ReportMail[]
 }
 
+/** A sync's reading of the mail as this browser keeps it beside an Investments file, with the recipe it was read by and when. */
+export interface KeptReading {
+  /** The fingerprint of the recipe the plan was read by. A reading of another recipe is never shown. */
+  readonly recipe: string
+  /** ISO timestamp of the sync that read it. */
+  readonly readAt: string
+  readonly plan: MailReportPlan
+}
+
+/** Where this browser keeps the last good reading of one Investments file's report mail. */
+export interface MailReadingCache {
+  read(): Promise<KeptReading | null>
+  replace(kept: KeptReading): Promise<void>
+  delete(): Promise<void>
+  close(): void
+}
+
 /** A file's rows by the recipe's sections, or why it is not that kind of file. */
 export type SourceReading = { readonly kind: 'read'; readonly rows: SourceRows } | { readonly kind: 'misfit'; readonly misfit: RecipeMisfit }
 

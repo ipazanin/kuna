@@ -1,4 +1,5 @@
 import { words } from './words'
+import { keysHeldTwice } from '../../imports/domain/importKeys'
 import { accountSources, landingOf, landingRecords, landsAnew, mailOwned, sourcesRefusal } from '../../imports/domain/accountIntake'
 import type { LandingKind } from '../../imports/domain/accountIntake'
 import { firstUnfiledDay } from '../../tax/domain/taxDeadlines'
@@ -29,6 +30,21 @@ export function mailOwnedRefusals<R extends LandingKind>(change: KindChange<R>, 
     const owned = landsAnew(before, landing) ? mailOwned(sources, landing) : null
     return owned === null ? [] : [words.mailOwnsAccount(nameOf(book, owned))]
   })
+}
+
+/**
+ * Why the write would give a record an import key another record holds, which books one row of a file twice. A second device
+ * that imports the same report, or an Accept on an older copy, is refused here and finds the row in Kuna at its next read.
+ */
+export function importKeyRefusals<R extends { readonly id: RecordId; readonly importKeys: readonly string[] }>(change: KindChange<R>, after: FreshRecords): string[] {
+  const added = change.edits.flatMap((edit) => {
+    const record = edit.after !== null && 'record' in edit.after ? edit.after.record : undefined
+    const before = edit.before !== null && 'record' in edit.before ? edit.before.record.importKeys : []
+    return record === undefined ? [] : [{ record, before }]
+  })
+  if (added.every(({ record, before }) => record.importKeys.every((key) => before.includes(key)))) return []
+  const { book } = bookOf(after)
+  return added.some(({ record, before }) => keysHeldTwice(book, record, before).length > 0) ? [words.importKeyHeld] : []
 }
 
 /** The sentence of a refused change of periods, short enough for the field under them, for the account dialog and the write alike. */

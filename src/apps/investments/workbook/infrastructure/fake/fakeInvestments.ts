@@ -33,6 +33,7 @@ import type { Target } from '../../domain/target'
 import type { Trade, TradeSide } from '../../domain/trade'
 import type { Transfer } from '../../domain/transfer'
 import { emptyInvestmentsDocument } from '../investmentsDocument'
+import { reportRowKey } from '../../../imports/domain/reportKey'
 import { pricesDay } from '../../../prices/application/pricesUpdate'
 import { rateSeriesKey } from '../../../prices/domain/pricesFile'
 import { FAKE_SERIES, fakeClose, isWeekday } from '../../../prices/infrastructure/fake/fakePrices'
@@ -487,9 +488,11 @@ function fakeMailReader(): MailReader {
  * zero, `young` is a file whose first deposit is seven months old, with no benchmark chosen, and `sale-2023` adds a sale
  * of 2023 whose tax carries a city surtax, with no city chosen yet. `mail` is the sample with IBKR's report by mail switched on
  * and filling the first account from a month back, and `mail-typed` is that with the first mailed day's deposit and
- * withdrawal typed by hand, kept from before the account took the report, so the report's rows look like them.
+ * withdrawal typed by hand, kept from before the account took the report, so the report's rows look like them. `mail-known`
+ * is `mail` with a deposit an earlier report brought, so a sync imports the report by itself, and `mail-symbol` is that with
+ * Example Dividend Co's ISIN left blank, so its rows match it by symbol alone and the report waits for the person.
  */
-export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail' | 'mail-typed' | 'sale-2023'
+export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail' | 'mail-typed' | 'mail-known' | 'mail-symbol' | 'sale-2023'
 
 /** The euro rows of the first day the fake mail's report gives, as typed by hand into the first account, with no import key. */
 function typedReportMovements(today: CivilDate): CashMovement[] {
@@ -498,6 +501,12 @@ function typedReportMovements(today: CivilDate): CashMovement[] {
     { ...cash('deposit', BROKER_ONE, first, '1000.00'), id: fixedId(CASH_MOVEMENT_RECORDS, 905) },
     { ...cash('withdrawal', BROKER_ONE, first, '200.00'), id: fixedId(CASH_MOVEMENT_RECORDS, 906) },
   ]
+}
+
+/** A deposit an earlier mailed report brought, twenty days before the day, so the account of the report's rows is known. */
+function earlierReportDeposit(today: CivilDate): CashMovement {
+  const deposit = cash('deposit', BROKER_ONE, addDays(today, -20), '500.00')
+  return { ...deposit, id: fixedId(CASH_MOVEMENT_RECORDS, 908), importKeys: [reportRowKey(fakeMailReader().recipe, 'U0000001', '8000000000001')] }
 }
 
 /** The weekday on or before the day. */
@@ -547,13 +556,14 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
   }
   const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS, paidDeposit(today)]
   const kept = variant !== 'cash-below-zero' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
-  const movements = variant === 'mail-typed' ? [...kept, ...typedReportMovements(today)] : kept
-  const mailed = variant === 'mail' || variant === 'mail-typed'
+  const known = variant === 'mail-known' || variant === 'mail-symbol'
+  const movements = variant === 'mail-typed' ? [...kept, ...typedReportMovements(today)] : known ? [...kept, earlierReportDeposit(today)] : kept
+  const mailed = variant === 'mail' || variant === 'mail-typed' || known
   return {
     ...emptyInvestmentsDocument(savedAt),
     records: {
       ...stored(INVESTMENT_ACCOUNT_RECORDS, [mailed ? mailedBrokerOne(today) : BROKER_ONE, BROKER_TWO]),
-      ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND, RETIRED_CO]),
+      ...stored(INSTRUMENT_RECORDS, [SHARE_A, variant === 'mail-symbol' ? { ...SHARE_B, isin: null } : SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND, RETIRED_CO]),
       ...stored(TRADE_RECORDS, [...TRADES, ...LATER_TRADES, ...TAX_TRADES, ...(variant === 'sale-2023' ? [sale2023()] : [])]),
       ...stored(INCOME_RECORDS, [...INCOME, ...LATER_INCOME, ...TAX_INCOME]),
       ...stored(CASH_MOVEMENT_RECORDS, movements),

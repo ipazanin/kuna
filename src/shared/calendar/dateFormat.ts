@@ -29,3 +29,6 @@ export function dateFormat(options: Intl.DateTimeFormatOptions): (date: Date | n
   const format = new Intl.DateTimeFormat(intlLocale, inLanguage(options))
   return (date) => format.formatToParts(date).map(partText).join('')
 }
+
+/** A day and a time without the year, as the sync's control and its steps say when they ran. */
+export const dayAndTime = dateFormat({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })

@@ -15,6 +15,7 @@ import { PRICES_FILE_NAME, encodePricesFile } from '../../../prices/domain/price
 import { fakePricesFile } from '../../../prices/infrastructure/fake/fakePrices'
 import type { FakePricesVariant } from '../../../prices/infrastructure/fake/fakePrices'
 import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrastructure/pricesCache'
+import { MAIL_READING_DATABASE_PREFIX } from '../../../mail/infrastructure/mailReadingCache'
 import { forgetSetUpAnswer, keepSetUpAnswer } from '../../../../../shared/app/setUpAnswer'
 import { HISTORY_COMPLETE } from '../../../tax/domain/historyAnswer'
 import { seedFakeSecrets } from '../../../../../shared/secrets/infrastructure/fake/seedFakeSecrets'
@@ -27,7 +28,7 @@ import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/au
  * the sample with nobody having said its history is complete, as the others have, `opening`
  * the sample chosen with nothing in this browser and every read of it held, so the Investments screens stay opening,
  * `binned` the sample as another device left it, moved to the bin with its prices file after this browser last read it,
- * `mail` the sample with IBKR's report by mail switched on, `mail-typed` that with two of the report's rows typed by hand, `sale-2023` the sample with a sale of 2023 whose city is not chosen yet, and `browser` the sample kept in this browser with its prices. Without it nothing is chosen, which is the Investments
+ * `mail` the sample with IBKR's report by mail switched on, `mail-typed` that with two of the report's rows typed by hand, `mail-known` that with a deposit an earlier report brought, `mail-symbol` that with a holding matched by symbol alone, `sale-2023` the sample with a sale of 2023 whose city is not chosen yet, and `browser` the sample kept in this browser with its prices. Without it nothing is chosen, which is the Investments
  * first run. The sample has the fake prices file beside it, in this browser too, as `?prices=late-prices` or
  * `?prices=no-benchmark` names it or else `sample`, and the empty file has it only when `?prices=` names it, so a first
  * import finds its rates. `?keys=` puts what another browser left in the app's hidden folder, as `seedFakeSecrets`
@@ -36,7 +37,7 @@ import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/au
  * comparison.
  */
 export async function seedFakeInvestments(variant: string | null, pricesVariant: string | null, keysVariant: string | null): Promise<void> {
-  await forgetFakePrices()
+  await forgetFakeBesideBooks()
   if (variant === 'browser') {
     await seedInBrowser(pricesVariant)
     return
@@ -46,6 +47,8 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
     variant !== 'sample' &&
     variant !== 'mail' &&
     variant !== 'mail-typed' &&
+    variant !== 'mail-known' &&
+    variant !== 'mail-symbol' &&
     variant !== 'sale-2023' &&
     variant !== 'cash-below-zero' &&
     variant !== 'young' &&
@@ -122,10 +125,10 @@ async function seedInBrowser(pricesVariant: string | null): Promise<void> {
   })
 }
 
-/** Each load starts a new fake Drive whose ids repeat, so no copy of an earlier load's prices may stay to name another file. */
-async function forgetFakePrices(): Promise<void> {
+/** Each load starts a new fake Drive whose ids repeat, so no copy of an earlier load's prices or mail reading may stay to name another file. */
+async function forgetFakeBesideBooks(): Promise<void> {
   const names = await Dexie.getDatabaseNames()
-  await Promise.all(names.filter((name) => name.startsWith(PRICES_DATABASE_PREFIX)).map((name) => Dexie.delete(name)))
+  await Promise.all(names.filter((name) => name.startsWith(PRICES_DATABASE_PREFIX) || name.startsWith(MAIL_READING_DATABASE_PREFIX)).map((name) => Dexie.delete(name)))
 }
 
 /** The fake prices file beside the sample, and the same revision in this browser, so a sync finds it unchanged. Gives the file's id. */

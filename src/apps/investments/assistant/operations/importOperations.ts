@@ -8,7 +8,7 @@ import type { WorkbookRow } from '../../imports/domain/portfolioWorkbook'
 import { copiedRowRefusal, daysPartlyOnCard, transcribedRows } from '../../imports/domain/transcribedRows'
 import type { CashOff, CopiedRowRefusal, TranscribedBalance, TranscribedRow } from '../../imports/domain/transcribedRows'
 import { ratesWanted } from '../../imports/domain/workbookRates'
-import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/domain/importChoices'
+import { NO_CHOICES, NO_SPLIT_LOOKUP, reviewQuestions, settledImport } from '../../imports/domain/importChoices'
 import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/domain/importChoices'
 import { askedLine, lookAlikesOf, waitText } from '../../imports/presentation/dryRunLines'
 import { heldOrNewReader, writeLeftOut, writeReader } from '../../mail/application/mailReaderWrites'
@@ -144,10 +144,8 @@ function holdingsAskedAbout(settled: SettledImport, book: InvestmentBook): strin
     const chosen = step.choice.instrument
     return book.instruments.find((instrument) => instrument.id === chosen)?.name ?? identity
   }
-  const asked = [
-    ...settled.splits.filter((split) => split.listed === null).map((split) => split.question.identity),
-    ...settled.spinOffs.filter((spinOff) => !spinOff.answeredByRow).map((spinOff) => spinOff.question.identity),
-  ]
+  const { splits, spinOffs } = reviewQuestions(settled, book)
+  const asked = [...splits.map((split) => split.question.identity), ...spinOffs.map((spinOff) => spinOff.question.identity)]
   return [...new Set(asked.map(nameOf))]
 }
 

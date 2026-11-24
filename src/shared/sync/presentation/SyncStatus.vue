@@ -6,7 +6,7 @@ import UPopover from '@nuxt/ui/components/Popover.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
-import { dateFormat } from '../../calendar/dateFormat'
+import { dateFormat, dayAndTime } from '../../calendar/dateFormat'
 import { syncAge } from '../../calendar/syncAge'
 import { usePhoneLayout } from '../../layout/viewport'
 import { listInWords } from '../../text/listInWords'
@@ -60,7 +60,6 @@ watch(
 const root = useTemplateRef<HTMLElement>('root')
 
 const timeOnly = dateFormat({ hour: '2-digit', minute: '2-digit' })
-const dayAndTime = dateFormat({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const fullStamp = dateFormat({ dateStyle: 'full', timeStyle: 'short' })
 
 /** The clock the "5 min ago" wording reads, moved on every minute. */

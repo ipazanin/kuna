@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { dateFormat } from '../../calendar/dateFormat'
+import { dayAndTime } from '../../calendar/dateFormat'
 import { listedSteps } from '../application/syncRun'
 import type { SyncRun } from '../application/syncRun'
 import SyncStepRow from './SyncStepRow.vue'
@@ -18,13 +18,11 @@ const emit = defineEmits<{
   sync: []
 }>()
 
-const stamp = dateFormat({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-
 const running = computed(() => props.run !== null && props.run.finishedAt === null)
 const when = computed(() => {
   const run = props.run
   if (run === null) return words.steps.none
-  return running.value ? words.steps.since(stamp(new Date(run.startedAt))) : words.steps.last(stamp(new Date(run.finishedAt ?? run.startedAt)))
+  return running.value ? words.steps.since(dayAndTime(new Date(run.startedAt))) : words.steps.last(dayAndTime(new Date(run.finishedAt ?? run.startedAt)))
 })
 </script>
 

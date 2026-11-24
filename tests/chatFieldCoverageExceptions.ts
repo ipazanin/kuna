@@ -271,6 +271,11 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
     paths: ['src/apps/investments/prices/infrastructure/vendorUsage.ts#rememberQuoteAsks'],
   },
   {
+    reason:
+      "The sync's import of a mailed IBKR report that asks nothing, which writes what Accept writes with no answer given. The person types nothing for it, and the chat's accept-mail-report writes the same.",
+    paths: ['src/apps/investments/mail/application/reportImport.ts#importMailedReport'],
+  },
+  {
     reason: "Link all on To review's card of past instalments, which links each row as link-entry does and takes no field of its own.",
     paths: ['src/apps/spending/entries/application/entryWrites.ts#linkEntries'],
   },
