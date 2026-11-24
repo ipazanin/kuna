@@ -20,7 +20,6 @@ export const en = {
     signatory: 'the signatory',
   },
   termsNeed: (missing: readonly string[]) => `The invoice terms on Invoicing, Clients need ${missing.join(', ')}.`,
-  chooseClient: 'Choose the client.',
   needsAddress: (client: string) => `Invoicing, Clients needs an address for ${client}.`,
   reverseChargeOnly: (client: string) =>
     `The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for ${client} on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.`,
@@ -64,7 +63,6 @@ export const hr: Translation<typeof en> = {
     signatory: 'potpisnik',
   },
   termsNeed: (missing) => `U uvjetima računa pod Računi, Klijenti nedostaje: ${listInWords(missing)}.`,
-  chooseClient: 'Odaberite klijenta.',
   needsAddress: (client) => `Upišite adresu klijenta „${client}” pod Računi, Klijenti.`,
   reverseChargeOnly: (client) =>
     `Aplikacija izrađuje račune bez PDV-a samo za klijente s prijenosom porezne obveze. Ako PDV obračunava klijent „${client}”, označite mu prijenos porezne obveze pod Računi, Klijenti, ili ovaj račun izradite drugdje.`,

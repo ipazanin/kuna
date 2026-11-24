@@ -3,9 +3,8 @@ import type { DateRange } from '../../../../shared/calendar/dateRange'
 import type { Money } from '../../../../shared/money/money'
 import type { InvoicingTerms } from '../../settings/domain/settings'
 import type { Client } from '../../workbook/domain/workbook'
-import { lineProblems } from './invoiceLine'
 import type { InvoiceLine } from './invoiceLine'
-import { lineProblemsInWords, words } from './words'
+import { words } from './words'
 
 /** Who the invoice is for, as it prints them. */
 export interface InvoiceRecipient {
@@ -45,16 +44,14 @@ export const REQUIRED_ISSUER: readonly (readonly [keyof InvoicingTerms, string])
   ['signatory', words.issuer.signatory],
 ]
 
-/** What keeps the app from making an invoice for the client, each a sentence. Empty when it can. */
-export function invoiceProblems(issuer: InvoicingTerms, client: Client | null, lines: readonly InvoiceLine[]): string[] {
+/** What keeps the app from making an invoice for the client that the invoice terms or the client's details fix, each a sentence. Empty when nothing does. */
+export function invoiceProblems(issuer: InvoicingTerms, client: Client | null): string[] {
   const problems: string[] = []
   const missing = REQUIRED_ISSUER.filter(([field]) => issuer[field].trim() === '').map(([, part]) => part)
   if (missing.length > 0) {
     problems.push(words.termsNeed(missing))
   }
-  if (client === null) {
-    problems.push(words.chooseClient)
-  } else {
+  if (client !== null) {
     if (client.invoicing.address === '') {
       problems.push(words.needsAddress(client.name || client.slug))
     }
@@ -62,6 +59,5 @@ export function invoiceProblems(issuer: InvoicingTerms, client: Client | null, l
       problems.push(words.reverseChargeOnly(client.name || client.slug))
     }
   }
-  problems.push(...lineProblemsInWords(lineProblems(lines)))
   return problems
 }

@@ -40,6 +40,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { removeInvoice } from '../application/invoiceWrites'
 import { writeInvoice } from '../application/invoicePaymentWrites'
 import { paymentChoices } from '../domain/invoicePayments'
+import { changedInvoice } from '../domain/invoiceChange'
 import { invoiceDatesProblems } from '../domain/invoiceGuards'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 import { lineProblems, linesTotal } from '../../invoicing/domain/invoiceLine'
@@ -47,7 +48,7 @@ import { registerItemOf } from '../../invoicing/domain/invoiceLines'
 import { invoiceLinesOf } from '../../invoicing/domain/registerInvoice'
 import { lineProblemsInWords } from '../../invoicing/domain/words'
 import InvoiceLinesEditor from '../../invoicing/presentation/InvoiceLinesEditor.vue'
-import { draftOf, linesOf } from '../../invoicing/presentation/lineDrafts'
+import { blankLine, draftOf, linesOf } from '../../invoicing/presentation/lineDrafts'
 import type { LineDraft } from '../../invoicing/presentation/lineDrafts'
 import { words } from './words'
 
@@ -111,25 +112,6 @@ function fieldsOf(stored: StoredFields): Record<Field, string> {
   }
 }
 
-watch(open, (opening) => {
-  if (!opening) return
-  const read = stored.value
-  if (read === null) {
-    const dates = newInvoiceDates(props.defaultIssued)
-    const client = props.prefill?.client ?? (props.clients.length === 1 ? props.clients[0]!.slug : '')
-    fields.value = { ...blankFields(), client, issued: props.defaultIssued, due: dates.due, period_from: dates.periodFrom, period_to: dates.periodTo }
-    lines.value = [props.prefill === null ? { description: '', amount: '', items: [] } : draftOf({ description: '', amount: props.prefill.amount, items: [] })]
-  } else {
-    fields.value = fieldsOf(read.fields)
-    lines.value = invoiceLinesOf(read.record).map(draftOf)
-  }
-  opened.value = { ...fields.value }
-  openedLines.value = lines.value.map((line) => ({ ...line }))
-  openedPaidBy.value = choices.value.filter((choice) => choice.named).map((choice) => choice.key)
-  paidBy.value = [...openedPaidBy.value, ...(props.prefill === null ? [] : [props.prefill.payment])]
-  tried.value = false
-})
-
 const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
 
 const parsedLines = computed(() => linesOf(lines.value))
@@ -173,6 +155,30 @@ const choices = computed(() => {
   return workbook === null || records === null || records === undefined || !storesItems(records) || client === '' ? [] : paymentChoices(workbook, props.id, client)
 })
 
+/** Starts the form each time the dialog opens, and on mounting already open, as a deep link opens it. It reads `choices`, so it sits below it. */
+watch(
+  open,
+  (opening) => {
+    if (!opening) return
+    const read = stored.value
+    if (read === null) {
+      const dates = newInvoiceDates(props.defaultIssued)
+      const client = props.prefill?.client ?? (props.clients.length === 1 ? props.clients[0]!.slug : '')
+      fields.value = { ...blankFields(), client, issued: props.defaultIssued, due: dates.due, period_from: dates.periodFrom, period_to: dates.periodTo }
+      lines.value = [props.prefill === null ? blankLine() : draftOf({ description: '', amount: props.prefill.amount, items: [] })]
+    } else {
+      fields.value = fieldsOf(read.fields)
+      lines.value = invoiceLinesOf(read.record).map(draftOf)
+    }
+    opened.value = { ...fields.value }
+    openedLines.value = lines.value.map((line) => ({ ...line }))
+    openedPaidBy.value = choices.value.filter((choice) => choice.named).map((choice) => choice.key)
+    paidBy.value = [...openedPaidBy.value, ...(props.prefill === null ? [] : [props.prefill.payment])]
+    tried.value = false
+  },
+  { immediate: true },
+)
+
 const paymentItems = computed(() =>
   inPickingOrder(choices.value).map((choice) => ({
     label: words.dialog.payment(dayLabel(choice.payment.date), formatMoney(choice.amount), choice.payment.counterparty || choice.payment.description || words.dialog.paymentFrom),
@@ -207,41 +213,36 @@ async function save(): Promise<void> {
   const to = optionalDate(fields.value.period_to) ?? null
   const number = fields.value.number.trim()
   const client = fields.value.client.trim().toLowerCase()
-  const typed: Invoice = {
-    number,
-    client,
-    item: registerItemOf(parsedLines.value),
-    lines: parsedLines.value,
-    amount: parsedAmount.value,
-    issued,
-    due: optionalDate(fields.value.due) ?? null,
-    deliveryPeriod: from === null || to === null ? null : { from, to },
-    id: invoiceIdOf({ client, number }),
-  }
+  const due = optionalDate(fields.value.due) ?? null
+  const deliveryPeriod = from === null || to === null ? null : { from, to }
   const before = stored.value?.record ?? null
   const { records, workbook } = store.state
   if (records === null || records === undefined || workbook === null || workbook === undefined) return
   const books = { records, workbook }
   if (props.id === null || before === null) {
+    const typed: Invoice = {
+      number,
+      client,
+      item: registerItemOf(parsedLines.value),
+      lines: parsedLines.value,
+      amount: parsedAmount.value,
+      issued,
+      due,
+      deliveryPeriod,
+      id: invoiceIdOf({ client, number }),
+    }
     if (await writes.write(words.dialog.added, (unit) => writeInvoice(unit, books, null, typed, placement.value), { failedTitle: words.dialog.notAdded })) open.value = false
     return
   }
   const changed = (field: Field): boolean => fields.value[field] !== opened.value[field]
-  const kept = {
-    number: changed('number') ? typed.number : before.number,
-    client: changed('client') ? typed.client : before.client,
-  }
-  const { item, lines: keptLines, amount } = linesChanged.value ? typed : before
-  const after: Invoice = {
-    ...kept,
-    item,
-    ...(keptLines === undefined ? {} : { lines: keptLines }),
-    amount,
-    issued: changed('issued') ? typed.issued : before.issued,
-    due: changed('due') ? typed.due : before.due,
-    deliveryPeriod: changed('period_from') || changed('period_to') ? typed.deliveryPeriod : before.deliveryPeriod,
-    id: invoiceIdOf(kept),
-  }
+  const after = changedInvoice(before, {
+    ...(changed('number') ? { number } : {}),
+    ...(changed('client') ? { client } : {}),
+    ...(linesChanged.value ? { lines: parsedLines.value } : {}),
+    ...(changed('issued') ? { issued } : {}),
+    ...(changed('due') ? { due } : {}),
+    ...(changed('period_from') || changed('period_to') ? { deliveryPeriod } : {}),
+  })
   if (await writes.write(words.dialog.saved, (unit) => writeInvoice(unit, books, before, after, placement.value), { failedTitle: words.dialog.notSaved })) open.value = false
 }
 

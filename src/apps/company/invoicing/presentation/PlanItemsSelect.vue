@@ -5,11 +5,11 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { words } from './words'
 
-/** The plan items one line sums, picked from those the plan names and the other lines carry, or typed in. */
+/** The plan items one line sums, picked from those the plan names and the other lines carry, or typed in. It stays hidden while the plan names no items and the line carries none. */
 const items = defineModel<readonly string[]>({ required: true })
 
 const props = defineProps<{
-  /** The items the billing plan names. */
+  /** The items the billing plan names for the line's client. */
   planItems: readonly string[]
   /** The items every line of the list carries, so one typed on a line is offered on the others. */
   linesItems: readonly string[]
@@ -33,6 +33,7 @@ function create(text: string): void {
 
 <template>
   <USelectMenu
+    v-if="planItems.length > 0 || items.length > 0"
     :model-value="[...items]"
     :items="choices"
     multiple
@@ -51,5 +52,6 @@ function create(text: string): void {
         <UBadge v-for="item in items" :key="item" :label="item" color="neutral" variant="subtle" size="xs" class="max-w-full" :data-testid="`${testId}-item`" />
       </span>
     </template>
+    <template #empty>{{ words.clientLines.noItems }}</template>
   </USelectMenu>
 </template>

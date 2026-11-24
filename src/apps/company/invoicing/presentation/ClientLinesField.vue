@@ -15,7 +15,7 @@ import { words } from './words'
 const lines = defineModel<InvoiceTemplateLine[]>({ required: true })
 
 defineProps<{
-  /** Every plan item the billing plan names. */
+  /** The plan items the billing plan names for this client. */
   planItems: readonly string[]
   /** Each line's problem, by its place, shown under it once Save was tried. */
   errors: readonly (string | null)[]

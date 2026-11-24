@@ -19,7 +19,9 @@ const store = vi.hoisted(() => ({
   state: null as unknown as { workbook: Workbook | null; snapshot: null; status: string; error: string | null },
   sync: async (): Promise<void> => undefined,
   refusal: null as string | null,
+  checks: 0,
   async check(): Promise<{ status: 'refused'; reason: string } | { status: 'nothingToChange' }> {
+    store.checks += 1
     return store.refusal === null ? { status: 'nothingToChange' } : { status: 'refused', reason: store.refusal }
   },
   written: [] as Invoice[],
@@ -75,12 +77,68 @@ describe('the checks before an invoice is made', () => {
     store.sync = async () => undefined
     store.written = []
     store.refusal = null
+    store.checks = 0
     google.session = createFakeInvoiceGoogle((_title, offered) => offered, 2026)
     void google.session.drive.pickFolders(null, 'Pick the invoice folder')
   })
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('says a line without an amount under the lines only once Check is pressed, and stays on the form without asking the file', async () => {
+    const run = openedRun()
+    run.lines.value = [...run.lines.value, { description: 'Maintenance', amount: '', items: [] }]
+
+    expect(run.tried.value).toBe(false)
+    expect(run.problems.value).toEqual([])
+
+    await run.check()
+
+    expect(run.tried.value).toBe(true)
+    expect(run.errors.value.lines).toBe('Every line needs an amount above zero.')
+    expect(run.stage.value).toEqual({ kind: 'edit', message: null })
+    expect(store.checks).toBe(0)
+    expect(store.written).toEqual([])
+    run.dispose()
+  })
+
+  it('says a due date before the issue date and a number taken under their fields with the lines in one Check, and keeps the box for the terms', async () => {
+    const run = openedRun()
+    run.due.value = '2026-10-15'
+    run.typeNumber('9-1-26')
+    run.lines.value = [{ description: '', amount: '6925.00', items: [] }]
+
+    await run.check()
+
+    expect(run.errors.value).toEqual({
+      client: null,
+      issued: null,
+      number: 'Invoice 9-1-26 is already on the invoices tab, and each number is used once.',
+      due: 'Not before the issue date',
+      period: null,
+      lines: 'Every line needs a description.',
+    })
+    expect(run.problems.value).toEqual([])
+    expect(store.checks).toBe(0)
+    run.reset()
+    expect(run.tried.value).toBe(false)
+    run.dispose()
+  })
+
+  it('says a typed number under its field when the fresh read before the checks finds it taken', async () => {
+    const run = openedRun()
+    run.typeNumber('10-1-26')
+    store.sync = async () => {
+      const workbook = store.state.workbook!
+      store.state.workbook = { ...workbook, invoices: [...workbook.invoices, invoiceOf('10-1-26', 100, '2026-10-21', 'other')] }
+    }
+
+    await run.check()
+
+    expect(run.stage.value).toEqual({ kind: 'edit', message: null })
+    expect(run.errors.value.number).toBe('Invoice 10-1-26 is already on the invoices tab, and each number is used once.')
+    run.dispose()
   })
 
   it('writes the register row under the number the PDF printed, even when a sync after the check moves the next number on', async () => {

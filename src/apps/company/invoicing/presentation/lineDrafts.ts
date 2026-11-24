@@ -17,3 +17,8 @@ export function linesOf(drafts: readonly LineDraft[]): InvoiceLine[] {
 export function draftOf(line: InvoiceLine): LineDraft {
   return { description: line.description, amount: amountForTyping(line.amount), items: line.items }
 }
+
+/** A line not typed yet, as Add a line and a new invoice start one. */
+export function blankLine(): LineDraft {
+  return { description: '', amount: '', items: [] }
+}

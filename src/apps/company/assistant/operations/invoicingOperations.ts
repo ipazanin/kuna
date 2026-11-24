@@ -4,6 +4,7 @@ import { BILLING_WRITES, newBillingItem } from '../../billingPlan/application/bi
 import { fillRestOfYear } from '../../billingPlan/domain/fillRestOfYear'
 import { removeInvoice } from '../../receivables/application/invoiceWrites'
 import { writeInvoice } from '../../receivables/application/invoicePaymentWrites'
+import { changedInvoice } from '../../receivables/domain/invoiceChange'
 import { paymentChoices } from '../../receivables/domain/invoicePayments'
 import type { PaymentChoice } from '../../receivables/domain/invoicePayments'
 import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
@@ -15,6 +16,7 @@ import { CLIENT_RECORDS, BILLING_RECORDS, INVOICE_RECORDS, ITEM_RECORDS } from '
 import { clientFieldsWith, clientOfFields } from '../../workbook/domain/clientsReading'
 import type { ClientRecord, ClientTextField } from '../../workbook/domain/clientsReading'
 import { lineProblems, linesTotal } from '../../invoicing/domain/invoiceLine'
+import type { InvoiceLine } from '../../invoicing/domain/invoiceLine'
 import { registerItemOf } from '../../invoicing/domain/invoiceLines'
 import { templateProblems } from '../../invoicing/domain/invoiceTemplate'
 import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
@@ -248,12 +250,12 @@ function optionalDay(text: string | null, kept: CivilDate | null): CivilDate | n
   return text.trim() === '' ? null : dayOf(text.trim())
 }
 
-/** The lines a step gives, refused for the reasons the invoice dialog gives, with the item and the amount they make. */
-function linesOfStep(given: readonly { readonly text: string; readonly amount: number; readonly items: readonly string[] }[]): Pick<Invoice, 'item' | 'lines' | 'amount'> {
+/** The lines a step gives, refused for the reasons the invoice dialog gives. */
+function linesOfStep(given: readonly { readonly text: string; readonly amount: number; readonly items: readonly string[] }[]): InvoiceLine[] {
   const lines = given.map((line) => ({ description: line.text.trim(), amount: moneyFromAmount(line.amount), items: line.items.map((item) => item.trim()).filter((item) => item !== '') }))
   const problems = lineProblems(lines)
   if (problems.length > 0) throw new StepRefused(lineProblemsInWords(problems, invoicingEn).join(' '))
-  return { item: registerItemOf(lines), lines, amount: linesTotal(lines) }
+  return lines
 }
 
 /** An invoice whose dates keep the rules the invoice dialog checks. */
@@ -358,10 +360,13 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
       const client = idOf(field['client'])
       const number = (field['number'] as string).trim()
       const issued = dayOf(field['issued'])
+      const lines = linesOfStep(field['lines'])
       const invoice: Invoice = {
         number,
         client,
-        ...linesOfStep(field['lines']),
+        item: registerItemOf(lines),
+        lines,
+        amount: linesTotal(lines),
         issued,
         due: optionalDay(field['due'], null),
         deliveryPeriod: periodOf(field['periodFrom'], field['periodTo'], null),
@@ -373,20 +378,15 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
     }
     case 'change-invoice': {
       const before = invoiceOf(field['invoice']).record
-      const number = (field['number'] as string | null)?.trim() ?? before.number
-      const client = field['client'] === null ? before.client : idOf(field['client'])
-      const { item, lines, amount } = field['lines'] === null ? before : linesOfStep(field['lines'])
-      const after: Invoice = {
-        number,
-        client,
-        item,
-        ...(lines === undefined ? {} : { lines }),
-        amount,
-        issued: field['issued'] === null ? before.issued : dayOf(field['issued']),
-        due: optionalDay(field['due'], before.due),
+      const number = field['number'] as string | null
+      const after = changedInvoice(before, {
+        ...(number === null ? {} : { number: number.trim() }),
+        ...(field['client'] === null ? {} : { client: idOf(field['client']) }),
+        ...(field['lines'] === null ? {} : { lines: linesOfStep(field['lines']) }),
+        ...(field['issued'] === null ? {} : { issued: dayOf(field['issued']) }),
+        ...(field['due'] === null ? {} : { due: optionalDay(field['due'], null) }),
         deliveryPeriod: periodOf(field['periodFrom'], field['periodTo'], before.deliveryPeriod),
-        id: invoiceIdOf({ client, number }),
-      }
+      })
       const checked = checkedInvoice(after)
       writeInvoice(unit, books(), before, checked, chosenPayments(books(), before.id, checked, field['paid'] === 'keep' ? null : field['paidBy'], idOf))
       return

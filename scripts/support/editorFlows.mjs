@@ -1301,6 +1301,38 @@ async function reexportLinkOpensFilled(page, words, shoot) {
   await delay(300)
 }
 
+/** The day a day field shows, as YYYY-MM-DD. */
+function dayIn(field) {
+  return field.evaluate((element) => ['year', 'month', 'day'].map((part) => element.querySelector(`[data-segment="${part}"]`)?.textContent?.trim().padStart(2, '0') ?? '').join('-'))
+}
+
+/**
+ * Make an invoice shows nothing wrong while a line's amount is cleared and the due date is set before the issue date, then one Check says
+ * each under its own field and asks the file nothing. The amount and the due date go back before the run goes on.
+ */
+async function fieldProblemsShowAfterCheck(page, press, language, shoot) {
+  const dialog = SCREEN_WORDS[language].receivables.dialog
+  const lineWords = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
+  const form = '[data-testid="invoice-run"]'
+  const amounts = await page.$$(`${form} [data-testid="invoice-line-amount"]`)
+  const lastAmount = amounts.at(-1)
+  const amount = await lastAmount.evaluate((input) => input.value)
+  const dueField = await page.$(`${form} [data-testid="invoice-run-due"]`)
+  const due = await dayIn(dueField)
+  await setField(lastAmount, '')
+  await typeDay(dueField, '2020-01-02')
+  await delay(300)
+  const early = await page.$eval(form, (element) => element.textContent ?? '')
+  if (early.includes(dialog.dueBeforeIssue) || early.includes(lineWords.lineAmount)) throw new Error('Make an invoice says the due date or the lines are wrong before Check is pressed')
+  await pressSelector(page, press, '[data-testid="invoice-run-check"]')
+  await elementSays(page, form, [dialog.dueBeforeIssue, lineWords.lineAmount], 'one Check does not say the due date and the lines under their fields')
+  if ((await page.$('[data-testid="invoice-run-ready"]')) !== null) throw new Error('Make an invoice went on to its checks with a line without an amount')
+  await shoot('invoice-run-field-problems')
+  await setField(lastAmount, amount)
+  await typeDay(dueField, due)
+  await delay(300)
+}
+
 export function invoiceRunFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -1323,6 +1355,7 @@ export function invoiceRunFlowIn(language) {
       if (google) await pressSelector(page, press, '[data-testid="invoice-run-draft"]')
       await inspect?.('make an invoice')
       await shoot('invoice-run-form')
+      await fieldProblemsShowAfterCheck(page, press, language, shoot)
       await pressSelector(page, press, '[data-testid="invoice-run-check"]')
       if (google) {
         await waitForRunStage(page, '[data-testid="invoice-run-hidden"]')
@@ -14804,7 +14837,8 @@ export function companyAccountSourcesFlowIn(language) {
 /**
  * On Invoicing, Clients the client's name on its row of the clients grid opens every field of the client, and so does a tap on the row
  * outside its cells' fields. A tag that is not an IBAN and an invoice line with no text are each said under their own field after Save. A
- * line moves down and back up. An address change is saved with Undo, and Undo puts the address back.
+ * line moves down and back up. An address change is saved with Undo, and Undo puts the address back. A line added on Lumen, which the
+ * billing plan names no item for, offers none of Northwind's plan items.
  */
 export function clientDialogFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -14876,6 +14910,19 @@ export function clientDialogFlowIn(language) {
     await openByRow(page)
     const after = await page.$eval('[data-testid="client-address"]', (input) => input.value)
     if (after !== address) throw new Error(`after Undo the address reads "${after}", not "${address}"`)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, form)
+
+    const lumenRow = await rowNamed(page, FACT_ROW, 'lumen')
+    await lumenRow.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await press(await lumenRow.$('[data-testid="open-row"]'))
+    await dialogOpened(page, 'the name lumen')
+    await pressSelector(page, press, `${form} [data-testid="client-line-add"]`)
+    await page.waitForSelector(`${form} [data-testid="client-line"]`, { visible: true, timeout: 5_000 })
+    if ((await page.$(`${form} [data-testid="client-line-items"]`)) !== null) throw new Error('a new line on Lumen, whose plan names no items, shows a plan items picker')
+    await inspect?.('a new line on Lumen, with no plan items picker since its plan names none')
+    await shoot('dialog-client-lumen-line')
     await page.keyboard.press('Escape')
     await dialogGone(page, form)
   }

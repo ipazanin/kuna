@@ -274,16 +274,13 @@ describe('the lines cell of the register', () => {
 describe('what keeps an invoice from being made', () => {
   const client: Client = { slug: 'north', name: 'North Ltd', ibans: [], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road', reverseCharge: true } }
   const issuer = { ...DEFAULT_SETTINGS.invoicing, name: 'Example Studio', address: 'Street 1', oib: '12345678901', iban: 'HR6212345670000000001', place: 'Split', signatory: 'Ana' }
-  const line = { description: 'Work', amount: euros(100), items: [] }
 
-  it('needs the issuer’s details, the client’s address and reverse charge, and lines above zero', () => {
-    expect(invoiceProblems(issuer, client, [line])).toEqual([])
-    expect(invoiceProblems({ ...issuer, oib: '', place: '' }, client, [line])).toEqual(['The invoice terms on Invoicing, Clients need your OIB, the place of issue.'])
-    expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } }, [{ description: '', amount: euros(0), items: [] }])).toEqual([
+  it('needs the issuer’s details and the client’s address and reverse charge', () => {
+    expect(invoiceProblems(issuer, client)).toEqual([])
+    expect(invoiceProblems({ ...issuer, oib: '', place: '' }, client)).toEqual(['The invoice terms on Invoicing, Clients need your OIB, the place of issue.'])
+    expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } })).toEqual([
       'Invoicing, Clients needs an address for North Ltd.',
       'The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for North Ltd on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.',
-      'Every line needs a description.',
-      'Every line needs an amount above zero.',
     ])
   })
 })

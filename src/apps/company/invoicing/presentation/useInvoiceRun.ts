@@ -26,14 +26,17 @@ import type { InvoiceDocument } from '../domain/invoiceDocument'
 import { filingPathOf } from '../domain/invoiceFiling'
 import { filledMail, gmailComposeUrl } from '../domain/invoiceMail'
 import type { InvoiceMail } from '../domain/invoiceMail'
-import { linesTotal } from '../domain/invoiceLine'
+import { lineProblems, linesTotal } from '../domain/invoiceLine'
 import { mergedLine, startingLines } from '../domain/invoiceLines'
 import { invoiceLinesOf, registerInvoiceOf, reexportedInvoice } from '../domain/registerInvoice'
-import { draftOf, linesOf } from './lineDrafts'
+import { blankLine, draftOf, linesOf } from './lineDrafts'
 import type { LineDraft } from './lineDrafts'
 import { nextYearlyNumber, numberTaken } from '../../documents/domain/yearlyNumber'
 import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitch'
+import { invoiceDatesProblems } from '../../receivables/domain/invoiceGuards'
 import { words as receivablesWords } from '../../receivables/domain/words'
+import { words as receivablesScreenWords } from '../../receivables/presentation/words'
+import { lineProblemsInWords } from '../domain/words'
 import { words } from './words'
 
 /** A new invoice, or the PDF and draft of one on the register made again. */
@@ -72,6 +75,8 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   const lines = ref<LineDraft[]>([])
   const mailDraft = computed({ get: () => mailDraftsOn.value, set: switchMailDrafts })
   const stage = ref<RunStage>({ kind: 'edit', message: null })
+  /** Whether Check was pressed since the form started, so each field's problem shows under it. */
+  const tried = ref(false)
   const steps = ref<RunStep[]>([])
   const creatable = ref(new Set<string>())
   let plan: RunPlan | null = null
@@ -91,6 +96,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     creatable.value = new Set()
     plan = null
     numberTyped.value = false
+    tried.value = false
     if (current === null) return
     const invoice = reexported.value
     if (invoice !== null) {
@@ -128,7 +134,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     const day = parseCivilDate(issued.value)
     const invoicing = chosenClient.value?.invoicing ?? NO_CLIENT_INVOICING
     lines.value = day === null ? [] : startingLines(expected.value, { slug: client.value, invoicing }, day).map(draftOf)
-    if (lines.value.length === 0) lines.value = [{ description: '', amount: '', items: [] }]
+    if (lines.value.length === 0) lines.value = [blankLine()]
   }
 
   const issueDay = computed(() => parseCivilDate(issued.value))
@@ -207,23 +213,35 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     return { to: chosen.invoicing.invoiceMail, subject: filledMail(terms.invoicing.mailSubject, values), body: filledMail(terms.invoicing.mailBody, values) }
   })
 
+  /** What stops the invoice that is fixed on Invoicing, Clients or the invoice terms, listed above the form as it stands. */
   const problems = computed((): string[] => {
     const terms = settings.value
-    const current = workbook.value
-    if (terms === null || current === null) return [words.run.noWorkbook]
-    const found = invoiceProblems(terms.invoicing, chosenClient.value, parsedLines.value)
-    if (issueDay.value === null) found.push(words.run.issueDate)
-    const typedDates = dates.value
-    if (typedDates === null) found.push(words.run.dates)
-    else if (typedDates.period.to < typedDates.period.from) found.push(words.run.periodOrder)
-    else if (issueDay.value !== null && typedDates.due < issueDay.value) found.push(words.run.dueOrder)
-    if (number.value.trim() === '') found.push(words.run.needsNumber)
-    else if (mode.value.kind === 'new' && numberTaken(number.value, current.invoices)) found.push(receivablesWords.numberTaken(number.value.trim()))
+    if (terms === null || workbook.value === null) return [words.run.noWorkbook]
+    const found = invoiceProblems(terms.invoicing, chosenClient.value)
     if (mailDraft.value && google.value && chosenClient.value !== null && chosenClient.value.invoicing.invoiceMail === '') {
       found.push(words.run.needsMail(chosenClient.value.name || chosenClient.value.slug))
     }
     return found
   })
+
+  /** What is wrong with each field of the form, fixed on the form itself, or null. */
+  const errors = computed(() => {
+    const dueDay = parseCivilDate(due.value)
+    const from = parseCivilDate(periodFrom.value)
+    const to = parseCivilDate(periodTo.value)
+    const order = invoiceDatesProblems(issueDay.value, dueDay, from, to)
+    const typedNumber = number.value.trim()
+    const taken = mode.value.kind === 'new' && numberTaken(number.value, workbook.value?.invoices ?? [])
+    return {
+      client: chosenClient.value === null ? receivablesScreenWords.dialog.clientError : null,
+      issued: issueDay.value === null ? receivablesScreenWords.dialog.issuedError : null,
+      number: typedNumber === '' ? words.run.numberError : taken ? receivablesWords.numberTaken(typedNumber) : null,
+      due: dueDay === null ? receivablesScreenWords.dialog.issuedError : order.due === 'before-issue' ? receivablesScreenWords.dialog.dueBeforeIssue : null,
+      period: from === null || to === null ? receivablesScreenWords.dialog.periodError : order.period === 'order' ? receivablesScreenWords.dialog.periodOrder : null,
+      lines: lineProblemsInWords(lineProblems(parsedLines.value)).join(' ') || null,
+    }
+  })
+  const fieldsValid = computed(() => Object.values(errors.value).every((error) => error === null))
 
   /** The PDF of the form as it stands, for the preview link, drawn again a moment after each change. */
   const previewUrl = shallowRef<string | null>(null)
@@ -278,6 +296,8 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
    * since a Google token may need a popup.
    */
   async function check(): Promise<void> {
+    tried.value = true
+    if (!fieldsValid.value) return
     stage.value = { kind: 'checking' }
     try {
       const refusedAtFirst = await refusalOfChanges()
@@ -290,7 +310,8 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
         await store.sync()
         if (store.state.error !== null) throw new Error(words.run.unreadable(store.state.error))
       }
-      if (problems.value.length > 0 || document.value === null || path.value === null) {
+      // A fresh read may have filed the number meanwhile, so the fields are checked again after it.
+      if (problems.value.length > 0 || !fieldsValid.value || document.value === null || path.value === null) {
         stage.value = { kind: 'edit', message: null }
         return
       }
@@ -440,6 +461,8 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     path,
     mail,
     problems,
+    tried,
+    errors,
     previewUrl,
     previewError,
     failed,

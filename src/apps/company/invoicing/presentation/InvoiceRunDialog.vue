@@ -120,7 +120,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
 
       <template v-if="editable || stage.kind === 'checking'">
         <FormGrid>
-          <UFormField :label="words.run.client">
+          <UFormField :label="words.run.client" :error="(run.tried.value && run.errors.value.client) || false">
             <USelect
               v-model="run.client.value"
               :items="clientItems"
@@ -131,16 +131,20 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
               @update:model-value="run.fillLines()"
             />
           </UFormField>
-          <UFormField :label="words.run.issued" :help="words.run.issuedHelp">
+          <UFormField :label="words.run.issued" :error="(run.tried.value && run.errors.value.issued) || false" :help="words.run.issuedHelp">
             <DayField v-model="run.issued.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-issued" @change="run.issueChanged()" />
           </UFormField>
-          <UFormField :label="words.run.number" :help="reexport ? words.run.issuedUnder : words.run.nextNumber(run.suggestedNumber.value)">
+          <UFormField
+            :label="words.run.number"
+            :error="(run.tried.value && run.errors.value.number) || false"
+            :help="reexport ? words.run.issuedUnder : words.run.nextNumber(run.suggestedNumber.value)"
+          >
             <UInput :model-value="run.number.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-number" @update:model-value="run.typeNumber(String($event))" />
           </UFormField>
-          <UFormField :label="words.run.due" :help="words.run.dueHelp">
+          <UFormField :label="words.run.due" :error="(run.tried.value && run.errors.value.due) || false" :help="words.run.dueHelp">
             <DayField v-model="run.due.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-due" />
           </UFormField>
-          <UFormField :label="words.run.workFrom" :help="words.run.workFromHelp">
+          <UFormField :label="words.run.workFrom" :error="(run.tried.value && run.errors.value.period) || false" :help="words.run.workFromHelp">
             <DayField v-model="run.periodFrom.value" class="w-full" :disabled="reexport || !editable" />
           </UFormField>
           <UFormField :label="words.run.workTo">
@@ -148,17 +152,19 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           </UFormField>
         </FormGrid>
 
-        <InvoiceLinesEditor
-          v-model:lines="run.lines.value"
-          :total="run.total.value"
-          :client="run.client.value"
-          :disabled="!editable"
-          planned
-          :templated="run.templated.value"
-          :reexport="reexport"
-          @plan="run.fillLines()"
-          @merge="run.mergeLines()"
-        />
+        <UFormField :error="(run.tried.value && run.errors.value.lines) || false">
+          <InvoiceLinesEditor
+            v-model:lines="run.lines.value"
+            :total="run.total.value"
+            :client="run.client.value"
+            :disabled="!editable"
+            planned
+            :templated="run.templated.value"
+            :reexport="reexport"
+            @plan="run.fillLines()"
+            @merge="run.mergeLines()"
+          />
+        </UFormField>
 
         <div class="flex flex-col gap-2 type-body">
           <p class="text-toned" data-testid="invoice-run-where">{{ where }}</p>

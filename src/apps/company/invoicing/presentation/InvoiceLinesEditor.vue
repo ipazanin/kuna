@@ -9,6 +9,7 @@ import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { planItemsOf } from '../../billingPlan/domain/planItems'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { blankLine } from './lineDrafts'
 import type { LineDraft } from './lineDrafts'
 import PlanItemsSelect from './PlanItemsSelect.vue'
 import { words } from './words'
@@ -58,7 +59,7 @@ function remove(index: number): void {
 }
 
 function add(): void {
-  lines.value = [...lines.value, { description: '', amount: '', items: [] }]
+  lines.value = [...lines.value, blankLine()]
 }
 
 function amountError(text: string): boolean {
@@ -126,7 +127,6 @@ function amountError(text: string): boolean {
           />
         </div>
         <PlanItemsSelect
-          v-if="planItems.length > 0 || line.items.length > 0"
           :model-value="line.items"
           :plan-items="planItems"
           :lines-items="linesItems"

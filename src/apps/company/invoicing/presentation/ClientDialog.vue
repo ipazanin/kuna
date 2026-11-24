@@ -122,7 +122,7 @@ const preview = computed(() => {
   return templatedLines(open, lines.value, texts.value.mail_language, previewDay)
 })
 const previewMonth = computed(() => monthInLanguage(previewDay, texts.value.mail_language))
-const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?? []))
+const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?? [], props.slug))
 
 async function save(): Promise<void> {
   tried.value = true
