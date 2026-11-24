@@ -14,9 +14,11 @@ import { CLIENT_WRITES } from '../../settings/application/namedRecordWrites'
 import { CLIENT_RECORDS, BILLING_RECORDS, INVOICE_RECORDS, ITEM_RECORDS } from '../../workbook/domain/coreKinds'
 import { clientFieldsWith, clientOfFields } from '../../workbook/domain/clientsReading'
 import type { ClientRecord, ClientTextField } from '../../workbook/domain/clientsReading'
+import { lineProblems, linesTotal } from '../../invoicing/domain/invoiceLine'
+import { registerItemOf } from '../../invoicing/domain/invoiceLines'
 import { templateProblems } from '../../invoicing/domain/invoiceTemplate'
 import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
-import { en as invoicingEn } from '../../invoicing/domain/words'
+import { en as invoicingEn, lineProblemsInWords } from '../../invoicing/domain/words'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import type { Invoice } from '../../workbook/domain/workbook'
 import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
@@ -41,9 +43,11 @@ const MAKE_ON_SCREEN =
 const PAID_BY =
   'paidBy lists the items of revenue credits that pay it, in books that keep items: one the invoice holds already, or one no invoice holds from its client or from an account no client names. One larger than what is still owed gives the part the invoice needs to an item of its own. Books from before items take an empty list, since they match client payments by themselves.'
 
-/** What the invoice operations say of the plan items behind an invoice's lines. */
-const PLAN_ITEMS =
-  'planItems names each line of the invoice with the billing plan items it summed in brackets, such as "Software development (Development); Maintenance (Hosting, Support)", or "" for none.'
+/** What the invoice operations say of an invoice's lines. */
+const REGISTER_LINES =
+  "lines are the lines the client read, in order: each line's text, its amount without VAT above zero, and the billing plan items it summed, none for a line typed by hand. No text or item holds | or a line break. The invoice's amount is their total, and its item their texts joined by semicolons."
+
+const REGISTER_LINE = inputOf({ text: TEXT, amount: NUMBER, items: { type: 'array', items: TEXT } })
 
 const PAID_BY_ITEMS = { type: 'array', items: inputOf({ item: TEXT }) } as const satisfies StrictSchema
 
@@ -57,13 +61,11 @@ const INVOICE_LINES =
 const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-invoice',
-    about: `Adds a row to the invoices register for an invoice made elsewhere. The amount is the total, above zero. ${PLAN_ITEMS} ${PAID_BY} ${MAKE_ON_SCREEN}`,
+    about: `Adds a row to the invoices register for an invoice made elsewhere, with at least one line. ${REGISTER_LINES} ${PAID_BY} ${MAKE_ON_SCREEN}`,
     input: inputOf({
       number: TEXT,
       client: TEXT,
-      item: TEXT,
-      planItems: TEXT,
-      amount: NUMBER,
+      lines: { type: 'array', items: REGISTER_LINE },
       issued: TEXT,
       due: DAY_OR_NULL,
       periodFrom: DAY_OR_NULL,
@@ -76,9 +78,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
     example: {
       number: '99-1-26',
       client: 'client',
-      item: 'Consulting',
-      planItems: '',
-      amount: 1200,
+      lines: [{ text: 'Consulting', amount: 1200, items: [] }],
       issued: '2026-10-31',
       due: '2026-11-15',
       periodFrom: '2026-10-01',
@@ -88,14 +88,12 @@ const OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'change-invoice',
-    about: `Fixes a row of the invoices register. Null leaves a field as it is, and "" clears a due day or the work period. Its PDF on Drive stays as it was. ${PLAN_ITEMS} ${PAID_BY} paid keep leaves the payments that pay it as they are and takes an empty paidBy, and set puts paidBy in their place. ${MAKE_ON_SCREEN}`,
+    about: `Fixes a row of the invoices register. Null leaves a field as it is, and "" clears a due day or the work period. Its PDF on Drive stays as it was. ${REGISTER_LINES} Lines null keeps the row's lines, item and amount, and a list puts its lines in their place. ${PAID_BY} paid keep leaves the payments that pay it as they are and takes an empty paidBy, and set puts paidBy in their place. ${MAKE_ON_SCREEN}`,
     input: inputOf({
       invoice: TEXT,
       number: TEXT_OR_NULL,
       client: TEXT_OR_NULL,
-      item: TEXT_OR_NULL,
-      planItems: TEXT_OR_NULL,
-      amount: NUMBER_OR_NULL,
+      lines: { type: ['array', 'null'], items: REGISTER_LINE },
       issued: TEXT_OR_NULL,
       due: DAY_OR_NULL,
       periodFrom: DAY_OR_NULL,
@@ -110,11 +108,9 @@ const OPERATIONS: readonly AssistantOperation[] = [
       invoice: 'invoice',
       number: null,
       client: null,
-      item: 'Consulting, corrected',
-      planItems: null,
-      amount: null,
+      lines: null,
       issued: null,
-      due: null,
+      due: '2026-11-30',
       periodFrom: null,
       periodTo: null,
       paid: 'keep',
@@ -252,6 +248,14 @@ function optionalDay(text: string | null, kept: CivilDate | null): CivilDate | n
   return text.trim() === '' ? null : dayOf(text.trim())
 }
 
+/** The lines a step gives, refused for the reasons the invoice dialog gives, with the item and the amount they make. */
+function linesOfStep(given: readonly { readonly text: string; readonly amount: number; readonly items: readonly string[] }[]): Pick<Invoice, 'item' | 'lines' | 'amount'> {
+  const lines = given.map((line) => ({ description: line.text.trim(), amount: moneyFromAmount(line.amount), items: line.items.map((item) => item.trim()).filter((item) => item !== '') }))
+  const problems = lineProblems(lines)
+  if (problems.length > 0) throw new StepRefused(lineProblemsInWords(problems, invoicingEn).join(' '))
+  return { item: registerItemOf(lines), lines, amount: linesTotal(lines) }
+}
+
 /** An invoice whose dates keep the rules the invoice dialog checks. */
 function checkedInvoice(invoice: Invoice): Invoice {
   const problems = invoiceDatesProblems(invoice.issued, invoice.due, invoice.deliveryPeriod?.from ?? null, invoice.deliveryPeriod?.to ?? null)
@@ -354,13 +358,10 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
       const client = idOf(field['client'])
       const number = (field['number'] as string).trim()
       const issued = dayOf(field['issued'])
-      const planItems = (field['planItems'] as string).trim()
       const invoice: Invoice = {
         number,
         client,
-        item: (field['item'] as string).trim(),
-        ...(planItems === '' ? {} : { planItems }),
-        amount: moneyFromAmount(field['amount']),
+        ...linesOfStep(field['lines']),
         issued,
         due: optionalDay(field['due'], null),
         deliveryPeriod: periodOf(field['periodFrom'], field['periodTo'], null),
@@ -374,13 +375,13 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
       const before = invoiceOf(field['invoice']).record
       const number = (field['number'] as string | null)?.trim() ?? before.number
       const client = field['client'] === null ? before.client : idOf(field['client'])
-      const planItems = (field['planItems'] as string | null)?.trim() ?? before.planItems ?? ''
+      const { item, lines, amount } = field['lines'] === null ? before : linesOfStep(field['lines'])
       const after: Invoice = {
         number,
         client,
-        item: (field['item'] as string | null)?.trim() ?? before.item,
-        ...(planItems === '' ? {} : { planItems }),
-        amount: field['amount'] === null ? before.amount : moneyFromAmount(field['amount']),
+        item,
+        ...(lines === undefined ? {} : { lines }),
+        amount,
         issued: field['issued'] === null ? before.issued : dayOf(field['issued']),
         due: optionalDay(field['due'], before.due),
         deliveryPeriod: periodOf(field['periodFrom'], field['periodTo'], before.deliveryPeriod),

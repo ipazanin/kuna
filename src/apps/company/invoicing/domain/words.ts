@@ -1,6 +1,9 @@
 import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
 import type { Translation } from '../../../../shared/text/translation'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
+import type { Money } from '../../../../shared/money/money'
+import type { RegisterLinesProblem } from './invoiceLine'
 import type { TemplateProblem } from './invoiceTemplate'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -24,6 +27,8 @@ export const en = {
   addLine: 'Add a line.',
   lineDescription: 'Every line needs a description.',
   lineAmount: 'Every line needs an amount above zero.',
+  lineSeparator: 'No line or plan item can hold | or a line break.',
+  linesTotal: (total: Money, amount: Money) => `The lines add up to ${formatMoney(total)}, not the amount of ${formatMoney(amount)}.`,
   /** Why a pattern with words in braces cannot be used. */
   unknownTokens: (unknown: readonly string[], known: readonly string[]) => `${unknown.join(', ')} is not one of ${known.join(', ')}`,
   pathEndsInPdf: 'the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf',
@@ -66,6 +71,8 @@ export const hr: Translation<typeof en> = {
   addLine: 'Dodajte stavku.',
   lineDescription: 'Svaka stavka mora imati opis.',
   lineAmount: 'Svaka stavka mora imati iznos veći od nule.',
+  lineSeparator: 'Nijedna stavka ni usluga iz plana ne smije sadržavati | ni prijelom retka.',
+  linesTotal: (total, amount) => `Stavke zajedno iznose ${formatMoney(total)}, a ne ${formatMoney(amount)}, koliko glasi iznos.`,
   unknownTokens: (unknown, known) => `${listInWords(unknown)} nije među oznakama ${listInWords(known)}`,
   pathEndsInPdf: 'putanja završava nazivom datoteke, na primjer {yyyy}-{mm}-{client}-invoice.pdf',
   blankFolder: 'naziv mape između dviju kosih crta je prazan',
@@ -93,4 +100,23 @@ export const words = language === 'hr' ? hr : en
 /** Each problem of a client's invoice lines as a phrase that names its line. */
 export function templateProblemsInWords(problems: readonly TemplateProblem[]): string[] {
   return problems.map((problem) => words.templateLine(problem.line, words.templateProblem(problem)))
+}
+
+/** What is wrong with an invoice's lines as sentences, each kind once, in the order the lines show them, in the screen's language or the one given. */
+export function lineProblemsInWords(problems: readonly RegisterLinesProblem[], said: typeof en = words): string[] {
+  const sentences = problems.map((problem) => {
+    switch (problem.kind) {
+      case 'no-lines':
+        return said.addLine
+      case 'blank-text':
+        return said.lineDescription
+      case 'not-above-zero':
+        return said.lineAmount
+      case 'separator':
+        return said.lineSeparator
+      case 'total':
+        return said.linesTotal(problem.total, problem.amount)
+    }
+  })
+  return [...new Set(sentences)]
 }

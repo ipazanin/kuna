@@ -43,6 +43,8 @@ interface FieldSource {
 const CONDITION_RENAMES = Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [`conditions.${field.column}`, field.name]))
 const SPENDING_RULE_RENAMES = { labels: 'label', 'withdrawal.cashAccount': 'cash_account', 'link.app': 'pays', 'link.kind': 'pays', 'link.key': 'pays', 'link.due': 'pays' }
 const INVOICING_RENAMES = Object.fromEntries(['address', 'country', 'taxId', 'invoiceMail', 'mailLanguage', 'reverseCharge', 'lines'].map((field) => [`invoicing.${field}`, field]))
+/** An invoice's item and amount are its lines' texts and their total, which the chat gives as lines. */
+const INVOICE_RENAMES = { item: 'lines.text', amount: 'lines.amount', 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' }
 const ASSET_RENAMES = { name: 'asset', inUse: 'in_use', costNet: 'cost_net', doubledRate: 'doubled', fundedBy: 'funded_by', ledgerReference: 'ledger_reference', rowId: 'payment' }
 const GRANT_RENAMES = {
   slug: 'grant',
@@ -124,16 +126,16 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/invoicing/infrastructure/mailDraftSwitch.ts#switchMailDrafts', from: ['on'], operations: [{ name: 'switch-mail-drafts', renames: { on: 'drafts' } }] },
   {
     path: 'src/apps/company/receivables/application/invoiceWrites.ts#INVOICE_WRITES.add',
-    operations: [{ name: 'add-invoice', renames: { 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' } }],
+    operations: [{ name: 'add-invoice', renames: INVOICE_RENAMES }],
   },
   {
     path: 'src/apps/company/receivables/application/invoiceWrites.ts#INVOICE_WRITES.change',
-    operations: [{ name: 'change-invoice', renames: { 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' } }],
+    operations: [{ name: 'change-invoice', renames: INVOICE_RENAMES }],
   },
   {
     path: 'src/apps/company/receivables/application/invoicePaymentWrites.ts#writeInvoice',
     from: ['after'],
-    operations: ['add-invoice', 'change-invoice'].map((name) => ({ name, renames: { 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' } })),
+    operations: ['add-invoice', 'change-invoice'].map((name) => ({ name, renames: INVOICE_RENAMES })),
   },
   { path: 'src/apps/company/owner-share/application/ownerShareWrites.ts#writeOwnerShare', from: ['share'], operations: ['set-owner-share'] },
   { path: 'src/apps/company/labels/application/labelWrites.ts#addLabel', type: 'src/shared/categorising/domain/labels.ts#Label', operations: ['add-label'] },
@@ -591,14 +593,23 @@ function operationsOf(source: FieldSource): readonly OperationFields[] {
   return source.operations.map((operation) => (typeof operation === 'string' ? { name: operation } : operation))
 }
 
-/** Each field an operation of its source does not take, as `app: Owner.field` beside the operation. */
+/** The name a field exception gives a write path, the part after its `#`, such as `writeTransfer` or `INVOICE_WRITES.add`. */
+function pathNameOf(path: string): string {
+  return path.split('#')[1]!
+}
+
+/**
+ * Each field an operation of its source does not take, as `app: Owner.field` beside the operation, and as `pathName: Owner.field` for an
+ * exception that excuses it on that one write path.
+ */
 const GAPS = FIELD_SOURCES.flatMap((source) => {
   const app = appOfPath(source.path)
   const operations = operationsOf(source).filter((operation) => operationOf(app, operation.name) !== undefined)
   return editorFields(source).flatMap(({ key, field }) => {
     const missing = operations.filter((operation) => !takes(app, operation, field))
     const gap = source.anyOperation === true ? missing.length === operations.length : missing.length > 0
-    return gap ? [{ key, operations: missing.map((operation) => `${app}/${operation.name}`) }] : []
+    const onPath = `${pathNameOf(source.path)}: ${key.slice(`${app}: `.length)}`
+    return gap ? [{ key, onPath, operations: missing.map((operation) => `${app}/${operation.name}`) }] : []
   })
 })
 /** Each app's settings keys, which its screens save as rows of its settings, the pack's among Company's. */
@@ -641,7 +652,7 @@ describe('every field and settings key a screen sets has a chat operation that t
   })
 
   it('has an operation take each field a screen sets, or lists it with a reason', () => {
-    const gaps = GAPS.filter((gap) => !EXCEPTED_FIELDS.has(gap.key)).map((gap) => `${gap.key} (${gap.operations.join(', ')})`)
+    const gaps = GAPS.filter((gap) => !EXCEPTED_FIELDS.has(gap.key) && !EXCEPTED_FIELDS.has(gap.onPath)).map((gap) => `${gap.key} (${gap.operations.join(', ')})`)
     expect(gaps, 'Add the field to the operation, or a reason in tests/chatFieldCoverageExceptions.ts').toEqual([])
   })
 
@@ -653,7 +664,7 @@ describe('every field and settings key a screen sets has a chat operation that t
   })
 
   it('lists no field an operation takes or no screen sets', () => {
-    const gapKeys = new Set([...GAPS.map((gap) => gap.key), ...SETTING_GAPS])
+    const gapKeys = new Set([...GAPS.flatMap((gap) => [gap.key, gap.onPath]), ...SETTING_GAPS])
     expect(
       [...EXCEPTED_FIELDS].filter((key) => !gapKeys.has(key)),
       'Take these out of tests/chatFieldCoverageExceptions.ts',
@@ -666,5 +677,12 @@ describe('every field and settings key a screen sets has a chat operation that t
     expect(paths.filter((path) => SOURCED.has(path) || CHAT_EXCEPTED.has(path))).toEqual([])
     expect(paths.length).toBe(NO_FIELDS.size)
     expect(fields.length).toBe(EXCEPTED_FIELDS.size)
+  })
+
+  it('names a write path in a field exception that only one write path has', () => {
+    const appNames = new Set(FIELD_SOURCES.map((source) => appOfPath(source.path)))
+    const pathNames = [...SOURCED].map(pathNameOf)
+    const narrowed = [...EXCEPTED_FIELDS].map((key) => key.split(': ')[0]!).filter((name) => !appNames.has(name))
+    expect(narrowed.filter((name) => pathNames.filter((pathName) => pathName === name).length !== 1)).toEqual([])
   })
 })

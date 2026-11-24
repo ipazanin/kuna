@@ -22,7 +22,6 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useBookedWorkbook } from '../../transactions/application/useBookedWorkbook'
 import { inPickingOrder, placedShares } from '../../workbook/domain/rowPayments'
@@ -43,6 +42,13 @@ import { writeInvoice } from '../application/invoicePaymentWrites'
 import { paymentChoices } from '../domain/invoicePayments'
 import { invoiceDatesProblems } from '../domain/invoiceGuards'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
+import { lineProblems, linesTotal } from '../../invoicing/domain/invoiceLine'
+import { registerItemOf } from '../../invoicing/domain/invoiceLines'
+import { invoiceLinesOf } from '../../invoicing/domain/registerInvoice'
+import { lineProblemsInWords } from '../../invoicing/domain/words'
+import InvoiceLinesEditor from '../../invoicing/presentation/InvoiceLinesEditor.vue'
+import { draftOf, linesOf } from '../../invoicing/presentation/lineDrafts'
+import type { LineDraft } from '../../invoicing/presentation/lineDrafts'
 import { words } from './words'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -67,7 +73,7 @@ const props = withDefaults(
   { prefill: null },
 )
 
-type Field = 'number' | 'client' | 'item' | 'plan_items' | 'amount' | 'issued' | 'due' | 'period_from' | 'period_to'
+type Field = 'number' | 'client' | 'issued' | 'due' | 'period_from' | 'period_to'
 
 const store = useWorkbook()
 const booked = useBookedWorkbook()
@@ -76,12 +82,15 @@ const writes = useRecordWrites(store)
 const fields = ref<Record<Field, string>>(blankFields())
 const opened = ref<Record<Field, string>>(blankFields())
 const tried = ref(false)
+/** The lines as typed, and as the dialog opened on them. */
+const lines = ref<LineDraft[]>([])
+const openedLines = ref<LineDraft[]>([])
 /** The payments ticked under Paid by, by their choice's key, and those the invoice held when the dialog opened. */
 const paidBy = ref<string[]>([])
 const openedPaidBy = ref<string[]>([])
 
 function blankFields(): Record<Field, string> {
-  return { number: '', client: '', item: '', plan_items: '', amount: '', issued: '', due: '', period_from: '', period_to: '' }
+  return { number: '', client: '', issued: '', due: '', period_from: '', period_to: '' }
 }
 
 /** The invoice as the app read it, with its fields as stored, so a field the dialog cannot read still shows. */
@@ -92,13 +101,9 @@ function dateText(field: StoredField | undefined): string {
 }
 
 function fieldsOf(stored: StoredFields): Record<Field, string> {
-  const amount = stored.amount?.money ?? null
   return {
     number: textOf(stored.number),
     client: textOf(stored.client).toLowerCase(),
-    item: textOf(stored.item),
-    plan_items: textOf(stored.plan_items),
-    amount: amount === null ? textOf(stored.amount) : amountForTyping(amount),
     issued: dateText(stored.issued),
     due: dateText(stored.due),
     period_from: dateText(stored.period_from),
@@ -112,12 +117,14 @@ watch(open, (opening) => {
   if (read === null) {
     const dates = newInvoiceDates(props.defaultIssued)
     const client = props.prefill?.client ?? (props.clients.length === 1 ? props.clients[0]!.slug : '')
-    const amount = props.prefill === null ? '' : amountForTyping(props.prefill.amount)
-    fields.value = { ...blankFields(), client, amount, issued: props.defaultIssued, due: dates.due, period_from: dates.periodFrom, period_to: dates.periodTo }
+    fields.value = { ...blankFields(), client, issued: props.defaultIssued, due: dates.due, period_from: dates.periodFrom, period_to: dates.periodTo }
+    lines.value = [props.prefill === null ? { description: '', amount: '', items: [] } : draftOf({ description: '', amount: props.prefill.amount, items: [] })]
   } else {
     fields.value = fieldsOf(read.fields)
+    lines.value = invoiceLinesOf(read.record).map(draftOf)
   }
   opened.value = { ...fields.value }
+  openedLines.value = lines.value.map((line) => ({ ...line }))
   openedPaidBy.value = choices.value.filter((choice) => choice.named).map((choice) => choice.key)
   paidBy.value = [...openedPaidBy.value, ...(props.prefill === null ? [] : [props.prefill.payment])]
   tried.value = false
@@ -125,9 +132,16 @@ watch(open, (opening) => {
 
 const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
 
+const parsedLines = computed(() => linesOf(lines.value))
+const total = computed(() => linesTotal(parsedLines.value.filter((line) => !Number.isNaN(line.amount))))
+/** Whether the lines differ from those the dialog opened on. A new invoice's lines always count as typed. */
+const linesChanged = computed(() => stored.value === null || JSON.stringify(lines.value) !== JSON.stringify(openedLines.value))
+/** What is wrong with the lines, checked once they are typed, so a row saved before every line needed a text still takes a new due date. */
+const linesError = computed(() => (linesChanged.value ? lineProblemsInWords(lineProblems(parsedLines.value)).join(' ') || null : null))
+/** The amount the save writes: the total of the lines once they are typed, or the amount the row holds. */
 const parsedAmount = computed(() => {
-  const cents = typedAmount(fields.value.amount)
-  return cents !== null && cents > 0 ? cents : null
+  if (!linesChanged.value) return stored.value?.record.amount ?? null
+  return linesError.value === null ? linesTotal(parsedLines.value) : null
 })
 
 function optionalDate(text: string): CivilDate | null | undefined {
@@ -143,7 +157,7 @@ const errors = computed(() => {
   return {
     number: fields.value.number.trim() === '' ? words.dialog.numberError : null,
     client: fields.value.client === '' ? words.dialog.clientError : null,
-    amount: parsedAmount.value === null ? words.dialog.amountError : null,
+    lines: linesError.value,
     issued: issued === null ? words.dialog.issuedError : null,
     due: due === undefined ? words.dialog.dueError : dates.due === 'before-issue' ? words.dialog.dueBeforeIssue : null,
     paidBy: notNeeded.value === null ? null : words.dialog.notNeeded(dayLabel(notNeeded.value.payment.date)),
@@ -193,12 +207,11 @@ async function save(): Promise<void> {
   const to = optionalDate(fields.value.period_to) ?? null
   const number = fields.value.number.trim()
   const client = fields.value.client.trim().toLowerCase()
-  const planItems = fields.value.plan_items.trim()
   const typed: Invoice = {
     number,
     client,
-    item: fields.value.item.trim(),
-    ...(planItems === '' ? {} : { planItems }),
+    item: registerItemOf(parsedLines.value),
+    lines: parsedLines.value,
     amount: parsedAmount.value,
     issued,
     due: optionalDate(fields.value.due) ?? null,
@@ -218,12 +231,12 @@ async function save(): Promise<void> {
     number: changed('number') ? typed.number : before.number,
     client: changed('client') ? typed.client : before.client,
   }
-  const keptPlanItems = changed('plan_items') ? typed.planItems : before.planItems
+  const { item, lines: keptLines, amount } = linesChanged.value ? typed : before
   const after: Invoice = {
     ...kept,
-    item: changed('item') ? typed.item : before.item,
-    ...(keptPlanItems === undefined ? {} : { planItems: keptPlanItems }),
-    amount: changed('amount') ? typed.amount : before.amount,
+    item,
+    ...(keptLines === undefined ? {} : { lines: keptLines }),
+    amount,
     issued: changed('issued') ? typed.issued : before.issued,
     due: changed('due') ? typed.due : before.due,
     deliveryPeriod: changed('period_from') || changed('period_to') ? typed.deliveryPeriod : before.deliveryPeriod,
@@ -254,17 +267,14 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.client" :error="(tried && errors.client) || false" :help="words.dialog.clientHelp">
         <USelect v-model="fields.client" :items="clientItems" :placeholder="words.dialog.clientPlaceholder" class="w-full" data-testid="invoice-client" />
       </UFormField>
-      <UFormField :label="words.dialog.item" :help="words.dialog.itemHelp">
-        <UInput v-model="fields.item" class="w-full" data-testid="invoice-item" />
-      </UFormField>
-      <UFormField :label="words.dialog.amount" :error="(tried && errors.amount) || false" :help="words.dialog.amountHelp">
-        <UInput v-model="fields.amount" inputmode="decimal" :placeholder="words.dialog.amountPlaceholder" class="w-full" data-testid="invoice-amount" />
+      <UFormField :error="(tried && errors.lines) || false" class="sm:col-span-2">
+        <InvoiceLinesEditor v-model:lines="lines" :total="total" :disabled="writes.refused.value" />
       </UFormField>
       <UFormField :label="words.dialog.issued" :error="(tried && errors.issued) || false" :help="words.dialog.issuedHelp">
         <DayField v-model="fields.issued" class="w-full" data-testid="invoice-issued" />
       </UFormField>
       <UFormField :label="words.dialog.due" :error="(tried && errors.due) || false" :help="words.dialog.dueHelp">
-        <DayField v-model="fields.due" class="w-full" />
+        <DayField v-model="fields.due" class="w-full" data-testid="invoice-due" />
       </UFormField>
       <UFormField :label="words.dialog.workFrom" :error="(tried && errors.period) || false">
         <DayField v-model="fields.period_from" class="w-full" />
@@ -273,9 +283,6 @@ async function remove(): Promise<void> {
         <DayField v-model="fields.period_to" class="w-full" />
       </UFormField>
       <p class="-mt-2 type-caption">{{ words.dialog.periodHelp }}</p>
-      <UFormField :label="words.dialog.planItems" :help="words.dialog.planItemsHelp" class="sm:col-span-2">
-        <UInput v-model="fields.plan_items" class="w-full" data-testid="invoice-plan-items" />
-      </UFormField>
       <UFormField v-if="paymentItems.length > 0" :label="words.dialog.paidBy" :help="words.dialog.paidByHelp" :error="(tried && errors.paidBy) || false" class="sm:col-span-2">
         <PaymentsSelect v-model="paidBy" data-testid="invoice-paid-by" :payments="paymentItems" :none="words.dialog.notPaid" :search="words.dialog.searchPayments" />
       </UFormField>

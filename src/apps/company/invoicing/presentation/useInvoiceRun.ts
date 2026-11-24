@@ -5,8 +5,6 @@ import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { downloadFile } from '../../../../shared/files/downloadFile'
-import { UNREADABLE_AMOUNT } from '../../../../shared/money/money'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { INVOICE_WRITES } from '../../receivables/application/invoiceWrites'
 import { setSettings } from '../../settings/application/settingWrites'
@@ -28,9 +26,11 @@ import type { InvoiceDocument } from '../domain/invoiceDocument'
 import { filingPathOf } from '../domain/invoiceFiling'
 import { filledMail, gmailComposeUrl } from '../domain/invoiceMail'
 import type { InvoiceMail } from '../domain/invoiceMail'
-import { linesTotal, mergedLine, startingLines } from '../domain/invoiceLines'
-import { registerInvoiceOf, reexportedInvoice } from '../domain/registerInvoice'
-import type { InvoiceLine } from '../domain/invoiceLines'
+import { linesTotal } from '../domain/invoiceLine'
+import { mergedLine, startingLines } from '../domain/invoiceLines'
+import { invoiceLinesOf, registerInvoiceOf, reexportedInvoice } from '../domain/registerInvoice'
+import { draftOf, linesOf } from './lineDrafts'
+import type { LineDraft } from './lineDrafts'
 import { nextYearlyNumber, numberTaken } from '../../documents/domain/yearlyNumber'
 import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitch'
 import { words as receivablesWords } from '../../receivables/domain/words'
@@ -38,14 +38,6 @@ import { words } from './words'
 
 /** A new invoice, or the PDF and draft of one on the register made again. */
 export type InvoiceRunMode = { readonly kind: 'new'; readonly client: string | null } | { readonly kind: 'reexport'; readonly id: RecordId }
-
-/** A line as typed, the amount as text until it reads as money. */
-export interface LineDraft {
-  description: string
-  amount: string
-  /** The plan items the line sums, kept while its text or amount is typed over. */
-  readonly items: readonly string[]
-}
 
 export type RunStage =
   | { readonly kind: 'edit'; readonly message: string | null }
@@ -55,14 +47,6 @@ export type RunStage =
   | { readonly kind: 'ready'; readonly target: FilingTarget | null; readonly pdf: Uint8Array }
   | { readonly kind: 'running' }
   | { readonly kind: 'finished' }
-
-function linesOf(drafts: readonly LineDraft[]): InvoiceLine[] {
-  return drafts.map((draft) => ({ description: draft.description.trim(), amount: typedAmount(draft.amount) ?? UNREADABLE_AMOUNT, items: draft.items }))
-}
-
-function draftOf(line: InvoiceLine): LineDraft {
-  return { description: line.description, amount: amountForTyping(line.amount), items: line.items }
-}
 
 async function pdfOf(document: InvoiceDocument): Promise<Uint8Array> {
   const [{ renderInvoicePdf }, { documentFonts }] = await Promise.all([import('../infrastructure/invoicePdf'), import('../../documents/infrastructure/documentFonts')])
@@ -117,7 +101,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       due.value = invoice.due ?? fresh.due
       periodFrom.value = invoice.deliveryPeriod?.from ?? fresh.periodFrom
       periodTo.value = invoice.deliveryPeriod?.to ?? fresh.periodTo
-      lines.value = [{ description: invoice.item, amount: amountForTyping(invoice.amount), items: [] }]
+      lines.value = invoiceLinesOf(invoice).map(draftOf)
       return
     }
     const asked = mode.value.kind === 'new' ? mode.value.client : null

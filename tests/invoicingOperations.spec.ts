@@ -22,6 +22,7 @@ import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
 import { exampleInput } from './fixtures/exampleInput'
 import { NO_RATES } from '../src/shared/money/rateBook'
+import { civil, euros } from './fixtures/ledger'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -94,11 +95,11 @@ describe('the invoices register', () => {
   it('refuses a due day before the issue day and a work period with one end, as the invoice dialog does', async () => {
     const company = await desk()
     const client = company.ref('client', 'northwind')
-    const invoice = { number: '99-1-26', client, item: 'Consulting', planItems: '', amount: 100, issued: '2026-10-31', due: null, periodFrom: null, periodTo: null, paidBy: [] }
+    const invoice = { number: '99-1-26', client, lines: [{ text: 'Consulting', amount: 100, items: [] }], issued: '2026-10-31', due: null, periodFrom: null, periodTo: null, paidBy: [] }
 
     const late = await company.propose([{ op: 'add-invoice', input: { ...invoice, due: '2026-10-01' } }])
     const oneEnd = await company.propose([{ op: 'add-invoice', input: { ...invoice, periodFrom: '2026-10-01' } }])
-    const nothing = await company.propose([{ op: 'add-invoice', input: { ...invoice, amount: 0 } }])
+    const nothing = await company.propose([{ op: 'add-invoice', input: { ...invoice, lines: [{ text: 'Consulting', amount: 0, items: [] }] } }])
 
     expect(late.isError).toBe(true)
     expect(late.text).toContain('due day')
@@ -111,7 +112,7 @@ describe('the invoices register', () => {
     const taken = bookOf(company).invoices[0]!
 
     const answer = await company.propose([
-      stepOf(INVOICING_OPERATIONS.operations, 'add-invoice', { number: taken.number, client: company.ref('client', 'quiet'), item: 'Again', amount: 10, issued: '2026-10-31' }),
+      stepOf(INVOICING_OPERATIONS.operations, 'add-invoice', { number: taken.number, client: company.ref('client', 'quiet'), lines: [{ text: 'Again', amount: 10, items: [] }], issued: '2026-10-31' }),
     ])
 
     expect(answer.isError).toBe(true)
@@ -138,7 +139,7 @@ describe('the invoices register', () => {
         },
         '$acme',
       ),
-      stepOf(INVOICING_OPERATIONS.operations, 'add-invoice', { number: 'A-1', client: '$acme', item: 'Setup', amount: 500, issued: '2026-11-02' }),
+      stepOf(INVOICING_OPERATIONS.operations, 'add-invoice', { number: 'A-1', client: '$acme', lines: [{ text: 'Setup', amount: 500, items: [] }], issued: '2026-11-02' }),
     ])
 
     expect(answer.isError, answer.text).toBe(false)
@@ -157,18 +158,62 @@ describe('the invoices register', () => {
   })
 })
 
-describe('the plan items behind an invoice', () => {
-  it('sets them on a change and keeps them on a change that leaves them', async () => {
+describe('the lines of an invoice', () => {
+  const twoLines = [
+    { text: 'Software development', amount: 3000, items: ['Development'] },
+    { text: 'Maintenance in November 2026', amount: 620, items: ['Hosting', 'Support'] },
+  ]
+
+  async function twoLineInvoice() {
     const company = await desk()
-    const invoice = company.ref('invoice', bookOf(company).invoices[0]!.id)
-    const unchanged = { invoice, number: null, client: null, item: null, planItems: null, amount: null, issued: null, due: null, periodFrom: null, periodTo: null, paid: 'keep', paidBy: [] }
-
-    await company.propose([{ op: 'change-invoice', input: { ...unchanged, planItems: 'Software development (Monthly Fee)' } }])
+    const client = company.ref('client', 'northwind')
+    await company.propose([{ op: 'add-invoice', input: { number: '99-1-26', client, lines: twoLines, issued: '2026-11-30', due: null, periodFrom: null, periodTo: null, paidBy: [] } }])
     expect((await company.accept()).kind).toBe('done')
-    await company.propose([{ op: 'change-invoice', input: { ...unchanged, item: 'Software development, corrected' } }])
+    const held = bookOf(company).invoices.find((invoice) => invoice.number === '99-1-26')!
+    return { company, held }
+  }
+
+  it('adds an invoice whose amount is the total of its lines and whose item joins their texts', async () => {
+    const { held } = await twoLineInvoice()
+
+    expect(held).toMatchObject({
+      item: 'Software development; Maintenance in November 2026',
+      amount: euros(3620),
+      lines: [
+        { description: 'Software development', amount: euros(3000), items: ['Development'] },
+        { description: 'Maintenance in November 2026', amount: euros(620), items: ['Hosting', 'Support'] },
+      ],
+    })
+  })
+
+  it('keeps both lines of a two-line invoice on a change of its due date only', async () => {
+    const { company, held } = await twoLineInvoice()
+    const unchanged = { invoice: company.ref('invoice', held.id), number: null, client: null, lines: null, issued: null, due: null, periodFrom: null, periodTo: null, paid: 'keep', paidBy: [] }
+
+    await company.propose([{ op: 'change-invoice', input: { ...unchanged, due: '2026-12-31' } }])
     expect((await company.accept()).kind).toBe('done')
 
-    expect(bookOf(company).invoices[0]).toMatchObject({ item: 'Software development, corrected', planItems: 'Software development (Monthly Fee)' })
+    expect(bookOf(company).invoices.find((invoice) => invoice.id === held.id)).toEqual({ ...held, due: civil('2026-12-31') })
+  })
+
+  it('puts new lines in place of the old ones, and the amount follows them', async () => {
+    const { company, held } = await twoLineInvoice()
+    const unchanged = { invoice: company.ref('invoice', held.id), number: null, client: null, lines: null, issued: null, due: null, periodFrom: null, periodTo: null, paid: 'keep', paidBy: [] }
+
+    await company.propose([{ op: 'change-invoice', input: { ...unchanged, lines: [twoLines[0], { text: 'Maintenance', amount: 600, items: [] }] } }])
+    expect((await company.accept()).kind).toBe('done')
+
+    expect(bookOf(company).invoices.find((invoice) => invoice.id === held.id)).toMatchObject({ item: 'Software development; Maintenance', amount: euros(3600) })
+  })
+
+  it('refuses a line without a text, as the invoice dialog does', async () => {
+    const { company, held } = await twoLineInvoice()
+    const unchanged = { invoice: company.ref('invoice', held.id), number: null, client: null, lines: null, issued: null, due: null, periodFrom: null, periodTo: null, paid: 'keep', paidBy: [] }
+
+    const answer = await company.propose([{ op: 'change-invoice', input: { ...unchanged, lines: [{ text: ' ', amount: 600, items: [] }] } }])
+
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Every line needs a description.')
   })
 })
 

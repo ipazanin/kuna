@@ -1,4 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { moneyFromAmount } from '../../../../shared/money/money'
+import { registerLinesProblems } from '../../invoicing/domain/invoiceLine'
+import { lineProblemsInWords } from '../../invoicing/domain/words'
 import { words } from './words'
 
 /** What the checks need of one invoices row. */
@@ -6,6 +9,8 @@ interface InvoiceCells {
   readonly number: string
   /** The amount cell, a number on a row the reader reads. */
   readonly amount: string | number | boolean
+  /** The lines cell, blank on a row that keeps no lines. */
+  readonly lines: string
 }
 
 /** One invoices row before and after a change. `before` is null for an added row, `after` for a deleted one. */
@@ -17,7 +22,9 @@ export interface InvoiceEdit {
 /**
  * What the invoice generator keeps, so a row the app writes reads like one it wrote. Its number is
  * on no other row of the tab, whatever the client, since the generator refuses a number already
- * filed and the payment matching would count the invoice twice. Its amount is above zero.
+ * filed and the payment matching would count the invoice twice. Its amount is above zero. A change
+ * that gives new lines or a new amount keeps lines that add up to the amount, so a row whose lines
+ * were broken in the sheet still takes a change of its due date.
  */
 export function invoiceChangeRefusals(edits: readonly InvoiceEdit[], untouched: readonly { readonly number: string }[]): string[] {
   const refusals: string[] = []
@@ -35,6 +42,11 @@ export function invoiceChangeRefusals(edits: readonly InvoiceEdit[], untouched: 
     }
     if (typeof after.amount === 'number' && after.amount <= 0) {
       refusals.push(words.notAboveZero(after.number.trim(), after.amount))
+    }
+    const linesGiven = edit.before === null || after.lines !== edit.before.lines || after.amount !== edit.before.amount
+    const lines = linesGiven && typeof after.amount === 'number' ? registerLinesProblems(after.lines, moneyFromAmount(after.amount)) : []
+    if (lines.length > 0) {
+      refusals.push(words.badLines(after.number.trim(), lineProblemsInWords(lines)))
     }
   }
   return refusals

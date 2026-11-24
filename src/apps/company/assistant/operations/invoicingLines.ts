@@ -17,7 +17,7 @@ const FIELD_NAMES: Readonly<Record<string, string>> = {
   number: receivablesWords.dialog.number,
   client: receivablesWords.dialog.client,
   item: receivablesWords.dialog.item,
-  planItems: receivablesWords.dialog.planItems,
+  lines: receivablesWords.dialog.lines,
   amount: receivablesWords.dialog.amount,
   issued: receivablesWords.dialog.issued,
   due: receivablesWords.dialog.due,
@@ -62,6 +62,8 @@ export function invoicingDescriber(workbook: Workbook): ProposalDescriber {
         if (field === 'amount') return formatMoney(record.amount, 'negative', money)
         if (field === 'client') return clientName(record.client)
         if (field === 'issued' || field === 'due' || field === 'date') return dayLabel(value as Invoice['issued'])
+        if (field === 'lines' && isKind(kind, INVOICE_RECORDS, record))
+          return (record.lines ?? []).map((line) => `${lineWithItems(line.description, line.items)} ${formatMoney(line.amount, 'negative', money)}`).join(', ') || null
         if (field === 'deliveryPeriod' && isKind(kind, INVOICE_RECORDS, record) && record.deliveryPeriod !== null)
           return `${dayLabel(record.deliveryPeriod.from)} – ${dayLabel(record.deliveryPeriod.to)}`
       }

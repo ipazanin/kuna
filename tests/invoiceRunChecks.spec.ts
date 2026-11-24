@@ -10,6 +10,8 @@ import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import type { Invoice, Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
+import { INVOICE_CODEC } from '../src/apps/company/workbook/domain/invoicesReading'
+import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 import { exampleStudio } from './fixtures/exampleStudio'
 
@@ -182,6 +184,43 @@ describe('the lines an invoice starts from', () => {
     run.mergeLines()
 
     expect(run.lines.value).toEqual([{ description: 'Development', amount: '5300.00', items: ['Monthly Fee', 'Hotel'] }])
+    run.dispose()
+  })
+
+  it('re-export a two-line invoice from the register with the lines it went out with', async () => {
+    store.written = []
+    store.refusal = null
+    google.session = createFakeInvoiceGoogle((_title, offered) => offered, 2026)
+    void google.session.drive.pickFolders(null, 'Pick the invoice folder')
+    const made = useInvoiceRun(ref<InvoiceRunMode>({ kind: 'new', client: 'north' }))
+    made.reset()
+    const sent = made.lines.value.map((line) => ({ ...line }))
+    await made.check()
+    await made.make()
+    made.dispose()
+    const [written] = store.written
+    expect(written?.lines).toHaveLength(2)
+
+    const read = INVOICE_CODEC.make(storedFieldsOfValues(INVOICE_CODEC.fieldsOf(written!)), written!.id)
+    store.state.workbook = { ...store.state.workbook!, invoices: [read] }
+    const reexport = useInvoiceRun(ref<InvoiceRunMode>({ kind: 'reexport', id: read.id }))
+    reexport.reset()
+
+    expect(sent).toEqual([
+      { description: 'Software services for October 2026', amount: '5000.00', items: ['Monthly Fee'] },
+      { description: 'Costs billed on', amount: '300.00', items: ['Hotel'] },
+    ])
+    expect(reexport.lines.value).toEqual(sent)
+    reexport.dispose()
+  })
+
+  it('re-export a row that keeps no lines from one line of its item at its amount', () => {
+    const invoice = invoiceOf('9-1-26', 6925, '2026-09-21', 'north')
+    store.state.workbook = { ...store.state.workbook!, invoices: [invoice] }
+    const run = useInvoiceRun(ref<InvoiceRunMode>({ kind: 'reexport', id: invoice.id }))
+    run.reset()
+
+    expect(run.lines.value).toEqual([{ description: invoice.item, amount: '6925.00', items: [] }])
     run.dispose()
   })
 })

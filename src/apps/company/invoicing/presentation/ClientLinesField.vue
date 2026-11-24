@@ -8,7 +8,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
-import type { InvoiceLine } from '../domain/invoiceLines'
+import type { InvoiceLine } from '../domain/invoiceLine'
 import type { InvoiceTemplateLine } from '../domain/invoiceTemplate'
 import { words } from './words'
 

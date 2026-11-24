@@ -1,4 +1,8 @@
-/** A group of fields a screen sets that no chat operation takes, with its reason. A field is named `app: Owner.field`, as the spec names it, and a settings key `app: Setting.key`. */
+/**
+ * A group of fields a screen sets that no chat operation takes, with its reason. A field is named `app: Owner.field` on every write path,
+ * or `pathName: Owner.field` on the one write path whose name follows its `#`, such as `writeTransfer: TransactionItem.payee`. A settings
+ * key is named `app: Setting.key`.
+ */
 export interface FieldException {
   readonly reason: string
   readonly fields: readonly string[]
@@ -55,7 +59,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   {
     reason:
       "A transfer moves money between your own accounts, so its legs write no payee and count under no payee of their own. A plain entry's payee and who it counts under go through add-entry and change-entry.",
-    fields: ['spending: Transaction.payee', 'spending: TransactionItem.payee'],
+    fields: ['writeTransfer: Transaction.payee', 'writeTransfer: TransactionItem.payee'],
   },
   {
     reason: "Ids Kuna makes. A person never types a record's id, and an operation names the record it changes by a ref.",
@@ -191,13 +195,13 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   {
     reason: 'A record stays under the loan or asset it was added to. The screen edits it there and never moves it to another one.',
     fields: [
-      'assets: Valuation.asset',
-      'assets: AssetShare.asset',
-      'loans: LoanShare.loan',
-      'loans: RatePeriod.loan',
-      'loans: ExtraPayment.loan',
-      'loans: LateInstalment.loan',
-      'loans: Movement.loan',
+      'VALUATION_WRITES.change: Valuation.asset',
+      'ASSET_SHARE_WRITES.change: AssetShare.asset',
+      'LOAN_SHARE_WRITES.change: LoanShare.loan',
+      'RATE_PERIOD_WRITES.change: RatePeriod.loan',
+      'EXTRA_PAYMENT_WRITES.change: ExtraPayment.loan',
+      'LATE_INSTALMENT_WRITES.change: LateInstalment.loan',
+      'MOVEMENT_WRITES.change: Movement.loan',
     ],
   },
   {

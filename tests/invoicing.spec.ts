@@ -5,9 +5,11 @@ import { newInvoiceDates } from '../src/apps/company/invoicing/domain/invoiceDat
 import { invoiceProblems } from '../src/apps/company/invoicing/domain/invoiceDocument'
 import { pathInWords } from '../src/apps/company/documents/domain/filingPath'
 import { DEFAULT_FILE_PATH, filePathProblem, filingPathOf } from '../src/apps/company/invoicing/domain/invoiceFiling'
-import { linesTotal, mergedLine, planItemsOf, registerItemOf, startingLines } from '../src/apps/company/invoicing/domain/invoiceLines'
-import { registerInvoiceOf, reexportedInvoice } from '../src/apps/company/invoicing/domain/registerInvoice'
-import { INVOICE_CODEC } from '../src/apps/company/workbook/domain/invoicesReading'
+import { lineProblems, linesOfText, linesTotal, registerLinesProblems, textOfLines } from '../src/apps/company/invoicing/domain/invoiceLine'
+import { mergedLine, registerItemOf, startingLines } from '../src/apps/company/invoicing/domain/invoiceLines'
+import { invoiceLinesOf, registerInvoiceOf, reexportedInvoice } from '../src/apps/company/invoicing/domain/registerInvoice'
+import { invoiceChangeRefusals } from '../src/apps/company/receivables/domain/invoiceGuards'
+import { INVOICE_CODEC, readInvoices } from '../src/apps/company/workbook/domain/invoicesReading'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import type { InvoiceTemplateLine } from '../src/apps/company/invoicing/domain/invoiceTemplate'
 import { DEFAULT_MAIL_BODY, filledMail, gmailComposeUrl, mailTemplateProblem, monthInLanguage } from '../src/apps/company/invoicing/domain/invoiceMail'
@@ -23,6 +25,7 @@ import { CORE_TABS, recordsOfRows } from '../src/apps/company/workbook/infrastru
 import { invoiceOf, planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 
 /** An invented register of the same shape as a real one: a first part month, one invoice a month, a bonus month, and one issued early for the next month's work. */
 const REGISTER = [
@@ -171,30 +174,100 @@ describe('the register row of a made invoice', () => {
   ]
   const made = { number: ' 11-1-26 ', client: 'North', issued: civil('2026-11-30'), due: civil('2026-12-31'), deliveryPeriod: { from: civil('2026-11-01'), to: civil('2026-11-30') }, lines }
 
-  it('keeps what the client read as the item, and each line with the plan items it summed, a line typed by hand by its text alone', () => {
+  it('keeps what the client read as the item and each line with its amount and the plan items it summed', () => {
     const invoice = registerInvoiceOf(made)
 
-    expect(invoice).toMatchObject({
-      number: '11-1-26',
-      client: 'north',
-      item: 'Software development; Maintenance in November 2026; Setup, typed by hand',
-      planItems: 'Software development (Development); Maintenance in November 2026 (Hosting, Support, Travel); Setup, typed by hand',
-      amount: euros(3700),
-    })
+    expect(invoice).toMatchObject({ number: '11-1-26', client: 'north', item: 'Software development; Maintenance in November 2026; Setup, typed by hand', lines, amount: euros(3700) })
+    expect(INVOICE_CODEC.fieldsOf(invoice).lines).toBe('Software development | 3000.00 | Development\nMaintenance in November 2026 | 620.00 | Hosting | Support | Travel\nSetup, typed by hand | 80.00')
     expect(INVOICE_CODEC.make(storedFieldsOfValues(INVOICE_CODEC.fieldsOf(invoice)), invoice.id)).toEqual(invoice)
   })
 
-  it('leaves the plan items out when no line summed one', () => {
-    expect(planItemsOf([lines[2]!])).toBe('')
-    expect(registerInvoiceOf({ ...made, lines: [lines[2]!] })).not.toHaveProperty('planItems')
+  it('writes no lines cell for a row that keeps no lines', () => {
+    const { lines: _kept, ...typed } = registerInvoiceOf(made)
+
+    expect(INVOICE_CODEC.fieldsOf(typed)).not.toHaveProperty('lines')
+    expect(INVOICE_CODEC.make(storedFieldsOfValues(INVOICE_CODEC.fieldsOf(typed)), typed.id)).not.toHaveProperty('lines')
   })
 
-  it('keeps the plan items of a re-exported invoice when its one line names none, and changes nothing when nothing changed', () => {
+  it('changes the item, the amount and the lines of a re-exported invoice, and nothing when none of them changed', () => {
     const before = registerInvoiceOf(made)
     const retyped = registerInvoiceOf({ ...made, lines: [{ description: 'Software services', amount: euros(3700), items: [] }] })
 
-    expect(reexportedInvoice(before, retyped)).toEqual({ ...before, item: 'Software services' })
-    expect(reexportedInvoice(before, registerInvoiceOf({ ...made, lines: [{ description: before.item, amount: before.amount, items: [] }] }))).toBeNull()
+    expect(reexportedInvoice(before, retyped)).toEqual({ ...before, item: 'Software services', lines: retyped.lines })
+    expect(reexportedInvoice(before, registerInvoiceOf(made))).toBeNull()
+  })
+
+  it('starts a re-export from the lines the invoice went out with, or from one line of its item at its amount', () => {
+    const invoice = registerInvoiceOf(made)
+    const { lines: _kept, ...typed } = invoice
+
+    expect(invoiceLinesOf(invoice)).toEqual(lines)
+    expect(invoiceLinesOf(typed)).toEqual([{ description: invoice.item, amount: euros(3700), items: [] }])
+  })
+})
+
+describe('the lines cell of the register', () => {
+  it.each([
+    ['Work | 0.8', euros(0.8)],
+    ['Work | 3000.00', euros(3000)],
+    ['Work | 3000', euros(3000)],
+    ['Work | 1234.5', euros(1234.5)],
+  ])('reads %s as euros with a dot for the decimals', (cell, amount) => {
+    expect(linesOfText(cell)).toEqual([{ description: 'Work', amount, items: [] }])
+  })
+
+  it('reads an amount with a decimal comma or none at all as not above zero', () => {
+    expect(lineProblems(linesOfText('Work | 0,8'))).toEqual([{ kind: 'not-above-zero', line: 0 }])
+    expect(lineProblems(linesOfText('Work'))).toEqual([{ kind: 'not-above-zero', line: 0 }])
+  })
+
+  it('writes what it reads back', () => {
+    const text = 'Software development | 3000.00 | Development\nSetup | 80.00'
+    expect(textOfLines(linesOfText(text))).toBe(text)
+  })
+
+  it('needs a line, a text on each, an amount above zero, and no | or line break in a text or a plan item', () => {
+    expect(lineProblems([])).toEqual([{ kind: 'no-lines' }])
+    expect(
+      lineProblems([
+        { description: ' ', amount: euros(0), items: [] },
+        { description: 'Work', amount: euros(10), items: ['Hosting | Support'] },
+        { description: 'Two\nlines', amount: euros(10), items: [] },
+      ]),
+    ).toEqual([
+      { kind: 'blank-text', line: 0 },
+      { kind: 'not-above-zero', line: 0 },
+      { kind: 'separator', line: 1 },
+      { kind: 'separator', line: 2 },
+    ])
+  })
+
+  it('adds up to the amount, and a blank cell is a row without lines', () => {
+    expect(registerLinesProblems('', euros(3620))).toEqual([])
+    expect(registerLinesProblems('Development | 3000.00\nMaintenance | 620.00', euros(3620))).toEqual([])
+    expect(registerLinesProblems('Development | 3000.00\nMaintenance | 600.00', euros(3620))).toEqual([{ kind: 'total', total: euros(3600), amount: euros(3620) }])
+  })
+
+  const cells = { number: '11-1-26', client: 'north', item: 'Development; Maintenance', amount: 3620, issued: serialFromCivilDate(civil('2026-11-30')) }
+
+  it('reads lines that do not add up to the amount as none, reports the row, and keeps the amount', () => {
+    const reading = readInvoices(recordsOfRows(CORE_TABS.invoices, [{ sheetRow: 2, cells: { ...cells, lines: 'Development | 3000.00\nMaintenance | 600.00' } }]), new Set(['north']))
+
+    expect(reading.facts).toHaveLength(1)
+    expect(reading.facts[0]).not.toHaveProperty('lines')
+    expect(reading.facts[0]!.amount).toBe(euros(3620))
+    expect(reading.problems.map((problem) => problem.reason)).toEqual([
+      'lines reads as blank, so a re-export starts from one line of the item at the amount. The lines add up to €3,600.00, not the amount of €3,620.00.',
+    ])
+  })
+
+  it('refuses a write of lines that do not add up to the amount, and takes a due date change on a row whose lines were broken in the sheet', () => {
+    const broken = { number: '11-1-26', amount: 3620, lines: 'Development | 3000.00\nMaintenance | 600.00' }
+
+    expect(invoiceChangeRefusals([{ before: null, after: broken }], [])).toEqual(['The lines of invoice 11-1-26 cannot be saved. The lines add up to €3,600.00, not the amount of €3,620.00.'])
+    expect(invoiceChangeRefusals([{ before: { ...broken, lines: '' }, after: broken }], [])).toHaveLength(1)
+    expect(invoiceChangeRefusals([{ before: broken, after: broken }], [])).toEqual([])
+    expect(invoiceChangeRefusals([{ before: broken, after: { ...broken, amount: 3600 } }], [])).toEqual([])
   })
 })
 

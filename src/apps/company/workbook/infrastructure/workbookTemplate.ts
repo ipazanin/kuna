@@ -130,15 +130,15 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
   invoices: [
     { name: 'number', note: 'The invoice number, entered as text so a number such as 1-1-26 is not read as a date. Each number once. Required.' },
     { name: 'client', note: 'Who the invoice is for, by the client name in the clients tab. Required.' },
-    { name: 'item', note: 'What was invoiced. Optional.' },
+    { name: 'item', note: 'What was invoiced, the texts of its lines joined by a semicolon. Optional.' },
     { name: 'amount', note: 'The invoice total as a number. Required.' },
     { name: 'issued', note: 'The issue date, as a date cell. Required.' },
     { name: 'due', note: 'The due date, as a date cell. Optional. Ageing counts from it, or from the issue date when it is blank.' },
     { name: 'period_from', note: 'The first day of the work the invoice is for, as a date cell. Optional, with period_to. Blank means the issue date.' },
     { name: 'period_to', note: 'The last day of the work the invoice is for, as a date cell. Optional, with period_from.' },
     {
-      name: 'plan_items',
-      note: 'Each line of the invoice with the outgoing-plan items it summed in brackets, such as Software development (Development); Maintenance (Hosting, Support). Optional.',
+      name: 'lines',
+      note: 'The lines of the invoice, one per line of the cell: its text, its amount in euros with a dot for the decimals, then each outgoing-plan item it summed, separated by |, such as Software development | 3000.00 | Development. Optional. The amounts add up to amount, or the invoice reads with no lines.',
     },
   ],
   clients: [

@@ -198,6 +198,8 @@ export const en = {
     listedTwice: (number: string, client: string) => `invoice ${number} for ${client} is listed on more than one row, so none of them counts`,
     clientMissing: (client: string, number: string) => `${client} is not on the clients tab, so no payment can be matched to invoice ${number}`,
     periodUnread: (refused: string) => `${refused}, so the issue date stands for the delivery period`,
+    /** `problems` names each problem of the lines, as sentences. */
+    badLines: (problems: string) => `lines reads as blank, so a re-export starts from one line of the item at the amount. ${problems}`,
   },
   clients: {
     noName: 'no client name',
@@ -313,6 +315,7 @@ export const hr: Translation<typeof en> = {
     listedTwice: (number, client) => `račun ${number} za „${client}” naveden je u više redaka, pa se nijedan ne broji`,
     clientMissing: (client, number) => `„${client}” nije u popisu klijenata, pa se s računom ${number} ne može povezati nijedna uplata`,
     periodUnread: (refused) => `${refused}, pa datum izdavanja vrijedi i za razdoblje isporuke`,
+    badLines: (problems) => `lines se čita kao prazno, pa ponovni izvoz počinje od jedne stavke s opisom iz polja item i ukupnim iznosom. ${problems}`,
   },
   clients: {
     noName: 'polje client je prazno',

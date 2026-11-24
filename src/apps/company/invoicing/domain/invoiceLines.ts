@@ -1,20 +1,13 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { sumMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
 import type { ExpectedInvoice } from '../../billingPlan/domain/expectedInvoices'
 import type { MatchedBillingItem } from '../../billingPlan/domain/plannedAgainstInvoiced'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
 import type { InvoiceTemplateLine } from './invoiceTemplate'
+import { linesTotal } from './invoiceLine'
+import type { InvoiceLine } from './invoiceLine'
 import { monthInLanguage } from './invoiceMail'
-import { words } from './words'
-
-/** One line of an invoice: a service at quantity one, priced without VAT, and the plan items it sums, none for a line typed by hand. */
-export interface InvoiceLine {
-  readonly description: string
-  readonly amount: Money
-  readonly items: readonly string[]
-}
 
 /** The client's plan rows still open up to the end of the issue month, oldest first. */
 export function openRowsFor(expected: readonly ExpectedInvoice[], client: string, issued: CivilDate): MatchedBillingItem[] {
@@ -66,11 +59,7 @@ export function mergedLine(lines: readonly InvoiceLine[], invoices: readonly Pic
   }
 }
 
-export function linesTotal(lines: readonly InvoiceLine[]): Money {
-  return sumMoney(lines.map((line) => line.amount))
-}
-
-/** A line's text with the plan items it sums in brackets, as the register and the chat read it, or the text alone when it sums none. */
+/** A line's text with the plan items it sums in brackets, as the chat reads a client's invoice lines, or the text alone when it sums none. */
 export function lineWithItems(text: string, items: readonly string[]): string {
   return items.length === 0 ? text : `${text} (${items.join(', ')})`
 }
@@ -78,18 +67,4 @@ export function lineWithItems(text: string, items: readonly string[]): string {
 /** The register keeps one row per invoice, so its item names every line. */
 export function registerItemOf(lines: readonly InvoiceLine[]): string {
   return lines.map((line) => line.description.trim()).join('; ')
-}
-
-/** What the register keeps of the plan items behind the lines: each line with the items it sums, blank when no line sums one. */
-export function planItemsOf(lines: readonly InvoiceLine[]): string {
-  return lines.some((line) => line.items.length > 0) ? lines.map((line) => lineWithItems(line.description.trim(), line.items)).join('; ') : ''
-}
-
-/** Why the lines cannot go on an invoice, each a sentence. Empty when they can. */
-export function lineProblems(lines: readonly InvoiceLine[]): string[] {
-  if (lines.length === 0) return [words.addLine]
-  const problems: string[] = []
-  if (lines.some((line) => line.description.trim() === '')) problems.push(words.lineDescription)
-  if (lines.some((line) => !(line.amount > 0))) problems.push(words.lineAmount)
-  return problems
 }

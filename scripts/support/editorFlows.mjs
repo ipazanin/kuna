@@ -1127,7 +1127,20 @@ async function dialogClosed(page) {
   await delay(300)
 }
 
-/** Invoices in a language: add one, change its amount, delete it, and Undo the delete. */
+/** The texts and amounts of the invoice dialog's lines, an amount with a dot for the decimals whatever the language shows. */
+async function invoiceLines(page) {
+  return page.$$eval('[data-testid="invoice-line"]', (rows) =>
+    rows.map((row) => [row.querySelector('[data-testid="invoice-line-text"]')?.value ?? '', (row.querySelector('[data-testid="invoice-line-amount"]')?.value ?? '').replace(',', '.')]),
+  )
+}
+
+/** Types a line of the invoice dialog by its place from 0. */
+async function typeInvoiceLine(page, index, text, amount) {
+  await setField((await page.$$('[data-testid="invoice-line-text"]'))[index], text)
+  await setField((await page.$$('[data-testid="invoice-line-amount"]'))[index], amount)
+}
+
+/** Invoices in a language: add one of two lines, change its due date and see both lines kept, change a line, delete it, and Undo the delete. */
 export function invoiceFlowIn(language) {
   const words = SCREEN_WORDS[language]
   const dialog = words.receivables.dialog
@@ -1140,8 +1153,9 @@ export function invoiceFlowIn(language) {
     await page.waitForSelector('[data-testid="invoice-form"]')
     await delay(400)
     await setField(await page.$('[data-testid="invoice-number"]'), number)
-    await setField(await page.$('[data-testid="invoice-item"]'), 'Workshop follow-up')
-    await setField(await page.$('[data-testid="invoice-amount"]'), '1250.00')
+    await typeInvoiceLine(page, 0, 'Workshop follow-up', '1250.00')
+    await pressSelector(page, press, '[data-testid="invoice-line-add"]')
+    await typeInvoiceLine(page, 1, 'Workshop follow-up II', '50.00')
     await choose(page, press, await page.$('[data-testid="invoice-client"]'), 'Lumen Labs')
     await inspect?.('add an invoice')
     await shoot('invoice-add')
@@ -1155,7 +1169,22 @@ export function invoiceFlowIn(language) {
     await pressSelector(page, press, edit(number))
     await page.waitForSelector('[data-testid="invoice-form"]')
     await delay(400)
-    await setField(await page.$('[data-testid="invoice-amount"]'), '1300')
+    await setField(await page.$('[data-testid="invoice-due"]'), '2030-01-31')
+    await pressSelector(page, press, '[data-testid="invoice-save"]')
+    await toast(page, dialog.saved)
+    await dialogClosed(page)
+    await dismissToasts(page)
+
+    await pressSelector(page, press, edit(number))
+    await page.waitForSelector('[data-testid="invoice-form"]')
+    await delay(400)
+    const kept = JSON.stringify(await invoiceLines(page))
+    const typed = JSON.stringify([
+      ['Workshop follow-up', '1250.00'],
+      ['Workshop follow-up II', '50.00'],
+    ])
+    if (kept !== typed) throw new Error(`a due date change left the lines ${kept}, not ${typed}`)
+    await typeInvoiceLine(page, 1, 'Workshop follow-up II', '100')
     await inspect?.('edit an invoice')
     await shoot('invoice-edit')
     await pressSelector(page, press, '[data-testid="invoice-save"]')
@@ -1246,6 +1275,23 @@ async function runFinished(page) {
  * the month folder is not, so the flow makes it on request. A re-export then finds the folders
  * without asking. With a workbook kept in this browser the PDF is saved through the browser.
  */
+/** A link such as the chat's, followed from another screen, opens a made-up invoice's re-export with its number filled in, then the flow goes back to the invoices. */
+async function reexportLinkOpensFilled(page, words, shoot) {
+  const number = '1-1-26'
+  await goTo(page, '#/company/owner?tab=owed', words.pack.screens.owner)
+  await goToRoute(page, `#/company/invoicing?tab=invoices&reexport=${encodeURIComponent(`invoice:${JSON.stringify(['northwind', number])}`)}`, '[data-testid="invoice-run-number"]')
+  await waitForRunStage(page, '[data-testid="invoice-lines"]')
+  const shown = await page.$eval('[data-testid="invoice-run-number"]', (input) => input.value)
+  if (shown !== number) throw new Error(`the reexport link opened the run with the number "${shown}", not ${number}`)
+  const lines = await page.$$('[data-testid="invoice-line"]')
+  if (lines.length === 0) throw new Error('the reexport link opened the run without the invoice lines')
+  await shoot('invoice-reexport-link')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[data-testid="invoice-run"]')
+  await goToRoute(page, '#/company/invoicing?p=all', '[data-testid="invoice-make"]')
+  await delay(300)
+}
+
 export function invoiceRunFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -1259,6 +1305,7 @@ export function invoiceRunFlowIn(language) {
     }
     page.on('dialog', answer)
     try {
+      await reexportLinkOpensFilled(page, words, shoot)
       await pressSelector(page, press, '[data-testid="invoice-make"]')
       await waitForRunStage(page, '[data-testid="invoice-lines"]')
       const number = await page.$eval('[data-testid="invoice-run-number"]', (input) => input.value)
@@ -1288,6 +1335,7 @@ export function invoiceRunFlowIn(language) {
       await delay(400)
       await pressSelector(page, press, '[data-testid="invoice-reexport"]')
       await waitForRunStage(page, '[data-testid="invoice-lines"]')
+      await shoot('invoice-reexport-lines')
       await pressSelector(page, press, '[data-testid="invoice-run-check"]')
       await waitForRunStage(page, '[data-testid="invoice-run-ready"]')
       await pressSelector(page, press, '[data-testid="invoice-run-make"]')

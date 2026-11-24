@@ -9,6 +9,8 @@ import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/sto
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { keyedId, optionalPeriod, refusalOr, refuse, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { linesOfText, registerLinesProblems, textOfLines } from '../../invoicing/domain/invoiceLine'
+import { lineProblemsInWords } from '../../invoicing/domain/words'
 import type { Invoice } from './workbook'
 import { words } from './words'
 
@@ -27,7 +29,10 @@ export function invoiceNumberOf(id: RecordId): string {
   return Array.isArray(key) && typeof key[1] === 'string' ? key[1] : keyOfRecordId(INVOICE_RECORDS, id)
 }
 
-/** An invoice needs its number, client, amount and issue date. A delivery period that cannot be read leaves the issue date standing for it. */
+/**
+ * An invoice needs its number, client, amount and issue date. A delivery period that cannot be read leaves the issue date standing for
+ * it, and lines that do not read or do not add up to the amount leave the invoice without lines.
+ */
 export function invoiceOf(fields: StoredFields, id: RecordId | null): Invoice {
   const number = textOf(fields.number)
   if (number === '') {
@@ -41,12 +46,13 @@ export function invoiceOf(fields: StoredFields, id: RecordId | null): Invoice {
   const issued = fields.issued?.date ?? refuse(words.invoices.issuedNotADate(textOf(fields.issued)))
   const due = fields.due === undefined ? null : (fields.due.date ?? refuse(words.invoices.dueNotADate(fields.due.text)))
   const period = deliveryPeriodOf(fields)
-  const planItems = textOf(fields.plan_items)
+  const lines = textOf(fields.lines)
+  const kept = lines === '' || registerLinesProblems(lines, amount).length > 0 ? null : linesOfText(lines)
   return {
     number,
     client,
     item: textOf(fields.item),
-    ...(planItems === '' ? {} : { planItems }),
+    ...(kept === null ? {} : { lines: kept }),
     amount,
     issued,
     due,
@@ -69,7 +75,7 @@ export const INVOICE_CODEC: RecordCodec<Invoice> = {
       number: invoice.number,
       client: invoice.client,
       item: invoice.item,
-      plan_items: invoice.planItems,
+      lines: invoice.lines === undefined ? undefined : textOfLines(invoice.lines),
       amount: amountText(invoice.amount),
       issued: invoice.issued,
       due: invoice.due,
@@ -84,8 +90,8 @@ function deliveryPeriodOf(fields: StoredFields) {
 
 /**
  * A number used twice for one client leaves out every record of it, since the matching would count
- * the invoice twice. A client the clients tab lacks and a delivery period that cannot be read are
- * reported, and the invoice kept.
+ * the invoice twice. A client the clients tab lacks, a delivery period that cannot be read and lines
+ * that do not add up to the amount are reported, and the invoice kept.
  */
 export function readInvoices(read: RecordsRead<Invoice>, clientSlugs: ReadonlySet<string>): Reading<Invoice> {
   const keyOf = (invoice: Invoice): string => `${invoice.client} ${invoice.number}`
@@ -107,6 +113,10 @@ export function readInvoices(read: RecordsRead<Invoice>, clientSlugs: ReadonlySe
     const period = deliveryPeriodOf(stored.fields)
     if ('refused' in period) {
       problems.push(problemOf(stored, words.invoices.periodUnread(period.refused)))
+    }
+    const lines = registerLinesProblems(textOf(stored.fields.lines), invoice.amount)
+    if (lines.length > 0) {
+      problems.push(problemOf(stored, words.invoices.badLines(lineProblemsInWords(lines).join(' '))))
     }
     invoices.push(invoice)
   }

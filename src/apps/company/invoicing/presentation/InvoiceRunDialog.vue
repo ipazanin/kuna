@@ -34,9 +34,14 @@ const fileRefused = computed(() => store.savedByNewerApp())
 const run = useInvoiceRun(toRef(props, 'mode'))
 const { stage, steps } = run
 
-watch(open, (opening) => {
-  if (opening) run.reset()
-})
+/** The form starts over as the dialog opens, also when a link such as the chat's mounts it already open. */
+watch(
+  open,
+  (opening) => {
+    if (opening) run.reset()
+  },
+  { immediate: true },
+)
 onBeforeUnmount(run.dispose)
 
 const reexport = computed(() => props.mode.kind === 'reexport')
@@ -143,7 +148,16 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           </UFormField>
         </FormGrid>
 
-        <InvoiceLinesEditor v-model:lines="run.lines.value" :total="run.total.value" :disabled="!editable" :templated="run.templated.value" @plan="run.fillLines()" @merge="run.mergeLines()" />
+        <InvoiceLinesEditor
+          v-model:lines="run.lines.value"
+          :total="run.total.value"
+          :disabled="!editable"
+          planned
+          :templated="run.templated.value"
+          :reexport="reexport"
+          @plan="run.fillLines()"
+          @merge="run.mergeLines()"
+        />
 
         <div class="flex flex-col gap-2 type-body">
           <p class="text-toned" data-testid="invoice-run-where">{{ where }}</p>

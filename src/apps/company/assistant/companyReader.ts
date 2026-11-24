@@ -52,6 +52,7 @@ import { ruleConditionValues } from './ruleConditionFields'
 import type { RuleConditionValues } from './ruleConditionFields'
 import { words } from './words'
 import { lineWithItems } from '../invoicing/domain/invoiceLines'
+import { amountText } from '../../../shared/storage/domain/recordFields'
 import { installedPack } from '../packs/packContribution'
 
 /** What the reader reads from, which `app.ts` hands in over the company's store, so this folder holds no store. */
@@ -208,7 +209,8 @@ interface InvoiceView {
   readonly number: string
   readonly client: string
   readonly item: string
-  readonly planItems: string
+  readonly lines: readonly string[]
+  readonly lineAmounts: readonly string[]
   readonly amount: Money
   readonly issued: string
   readonly due: string
@@ -377,7 +379,11 @@ const INVOICE_FIELDS: FieldDocs<InvoiceView> = {
   number: { exposure: 'plain', meaning: 'Its number.' },
   client: { exposure: 'ref', to: CLIENT_RECORDS.name, meaning: 'The client it was issued to.' },
   item: { exposure: 'free-text', meaning: 'What it bills.' },
-  planItems: { exposure: 'free-text', meaning: 'Each line of the invoice with the billing plan items it summed in brackets, or empty.' },
+  lines: {
+    exposure: 'free-text',
+    meaning: 'The lines the client read, in order, each its text and in brackets the billing plan items it summed. Empty for a row that keeps no lines, which bills its item at its amount.',
+  },
+  lineAmounts: { exposure: 'plain', meaning: "Each line's amount, in the order of lines, as decimal text in the app's currency. They add up to amount." },
   amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'Its total.' },
   issued: { exposure: 'plain', meaning: 'The day it was issued.' },
   due: { exposure: 'plain', meaning: 'The day it is due, or empty.' },
@@ -734,7 +740,8 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
               number: invoice.number,
               client: invoice.client,
               item: invoice.item,
-              planItems: invoice.planItems ?? '',
+              lines: (invoice.lines ?? []).map((line) => lineWithItems(line.description, line.items)),
+              lineAmounts: (invoice.lines ?? []).map((line) => amountText(line.amount)),
               amount: invoice.amount,
               issued: invoice.issued,
               due: invoice.due ?? '',

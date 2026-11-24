@@ -132,8 +132,8 @@
  * On Owner, Taken, at 360, 430 and 1440 px, the monthly net with the profit included opens its build-up and
  * Year from it in the workbook kept in this browser, and reads – with a link to the setting in the fake file on Drive.
  * On Year a link to the Statements tab alone keeps the year it opened through two tabs and Back.
- * It also makes an invoice through the checks and every step, with the fake Picker picking the
- * invoice and year folders and the month folder made on request, then re-exports it.
+ * It also opens an invoice's re-export from a link with its number filled in, makes an invoice through the checks and every step,
+ * with the fake Picker picking the invoice and year folders and the month folder made on request, then re-exports it.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
  * adds the starting scenarios to a workbook without any. On the sample Investments file it adds a buy, reads its summary, changes it, deletes it and
  * brings it back with Undo, has a sale beyond what its account holds refused, and adds a holding from inside the transaction dialog with a price

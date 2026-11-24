@@ -8,6 +8,7 @@ import type { Money } from '../../../../shared/money/money'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import type { OwnerPart, OwnerPartOf } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
+import type { InvoiceLine } from '../../invoicing/domain/invoiceLine'
 import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
 import type { Rule } from '../../../../shared/categorising/domain/rule'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
@@ -131,9 +132,10 @@ export interface Invoice {
   readonly number: string
   /** The client slug, as the `clients` tab names it. */
   readonly client: string
+  /** The texts of its lines joined by `; `, or what was invoiced on a row that keeps no lines. */
   readonly item: string
-  /** Each line of the invoice with the plan items it summed, such as `Software development (Development); Maintenance (Hosting, Support)`. Absent when no line summed one. */
-  readonly planItems?: string
+  /** The lines the client read, which add up to the amount. Absent on a row that keeps none, such as one typed in the sheet. */
+  readonly lines?: readonly InvoiceLine[]
   readonly amount: Money
   readonly issued: CivilDate
   /** Null when the tab leaves it blank. */

@@ -216,12 +216,14 @@ describe('the invoices tab', () => {
   it('uses each number once, whatever the client, and takes an amount above zero', () => {
     const untouched = [{ number: '1-1-26' }]
 
-    expect(invoiceChangeRefusals([{ before: null, after: { number: '2-1-26', amount: 4200 } }], untouched)).toEqual([])
-    expect(invoiceChangeRefusals([{ before: null, after: { number: ' 1-1-26 ', amount: 4200 } }], untouched)).toEqual(['Invoice 1-1-26 is already on the invoices tab, and each number is used once.'])
-    expect(invoiceChangeRefusals([{ before: { number: '2-1-26', amount: 10 }, after: { number: '2-1-26', amount: -10 } }], untouched)).toEqual([
+    expect(invoiceChangeRefusals([{ before: null, after: { number: '2-1-26', amount: 4200, lines: '' } }], untouched)).toEqual([])
+    expect(invoiceChangeRefusals([{ before: null, after: { number: ' 1-1-26 ', amount: 4200, lines: '' } }], untouched)).toEqual([
+      'Invoice 1-1-26 is already on the invoices tab, and each number is used once.',
+    ])
+    expect(invoiceChangeRefusals([{ before: { number: '2-1-26', amount: 10, lines: '' }, after: { number: '2-1-26', amount: -10, lines: '' } }], untouched)).toEqual([
       'Invoice 2-1-26 is for -10, and an invoice is for an amount above zero.',
     ])
-    expect(invoiceChangeRefusals([{ before: { number: '1-1-26', amount: 10 }, after: { number: '1-1-26', amount: 20 } }], [])).toEqual([])
+    expect(invoiceChangeRefusals([{ before: { number: '1-1-26', amount: 10, lines: '' }, after: { number: '1-1-26', amount: 20, lines: '' } }], [])).toEqual([])
   })
 
   it('starts a new invoice due a month later, for the month it is issued in', () => {

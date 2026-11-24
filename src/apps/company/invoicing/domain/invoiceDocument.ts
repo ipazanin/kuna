@@ -3,9 +3,9 @@ import type { DateRange } from '../../../../shared/calendar/dateRange'
 import type { Money } from '../../../../shared/money/money'
 import type { InvoicingTerms } from '../../settings/domain/settings'
 import type { Client } from '../../workbook/domain/workbook'
-import { lineProblems } from './invoiceLines'
-import type { InvoiceLine } from './invoiceLines'
-import { words } from './words'
+import { lineProblems } from './invoiceLine'
+import type { InvoiceLine } from './invoiceLine'
+import { lineProblemsInWords, words } from './words'
 
 /** Who the invoice is for, as it prints them. */
 export interface InvoiceRecipient {
@@ -62,6 +62,6 @@ export function invoiceProblems(issuer: InvoicingTerms, client: Client | null, l
       problems.push(words.reverseChargeOnly(client.name || client.slug))
     }
   }
-  problems.push(...lineProblems(lines))
+  problems.push(...lineProblemsInWords(lineProblems(lines)))
   return problems
 }
