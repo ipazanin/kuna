@@ -6,7 +6,7 @@ import type { MailReader } from '../../workbook/domain/mailReader'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, addDecimal, magnitude, negateDecimal, roundedDecimal, subtractDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, addDecimal, magnitude, negateDecimal, subtractDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import type { Recipe } from '../../../../shared/recipes/domain/recipe'
 import type { AskedRow, RecipeRow, RecipeRun } from '../../../../shared/recipes/domain/runRecipe'
@@ -17,16 +17,10 @@ export interface ReportFile {
   readonly run: Extract<RecipeRun, { kind: 'read' }>
 }
 
-const CENT_PLACES = 2
-
-function cents(amount: Decimal | null | undefined): Decimal | null {
-  return amount === null || amount === undefined ? null : roundedDecimal(amount, CENT_PLACES)
-}
-
 type UnnumberedRow = Omit<WorkbookRow, 'fileRow'>
 
 function rowOf(recipe: Recipe, row: RecipeRow, fileName: string, type: WorkbookType, date: CivilDate): UnnumberedRow {
-  const amount = cents(row.decimals.amount)
+  const amount = row.decimals.amount ?? null
   return {
     date,
     time: row.texts.time ?? '',
@@ -41,7 +35,7 @@ function rowOf(recipe: Recipe, row: RecipeRow, fileName: string, type: WorkbookT
     currency: row.currencies.currency ?? null,
     gross: type === 'DIVIDEND' || type === 'INTEREST' ? amount : null,
     commission: null,
-    netCash: cents(row.decimals.netCash) ?? (type === 'DIVIDEND' || type === 'INTEREST' ? null : amount),
+    netCash: row.decimals.netCash ?? (type === 'DIVIDEND' || type === 'INTEREST' ? null : amount),
     counterCurrency: null,
     counterAmount: null,
     revolutRate: null,
@@ -82,7 +76,7 @@ function commissionFee(trade: UnnumberedRow, commission: Decimal, currency: Curr
 
 /** A buy or a sale: a commission in its own currency is inside its net cash, and one in another is a fee of its own. */
 function tradeRows(row: RecipeRow, base: UnnumberedRow): UnnumberedRow[] {
-  const commission = cents(magnitude(row.decimals.commission ?? DECIMAL_ZERO))!
+  const commission = magnitude(row.decimals.commission ?? DECIMAL_ZERO)
   const currency = row.currencies.commissionCurrency ?? base.currency
   if (commission === DECIMAL_ZERO || currency === base.currency || currency === null) {
     return [{ ...base, commission: commission === DECIMAL_ZERO ? null : commission }]
@@ -91,17 +85,18 @@ function tradeRows(row: RecipeRow, base: UnnumberedRow): UnnumberedRow[] {
 }
 
 /**
- * A conversion's net cash is the leg in the row's currency, and its quantity the leg in the other. A commission in the row's
- * currency is inside its net cash, one in the other currency comes off that leg, and one in a third is a fee of its own.
+ * A conversion's proceeds are the leg in the row's currency and its quantity the leg in the other, since IBKR leaves its
+ * net cash at zero. A commission comes off the leg in its currency, and one in a third currency is a fee of its own.
  */
 function exchangeRows(row: RecipeRow, base: UnnumberedRow): UnnumberedRow[] {
   const quantity = row.decimals.quantity!
+  const proceeds = row.decimals.proceeds!
   const counterCurrency = row.currencies.counterCurrency ?? null
-  const commission = cents(magnitude(row.decimals.commission ?? DECIMAL_ZERO))!
+  const commission = magnitude(row.decimals.commission ?? DECIMAL_ZERO)
   const currency = row.currencies.commissionCurrency ?? base.currency
-  const counterBooked =
-    commission !== DECIMAL_ZERO && currency === counterCurrency ? (quantity > DECIMAL_ZERO ? subtractDecimal(quantity, commission) : addDecimal(magnitude(quantity), commission)) : magnitude(quantity)
-  const exchange = { ...base, quantity: null, price: null, counterCurrency, counterAmount: cents(magnitude(counterBooked)) }
+  const booked = currency === base.currency ? subtractDecimal(proceeds, commission) : proceeds
+  const counterBooked = currency === counterCurrency ? (quantity > DECIMAL_ZERO ? subtractDecimal(quantity, commission) : addDecimal(magnitude(quantity), commission)) : magnitude(quantity)
+  const exchange = { ...base, quantity: null, price: null, netCash: booked, counterCurrency, counterAmount: counterBooked }
   if (commission === DECIMAL_ZERO) return [exchange]
   if (currency === base.currency || currency === counterCurrency) return [{ ...exchange, commission, commissionCurrency: currency }]
   return currency === null ? [exchange] : [exchange, commissionFee(exchange, commission, currency)]
@@ -132,8 +127,8 @@ export type ReportSource = { readonly kind: 'mailed'; readonly since: CivilDate 
  * before its start day. Files overlap, so a row is kept once by its key, as the newest file writes it. A row a later file
  * writes differently is asked about, since one of the two is wrong and the report does not say which. A question names no
  * account, so a mailed one dated before the earliest start day is left out, and so is a question the person said to stop
- * asking. Each file's asked rows come with it, and the amounts are rounded to the cent, without listing each as rounded,
- * since a broker's fractions of a cent are the usual thing.
+ * asking. Each file's asked rows come with it. The amounts are the report's own, fractions of a cent included, so the
+ * account's cash follows the broker's to the last decimal it gives.
  */
 export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader: Pick<MailReader, 'leftOut'>, source: ReportSource): WorkbookRows {
   const rows = new Map<string, UnnumberedRow>()

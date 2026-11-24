@@ -24,6 +24,7 @@ const TRADE_FIELDS = [
   'buySell',
   'quantity',
   'tradePrice',
+  'tradeMoney',
   'proceeds',
   'ibCommission',
   'ibCommissionCurrency',
@@ -36,6 +37,7 @@ const CASH_FIELDS = [
   'accountId',
   'transactionID',
   'actionID',
+  'levelOfDetail',
   'type',
   'dividendType',
   'assetCategory',
@@ -50,7 +52,8 @@ const CASH_FIELDS = [
   'amount',
 ]
 
-type Fields = Readonly<Record<string, string>>
+/** A row's values by field name. */
+export type Fields = Readonly<Record<string, string>>
 
 /** An element with every field its section gives, blank where the row has no value, as the report writes it. */
 function element(name: string, fields: readonly string[], values: Fields): string {
@@ -62,7 +65,7 @@ function trade(values: Fields): string {
 }
 
 function cash(values: Fields): string {
-  return element('CashTransaction', CASH_FIELDS, { accountId: ACCOUNT, ...values })
+  return element('CashTransaction', CASH_FIELDS, { accountId: ACCOUNT, levelOfDetail: 'DETAIL', ...values })
 }
 
 function compact(day: CivilDate): string {
@@ -131,6 +134,7 @@ function tradeRows(day: CivilDate): readonly string[] {
       netCash: '55',
       notes: '',
     }),
+    // A conversion as IBKR sends it, with its net cash at zero and its legs in the quantity and the proceeds.
     trade({
       transactionID: `90${date}03`,
       tradeID: `70${date}03`,
@@ -142,10 +146,12 @@ function tradeRows(day: CivilDate): readonly string[] {
       buySell: 'BUY',
       quantity: '500',
       tradePrice: '1.1',
+      tradeMoney: '550',
       proceeds: '-550',
-      ibCommission: '-2',
-      ibCommissionCurrency: 'USD',
-      netCash: '-552',
+      ibCommission: '0',
+      ibCommissionCurrency: 'EUR',
+      taxes: '0',
+      netCash: '0',
       notes: 'AFx',
     }),
   ]
@@ -233,20 +239,36 @@ function unseenRows(day: CivilDate): { readonly trades: readonly string[]; reado
 
 export type SampleFlexShape = 'plain' | 'unseen' | 'no-trades-section' | 'no-transaction-id'
 
+type Statement = { readonly trades: readonly string[] | null; readonly cash: readonly string[]; readonly taxes: string; readonly actions: string; readonly transfers: string }
+
+function reportOf(days: readonly CivilDate[], statement: Statement): string {
+  const sections = [
+    statement.trades === null ? '' : `<Trades>${statement.trades.join('')}</Trades>`,
+    `<TransactionTaxes>${statement.taxes}</TransactionTaxes>`,
+    `<CorporateActions>${statement.actions}</CorporateActions>`,
+    `<CashTransactions>${statement.cash.join('')}</CashTransactions>`,
+    `<Transfers>${statement.transfers}</Transfers>`,
+  ].join('')
+  return `<?xml version="1.0" encoding="UTF-8"?><FlexQueryResponse queryName="Made up" type="AF"><FlexStatements count="1"><FlexStatement accountId="${ACCOUNT}" fromDate="${compact(days[0]!)}" toDate="${compact(days.at(-1)!)}" period="Last7CalendarDays" whenGenerated="20260101;010000">${sections}</FlexStatement></FlexStatements></FlexQueryResponse>`
+}
+
 /**
  * A made-up Activity Flex report over the days given, with every section the real one has, empty ones included.
  * `unseen` adds rows of kinds no real report has shown yet. The last two no longer fit the recipe.
  */
 export function sampleFlexReport(days: readonly CivilDate[], shape: SampleFlexShape = 'plain'): string {
   const unseen = shape === 'unseen' && days[0] !== undefined ? unseenRows(days[0]) : null
-  const trades = `<Trades>${[...days.flatMap(tradeRows), ...(unseen?.trades ?? [])].join('')}</Trades>`
-  const statement = [
-    shape === 'no-trades-section' ? '' : trades,
-    `<TransactionTaxes>${unseen?.taxes ?? ''}</TransactionTaxes>`,
-    `<CorporateActions>${unseen?.actions ?? ''}</CorporateActions>`,
-    `<CashTransactions>${[...days.flatMap(cashRows), ...(unseen?.cash ?? [])].join('')}</CashTransactions>`,
-    `<Transfers>${unseen?.transfers ?? ''}</Transfers>`,
-  ].join('')
-  const xml = `<?xml version="1.0" encoding="UTF-8"?><FlexQueryResponse queryName="Made up" type="AF"><FlexStatements count="1"><FlexStatement accountId="${ACCOUNT}" fromDate="${compact(days[0]!)}" toDate="${compact(days.at(-1)!)}" period="Last7CalendarDays" whenGenerated="20260101;010000">${statement}</FlexStatement></FlexStatements></FlexQueryResponse>`
+  const xml = reportOf(days, {
+    trades: shape === 'no-trades-section' ? null : [...days.flatMap(tradeRows), ...(unseen?.trades ?? [])],
+    cash: [...days.flatMap(cashRows), ...(unseen?.cash ?? [])],
+    taxes: unseen?.taxes ?? '',
+    actions: unseen?.actions ?? '',
+    transfers: unseen?.transfers ?? '',
+  })
   return shape === 'no-transaction-id' ? xml.replace(/ transactionID="[^"]*"/g, '') : xml
+}
+
+/** A made-up report of one day with only the rows given, each over its section's account and level of detail. */
+export function flexReportOf(day: CivilDate, rows: { readonly trades?: readonly Fields[]; readonly cash?: readonly Fields[] }): string {
+  return reportOf([day], { trades: (rows.trades ?? []).map(trade), cash: (rows.cash ?? []).map(cash), taxes: '', actions: '', transfers: '' })
 }

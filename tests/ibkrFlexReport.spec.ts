@@ -9,17 +9,17 @@ import { readMailReports } from '../src/apps/investments/mail/application/mailRe
 import { IBKR_FLEX_RECIPE } from '../src/apps/investments/mail/domain/ibkrFlexRecipe'
 import { newestReportDay, reportNews } from '../src/apps/investments/mail/domain/mailReview'
 import { reportRows } from '../src/apps/investments/mail/domain/reportRows'
-import { sampleFlexReport } from '../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
-import type { SampleFlexShape } from '../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
+import { flexReportOf, sampleFlexReport } from '../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
+import type { Fields, SampleFlexShape } from '../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
 import { WORKBOOK_TYPES } from '../src/apps/investments/imports/domain/portfolioWorkbook'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { EURO } from '../src/shared/money/currencyCode'
-import { decimalOfText } from '../src/shared/money/decimal'
+import { decimalOfText, decimalText } from '../src/shared/money/decimal'
 import type { Decimal } from '../src/shared/money/decimal'
 import { runRecipe } from '../src/shared/recipes/domain/runRecipe'
 import { fileNameFits, readRecipeFile } from '../src/shared/recipes/infrastructure/recipeFile'
-import { USD, account, book, instrument, rateBookOf, trade } from './fixtures/investments'
+import { GBP, USD, account, book, exchange, instrument, rateBookOf, trade } from './fixtures/investments'
 import { testMailbox } from './fixtures/mailbox'
 
 const DAY = parseCivilDate('2026-10-05')!
@@ -29,7 +29,12 @@ const MAILED = { kind: 'mailed', since: SINCE } as const
 const ACCOUNT = account('kuna-ibkr', 'Kuna IBKR', [{ source: 'mail', from: SINCE }])
 const ABC = instrument('abc', { name: 'Example Tech', isin: 'XX000000ABC1', currency: USD })
 const DEF = instrument('def', { name: 'Example Dividend Co', isin: 'US000000DEF2', currency: USD })
-const RATES = rateBookOf(new Map([[USD, [['2026-10-01', '1.10']]]]))
+const RATES = rateBookOf(
+  new Map([
+    [USD, [['2026-10-01', '1.10']]],
+    [GBP, [['2026-10-01', '0.87']]],
+  ]),
+)
 const EUR = EURO
 
 function decimal(text: string): Decimal {
@@ -37,7 +42,11 @@ function decimal(text: string): Decimal {
 }
 
 function fileOf(days: readonly CivilDate[], shape: SampleFlexShape = 'plain') {
-  const bytes = new TextEncoder().encode(sampleFlexReport(days, shape)).buffer as ArrayBuffer
+  return fileOfReport(sampleFlexReport(days, shape))
+}
+
+function fileOfReport(report: string) {
+  const bytes = new TextEncoder().encode(report).buffer as ArrayBuffer
   const read = readRecipeFile(IBKR_FLEX_RECIPE, bytes)
   if (read.kind !== 'read') throw new Error(`It did not read: ${read.misfit.kind}`)
   const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
@@ -48,6 +57,14 @@ function fileOf(days: readonly CivilDate[], shape: SampleFlexShape = 'plain') {
 function rowsOf(days: readonly CivilDate[] = [DAY], shape: SampleFlexShape = 'plain'): WorkbookRows {
   return reportRows(IBKR_FLEX_RECIPE, [fileOf(days, shape)], { leftOut: [] }, MAILED)
 }
+
+function rowsOfReport(report: string): WorkbookRows {
+  return reportRows(IBKR_FLEX_RECIPE, [fileOfReport(report)], { leftOut: [] }, MAILED)
+}
+
+const compactDay = DAY.replaceAll('-', '')
+
+const STOCK_BUY: Fields = { transactionID: '1', assetCategory: 'STK', symbol: 'ABC', isin: 'XX000000ABC1', currency: 'USD', dateTime: `${compactDay};103015`, buySell: 'BUY', taxes: '0', notes: '' }
 
 const ANSWERS: WorkbookAnswers = {
   ...NO_ANSWERS,
@@ -86,7 +103,16 @@ describe("IBKR's built-in recipe", () => {
   it('keeps a fractional quantity, and takes the fee from the net cash', () => {
     const records = recordsOf(workbookDryRun(rowsOf(), { book: kept(), rates: RATES, answers: ANSWERS }).entries)
     const buy = records.find((imported) => imported.kind === 'trade' && imported.record.side === 'buy')
-    expect(buy?.record).toMatchObject({ quantity: decimal('1.2345'), price: decimal('100.5'), fees: decimal('0.35'), date: DAY })
+    // The net cash of 124.41725 less the worth of 1.2345 x 100.5 = 124.06725 booked to the cent as 124.07.
+    expect(buy?.record).toMatchObject({ quantity: decimal('1.2345'), price: decimal('100.5'), fees: decimal('0.34725'), date: DAY })
+  })
+
+  it("keeps the report's amounts to the last decimal it gives", () => {
+    const commission = { ibCommission: '-5.001193617', ibCommissionCurrency: 'USD' }
+    const buy = { ...STOCK_BUY, quantity: '81', tradePrice: '122.6733', proceeds: '-9936.54', netCash: '-9941.541193617', ...commission }
+    const deposit = { transactionID: '2', type: 'Deposits/Withdrawals', currency: 'EUR', dateTime: compactDay, amount: '600.000001' }
+    const records = recordsOf(workbookDryRun(rowsOfReport(flexReportOf(DAY, { trades: [buy], cash: [deposit] })), { book: kept(), rates: RATES, answers: ANSWERS }).entries)
+    expect(records.map((imported) => imported.record)).toMatchObject([{ fees: decimal('5.001193617') }, { amount: decimal('600.000001') }])
   })
 
   it('books a commission in another currency as its own fee, leaving its trade to the cash it moved', () => {
@@ -106,15 +132,28 @@ describe("IBKR's built-in recipe", () => {
     ])
   })
 
-  it('books a CASH row with no ISIN as an exchange, each leg after fees', () => {
+  it('books a CASH row with no ISIN as an exchange from its quantity and proceeds, though its net cash is zero', () => {
     const records = recordsOf(workbookDryRun(rowsOf(), { book: kept(), rates: RATES, answers: ANSWERS }).entries)
     expect(records.find((imported) => imported.kind === 'exchange')?.record).toMatchObject({
-      sold: decimal('552'),
+      sold: decimal('550'),
       soldCurrency: USD,
       bought: decimal('500'),
       boughtCurrency: EUR,
-      fees: { amount: decimal('2'), currency: USD },
+      fees: null,
     })
+  })
+
+  it('keeps only the detail rows of cash transactions, so a summary row does not count a dividend twice', () => {
+    const dividend = { actionID: '5', assetCategory: 'STK', symbol: 'DEF', isin: 'US000000DEF2', currency: 'USD', dateTime: compactDay, settleDate: compactDay, type: 'Dividends', amount: '30' }
+    const rows = rowsOfReport(
+      flexReportOf(DAY, {
+        cash: [
+          { ...dividend, transactionID: '1' },
+          { ...dividend, transactionID: '2', levelOfDetail: 'SUMMARY' },
+        ],
+      }),
+    )
+    expect(rows.rows.map((row) => [row.type, row.gross])).toEqual([['DIVIDEND', decimal('30')]])
   })
 
   it('pairs withholding with its dividend by action id, keeping its ex date, pay date, country and type', () => {
@@ -170,6 +209,113 @@ describe("IBKR's built-in recipe", () => {
     const bytes = new TextEncoder().encode(sampleFlexReport([DAY], shape)).buffer as ArrayBuffer
     const read = readRecipeFile(IBKR_FLEX_RECIPE, bytes)
     expect(read.kind === 'read' && runRecipe(IBKR_FLEX_RECIPE, read.rows)).toEqual({ kind: 'misfit', misfit })
+  })
+})
+
+const CONVERSION: Fields = {
+  transactionID: '1',
+  assetCategory: 'CASH',
+  symbol: 'EUR.USD',
+  description: 'EUR.USD',
+  currency: 'USD',
+  dateTime: `${compactDay};062143`,
+  taxes: '0',
+  netCash: '0',
+  notes: '',
+}
+
+/** What a record of the conversion says, for reading a case at a glance. */
+function conversionOutcome(conversion: Fields): readonly string[] {
+  const rows = rowsOfReport(flexReportOf(DAY, { trades: [{ ...CONVERSION, ...conversion }] }))
+  const run = workbookDryRun(rows, { book: kept(), rates: RATES, answers: ANSWERS })
+  return [
+    ...recordsOf(run.entries).map((imported) => {
+      if (imported.kind === 'exchange') {
+        const { sold, soldCurrency, bought, boughtCurrency, fees } = imported.record
+        return `sold ${decimalText(sold)} ${soldCurrency}, bought ${decimalText(bought)} ${boughtCurrency}, fees ${fees === null ? 'none' : `${decimalText(fees.amount)} ${fees.currency}`}`
+      }
+      return imported.kind === 'cash-movement'
+        ? `${imported.record.kind} ${decimalText(imported.record.amount)} ${imported.record.currency} of ${imported.record.note.includes('EUR.USD') ? 'EUR.USD' : '?'}`
+        : imported.kind
+    }),
+    ...run.skipped.map((skip) => `skipped: ${skip.reason.kind}`),
+    ...(rows.report?.asked ?? []).map((asked) => `asked: ${asked.why.kind}`),
+  ]
+}
+
+describe('a conversion in the report', () => {
+  it.each<[string, Fields, readonly string[]]>([
+    [
+      'an AutoFX buy of euros, as IBKR sends it',
+      { buySell: 'BUY', quantity: '104.3', tradePrice: '1.09693', proceeds: '-114.409799', ibCommission: '0', ibCommissionCurrency: 'EUR', notes: 'AFx' },
+      ['sold 114.409799 USD, bought 104.3 EUR, fees none'],
+    ],
+    ['a sale of euros', { buySell: 'SELL', quantity: '-100', tradePrice: '1.1', proceeds: '110', ibCommission: '0', ibCommissionCurrency: 'EUR' }, ['sold 100 EUR, bought 110 USD, fees none']],
+    [
+      'a buy with its commission in euros, off the euros bought',
+      { buySell: 'BUY', quantity: '6530.48', tradePrice: '1.08095', proceeds: '-7059.122356', ibCommission: '-1.84926', ibCommissionCurrency: 'EUR' },
+      ['sold 7059.122356 USD, bought 6528.63074 EUR, fees 1.84926 EUR'],
+    ],
+    [
+      'a buy with its commission in dollars, on top of the dollars sold',
+      { buySell: 'BUY', quantity: '500', tradePrice: '1.1', proceeds: '-550', ibCommission: '-2', ibCommissionCurrency: 'USD' },
+      ['sold 552 USD, bought 500 EUR, fees 2 USD'],
+    ],
+    [
+      'a sale with its commission in euros, on top of the euros sold',
+      { buySell: 'SELL', quantity: '-500', tradePrice: '1.1', proceeds: '550', ibCommission: '-2', ibCommissionCurrency: 'EUR' },
+      ['sold 502 EUR, bought 550 USD, fees 2 EUR'],
+    ],
+    [
+      'a sale with its commission in dollars, off the dollars bought',
+      { buySell: 'SELL', quantity: '-500', tradePrice: '1.1', proceeds: '550', ibCommission: '-2', ibCommissionCurrency: 'USD' },
+      ['sold 500 EUR, bought 548 USD, fees 2 USD'],
+    ],
+    [
+      'a commission in a third currency, as a fee of its own',
+      { buySell: 'BUY', quantity: '500', tradePrice: '1.1', proceeds: '-550', ibCommission: '-1.5', ibCommissionCurrency: 'GBP' },
+      ['sold 550 USD, bought 500 EUR, fees none', 'fee 1.5 GBP of EUR.USD'],
+    ],
+    [
+      'dust IBKR converts after a trade, to its last decimal',
+      { buySell: 'BUY', quantity: '0.000932', tradePrice: '1.09712904', proceeds: '-0.001022524', ibCommission: '0', ibCommissionCurrency: 'EUR' },
+      ['sold 0.001022524 USD, bought 0.000932 EUR, fees none'],
+    ],
+    ['a conversion of nothing', { buySell: 'BUY', quantity: '0', tradePrice: '1.1', proceeds: '0', ibCommission: '0', ibCommissionCurrency: 'EUR' }, ['skipped: below-a-cent']],
+    [
+      'AutoFX on a partial fill',
+      { buySell: 'BUY', quantity: '10', tradePrice: '1.1', proceeds: '-11', ibCommission: '0', ibCommissionCurrency: 'EUR', notes: 'AFx;P' },
+      ['sold 11 USD, bought 10 EUR, fees none'],
+    ],
+    ['a cancelled conversion', { buySell: 'BUY', quantity: '10', tradePrice: '1.1', proceeds: '-11', ibCommission: '0', ibCommissionCurrency: 'EUR', notes: 'Ca' }, ['asked: no-kind']],
+  ])('%s', (_case, conversion, outcome) => {
+    expect(conversionOutcome(conversion)).toEqual(outcome)
+  })
+})
+
+describe("a report's fractions against a record kept to the cent", () => {
+  const AUTO_FX = { ...CONVERSION, buySell: 'BUY', quantity: '104.3', tradePrice: '1.09693', proceeds: '-114.409799', ibCommission: '0', ibCommissionCurrency: 'EUR', notes: 'AFx' }
+  const rows = () => rowsOfReport(flexReportOf(DAY, { trades: [AUTO_FX] }))
+
+  function withSold(planned: ReturnType<typeof kept>, sold: string) {
+    return { ...planned, exchanges: planned.exchanges.map((kept) => ({ ...kept, sold: decimal(sold) })) }
+  }
+
+  it.each([
+    ['114.41', 'in-kuna'],
+    ['114.409799', 'in-kuna'],
+    ['114.42', 'waiting'],
+    ['114.4098', 'waiting'],
+  ])('takes a record that sold %s USD as %s', (sold, outcome) => {
+    const planned = workbookDryRun(rows(), { book: kept(), rates: RATES, answers: ANSWERS }).planned
+    const again = workbookDryRun(rows(), { book: withSold(planned, sold), rates: RATES, answers: ANSWERS })
+    expect(again.entries.map((entry) => entry.outcome.kind)).toEqual([outcome])
+  })
+
+  it('asks whether a conversion typed by hand to the cent is the same one', () => {
+    const typed = { ...kept(), exchanges: [exchange(ACCOUNT, DAY, '114.41', USD, '104.30', EUR)] }
+    const run = workbookDryRun(rows(), { book: typed, rates: RATES, answers: ANSWERS })
+    expect(run.entries.map((entry) => entry.outcome)).toMatchObject([{ kind: 'waiting', reason: { kind: 'looks-in-kuna' } }])
   })
 })
 

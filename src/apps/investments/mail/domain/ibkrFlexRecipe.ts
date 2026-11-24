@@ -24,9 +24,10 @@ const WHAT_A_HOLDING_NAMES: RecipeFields = {
   name: { from: 'description', as: 'text', blank: true },
 }
 
-/** A buy or a sale names its holding and the day IBKR means to settle it, which a sale's tax is of. */
+/** A buy or a sale names its holding, the cash it moved with its commission and taxes, and the day IBKR means to settle it, which a sale's tax is of. */
 const WHAT_A_TRADE_NAMES: RecipeFields = {
   ...WHAT_A_HOLDING_NAMES,
+  netCash: { from: 'netCash', as: 'decimal' },
   settles: { from: 'settleDateTarget', as: 'date', formats: DATE_FORMATS, blank: true },
 }
 
@@ -45,12 +46,11 @@ export const IBKR_FLEX_RECIPE: Recipe<XmlFile> = {
       name: 'Trades',
       rows: 'Trades/Trade',
       keep: [{ column: 'levelOfDetail', is: ['EXECUTION'] }],
-      shown: ['dateTime', 'assetCategory', 'buySell', 'symbol', 'description', 'quantity', 'tradePrice', 'currency', 'netCash', 'notes', 'origTradeID'],
+      shown: ['dateTime', 'assetCategory', 'buySell', 'symbol', 'description', 'quantity', 'tradePrice', 'currency', 'proceeds', 'netCash', 'notes', 'origTradeID'],
       fields: {
         ...WHAT_EVERY_ROW_NAMES,
         quantity: { from: 'quantity', as: 'decimal' },
         price: { from: 'tradePrice', as: 'decimal' },
-        netCash: { from: 'netCash', as: 'decimal' },
         commission: { from: 'ibCommission', as: 'decimal', blank: true },
         commissionCurrency: { from: 'ibCommissionCurrency', as: 'currency', blank: true },
       },
@@ -60,15 +60,19 @@ export const IBKR_FLEX_RECIPE: Recipe<XmlFile> = {
         {
           kind: 'FX',
           when: [{ column: 'assetCategory', is: ['CASH'] }, { column: 'buySell', is: ['BUY', 'SELL'] }, PLAIN_NOTES],
-          // The symbol of a conversion names both currencies, such as EUR.USD, and its quantity is in the first.
-          fields: { counterCurrency: { from: 'symbol', as: 'currency', part: { separator: '.', at: 0 } } },
+          // The symbol of a conversion names both currencies, such as EUR.USD. Its quantity is in the first and its proceeds in the row's currency, since IBKR leaves its net cash at zero.
+          fields: {
+            counterCurrency: { from: 'symbol', as: 'currency', part: { separator: '.', at: 0 } },
+            proceeds: { from: 'proceeds', as: 'decimal' },
+            symbol: { from: 'symbol', as: 'text' },
+          },
         },
       ],
     },
     {
       name: 'Cash Transactions',
       rows: 'CashTransactions/CashTransaction',
-      keep: [],
+      keep: [{ column: 'levelOfDetail', is: ['DETAIL'] }],
       shown: ['dateTime', 'type', 'symbol', 'description', 'amount', 'currency', 'actionID'],
       fields: { ...WHAT_EVERY_ROW_NAMES, amount: { from: 'amount', as: 'decimal' } },
       kinds: [

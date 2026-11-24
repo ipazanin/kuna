@@ -2,7 +2,7 @@ import { accountSources } from './accountIntake'
 import { goneRecords } from './goneRecords'
 import type { ImportedRecord } from './importedRecords'
 import { accountsOfReportScope, importedByKey, knownAccountsOf, knownInstrumentsOf, matchedWithKey, withMatchedKeys } from './importKeys'
-import { likelyAccounts, lookAlikesOffered, lostWorkbookKey, recordLike } from './lookAlikes'
+import { likelyAccounts, lookAlikesOffered, lostWorkbookKey, recordLike, sameAmount } from './lookAlikes'
 import type { RoundedCell, SkipReason, SkippedRow, WorkbookColumn, WorkbookRow, WorkbookType } from './portfolioWorkbook'
 import { bookingKey } from './reportKey'
 import { isIncomeReversal, isWithheldRefund, workbookEntries } from './workbookEntries'
@@ -298,9 +298,9 @@ export interface WorkbookRows {
 }
 
 const CENT = decimalOfText('0.01')!
-/** Fees worked out from a net cash are rounded to cents, as the reader rounds every amount. */
+/** A trade's worth is booked to the cent, as `tradeTotal` moves it, so its fees take the rest of its net cash. */
 const CENT_PLACES = 2
-/** A net cash is itself rounded to the cent. */
+/** A net cash may itself be rounded to the cent. */
 const HALF_CENT = decimalOfText('0.005')!
 const ONE = decimalOfText('1')!
 /** How close a ratio of units has to come to whole numbers to be proposed as a split. */
@@ -571,34 +571,40 @@ interface Mapping {
   readonly instruments: readonly Instrument[]
 }
 
-/** Whether the record a report's row would make now differs in its figures from the one Kuna has. A row that cannot make a record yet says nothing. */
+/**
+ * Whether the record a report's row would make now differs in its figures from the one Kuna has. Units and prices have to
+ * be equal, and amounts the same by `sameAmount`, so a record kept to the cent does not differ from the report's fractions.
+ * A row that cannot make a record yet says nothing.
+ */
 function differsFromKuna(entry: RowEntry, kept: ImportedRecord, mapping: Mapping): boolean {
   try {
-    const now = recordOf(entry, mapping)
-    return JSON.stringify(figuresOf(now), bigintText) !== JSON.stringify(figuresOf(kept), bigintText)
+    const now = figuresOf(recordOf(entry, mapping))
+    const before = figuresOf(kept)
+    return (
+      now.units.length !== before.units.length ||
+      now.amounts.length !== before.amounts.length ||
+      now.units.some((units, at) => units !== before.units[at]) ||
+      now.amounts.some((amount, at) => !sameAmount(amount, before.amounts[at]!))
+    )
   } catch (failure) {
     if (failure instanceof EntryWaits || failure instanceof EntrySkipped) return false
     throw failure
   }
 }
 
-function bigintText(_key: string, value: unknown): unknown {
-  return typeof value === 'bigint' ? value.toString() : value
-}
-
-/** The amounts of a record a report can change. */
-function figuresOf(imported: ImportedRecord): readonly unknown[] {
+/** The units, prices and amounts of a record a report can change. */
+function figuresOf(imported: ImportedRecord): { readonly units: readonly Decimal[]; readonly amounts: readonly Decimal[] } {
   switch (imported.kind) {
     case 'trade':
-      return [imported.record.quantity, imported.record.price]
+      return { units: [imported.record.quantity, imported.record.price], amounts: [] }
     case 'income':
-      return [imported.record.gross, imported.record.withheld]
+      return { units: [], amounts: [imported.record.gross, imported.record.withheld] }
     case 'cash-movement':
-      return [imported.record.amount]
+      return { units: [], amounts: [imported.record.amount] }
     case 'exchange':
-      return [imported.record.sold, imported.record.bought]
+      return { units: [], amounts: [imported.record.sold, imported.record.bought] }
     default:
-      return []
+      return { units: [], amounts: [] }
   }
 }
 
@@ -860,7 +866,8 @@ function cashMovementOf(row: WorkbookRow, kind: CashMovementKind, key: string, m
 
 /**
  * The net cash is one leg and the FX counter amount the other, each after fees. The Commission cell is the exchange's
- * fee in euros. A leg that the reader's rounding to the cent left at zero is a conversion of dust, which is skipped.
+ * fee in euros. A report's conversion of dust keeps its fractions of a cent and is booked. A leg at zero, such as one a
+ * workbook's rounding to the cent left there, is skipped.
  */
 function exchangeOf(row: WorkbookRow, key: string, mapping: Mapping): Exchange {
   const net = required(row, 'netCash')
