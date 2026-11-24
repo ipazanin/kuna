@@ -292,12 +292,11 @@ watch(
 
 /*
  * A phone shares its width between four tabs or fewer, which then need no icons. Each tab grows from
- * its label's width, so a long label such as Breakdown is not cut short beside two short ones.
+ * its label's width and never shrinks below it, so labels too long for the phone scroll instead of being cut.
  */
 @media (max-width: 639px) {
   .page-tabs.shared-width :deep(.page-tab) {
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: 1 0 auto;
     justify-content: center;
     padding-inline: 0.5rem;
   }
