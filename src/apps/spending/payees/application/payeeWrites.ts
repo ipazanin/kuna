@@ -1,4 +1,4 @@
-import { holdsName, mergedPayees, newPayee, payeeProblem, renamedPayee, saysOnlyItsName, tidiedPayee, withParty, withoutDetails } from '../domain/payeeDetails'
+import { holdsName, mergedPayees, newPayee, payeeProblem, saysOnlyItsName, tidiedPayee, withParty, withoutDetails } from '../domain/payeeDetails'
 import { isPerson, oldMarksCount, payeeDirectory, payeeOfRow, personPayeesByWords } from '../domain/payeeDirectory'
 import { payeeKey } from '../domain/payeeKey'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
@@ -68,11 +68,6 @@ function withPayee(payees: readonly Payee[], payee: Payee, takesOver: readonly P
 /** Keeps the payee's details, adding the payee when the file has none of its id. A new payee of a name the old setting marked takes the place of that mark. */
 export function savePayee(unit: UnitOfWork, records: PayeeRecords, payee: Payee): void {
   writePayees(unit, records, (payees, moved) => withPayee(payees, payee, moved))
-}
-
-/** The payee under the new name first, keeping its old names, so no row changes. */
-export function renamePayee(unit: UnitOfWork, records: PayeeRecords, payee: Payee, name: string): void {
-  writePayees(unit, records, (payees) => withPayee(payees, renamedPayee(payee, name)))
 }
 
 /** The other payee's names, IBANs and details join the kept one, and the other goes, in one write. No row changes. */

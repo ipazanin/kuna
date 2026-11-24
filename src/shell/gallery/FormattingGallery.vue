@@ -76,7 +76,7 @@ const MONEY_TEXTS = [
   <GallerySection
     id="money"
     title="MoneyText and DrillLink"
-    description="Cents in, and the tone by the kind of figure, never its size: full green or red for a gain or a loss, the soft depth for money in and out, ink for an amount with no direction, and a balance in ink that turns full red below zero. A tone shows the sign. Every figure that has rows behind it opens them."
+    description="Cents in, and the tone by the kind of figure, never its size: full green or red for a gain or a loss, the soft depth for money in and out, ink for an amount with no direction, and a balance in ink that turns full red below zero. A tone shows the sign. Every figure that has rows behind it opens them, and a link inside running text or a label carries a faint underline at rest."
   >
     <AppCard as="div" class="p-5">
       <div class="grid gap-x-8 gap-y-2 sm:grid-cols-2">
@@ -94,5 +94,6 @@ const MONEY_TEXTS = [
       Travel cost <DrillLink :to="galleryLink" in-prose><MoneyText :cents="moneyFromCents(391000)" /></DrillLink> over the last 12 months, down from
       <DrillLink :to="galleryLink" in-prose><MoneyText :cents="moneyFromCents(512000)" /></DrillLink>. Every figure opens the rows behind it.
     </p>
+    <p class="type-label"><DrillLink :to="galleryLink" in-prose>Corner market</DrillLink> · 4 entries</p>
   </GallerySection>
 </template>

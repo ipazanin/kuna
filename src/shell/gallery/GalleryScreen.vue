@@ -36,6 +36,7 @@ import type { SortDirection } from '../../shared/ui/SortableHeader.vue'
 import SparkLine from '../../shared/ui/SparkLine.vue'
 import { installedApps } from '../routing/appRegistry'
 import BankNameFieldSpecimen from './BankNameFieldSpecimen.vue'
+import IbanTagsFieldSpecimen from './IbanTagsFieldSpecimen.vue'
 import TableRecipeEditorSpecimen from './TableRecipeEditorSpecimen.vue'
 import ChangeListSpecimens from './ChangeListSpecimens.vue'
 import ChartSpecimens from './ChartSpecimens.vue'
@@ -574,6 +575,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
     <SyncStatusSpecimens />
 
     <BankNameFieldSpecimen />
+    <IbanTagsFieldSpecimen />
     <TableRecipeEditorSpecimen />
 
     <PeriodBarSpecimens />

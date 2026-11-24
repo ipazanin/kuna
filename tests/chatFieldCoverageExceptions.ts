@@ -262,6 +262,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
 
 export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
   {
+    reason: "Clear details on a payee's page, which takes off every detail and keeps the names. The person types nothing for it, and the chat's clear-payee-details reaches it.",
+    paths: ['src/apps/spending/payees/application/payeeWrites.ts#clearPayee'],
+  },
+  {
     reason:
       'Add on Categories to sort, which writes a starting category and its rules as the pack defines them, picked by the short name add-starting-category takes. The person types none of their fields.',
     paths: ['src/apps/company/categories/application/startingCategoryWrites.ts#addStartingCategory'],

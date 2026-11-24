@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { keyOfPayee, mergedPayees, newPayee, payeeProblem, renamedPayee, tidiedPayee, withoutDetails } from '../src/apps/spending/payees/domain/payeeDetails'
+import { editedPayee, keyOfPayee, mergedPayees, newPayee, payeeEditProblem, payeeProblem, renamedPayee, tidiedPayee, withoutDetails } from '../src/apps/spending/payees/domain/payeeDetails'
 import type { Payee } from '../src/apps/spending/workbook/domain/payee'
 import { PAYEE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -53,6 +53,26 @@ describe("a payee's details", () => {
     const renamed = renamedPayee(MARKET, 'The corner market')
     expect(renamed.names).toEqual(['The corner market', 'Corner market', 'CORNER MKT'])
     expect(keyOfPayee(renamed)).toBe('THE CORNER MARKET')
+  })
+
+  it('take an edit with its details, and a name spelt another way as a rename that keeps every old name', () => {
+    const edit = { name: 'Corner market', otherNames: ['CORNER MKT'], party: 'business' as const, ibans: ['hr62 1234 5670 0000 0000 1'], taxId: ' ', website: 'example.com', note: '' }
+    expect(editedPayee(MARKET, edit)).toEqual({ ...MARKET, party: 'business', ibans: [FIRST_IBAN], website: 'example.com' })
+    expect(editedPayee(MARKET, { ...edit, name: 'Corner shop' }).names).toEqual(['Corner shop', 'Corner market', 'CORNER MKT'])
+  })
+
+  it('keep only the other spellings the edit keeps, so entries of one taken off stop counting under the payee', () => {
+    const edit = { name: 'Corner market', otherNames: [], party: null, ibans: [], taxId: '', website: '', note: '' }
+
+    expect(editedPayee(MARKET, edit).names).toEqual(['Corner market'])
+    expect(editedPayee(MARKET, { ...edit, name: 'Corner shop' }).names).toEqual(['Corner shop', 'Corner market'])
+  })
+
+  it('refuse an edit that blanks the name, although the old names would stay', () => {
+    const edited = editedPayee(MARKET, { name: ' ', otherNames: ['CORNER MKT'], party: null, ibans: [], taxId: '', website: '', note: '' })
+    expect(edited.names).toEqual(MARKET.names)
+    expect(payeeEditProblem(edited, ' ', [MARKET])).toEqual({ kind: 'no-name' })
+    expect(payeeEditProblem(edited, 'Corner market', [MARKET])).toBeNull()
   })
 
   it('merge the other payee into the kept one: every name and IBAN, the kept filled fields, and both notes', () => {

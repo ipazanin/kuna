@@ -14,9 +14,10 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 const payee = defineModel<string>({ required: true })
 
 const store = useSpendingBooks()
-const payees = computed(() => knownPayees(store.state.workbook?.transactions ?? []))
+const records = computed(() => store.state.workbook?.payees ?? [])
+const payees = computed(() => knownPayees(store.state.workbook?.transactions ?? [], records.value))
 const items = computed(() => payeeChoices(payees.value, payee.value))
-const fresh = computed(() => isNewPayee(payees.value, payee.value))
+const fresh = computed(() => isNewPayee(payees.value, records.value, payee.value))
 /** Whether the person has the list open, which closes when focus leaves so a new payee leaves no list behind. */
 const listOpen = ref(false)
 /** Whether the list has a choice to offer, which a known payee already picked in full and matching nothing else does not. */

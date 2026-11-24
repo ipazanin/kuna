@@ -42,7 +42,7 @@ const picked = computed({
 
 const offered = computed(() => {
   const book = store.state.workbook
-  return book === null ? [] : countsUnderChoices(payeeDirectory(book.payees, book.readings.settings.facts), knownPayees(book.transactions))
+  return book === null ? [] : countsUnderChoices(payeeDirectory(book.payees, book.readings.settings.facts), knownPayees(book.transactions, book.payees))
 })
 /** The entry's payee first, then the payees as `countsUnderChoices` orders them, with a name typed here kept on the list. */
 const items = computed(() => [props.entryPayee.trim(), picked.value, ...offered.value].filter((name, place, all) => name !== '' && all.findIndex((other) => samePayee(other, name)) === place))

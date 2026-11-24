@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { ALL_MONTHS, LAST_12_MONTHS, entriesMonthsNamed, payeeLink } from '../src/apps/spending/overview/presentation/spendingLinks'
+import { ALL_MONTHS, LAST_12_MONTHS, entriesMonthsNamed, payeeLink, payeePeriodShowing } from '../src/apps/spending/overview/presentation/spendingLinks'
 import { payeeKey } from '../src/apps/spending/payees/domain/payeeKey'
 import { inPeriod } from '../src/apps/spending/payees/domain/payeePeriod'
 import { payeeTotals } from '../src/apps/spending/payees/domain/payeeTotals'
 import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
 import { lastTwelveMonths, rangeContains } from '../src/shared/calendar/dateRange'
-import { civil, euros } from './fixtures/ledger'
+import { civil, euros, month } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, OTP, RATES, row, wholeItems } from './fixtures/spending'
 
 describe('the last twelve months', () => {
@@ -62,5 +62,24 @@ describe("a payee's link to Entries", () => {
 
     expect(onPayees.map((payee) => payee.spent)).toEqual([euros(1800)])
     expect(onEntries).toEqual(onPayees)
+  })
+})
+
+describe('the payee page Entries opens', () => {
+  const thisMonth = month('2026-11')
+
+  it('comes back to the period whose link to Entries gave the months', () => {
+    for (const period of ['month', 'year', 'all'] as const) {
+      const link = payeeLink(payeeKey('Landlord'), period)
+      if (typeof link === 'string' || !('query' in link)) throw new Error('The link has no query.')
+      expect(payeePeriodShowing(entriesMonthsNamed(link.query?.['month']) ?? thisMonth, thisMonth)).toBe(period)
+    }
+  })
+
+  it('opens Last 12 months for another month or a span of days', () => {
+    expect(payeePeriodShowing(month('2025-10'), thisMonth)).toBe('year')
+    expect(payeePeriodShowing(null, thisMonth)).toBe('year')
+    expect(payeePeriodShowing(ALL_MONTHS, thisMonth)).toBe('all')
+    expect(payeePeriodShowing(LAST_12_MONTHS, thisMonth)).toBe('year')
   })
 })

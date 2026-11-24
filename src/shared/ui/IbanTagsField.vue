@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import UInputTags from '@nuxt/ui/components/InputTags.vue'
 
-import { ibanListOf } from '../../../../shared/text/iban'
+import { ibanListOf } from '../text/iban'
 import { words } from './words'
 
 /**
@@ -28,15 +28,9 @@ function update(tags: readonly unknown[]): void {
     delimiter=","
     add-on-paste
     add-on-blur
-    :placeholder="words.general.addIban"
+    :placeholder="words.addIban"
+    class="tags-field"
     :ui="{ item: 'identifier', input: 'identifier min-w-28 basis-28' }"
     @update:model-value="update"
   />
 </template>
-
-<style scoped>
-/* The field draws its focus ring around the tags and the input together, so the input needs none of its own. */
-:deep(input:focus-visible) {
-  outline: none;
-}
-</style>

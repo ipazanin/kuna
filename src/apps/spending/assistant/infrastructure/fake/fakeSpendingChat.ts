@@ -9,6 +9,7 @@ import { cardReceiptReply, cashReceiptReply, pickAnsweredReply, pickedReceiptRep
 import { CITY_PHARMACY_RULE, SORT_JOB, cityPharmacyRuleReply, closeAccountReply, purseReply, sortGoOnReply, sortJobReply, sortReply } from './fakeSetUpChat'
 import { backOnDaysReply } from './fakeEventsChat'
 import { labelCostReply, labelReply } from './fakeLabelsChat'
+import { payeeDetailsReply } from './fakePayeesChat'
 import { splitReply } from './fakeSplitsChat'
 import { recipeReply } from './fakeRecipeChat'
 
@@ -103,6 +104,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/^read (the|this|a)( attached)? receipt|^pročitaj (priloženi )?(fiskalni )?račun/i.test(typed)) return receiptReply(turn)
   if (/^split|^podijeli/i.test(typed)) return splitReply(turn)
   if (/back on its days|na njezine dane/i.test(typed)) return backOnDaysReply(turn)
+  if (/website|web stranic/i.test(typed)) return payeeDetailsReply(turn)
   if (/^label|^označi/i.test(typed)) return labelReply(turn)
   if (/what did the boston trip cost|koliko je koštao put u boston/i.test(typed)) return labelCostReply(turn)
   if (CITY_PHARMACY_RULE.test(typed)) return cityPharmacyRuleReply(turn)

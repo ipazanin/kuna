@@ -17,7 +17,7 @@ import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import type { DraftFieldKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
-import IbanTagsField from './IbanTagsField.vue'
+import IbanTagsField from '../../../../shared/ui/IbanTagsField.vue'
 import { words } from './words'
 
 const props = defineProps<{

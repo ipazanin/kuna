@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { PAYEE_CHOICES, isNewPayee, knownPayees, payeeChoices } from '../src/apps/spending/payees/domain/knownPayees'
+import { newPayee } from '../src/apps/spending/payees/domain/payeeDetails'
 import { OTP, REVOLUT_EUR, row, transactionId } from './fixtures/spending'
 
 describe('the payees the entry dialog offers', () => {
@@ -12,7 +13,7 @@ describe('the payees the entry dialog offers', () => {
       row(OTP, '2026-10-07', 1_500, null, { payee: 'Example Studio d.o.o.' }),
     ]
 
-    expect(knownPayees(rows)).toEqual(['Harbour bistro', 'Example Studio d.o.o.', 'Corner market'])
+    expect(knownPayees(rows, [])).toEqual(['Harbour bistro', 'Example Studio d.o.o.', 'Corner market'])
   })
 
   it('takes payees that differ only in case, accents or spaces as one, spelt as on the newest row', () => {
@@ -23,7 +24,7 @@ describe('the payees the entry dialog offers', () => {
       row(OTP, '2026-10-02', -4, null, { payee: 'duro' }),
     ]
 
-    expect(knownPayees(rows)).toEqual(['Café on  the square', 'Đuro'])
+    expect(knownPayees(rows, [])).toEqual(['Café on  the square', 'Đuro'])
   })
 
   it('leaves out blank payees and moves between your own accounts', () => {
@@ -35,13 +36,25 @@ describe('the payees the entry dialog offers', () => {
       row(OTP, '2026-10-01', -9, null, { payee: 'Fuel station' }),
     ]
 
-    expect(knownPayees(rows)).toEqual(['Fuel station'])
+    expect(knownPayees(rows, [])).toEqual(['Fuel station'])
+  })
+
+  it('offers a payee you keep details of once, under their first name, for every spelling they hold', () => {
+    const market = { ...newPayee('Corner market'), names: ['Corner market', 'CORNER MARKET D.O.O.'] }
+    const rows = [
+      row(OTP, '2026-10-09', -12, 'Food/Groceries', { payee: 'CORNER MARKET D.O.O.' }),
+      row(OTP, '2026-10-05', -30, 'Food/Groceries', { payee: 'Harbour bistro' }),
+      row(OTP, '2026-10-01', -8, 'Food/Groceries', { payee: 'Corner market' }),
+    ]
+
+    expect(knownPayees(rows, [market])).toEqual(['Corner market', 'Harbour bistro'])
+    expect(isNewPayee(knownPayees(rows, [market]), [market], 'corner market d.o.o.')).toBe(false)
   })
 
   it('keeps the file order of payees paid on the same day', () => {
     const rows = [row(OTP, '2026-10-04', -1, null, { payee: 'Landlord' }), row(OTP, '2026-10-04', -1, null, { payee: 'City utilities' })]
 
-    expect(knownPayees(rows)).toEqual(['Landlord', 'City utilities'])
+    expect(knownPayees(rows, [])).toEqual(['Landlord', 'City utilities'])
   })
 })
 
@@ -66,10 +79,10 @@ describe('what the payee list offers for what is typed', () => {
   })
 
   it('takes the text as a new payee unless it names a known one in full', () => {
-    expect(isNewPayee(payees, 'cor')).toBe(true)
-    expect(isNewPayee(payees, 'CORNER MARKET')).toBe(false)
-    expect(isNewPayee(payees, 'duro')).toBe(false)
-    expect(isNewPayee(payees, ' ')).toBe(false)
+    expect(isNewPayee(payees, [], 'cor')).toBe(true)
+    expect(isNewPayee(payees, [], 'CORNER MARKET')).toBe(false)
+    expect(isNewPayee(payees, [], 'duro')).toBe(false)
+    expect(isNewPayee(payees, [], ' ')).toBe(false)
   })
 
   it(`offers at most ${PAYEE_CHOICES} known payees, most recent first`, () => {

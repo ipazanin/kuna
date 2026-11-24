@@ -299,18 +299,18 @@ export const words = language === 'hr' ? hr : en
 /** What a file from before items cannot keep until it moves to items. */
 export type KeptAfterItems = 'labels' | 'shared-cost' | 'event'
 
-/** A payee's problem in the words of the file's problems, which a refused payee write says too. */
-export function payeeReason(problem: PayeeProblem): string {
+/** A payee's problem in the words of the file's problems, which a refused payee write says too, in the language on screen unless the chat's English is asked for. */
+export function payeeReason(problem: PayeeProblem, said: typeof en = words): string {
   switch (problem.kind) {
     case 'no-name':
-      return words.payeeNoName
+      return said.payeeNoName
     case 'name-taken':
-      return words.payeeNameTaken(problem.name, problem.holder)
+      return said.payeeNameTaken(problem.name, problem.holder)
     case 'not-an-iban':
-      return words.payeeNotAnIban(problem.iban)
+      return said.payeeNotAnIban(problem.iban)
     case 'iban-taken':
-      return words.payeeIbanTaken(problem.iban, problem.holder)
+      return said.payeeIbanTaken(problem.iban, problem.holder)
     case 'not-an-oib':
-      return words.payeeNotAnOib(problem.taxId)
+      return said.payeeNotAnOib(problem.taxId)
   }
 }

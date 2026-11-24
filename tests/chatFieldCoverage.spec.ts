@@ -412,6 +412,25 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/spending/shortcuts/application/shortcutWrites.ts#changeShortcut', from: ['draft'], operations: ['change-shortcut'] },
   { path: 'src/apps/spending/shortcuts/application/shortcutWrites.ts#addEntryFromShortcut', from: ['day'], operations: [{ name: 'use-shortcut', renames: { day: 'date' } }] },
   { path: 'src/apps/spending/payees/application/payeeWrites.ts#setPayeeParty', from: ['name', 'party', 'iban'], operations: ['flag-person'] },
+  { path: 'src/apps/spending/payees/application/payeeWrites.ts#savePayee', from: ['payee'], operations: [{ name: 'set-payee-details', renames: { id: 'payee', names: 'rename-payee:name' } }] },
+  {
+    path: 'src/apps/spending/payees/application/payeeWrites.ts#mergePayees',
+    from: ['kept'],
+    operations: [
+      {
+        name: 'merge-payees',
+        renames: {
+          id: 'payee',
+          names: 'rename-payee:name',
+          party: 'set-payee-details:party',
+          ibans: 'set-payee-details:ibans',
+          taxId: 'set-payee-details:taxId',
+          website: 'set-payee-details:website',
+          note: 'set-payee-details:note',
+        },
+      },
+    ],
+  },
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',
     type: 'src/apps/spending/workbook/domain/receipt.ts#Receipt',

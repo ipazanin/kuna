@@ -15,6 +15,7 @@ import type { EntriesLine } from '../../sharedCosts/domain/sharedCostEntries'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
+import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { divideMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -36,8 +37,8 @@ export interface PayeeSummary {
   readonly months: PayeeSides<readonly CategoryMonth[]>
   /** The average whole month on each side over the months before the day's an average reads, null for a book with none yet. */
   readonly average: PayeeSides<Money | null>
-  /** How many whole months the average reads. */
-  readonly averagedMonths: number
+  /** The whole months the average reads, oldest first. */
+  readonly averagedMonths: readonly MonthKey[]
   /** The category each side usually goes under, which the entry dialog fills in, or null. */
   readonly usual: PayeeSides<RecordId | null>
 }
@@ -74,13 +75,14 @@ export function payeeSummary(
   const shown = own.filter((row) => counted(row.day))
   const thisMonth = monthOf(day)
   const charted = monthsFrom(addMonths(thisMonth, 1 - CHARTED_MONTHS), thisMonth).map((month) => monthTotals(own, book.categories, month))
-  const averaged = sides(averagedMonths(day, firstWholeMonthOf(rows)).map((month) => monthTotals(own, book.categories, month)))
+  const averageMonths = averagedMonths(day, firstWholeMonthOf(rows))
+  const averaged = sides(averageMonths.map((month) => monthTotals(own, book.categories, month)))
   const averageOf = (months: readonly CategoryMonth[]): Money | null => (months.length === 0 ? null : divideMoney(sumMoney(months.map((month) => month.counted)), months.length))
   return {
     totals: payeeTotals(shown, book.categories, book)[0] ?? null,
     months: sides(charted),
     average: { out: averageOf(averaged.out), in: averageOf(averaged.in) },
-    averagedMonths: averaged.out.length,
+    averagedMonths: averageMonths,
     usual: { out: usualCategories(book, 'out').get(key) ?? null, in: usualCategories(book, 'in').get(key) ?? null },
   }
 }

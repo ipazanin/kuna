@@ -758,6 +758,11 @@ html.chat-resizing * {
   outline: none;
 }
 
+/* A tags field draws its ring around the tags and the input together, so the input inside it draws none. */
+.tags-field input:focus-visible {
+  outline: none;
+}
+
 /* The element the open chat is about, which takes it through `useChatElement`. A card keeps its surface and shadow under the accent wash, and its own border turns accent. */
 [data-chat-tagged='card'] {
   background-image: linear-gradient(var(--accent-wash), var(--accent-wash));

@@ -31,6 +31,7 @@ import {
   EVENT_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
+  PAYEE_RECORDS,
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SHARED_COST_RECORDS,
@@ -39,6 +40,8 @@ import {
 import { RECIPE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { recipeInWords } from '../../statements/presentation/recipeWords'
 import { words } from '../words'
+import { words as payeeWords } from '../../payees/presentation/words'
+import { groupedIban } from '../../../../shared/text/iban'
 import type { CardStatement, CopiedRows } from './statementImport'
 import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
 import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
@@ -119,6 +122,9 @@ function shownValue(
   if (isKind(kind, ITEM_RECORDS, record) && field === 'event')
     return record.event === BY_DAYS ? words.proposals.byDays(byDaysOf(record)) : record.event === OUT_OF_EVENTS ? words.proposals.noEvent : (namesOf.get(record.event) ?? record.event)
   if (isKind(kind, EVENT_RECORDS, record) && field === 'days') return dayRangeLabel(record.days)
+  if (isKind(kind, PAYEE_RECORDS, record) && field === 'names') return record.names.join(', ')
+  if (isKind(kind, PAYEE_RECORDS, record) && field === 'ibans') return record.ibans.length === 0 ? null : record.ibans.map(groupedIban).join(', ')
+  if (isKind(kind, PAYEE_RECORDS, record) && field === 'party') return record.party === 'person' ? payeeWords.person : payeeWords.page.business
   if (isKind(kind, RULE_RECORDS, record) && field === 'order') return null
   if (isKind(kind, RULE_RECORDS, record) && field === 'withdrawal') {
     const named = record.withdrawal?.cashAccount == null ? undefined : namesOf.get(record.withdrawal.cashAccount)
@@ -176,6 +182,7 @@ function labelOf(
   }
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record) || isKind(kind, LABEL_RECORDS, record)) return record.name
   if (isKind(kind, EVENT_RECORDS, record)) return `${record.name} · ${dayRangeLabel(record.days)}`
+  if (isKind(kind, PAYEE_RECORDS, record)) return record.names[0] ?? fallback
   if (isKind(kind, SHARED_COST_RECORDS, record)) return [record.payee, dayLabel(record.day)].filter((words) => words !== '').join(' · ')
   return fallback
 }
@@ -281,6 +288,7 @@ function refiledNote(rows: number): ProposalNote {
 export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
   if (kind.name === ITEM_RECORDS.name) return { labels: [], ruleLabels: [], event: BY_DAYS, sharedCost: null, splitByLink: false }
   if (kind.name === RULE_RECORDS.name) return { labels: [], stop: false }
+  if (kind.name === PAYEE_RECORDS.name) return { ibans: [], party: null, taxId: '', website: '', note: '' }
   return kind.name === CATEGORY_RECORDS.name ? NEW_CATEGORY_DEFAULTS : kind.name === ACCOUNT_RECORDS.name ? NEW_ACCOUNT_DEFAULTS : {}
 }
 

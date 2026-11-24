@@ -4,7 +4,7 @@ import type { Label } from '../../../../shared/categorising/domain/labels'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingEvent } from '../../workbook/domain/event'
-import { OPENING_PERIOD } from '../../payees/domain/payeePeriod'
+import { OPENING_PERIOD, PAYEE_PERIODS } from '../../payees/domain/payeePeriod'
 import type { PayeePeriod } from '../../payees/domain/payeePeriod'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
@@ -151,6 +151,14 @@ const ENTRIES_MONTHS_OF_PERIOD: Readonly<Record<PayeePeriod, typeof ALL_MONTHS |
 /** Entries of one payee over the period the Payees tab shows, named by their key in `?payee=`. */
 export function payeeLink(key: string, period: PayeePeriod): RouteLocationRaw {
   return entriesLink(ENTRIES_MONTHS_OF_PERIOD[period], { payee: key })
+}
+
+/**
+ * The Payees period whose entries Entries shows over the months, so a payee's page opens on what the list counts. Another month or
+ * a span of days, null, opens the opening period, which the page's chart shows too.
+ */
+export function payeePeriodShowing(months: EntriesMonths | null, thisMonth: MonthKey): PayeePeriod {
+  return PAYEE_PERIODS.find((period) => (ENTRIES_MONTHS_OF_PERIOD[period] ?? thisMonth) === months) ?? OPENING_PERIOD
 }
 
 /** A payee's page over the period of the Payees tab it came from, which leaves the opening one out of `?period=`. */

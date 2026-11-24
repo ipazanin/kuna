@@ -75,6 +75,11 @@ export const en = {
       colour: 'Colour',
       order: 'Place',
       merchant: 'Merchant',
+      names: 'Names',
+      ibans: 'IBANs',
+      party: 'Person or business',
+      taxId: 'Tax number',
+      website: 'Website',
       merchantOib: "Merchant's OIB",
       buyerOib: "Buyer's OIB",
       issuedOn: 'Issued',
@@ -161,7 +166,7 @@ export const en = {
     linkAssetsNotSetUp: 'an asset of Assets, but Assets is not set up',
     bankSync: 'Whether the bank sync can bring a new account its rows, which needs an Enable Banking key brought on Settings, Bank sync.',
     payee:
-      'Each payee of every entry filed under a spending or an income category, once however its case and accents differ, with the IBANs its bank rows carry and the category its entries usually go under, as the Payees tab lists them. A payee is no record of the file.',
+      'Each payee of every entry filed under a spending or an income category, once however its case and accents differ, with the IBANs its bank rows carry and the category its entries usually go under, as the Payees tab lists them, and each payee you keep details of. A payee you keep details of gathers every spelling and IBAN it holds, and the payee operations change those details. No entry changes with them.',
     bankAccount:
       "Each currency of each account the linked banks gave at this page's last bank sync, against your Spending accounts, as Settings, Bank sync lists them. A new sync or a reload changes them, and after a reload no rows are held.",
   },
@@ -323,6 +328,11 @@ export const hr: Translation<typeof en> = {
       colour: 'Boja',
       order: 'Mjesto',
       merchant: 'Trgovac',
+      names: 'Nazivi',
+      ibans: 'IBAN-i',
+      party: 'Osoba ili tvrtka',
+      taxId: 'Porezni broj',
+      website: 'Web stranica',
       merchantOib: 'OIB trgovca',
       buyerOib: 'OIB kupca',
       issuedOn: 'Izdan',
@@ -407,7 +417,7 @@ export const hr: Translation<typeof en> = {
     linkAssetsNotSetUp: 'stavka imovine iz Imovine, ali Imovina nije postavljena',
     bankSync: 'Može li sinkronizacija s bankom donositi retke novom računu, za što treba spremiti implementaciju sinkronizacije u Postavkama, na kartici Banke.',
     payee:
-      'Svaki primatelj ili platitelj unosa pod kategorijom potrošnje ili prihoda, jednom bez obzira na velika slova i kvačice, s IBAN-ima koje nose njegovi bankovni redovi i kategorijom pod koju mu unosi obično idu, kako ih navodi kartica Primatelji i platitelji. Nije zapis datoteke.',
+      'Svaki primatelj ili platitelj unosa pod kategorijom potrošnje ili prihoda, jednom bez obzira na velika slova i kvačice, s IBAN-ima koje nose njegovi bankovni redovi i kategorijom pod koju mu unosi obično idu, kako ih navodi kartica Primatelji i platitelji, te svaki čije pojedinosti vodite. Takav okuplja svaki svoj način pisanja i IBAN, a operacije primatelja mijenjaju te pojedinosti. Nijedan se unos s njima ne mijenja.',
     bankAccount:
       'Svaka valuta svakog računa koji su povezane banke dale pri zadnjoj sinkronizaciji na ovoj stranici, uz vaše račune u Potrošnji, kako ih navodi Postavke, Sinkronizacija s bankom. Nova sinkronizacija ili ponovno učitavanje ih mijenja, a nakon ponovnog učitavanja nijedan redak nije zadržan.',
   },

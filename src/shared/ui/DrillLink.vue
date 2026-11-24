@@ -10,7 +10,11 @@ withDefaults(
     open?: (() => void) | null
     /** Accessible name when the visible text alone does not say what opens, such as a bare amount. */
     label?: string
-    /** A link in the middle of a sentence. On a phone it makes its own line 44 px tall and is underlined. A link that ends a sentence goes on its own line with `inline-target` instead. */
+    /**
+     * A link in the middle of a sentence or a running label, such as a payee's name in a totals line. It carries a faint underline
+     * at rest, and on a phone it makes its own line 44 px tall and is underlined in full. A link that ends a sentence goes on its own
+     * line with `inline-target` instead.
+     */
     inProse?: boolean
   }>(),
   { inProse: false, open: null },
@@ -37,8 +41,9 @@ withDefaults(
   transition: text-decoration-color 120ms ease;
 }
 
-/* A link that opens in place stands among fields, such as a client's name in the clients grid, so a faint underline shows a phone it opens. */
-.drill-link.opens-in-place {
+/* A link that opens in place stands among fields, such as a client's name in the clients grid, and a link in running text reads as text, so a faint underline shows they open. */
+.drill-link.opens-in-place,
+.drill-link.in-prose {
   text-decoration-color: var(--border-strong);
 }
 
@@ -60,11 +65,12 @@ withDefaults(
     align-items: center;
   }
 
-  /* In a sentence the link stays on the text's baseline and is 44 px tall, which only the lines holding a link grow to. */
+  /* In a sentence the link stays on the text's baseline and is 44 px tall, which only the lines holding a link grow to. A name longer than the line, such as a bank's payee string, breaks inside the link. */
   .drill-link.in-prose {
     display: inline-block;
+    max-width: 100%;
     line-height: 44px;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
     text-decoration-color: currentcolor;
   }
 }

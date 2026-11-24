@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { clearPayee, mergePayees, renamePayee, savePayee, setPayeeParty } from '../src/apps/spending/payees/application/payeeWrites'
-import { newPayee } from '../src/apps/spending/payees/domain/payeeDetails'
+import { clearPayee, mergePayees, savePayee, setPayeeParty } from '../src/apps/spending/payees/application/payeeWrites'
+import { newPayee, renamedPayee } from '../src/apps/spending/payees/domain/payeeDetails'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { Payee } from '../src/apps/spending/workbook/domain/payee'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
@@ -58,7 +58,7 @@ describe('payee writes', () => {
     const market = payee('market', ['Corner market'])
     const store = await spendingStore([market])
 
-    await store.write('Renamed', (unit) => renamePayee(unit, store.state.records!, market, 'The corner market'))
+    await store.write('Renamed', (unit) => savePayee(unit, store.state.records!, renamedPayee(market, 'The corner market')))
     expect(store.state.workbook!.payees).toEqual([{ ...market, names: ['The corner market', 'Corner market'] }])
 
     await store.undo(store.state.writes[0]!)

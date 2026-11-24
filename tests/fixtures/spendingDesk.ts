@@ -33,7 +33,8 @@ import {
   SHARED_COST_RECORDS,
   TRANSACTION_RECORDS,
 } from '../../src/apps/spending/workbook/domain/spendingKinds'
-import { RECIPE_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { PAYEE_RECORDS, RECIPE_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import type { Payee } from '../../src/apps/spending/workbook/domain/payee'
 import type { SavedRecipe } from '../../src/apps/spending/workbook/domain/savedRecipe'
 import { statementRecipeOf } from '../../src/apps/spending/statements/domain/statementRecipeDraft'
 import { plainLineOf } from '../../src/apps/spending/workbook/domain/beforeItems'
@@ -167,6 +168,9 @@ const ROWS: readonly StoredRow[] = [
   row('transaction-waiting-match', '2026-10-27', -18, 'KIOSK TISAK', { account: REVOLUT.id, importKey: 'made-up-10', category: GROCERIES.id, categorisedBy: 'rule' }),
   row('transaction-gift', '2026-10-22', -15, 'Toy shop', { account: SAVINGS.id, source: 'typed', category: IN_SHARED_COST.id, categorisedBy: 'person' }),
 ]
+
+/** The bakery's details, kept under two spellings, which the payee operations change. */
+const BAKERY: Payee = { id: recordIdOf(PAYEE_RECORDS, 'payee-bakery'), names: ['Bakery', 'BAKERY D.O.O.'], ibans: [], party: 'business', taxId: '', website: 'example.com', note: '' }
 
 /** A label the hand split's rent part carries. */
 const RENOVATION: Label = { id: recordIdOf(LABEL_RECORDS, 'label-renovation'), name: 'Renovation' }
@@ -402,6 +406,8 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   shortcut: SHORTCUT.id,
   label: RENOVATION.id,
   event: TRIP.id,
+  payee: 'BAKERY',
+  'payee-other': 'CORNER MARKET',
   'shared-cost': GIFT.id,
   'transaction-shared': recordIdOf(TRANSACTION_RECORDS, 'transaction-gift'),
   'bank-account-missing': 'uid-pounds GBP',
@@ -501,6 +507,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(SHORTCUT_PART_RECORDS, [SHORTCUT_PART, SHORTCUT_BREAD_PART]),
     ...stored(LABEL_RECORDS, [RENOVATION]),
     ...stored(EVENT_RECORDS, [TRIP]),
+    ...stored(PAYEE_RECORDS, [BAKERY]),
     ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),
     ...stored(RECIPE_RECORDS, [DESK_RECIPE]),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),

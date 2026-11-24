@@ -76,7 +76,8 @@ describe('a receipt from the chat', () => {
       [[label], event, 'A friend'],
       [[], 'days', ''],
     ])
-    expect(bookOf(desk).payees.map((payee) => [payee.names, payee.party])).toEqual([[['A friend'], 'person']])
+    const added = bookOf(desk).payees.filter((payee) => payee.names[0] !== 'Bakery')
+    expect(added.map((payee) => [payee.names, payee.party])).toEqual([[['A friend'], 'person']])
   })
 
   it('splits the payment named into its lines in one write, with the model that read it, and one Undo takes it all back', async () => {

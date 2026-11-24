@@ -78,6 +78,24 @@ export function mergedPayees(kept: Payee, other: Payee): Payee {
   })
 }
 
+/** What a person sets on a payee: its name, the other spellings it keeps and every detail. */
+export type PayeeEdit = Pick<Payee, 'party' | 'ibans' | 'taxId' | 'website' | 'note'> & { readonly name: string; readonly otherNames: readonly string[] }
+
+/**
+ * The payee with the edit: its first name, then the other spellings it keeps, so entries of a spelling taken off stop counting
+ * under it. A name spelt another way is a rename, which keeps the old first name among the others.
+ */
+export function editedPayee(payee: Payee, edit: PayeeEdit): Payee {
+  const names = [payee.names[0] ?? '', ...edit.otherNames]
+  const kept = tidiedPayee({ ...payee, names, party: edit.party, ibans: edit.ibans, taxId: edit.taxId, website: edit.website, note: edit.note })
+  return edit.name.trim() === (payee.names[0] ?? '') ? kept : renamedPayee(kept, edit.name)
+}
+
+/** Why the edited payee cannot be kept beside the others, as `payeeProblem` says, where a name that folds blank is no name although the old ones stay. */
+export function payeeEditProblem(edited: Payee, name: string, payees: readonly Pick<Payee, 'id' | 'names' | 'ibans'>[]): PayeeProblem | null {
+  return payeeKey(name) === '' ? { kind: 'no-name' } : payeeProblem(edited, payees)
+}
+
 export function withParty(payee: Payee, party: PayeeParty | null): Payee {
   return { ...payee, party }
 }

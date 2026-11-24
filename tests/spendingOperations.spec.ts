@@ -23,6 +23,7 @@ import { forgetCaches } from './fixtures/writeBack'
 import { addEntries, filedRows } from './fixtures/spending'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
+import { PAYEE_WRITES } from '../src/apps/spending/payees/application/payeeWrites'
 import { BANK_SYNC_APPLICATION_KEY, PERSON_PAYEES_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { changeAccount } from '../src/apps/spending/accounts/application/accountWrites'
@@ -909,12 +910,14 @@ describe('an entry’s receipt and payee', () => {
     const flag = stepOf(SPENDING_OPERATIONS, 'flag-person', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })
     await desk.propose([flag])
     expect((await desk.accept()).kind).toBe('done')
-    expect(bookOf(desk).payees).toMatchObject([{ names: ['Corner market'], party: 'person' }])
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.'] }, { names: ['Corner market'], party: 'person' }])
     expect((await desk.propose([flag])).isError).toBe(true)
   })
 
   it('moves the old person setting onto payees when it flags a payee, and one Undo takes back the flag and the move', async () => {
     const desk = await spendingDesk(used)
+    // A file from before payees keeps none, so the desk's bakery goes first.
+    await desk.store.write('Removed', (unit) => bookOf(desk).payees.forEach((payee) => unit.of(PAYEE_WRITES).remove(payee)))
     await desk.store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], PERSON_PAYEES_KEY, 'Ana Horvat'))
     const marked = () => bookOf(desk).readings.settings.facts.filter((row) => row.key === PERSON_PAYEES_KEY)
 
@@ -930,6 +933,53 @@ describe('an entry’s receipt and payee', () => {
     if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
     expect(bookOf(desk).payees).toEqual([])
     expect(marked()).toMatchObject([{ value: 'Ana Horvat' }])
+  })
+})
+
+describe("a payee's details", () => {
+  const payee = (desk: SpendingDesk, key = EXAMPLE_RECORDS['payee']!) => desk.ref('payee', key)
+
+  it('renames a payee and keeps every old name, so no entry changes, and one Undo takes it back', async () => {
+    const desk = await spendingDesk(used)
+    const rows = bookOf(desk).transactions
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'rename-payee', { payee: payee(desk), name: 'Town bakery' })])
+    const result = await desk.accept()
+
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Town bakery', 'Bakery', 'BAKERY D.O.O.'], website: 'example.com' }])
+    expect(bookOf(desk).transactions).toEqual(rows)
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.'] }])
+  })
+
+  it('joins a payee their entries name into one you keep details of', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'merge-payees', { payee: payee(desk), other: payee(desk, EXAMPLE_RECORDS['payee-other']!) })])
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.', 'Corner market'], party: 'business' }])
+  })
+
+  it('sets the details of a payee who has none yet, and refuses an IBAN that is not one', async () => {
+    const desk = await spendingDesk(used)
+    const market = payee(desk, EXAMPLE_RECORDS['payee-other']!)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'set-payee-details', { payee: market, note: 'Open on Sundays' })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.'] }, { names: ['Corner market'], note: 'Open on Sundays' }])
+
+    const refused = await desk.propose([stepOf(SPENDING_OPERATIONS, 'set-payee-details', { payee: market, ibans: 'HR00' })])
+    expect(refused.isError).toBe(true)
+    expect(refused.text).toContain('HR00 is not an IBAN')
+  })
+
+  it('leaves taking a person mark off to the person', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'flag-person', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })])
+    expect((await desk.accept()).kind).toBe('done')
+    const market = payee(desk, EXAMPLE_RECORDS['payee-other']!)
+
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'set-payee-details', { payee: market, party: 'not-said' })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'clear-payee-details', { payee: market })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'merge-payees', { payee: payee(desk), other: market })])).isError).toBe(true)
   })
 })
 

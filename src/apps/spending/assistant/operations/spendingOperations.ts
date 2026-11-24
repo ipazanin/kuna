@@ -7,6 +7,7 @@ import { CATEGORY_OPERATIONS, isCategoryStep, writeCategoryStep } from './catego
 import { DELETE_ENTRY, ENTRY_OPERATIONS, PAYEE_AND_FILE_OPERATIONS, isEntryStep, writeEntryStep } from './entryOperations'
 import { EVENT_OPERATIONS, isEventStep, writeEventStep } from './eventOperations'
 import { LABEL_OPERATIONS, isLabelStep, writeLabelStep } from './labelOperations'
+import { PAYEE_OPERATIONS, isPayeeStep, writePayeeStep } from './payeeOperations'
 import { LIMIT_OPERATIONS, isLimitStep, writeLimitStep } from './limitOperations'
 import { LINK_OPERATIONS, isLinkStep, writeLinkStep } from './linkOperations'
 import { FILING_IMPORTED_ROWS, RULE_OPERATIONS, editRuleStep, editsRules, isRuleStep } from './ruleOperations'
@@ -50,6 +51,7 @@ import { language } from '../../../../shared/text/language'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { cardRecords } from '../../../../shared/app/cardRecords'
+import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { SPENDING_CARD_RECORDS } from './cardRecords'
 
 /** Every change the chat can propose in Spending. Each calls the write functions the screens use. A setting that is not listed here cannot be proposed, whatever a model asks. */
@@ -65,6 +67,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   ADD_RECEIPT,
   ...LINK_OPERATIONS,
   ...PAYEE_AND_FILE_OPERATIONS,
+  ...PAYEE_OPERATIONS,
   ...LABEL_OPERATIONS,
   ...EVENT_OPERATIONS,
   ...SHARED_COST_OPERATIONS,
@@ -202,6 +205,11 @@ function plannedSteps(
         book = { ...book, accounts: [...book.accounts, added] }
         if (as !== null) made.set(as, added.id)
       }
+      continue
+    }
+    if (isPayeeStep(operation)) {
+      writePayeeStep(unit, book, records(), operation, field, idOf)
+      book = { ...book, payees: recordsOf(records().payees) }
       continue
     }
     if (isEntryStep(operation)) {

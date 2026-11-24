@@ -100,6 +100,7 @@ export const en = {
       over: 'The parts with amounts already make up the whole, so nothing is left for the rest.',
     },
   },
+  addIban: 'Add an IBAN',
 }
 
 export const hr: Translation<typeof en> = {
@@ -198,6 +199,7 @@ export const hr: Translation<typeof en> = {
       over: 'Dijelovi s iznosima već čine cjelinu, pa za ostatak ne ostaje ništa.',
     },
   },
+  addIban: 'Dodaj IBAN',
 }
 
 export const words = language === 'hr' ? hr : en

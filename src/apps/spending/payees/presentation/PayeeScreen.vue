@@ -3,6 +3,7 @@ import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import PayeeDialog from './PayeeDialog.vue'
 import { words } from './words'
 import { payeeNamed } from '../domain/payeeDirectory'
 import { keyOfPayee } from '../domain/payeeDetails'
@@ -14,7 +15,7 @@ import { countedRows } from '../../analytics/domain/countedRow'
 import { categoryMonthsChart } from '../../analytics/presentation/categoryMonthsChart'
 import EntryDialog from '../../entries/presentation/EntryDialog.vue'
 import EntryList from '../../entries/presentation/EntryList.vue'
-import { payeeLink, payeePageLink, payeesLink } from '../../overview/presentation/spendingLinks'
+import { entriesLink, payeeLink, payeePageLink, payeesLink } from '../../overview/presentation/spendingLinks'
 import ReceiptPhotoPicker from '../../receipts/presentation/ReceiptPhotoPicker.vue'
 import { useReceiptRows } from '../../receipts/presentation/useReceiptRows'
 import { unratedNote } from '../../rates/presentation/unratedNote'
@@ -29,6 +30,7 @@ import type { SharedCost } from '../../workbook/domain/sharedCost'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 import { today } from '../../../../shared/calendar/civilDate'
+import { monthRange } from '../../../../shared/calendar/dateRange'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
@@ -82,7 +84,7 @@ const description = computed(() => {
   return party === '' && others === '' ? null : words.page.about(party, others)
 })
 
-const entriesLink = computed(() => payeeLink(payee.value?.key ?? '', period.value))
+const periodEntries = computed(() => payeeLink(payee.value?.key ?? '', period.value))
 const spent = computed(() => summary.value?.totals?.spent ?? ZERO)
 const received = computed(() => summary.value?.totals?.income ?? ZERO)
 const unrated = computed(() => (waiting.value ? null : unratedNote(summary.value?.totals?.unrated ?? 0)))
@@ -92,6 +94,14 @@ const showsIn = computed(() => received.value !== 0)
 const averageSide = computed(() => (summary.value !== null && summary.value.average.out === 0 && (summary.value.average.in ?? 0) !== 0 ? 'in' : 'out'))
 const average = computed(() => summary.value?.average[averageSide.value] ?? null)
 const averageAmount = (amount: Money): Money => (averageSide.value === 'in' ? amount : negateMoney(amount))
+/** The payee's entries over the whole months the average reads. */
+const averageLink = computed(() => {
+  const months = summary.value?.averagedMonths ?? []
+  const first = months[0]
+  const last = months.at(-1)
+  return first === undefined || last === undefined || payee.value === null ? null : entriesLink(monthRange(first, last), { payee: payee.value.key })
+})
+const editing = ref(false)
 
 const categoryName = (id: string | null): string => (id === null ? '' : (state.workbook?.categories.find((category) => category.id === id)?.name ?? ''))
 const ibans = computed(() => (summary.value?.totals?.ibans ?? record.value?.ibans ?? []).map(groupedIban))
@@ -162,7 +172,11 @@ function openSharedCost(picked: SharedCost): void {
     <UButton :to="payeesLink(period)" :label="words.page.allPayees" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="spending-back-to-payees" />
     <ScreenSkeleton v-if="state.workbook === null && state.status !== 'error'" />
     <template v-else-if="state.workbook !== null && payee !== null && summary !== null">
-      <PageHeader :title="payee.name" v-bind="description === null ? {} : { description }" class="break-words" />
+      <PageHeader :title="payee.name" v-bind="description === null ? {} : { description }" class="break-words">
+        <template #actions>
+          <UButton :label="words.dialog.edit" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="spending-payee-edit" @click="editing = true" />
+        </template>
+      </PageHeader>
       <ChoiceButtons v-model="period" :options="periodOptions" :label="words.period.label" data-testid="spending-payee-period" />
       <DashboardGrid layout="tiles">
         <KpiTile
@@ -170,7 +184,7 @@ function openSharedCost(picked: SharedCost): void {
           :label="words.page.out"
           :value="formatMoney(negateMoney(spent), 'always')"
           v-bind="unrated === null ? {} : { caption: unrated }"
-          :to="entriesLink"
+          :to="periodEntries"
           data-testid="spending-payee-out"
         >
           <template #value>
@@ -178,7 +192,14 @@ function openSharedCost(picked: SharedCost): void {
             <MoneyText v-else :cents="negateMoney(spent)" tone="flow" :data-amount="spent" />
           </template>
         </KpiTile>
-        <KpiTile v-if="showsIn" :label="words.page.in" :value="formatMoney(received, 'always')" v-bind="unrated === null ? {} : { caption: unrated }" :to="entriesLink" data-testid="spending-payee-in">
+        <KpiTile
+          v-if="showsIn"
+          :label="words.page.in"
+          :value="formatMoney(received, 'always')"
+          v-bind="unrated === null ? {} : { caption: unrated }"
+          :to="periodEntries"
+          data-testid="spending-payee-in"
+        >
           <template #value>
             <span v-if="waiting" class="block type-body font-normal">{{ rateWords.loading }}</span>
             <MoneyText v-else :cents="received" tone="flow" :data-amount="received" />
@@ -187,8 +208,8 @@ function openSharedCost(picked: SharedCost): void {
         <KpiTile
           :label="averageSide === 'in' ? words.page.averageIn : words.page.averageOut"
           :value="average === null ? words.page.noAverage : formatMoney(averageAmount(average), 'always')"
-          v-bind="summary.averagedMonths === 0 ? {} : { caption: plural(words.page.averageCaption(summary.averagedMonths), summary.averagedMonths) }"
-          :to="null"
+          v-bind="summary.averagedMonths.length === 0 ? {} : { caption: plural(words.page.averageCaption(summary.averagedMonths.length), summary.averagedMonths.length) }"
+          :to="averageLink"
           data-testid="spending-payee-average"
         >
           <template #value>
@@ -227,7 +248,7 @@ function openSharedCost(picked: SharedCost): void {
         v-if="lines.length === 0"
         icon="i-lucide-receipt"
         :title="words.page.noEntries"
-        :actions="[{ label: words.page.openEntries, to: entriesLink, trailingIcon: 'i-lucide-arrow-right', color: 'neutral', variant: 'link' }]"
+        :actions="[{ label: words.page.openEntries, to: periodEntries, trailingIcon: 'i-lucide-arrow-right', color: 'neutral', variant: 'link' }]"
         data-testid="spending-payee-no-entries"
       />
       <AppCard v-else :title="words.page.entries" :subtitle="words.page.entriesSubtitle" data-testid="spending-payee-entries">
@@ -246,10 +267,11 @@ function openSharedCost(picked: SharedCost): void {
         />
         <ShowAllButton v-if="lines.length > FIRST_SHOWN" v-model:expanded="expanded" :total="lines.length" class="px-4 pb-4 sm:px-5" />
         <div class="px-4 pt-1 pb-4 sm:px-5">
-          <UButton :to="entriesLink" :label="words.page.openEntries" trailing-icon="i-lucide-arrow-right" color="neutral" variant="link" class="px-0" data-testid="spending-payee-open-entries" />
+          <UButton :to="periodEntries" :label="words.page.openEntries" trailing-icon="i-lucide-arrow-right" color="neutral" variant="link" class="px-0" data-testid="spending-payee-open-entries" />
         </div>
       </AppCard>
-      <EntryDialog v-model:open="entryOpen" :entry="entry" />
+      <EntryDialog v-model:open="entryOpen" :entry="entry" :from-payee="payee.key" />
+      <PayeeDialog v-model:open="editing" :payee="payee" />
       <SharedCostDialog v-model:open="sharedCostOpen" :shared-cost="openedSharedCost" :rows="[]" />
       <ReceiptPhotoPicker v-if="assistKeyKept" ref="receiptPicker" />
     </template>

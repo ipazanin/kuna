@@ -63,7 +63,8 @@ describe("a payee's page", () => {
     const summary = payeeSummary(book, rows, KEY, 'month', DAY)
 
     // December 2025 to October 2026: 40 + 25 less the 5 back is 60 over 12 whole months.
-    expect([summary.average.out, summary.averagedMonths]).toEqual([euros(5), 12])
+    expect([summary.average.out, summary.averagedMonths.length]).toEqual([euros(5), 12])
+    expect([summary.averagedMonths[0], summary.averagedMonths.at(-1)]).toEqual(['2025-11', '2026-10'])
     expect(summary.totals?.spent).toEqual(euros(30))
   })
 

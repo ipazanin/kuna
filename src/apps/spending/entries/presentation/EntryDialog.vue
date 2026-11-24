@@ -27,6 +27,7 @@ import EntryLinkField from '../../links/presentation/EntryLinkField.vue'
 import { words as linkWords } from '../../links/presentation/words'
 import CountsUnderField from '../../payees/presentation/CountsUnderField.vue'
 import PayeeField from '../../payees/presentation/PayeeField.vue'
+import SavedPayeeLink from '../../payees/presentation/SavedPayeeLink.vue'
 import { usePayeeMemory } from '../../payees/presentation/usePayeeMemory'
 import { words as payeeWords } from '../../payees/presentation/words'
 import { lineFilingOf, lineRefilesOf, refiledReceiptLines } from '../../receipts/domain/receiptLines'
@@ -71,6 +72,8 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{
   /** The entry to change, either leg of a transfer, or null to add one. */
   entry: Transaction | null
+  /** The key of the payee whose page the dialog opens on, which leaves out the link to that page. */
+  fromPayee?: string
 }>()
 
 const store = useSpendingBooks()
@@ -132,6 +135,9 @@ const formNow = computed(() =>
 const openedAs = ref('')
 /** Whether the form holds changes apart from Category not saved yet, which leaving for Loans would lose. */
 const edited = computed(() => formNow.value !== openedAs.value)
+const openedCategory = ref('')
+/** Whether the form holds no change at all, so leaving for the payee's page loses nothing. */
+const unchanged = computed(() => !edited.value && category.value === openedCategory.value)
 
 /** The entry and its other leg as the file holds them, the money-out leg first. */
 const legs = computed((): readonly [Transaction, Transaction] | null => {
@@ -222,6 +228,7 @@ watch(open, (opened) => {
   adding.value = null
   memory.start()
   openedAs.value = formNow.value
+  openedCategory.value = category.value
 })
 
 /** A row stays on its own side as its kind changes: money in stays the To side of a transfer, and any row goes back to its account as a plain entry. */
@@ -434,6 +441,7 @@ async function remove(): Promise<void> {
       <template v-else>
         <UFormField :label="words.dialog.payee">
           <PayeeField v-model="payee" @update:model-value="memory.fill($event, kind)" />
+          <SavedPayeeLink v-if="unchanged" :entry="entry" v-bind="fromPayee === undefined ? {} : { fromPayee }" class="mt-1" @opened="open = false" />
         </UFormField>
         <UFormField
           v-if="!split"

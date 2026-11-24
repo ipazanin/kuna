@@ -15041,3 +15041,170 @@ export function optionalSelectFlow() {
     if (!focused) throw new Error('the focus left the field once Not set was picked by the keyboard')
   }
 }
+
+/** What the address of the page names in `?key=`. */
+async function addressQuery(page, key) {
+  return page.evaluate((wanted) => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get(wanted), key)
+}
+
+/**
+ * On the people Spending file's page of Corner market: the average tile opens Entries over the whole months it reads for them,
+ * and a saved entry opened from the page has no link back to the page it is on. Edit details opens the dialog filled from the
+ * record, a note saved shows on the page and one Undo takes it off, the spelling CORNER MARKET D.O.O. shows as a tag with how
+ * many entries leave with it and, taken off, goes from the page until one Undo, a rename keeps the page and its old name among the other
+ * names until Undo, and Same payee as joins Ana Horvat in until Undo. On Entries filtered to Corner market, the name in the
+ * totals line opens the page on the period Entries shows, and a saved entry's dialog links its payee's page and closes.
+ */
+export function spendingPayeeDetailsFlowIn(language) {
+  const words = SPENDING_PAYEE_WORDS[language]
+  const shared = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const title = () => page.$eval('[data-testid="screen-title"]', (heading) => heading.textContent?.trim() ?? '')
+    const pageHeader = () => page.$eval('[data-testid="screen-title"]', (heading) => heading.closest('header')?.textContent ?? '')
+    await page.waitForSelector('[data-testid="spending-payee-average"]', { visible: true, timeout: 10_000 })
+    const average = await page.$eval('[data-testid="spending-payee-average"] a', (link) => link.getAttribute('href') ?? '')
+    const averaged = new URLSearchParams(average.split('?')[1] ?? '')
+    if (averaged.get('payee') !== 'CORNER MARKET' || !/^\d{4}-\d{2}-01$/.test(averaged.get('from') ?? '') || !/^\d{4}-\d{2}-\d{2}$/.test(averaged.get('to') ?? ''))
+      throw new Error(`the average tile opens ${average}, not Corner market's entries over the months it reads`)
+
+    await pressSelector(page, press, '[data-testid="spending-payee-entries"] [data-testid="spending-row"]')
+    await page.waitForSelector('[data-testid="spending-entry-dialog"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    if ((await page.$('[data-testid="spending-entry-payee-page"]')) !== null) throw new Error("a saved entry opened on its payee's page links to that same page")
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="spending-entry-dialog"]'), { timeout: 5_000 })
+
+    await pressSelector(page, press, '[data-testid="spending-payee-edit"]')
+    await page.waitForSelector('[data-testid="spending-payee-dialog"]', { visible: true, timeout: 10_000 })
+    const shown = await page.$eval('[data-testid="spending-payee-dialog"]', (dialog) => dialog.textContent ?? '')
+    const name = await page.$eval('[data-testid="spending-payee-name"]', (input) => (input instanceof HTMLInputElement ? input.value : (input.querySelector('input')?.value ?? '')))
+    if (name !== 'Corner market' || !shown.includes('CORNER MARKET D.O.O.') || !shown.includes('HR6212345670000000001'))
+      throw new Error(`the details dialog opens on ${name}, not filled from Corner market's record: ${shown.slice(0, 200)}`)
+    await delay(300)
+    await inspect?.("a payee's details dialog")
+    await shoot('spending-payee-dialog')
+
+    const note = await page.$('[data-testid="spending-payee-note"] textarea, textarea[data-testid="spending-payee-note"]')
+    await note.evaluate((element) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set
+      setter.call(element, 'Open on Sundays')
+      element.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await pressSelector(page, press, '[data-testid="spending-payee-save"]')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="spending-payee-details"]')?.textContent?.includes('Open on Sundays'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the note saved in the details dialog does not show on the page')
+      })
+    await page.waitForFunction(() => !document.querySelector('[data-testid="spending-payee-dialog"]'), { timeout: 5_000 })
+    await undoIn(page, press, shared)
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="spending-payee-details"]')?.textContent?.includes('Open on Sundays'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error("Undo left the note on the payee's page")
+      })
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="spending-payee-edit"]')
+    const spelling = await page.waitForSelector('[data-testid="spending-payee-other-names"] [data-name="CORNER MARKET D.O.O."]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the details dialog does not show CORNER MARKET D.O.O. as a spelling to take off')
+    })
+    const tag = (await spelling.evaluate((chip) => chip.textContent?.trim() ?? '')).replace(/\s+/g, ' ')
+    if (!/^CORNER MARKET D\.O\.O\. · \d+ \S+$/.test(tag)) throw new Error(`the spelling's tag reads ${tag}, not the spelling with how many entries leave with it`)
+    await spelling.click()
+    await page.waitForSelector('[data-testid="spending-payee-other-names"] [data-name="CORNER MARKET D.O.O."]', { hidden: true, timeout: 5_000 }).catch(() => {
+      throw new Error('pressing the spelling did not take it off')
+    })
+    await pressSelector(page, press, '[data-testid="spending-payee-save"]')
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="screen-title"]')?.closest('header')?.textContent?.includes('CORNER MARKET D.O.O.'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the spelling taken off still shows on the page after Save')
+      })
+    await page.waitForFunction(() => !document.querySelector('[data-testid="spending-payee-dialog"]'), { timeout: 5_000 })
+    await undoIn(page, press, shared)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.closest('header')?.textContent?.includes('CORNER MARKET D.O.O.'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Undo did not put the spelling back')
+      })
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="spending-payee-edit"]')
+    await fill(page, 'spending-payee-name', 'Corner shop')
+    await pressSelector(page, press, '[data-testid="spending-payee-save"]')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Corner shop', { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the page does not show the new name after a rename')
+      })
+    const renamed = await pageHeader()
+    if (!renamed.includes('Corner market')) throw new Error(`a rename does not keep the old name among the other names: ${renamed}`)
+    await page.waitForFunction(() => !document.querySelector('[data-testid="spending-payee-dialog"]'), { timeout: 5_000 })
+    await undoIn(page, press, shared)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Corner market', { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Undo did not put the old name back')
+      })
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="spending-payee-edit"]')
+    await choose(page, press, await page.$('[data-testid="spending-payee-same-as"]'), 'Ana Horvat')
+    await delay(300)
+    await inspect?.('a payee to join picked in the details dialog')
+    await shoot('spending-payee-dialog-join')
+    await pressSelector(page, press, '[data-testid="spending-payee-save"]')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="screen-title"]')?.closest('header')?.textContent?.includes('Ana Horvat'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Same payee as did not join Ana Horvat into Corner market')
+      })
+    await page.waitForFunction(() => !document.querySelector('[data-testid="spending-payee-dialog"]'), { timeout: 5_000 })
+    await undoIn(page, press, shared)
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="screen-title"]')?.closest('header')?.textContent?.includes('Ana Horvat'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Undo did not take Ana Horvat back out')
+      })
+    await dismissToasts(page)
+    if ((await title()) !== 'Corner market') throw new Error(`the page shows ${await title()} after the joins were undone`)
+
+    await page.evaluate(() => (window.location.hash = '#/spending/transactions?month=all&payee=CORNER%20MARKET'))
+    const named = await page.waitForSelector('[data-testid="spending-filter-payee-page"]', { visible: true, timeout: 10_000 })
+    const target = await named.evaluate((link) => link.getAttribute('href') ?? '')
+    const opens = new URLSearchParams(target.split('?')[1] ?? '')
+    if (!target.includes('/spending/payee?') || opens.get('payee') !== 'CORNER MARKET' || opens.get('period') !== 'all')
+      throw new Error(`the payee's name in the totals line opens ${target}, not Corner market's page on All time`)
+    await delay(300)
+    await inspect?.("Entries' totals line with the payee's name as a link")
+    await shoot('spending-entries-payee-link')
+
+    await pressSelector(page, press, '[data-testid="spending-row"]')
+    const link = await page.waitForSelector('[data-testid="spending-entry-payee-page"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error("a saved entry's dialog on Entries has no link to its payee's page")
+    })
+    if ((await link.evaluate((element) => element.textContent?.trim())) !== words.page.open('Corner market')) throw new Error("the entry dialog's payee link does not name Corner market")
+    await delay(300)
+    await inspect?.("the entry dialog's link to its payee's page")
+    await shoot('spending-entry-payee-link')
+    const savedNote = await page.$eval('[data-testid="spending-entry-note"]', (input) => input.value)
+    await fill(page, 'spending-entry-note', `${savedNote} changed`)
+    await page.waitForSelector('[data-testid="spending-entry-payee-page"]', { hidden: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the entry dialog kept its payee page link while it held a change that leaving would lose')
+    })
+    await fill(page, 'spending-entry-note', savedNote)
+    const unchanged = await page.waitForSelector('[data-testid="spending-entry-payee-page"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the entry dialog did not bring back its payee page link once the change was undone')
+    })
+    await unchanged.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(unchanged)
+    await page
+      .waitForFunction(() => window.location.hash.startsWith('#/spending/payee?') && !document.querySelector('[data-testid="spending-entry-dialog"]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error("the entry dialog's payee link did not open the page and close the dialog")
+      })
+    if ((await addressQuery(page, 'payee')) !== 'CORNER MARKET') throw new Error(`the entry dialog's payee link opened ${page.url()}`)
+  }
+}

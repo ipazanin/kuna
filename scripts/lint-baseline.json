@@ -55,7 +55,6 @@
     "src/apps/company/settings/presentation/AccountsEditor.vue",
     "src/apps/company/settings/presentation/CategoriesEditor.vue",
     "src/apps/company/settings/presentation/FactTabEditor.vue",
-    "src/apps/company/settings/presentation/IbanTagsField.vue",
     "src/apps/company/spending/presentation/BreakdownPanel.vue",
     "src/apps/company/spending/presentation/CostByCategory.vue",
     "src/apps/company/spending/presentation/MonthStrip.vue",

@@ -13,6 +13,8 @@ import { inPeriod } from '../payees/domain/payeePeriod'
 import { payeeAmount, payeeTotals, payeesRanked } from '../payees/domain/payeeTotals'
 import type { PayeeSide } from '../payees/domain/payeeTotals'
 import { usualCategories } from '../payees/domain/usualCategory'
+import { keyOfPayee } from '../payees/domain/payeeDetails'
+import type { Payee, PayeeParty } from '../workbook/domain/payee'
 import { reviewCount } from '../statements/domain/reviewQueue'
 import { bookingOf } from '../statements/domain/twinRows'
 import type { BankSetup } from '../bankSync/application/bankSync'
@@ -574,42 +576,71 @@ function sharedCostLines(book: SpendingBook, rates: RateBook): readonly SharedCo
   }))
 }
 
-/** One payee as the chat reads it, derived from the entries. It is no record of the file. */
+/** One payee as the chat reads it: what their entries count, with the details you keep of them where you keep any. */
 interface PayeeLine {
   readonly id: string
   readonly name: string
+  readonly otherNames: readonly string[]
+  readonly party: PayeeParty | null
   readonly ibans: readonly string[]
+  readonly taxId: string
+  readonly website: string
+  readonly note: string
   readonly entries: number
   readonly newestDay: CivilDate | null
   readonly usualOut: RecordId | null
   readonly usualIn: RecordId | null
 }
 
-/** The payees of the book, as the Payees tab lists them. */
+/** The payees of the book, as the Payees tab lists them, and each payee you keep details of. */
 export const PAYEE_LINES: Pick<RecordKind, 'name' | 'noun'> = { name: PAYEE_RECORDS.name, noun: PAYEE_RECORDS.noun }
 
 const PAYEE_FIELDS: FieldDocs<PayeeLine> = {
-  id: { exposure: 'ref', to: PAYEE_LINES.name, meaning: 'The payee.' },
-  name: { exposure: 'party', meaning: 'The payee as their newest entry spells it.' },
-  ibans: { exposure: 'identifier', meaning: "The IBANs the payee's bank rows carry, newest first." },
-  entries: { exposure: 'plain', meaning: 'How many entries under a spending or an income category name the payee, of all time.' },
+  id: { exposure: 'ref', to: PAYEE_LINES.name, meaning: 'The payee, which the payee operations take.' },
+  name: { exposure: 'party', meaning: 'The name the payee shows under: the first of the names you keep, or as their newest entry spells it.' },
+  otherNames: { exposure: 'party', meaning: 'Every other spelling of the payee. An entry spelt any of these ways counts under this payee.' },
+  party: { exposure: 'plain', meaning: 'person, business, or null when not said. A person goes to the chat under an alias.' },
+  ibans: {
+    exposure: 'identifier',
+    meaning:
+      "The IBANs you added to the payee first, then those the payee's bank rows carry, newest first. An entry from an IBAN you added counts under this payee, unless its payee is named as another one.",
+  },
+  taxId: { exposure: 'identifier', meaning: 'An OIB or a foreign VAT number, or empty.' },
+  website: { exposure: 'free-text', meaning: 'Or empty.' },
+  note: { exposure: 'free-text', meaning: 'Or empty.' },
+  entries: { exposure: 'plain', meaning: 'How many entries under a spending or an income category count under the payee, of all time.' },
   newestDay: { exposure: 'plain', meaning: 'The day of their newest such entry.' },
   usualOut: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: "The category the payee's money out usually goes under, which the entry dialog fills in, or none." },
   usualIn: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: "The category the payee's money in usually goes under, or none." },
 }
 
-/** Every payee of all time, with the categories their entries usually go under. */
+/** Every payee of all time, with the categories their entries usually go under, then each payee you keep details of who has no such entry. */
 function payeeLines(book: SpendingBook, rates: RateBook): readonly PayeeLine[] {
   const [usualOut, usualIn] = [usualCategories(book, 'out'), usualCategories(book, 'in')]
-  return payeeTotals(countedRows(book, rates), book.categories, book).map((payee) => ({
-    id: payee.key,
-    name: payee.name,
-    ibans: payee.ibans,
-    entries: payee.rows,
-    newestDay: payee.latest,
-    usualOut: usualOut.get(payee.key) ?? null,
-    usualIn: usualIn.get(payee.key) ?? null,
-  }))
+  const totals = payeeTotals(countedRows(book, rates), book.categories, book)
+  const recordOf = (key: string): Payee | undefined => book.payees.find((payee) => keyOfPayee(payee) === key)
+  const details = (record: Payee | undefined) => ({
+    otherNames: record?.names.slice(1) ?? [],
+    party: record?.party ?? null,
+    taxId: record?.taxId ?? '',
+    website: record?.website ?? '',
+    note: record?.note ?? '',
+  })
+  return [
+    ...totals.map((payee) => ({
+      id: payee.key,
+      name: payee.name,
+      ...details(recordOf(payee.key)),
+      ibans: payee.ibans,
+      entries: payee.rows,
+      newestDay: payee.latest,
+      usualOut: usualOut.get(payee.key) ?? null,
+      usualIn: usualIn.get(payee.key) ?? null,
+    })),
+    ...book.payees
+      .filter((record) => !totals.some((payee) => payee.key === keyOfPayee(record)))
+      .map((record) => ({ id: keyOfPayee(record), name: record.names[0] ?? '', ...details(record), ibans: record.ibans, entries: 0, newestDay: null, usualOut: null, usualIn: null })),
+  ]
 }
 
 const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
