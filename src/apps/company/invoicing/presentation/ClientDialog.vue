@@ -12,6 +12,7 @@ import { ibanListOf } from '../../../../shared/text/iban'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
+import { planItemsOf } from '../../billingPlan/domain/planItems'
 import { CLIENT_WRITES, clientCellsOf, clientChecksOf } from '../../settings/application/namedRecordWrites'
 import { clientChangeRefusals } from '../../settings/domain/clientGuards'
 import IbanTagsField from '../../settings/presentation/IbanTagsField.vue'
@@ -121,7 +122,7 @@ const preview = computed(() => {
   return templatedLines(open, lines.value, texts.value.mail_language, previewDay)
 })
 const previewMonth = computed(() => monthInLanguage(previewDay, texts.value.mail_language))
-const planItems = computed(() => [...new Set(store.state.workbook?.billingPlan.map((row) => row.item) ?? [])])
+const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?? []))
 
 async function save(): Promise<void> {
   tried.value = true

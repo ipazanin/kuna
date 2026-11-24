@@ -151,6 +151,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
         <InvoiceLinesEditor
           v-model:lines="run.lines.value"
           :total="run.total.value"
+          :client="run.client.value"
           :disabled="!editable"
           planned
           :templated="run.templated.value"

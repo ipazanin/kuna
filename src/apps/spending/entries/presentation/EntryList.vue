@@ -17,6 +17,7 @@ import SharedCostRow from '../../sharedCosts/presentation/SharedCostRow.vue'
 import type { EntriesLine, SharedCostEntry } from '../../sharedCosts/domain/sharedCostEntries'
 import type { SharedCost } from '../../workbook/domain/sharedCost'
 import { entryLine } from './entryLine'
+import type { EntryLead } from './entryLine'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -40,8 +41,10 @@ const props = withDefaults(
     takesReceipt: (entry: Transaction) => boolean
     /** The names of the shared costs a part may be in, by their ids. */
     homes?: ReadonlyMap<RecordId, string>
+    /** What each row leads with. A payee's own page names the payee, so its rows lead with their category or note. */
+    lead?: EntryLead
   }>(),
-  { showAccount: true, heading: 'h2', picked: null, homes: () => new Map() },
+  { showAccount: true, heading: 'h2', picked: null, homes: () => new Map(), lead: 'payee' },
 )
 
 const emit = defineEmits<{ open: [entry: Transaction]; pick: [entry: Transaction]; receipt: [entry: AskedElement]; openSharedCost: [sharedCost: SharedCost] }>()
@@ -90,7 +93,7 @@ const days = computed(() => {
     const { row } = listed
     const { transaction, account } = row
     const entryLink = linkOfItems(row.items)
-    const { title, details, category } = entryLine(row, byId.value, props.showAccount, props.homes)
+    const { title, details, category } = entryLine(row, byId.value, props.showAccount, props.homes, props.lead)
     const line: Line = {
       kind: 'entry',
       row,

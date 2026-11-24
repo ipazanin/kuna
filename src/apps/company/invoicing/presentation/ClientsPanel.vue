@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import { planItemsOf } from '../../billingPlan/domain/planItems'
 import { CLIENT_WRITES } from '../../settings/application/namedRecordWrites'
 import { CLIENT_COLUMNS } from '../../settings/presentation/factTabColumns'
 import FactTabCard from '../../settings/presentation/FactTabCard.vue'
@@ -38,7 +39,7 @@ function openClient(client: ClientRecord): void {
   dialogOpen.value = true
 }
 
-const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
+const billingItems = computed(() => planItemsOf(state.workbook?.billingPlan ?? []))
 
 const termsSummary = computed(() => {
   const client = settings.value.billing.client

@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import UBadge from '@nuxt/ui/components/Badge.vue'
+import { computed, useId } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { planItemsOf } from '../../billingPlan/domain/planItems'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { LineDraft } from './lineDrafts'
+import PlanItemsSelect from './PlanItemsSelect.vue'
 import { words } from './words'
 
 const lines = defineModel<LineDraft[]>('lines', { required: true })
@@ -17,6 +18,8 @@ const lines = defineModel<LineDraft[]>('lines', { required: true })
 const props = withDefaults(
   defineProps<{
     total: Money
+    /** The client's slug, whose billing plan rows name the items a line may sum. */
+    client: string
     disabled: boolean
     /** The lines start from the billing plan, which From the billing plan and One line for the total fill again. */
     planned?: boolean
@@ -36,8 +39,9 @@ const emit = defineEmits<{
 }>()
 
 const store = useWorkbook()
-const created = ref<string[]>([])
-const itemChoices = computed(() => [...new Set([...(store.state.workbook?.billingPlan.map((row) => row.item) ?? []), ...lines.value.flatMap((line) => line.items), ...created.value])])
+const titleId = useId()
+const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?? [], props.client))
+const linesItems = computed(() => lines.value.flatMap((line) => line.items))
 
 const intro = computed(() => {
   if (!props.planned) return words.lines.introTyped
@@ -47,13 +51,6 @@ const intro = computed(() => {
 
 function update(index: number, change: Partial<LineDraft>): void {
   lines.value = lines.value.map((line, at) => (at === index ? { ...line, ...change } : line))
-}
-
-function createItem(index: number, text: string): void {
-  const typed = text.trim()
-  if (typed === '') return
-  created.value = [...created.value, typed]
-  update(index, { items: [...new Set([...lines.value[index]!.items, typed])] })
 }
 
 function remove(index: number): void {
@@ -71,9 +68,9 @@ function amountError(text: string): boolean {
 </script>
 
 <template>
-  <section class="@container flex min-w-0 flex-col gap-2" aria-labelledby="invoice-lines-title" data-testid="invoice-lines">
+  <section class="@container flex min-w-0 flex-col gap-2" :aria-labelledby="titleId" data-testid="invoice-lines">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <h3 id="invoice-lines-title" class="type-card-title">{{ words.lines.title }}</h3>
+      <h3 :id="titleId" class="type-card-title">{{ words.lines.title }}</h3>
       <div v-if="planned" class="flex flex-wrap gap-1">
         <UButton
           :label="templated ? words.lines.fromTemplate : words.lines.fromPlan"
@@ -108,16 +105,15 @@ function amountError(text: string): boolean {
             data-testid="invoice-line-text"
             @update:model-value="update(index, { description: String($event) })"
           />
-          <UInput
+          <MoneyInput
             :model-value="line.amount"
-            inputmode="decimal"
             :placeholder="words.lines.amountPlaceholder"
             class="w-full"
             v-bind="amountError(line.amount) ? { color: 'error', highlight: true } : {}"
             :aria-label="words.lines.amount(index + 1)"
             :disabled="disabled"
             data-testid="invoice-line-amount"
-            @update:model-value="update(index, { amount: String($event) })"
+            @update:model-value="update(index, { amount: $event })"
           />
           <UButton
             icon="i-lucide-trash-2"
@@ -125,30 +121,21 @@ function amountError(text: string): boolean {
             variant="ghost"
             class="size-11 justify-center sm:size-9"
             :aria-label="words.lines.remove(index + 1)"
-            :disabled="disabled"
+            :disabled="disabled || lines.length === 1"
             @click="remove(index)"
           />
         </div>
-        <USelectMenu
-          :model-value="[...line.items]"
-          :items="itemChoices"
-          multiple
-          create-item
-          :search-input="{ placeholder: words.clientLines.searchItem }"
-          :aria-label="words.clientLines.items(index + 1)"
+        <PlanItemsSelect
+          v-if="planItems.length > 0 || line.items.length > 0"
+          :model-value="line.items"
+          :plan-items="planItems"
+          :lines-items="linesItems"
+          :label="words.clientLines.items(index + 1)"
+          :placeholder="words.clientLines.itemsPlaceholder"
           :disabled="disabled"
-          class="w-full"
-          data-testid="invoice-line-items"
-          @update:model-value="update(index, { items: ($event as string[]).map(String) })"
-          @create="createItem(index, $event)"
-        >
-          <template #default>
-            <span v-if="line.items.length === 0" class="text-muted">{{ words.clientLines.itemsPlaceholder }}</span>
-            <span v-else class="flex min-h-lh min-w-0 flex-wrap items-center gap-1">
-              <UBadge v-for="item in line.items" :key="item" :label="item" color="neutral" variant="subtle" size="xs" class="max-w-full" data-testid="invoice-line-item" />
-            </span>
-          </template>
-        </USelectMenu>
+          test-id="invoice-line"
+          @update:model-value="update(index, { items: $event })"
+        />
       </li>
     </ol>
     <div class="flex flex-wrap items-center justify-between gap-2">

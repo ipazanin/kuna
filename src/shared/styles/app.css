@@ -529,8 +529,8 @@ section + section > .group-row:not(tr) {
   margin-inline-end: 1.75rem;
 }
 
-/* A list of ListRows in a card that may run across the page, such as a screen's newest entries, keeps each amount within 40rem of its title, so the eye does not lose the line between the name and the figure. */
-.near-figures .list-row-lines {
+/* A list of ListRows or Spending's entry rows in a card that may run across the page, such as a screen's newest entries, keeps each amount within 40rem of its title, so the eye does not lose the line between the name and the figure. */
+.near-figures :is(.list-row-lines, .entry-row-line) {
   max-inline-size: 40rem;
 }
 

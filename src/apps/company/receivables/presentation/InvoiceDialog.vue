@@ -268,7 +268,7 @@ async function remove(): Promise<void> {
         <USelect v-model="fields.client" :items="clientItems" :placeholder="words.dialog.clientPlaceholder" class="w-full" data-testid="invoice-client" />
       </UFormField>
       <UFormField :error="(tried && errors.lines) || false" class="sm:col-span-2">
-        <InvoiceLinesEditor v-model:lines="lines" :total="total" :disabled="writes.refused.value" />
+        <InvoiceLinesEditor v-model:lines="lines" :total="total" :client="fields.client" :disabled="writes.refused.value" />
       </UFormField>
       <UFormField :label="words.dialog.issued" :error="(tried && errors.issued) || false" :help="words.dialog.issuedHelp">
         <DayField v-model="fields.issued" class="w-full" data-testid="invoice-issued" />

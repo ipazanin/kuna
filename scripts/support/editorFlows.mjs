@@ -94,6 +94,7 @@ import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../
 import { en as spendingLabelsEnglish, hr as spendingLabelsCroatian } from '../../src/apps/spending/labels/presentation/words.ts'
 import { en as companyLabelsEnglish, hr as companyLabelsCroatian } from '../../src/apps/company/labels/presentation/words.ts'
 import { en as spendingEventsEnglish, hr as spendingEventsCroatian } from '../../src/apps/spending/events/presentation/words.ts'
+import { en as spendingEventRulesEnglish, hr as spendingEventRulesCroatian } from '../../src/apps/spending/events/domain/words.ts'
 import { en as spendingCategoriesEnglish, hr as spendingCategoriesCroatian } from '../../src/apps/spending/categories/presentation/words.ts'
 import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src/apps/spending/home/presentation/words.ts'
 import { en as spendingOverviewEnglish, hr as spendingOverviewCroatian } from '../../src/apps/spending/overview/presentation/words.ts'
@@ -246,6 +247,7 @@ const SCREEN_WORDS = {
     spendingLabels: spendingLabelsEnglish,
     companyLabels: companyLabelsEnglish,
     spendingEvents: spendingEventsEnglish,
+    spendingEventRules: spendingEventRulesEnglish,
     spendingCategories: spendingCategoriesEnglish,
     spendingHome: spendingHomeEnglish,
     spendingOverview: spendingOverviewEnglish,
@@ -340,6 +342,7 @@ const SCREEN_WORDS = {
     spendingLabels: spendingLabelsCroatian,
     companyLabels: companyLabelsCroatian,
     spendingEvents: spendingEventsCroatian,
+    spendingEventRules: spendingEventRulesCroatian,
     spendingCategories: spendingCategoriesCroatian,
     spendingHome: spendingHomeCroatian,
     spendingOverview: spendingOverviewCroatian,
@@ -1130,10 +1133,13 @@ async function dialogClosed(page) {
   await delay(300)
 }
 
-/** The texts and amounts of the invoice dialog's lines, an amount with a dot for the decimals whatever the language shows. */
+/** The texts and amounts of the invoice dialog's lines, an amount ungrouped with a dot for the decimals whatever the language shows. */
 async function invoiceLines(page) {
   return page.$$eval('[data-testid="invoice-line"]', (rows) =>
-    rows.map((row) => [row.querySelector('[data-testid="invoice-line-text"]')?.value ?? '', (row.querySelector('[data-testid="invoice-line-amount"]')?.value ?? '').replace(',', '.')]),
+    rows.map((row) => [
+      row.querySelector('[data-testid="invoice-line-text"]')?.value ?? '',
+      (row.querySelector('[data-testid="invoice-line-amount"]')?.value ?? '').replace(/[.,](?=\d{3}(?:[.,]|$))/g, '').replace(',', '.'),
+    ]),
   )
 }
 
@@ -13249,7 +13255,7 @@ export function spendingEventsFlowIn(language) {
     await pressSelector(page, press, '[data-testid="spending-event-add"]')
     await page.waitForSelector('[data-testid="spending-event-dialog"]', { visible: true, timeout: 10_000 })
     await pressSelector(page, press, '[data-testid="spending-event-save"]')
-    await says(events.dialog.blank, 'the event dialog takes a blank name')
+    await says(words.spendingEventRules.blank, 'the event dialog takes a blank name')
     await fill(page, 'spending-event-name', added)
     await fill(page, 'spending-event-from', '2027-02-10')
     await fill(page, 'spending-event-to', '2027-02-16')

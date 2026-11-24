@@ -1,21 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import UBadge from '@nuxt/ui/components/Badge.vue'
+import { computed, useId } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
 import type { InvoiceLine } from '../domain/invoiceLine'
 import type { InvoiceTemplateLine } from '../domain/invoiceTemplate'
+import PlanItemsSelect from './PlanItemsSelect.vue'
 import { words } from './words'
 
 /** A client's invoice lines: each line's text and the plan items it sums, in order, with what this month's open plan rows would give. */
 const lines = defineModel<InvoiceTemplateLine[]>({ required: true })
 
-const props = defineProps<{
+defineProps<{
   /** Every plan item the billing plan names. */
   planItems: readonly string[]
   /** Each line's problem, by its place, shown under it once Save was tried. */
@@ -27,18 +26,11 @@ const props = defineProps<{
   disabled: boolean
 }>()
 
-const created = ref<string[]>([])
-const itemChoices = computed(() => [...new Set([...props.planItems, ...lines.value.flatMap((line) => line.items), ...created.value])])
+const titleId = useId()
+const linesItems = computed(() => lines.value.flatMap((line) => line.items))
 
 function update(index: number, change: Partial<InvoiceTemplateLine>): void {
   lines.value = lines.value.map((line, at) => (at === index ? { ...line, ...change } : line))
-}
-
-function createItem(index: number, text: string): void {
-  const typed = text.trim()
-  if (typed === '') return
-  created.value = [...created.value, typed]
-  update(index, { items: [...new Set([...lines.value[index]!.items, typed])] })
 }
 
 function move(index: number, by: -1 | 1): void {
@@ -50,9 +42,9 @@ function move(index: number, by: -1 | 1): void {
 </script>
 
 <template>
-  <section class="flex min-w-0 flex-col gap-3 sm:col-span-2" aria-labelledby="client-lines-title" data-testid="client-lines">
+  <section class="flex min-w-0 flex-col gap-3 sm:col-span-2" :aria-labelledby="titleId" data-testid="client-lines">
     <div class="flex flex-col gap-1">
-      <h3 id="client-lines-title" class="type-card-title">{{ words.clientLines.title }}</h3>
+      <h3 :id="titleId" class="type-card-title">{{ words.clientLines.title }}</h3>
       <p class="type-caption max-w-prose">{{ words.clientLines.intro }}</p>
     </div>
     <p v-if="lines.length === 0" class="type-aside">{{ words.clientLines.planNote }}</p>
@@ -91,26 +83,16 @@ function move(index: number, by: -1 | 1): void {
                 @click="lines = lines.filter((_, at) => at !== index)"
               />
             </div>
-            <USelectMenu
-              :model-value="[...line.items]"
-              :items="itemChoices"
-              multiple
-              create-item
-              :search-input="{ placeholder: words.clientLines.searchItem }"
-              :aria-label="words.clientLines.items(index + 1)"
+            <PlanItemsSelect
+              :model-value="line.items"
+              :plan-items="planItems"
+              :lines-items="linesItems"
+              :label="words.clientLines.items(index + 1)"
+              :placeholder="index === lines.length - 1 ? words.clientLines.lastItemsPlaceholder : words.clientLines.itemsPlaceholder"
               :disabled="disabled"
-              class="w-full"
-              data-testid="client-line-items"
-              @update:model-value="update(index, { items: ($event as string[]).map(String) })"
-              @create="createItem(index, $event)"
-            >
-              <template #default>
-                <span v-if="line.items.length === 0" class="text-muted">{{ index === lines.length - 1 ? words.clientLines.lastItemsPlaceholder : words.clientLines.itemsPlaceholder }}</span>
-                <span v-else class="flex min-h-lh min-w-0 flex-wrap items-center gap-1">
-                  <UBadge v-for="item in line.items" :key="item" :label="item" color="neutral" variant="subtle" size="xs" class="max-w-full" data-testid="client-line-item" />
-                </span>
-              </template>
-            </USelectMenu>
+              test-id="client-line"
+              @update:model-value="update(index, { items: $event })"
+            />
           </div>
         </UFormField>
       </li>

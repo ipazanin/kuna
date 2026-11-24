@@ -5859,6 +5859,8 @@ const NEAR_FIGURE_SCREENS = [
   'spending-shortcut-dialog-croatian',
   'spending-payees',
   'spending-payees-croatian',
+  'spending-payee-page',
+  'spending-payee-page-croatian',
   'company-labels',
   'company-labels-croatian',
 ]
@@ -6107,9 +6109,11 @@ function readPage(page) {
     function farRowFigures() {
       const most = 40 * parseFloat(getComputedStyle(document.documentElement).fontSize)
       const found = []
-      for (const lines of document.querySelectorAll('.list-row-lines')) {
-        const title = lines.querySelector('.list-row-title')
-        const amount = lines.querySelector(':scope > .list-row-amount > :first-child')
+      const rows = [
+        ...[...document.querySelectorAll('.list-row-lines')].map((lines) => [lines.querySelector('.list-row-title'), lines.querySelector(':scope > .list-row-amount > :first-child')]),
+        ...[...document.querySelectorAll('.entry-row-line')].map((line) => [line.querySelector('[data-entry-title]'), line.querySelector(':scope > [data-entry-amount] > :first-child')]),
+      ]
+      for (const [title, amount] of rows) {
         if (title === null || amount === null || amount.getClientRects().length === 0) continue
         const apart = amount.getBoundingClientRect().left - title.getBoundingClientRect().left
         if (apart > most) found.push(`the amount of the row "${title.textContent.trim().slice(0, 32)}" starts ${Math.round(apart)} px from its title`)
