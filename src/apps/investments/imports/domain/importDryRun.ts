@@ -8,7 +8,7 @@ import { bookingKey } from './reportKey'
 import { isIncomeReversal, isWithheldRefund, workbookEntries } from './workbookEntries'
 import type { RowEntry } from './workbookEntries'
 import { words } from './words'
-import { investmentLots } from '../../holdings/domain/lots'
+import { bookedWorth, brokerWorthKept, investmentLots } from '../../holdings/domain/lots'
 import { priceOfWorth, tradeWorth } from '../../holdings/domain/quoting'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import { addsCash } from '../../workbook/domain/cashMovement'
@@ -298,7 +298,7 @@ export interface WorkbookRows {
 }
 
 const CENT = decimalOfText('0.01')!
-/** A trade's worth is booked to the cent, as `tradeTotal` moves it, so its fees take the rest of its net cash. */
+/** A price is taken as rounded to the cent at the coarsest. */
 const CENT_PLACES = 2
 /** A net cash may itself be rounded to the cent. */
 const HALF_CENT = decimalOfText('0.005')!
@@ -740,10 +740,12 @@ function ecbRate(currency: CurrencyCode, date: CivilDate, mapping: Mapping): Dec
 }
 
 /**
- * A buy's fees are what its net cash paid beyond quantity × price to the cent, a sale's what quantity × price to the
- * cent got beyond its net cash, so the trade moves its net cash exactly. Without a net cash they are the Commission cell. A trade with no commission whose net cash and
- * quantity × price differ by no more than the price's rounding, as a broker that shows the price to the cent books it,
- * takes its price from the net cash and has no fees.
+ * A buy's fees are what its net cash paid beyond its booked worth, a sale's what its booked worth got beyond its net
+ * cash, so the trade moves its net cash exactly. The booked worth is the one the row gives, kept on the trade when it is
+ * not quantity × price to the cent, and otherwise quantity × price to the cent. Without a net cash the fees are the
+ * Commission cell. A trade with no commission and no worth of its own whose net cash and quantity × price differ by no
+ * more than the price's rounding, as a broker that shows the price to the cent books it, takes its price from the net
+ * cash and has no fees.
  */
 function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
   const quantity = magnitude(required(row, 'quantity'))
@@ -757,12 +759,14 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
     throw new EntryWaits({ kind: 'other-currency', currency })
   }
   const worth = tradeWorth(instrument.quoted, quantity, price)
+  const brokerWorth = brokerWorthKept(instrument.quoted, quantity, price, row.worth === null ? null : magnitude(row.worth))
   const pricedByNet =
     netCash !== null &&
+    row.worth === null &&
     quantity > DECIMAL_ZERO &&
     (row.commission ?? DECIMAL_ZERO) === DECIMAL_ZERO &&
     magnitude(subtractDecimal(netCash, worth)) <= addDecimal(tradeWorth(instrument.quoted, quantity, halfStepOf(price)), HALF_CENT)
-  const booked = roundedDecimal(worth, CENT_PLACES)
+  const booked = bookedWorth(instrument.quoted, quantity, price, brokerWorth)
   const fees = netCash === null ? row.commission : pricedByNet ? DECIMAL_ZERO : side === 'buy' ? subtractDecimal(netCash, booked) : subtractDecimal(booked, netCash)
   return {
     id: recordIdOf(TRADE_RECORDS, newRecordId()),
@@ -772,6 +776,7 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
     date: row.date,
     quantity,
     price: pricedByNet ? priceOfWorth(instrument.quoted, netCash, quantity) : price,
+    ...(brokerWorth === undefined ? {} : { brokerWorth }),
     fees,
     rate: ecbRate(currency, row.date, mapping),
     accrued: null,

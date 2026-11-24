@@ -11,7 +11,6 @@ import type { TransactionErrors } from './words'
 import { words } from './words'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
-import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
 /** Units of a holding or cash moved from one of the user's accounts to another. */
 const texts = defineModel<TransactionTexts>({ required: true })
@@ -46,7 +45,7 @@ const shown = (field: keyof TransactionTexts): string | false => (props.tried &&
   <template v-else>
     <CurrencyField v-model="texts.currency" :book="book" :label="words.fields.currency" :error="shown('currency')" test-id="transaction-currency" />
     <UFormField :label="words.fields.amount" :error="shown('amount')">
-      <MoneyInput v-model="texts.amount" class="w-full" data-testid="transaction-amount" />
+      <UInput v-model="texts.amount" inputmode="decimal" class="w-full" data-testid="transaction-amount" />
     </UFormField>
   </template>
 </template>

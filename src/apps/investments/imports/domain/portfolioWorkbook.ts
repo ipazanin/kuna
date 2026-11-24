@@ -106,6 +106,8 @@ export interface WorkbookRow {
   readonly isin: string
   readonly quantity: Decimal | null
   readonly price: Decimal | null
+  /** What the broker booked for a buy's or a sale's units at its price, signed as its net cash, where a report gives it. The workbook gives none. */
+  readonly worth: Decimal | null
   readonly currency: CurrencyCode | null
   readonly gross: Decimal | null
   /** Above zero. */
@@ -278,6 +280,7 @@ function rowOf(fileRow: number, cellAt: (column: WorkbookColumn | OptionalColumn
     isin: text('isin').toUpperCase(),
     quantity: number('quantity'),
     price: number('price'),
+    worth: null,
     currency: currency('currency'),
     gross: number('gross'),
     commission: number('commission'),

@@ -5,6 +5,7 @@ import type { Trade } from './trade'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
+import type { Decimal } from '../../../../shared/money/decimal'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
@@ -12,6 +13,10 @@ import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { optionalDate, ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+
+function brokerWorthOf(fields: StoredFields): { readonly brokerWorth?: Decimal } {
+  return fields.broker_worth === undefined ? {} : { brokerWorth: positiveDecimal(fields, 'broker_worth') }
+}
 
 function settlesOf(fields: StoredFields): { readonly settles?: CivilDate } {
   const settles = optionalDate(fields, 'settles')
@@ -33,6 +38,7 @@ export function tradeOf(fields: StoredFields, id: RecordId | null): Trade {
     date: requiredDate(fields, 'date'),
     quantity: positiveDecimal(fields, 'quantity'),
     price,
+    ...brokerWorthOf(fields),
     fees: optionalUnsigned(fields, 'fees'),
     rate: fields.rate === undefined ? null : positiveDecimal(fields, 'rate'),
     accrued: optionalUnsigned(fields, 'accrued'),
@@ -50,6 +56,7 @@ export const TRADE_CODEC: RecordCodec<Trade> = withIdField(TRADE_RECORDS, words.
     date: trade.date,
     quantity: decimalField(trade.quantity),
     price: decimalField(trade.price),
+    broker_worth: decimalField(trade.brokerWorth ?? null),
     fees: decimalField(trade.fees),
     rate: decimalField(trade.rate),
     accrued: decimalField(trade.accrued),

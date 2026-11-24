@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UFormField from '@nuxt/ui/components/FormField.vue'
+import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { INCOME_KINDS } from '../../workbook/domain/income'
@@ -12,7 +13,6 @@ import type { TransactionTexts } from '../domain/transactionDraft'
 import type { TransactionErrors } from './words'
 import { words } from './words'
 import DayField from '../../../../shared/ui/DayField.vue'
-import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
 /** A dividend, coupon, interest or other income: its holding where it has one, account, day, currency, gross and the tax withheld. */
 const texts = defineModel<TransactionTexts>({ required: true })
@@ -47,9 +47,9 @@ const shown = (field: keyof TransactionTexts): string | false => (props.tried &&
   <CurrencyField v-model="texts.currency" :book="book" :label="words.fields.currency" :error="shown('currency')" test-id="transaction-currency" />
   <p v-if="texts.reverses" class="type-caption sm:col-span-2" data-testid="transaction-reverses">{{ words.fields.reverses }}</p>
   <UFormField :label="words.fields.gross" :help="words.fields.grossHelp" :error="shown('amount')">
-    <MoneyInput v-model="texts.amount" class="w-full" data-testid="transaction-amount" />
+    <UInput v-model="texts.amount" inputmode="decimal" class="w-full" data-testid="transaction-amount" />
   </UFormField>
   <UFormField :label="words.fields.withheld" :help="words.fields.withheldHelp" :error="shown('withheld')">
-    <MoneyInput v-model="texts.withheld" class="w-full" data-testid="transaction-withheld" />
+    <UInput v-model="texts.withheld" inputmode="decimal" class="w-full" data-testid="transaction-withheld" />
   </UFormField>
 </template>

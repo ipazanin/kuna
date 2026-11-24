@@ -160,6 +160,7 @@ function transactionValue(kind: RecordKind<unknown>, field: string, record: Prop
       side: recordWords.sides[record.side],
       quantity: quantityText(record.quantity),
       price: currency === null ? null : formatUnitPrice(record.price, currency),
+      brokerWorth: amountText(record.brokerWorth ?? null, currency),
       fees: amountText(record.fees, currency),
       rate: quantityText(record.rate),
       accrued: amountText(record.accrued, currency),

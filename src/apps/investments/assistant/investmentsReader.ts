@@ -237,6 +237,12 @@ function fieldsOf(book: () => InvestmentBook | null) {
       meaning: 'The price per unit in the quote currency, or in percent for a bond.',
       decimal: (record) => ({ amount: record.price, currency: currencyOf(record.instrument) }),
     },
+    brokerWorth: {
+      exposure: 'plain',
+      sign: 'zero-or-more',
+      meaning: 'What the broker booked for the units at the price, or null when it booked units × price to the cent, which the trade then moves.',
+      decimal: (record) => (record.brokerWorth === undefined ? null : { amount: record.brokerWorth, currency: currencyOf(record.instrument) }),
+    },
     fees: {
       exposure: 'plain',
       sign: 'either',

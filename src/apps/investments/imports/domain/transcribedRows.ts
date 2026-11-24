@@ -26,6 +26,8 @@ export interface TranscribedRow {
   readonly name: string
   readonly quantity: string | null
   readonly price: string | null
+  /** What the file says a buy's or a sale's units at its price came to, such as IBKR's Proceeds, or null when it gives none. */
+  readonly worth: string | null
   readonly currency: string | null
   readonly gross: string | null
   readonly commission: string | null
@@ -191,6 +193,12 @@ function balancesOf(balances: readonly TranscribedBalance[]): { readonly currenc
   return read
 }
 
+/** The worth a copied row gives, null when it gives none, or undefined when it cannot be read. */
+function worthOf(copied: TranscribedRow): Decimal | null | undefined {
+  const written = copied.worth?.trim() ?? ''
+  return written === '' ? null : (decimalOfText(written) ?? undefined)
+}
+
 /**
  * The copied rows read as the workbook's reader reads its cells, numbered from 1 in the order given. Each row's key starts
  * with its file, account and day and holds its facts, with its count among the card's rows with the same facts, so the
@@ -211,8 +219,13 @@ export function transcribedRows(file: TranscribedFile, lookAlikes: LookAlikes): 
       refusals.push({ fileRow: numbered(row.fileRow), problem: commission.problem })
       return
     }
+    const worth = worthOf(file.rows[at]!)
+    if (worth === undefined) {
+      refusals.push({ fileRow: numbered(row.fileRow), problem: { kind: 'unreadable', field: 'worth' } })
+      return
+    }
     const key = transcribedRowKey(dayScopeOf(file.fileName, row), keys[at]!)
-    rows.push({ ...row, fileRow: numbered(row.fileRow), name: file.rows[at]!.name.trim(), commissionCurrency: commission.currency, key })
+    rows.push({ ...row, fileRow: numbered(row.fileRow), name: file.rows[at]!.name.trim(), commissionCurrency: commission.currency, worth, key })
   })
   if (refusals.length > 0) return { kind: 'refused', rows: refusals.sort((first, second) => first.fileRow - second.fileRow) }
   const balances = balancesOf(file.balances)

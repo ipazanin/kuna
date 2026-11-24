@@ -24,9 +24,13 @@ const WHAT_A_HOLDING_NAMES: RecipeFields = {
   name: { from: 'description', as: 'text', blank: true },
 }
 
-/** A buy or a sale names its holding, the cash it moved with its commission and taxes, and the day IBKR means to settle it, which a sale's tax is of. */
+/**
+ * A buy or a sale names its holding, the worth IBKR booked for its units, the cash it moved with its commission and
+ * taxes, and the day IBKR means to settle it, which a sale's tax is of.
+ */
 const WHAT_A_TRADE_NAMES: RecipeFields = {
   ...WHAT_A_HOLDING_NAMES,
+  worth: { from: 'proceeds', as: 'decimal' },
   netCash: { from: 'netCash', as: 'decimal' },
   settles: { from: 'settleDateTarget', as: 'date', formats: DATE_FORMATS, blank: true },
 }

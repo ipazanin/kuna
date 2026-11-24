@@ -16,6 +16,11 @@ export interface Trade {
   /** Above zero. The side gives its direction. */
   readonly quantity: Decimal
   readonly price: Decimal
+  /**
+   * The worth the broker booked for the units at the price, above zero, kept only when it differs from units × price to
+   * the cent, such as IBKR's 148.025 for 5 at 29.605. Without it the trade books units × price to the cent.
+   */
+  readonly brokerWorth?: Decimal
   /** Null when not entered, which counts as zero and is flagged on the holding's page. */
   readonly fees: Decimal | null
   /** Units of the currency per euro, null for a trade in euros. */

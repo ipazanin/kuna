@@ -13,7 +13,7 @@ import { listedTransactions, passesFilter, transactionCount, withImportFacts } f
 import type { TransactionRecord } from '../src/apps/investments/transactions/domain/listedTransactions'
 import { tradePreview } from '../src/apps/investments/transactions/domain/tradePreview'
 import { DIVIDEND_CO, EXAMPLE_RATES, TECH, WORLD, exampleYear } from './fixtures/taxExample'
-import { ecbRateText, happeningsOfKind, keyOf, rateCurrency, textsOf, transactionDraft } from '../src/apps/investments/transactions/domain/transactionDraft'
+import { brokerWorthCheck, ecbRateText, happeningsOfKind, keyOf, rateCurrency, textsOf, transactionDraft } from '../src/apps/investments/transactions/domain/transactionDraft'
 import type { TransactionTexts } from '../src/apps/investments/transactions/domain/transactionDraft'
 import { transactionErrors } from '../src/apps/investments/transactions/presentation/words'
 import type { FundMixLine } from '../src/apps/investments/workbook/domain/fundMix'
@@ -26,6 +26,7 @@ import { emptyInvestmentsDocument } from '../src/apps/investments/workbook/infra
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { EURO } from '../src/shared/money/currencyCode'
+import { typedDecimal } from '../src/shared/money/decimal'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { BROKER, GBP, USD, account, book, cashMovement, cashTransfer, decimal, dividend, exchange, instrument, rateBookOf, spinOff, split, trade, unitTransfer } from './fixtures/investments'
@@ -300,15 +301,91 @@ describe('the transaction form', () => {
     expect(read('0,125')).toMatchObject({ quantity: decimal('0.125') })
   })
 
-  it('shows a changed record’s amounts with their cents, and one finer than a cent as stored, which a save rounds half away from zero to the cent', () => {
+  it('shows a changed record’s amounts with their cents, and one finer than a cent as stored, which a save keeps', () => {
     const trade3 = trade('buy', ONE, SHARE, '2026-01-10', '10', '100', '1.235', '1.08')
     const fees = textsOf({ kind: 'trade', record: trade3 }, { happened: 'buy', instrument: null, today: civil('2026-10-21') }, BOOK)
     const income = textsOf({ kind: 'income', record: dividend(ONE, SHARE, '2026-06-15', '1234.5', '12.345', '1.1') }, { happened: 'buy', instrument: null, today: civil('2026-10-21') }, BOOK)
 
     expect([fees.fees, income.amount, income.withheld]).toEqual(['1.235', '1,234.50', '12.345'])
-    expect(transactionDraft(fees, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('1.24') })
-    expect(transactionDraft(income, BOOK, 'k').record?.record).toMatchObject({ gross: decimal('1234.5'), withheld: decimal('12.35') })
+    expect(transactionDraft(fees, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('1.235') })
+    expect(transactionDraft(income, BOOK, 'k').record?.record).toMatchObject({ gross: decimal('1234.5'), withheld: decimal('12.345') })
     expect(transactionDraft({ ...fees, fees: '1.2x' }, BOOK, 'k').faults.fees).toEqual({ kind: 'fees' })
+  })
+
+  it("saves a broker's nine-decimal fee unchanged through the dialog's fields", () => {
+    const mailed = trade('buy', ONE, SHARE, '2026-11-19', '81', '122.6733', '5.001193617', '1.08')
+    const texts = textsOf({ kind: 'trade', record: mailed }, { happened: 'buy', instrument: null, today: civil('2026-11-24') }, BOOK)
+
+    expect(transactionDraft({ ...texts, note: 'Checked' }, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('5.001193617'), note: 'Checked' })
+    expect(texts.fees).toBe('5.001193617')
+    expect(transactionDraft({ ...texts, fees: '5.001193618' }, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('5.001193618') })
+  })
+
+  it.each([
+    ['148.025', '148.025'],
+    ['1,234.5', '1234.5'],
+    ['5.001193617', '5.001193617'],
+  ])('reads %s pasted into the fees and the broker worth as %s, keeping every decimal', (pasted, read) => {
+    const texts = { ...textsOf(null, { happened: 'buy', instrument: SHARE.id, today: civil('2026-11-24') }, BOOK), account: ONE.id, quantity: '5', price: '29.605', rate: '1.1' }
+    expect(transactionDraft({ ...texts, fees: pasted, brokerWorth: pasted }, BOOK, 'k').record?.record).toMatchObject({ fees: decimal(read), brokerWorth: decimal(read) })
+  })
+
+  it.each<[string, TransactionRecord, readonly (keyof TransactionTexts)[], (record: TransactionRecord['record']) => unknown]>([
+    [
+      'an exchange',
+      { kind: 'exchange', record: exchange(ONE, '2026-11-20', '7059.122356', USD, '6528.63074', EURO, { amount: decimal('1.849260001'), currency: EURO }) },
+      ['amount', 'bought', 'fees'],
+      (record) => ('sold' in record ? [record.sold, record.bought, record.fees?.amount] : null),
+    ],
+    [
+      'income',
+      { kind: 'income', record: dividend(ONE, SHARE, '2026-11-16', '3.780000001', '1.134000001', '1.1') },
+      ['amount', 'withheld'],
+      (record) => ('gross' in record ? [record.gross, record.withheld] : null),
+    ],
+    ['a cash movement', { kind: 'cash-movement', record: cashMovement('deposit', ONE, '2026-11-20', '600.000000001') }, ['amount'], (record) => ('amount' in record ? [record.amount] : null)],
+    [
+      'a cash transfer',
+      { kind: 'transfer', record: cashTransfer(ONE, TWO, '2024-09-06', USD, '8874.773246739') },
+      ['amount'],
+      (record) => ('moved' in record && record.moved.kind === 'cash' ? [record.moved.amount] : null),
+    ],
+  ])("keeps every decimal of %s's amounts, edited digit by digit or pasted", (_kind, entry, fields, amountsOf) => {
+    const texts = textsOf(entry, { happened: 'buy', instrument: null, today: civil('2026-11-24') }, BOOK)
+    const saved = (changes: Partial<TransactionTexts>) => amountsOf(transactionDraft({ ...texts, ...changes }, BOOK, 'k').record!.record)
+    expect(saved({})).toEqual(amountsOf(entry.record))
+    const lastDigitUp = (text: string): string => `${text.slice(0, -1)}${Number(text.at(-1)) === 9 ? 8 : Number(text.at(-1)) + 1}`
+    const edited = Object.fromEntries(fields.map((field) => [field, lastDigitUp(texts[field] as string)]))
+    expect(saved(edited)).not.toEqual(amountsOf(entry.record))
+    expect(saved(edited)).toEqual(fields.map((field) => typedDecimal(edited[field]!)))
+    const pasted = Object.fromEntries(fields.map((field) => [field, field === 'withheld' ? '0.114409799' : '114.409799']))
+    expect(saved(pasted)).toEqual(fields.map((field) => decimal(field === 'withheld' ? '0.114409799' : '114.409799')))
+  })
+
+  it.each([
+    ['', false],
+    ['148.025', false],
+    ['148.07', false],
+    ['148.09', true],
+    ['147.97', true],
+  ])('says a broker worth of %s far off units × price to the cent: %s', (brokerWorth, farOff) => {
+    const texts = { ...textsOf(null, { happened: 'sell', instrument: SHARE.id, today: civil('2026-11-24') }, BOOK), quantity: '5', price: '29.605', brokerWorth }
+    // Five units allow five cents either way of 148.025.
+    expect(brokerWorthCheck(texts, BOOK)).toEqual({ booked: decimal('148.03'), farOff })
+  })
+
+  it('keeps the worth the broker booked only when it is not units × price to the cent, and shows it when kept', () => {
+    const sale = trade('sell', ONE, SHARE, '2024-09-10', '5', '29.605', '0.351462345', '1.1')
+    const texts = textsOf({ kind: 'trade', record: sale }, { happened: 'sell', instrument: null, today: civil('2026-11-24') }, BOOK)
+    const saved = (brokerWorth: string) => transactionDraft({ ...texts, brokerWorth }, BOOK, 'k').record?.record
+
+    expect(texts.brokerWorth).toBe('')
+    expect(saved('148.025')).toMatchObject({ brokerWorth: decimal('148.025') })
+    expect(saved('148.03')).not.toHaveProperty('brokerWorth')
+    expect(saved('')).not.toHaveProperty('brokerWorth')
+    expect(transactionDraft({ ...texts, brokerWorth: '0' }, BOOK, 'k').faults.brokerWorth).toEqual({ kind: 'brokerWorth' })
+    const kept = textsOf({ kind: 'trade', record: { ...sale, brokerWorth: decimal('148.025') } }, { happened: 'sell', instrument: null, today: civil('2026-11-24') }, BOOK)
+    expect(kept.brokerWorth).toBe('148.025')
   })
 
   it('shows a reversal’s amounts above zero and keeps them below zero, with a note saying what it reverses', () => {
@@ -331,7 +408,7 @@ describe('the transaction form', () => {
 
     expect(croatian.transactionDraft(typed, BOOK, 'k').record?.record).toMatchObject({ quantity: decimal('1000'), price: decimal('158.96'), fees: decimal('1000'), rate: decimal('1.085') })
     expect([changed.quantity, changed.fees, changed.rate]).toEqual(['1,5', '1,234', '1,08'])
-    expect(croatian.transactionDraft(changed, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('1.23') })
+    expect(croatian.transactionDraft(changed, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('1.234') })
   })
 
   it('shows a record it changes as typed, and keeps its id and its own kinds', () => {

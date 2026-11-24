@@ -125,6 +125,11 @@ export const en = {
     priceIn: (currency: string) => `In ${currency}`,
     fees: 'Fees',
     feesHelp: (currency: string) => `In ${currency}, commission and any taxes on the trade`,
+    brokerWorth: 'Worth the broker booked',
+    brokerWorthHelp: (currency: string, booked: string | null) =>
+      booked === null ? `In ${currency}, only when it differs from units × price to the cent, such as 148.025` : `In ${currency}, only when it differs from ${booked}, units × price to the cent`,
+    brokerWorthShow: 'Add the worth the broker booked',
+    brokerWorthFarOff: 'More than a cent per unit away from units × price. Check the units and the price.',
     ratePer: (currency: string) => `Exchange rate, ${currency} per EUR`,
     rateFromEcb: (day: string) => `The latest ECB reference rate on ${day}. Use your broker's if it differs.`,
     rateTyped: 'As your broker booked it',
@@ -170,6 +175,7 @@ export const en = {
     handPrice: 'A price above zero, such as 10.42',
     amount: 'An amount above zero',
     fees: 'An amount, or blank',
+    brokerWorth: 'An amount above zero, or blank',
     withheld: 'Zero or more, and no more than the gross amount',
     reversalNote: 'A note saying which payment it reverses',
     rate: 'A rate above zero, such as 1.0850',
@@ -315,6 +321,13 @@ export const hr: Translation<typeof en> = {
     priceIn: (currency) => `U valuti ${currency}`,
     fees: 'Naknade',
     feesHelp: (currency) => `U valuti ${currency}, provizija i porezi na transakciju`,
+    brokerWorth: 'Vrijednost koju je knjižio broker',
+    brokerWorthHelp: (currency, booked) =>
+      booked === null
+        ? `U valuti ${currency}, samo kad se razlikuje od jedinice × cijena zaokruženo na cent, na primjer 148,025`
+        : `U valuti ${currency}, samo kad se razlikuje od ${booked}, jedinice × cijena zaokruženo na cent`,
+    brokerWorthShow: 'Dodaj vrijednost koju je knjižio broker',
+    brokerWorthFarOff: 'Razlikuje se od jedinice × cijena za više od centa po jedinici. Provjerite jedinice i cijenu.',
     ratePer: (currency) => `Tečaj, ${currency} za 1 EUR`,
     rateFromEcb: (day) => `Zadnji referentni tečaj ESB-a na dan ${withFullStop(day)} Upišite brokerov ako se razlikuje.`,
     rateTyped: 'Kako ga je knjižio broker',
@@ -360,6 +373,7 @@ export const hr: Translation<typeof en> = {
     handPrice: 'Cijena veća od nule, na primjer 10,42',
     amount: 'Iznos veći od nule',
     fees: 'Iznos ili prazno',
+    brokerWorth: 'Iznos veći od nule ili prazno',
     withheld: 'Nula ili više i ne više od bruto iznosa',
     reversalNote: 'Napomena koja kaže koju isplatu poništava',
     rate: 'Tečaj veći od nule, na primjer 1,0850',

@@ -100,11 +100,10 @@ describe("IBKR's built-in recipe", () => {
     expect(run.skipped).toEqual([])
   })
 
-  it('keeps a fractional quantity, and takes the fee from the net cash', () => {
+  it("keeps a fractional quantity and IBKR's worth for it, and takes the fee from the net cash", () => {
     const records = recordsOf(workbookDryRun(rowsOf(), { book: kept(), rates: RATES, answers: ANSWERS }).entries)
     const buy = records.find((imported) => imported.kind === 'trade' && imported.record.side === 'buy')
-    // The net cash of 124.41725 less the worth of 1.2345 x 100.5 = 124.06725 booked to the cent as 124.07.
-    expect(buy?.record).toMatchObject({ quantity: decimal('1.2345'), price: decimal('100.5'), fees: decimal('0.34725'), date: DAY })
+    expect(buy?.record).toMatchObject({ quantity: decimal('1.2345'), price: decimal('100.5'), brokerWorth: decimal('124.06725'), fees: decimal('0.35'), date: DAY })
   })
 
   it("keeps the report's amounts to the last decimal it gives", () => {

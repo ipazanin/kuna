@@ -40,6 +40,7 @@ function addTrade(desk: InvestmentsDesk, fields: Readonly<Record<string, unknown
       date: '2026-10-12',
       quantity: '2',
       price: '150',
+      brokerWorth: null,
       fees: '1',
       rate: '1.08',
       note: '',
@@ -130,6 +131,17 @@ describe('trades', () => {
     await desk.accept()
     const changed = bookOf(desk).trades.find((trade) => trade.id === DESK.FUND_BUY.id)!
     expect([decimalText(changed.quantity), decimalText(changed.price), changed.note]).toEqual(['4', '10', 'Checked'])
+  })
+
+  it('keeps the worth the broker booked that a step gives, and a change that leaves it out keeps it', async () => {
+    const desk = await investmentsDesk(used)
+    await desk.propose([addTrade(desk, { quantity: '5', price: '29.605', brokerWorth: '148.025' })])
+    await desk.accept()
+    const bought = bookOf(desk).trades.at(-1)!
+    expect(decimalText(bought.brokerWorth!)).toBe('148.025')
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'change-trade', { record: desk.ref('trade', bought.id), note: 'Checked' })])
+    await desk.accept()
+    expect(decimalText(bookOf(desk).trades.find((trade) => trade.id === bought.id)!.brokerWorth!)).toBe('148.025')
   })
 
   it('refuses deleting the buy a later spin-off and split count on when it would leave a sale or a lot without units', async () => {

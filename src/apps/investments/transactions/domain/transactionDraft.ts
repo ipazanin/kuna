@@ -1,5 +1,6 @@
 import type { TransactionKind, TransactionRecord } from './listedTransactions'
 import { accountSources, landingRecordOf, landsAnew, mailOwned } from '../../imports/domain/accountIntake'
+import { bookedWorth, brokerWorthFarOff, brokerWorthKept } from '../../holdings/domain/lots'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovementKind } from '../../workbook/domain/cashMovement'
 import type { IncomeKind } from '../../workbook/domain/income'
@@ -10,19 +11,7 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import {
-  DECIMAL_ZERO,
-  decimalOfMoney,
-  decimalOfText,
-  decimalShown,
-  decimalText,
-  magnitude,
-  negateDecimal,
-  roundedDecimal,
-  scaledDecimal,
-  timesDecimal,
-  typedDecimal,
-} from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, decimalOfMoney, decimalOfText, decimalShown, decimalText, magnitude, negateDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { amountShown } from '../../../../shared/money/amountTyping'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -101,6 +90,8 @@ export interface TransactionTexts {
   date: string
   quantity: string
   price: string
+  /** What the broker booked for a trade's units at its price, blank when it booked units × price to the cent. */
+  brokerWorth: string
   fees: string
   rate: string
   incomeKind: IncomeKind
@@ -127,6 +118,7 @@ type PlainFault =
   | 'date'
   | 'units'
   | 'price'
+  | 'brokerWorth'
   | 'handPrice'
   | 'amount'
   | 'fees'
@@ -175,6 +167,7 @@ export function textsOf(entry: TransactionRecord | null, start: TransactionStart
     date: start.today,
     quantity: '',
     price: '',
+    brokerWorth: '',
     fees: '',
     rate: '',
     incomeKind: 'dividend',
@@ -197,7 +190,17 @@ export function textsOf(entry: TransactionRecord | null, start: TransactionStart
     case 'trade': {
       const trade = entry.record
       const fees = trade.fees === null ? '' : amountText(trade.fees)
-      return { ...base, account: trade.account, instrument: trade.instrument, quantity: decimalShown(trade.quantity), price: decimalShown(trade.price), fees, rate: decimalShown(trade.rate) }
+      const brokerWorth = decimalShown(trade.brokerWorth ?? null)
+      return {
+        ...base,
+        account: trade.account,
+        instrument: trade.instrument,
+        quantity: decimalShown(trade.quantity),
+        price: decimalShown(trade.price),
+        brokerWorth,
+        fees,
+        rate: decimalShown(trade.rate),
+      }
     }
     case 'income': {
       const payment = entry.record
@@ -277,23 +280,36 @@ export function ecbRateText(rates: RateBook | null, currency: CurrencyCode | nul
   return decimalShown(rate)
 }
 
+/** What the trade dialog says beside the broker's worth. */
+export interface BrokerWorthCheck {
+  /** The worth Kuna books from units × price to the cent, null while the holding, units or price cannot be read. */
+  readonly booked: Decimal | null
+  /** Whether the worth typed is more than a cent per unit away from units × price. */
+  readonly farOff: boolean
+}
+
+export function brokerWorthCheck(texts: TransactionTexts, book: InvestmentBook): BrokerWorthCheck {
+  const instrument = book.instruments.find((candidate) => candidate.id === texts.instrument)
+  const quantity = positiveDecimal(texts.quantity)
+  const price = typedDecimal(texts.price)
+  if (instrument === undefined || quantity === null || price === null) return { booked: null, farOff: false }
+  const worth = positiveDecimal(texts.brokerWorth)
+  return { booked: bookedWorth(instrument.quoted, quantity, price), farOff: worth !== null && brokerWorthFarOff(instrument.quoted, quantity, price, worth) }
+}
+
 /** What is wrong with each field and, when nothing is, the record the fields make with the id given. */
 export interface TransactionDraft {
   readonly faults: TransactionFaults
   readonly record: TransactionRecord | null
 }
 
-const CENT_PLACES = 2
-
 /**
- * An amount in a money field as an exact decimal in whole cents, null for anything that is not one. An imported amount
- * finer than a cent, which the field shows at its stored scale, is rounded once to the cent.
+ * An amount in a money field as an exact decimal, null for anything that is not one. An amount finer than a cent, such
+ * as a broker's commission, which the field shows at its stored scale, is kept as it is.
  */
 function amountOf(text: string): Decimal | null {
   const cents = typedAmount(text)
-  if (cents !== null) return decimalOfMoney(cents)
-  const finer = typedDecimal(text)
-  return finer === null ? null : roundedDecimal(finer, CENT_PLACES)
+  return cents !== null ? decimalOfMoney(cents) : typedDecimal(text)
 }
 
 function positiveAmount(text: string): Decimal | null {
@@ -354,12 +370,28 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
       const instrument = instrumentOf('instrument')
       const quantity = positiveDecimal(texts.quantity) ?? fail<Decimal>('quantity', 'units')
       const price = typedDecimal(texts.price) ?? fail<Decimal>('price', 'price')
+      const typedWorth = texts.brokerWorth.trim() === '' ? null : (positiveDecimal(texts.brokerWorth) ?? fail<Decimal>('brokerWorth', 'brokerWorth'))
       const fees = texts.fees.trim() === '' ? null : (amountOf(texts.fees) ?? fail<Decimal>('fees', 'fees'))
       const rate = rateFor(instrument?.currency ?? null)
       if (account === null || instrument === null || date === null || quantity === null || price === null) return { faults, record: null }
+      const brokerWorth = brokerWorthKept(instrument.quoted, quantity, price, typedWorth)
       return done({
         kind: 'trade',
-        record: { id: recordIdOf(TRADE_RECORDS, key), account, instrument: instrument.id, side: texts.happened, date, quantity, price, fees, rate, accrued: null, importKeys: [], note },
+        record: {
+          id: recordIdOf(TRADE_RECORDS, key),
+          account,
+          instrument: instrument.id,
+          side: texts.happened,
+          date,
+          quantity,
+          price,
+          ...(brokerWorth === undefined ? {} : { brokerWorth }),
+          fees,
+          rate,
+          accrued: null,
+          importKeys: [],
+          note,
+        },
       })
     }
     case 'income': {

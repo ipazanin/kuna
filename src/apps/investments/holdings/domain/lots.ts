@@ -14,9 +14,11 @@ import {
   DECIMAL_ZERO,
   addDecimal,
   decimalOfMoney,
+  decimalOfText,
   decimalCentParts,
   decimalParts,
   inEuros,
+  magnitude,
   moneyParts,
   negateDecimal,
   roundedDecimal,
@@ -123,13 +125,31 @@ export function taxFreeUnits(lots: readonly Lot[], day: CivilDate): TaxFreeUnits
   }
 }
 
+const CENT_PLACES = 2
+const CENT = decimalOfText('0.01')!
+
 /**
- * What a trade moves in its currency: a buy's worth + fees, a sale's worth − fees, each with the accrued interest of a
- * bond. The broker books the worth to the cent, so a fractional quantity whose quantity × price runs to twelve places
- * moves whole cents, as its net cash did.
+ * The worth a trade books for its units at its price: the broker's own where it booked another, otherwise units × price
+ * to the cent, as most brokers book it, so a fractional quantity whose units × price runs to twelve places moves whole
+ * cents, as its net cash did.
  */
+export function bookedWorth(quoting: Quoting, quantity: Decimal, price: Decimal, brokerWorth?: Decimal): Decimal {
+  return brokerWorth ?? roundedDecimal(tradeWorth(quoting, quantity, price), CENT_PLACES)
+}
+
+/** The broker's worth a trade keeps, or undefined when there is none or it is units × price to the cent, which Kuna works out itself. */
+export function brokerWorthKept(quoting: Quoting, quantity: Decimal, price: Decimal, brokerWorth: Decimal | null): Decimal | undefined {
+  return brokerWorth === null || brokerWorth === bookedWorth(quoting, quantity, price) ? undefined : brokerWorth
+}
+
+/** Whether the broker's worth is more than a cent per unit away from units × price, which points at a mistyped figure rather than the broker's rounding. */
+export function brokerWorthFarOff(quoting: Quoting, quantity: Decimal, price: Decimal, brokerWorth: Decimal): boolean {
+  return magnitude(subtractDecimal(brokerWorth, tradeWorth(quoting, quantity, price))) > tradeWorth(quoting, quantity, CENT)
+}
+
+/** What a trade moves in its currency: a buy's booked worth + fees, a sale's booked worth − fees, each with the accrued interest of a bond. */
 export function tradeTotal(trade: Trade, quoting: Quoting): Decimal {
-  const worth = addDecimal(roundedDecimal(tradeWorth(quoting, trade.quantity, trade.price), 2), trade.accrued ?? DECIMAL_ZERO)
+  const worth = addDecimal(bookedWorth(quoting, trade.quantity, trade.price, trade.brokerWorth), trade.accrued ?? DECIMAL_ZERO)
   const fees = trade.fees ?? DECIMAL_ZERO
   return trade.side === 'buy' ? addDecimal(worth, fees) : subtractDecimal(worth, fees)
 }

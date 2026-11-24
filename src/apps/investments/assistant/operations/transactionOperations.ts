@@ -90,6 +90,14 @@ const TRADE_FIELDS: readonly FormField[] = [
   { name: 'date', text: 'date', shape: DAY },
   { name: 'quantity', text: 'quantity', shape: DECIMAL_SHAPE, about: 'Units, grams or a bond nominal, above zero.' },
   { name: 'price', text: 'price', shape: DECIMAL_SHAPE, about: 'Per unit in the quote currency, in percent for a bond.' },
+  {
+    name: 'brokerWorth',
+    text: 'brokerWorth',
+    shape: AMOUNT,
+    optional: true,
+    about:
+      "What the broker booked for the units at the price, such as IBKR's Proceeds of 148.025 for 5 at 29.605, or null when it booked units × price to the cent. Kuna keeps it only when it differs.",
+  },
   { name: 'fees', text: 'fees', shape: AMOUNT, optional: true, about: 'The broker fees in the quote currency, or null when not known.' },
   RATE,
   NOTE,
@@ -103,7 +111,7 @@ const FORMS: readonly TransactionForm[] = [
     fields: [{ name: 'side', text: 'happened', shape: { is: 'choice', choices: TRADE_SIDES } }, ...TRADE_FIELDS],
     adds: 'A buy or a sale of units in an account, in the quote currency. A sale beyond what the account holds that day is refused.',
     countedOn: true,
-    example: { side: 'buy', account: 'account', instrument: 'instrument', date: '2026-10-12', quantity: '2', price: '150', fees: '1', rate: null, note: '' },
+    example: { side: 'buy', account: 'account', instrument: 'instrument', date: '2026-10-12', quantity: '2', price: '150', brokerWorth: null, fees: '1', rate: null, note: '' },
     held: (book) => as('trade', book.trades),
   },
   {
@@ -412,7 +420,7 @@ const ADD_HOLDING: AssistantOperation = {
   refs: refsOf(TRADE_FIELDS),
   creates: null,
   alone: false,
-  example: { account: 'account', instrument: 'instrument-fund', date: '2025-03-03', quantity: '10', price: '9.5', fees: null, rate: null, note: '' },
+  example: { account: 'account', instrument: 'instrument-fund', date: '2025-03-03', quantity: '10', price: '9.5', brokerWorth: null, fees: null, rate: null, note: '' },
 }
 
 const TRADE_FORM = FORMS[0]!
