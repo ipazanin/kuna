@@ -52,7 +52,7 @@ async function pressTab(page, press, label) {
 /**
  * On the company's Settings: two tabs picked in turn, each in the address and the browser title, then Back twice
  * through them to the default tab, which stays out of the address. Last, a fresh load of a link
- * to the last tab must show that tab inside the strip, which a phone scrolls for its six tabs.
+ * to the last tab must show that tab inside the strip, which a phone scrolls for its five tabs.
  */
 export function pageTabsFlowIn(language) {
   const { company, settings } = TAB_WORDS[language]
@@ -61,14 +61,14 @@ export function pageTabsFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await until(page, (state) => state.name === settings.tabs, 'the tab strip has no accessible name')
 
-    await pressTab(page, press, settings.tabNames.categories)
-    await until(page, (state) => state.hash.includes('tab=categories') && state.open?.startsWith(settings.tabNames.categories), 'Categories did not open with tab=categories in the address')
     await pressTab(page, press, settings.tabNames.accounts)
-    await until(page, (state) => state.hash.includes('tab=accounts') && state.title === titleOf(settings.tabNames.accounts), 'Accounts did not reach the address and the browser title')
-    await shoot('page-tabs-accounts')
+    await until(page, (state) => state.hash.includes('tab=accounts') && state.open?.startsWith(settings.tabNames.accounts), 'Accounts did not open with tab=accounts in the address')
+    await pressTab(page, press, settings.tabNames.assistant)
+    await until(page, (state) => state.hash.includes('tab=assistant') && state.title === titleOf(settings.tabNames.assistant), 'Assistant did not reach the address and the browser title')
+    await shoot('page-tabs-assistant')
 
     await page.evaluate(() => history.back())
-    await until(page, (state) => state.hash.includes('tab=categories') && state.open?.startsWith(settings.tabNames.categories), 'Back did not return to Categories')
+    await until(page, (state) => state.hash.includes('tab=accounts') && state.open?.startsWith(settings.tabNames.accounts), 'Back did not return to Accounts')
     await page.evaluate(() => history.back())
     await until(
       page,

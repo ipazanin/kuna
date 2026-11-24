@@ -36,17 +36,17 @@ describe('categoriesToSort', () => {
     const paper = { ...travel, slug: 'paper', label: 'Paper and pens', roles: ['watched'] }
 
     expect(categoriesToSort([travel, representation, paper], day, [])).toEqual([
-      { id: null, label: 'No tax class yet', reason: 'Travel and Paper and pens. Pick one for each on Settings, Categories.' },
+      { id: null, label: 'No tax class yet', reason: 'Travel and Paper and pens. Pick one for each on the Categories card.' },
     ])
-    expect(categoriesToSort([travel], day, [])[0]?.reason).toBe('Travel. Pick one for it on Settings, Categories.')
+    expect(categoriesToSort([travel], day, [])[0]?.reason).toBe('Travel. Pick one for it on the Categories card.')
   })
 
   it('names two classes, and checks the VAT and bucket against the first the roles list', () => {
     const twice = { ...representation, roles: ['representation', 'non-deductible'], bucket: 'taxes' } as const
 
     expect(categoriesToSort([twice], day, [])).toEqual([
-      lineOf(twice, `It carries "${representationName}" and "Fines and private costs: all added back". Kuna counts a category one way, so keep one on Settings, Categories.`),
-      lineOf(twice, `It carries "${representationName}", which sits in operating, and the category sits in taxes. Change one of them on Settings, Categories.`),
+      lineOf(twice, `It carries "${representationName}" and "Fines and private costs: all added back". Kuna counts a category one way, so keep one on the Categories card.`),
+      lineOf(twice, `It carries "${representationName}", which sits in operating, and the category sits in taxes. Change one of them on the Categories card.`),
     ])
   })
 
@@ -54,7 +54,7 @@ describe('categoriesToSort', () => {
     const deductible = { ...representation, vat: 'deductible-25' } as const
 
     expect(categoriesToSort([deductible], day, [])).toEqual([
-      lineOf(deductible, `It carries "${representationName}", which takes Representation, and its VAT reads Input VAT 25\u00a0%. Change one of them on Settings, Categories.`),
+      lineOf(deductible, `It carries "${representationName}", which takes Representation, and its VAT reads Input VAT 25\u00a0%. Change one of them on the Categories card.`),
     ])
   })
 
@@ -62,7 +62,7 @@ describe('categoriesToSort', () => {
     const older = { ...representation, slug: 'interest-income', family: 'income', bucket: 'income', roles: ['other-income'], vat: 'none' } as const
 
     expect(categoriesToSort([older], day, [])).toEqual([
-      { ...lineOf(older, 'It carries "Other income", and new books give it "Interest, financial income". Pick that one on Settings, Categories.'), newerClassOf: 'interest-income' },
+      { ...lineOf(older, 'It carries "Other income", and new books give it "Interest, financial income". Pick that one on the Categories card.'), newerClassOf: 'interest-income' },
     ])
     expect(
       categoriesToSort(
@@ -93,7 +93,7 @@ describe('the cost line older books keep for travel, insurance, training and ban
 
   it('suggests the other-costs-line role new books give, until the category carries it or the person dismissed it', () => {
     const travel = older('travel', ['deductible-cost'])
-    const said = 'New books also give it "other-costs-line", which puts its costs on the profit and loss line the accountant uses. Add it on Settings, Categories.'
+    const said = 'New books also give it "other-costs-line", which puts its costs on the profit and loss line the accountant uses. Add it on the Categories card.'
 
     expect(categoriesToSort([travel, older('insurance', ['deductible-cost', 'prepaid-annual'])], day, [])).toEqual([
       { ...lineOf(travel, said), newerClassOf: 'travel' },

@@ -12,6 +12,7 @@ import { PAGE_LEAST_WIDTH } from '../../src/shared/layout/viewport.ts'
 import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as categoriesEnglish, hr as categoriesCroatian } from '../../src/apps/company/categories/presentation/words.ts'
+import { en as companySortingEnglish, hr as companySortingCroatian } from '../../src/apps/company/sorting/presentation/words.ts'
 import { en as classWordsEnglish, hr as classWordsCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
 import { en as ruleChangesEnglish, hr as ruleChangesCroatian } from '../../src/apps/company/rules/domain/words.ts'
@@ -171,6 +172,7 @@ const SCREEN_WORDS = {
     home: homeEnglish,
     company: companyEnglish.name,
     companySettings: companySettingsEnglish.title,
+    companySorting: companySortingEnglish.title,
     loans: loansEnglish.name,
     investments: investmentsEnglish.name,
     overview: overviewEnglish.title,
@@ -200,7 +202,7 @@ const SCREEN_WORDS = {
     receivables: receivablesEnglish,
     billing: billingEnglish,
     clientColumns: companySettingsEnglish.clientColumns,
-    settings: companySettingsEnglish,
+    settings: { ...companySettingsEnglish, categories: categoriesEnglish.categories },
     categoriesToSort: categoriesEnglish.categoriesToSort,
     classes: classWordsEnglish.classes,
     settingsReasons: settingsReasonsEnglish,
@@ -266,6 +268,7 @@ const SCREEN_WORDS = {
     home: homeCroatian,
     company: companyCroatian.name,
     companySettings: companySettingsCroatian.title,
+    companySorting: companySortingCroatian.title,
     loans: loansCroatian.name,
     investments: investmentsCroatian.name,
     overview: overviewCroatian.title,
@@ -295,7 +298,7 @@ const SCREEN_WORDS = {
     receivables: receivablesCroatian,
     billing: billingCroatian,
     clientColumns: companySettingsCroatian.clientColumns,
-    settings: companySettingsCroatian,
+    settings: { ...companySettingsCroatian, categories: categoriesCroatian.categories },
     categoriesToSort: categoriesCroatian.categoriesToSort,
     classes: classWordsCroatian.classes,
     settingsReasons: settingsReasonsCroatian,
@@ -648,7 +651,7 @@ async function pickCategoryNamed(page, press, trigger, slug) {
 }
 
 /**
- * On Settings, Categories of the books with the `category-move` plan rows: the bin of a category in use opens the move dialog. It
+ * On Sorting, Categories of the books with the `category-move` plan rows: the bin of a category in use opens the move dialog. It
  * shows nothing picked, a target in the same bucket with what moves, a target in another bucket with the warning, and the save
  * lands with a toast and Undo. AI services into software subscriptions says its plan row joins the one already there, and the
  * save lands. Travel, which a plan row the plan tab cannot read still names, gets the warning with a button to Year, Plan and
@@ -2122,7 +2125,7 @@ export function ownerNetUnregisteredFlowIn(language) {
 export const ownerNetUnregisteredFlow = ownerNetUnregisteredFlowIn('en')
 
 /**
- * Settings, Categories: a 40% default on software subscriptions, saved with the fill offer, which
+ * Sorting, Categories: a 40% default on software subscriptions, saved with the fill offer, which
  * fills the bank rows without a share and leaves the design tool advance's 25%, then undone whole.
  */
 export function shareFillFlowIn(language) {
@@ -3300,7 +3303,7 @@ function coverageGroupShown(page, name, shown) {
 }
 
 /**
- * Settings, Category rules: dismiss a group no rule settles, find it under the dismissed suggestions, restore
+ * Sorting, Rules: dismiss a group no rule settles, find it under the dismissed suggestions, restore
  * it, and Undo the restore.
  */
 export function dismissFlowIn(language) {
@@ -3352,7 +3355,7 @@ async function toSortButtonShown(page, testId, shown) {
 }
 
 /**
- * Settings, General in books that keep interest on the other income class: dismiss the suggested class in Categories to
+ * Sorting in books that keep interest on the other income class: dismiss the suggested class in Categories to
  * sort, find it there with Restore, restore it, and Undo the restore.
  */
 export function newerClassFlowIn(language) {
@@ -3383,7 +3386,7 @@ export function newerClassFlowIn(language) {
 export const newerClassFlow = newerClassFlowIn('en')
 
 /**
- * Settings, General in books from before late payment interest: Add puts the category and its rules in with one Undo, then
+ * Sorting in books from before late payment interest: Add puts the category and its rules in with one Undo, then
  * Dismiss hides the offer, Restore shows it again and Undo takes the restore back.
  */
 export function missingCategoryFlowIn(language) {
@@ -3566,14 +3569,20 @@ export function cardSettlementIbansFlowIn(language) {
 export const cardSettlementIbansFlow = cardSettlementIbansFlowIn('en')
 
 const RULE_ROW = '[data-testid="rule-row"]'
+/** The Rules card's Show all while it shows only its first ten rules. Each wait below presses it, so a rule further down is on the page. */
+const EVERY_RULE = '[data-testid="company-rules"] [data-testid="show-all"][aria-expanded="false"]'
 
 /** The rules tab's row of this rule, by its id. */
 async function ruleRowOf(page, id) {
   return page
     .waitForFunction(
-      (selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted) ?? null,
+      (selector, everyRule, wanted) => {
+        document.querySelector(everyRule)?.click()
+        return [...document.querySelectorAll(selector)].find((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted) ?? null
+      },
       { timeout: 10_000 },
       RULE_ROW,
+      EVERY_RULE,
       id,
     )
     .then((handle) => handle.asElement())
@@ -3584,7 +3593,16 @@ async function ruleRowOf(page, id) {
 
 async function ruleGone(page, id) {
   await page
-    .waitForFunction((selector, wanted) => ![...document.querySelectorAll(selector)].some((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted), { timeout: 10_000 }, RULE_ROW, id)
+    .waitForFunction(
+      (selector, everyRule, wanted) => {
+        document.querySelector(everyRule)?.click()
+        return document.querySelector(everyRule) === null && ![...document.querySelectorAll(selector)].some((row) => row.querySelector('.identifier')?.textContent?.trim() === wanted)
+      },
+      { timeout: 10_000 },
+      RULE_ROW,
+      EVERY_RULE,
+      id,
+    )
     .catch(() => {
       throw new Error(`the rule ${id} is still on the rules tab`)
     })
@@ -3594,12 +3612,14 @@ async function ruleGone(page, id) {
 async function ruleNoteReads(page, id, note, when) {
   await page
     .waitForFunction(
-      (selector, wanted, text) => {
+      (selector, everyRule, wanted, text) => {
+        document.querySelector(everyRule)?.click()
         const row = [...document.querySelectorAll(selector)].find((candidate) => candidate.querySelector('.identifier')?.textContent?.trim() === wanted)
-        return row !== undefined && (row.querySelector('.rule-main > p.type-caption')?.textContent?.trim() ?? '') === text
+        return row !== undefined && (row.querySelector('[data-testid="rule-note"]')?.textContent?.trim() ?? '') === text
       },
       { timeout: 10_000 },
       RULE_ROW,
+      EVERY_RULE,
       id,
       note,
     )
@@ -3630,7 +3650,7 @@ async function editRule(page, press, id) {
 }
 
 /**
- * On Settings, Category rules: a rule's note changed in its editor, the toast with Undo once the editor closes,
+ * On Sorting, Rules: a rule's note changed in its editor, the toast with Undo once the editor closes,
  * and Undo putting the note back. Then the same rule deleted from its editor after the back-test of
  * taking it off, and brought back with Undo.
  */
@@ -3678,7 +3698,7 @@ export function rulesEditorFlowIn(language) {
 export const rulesEditorFlow = rulesEditorFlowIn('en')
 
 /**
- * On Settings, Category rules: Berlin conference picked in a rule's Labels field, the change preview saying the rows it files
+ * On Sorting, Rules: Berlin conference picked in a rule's Labels field, the change preview saying the rows it files
  * from now on take it while the rows it filed keep theirs, the label on the rule's row once saved, and Undo taking it off.
  */
 export function ruleLabelsFlowIn(language) {
@@ -10137,7 +10157,7 @@ async function lookAtSheet(page, press, shoot, opener, name) {
 }
 
 /**
- * The dialogs and sheets of Transactions, its To review tab and Settings, Categories, opened and closed
+ * The dialogs and sheets of Transactions, its To review tab and Sorting, Categories, opened and closed
  * again: a payment's split, a settled row's change of category with the rule it contradicts named,
  * the laptop's owner share, the filter sheets of a phone, a rule's editor, switching a rule off
  * with its back-test, and a row of the To review queue opened.
@@ -10179,7 +10199,7 @@ export function rowsDialogsFlowIn(language) {
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="owner-share"]')
 
-    await goTo(page, '#/company/settings?tab=category-rules', words.companySettings)
+    await goTo(page, '#/company/sorting#rules', words.companySorting)
     await editRule(page, press, 'merchant-airline')
     await elementSays(page, '[role="dialog"]', [words.rules.form.conditions, words.rules.editor.backtest], 'the rule editor is not in its language')
     await shoot('dialog-rule-editor')
@@ -10204,7 +10224,7 @@ export function rowsDialogsFlowIn(language) {
     await shoot('review-row-open')
     await lookAtSheet(page, press, shoot, '[data-testid="open-filters"]', 'sheet-review-filters')
 
-    await goTo(page, '#/company/settings?tab=categories', words.companySettings)
+    await goTo(page, '#/company/sorting#categories', words.companySorting)
     await lookAtSheet(page, press, shoot, '[data-testid="open-category-filters"]', 'sheet-category-filters')
   }
 }
@@ -10277,7 +10297,7 @@ export function companyDialogsFlowIn(language) {
     await goTo(page, '#/company/year?year=2027&tab=pay', words.pack.screens.year)
     await openCard(page, press, 'scenario-editor')
     await lookAtDialog(page, press, shoot, '[data-scenario="floor-salary"] [data-testid="scenario-add-component"]', '[data-testid="scenario-component-form"]', 'dialog-component')
-    await goTo(page, '#/company/settings?tab=category-rules', words.companySettings)
+    await goTo(page, '#/company/sorting#rules', words.companySorting)
     await editRule(page, press, 'merchant-airline')
     await shoot('dialog-rule')
     await page.keyboard.press('Escape')
@@ -15206,5 +15226,104 @@ export function spendingPayeeDetailsFlowIn(language) {
         throw new Error("the entry dialog's payee link did not open the page and close the dialog")
       })
     if ((await addressQuery(page, 'payee')) !== 'CORNER MARKET') throw new Error(`the entry dialog's payee link opened ${page.url()}`)
+  }
+}
+
+/** An old address of Company's labels or of Settings' Categories or Category rules tab, kept from before Sorting held them, opens Sorting with that card open and in view. */
+export function companyOldAddressFlowIn(language, card) {
+  return async (page, { shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page
+      .waitForFunction((wanted) => window.location.hash.startsWith('#/company/sorting') && window.location.hash.endsWith(`#${wanted}`), { timeout: 10_000 }, card)
+      .catch(async () => {
+        throw new Error(`the old address did not land on Sorting's ${card} card but on ${await page.evaluate(() => window.location.hash)}`)
+      })
+    const landed = await page.waitForSelector(`[id="${card}"]`, { visible: true, timeout: 10_000 })
+    if ((await landed.evaluate((element) => element.dataset.collapsed)) === 'true') throw new Error(`Sorting's ${card} card stays folded after the old address`)
+    await page
+      .waitForFunction(
+        (wanted) => {
+          const top = document.getElementById(wanted)?.getBoundingClientRect().top
+          return top !== undefined && top >= 0 && top < window.innerHeight - 80
+        },
+        { timeout: 5_000 },
+        card,
+      )
+      .catch(() => {
+        throw new Error(`Sorting's ${card} card is not in view after the old address`)
+      })
+    await delay(300)
+    await inspect?.(`Sorting from the old ${card} address`)
+    await shoot(`company-old-${card}-address`)
+  }
+}
+
+/** Presses a rule count and checks the Rules card then shows that many rules, its chip and no move arrows, and that the chip shows every rule again. */
+async function companyRulesShownFor(page, press, link, name, words, every, shoot, inspect, shot) {
+  const counted = Number.parseInt((await link.evaluate((element) => element.textContent ?? '')).trim(), 10)
+  await press(link)
+  await page
+    .waitForFunction(() => /[?&](category|label)=/.test(window.location.hash) && window.location.hash.endsWith('#rules'), { timeout: 10_000 })
+    .catch(async () => {
+      throw new Error(`the count of ${name} did not open its rules but ${await page.evaluate(() => window.location.hash)}`)
+    })
+  await countOf(page, '[data-testid="rule-row"]', counted, `only the rules for ${name} should show`)
+  await page.waitForSelector('[data-testid="company-rules-shown-for"]', { visible: true, timeout: 5_000 })
+  await countOf(page, '[data-testid="rule-row"] [data-testid="move-up"], [data-testid="rule-row"] [data-testid="move-down"]', 0, 'a filtered list should offer no moves')
+  await delay(300)
+  await inspect?.(`the rules for ${name}`)
+  await shoot(shot)
+  await pressSelector(page, press, `[aria-label="${words.rules.tab.showAll(name)}"]`)
+  await countOf(page, '[data-testid="rule-row"]', every, 'the chip should show every rule again')
+  if (await page.evaluate(() => /[?&](category|label)=/.test(window.location.hash))) throw new Error('the chip left the category or label in the address')
+}
+
+/**
+ * On Company's Sorting: the Categories card starts folded on a first visit, and once opened, a category's rule count opens the Rules
+ * card with only the rules that file under it, a chip and no move arrows, and the chip shows every rule again. Then Berlin conference
+ * goes on a rule, and its count on the Labels card does the same for the rules that put it on. The rule keeps the label, since
+ * each flow reads the fake books afresh.
+ */
+export function companyRulesForFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const id = 'merchant-airline'
+  const label = 'Berlin conference'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="rule-row"]', { timeout: 10_000 })
+    if (await page.$(EVERY_RULE)) await pressSelector(page, press, EVERY_RULE)
+    const every = await page.$$eval('[data-testid="rule-row"]', (rows) => rows.length)
+    if (every < 2) throw new Error('the set should start with more than one rule')
+    const categories = await page.waitForSelector('[data-testid="company-categories"]', { timeout: 10_000 })
+    if ((await categories.evaluate((card) => card.dataset.collapsed)) !== 'true') throw new Error('the Categories card should start folded on a first visit')
+    await openCard(page, press, 'company-categories')
+    const categoryLink = await page.waitForSelector('[data-testid="company-categories"] [data-testid="company-rules-link"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('no category counts its rules')
+    })
+    await categoryLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    const [text, spoken] = await categoryLink.evaluate((element) => [(element.textContent ?? '').trim(), element.getAttribute('aria-label') ?? ''])
+    const [before, after] = words.rules.tab.countOf(text, '\u0000').split('\u0000')
+    const category = spoken.slice(before.length, spoken.length - after.length)
+    await companyRulesShownFor(page, press, categoryLink, category, words, every, shoot, inspect, 'company-rules-for-category')
+
+    await editRule(page, press, id)
+    const field = await page.waitForSelector('[data-testid="rule-labels"] [data-testid="labels-select"]', { visible: true, timeout: 10_000 })
+    await pickLabel(page, press, field, label, false, '[role="dialog"] [data-testid="rule-editor"]')
+    await acceptBacktest(page, press)
+    await pressSelector(page, press, '[data-testid="save-rule"]')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+    const labelLink = await page
+      .waitForSelector(`[data-testid="company-labels"] [data-testid="company-rules-link"][aria-label="${words.rules.tab.countOf(words.rules.tab.count(1).one, label)}"]`, {
+        visible: true,
+        timeout: 10_000,
+      })
+      .catch(() => {
+        throw new Error(`${label} does not say 1 rule once a rule puts it on`)
+      })
+    await labelLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await companyRulesShownFor(page, press, labelLink, label, words, every, shoot, inspect, 'company-rules-for-label')
+    await dismissToasts(page)
   }
 }

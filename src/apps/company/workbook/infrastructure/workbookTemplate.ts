@@ -60,7 +60,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'date', note: 'The booking date, as a date cell. Required.' },
     { name: 'account', note: 'Which of your accounts, by the name in the accounts tab. Required.' },
     { name: 'statement', note: 'The bank statement the row came from. Optional.' },
-    { name: 'counterparty', note: 'Who paid or was paid. Optional, but Analysis groups by it.' },
+    { name: 'counterparty', note: 'Who paid or was paid. Optional, but the figures group rows by it.' },
     { name: 'counterparty_iban', note: 'Their IBAN, which groups a payee better than a name. Optional.' },
     { name: 'description', note: 'The payment description. Optional.' },
     { name: 'amount', note: 'The amount as a number, money in positive and money out negative. Required.' },
@@ -94,7 +94,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     {
       name: 'colour',
       note:
-        'The colour the app paints the category with, one of the swatches on Settings, Categories, such as #2a78d6 for Blue, or an own colour as #rrggbb that keeps 3:1 on a white card. ' +
+        'The colour the app paints the category with, one of the swatches the app offers for a category, such as #2a78d6 for Blue, or an own colour as #rrggbb that keeps 3:1 on a white card. ' +
         'Blank, or any other value, paints it in its bucket colour.',
     },
     { name: 'roles', note: 'Optional, comma separated, such as revenue or watched, for features that pick categories by role.' },
@@ -117,10 +117,10 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'iban', note: "The account's IBAN. Optional." },
     { name: 'currency', note: 'Optional. The app counts in the currency from the settings tab and reports an account in another one.' },
     { name: 'label', note: 'What the screens call the account, such as Main account. Optional. Blank shows the account name.' },
-    { name: 'bank', note: "The bank that keeps the account, such as Example banka. Import's table recipes find the account by its bank and currency. Optional." },
+    { name: 'bank', note: 'The bank that keeps the account, such as Example banka. A table recipe finds the account by its bank and currency. Optional.' },
     {
       name: 'sources',
-      note: "Where the account's rows come from, in order, each later one with the day it takes over, such as by-hand, mail 2026-03-01: mail when each sync reads the bank's statements from the bank's mail, provider-file for the bank's camt file you bring on Import or to the chat, by-hand for its sheets, camt files and the chat's copies. The first may carry a day, before which the account takes no row, and mail first needs one. Blank is worked out from its rows once.",
+      note: "Where the account's rows come from, in order, each later one with the day it takes over, such as by-hand, mail 2026-03-01: mail when each sync reads the bank's statements from the bank's mail, provider-file for the bank's camt file you import or give the chat, by-hand for its sheets, camt files and the chat's copies. The first may carry a day, before which the account takes no row, and mail first needs one. Blank is worked out from its rows once.",
     },
   ],
   rules: RULE_COLUMNS.map((name) => ({ name, note: RULE_COLUMN_NOTES[name] })),
@@ -215,7 +215,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
   dismissed: [
     {
       name: 'kind',
-      note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}. The first two are the lists of confirmed rows no rule repeats on Settings, Category rules, newer-class is the tax class Categories to sort suggests for a category, and missing-category is a category new books start with that Categories to sort offers. Required.`,
+      note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}. The first two are groups of confirmed rows no rule repeats, newer-class is the tax class new books give a category in place of the one it carries, and missing-category is a category new books start with that these books lack. Required.`,
     },
     {
       name: 'key',
@@ -231,16 +231,16 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'label', note: 'What the ledger’s statement column would say for its rows. Required.' },
     { name: 'iban', note: 'The account the statement is of, as an IBAN. Optional.' },
     { name: 'mailed_on', note: 'The day the mail came, as a date cell. Each sync searches the mail back to it while the statement waits. Required.' },
-    { name: 'passed_over_on', note: 'The day the person passed the statement over, as a date cell. Blank while it waits on Import. Filing it deletes the row. Optional.' },
+    { name: 'passed_over_on', note: 'The day the person passed the statement over, as a date cell. Blank while it waits to be filed. Filing it deletes the row. Optional.' },
     ID_TEMPLATE_COLUMN,
   ],
   recipes: [
-    { name: 'name', note: "What Import calls the recipe, such as the bank's export it reads. Required." },
+    { name: 'name', note: "What the app calls the recipe, such as the bank's export it reads. Required." },
     { name: 'bank', note: 'The bank whose account takes the rows, as the accounts tab names it. Required.' },
-    { name: 'currency', note: 'The currency of the account that takes the rows, such as EUR. Import reads the file into the one account of that bank and currency. Optional.' },
+    { name: 'currency', note: 'The currency of the account that takes the rows, such as EUR. The recipe reads the file into the one account of that bank and currency. Optional.' },
     { name: 'format', note: 'table for a csv or a spreadsheet, xml for an XML file. Required.' },
     { name: 'root', note: "An XML file's root element. Blank for a table. Optional." },
-    { name: 'sections', note: 'How the recipe reads the file, as Kuna writes it: the columns it reads and the kinds of rows, in JSON. Edit it on Import. Required.' },
+    { name: 'sections', note: 'How the recipe reads the file, as Kuna writes it: the columns it reads and the kinds of rows, in JSON. Edit it in the app. Required.' },
     ID_TEMPLATE_COLUMN,
   ],
 }

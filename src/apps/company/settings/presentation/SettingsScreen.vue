@@ -6,13 +6,10 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../shared/ui/PageTabs.vue'
 import { shownPack } from '../../packs/packContribution'
-import CategoryRulesTab from '../../rules/presentation/CategoryRulesTab.vue'
-import { CATEGORY_RULES_TAB } from '../../rules/presentation/ruleLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useSettings } from '../application/useSettings'
 import AccountsSettingsTab from './AccountsSettingsTab.vue'
 import AssistantSettingsTab from './AssistantSettingsTab.vue'
-import CategoriesSettingsTab from './CategoriesSettingsTab.vue'
 import DataSourceCard from './DataSourceCard.vue'
 import GeneralSettingsTab from './GeneralSettingsTab.vue'
 import { ASSISTANT_TAB, BOOKS_FILE_TAB, LINKED_SETTINGS_TAB } from './settingsTabs'
@@ -22,8 +19,6 @@ import { words } from './words'
 /** The company's Settings at `#/company/settings`: the books' tabs with the pack's, the assistant's, and Books file, where the books are kept. */
 const CORE_TABS: readonly SettingsTab[] = [
   { value: 'general', label: words.tabNames.general, icon: 'i-lucide-sliders-horizontal', component: GeneralSettingsTab },
-  { value: 'categories', label: words.tabNames.categories, icon: 'i-lucide-tags', component: CategoriesSettingsTab },
-  { value: CATEGORY_RULES_TAB, label: words.tabNames.categoryRules, icon: 'i-lucide-list-ordered', component: CategoryRulesTab },
   { value: 'accounts', label: words.tabNames.accounts, icon: 'i-lucide-landmark', component: AccountsSettingsTab },
 ]
 const ASSISTANT: SettingsTab = { value: ASSISTANT_TAB, label: words.tabNames.assistant, icon: 'i-lucide-sparkles', component: AssistantSettingsTab }

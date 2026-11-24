@@ -39,7 +39,7 @@ describe('the lint rule that keeps cut text on CutText', { timeout: 120_000 }, (
   })
 
   it.each([
-    'src/apps/company/settings/presentation/CategoriesEditor.vue',
+    'src/apps/company/categories/presentation/CategoriesEditor.vue',
     'src/apps/company/settings/presentation/GeneralSettingsForm.vue',
     'src/apps/loans/scenarios/presentation/OfferTermsFields.vue',
   ])("leaves a field's ellipsis in %s, which focus shows in full, and refuses anything else that cuts", async (file) => {

@@ -3,10 +3,12 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
+import type { RouteLocationRaw } from 'vue-router'
 
 import { bucketTone } from '../../../../shared/charts/chartTokens'
 import { listInWords } from '../../../../shared/text/listInWords'
 import ColourSwatchPicker from '../../../../shared/ui/ColourSwatchPicker.vue'
+import CountLink from '../../../../shared/ui/CountLink.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
@@ -21,16 +23,18 @@ import type { VatTreatment } from '../../workbook/domain/vatTreatment'
 import { displayName } from '../../workbook/domain/displayName'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { classOf, rolesBesideClass } from '../domain/categoryClasses'
-import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, draftWithClass, keepsItsName, pickedColour, rolesOfText } from '../domain/categoryDrafts'
+import { classOf, rolesBesideClass } from '../../settings/domain/categoryClasses'
+import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, draftWithClass, keepsItsName, pickedColour, rolesOfText } from '../../settings/domain/categoryDrafts'
 import { categoryClassMessages } from './categoryClassMessages'
-import { vatTreatmentLabel } from './vatTreatmentLabel'
-import type { CategoryDraft } from '../domain/categoryDrafts'
-import { NO_FILTERS, categoryListing, matchesFilters } from '../domain/categoryListing'
-import type { CategoryFilters, CategorySort, CategorySortColumn } from '../domain/categoryListing'
+import { vatTreatmentLabel } from '../../settings/presentation/vatTreatmentLabel'
+import type { CategoryDraft } from '../../settings/domain/categoryDrafts'
+import { NO_FILTERS, categoryListing, matchesFilters } from '../../settings/domain/categoryListing'
+import type { CategoryFilters, CategorySort, CategorySortColumn } from '../../settings/domain/categoryListing'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import CategoryFilterBar from './CategoryFilterBar.vue'
+import { rulesCountLink } from '../../rules/presentation/rulesCountLink'
 import RolesSelect from './RolesSelect.vue'
+import { words as settingsWords } from '../../settings/presentation/words'
 import { words } from './words'
 
 const props = defineProps<{
@@ -50,6 +54,10 @@ const props = defineProps<{
   saving: boolean
   /** The file takes no changes, which switches its Save off. */
   refused: boolean
+  /** How many rules file under each category, by its short name as saved. */
+  ruleCounts: ReadonlyMap<string, number>
+  /** The Rules card showing only the rules that file under a category, by its short name. */
+  rulesLink: (slug: string) => RouteLocationRaw
 }>()
 
 const emit = defineEmits<{
@@ -186,6 +194,11 @@ function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'saved
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
 }
 
+/** The short name the row was saved with, which a rule names, so a name typed but not saved still counts its rules. */
+function savedSlug(draft: CategoryDraft): string {
+  return draft.savedName.trim().toLowerCase()
+}
+
 function shownName(draft: CategoryDraft): string {
   return displayName(draft.category.trim().toLowerCase(), draft.label)
 }
@@ -225,7 +238,7 @@ function locked(draft: CategoryDraft): boolean {
 }
 
 function inUse(draft: CategoryDraft): string {
-  return words.inUse(listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? []))
+  return settingsWords.inUse(listInWords(props.uses.get(savedSlug(draft)) ?? []))
 }
 
 const body = useTemplateRef<HTMLElement>('body')
@@ -245,7 +258,7 @@ async function addCategory(): Promise<void> {
 function remove(index: number): void {
   const draft = drafts.value[index]!
   if (locked(draft)) {
-    emit('moveAndDelete', draft.savedName.trim().toLowerCase())
+    emit('moveAndDelete', savedSlug(draft))
     return
   }
   drafts.value = drafts.value.filter((_, position) => position !== index)
@@ -306,6 +319,7 @@ function save(): void {
               @update:model-value="update(index, 'category', String($event))"
             />
             <p v-if="errors.get(index)?.category" class="field-error">{{ errors.get(index)?.category }}</p>
+            <CountLink v-if="draft.saved !== null" v-bind="rulesCountLink(ruleCounts.get(savedSlug(draft)) ?? 0, shownName(draft))" :to="rulesLink(savedSlug(draft))" class="mt-1 flex" />
           </td>
           <td>
             <UInput

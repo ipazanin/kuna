@@ -282,7 +282,7 @@ export interface Workbook {
   readonly labels: readonly Label[]
   /** The labels each counted item carries, by the item's id. An item that carries none is left out, and so is every item of books from before items. */
   readonly itemLabels: ReadonlyMap<RecordId, readonly RecordId[]>
-  /** The suggestions on the Category rules tab a person dismissed, in the order the tab holds them. */
+  /** The suggestions under Sorting's Rules card a person dismissed, in the order the dismissed tab holds them. */
   readonly dismissals: readonly Dismissal[]
   /** The statements the sync read from the bank's mail and holds for the person, in the order the tab holds them. */
   readonly heldStatements: readonly HeldStatement[]

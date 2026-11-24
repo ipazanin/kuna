@@ -1,6 +1,6 @@
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
-import type { EnglishForms, Translation } from '../../../../shared/text/translation'
+import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A rule is tried (isprobava se) in its order and files a row (razvrstava stavku). The back-test is provjera unatrag.
@@ -36,6 +36,12 @@ export const en = {
     renumbers: 'Two rules share an order, so every rule is renumbered in steps of 100.',
     moved: (id: string) => `Moved ${id}`,
     moveIt: 'Move it',
+    count: (count: number): EnglishForms => ({ one: '1 rule', other: `${count} rules` }),
+    countOf: (rules: string, name: string) => `${rules} for ${name}`,
+    onlyFor: (name: string) => `Only the rules for ${name}`,
+    showAll: (name: string) => `Show every rule, not only those for ${name}`,
+    noneInto: (name: string) => `No rule files under ${name}.`,
+    noneOn: (name: string) => `No rule puts ${name} on.`,
   },
   editor: {
     deleteTitle: (id: string) => `Delete ${id}`,
@@ -194,6 +200,12 @@ export const hr: Translation<typeof en> = {
     renumbers: 'Dva pravila imaju isti redoslijed, pa se sva pravila prenumeriraju u koracima od 100.',
     moved: (id) => `Premješteno: ${id}`,
     moveIt: 'Premjesti',
+    count: (count): CroatianForms => ({ one: `${count} pravilo`, few: `${count} pravila`, other: `${count} pravila` }),
+    countOf: (rules, name) => `${rules} za „${name}”`,
+    onlyFor: (name) => `Samo pravila za „${name}”`,
+    showAll: (name) => `Prikaži sva pravila, ne samo ona za „${name}”`,
+    noneInto: (name) => `Nijedno pravilo ne razvrstava u „${name}”.`,
+    noneOn: (name) => `Nijedno pravilo ne dodaje oznaku „${name}”.`,
   },
   editor: {
     deleteTitle: (id) => `Obriši „${id}”`,

@@ -4,6 +4,7 @@
     "src/apps/company/billingPlan/presentation/BillingPlanPanel.vue",
     "src/apps/company/billingPlan/presentation/BillingRowList.vue",
     "src/apps/company/billingPlan/presentation/FillYearDialog.vue",
+    "src/apps/company/categories/presentation/CategoriesEditor.vue",
     "src/apps/company/data-source/presentation/DataSourceChoices.vue",
     "src/apps/company/filters/presentation/FilterBar.vue",
     "src/apps/company/invoicing/presentation/InvoiceRunDialog.vue",
@@ -51,9 +52,7 @@
     "src/apps/company/rules/presentation/RuleChangeReview.vue",
     "src/apps/company/rules/presentation/RuleCoverage.vue",
     "src/apps/company/rules/presentation/RuleForm.vue",
-    "src/apps/company/rules/presentation/RulesTab.vue",
     "src/apps/company/settings/presentation/AccountsEditor.vue",
-    "src/apps/company/settings/presentation/CategoriesEditor.vue",
     "src/apps/company/settings/presentation/FactTabEditor.vue",
     "src/apps/company/spending/presentation/BreakdownPanel.vue",
     "src/apps/company/spending/presentation/CostByCategory.vue",
@@ -77,6 +76,7 @@
   ],
   "nativeTables": [
     "src/apps/company/billingPlan/presentation/BillingRowList.vue",
+    "src/apps/company/categories/presentation/CategoriesEditor.vue",
     "src/apps/company/packs/hr-doo/presentation/CitObligationList.vue",
     "src/apps/company/packs/hr-doo/presentation/assets/AssetRegister.vue",
     "src/apps/company/packs/hr-doo/presentation/assets/GrantPanel.vue",
@@ -85,7 +85,6 @@
     "src/apps/company/packs/hr-doo/ruleset/presentation/RuleDetail.vue",
     "src/apps/company/packs/hr-doo/ruleset/presentation/RuleTable.vue",
     "src/apps/company/settings/presentation/AccountsEditor.vue",
-    "src/apps/company/settings/presentation/CategoriesEditor.vue",
     "src/apps/company/settings/presentation/FactTabEditor.vue"
   ],
   "formatting": [

@@ -25,6 +25,7 @@ import { benefitsRing, categorySeries } from './packCharts'
 import { figureDetail } from './tracedFigureView'
 import type { AskableDetail } from './tracedFigureView'
 import { words } from './words'
+import { CATEGORIES_LINK } from '../../../sorting/presentation/sortingLinks'
 import type { Money } from '../../../../../shared/money/money'
 
 /** The owner's parts of shared company costs by the category they come from, and the tax the same money would have paid as a dividend. */
@@ -40,7 +41,6 @@ const props = defineProps<{
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
-const DEFAULTS = { path: '/company/settings', query: { tab: 'categories' } }
 const ESTIMATE = words.benefits.estimate
 
 const title = computed(() => names.value.category(props.benefits.category))
@@ -93,7 +93,7 @@ const dialogOpen = ref(false)
   <AppCard v-if="benefits.payments === 0" :title="title" :subtitle="period" data-testid="owner-benefits">
     <div class="flex flex-col gap-1 px-4 pt-1 pb-4 type-body sm:px-5">
       <p>{{ words.benefits.noneShared(period) }}</p>
-      <DrillLink :to="DEFAULTS" class="self-start type-label" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
+      <DrillLink :to="CATEGORIES_LINK" class="self-start type-label" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
     </div>
   </AppCard>
   <DonutCard
@@ -131,7 +131,7 @@ const dialogOpen = ref(false)
         <p v-else class="note type-body">{{ words.benefits.notWorkedOut(comparison.failure) }}</p>
         <div class="note flex flex-col items-start gap-1 type-caption">
           <p>{{ ESTIMATE }}</p>
-          <DrillLink :to="DEFAULTS" class="text-highlighted" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
+          <DrillLink :to="CATEGORIES_LINK" class="text-highlighted" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
         </div>
       </div>
       <FigureDialog v-if="comparison.state === 'ready'" v-model:open="dialogOpen" :detail="comparison.taxAvoided" />

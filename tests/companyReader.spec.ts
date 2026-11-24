@@ -217,7 +217,7 @@ describe("the company's places", () => {
     const routes = companyAssistant(HR_DOO_ASSISTANT, readingOf(BOOKS), () => []).places.map((place) => place.route)
     expect(new Set(routes).size).toBe(routes.length)
     expect(routes.filter((route) => route.startsWith('/company/year?'))).toHaveLength(7)
-    expect(routes.filter((route) => route.startsWith('/company/settings?'))).toHaveLength(7)
+    expect(routes.filter((route) => route.startsWith('/company/settings?'))).toHaveLength(5)
   })
 })
 

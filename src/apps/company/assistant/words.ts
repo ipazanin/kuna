@@ -10,8 +10,7 @@ export interface GuideLabels {
   readonly ask: string
   readonly recategorise: string
   readonly makeRule: string
-  readonly settings: string
-  readonly categoryRules: string
+  readonly sorting: string
 }
 
 /** The words on the screens an automation names, passed in so it calls each thing what the screen calls it. */
@@ -87,7 +86,7 @@ export const en = {
           `1. To have the chat suggest categories, press ${labels.suggest} on that tab. The chat opens about the rows waiting and asks for categories by itself. It proposes a card that files the rows it is sure of and asks about the rest. Nothing changes until you accept the card.`,
           `2. To ask about one row, open it and press ${labels.ask}.`,
           `3. Or pick a category yourself with ${labels.recategorise} on the row.`,
-          `4. The toast after a recategorise offers ${labels.makeRule}, so the same kind of row is sorted on its own next time. Every rule is listed on ${labels.settings}, ${labels.categoryRules}.`,
+          `4. The toast after a recategorise offers ${labels.makeRule}, so the same kind of row is sorted on its own next time. Every rule is listed on ${labels.sorting}, under the categories and labels it files by.`,
         ].join('\n'),
     },
   },
@@ -166,7 +165,7 @@ export const hr: Translation<typeof en> = {
           `1. Da vam razgovor predloži kategorije, pritisnite ${labels.suggest} na toj kartici. Razgovor se otvara o retcima koji čekaju i sam traži kategorije. Predlaže karticu koja razvrstava retke u koje je siguran i pita za ostale. Ništa se ne mijenja dok ne prihvatite karticu.`,
           `2. Da pitate o jednom retku, otvorite ga i pritisnite ${labels.ask}.`,
           `3. Ili sami odaberite kategoriju gumbom ${labels.recategorise} na retku.`,
-          `4. Poruka nakon promjene kategorije nudi ${labels.makeRule}, pa se ista vrsta retka sljedeći put razvrsta sama. Sva pravila navedena su na zaslonu ${labels.settings}, na kartici ${labels.categoryRules}.`,
+          `4. Poruka nakon promjene kategorije nudi ${labels.makeRule}, pa se ista vrsta retka sljedeći put razvrsta sama. Sva pravila navedena su na zaslonu ${labels.sorting}, ispod kategorija i oznaka po kojima razvrstavaju.`,
         ].join('\n'),
     },
   },

@@ -11,8 +11,8 @@ import CategoryDialog from './CategoryDialog.vue'
 import type { CategoryEditing } from './CategoryDialog.vue'
 import { swappedPlaces } from '../domain/categoryPlaces'
 import { rulesIntoCategoryLink, SORTING_CARDS } from '../../overview/presentation/spendingLinks'
-import { ruleCounts } from '../../statements/domain/rulesFiling'
-import RulesLink from '../../statements/presentation/RulesLink.vue'
+import { ruleCounts } from '../../../../shared/categorising/domain/rulesFiling'
+import { rulesCountLink } from '../../statements/presentation/rulesCountLink'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isFixedKind } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
@@ -21,6 +21,7 @@ import { words } from './words'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import CountLink from '../../../../shared/ui/CountLink.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -40,7 +41,7 @@ const sections = computed(() =>
   }),
 )
 const fixed = computed(() => fixedCategories(categories.value).flatMap((category) => (isFixedKind(category.kind) ? [{ category, kind: category.kind }] : [])))
-const rulesInto = computed(() => ruleCounts(store.state.workbook?.rules ?? []))
+const rulesInto = computed(() => ruleCounts(store.state.workbook?.rules ?? [], (rule) => rule))
 const route = useRoute()
 
 /** The move of the category whose write runs, which its button shows. */
@@ -91,7 +92,7 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
           <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(${colourOf(section.group)})` }" aria-hidden="true" />
           <span class="flex min-w-0 flex-1 flex-col items-start py-2">
             <span class="break-words" :class="{ 'text-muted': section.group.hidden }">{{ section.group.name }}</span>
-            <RulesLink :count="rulesInto.get(section.group.id) ?? 0" :name="section.group.name" :to="rulesIntoCategoryLink(section.group)" />
+            <CountLink v-bind="rulesCountLink(rulesInto.get(section.group.id) ?? 0, section.group.name)" :to="rulesIntoCategoryLink(section.group)" />
           </span>
           <UBadge v-if="section.group.hidden" :label="words.hidden" icon="i-lucide-eye-off" color="neutral" variant="subtle" size="sm" />
           <div class="flex shrink-0 items-center">
@@ -121,7 +122,7 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
             <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(${colourOf(child)})` }" aria-hidden="true" />
             <span class="flex min-w-0 flex-1 flex-col items-start py-2">
               <span class="break-words" :class="child.hidden ? 'type-aside' : 'type-row-title'">{{ child.name }}</span>
-              <RulesLink :count="rulesInto.get(child.id) ?? 0" :name="child.name" :to="rulesIntoCategoryLink(child)" />
+              <CountLink v-bind="rulesCountLink(rulesInto.get(child.id) ?? 0, child.name)" :to="rulesIntoCategoryLink(child)" />
             </span>
             <UBadge v-if="child.hidden" :label="words.hidden" icon="i-lucide-eye-off" color="neutral" variant="subtle" size="sm" />
             <div class="flex shrink-0 items-center">
@@ -168,7 +169,7 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
             <div class="flex min-w-0 flex-1 flex-col items-start py-2">
               <span class="break-words type-row-title">{{ category.name }}</span>
               <span class="type-caption">{{ words.fixedCounts[kind] }}</span>
-              <RulesLink :count="rulesInto.get(category.id) ?? 0" :name="category.name" :to="rulesIntoCategoryLink(category)" />
+              <CountLink v-bind="rulesCountLink(rulesInto.get(category.id) ?? 0, category.name)" :to="rulesIntoCategoryLink(category)" />
             </div>
             <UButton
               icon="i-lucide-pencil"

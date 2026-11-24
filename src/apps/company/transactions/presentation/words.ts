@@ -79,7 +79,7 @@ export const en = {
     session: {
       title: 'Changes in this session',
       newest: (change: string) => `The newest: ${change}`,
-      about: 'Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules are changed back on Settings.',
+      about: 'Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules are changed back on Sorting.',
       undidOne: 'Undid a change',
       undidRows: (count: number): EnglishForms => ({ one: `Undid a change to ${count} row`, other: `Undid a change to ${count} rows` }),
       filedByRule: (count: number): EnglishForms => ({ one: `Filed ${count} row by a rule`, other: `Filed ${count} rows by a rule` }),
@@ -213,7 +213,7 @@ export const en = {
     ruleAgainst: {
       before: 'The rule',
       after: (ruleCategory: string, picked: string) =>
-        `files rows like this one as ${ruleCategory}. Once this row says ${picked}, Settings lists it on its Category rules tab among the rows the rule files differently.`,
+        `files rows like this one as ${ruleCategory}. Once this row says ${picked}, Sorting lists it under Rules among the rows the rule files differently.`,
     },
     writes: { before: 'Writes the new category and', after: (label: string) => `${label} on the row, with Undo in the toast.` },
     filedAs: (category: string, offInvoices: readonly string[] = []) =>
@@ -287,7 +287,8 @@ export const hr: Translation<typeof en> = {
     session: {
       title: 'Promjene u ovoj sesiji',
       newest: (change) => `Najnovija: ${change}`,
-      about: 'Najnovije prvo. Čuvaju se dok se stranica ne učita ponovno. Poništavanje vraća ono što je datoteka sadržavala, ako je od tada ništa nije promijenilo. Pravila se vraćaju u Postavkama.',
+      about:
+        'Najnovije prvo. Čuvaju se dok se stranica ne učita ponovno. Poništavanje vraća ono što je datoteka sadržavala, ako je od tada ništa nije promijenilo. Pravila se vraćaju na zaslonu Razvrstavanje.',
       undidOne: 'Poništena je promjena',
       undidRows: (count) => ({
         one: `Poništena je promjena ${count} stavke`,
@@ -440,7 +441,7 @@ export const hr: Translation<typeof en> = {
     ruleAgainst: {
       before: 'Pravilo',
       after: (ruleCategory, picked) =>
-        `razvrstava ovakve stavke kao „${ruleCategory}”. Kad ova stavka bude u kategoriji „${picked}”, Postavke će je na kartici Pravila kategorija navesti među stavkama koje pravilo razvrstava drukčije.`,
+        `razvrstava ovakve stavke kao „${ruleCategory}”. Kad ova stavka bude u kategoriji „${picked}”, zaslon Razvrstavanje navest će je ispod kartice Pravila među stavkama koje pravilo razvrstava drukčije.`,
     },
     writes: { before: 'Upisuje novu kategoriju i', after: (label) => `„${label}” u stavku, a obavijest nudi poništavanje.` },
     filedAs: (category, offInvoices = []) => (offInvoices.length === 0 ? `Razvrstano: ${category}` : `Razvrstano: ${category}, uplata skinuta s računa br. ${numbersInWords(offInvoices)}`),

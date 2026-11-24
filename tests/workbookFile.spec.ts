@@ -301,7 +301,7 @@ describe('reading an xlsx file', () => {
     const preview = await previewImport(new File([foreignWorkbookBytes(handFilled!)], handFilled!.name))
 
     expect(preview.summary.problems).toEqual([])
-    expect(preview.summary.categoriesToSort).toEqual([{ tab: 'categories', id: null, label: 'No tax class yet', reason: 'Revenue, Telecom and Transfer. Pick one for each on Settings, Categories.' }])
+    expect(preview.summary.categoriesToSort).toEqual([{ tab: 'categories', id: null, label: 'No tax class yet', reason: 'Revenue, Telecom and Transfer. Pick one for each on the Categories card.' }])
   })
 
   it.each(FOREIGN_WORKBOOK_FILES)('reads $name, which another program wrote', async (foreignFile) => {

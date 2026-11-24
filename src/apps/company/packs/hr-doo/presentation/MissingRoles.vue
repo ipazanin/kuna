@@ -2,6 +2,7 @@
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
+import { CATEGORIES_LINK } from '../../../sorting/presentation/sortingLinks'
 import { words } from './words'
 
 /** Names the category roles no category carries, and what the screen leaves out because of it. */
@@ -18,7 +19,7 @@ defineProps<{
         {{ words.missingRoles.before }}<span class="identifier">{{ entry.role }}</span
         >{{ words.missingRoles.after(entry.leftOut) }}
       </p>
-      <DrillLink to="/company/settings?tab=categories" class="self-start text-highlighted">{{ words.missingRoles.addRoles }}</DrillLink>
+      <DrillLink :to="CATEGORIES_LINK" class="self-start text-highlighted">{{ words.missingRoles.addRoles }}</DrillLink>
     </div>
   </div>
 </template>

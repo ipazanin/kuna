@@ -9,6 +9,7 @@ import { ruleCouldFile } from '../../workbook/domain/needsReview'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { categoriesAsNewBooksStart } from '../../workbook/presentation/workbookFiles'
 import { words } from './words'
+import { CATEGORIES_LINK } from '../../sorting/presentation/sortingLinks'
 
 /** The line a person settles where it stands, with These look right. */
 export const CATEGORIES_LINE = 'categories'
@@ -68,7 +69,7 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
     lines.push({
       key: CATEGORIES_LINE,
       text: words.setUp.categories,
-      link: { label: words.setUp.categoriesLink, to: { path: '/company/settings', query: { tab: 'categories' } } },
+      link: { label: words.setUp.categoriesLink, to: CATEGORIES_LINK },
     })
   }
   if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {

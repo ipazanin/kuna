@@ -40,6 +40,7 @@ const SCREENS = [
   { name: 'company', hash: '#/company' },
   { name: 'company-transactions', hash: '#/company/transactions' },
   { name: 'company-review', hash: '#/company/transactions?tab=review' },
+  { name: 'company-sorting', hash: '#/company/sorting' },
   { name: 'company-analysis', hash: '#/company/analysis' },
   { name: 'company-invoicing', hash: '#/company/invoicing' },
   { name: 'company-year', hash: '#/company/year' },

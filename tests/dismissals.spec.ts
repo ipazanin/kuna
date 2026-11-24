@@ -108,7 +108,7 @@ describe('the dismissed tab', () => {
     expect(shown.dismissed.map((entry) => entry.group?.key)).toEqual([`${DESK_KEY}|desk-rent`])
   })
 
-  it('leaves a dismissed tax class out of Category rules, even under a key a group of rows shares', () => {
+  it('leaves a dismissed tax class out of the rule coverage, even under a key a group of rows shares', () => {
     const group = { key: DESK_KEY, name: 'Desk Co', iban: DESK_IBAN, rows: [], categories: [] }
     const exception = { ...group, ruleId: 'desk-rent', ruleCategory: 'equipment' }
 

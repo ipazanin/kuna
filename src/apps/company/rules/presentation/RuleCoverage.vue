@@ -14,7 +14,7 @@ import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { plural } from '../../../../shared/text/translation'
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words as transactionWords } from '../../transactions/presentation/words'
-import { categoryRuleLink } from './ruleLinks'
+import { categoryRuleLink } from '../../sorting/presentation/sortingLinks'
 import { words } from './words'
 
 /**
@@ -55,7 +55,7 @@ function rowsInWords(count: number): string {
 </script>
 
 <template>
-  <AppCard :title="words.coverage.title" collapse-id="settings.no-rule-repeats" :summary="summary" start-collapsed data-testid="rule-coverage">
+  <AppCard :title="words.coverage.title" collapse-id="company-sorting.no-rule-repeats" :summary="summary" start-collapsed data-testid="rule-coverage">
     <template #subtitle>
       <template v-if="rowCount">{{ plural(words.coverage.filedDifferently(rowCount), rowCount) }}</template>
       <template v-else-if="dismissedCount > 0">{{ words.coverage.allSameApartFromDismissed }}</template>

@@ -86,7 +86,7 @@ function restore(dismissal: Dismissal): void {
 </script>
 
 <template>
-  <AppCard v-if="toSort.length > 0" :title="words.categoriesToSort.title" :subtitle="words.categoriesToSort.help" collapse-id="settings.categories-to-sort" data-testid="categories-to-sort">
+  <AppCard v-if="toSort.length > 0" :title="words.categoriesToSort.title" :subtitle="words.categoriesToSort.help" collapse-id="company-sorting.categories-to-sort" data-testid="categories-to-sort">
     <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <ProblemList :problems="toSort">
         <template #tag="{ problem }">{{ tagOf(problem) }}</template>

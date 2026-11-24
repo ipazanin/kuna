@@ -18,17 +18,17 @@ import DismissedSuggestions from './DismissedSuggestions.vue'
 import RuleCoverage from './RuleCoverage.vue'
 import RuleEditor from './RuleEditor.vue'
 import type { RuleEditorSource } from './RuleEditor.vue'
-import RulesTab from './RulesTab.vue'
+import RulesCard from './RulesCard.vue'
 import { rowsOfOneItem } from '../../workbook/domain/splits'
 import { words } from './words'
 
-/** The Category rules tab of Settings: the rules, the rows a person filed that no rule repeats, and the suggestions dismissed. */
+/** The rules of Sorting: the Rules card, the rows a person filed that no rule repeats, and the suggestions dismissed. */
 const store = useWorkbook()
 const { state } = store
 const writes = useRecordWrites(store)
 const off = computed(() => writes.busy.value || writes.refused.value)
 
-/** The tab has no filters, so the rows no rule repeats come from the whole ledger. */
+/** Sorting has no filters, so the rows no rule repeats come from the whole ledger. */
 const coverage = computed(() => {
   const workbook = state.workbook
   return withoutDismissed(
@@ -72,7 +72,7 @@ function restore(dismissal: Dismissal): void {
 
 <template>
   <div v-if="state.workbook" class="flex flex-col gap-6">
-    <RulesTab />
+    <RulesCard />
     <RuleCoverage
       :coverage="coverage.coverage"
       :categories="state.workbook.categories"

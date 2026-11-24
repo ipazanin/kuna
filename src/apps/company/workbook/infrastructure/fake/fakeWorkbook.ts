@@ -292,7 +292,7 @@ const PAYMENTS_PLACED = [CLIENT_PAYMENTS_PLACED_KEY, true] as const
  * and Year works out its forecast. As a workbook
  * kept in this browser they also name the company, the way a new user would, and its director is on
  * the employees tab. Rows the rules do not
- * reproduce are flagged as a person's, so the Category rules tab has coverage gaps to show. The records of the
+ * reproduce are flagged as a person's, so Sorting has rule coverage gaps to show. The records of the
  * kinds without a business key, and every ledger row, carry a fixed id. The books store which invoice each client payment pays.
  */
 export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {

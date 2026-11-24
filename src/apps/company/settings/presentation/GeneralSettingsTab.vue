@@ -11,7 +11,6 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { removeSettings } from '../application/settingWrites'
 import { unreadSettingKeys } from '../domain/settings'
-import CategoriesToSortCard from '../../categories/presentation/CategoriesToSortCard.vue'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
@@ -76,6 +75,5 @@ function removeKey(key: string): void {
         <p v-else class="type-aside">{{ words.problems.allRead }}</p>
       </div>
     </AppCard>
-    <CategoriesToSortCard />
   </div>
 </template>

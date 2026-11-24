@@ -2,6 +2,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { Router } from 'vue-router'
 
+import { COMPANY_MOVED_SCREENS } from '../src/apps/company/movedScreens'
 import { SPENDING_MOVED_SCREENS } from '../src/apps/spending/movedScreens'
 import type { AppContribution } from '../src/shared/app/appContribution'
 import { installApp } from '../src/shell/routing/appRegistry'
@@ -22,12 +23,26 @@ const spending = {
   startPath: '/spending/start',
 } as unknown as AppContribution
 
+/** The company app as the router reads it: Settings, the Sorting screen its old addresses now open, and its moved addresses. */
+const company = {
+  id: 'company',
+  name: 'Company',
+  install: () => Promise.resolve(),
+  screens: [
+    { path: '/company/sorting', title: 'Sorting', icon: 'i-lucide-tags', component: BLANK },
+    { path: '/company/settings', title: 'Settings', icon: 'i-lucide-settings', component: BLANK },
+  ],
+  moved: COMPANY_MOVED_SCREENS,
+  startPath: '/company/start',
+} as unknown as AppContribution
+
 let router: Router
 
 beforeAll(async () => {
   // jsdom has no scrolling, and a new screen opens at its top.
   window.scrollTo = () => undefined
   await installApp(spending)
+  await installApp(company)
   router = createAppRouter()
 })
 
@@ -51,5 +66,25 @@ describe("an old link to Spending's labels or rules", () => {
   it("leaves Settings' other tabs where they are", async () => {
     expect(await landingOf('/spending/settings?tab=bank-sync')).toEqual({ path: '/spending/settings', query: { tab: 'bank-sync' }, hash: '' })
     expect(await landingOf('/spending/settings')).toEqual({ path: '/spending/settings', query: {}, hash: '' })
+  })
+})
+
+describe("an old link to Company's labels, categories or rules", () => {
+  it('opens the Labels card of Sorting from the old Labels screen, without the filters Sorting does not read', async () => {
+    expect(await landingOf('/company/labels')).toEqual({ path: '/company/sorting', query: {}, hash: '#labels' })
+    expect(await landingOf('/company/labels?p=l12&cat=fuel&theme=dark')).toEqual({ path: '/company/sorting', query: { theme: 'dark' }, hash: '#labels' })
+  })
+
+  it("opens the Categories card of Sorting from Settings' old Categories tab, without the tab", async () => {
+    expect(await landingOf('/company/settings?tab=categories')).toEqual({ path: '/company/sorting', query: {}, hash: '#categories' })
+  })
+
+  it("opens the Rules card of Sorting from Settings' old Category rules tab, keeping the rule it marks and scrolls to", async () => {
+    expect(await landingOf('/company/settings?tab=category-rules')).toEqual({ path: '/company/sorting', query: {}, hash: '#rules' })
+    expect(await landingOf('/company/settings?tab=category-rules&rule=accountant')).toEqual({ path: '/company/sorting', query: { rule: 'accountant' }, hash: '' })
+  })
+
+  it("leaves Settings' other tabs where they are", async () => {
+    expect(await landingOf('/company/settings?tab=accounts')).toEqual({ path: '/company/settings', query: { tab: 'accounts' }, hash: '' })
   })
 })

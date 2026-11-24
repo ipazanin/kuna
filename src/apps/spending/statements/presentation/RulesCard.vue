@@ -8,7 +8,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { rowsRulesWouldChange, writeRules } from '../application/statementWrites'
 import type { RuleEdits } from '../application/statementWrites'
 import { ruleOverlaps } from '../domain/ruleOverlaps'
-import { rulesFiling } from '../domain/rulesFiling'
 import RuleApplyDialog from './RuleApplyDialog.vue'
 import RuleDialog from './RuleDialog.vue'
 import { changesHeldRule } from './ruleAsk'
@@ -28,6 +27,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import { words as spendingWords } from '../../words'
 import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import { rulesFiling } from '../../../../shared/categorising/domain/rulesFiling'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -130,7 +130,7 @@ const rules = computed(() => {
     return named === undefined || named === '' ? words.rules.withdrawalByCurrency : words.rules.withdrawalTo(named)
   }
   const ordered = inTryingOrder(current.rules)
-  const shown = shownFor.value === null ? ordered : rulesFiling(ordered, shownFor.value.id)
+  const shown = shownFor.value === null ? ordered : rulesFiling(ordered, shownFor.value.id, (rule) => rule)
   return shown.map((rule) => ({
     rule,
     first: rule === ordered[0],

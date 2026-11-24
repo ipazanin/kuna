@@ -2,7 +2,7 @@ import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { plural } from '../../../../../../shared/text/translation'
 import type { CategoryToSort } from '../../../packContribution'
 import { classFindings } from '../../../../settings/domain/categoryClasses'
-import { words as settingsWords } from '../../../../settings/presentation/words'
+import { words as categoryWords } from '../../../../categories/presentation/words'
 import type { Dismissal } from '../../../../workbook/domain/dismissals'
 import { displayName } from '../../../../workbook/domain/displayName'
 import { categoryIdOf } from '../../../../workbook/domain/workbook'
@@ -23,7 +23,7 @@ export function categoriesToSort(categories: readonly Category[], on: CivilDate,
     const taxClass = taxClassOf(role)
     return taxClass === null ? role : classNameOf(taxClass, role, on)
   }
-  const vatName = (treatment: string): string => Object.entries(settingsWords.categories.vatTreatments).find(([value]) => value === treatment)?.[1] ?? treatment
+  const vatName = (treatment: string): string => Object.entries(categoryWords.categories.vatTreatments).find(([value]) => value === treatment)?.[1] ?? treatment
   const unclassed: string[] = []
   const lines: CategoryToSort[] = []
   for (const category of categories) {
@@ -41,7 +41,7 @@ export function categoriesToSort(categories: readonly Category[], on: CivilDate,
           break
         case 'bucket':
           lines.push(
-            line(words.toSort.bucket(nameOf(finding.taxClass.role), finding.taxClass.buckets.map(settingsWords.categories.bucketChoice), settingsWords.categories.bucketChoice(category.bucket))),
+            line(words.toSort.bucket(nameOf(finding.taxClass.role), finding.taxClass.buckets.map(categoryWords.categories.bucketChoice), categoryWords.categories.bucketChoice(category.bucket))),
           )
           break
       }

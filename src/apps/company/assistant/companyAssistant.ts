@@ -1,10 +1,11 @@
 import { words as analysisWords } from '../analysis/presentation/words'
 import { words as invoicingWords } from '../invoicing/presentation/words'
 import { words as mailWords } from '../mail/presentation/words'
-import { CATEGORY_RULES_TAB } from '../rules/presentation/ruleLinks'
 import { ASSISTANT_SETTINGS_LINK, BOOKS_FILE_LINK } from '../settings/presentation/settingsTabs'
 import { PERSON_PAYEES_KEY, SETTING_DEFINITIONS } from '../settings/domain/settings'
 import { words as settingsWords } from '../settings/presentation/words'
+import { COMPANY_SORTING_ROUTE } from '../sorting/presentation/sortingLinks'
+import { words as sortingWords } from '../sorting/presentation/words'
 import { REVIEW_LINK } from '../transactions/presentation/transactionsLinks'
 import { words as transactionWords } from '../transactions/presentation/words'
 import * as coreKinds from '../workbook/domain/coreKinds'
@@ -23,7 +24,6 @@ import type { AutomationLabels, GuideLabels } from './words'
 
 const SETTINGS_ROUTE = '/company/settings'
 const GENERAL_SETTINGS_LINK = `${SETTINGS_ROUTE}?tab=general`
-const CATEGORY_RULES_LINK = `${SETTINGS_ROUTE}?tab=${CATEGORY_RULES_TAB}`
 
 const LABELS: GuideLabels = {
   transactions: transactionWords.title,
@@ -32,8 +32,7 @@ const LABELS: GuideLabels = {
   ask: chatWords.ask.button,
   recategorise: transactionWords.review.item.recategorise,
   makeRule: transactionWords.review.makeRule,
-  settings: settingsWords.title,
-  categoryRules: settingsWords.tabNames.categoryRules,
+  sorting: sortingWords.title,
 }
 
 const AUTOMATION_LABELS: AutomationLabels = {
@@ -61,9 +60,12 @@ const PLACES: readonly AssistantPlace[] = [
   { route: '/company/analysis?tab=breakdown', title: analysisWords.tabs.breakdown, params: LEDGER_FILTERS },
   { route: '/company/analysis?tab=over-time', title: analysisWords.tabs.overTime, params: LEDGER_FILTERS },
   { route: '/company/analysis?tab=compare', title: analysisWords.tabs.compare, params: LEDGER_FILTERS },
+  {
+    route: COMPANY_SORTING_ROUTE,
+    title: sortingWords.title,
+    params: { category: { kind: coreKinds.CATEGORY_RECORDS.name }, label: { kind: coreKinds.LABEL_RECORDS.name }, rule: { kind: coreKinds.RULE_RECORDS.name } },
+  },
   { route: GENERAL_SETTINGS_LINK, title: settingsWords.tabNames.general },
-  { route: `${SETTINGS_ROUTE}?tab=categories`, title: settingsWords.tabNames.categories },
-  { route: CATEGORY_RULES_LINK, title: settingsWords.tabNames.categoryRules, params: { rule: { kind: coreKinds.RULE_RECORDS.name } } },
   { route: `${SETTINGS_ROUTE}?tab=accounts`, title: settingsWords.tabNames.accounts },
   { route: ASSISTANT_SETTINGS_LINK, title: settingsWords.tabNames.assistant },
   { route: BOOKS_FILE_LINK, title: settingsWords.booksFile },
@@ -117,9 +119,9 @@ export function companyAssistant(
         label: words.guides.setUp.label,
         title: words.guides.setUp.title,
         body: words.guides.setUp.body,
-        places: [GENERAL_SETTINGS_LINK, CATEGORY_RULES_LINK, '/company/transactions?tab=import'],
+        places: [GENERAL_SETTINGS_LINK, COMPANY_SORTING_ROUTE, '/company/transactions?tab=import'],
       },
-      { id: 'review', title: words.guides.review.title, body: words.guides.review.body(LABELS), places: [REVIEW_LINK, CATEGORY_RULES_LINK] },
+      { id: 'review', title: words.guides.review.title, body: words.guides.review.body(LABELS), places: [REVIEW_LINK, COMPANY_SORTING_ROUTE] },
     ],
     automations: [
       {

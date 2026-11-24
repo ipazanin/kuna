@@ -125,7 +125,7 @@ function classesInWords(classes: readonly CategoryClass[]): string {
 function taxClassField(classes: readonly CategoryClass[], keeps: boolean): Readonly<Record<string, StrictSchema>> {
   if (classes.length === 0) return {}
   const roles = classes.map((taxClass) => taxClass.role)
-  const about = `How Kuna counts the category for profit tax and VAT, as Settings, Categories offers it under Tax class. ${classesInWords(classes)}`
+  const about = `How Kuna counts the category for profit tax and VAT, as Sorting, Categories offers it under Tax class. ${classesInWords(classes)}`
   return { taxClass: keeps ? { type: ['string', 'null'], enum: [...roles, null], description: `${about} Null keeps the class it has.` } : { type: 'string', enum: roles, description: about } }
 }
 
@@ -165,7 +165,7 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
     {
       name: 'add-category',
       about:
-        'A new category as Settings, Categories adds it: a short name in lower case with hyphens, a family, a bucket, its tax class while the pack has classes, the other roles, VAT, a colour, and an owner share while owner pay is on. The class decides which VAT and buckets fit. It goes one to a card, and a later card files rows into it.',
+        'A new category as Sorting, Categories adds it: a short name in lower case with hyphens, a family, a bucket, its tax class while the pack has classes, the other roles, VAT, a colour, and an owner share while owner pay is on. The class decides which VAT and buckets fit. It goes one to a card, and a later card files rows into it.',
       input: inputOf({ category: TEXT, label: TEXT, family: TEXT, bucket: BUCKET, ...taxClassField(classes, false), roles, vat: VAT, colour: COLOUR_OR_BUCKET, ownerShare: TEXT }),
       refs: {},
       creates: CATEGORY,
@@ -185,7 +185,7 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
     {
       name: 'add-starting-category',
       about:
-        'Adds a category new books start with that these books lack, with the starting rules that file into it, as Settings, General, Categories to sort offers it. category is its short name as Categories to sort lists it. Each rule takes its place among the starting rules the books hold, or goes ahead of their own rules when they hold none of those.',
+        'Adds a category new books start with that these books lack, with the starting rules that file into it, as Sorting, Categories to sort offers it. category is its short name as Categories to sort lists it. Each rule takes its place among the starting rules the books hold, or goes ahead of their own rules when they hold none of those.',
       input: inputOf({ category: TEXT }),
       refs: {},
       creates: CATEGORY,
@@ -232,7 +232,7 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
     {
       name: 'delete-category',
       about: [
-        'Deletes a category, as Settings, Categories deletes it.',
+        'Deletes a category, as Sorting, Categories deletes it.',
         "into is the category its ledger rows, split parts, rules and the pack's records that name it move to in the same change, each row keeping who filed it and taking that category's owner share, or null for a category nothing names.",
         'Those pack records are owner advances, plan rows and year-end konto lines. A plan row joins a row into already has for the same year and month, and the two amounts are added up.',
       ].join(' '),
@@ -294,7 +294,7 @@ function madeOrRefused<R>(errors: ReadonlyMap<number, Partial<Record<string, str
   })
 }
 
-/** Saves the categories as Settings, Categories saves its editor's rows, after its checks, with the rows a new default fills. */
+/** Saves the categories as Sorting, Categories saves its editor's rows, after its checks, with the rows a new default fills. */
 function writeCategories(card: CompanyCard, edit: (drafts: readonly CategoryDraft[]) => readonly CategoryDraft[], fillRows: boolean): void {
   const records = card.records()
   const stored: readonly StoredRecord<unknown>[] = storedOf(records.categories)

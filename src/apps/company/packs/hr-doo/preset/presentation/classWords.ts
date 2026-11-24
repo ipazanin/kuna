@@ -49,17 +49,17 @@ export const en = {
   toSort: {
     unclassedLabel: 'No tax class yet',
     unclassed: (names: readonly string[]): EnglishForms => ({
-      one: `${listInWords(names)}. Pick one for it on Settings, Categories.`,
-      other: `${listInWords(names)}. Pick one for each on Settings, Categories.`,
+      one: `${listInWords(names)}. Pick one for it on the Categories card.`,
+      other: `${listInWords(names)}. Pick one for each on the Categories card.`,
     }),
-    classes: (classes: readonly string[]) => `It carries ${listInWords(classes.map((name) => `"${name}"`))}. Kuna counts a category one way, so keep one on Settings, Categories.`,
+    classes: (classes: readonly string[]) => `It carries ${listInWords(classes.map((name) => `"${name}"`))}. Kuna counts a category one way, so keep one on the Categories card.`,
     vat: (taxClass: string, treatments: readonly string[], vat: string) =>
-      `It carries "${taxClass}", which takes ${listInWords(treatments, 'or')}, and its VAT reads ${vat}. Change one of them on Settings, Categories.`,
+      `It carries "${taxClass}", which takes ${listInWords(treatments, 'or')}, and its VAT reads ${vat}. Change one of them on the Categories card.`,
     bucket: (taxClass: string, buckets: readonly string[], bucket: string) =>
-      `It carries "${taxClass}", which sits in ${listInWords(buckets, 'or')}, and the category sits in ${bucket}. Change one of them on Settings, Categories.`,
-    newerClass: (carried: string, newer: string) => `It carries "${carried}", and new books give it "${newer}". Pick that one on Settings, Categories.`,
+      `It carries "${taxClass}", which sits in ${listInWords(buckets, 'or')}, and the category sits in ${bucket}. Change one of them on the Categories card.`,
+    newerClass: (carried: string, newer: string) => `It carries "${carried}", and new books give it "${newer}". Pick that one on the Categories card.`,
     newerRoles: (roles: readonly string[]) =>
-      `New books also give it ${listInWords(roles.map((role) => `"${role}"`))}, which puts its costs on the profit and loss line the accountant uses. Add it on Settings, Categories.`,
+      `New books also give it ${listInWords(roles.map((role) => `"${role}"`))}, which puts its costs on the profit and loss line the accountant uses. Add it on the Categories card.`,
     missing: (taxClass: string | null, rules: number): EnglishForms => {
       const start = taxClass === null ? 'New books start with this category' : `New books start with this category as "${taxClass}"`
       return {
@@ -102,17 +102,17 @@ export const hr: Translation<typeof en> = {
   toSort: {
     unclassedLabel: 'Još bez poreznog tretmana',
     unclassed: (names): CroatianForms => ({
-      one: `${listInWords(names)}. Odaberite ga u Postavkama, Kategorije.`,
-      few: `${listInWords(names)}. Odaberite ga za svaku u Postavkama, Kategorije.`,
-      other: `${listInWords(names)}. Odaberite ga za svaku u Postavkama, Kategorije.`,
+      one: `${listInWords(names)}. Odaberite ga na kartici Kategorije.`,
+      few: `${listInWords(names)}. Odaberite ga za svaku na kartici Kategorije.`,
+      other: `${listInWords(names)}. Odaberite ga za svaku na kartici Kategorije.`,
     }),
-    classes: (classes) => `Ima ${listInWords(classes.map((name) => `„${name}”`))}. Kuna kategoriju broji na jedan način, pa zadržite jedan u Postavkama, Kategorije.`,
-    vat: (taxClass, treatments, vat) => `Ima porezni tretman „${taxClass}”, koji uzima ${listInWords(treatments, 'or')}, a PDV glasi ${vat}. Promijenite jedno od toga u Postavkama, Kategorije.`,
+    classes: (classes) => `Ima ${listInWords(classes.map((name) => `„${name}”`))}. Kuna kategoriju broji na jedan način, pa zadržite jedan na kartici Kategorije.`,
+    vat: (taxClass, treatments, vat) => `Ima porezni tretman „${taxClass}”, koji uzima ${listInWords(treatments, 'or')}, a PDV glasi ${vat}. Promijenite jedno od toga na kartici Kategorije.`,
     bucket: (taxClass, buckets, bucket) =>
-      `Ima porezni tretman „${taxClass}”, koji ide u skupinu ${listInWords(buckets, 'or')}, a kategorija je u skupini ${bucket}. Promijenite jedno od toga u Postavkama, Kategorije.`,
-    newerClass: (carried, newer) => `Ima porezni tretman „${carried}”, a nova datoteka ovoj kategoriji daje „${newer}”. Odaberite taj tretman u Postavkama, Kategorije.`,
+      `Ima porezni tretman „${taxClass}”, koji ide u skupinu ${listInWords(buckets, 'or')}, a kategorija je u skupini ${bucket}. Promijenite jedno od toga na kartici Kategorije.`,
+    newerClass: (carried, newer) => `Ima porezni tretman „${carried}”, a nova datoteka ovoj kategoriji daje „${newer}”. Odaberite taj tretman na kartici Kategorije.`,
     newerRoles: (roles) =>
-      `Nova datoteka ovoj kategoriji daje i ${listInWords(roles.map((role) => `„${role}”`))}, pa njezini troškovi idu u redak računa dobiti i gubitka koji koristi računovođa. Dodajte to u Postavkama, Kategorije.`,
+      `Nova datoteka ovoj kategoriji daje i ${listInWords(roles.map((role) => `„${role}”`))}, pa njezini troškovi idu u redak računa dobiti i gubitka koji koristi računovođa. Dodajte to na kartici Kategorije.`,
     missing: (taxClass, rules): CroatianForms => {
       const start = taxClass === null ? 'Nova datoteka počinje s ovom kategorijom' : `Nova datoteka počinje s ovom kategorijom, s poreznim tretmanom „${taxClass}”`
       return {

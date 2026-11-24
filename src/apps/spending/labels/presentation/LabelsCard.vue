@@ -10,8 +10,8 @@ import { labelLink, rulesOfLabelLink, SORTING_CARDS } from '../../overview/prese
 import { countedRows } from '../../analytics/domain/countedRow'
 import { waitsForRates } from '../../rates/presentation/waitsForRates'
 import { words as rateWords } from '../../rates/presentation/words'
-import { ruleCounts } from '../../statements/domain/rulesFiling'
-import RulesLink from '../../statements/presentation/RulesLink.vue'
+import { ruleCounts } from '../../../../shared/categorising/domain/rulesFiling'
+import { rulesCountLink } from '../../statements/presentation/rulesCountLink'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -21,6 +21,7 @@ import { useRates } from '../../../../shared/rates/application/pageRates'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import CountLink from '../../../../shared/ui/CountLink.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -35,7 +36,7 @@ const route = useRoute()
 
 const waiting = computed(() => waitsForRates(state.workbook?.accounts ?? [], rates.value))
 const beforeItems = computed(() => state.workbook !== null && isBeforeItems(state.workbook.stored))
-const rulesOn = computed(() => ruleCounts(state.workbook?.rules ?? []))
+const rulesOn = computed(() => ruleCounts(state.workbook?.rules ?? [], (rule) => rule))
 
 const lines = computed(() => {
   const book = state.workbook
@@ -102,7 +103,7 @@ function openDialog(label: Label | null): void {
               @click="openDialog(line.totals.label)"
             />
           </div>
-          <RulesLink :count="rulesOn.get(line.totals.label.id) ?? 0" :name="line.totals.label.name" :to="rulesOfLabelLink(line.totals.label)" class="-mt-3 mb-2 ms-4 self-start sm:ms-5" />
+          <CountLink v-bind="rulesCountLink(rulesOn.get(line.totals.label.id) ?? 0, line.totals.label.name)" :to="rulesOfLabelLink(line.totals.label)" class="-mt-3 mb-2 ms-4 self-start sm:ms-5" />
         </li>
       </ul>
     </AppCard>

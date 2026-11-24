@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { CATEGORY_CLASSES } from '../src/apps/company/packs/hr-doo/preset/domain/taxClassOf'
 import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { categoryDraftsOf } from '../src/apps/company/settings/domain/categoryDrafts'
-import { categoryClassMessages } from '../src/apps/company/settings/presentation/categoryClassMessages'
-import type { ClassNaming } from '../src/apps/company/settings/presentation/categoryClassMessages'
+import { categoryClassMessages } from '../src/apps/company/categories/presentation/categoryClassMessages'
+import type { ClassNaming } from '../src/apps/company/categories/presentation/categoryClassMessages'
 import { categoryClassHelp } from '../src/apps/company/packs/hr-doo/preset/presentation/categoryClassHelp'
 import type { DefinedBucket } from '../src/apps/company/workbook/domain/bucket'
 import { civil } from './fixtures/ledger'
@@ -129,7 +129,7 @@ describe.each([
         .categoriesToSort(store.state.workbook!.categories, civil('2026-10-30'), store.state.workbook!.dismissals)
         .map((line) => line.reason)
     const dinnersLine =
-      'It carries "Representation: 50% added back to the profit tax base, no VAT back", which takes Representation, and its VAT reads Input VAT 25\u00a0%. Change one of them on Settings, Categories.'
+      'It carries "Representation: 50% added back to the profit tax base, no VAT back", which takes Representation, and its VAT reads Input VAT 25\u00a0%. Change one of them on the Categories card.'
 
     expect(reported()).toEqual([dinnersLine])
     // The line asks for a change and leaves nothing out, so it is never among the rows the reader could not use.

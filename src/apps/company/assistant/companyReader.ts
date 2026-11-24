@@ -317,7 +317,7 @@ const CATEGORY_FIELDS: FieldDocs<CategoryView> = {
   suggestedClass: {
     exposure: 'plain',
     meaning:
-      'The tax class Settings suggests in place of the one it carries, as new books give it, or empty, also once the person dismissed it there. Offer it with change-category, and the person decides.',
+      'The tax class Sorting suggests in place of the one it carries, as new books give it, or empty, also once the person dismissed it there. Offer it with change-category, and the person decides.',
   },
 }
 

@@ -9,7 +9,7 @@ export const SUGGESTION_KINDS = ['not-covered', 'exception', 'newer-class', 'mis
 
 export type SuggestionKind = (typeof SUGGESTION_KINDS)[number]
 
-/** The suggestions of Settings, Category rules, which group confirmed rows by their counterparty. */
+/** The suggestions under Sorting's Rules card, which group confirmed rows by their counterparty. */
 export const COVERAGE_KINDS = ['not-covered', 'exception'] as const satisfies readonly SuggestionKind[]
 
 export type CoverageKind = (typeof COVERAGE_KINDS)[number]

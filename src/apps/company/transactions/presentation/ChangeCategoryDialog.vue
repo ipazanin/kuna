@@ -11,7 +11,7 @@ import { recategorisation } from '../domain/verdictChanges'
 import { invoicesRefiledOff } from '../../receivables/domain/invoicePayments'
 import { ruleAgainst } from '../../rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
-import { categoryRuleLink } from '../../rules/presentation/ruleLinks'
+import { categoryRuleLink } from '../../sorting/presentation/sortingLinks'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
@@ -31,7 +31,7 @@ import { storedItemsOfRow, storesItems } from '../../workbook/domain/rowItems'
 /**
  * Files a settled ledger row in another category. It writes the row's category and `flagged_by`
  * with the review label, as a confirmation on the To review tab does, and says first when a rule files such
- * rows elsewhere, since the row then shows on Settings, Category rules among the rule's exceptions. A row of one item
+ * rows elsewhere, since the row then shows on Sorting, under Rules, among the rule's exceptions. A row of one item
  * takes its labels here too, and a change of labels alone leaves who filed it as it is.
  */
 const open = defineModel<boolean>('open', { required: true })

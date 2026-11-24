@@ -95,7 +95,7 @@ const cutEllipsisClasses = { pattern: utility(String.raw`text-ellipsis`), messag
 const cutTextHome = ['src/shared/ui/CutText.vue']
 // A field shows all of its value once it takes focus, so its ellipsis needs nothing more.
 const cutInputs = [
-  'src/apps/company/settings/presentation/CategoriesEditor.vue',
+  'src/apps/company/categories/presentation/CategoriesEditor.vue',
   'src/apps/company/settings/presentation/GeneralSettingsForm.vue',
   'src/apps/loans/scenarios/presentation/OfferTermsFields.vue',
 ]

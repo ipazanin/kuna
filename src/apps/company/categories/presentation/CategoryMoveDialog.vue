@@ -12,9 +12,9 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { SlugUses } from '../../workbook/domain/slug'
 import CategoryPicker from '../../transactions/presentation/CategoryPicker.vue'
-import { categoryMoveOf, deleteCategoryInto, joinedInWords, keptInWords } from '../application/namedRecordWrites'
-import type { KeptByMove } from '../domain/categoryMove'
-import { useSettings } from '../application/useSettings'
+import { categoryMoveOf, deleteCategoryInto, joinedInWords, keptInWords } from '../../settings/application/namedRecordWrites'
+import type { KeptByMove } from '../../settings/domain/categoryMove'
+import { useSettings } from '../../settings/application/useSettings'
 import { words } from './words'
 
 /** Deletes a category in use, its ledger rows, split parts, rules and the pack's records that name it moved to another in the same write, with one Undo. */

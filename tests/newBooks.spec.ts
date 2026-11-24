@@ -105,7 +105,7 @@ describe('getting set up', () => {
       {
         key: 'categories',
         text: 'Check the categories Kuna starts with',
-        link: { label: 'Categories', to: { path: '/company/settings', query: { tab: 'categories' } } },
+        link: { label: 'Categories', to: { path: '/company/sorting', hash: '#categories' } },
       },
     ])
   })

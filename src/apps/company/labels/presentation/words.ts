@@ -6,7 +6,7 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 
 export const en = {
   title: 'Labels',
-  description:
+  subtitle:
     'A name that groups parts of ledger rows across categories and months, such as a conference or an office fit-out. Each label shows its result, income less costs, or only its costs when it has no income, as the cash screens count profit and loss, and changes no category.',
   add: 'Add a label',
   empty: {
@@ -14,7 +14,7 @@ export const en = {
     description: 'Add a label such as Berlin 2027 or Office fit-out, then pick its rows on Transactions and put it on them.',
     beforeItems: 'Once the books are updated above, add a label such as Berlin 2027 or Office fit-out, then pick its rows on Transactions and put it on them.',
   },
-  list: 'What each label counts',
+  count: (count: number): EnglishForms => ({ one: '1 label', other: `${count} labels` }),
   parts: (count: number): EnglishForms => ({ one: '1 part', other: `${count} parts` }),
   newest: (day: string) => `newest ${day}`,
   noParts: 'No rows yet',
@@ -30,7 +30,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   title: 'Oznake',
-  description:
+  subtitle:
     'Naziv koji grupira dijelove stavki evidencije preko kategorija i mjeseci, kao konferencija ili uređenje ureda. Svaka oznaka prikazuje svoj rezultat, prihod umanjen za troškove, ili samo troškove kad nema prihoda, kako ih broje gotovinski prikazi, i ne mijenja kategoriju.',
   add: 'Dodaj oznaku',
   empty: {
@@ -38,7 +38,7 @@ export const hr: Translation<typeof en> = {
     description: 'Dodajte oznaku kao Berlin 2027 ili Uređenje ureda, pa u Transakcijama odaberite njezine stavke i stavite je na njih.',
     beforeItems: 'Kad ažurirate knjige gore, dodajte oznaku kao Berlin 2027 ili Uređenje ureda, pa u Transakcijama odaberite njezine stavke i stavite je na njih.',
   },
-  list: 'Što broji svaka oznaka',
+  count: (count): CroatianForms => ({ one: `${count} oznaka`, few: `${count} oznake`, other: `${count} oznaka` }),
   parts: (count): CroatianForms => ({ one: `${count} dio`, few: `${count} dijela`, other: `${count} dijelova` }),
   newest: (day) => `zadnji ${day}`,
   noParts: 'Još nema stavki',

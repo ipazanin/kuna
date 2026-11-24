@@ -45,9 +45,9 @@ describe("the Company menu's Transactions item", () => {
   })
 })
 
-describe("the Company menu's Labels item", () => {
+describe("the Company menu's Sorting item", () => {
   it('comes right after Transactions', () => {
     const paths = companyApp.menu().map((screen) => screen.path)
-    expect(paths[paths.indexOf('/company/transactions') + 1]).toBe('/company/labels')
+    expect(paths[paths.indexOf('/company/transactions') + 1]).toBe('/company/sorting')
   })
 })

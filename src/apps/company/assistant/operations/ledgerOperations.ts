@@ -83,7 +83,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
     about: [
-      'A rule as Settings, Category rules makes it. From a row, by its ref, it looks for what the rule editor drafts from that row. Otherwise it looks for the conditions given.',
+      'A rule as Sorting, Rules makes it. From a row, by its ref, it looks for what the rule editor drafts from that row. Otherwise it looks for the conditions given.',
       'The rows waiting on To review that it settles are filed in the same change, and so are rows a person confirmed that it now files elsewhere, each warned on the card. Rows a rule filed, and rows another rule decides, keep their category, and the card warns on each the rules now disagree with.',
       'on no adds it switched off, and null adds it on. before is the rule it is tried just before, or null for after every rule. With name null Kuna names it from the category and the payee or account holder.',
       'Every condition must hold. A rule looks for something beyond the direction, such as words, an IBAN, a bank code or a card purchase.',
@@ -128,7 +128,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'dismiss-suggestion',
     about:
-      "Hides the suggestion on Settings, Category rules that holds this row: confirmed rows no rule files, or confirmed rows a rule files elsewhere. It stays hidden as the counterparty's new rows join it.",
+      "Hides the suggestion on Sorting, under Rules, that holds this row: confirmed rows no rule files, or confirmed rows a rule files elsewhere. It stays hidden as the counterparty's new rows join it.",
     input: inputOf({ row: TEXT }),
     refs: { row: ROW },
     creates: null,
@@ -368,7 +368,7 @@ function deleteRule(card: CompanyCard, step: ProposalStep): void {
   writeRules(card, { appended: null, edited: [], removed: opened.edited.expected }, null)
 }
 
-/** The suggestions of Settings, Category rules as it shows them, and those dismissed. */
+/** The suggestions under Sorting's Rules card as it shows them, and those dismissed. */
 function suggestionsOf(card: CompanyCard) {
   const { workbook } = card
   return withoutDismissed(ruleCoverage(rowsOfOneItem(workbook.transactions, workbook.splits), workbook.rules, categorisationContextOf(workbook)), workbook.dismissals)
@@ -384,7 +384,7 @@ function dismissSuggestion(card: CompanyCard, step: ProposalStep): void {
   const notCovered = coverage.notCovered.find((group) => holds(group.rows, row))
   const exception = coverage.exceptions.find((group) => holds(group.rows, row))
   const dismissal = notCovered !== undefined ? dismissalOfGroup('not-covered', notCovered, today()) : exception !== undefined ? dismissalOfGroup('exception', exception, today()) : null
-  if (dismissal === null) throw new StepRefused('No suggestion on Category rules holds that row.')
+  if (dismissal === null) throw new StepRefused('No suggestion on Sorting holds that row.')
   card.unit.of(DISMISSAL_WRITES).add(dismissal)
 }
 

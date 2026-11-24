@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
-import { LINKED_SETTINGS_TAB } from './settingsTabs'
+import { ruleCounts } from '../../../../shared/categorising/domain/rulesFiling'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import { NO_RECORDS, recordsOf, storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { fillShares } from '../../owner-share/application/ownerShareWrites'
@@ -9,25 +10,27 @@ import { shareFillsOf } from '../../owner-share/domain/ownerShare'
 import type { ShareFill } from '../../owner-share/domain/ownerShare'
 import ShareFillDialog from '../../owner-share/presentation/ShareFillDialog.vue'
 import { classSharesDay, installedPack } from '../../packs/packContribution'
-import { useSettings } from '../application/useSettings'
+import { useSettings } from '../../settings/application/useSettings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { writeDrafts } from '../application/draftWrites'
-import { CATEGORY_WRITES, categoryKeptAfterMove, categoryUses } from '../application/namedRecordWrites'
-import type { RecordsOfKind } from '../application/namedRecordWrites'
-import { knownRoles } from '../domain/categoryGuards'
+import { writeDrafts } from '../../settings/application/draftWrites'
+import { CATEGORY_WRITES, categoryKeptAfterMove, categoryUses } from '../../settings/application/namedRecordWrites'
+import type { RecordsOfKind } from '../../settings/application/namedRecordWrites'
+import { knownRoles } from '../../settings/domain/categoryGuards'
 import CategoriesEditor from './CategoriesEditor.vue'
 import CategoryMoveDialog from './CategoryMoveDialog.vue'
-import { storedCount } from './settingsCounts'
+import { storedCount } from '../../settings/presentation/settingsCounts'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
+import { ruleTargetsOf } from '../../rules/domain/ruleTargets'
+import { rulesIntoCategoryLink, SORTING_CARDS } from '../../sorting/presentation/sortingLinks'
 
 const { state } = useWorkbook()
 const settings = useSettings()
-const linkedTab = inject(LINKED_SETTINGS_TAB, null)
-const linked = computed(() => linkedTab?.value === 'categories')
+const route = useRoute()
+const rulesInto = computed(() => ruleCounts(state.workbook?.rules ?? [], ruleTargetsOf))
 const writes = useRecordWrites(useWorkbook())
 
 const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
@@ -96,7 +99,15 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
 </script>
 
 <template>
-  <AppCard :title="words.categories.title" collapse-id="settings.categories" :summary="plural(words.categories.count(storedCount(categories)), storedCount(categories))" :reveal="linked">
+  <AppCard
+    :id="SORTING_CARDS.categories"
+    :title="words.categories.title"
+    collapse-id="company-sorting.categories"
+    :summary="plural(words.categories.count(storedCount(categories)), storedCount(categories))"
+    start-collapsed
+    :reveal="route.hash === `#${SORTING_CARDS.categories}`"
+    data-testid="company-categories"
+  >
     <template #subtitle>{{ classes.length > 0 ? `${words.categories.subtitle} ${words.categories.classesNote}` : words.categories.subtitle }}</template>
     <CategoriesEditor
       :records="categories"
@@ -107,6 +118,8 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
       :shares="settings.ownerPayModule"
       :saving="writes.saving('save')"
       :refused="writes.refused.value"
+      :rule-counts="rulesInto"
+      :rules-link="rulesIntoCategoryLink"
       @save="saveCategories"
       @move-and-delete="moveAndDelete"
     />

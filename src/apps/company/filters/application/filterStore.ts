@@ -21,9 +21,9 @@ export interface FilterStore {
   drillLocation(drill: DrillTarget): RouteLocationRaw | null
 }
 
-/** The company's screens carry the filters in their address, all but onboarding and Settings, which no period changes. */
+/** The company's screens carry the filters in their address, all but onboarding, Settings and Sorting, which no period changes. */
 function carriesFilters(path: string): boolean {
-  return (path === '/company' || path.startsWith('/company/')) && path !== '/company/start' && path !== '/company/settings'
+  return (path === '/company' || path.startsWith('/company/')) && path !== '/company/start' && path !== '/company/settings' && path !== '/company/sorting'
 }
 
 /**

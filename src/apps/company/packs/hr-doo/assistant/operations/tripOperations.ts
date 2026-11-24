@@ -289,7 +289,7 @@ function splitRefusalText(refusal: TripSplitRefusal): string {
     case 'row-gone':
       return `The ${refusal.link} row is no longer in the ledger.`
     case 'no-category':
-      return `No category has the role tax-free:${refusal.payment}. Give one that role on Settings, Categories, first.`
+      return `No category has the role tax-free:${refusal.payment}. Give one that role on Sorting, Categories, first.`
     case 'advance-differs':
       return `The advance row pays ${amountText(refusal.row)}, and the order's advance is ${amountText(refusal.advance)}.`
     case 'payout-differs':

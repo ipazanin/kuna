@@ -155,7 +155,7 @@ export const en = {
   missingRoles: {
     before: 'No category has the role ',
     after: (leftOut: string) => `, so ${leftOut}.`,
-    addRoles: 'Add roles on Settings, Categories',
+    addRoles: 'Add roles on Sorting, Categories',
   },
   /** What the accrual view gets wrong while no category carries a role it reads. */
   accrualLeftOut: {
@@ -641,7 +641,7 @@ export const hr: Translation<typeof en> = {
   missingRoles: {
     before: 'Nijedna kategorija nema ulogu ',
     after: (leftOut) => `, pa ${leftOut}.`,
-    addRoles: 'Dodaj uloge u Postavkama, pod Kategorije',
+    addRoles: 'Dodaj uloge na zaslonu Razvrstavanje, na kartici Kategorije',
   },
   accrualLeftOut: {
     revenue: 'uplate klijenata ostaju u dobiti uz prihod koji donose računi',

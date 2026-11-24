@@ -9,6 +9,7 @@ import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
+import { CATEGORIES_LINK } from '../../../../sorting/presentation/sortingLinks'
 import PageHeader from '../../../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../../../shared/ui/PageTabs.vue'
@@ -220,7 +221,7 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
             <UIcon name="i-lucide-receipt" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               {{ words.noVatBefore }}<span class="identifier">vat</span>{{ words.noVatAfter }}
-              <DrillLink to="/company/settings?tab=categories" class="inline-target text-highlighted">{{ words.setOnCategories }}</DrillLink>
+              <DrillLink :to="CATEGORIES_LINK" class="inline-target text-highlighted">{{ words.setOnCategories }}</DrillLink>
             </p>
           </div>
           <div v-if="unregistered" class="flex items-start gap-2 type-body">

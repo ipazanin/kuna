@@ -41,7 +41,7 @@
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a recipe written for it, each confirmed and undone, and the recipe deleted, the same Import in Croatian with a held statement and the Mail card's list, an invoice made and re-exported, and in
  * Croatian an invoice added, edited, deleted and undone, made and re-exported, a client's second IBAN and the rest of the year filled and undone, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on Settings, Category rules, a rule's note changed and the rule deleted from
+ * the rows still waiting, a rule edited and switched off on Sorting, Rules, a rule's note changed and the rule deleted from
  * its editor, each undone, in both modes, the same split, change of category, rule editor, dismissal and
  * categories editor with its filters in Croatian with the dialogs and sheets of Transactions, its To review tab and Categories, an asset, an employee, an owner
  * advance, a pay scenario's component, the starting scenarios, a category's plan and a planned purchase in Croatian, each undone, the Tax rules search on Settings, a
@@ -199,6 +199,8 @@ import {
   spendingLabelsFlowIn,
   spendingOldAddressFlowIn,
   spendingRulesForFlowIn,
+  companyOldAddressFlowIn,
+  companyRulesForFlowIn,
   companyLabelsFlowIn,
   companySelectLabelFlowIn,
   spendingEventsFlowIn,
@@ -411,7 +413,7 @@ const SCREENS = [
   { name: 'year-pay', hash: '#/company/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
   { hash: '#/company/owner?tab=owed&p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
   { name: 'transactions-review', hash: '#/company/transactions?tab=review&p=all', title: 'Transactions', ready: '[data-testid="open-filters"]' },
-  { name: 'company-labels', hash: '#/company/labels', title: 'Labels', ready: '[data-testid="company-labels"]', cards: false },
+  { name: 'company-sorting-labels', hash: '#/company/sorting#labels', title: 'Sorting', ready: '[data-testid="company-labels"]' },
   {
     name: 'transactions-labelled',
     hash: '#/company/transactions?p=all&lb=label:00000000-0000-4000-8000-000900000001',
@@ -420,7 +422,7 @@ const SCREENS = [
     cards: false,
   },
   { name: 'company-settings', hash: '#/company/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
-  { name: 'company-settings-category-rules', hash: '#/company/settings?tab=category-rules', title: 'Settings', ready: '[data-testid="rules-tab"]' },
+  { name: 'company-sorting-rules', hash: '#/company/sorting#rules', title: 'Sorting', ready: '[data-testid="company-rules"]' },
   { name: 'company-settings-tax-rules', hash: '#/company/settings?tab=tax-rules', title: 'Settings', ready: '[data-testid="rule-row"]' },
   { name: 'company-settings-books', hash: '#/company/settings?tab=books', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
   { name: 'kuna-settings', hash: '#/settings', title: settingsEnglish.menu, ready: '[data-testid="sync-card"]', cards: false },
@@ -1648,8 +1650,8 @@ async function checkWidth(browser, width) {
     ['browser', '&fake=browser'],
   ]) {
     for (const [name, hash, title, run, variant] of [
-      ['categories', '#/company/settings?tab=categories', 'Settings', categoryFlow],
-      ['categories-filters', '#/company/settings?tab=categories', 'Settings', categoryFiltersFlow],
+      ['categories', '#/company/sorting#categories', 'Sorting', categoryFlow],
+      ['categories-filters', '#/company/sorting#categories', 'Sorting', categoryFiltersFlow],
       ['spending-category-colour', '#/spending/sorting#categories', 'Sorting', spendingCategoryColourFlowIn('en'), `${query}&spending=sample`],
       ['spending-category-colour-croatian', '#/spending/sorting#categories', 'Razvrstavanje', spendingCategoryColourFlowIn('hr'), `${query}&spending=sample&lang=hr`],
       ['settings-card-ibans', '#/company/settings', 'Settings', cardSettlementIbansFlow],
@@ -1713,14 +1715,14 @@ async function checkWidth(browser, width) {
       ],
       ['change-category', '#/company/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['owner-share', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
-      ['share-fill', '#/company/settings?tab=categories', 'Settings', shareFillFlow],
+      ['share-fill', '#/company/sorting#categories', 'Sorting', shareFillFlow],
       ['owner-share-croatian', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transakcije', ownerShareFlowIn('hr'), `${query}&lang=hr`],
-      ['share-fill-croatian', '#/company/settings?tab=categories', 'Postavke', shareFillFlowIn('hr'), `${query}&lang=hr`],
-      ['dismiss', '#/company/settings?tab=category-rules', 'Settings', dismissFlow],
-      ['newer-class', '#/company/settings', 'Settings', newerClassFlow, mode === 'drive' ? '&fake=older-interest' : '&fake=browser-older-interest'],
-      ['rules-editor', '#/company/settings?tab=category-rules', 'Settings', rulesEditorFlow],
-      ['rule-labels', '#/company/settings?tab=category-rules', 'Settings', ruleLabelsFlowIn('en')],
-      ['missing-category', '#/company/settings', 'Settings', missingCategoryFlowIn('en')],
+      ['share-fill-croatian', '#/company/sorting#categories', 'Razvrstavanje', shareFillFlowIn('hr'), `${query}&lang=hr`],
+      ['dismiss', '#/company/sorting#rules', 'Sorting', dismissFlow],
+      ['newer-class', '#/company/sorting', 'Sorting', newerClassFlow, mode === 'drive' ? '&fake=older-interest' : '&fake=browser-older-interest'],
+      ['rules-editor', '#/company/sorting#rules', 'Sorting', rulesEditorFlow],
+      ['rule-labels', '#/company/sorting#rules', 'Sorting', ruleLabelsFlowIn('en')],
+      ['missing-category', '#/company/sorting', 'Sorting', missingCategoryFlowIn('en')],
       ['import-camt', '#/company/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
       ['import-camt-lookalike', '#/company/transactions?tab=import', 'Transactions', importCamtLookAlikeFlowIn('en', IMPORT_SAMPLES.camt), mode === 'drive' ? '&fake=copied' : '&fake=browser-copied'],
       ['import-table', '#/company/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
@@ -1729,17 +1731,17 @@ async function checkWidth(browser, width) {
       ['invoices-croatian', '#/company/invoicing?p=all', 'Računi', invoiceFlowIn('hr'), `${query}&lang=hr`],
       ['invoice-run-croatian', '#/company/invoicing?p=all', 'Računi', invoiceRunFlowIn('hr'), `${query}&lang=hr`],
       ['settings-card-ibans-croatian', '#/company/settings', 'Postavke', cardSettlementIbansFlowIn('hr'), `${query}&lang=hr`],
-      ['categories-croatian', '#/company/settings?tab=categories', 'Postavke', categoryFlowIn('hr'), `${query}&lang=hr`],
-      ['categories-filters-croatian', '#/company/settings?tab=categories', 'Postavke', categoryFiltersFlowIn('hr'), `${query}&lang=hr`],
+      ['categories-croatian', '#/company/sorting#categories', 'Razvrstavanje', categoryFlowIn('hr'), `${query}&lang=hr`],
+      ['categories-filters-croatian', '#/company/sorting#categories', 'Razvrstavanje', categoryFiltersFlowIn('hr'), `${query}&lang=hr`],
       ['split-croatian', '#/company/transactions?p=all&q=GADGET', 'Transakcije', splitFlowIn('hr'), `${query}&lang=hr`],
       ['split-review-croatian', '#/company/transactions?tab=review', 'Transakcije', reviewSplitFlowIn('hr'), `${query}&lang=hr`],
       ['row-ids-croatian', '#/company', 'Pregled', rowIdsFlowIn('hr'), mode === 'drive' ? '&fake=no-row-ids&lang=hr' : '&fake=browser-no-row-ids&lang=hr'],
       ['change-category-croatian', '#/company/transactions?p=all&q=CODE%20HOST', 'Transakcije', changeCategoryFlowIn('hr'), `${query}&lang=hr`],
-      ['dismiss-croatian', '#/company/settings?tab=category-rules', 'Postavke', dismissFlowIn('hr'), `${query}&lang=hr`],
-      ['newer-class-croatian', '#/company/settings', 'Postavke', newerClassFlowIn('hr'), mode === 'drive' ? '&fake=older-interest&lang=hr' : '&fake=browser-older-interest&lang=hr'],
-      ['rules-editor-croatian', '#/company/settings?tab=category-rules', 'Postavke', rulesEditorFlowIn('hr'), `${query}&lang=hr`],
-      ['rule-labels-croatian', '#/company/settings?tab=category-rules', 'Postavke', ruleLabelsFlowIn('hr'), `${query}&lang=hr`],
-      ['missing-category-croatian', '#/company/settings', 'Postavke', missingCategoryFlowIn('hr'), `${query}&lang=hr`],
+      ['dismiss-croatian', '#/company/sorting#rules', 'Razvrstavanje', dismissFlowIn('hr'), `${query}&lang=hr`],
+      ['newer-class-croatian', '#/company/sorting', 'Razvrstavanje', newerClassFlowIn('hr'), mode === 'drive' ? '&fake=older-interest&lang=hr' : '&fake=browser-older-interest&lang=hr'],
+      ['rules-editor-croatian', '#/company/sorting#rules', 'Razvrstavanje', rulesEditorFlowIn('hr'), `${query}&lang=hr`],
+      ['rule-labels-croatian', '#/company/sorting#rules', 'Razvrstavanje', ruleLabelsFlowIn('hr'), `${query}&lang=hr`],
+      ['missing-category-croatian', '#/company/sorting', 'Razvrstavanje', missingCategoryFlowIn('hr'), `${query}&lang=hr`],
       ['dialogs-rows-croatian', '#/company/transactions?p=all&q=GADGET', 'Transakcije', rowsDialogsFlowIn('hr'), `${query}&lang=hr`],
       ['assets-croatian', '#/company/year?tab=assets#asset-rows', 'Godina', assetFlowIn('hr'), `${query}&lang=hr`],
       ['employees-croatian', '#/company/salaries#employee-rows', 'Plaće', employeeFlowIn('hr'), `${query}&lang=hr`],
@@ -2003,10 +2005,7 @@ async function checkWidth(browser, width) {
     await waitForTitle(page, 'Settings')
     await waitForText(page, 'button', 'Save settings')
     await shoot('settings-general')
-    for (const [label, query, ready] of [
-      ['Categories', 'tab=categories', 'Save categories'],
-      ['Accounts', 'tab=accounts', 'Save accounts'],
-    ]) {
+    for (const [label, query, ready] of [['Accounts', 'tab=accounts', 'Save accounts']]) {
       const tab = await waitForText(page, '[role="tab"]', label)
       await tab.tap()
       await page.waitForFunction((wanted) => window.location.hash.includes(wanted), {}, query)
@@ -2243,7 +2242,7 @@ async function checkWidth(browser, width) {
   })
 
   await step('coverage-split', async () => {
-    await openFreshBrowser(page, '#/company/settings?tab=category-rules', 'Settings')
+    await openFreshBrowser(page, '#/company/sorting#rules', 'Sorting')
     await openCoverage(page)
     const split = await waitForText(page, '[data-testid="coverage-gap"]', 'STATE BUDGET')
     await expect(
@@ -2301,7 +2300,7 @@ async function checkWidth(browser, width) {
   })
 
   await step('category-move-delete', async () => {
-    await openFreshBrowser(page, '#/company/settings?tab=categories', 'Settings')
+    await openFreshBrowser(page, '#/company/sorting#categories', 'Sorting')
     const row = await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="category-row"]')].find((candidate) => candidate.querySelector('input')?.value === 'bank-fees') ?? null)
     await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -2331,7 +2330,7 @@ async function checkWidth(browser, width) {
   })
 
   await step('rules-tab-edit', async () => {
-    await openFreshBrowser(page, '#/company/settings?tab=category-rules', 'Settings')
+    await openFreshBrowser(page, '#/company/sorting#rules', 'Sorting')
     await page.waitForSelector('[data-testid="rule-row"]')
     await inspect(page, `${width}px rules tab`)
     await shoot('rules-tab')
@@ -3388,7 +3387,9 @@ async function checkWidth(browser, width) {
     ['spending-old-labels-address', 'drive&spending=sample', spendingOldAddressFlowIn('en', 'labels'), '#/spending/labels', 'Sorting'],
     ['spending-old-rules-address', 'drive&spending=statements', spendingOldAddressFlowIn('en', 'rules'), '#/spending/settings?tab=rules', 'Sorting'],
     ['spending-rules-for', 'drive&spending=statements', spendingRulesForFlowIn('en'), '#/spending/sorting', 'Sorting'],
-    ['company-labels-editor', 'drive', companyLabelsFlowIn('en'), '#/company/labels', 'Labels'],
+    ['company-labels-editor', 'drive', companyLabelsFlowIn('en'), '#/company/sorting#labels', 'Sorting'],
+    ['company-old-rules-address', 'drive', companyOldAddressFlowIn('en', 'rules'), '#/company/settings?tab=category-rules', 'Sorting'],
+    ['company-rules-for', 'drive', companyRulesForFlowIn('en'), '#/company/sorting', 'Sorting'],
     ['company-select-label', 'drive', companySelectLabelFlowIn('en'), '#/company/transactions?p=all', 'Transactions'],
     ['spending-events', 'drive&spending=sample', spendingEventsFlowIn('en'), '#/spending/events', 'Events'],
     ['spending-entry-filters', 'drive&spending=sample', spendingEntryFiltersFlowIn('en'), '#/spending/transactions', 'Entries'],

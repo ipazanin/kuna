@@ -68,7 +68,17 @@ function appOf(id: string, assistant: CatalogueApp['assistant'], paths: readonly
 }
 
 const APPS: readonly CatalogueApp[] = [
-  appOf('company', COMPANY, ['/company', '/company/transactions', '/company/invoicing', '/company/analysis', '/company/owner', '/company/year', '/company/salaries', '/company/settings']),
+  appOf('company', COMPANY, [
+    '/company',
+    '/company/transactions',
+    '/company/sorting',
+    '/company/invoicing',
+    '/company/analysis',
+    '/company/owner',
+    '/company/year',
+    '/company/salaries',
+    '/company/settings',
+  ]),
   appOf('loans', LOANS_ASSISTANT, ['/loans', '/loans/scenarios', '/loans/bank-loan', '/loans/informal-loan', '/loans/settings']),
   appOf('investments', INVESTMENTS_ASSISTANT, [
     '/investments',
@@ -296,6 +306,7 @@ describe('the catalogue', () => {
   it('links each place to a screen of its app, and a tab to a tab that screen has', () => {
     const owners: Readonly<Record<string, string>> = {
       '/company/settings': 'src/apps/company/settings/presentation',
+      '/company/sorting': 'src/apps/company/sorting/presentation',
       '/company/transactions': 'src/apps/company/transactions/presentation',
       '/company/invoicing': 'src/apps/company/invoicing/presentation',
       '/company/analysis': 'src/apps/company/analysis/presentation',
