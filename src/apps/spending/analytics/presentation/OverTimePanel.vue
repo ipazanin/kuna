@@ -93,13 +93,12 @@ const unrated = computed(() => (props.waiting ? null : unratedNote(counted.value
       </KpiTile>
     </DashboardGrid>
     <ChartCard
-      v-model:range="chartRange.range.value"
+      :range-choice="chartRange"
       :title="words.analysis.overTime.chartTitle"
       :subtitle="unrated ?? name"
       :description="chart.description"
       :option="chart.option"
       :loading="waiting"
-      :ranges="chartRange.ranges.value"
       :link-at="(selection) => (months[selection.dataIndex] === undefined ? null : transactionsLink(months[selection.dataIndex]!, category))"
       :height="300"
       :phone-height="260"

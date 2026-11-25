@@ -6,7 +6,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { holdingMix } from '../domain/holdingMix'
 import { holdingRecords } from '../domain/holdingRecords'
 import { latestRecords } from '../domain/latestRecords'
-import { priceHistory } from '../domain/priceHistory'
+import { openingWindow, priceHistory, priceSpan } from '../domain/priceHistory'
 import CompareWith from '../../compare/presentation/CompareWith.vue'
 import { useComparison } from '../../compare/presentation/useComparison'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -21,15 +21,13 @@ import InstrumentDialog from './InstrumentDialog.vue'
 import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
 import { mixDonut } from './mixDonut'
 import OpenLotsCard from './OpenLotsCard.vue'
-import { seriesKey } from '../../prices/domain/pricesFile'
 import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { usePrices } from '../../prices/presentation/usePrices'
-import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { today } from '../../../../shared/calendar/civilDate'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { rangeContains } from '../../../../shared/calendar/dateRange'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { rangeOfWindow } from '../../../../shared/charts/chartRange'
 import { priceChart } from './priceChart'
 import { usePortfolio } from './usePortfolio'
 import { words } from './words'
@@ -60,24 +58,15 @@ const loading = computed(() => (state.workbook === null && state.status !== 'err
 const holding = computed(() => (figures.value === null ? null : holdingNamed(figures.value, route.query.instrument)))
 const records = computed(() => (holding.value === null || sources.value === null ? [] : latestRecords(holdingRecords(sources.value.book, holding.value.instrument.id), sources.value.rates)))
 const hasIncome = computed(() => records.value.some((entry) => entry.kind === 'income'))
-const fullHistory = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value)))
+const span = computed(() => (holding.value === null || sources.value === null ? null : priceSpan(holding.value, sources.value)))
+const shownToday = () => sources.value?.today ?? today()
+/** The chart opens on the held period, as a preset where one keeps the same days. */
 const priceRange = useChartRange(
-  () => {
-    const points = fullHistory.value?.points ?? []
-    const [first] = points
-    const last = points.at(-1)
-    return first === undefined || last === undefined ? null : { from: first.date, to: last.date }
-  },
-  () => sources.value?.today ?? today(),
+  () => span.value,
+  shownToday,
+  () => rangeOfWindow(holding.value === null || sources.value === null ? null : openingWindow(holding.value, span.value, sources.value), shownToday()),
 )
-/** The history over the range picked, its closes and its trades' dots both. */
-const history = computed(() => {
-  const full = fullHistory.value
-  if (full === null) return null
-  const kept = priceRange.window.value
-  const shown = (date: CivilDate): boolean => kept === null || rangeContains(kept, date)
-  return { ...full, points: full.points.filter((point) => shown(point.date)), dots: full.dots.filter((dot) => shown(dot.date)) }
-})
+const history = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value, priceRange.window.value)))
 const comparison = useComparison(() => history.value?.points.map((point) => point.date) ?? [], 'as-quoted')
 const chart = computed(() => (history.value === null || holding.value === null ? null : priceChart(history.value, holding.value, chartTokens(), phone.value, comparison.line.value)))
 
@@ -85,10 +74,9 @@ const prices = usePrices()
 /** Where the holding's closes begin after its first buy, because its vendor has none earlier, said once on its chart. */
 const pricesFrom = computed(() => {
   const current = holding.value
-  if (current === null || current.firstAcquired === null || current.instrument.prices === 'manual') return null
-  const firstClose = prices.state.copy?.file.series[seriesKey(current.instrument.prices, current.instrument.sourceSymbol)]?.closes[0]?.[0]
+  if (current === null || current.firstAcquired === null || current.instrument.prices === 'manual' || span.value === null) return null
   const vendor = PRICE_VENDORS.find((candidate) => candidate.id === current.instrument.prices)
-  return firstClose === undefined || vendor === undefined || firstClose <= current.firstAcquired.date ? null : words.chart.pricesFrom(dayLabel(parseCivilDate(firstClose)!), vendor.name)
+  return vendor === undefined || span.value.from <= current.firstAcquired.date ? null : words.chart.pricesFrom(dayLabel(span.value.from), vendor.name)
 })
 const chartSubtitle = computed(() => (chart.value === null ? '' : [chart.value.subtitle, pricesFrom.value].filter((part) => part !== null).join(' ')))
 
@@ -149,7 +137,7 @@ const description = computed(() => {
       <HoldingHero :holding="holding" :today="sources.today" />
       <ChartCard
         v-if="chart !== null && history !== null"
-        v-model:range="priceRange.range.value"
+        :range-choice="priceRange"
         :title="words.chart.title"
         :subtitle="chartSubtitle"
         :option="chart.option"
@@ -159,7 +147,6 @@ const description = computed(() => {
         :empty-description="words.chart.emptyDescription"
         :height="280"
         :phone-height="220"
-        :ranges="priceRange.ranges.value"
         data-testid="holding-price-chart"
       >
         <template #legend>

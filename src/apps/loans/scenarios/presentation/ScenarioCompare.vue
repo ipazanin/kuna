@@ -218,14 +218,13 @@ async function remove(row: ScenarioRow): Promise<void> {
 
     <DashboardGrid v-if="charted.length > 0" layout="pair">
       <ChartCard
-        v-model:range="scenarioRange.range.value"
+        :range-choice="scenarioRange"
         :title="words.charts.owed"
         :subtitle="words.charts.owedSubtitle"
         :option="balanceChart.option"
         :description="balanceChart.description"
         :height="260"
         :phone-height="220"
-        :ranges="scenarioRange.ranges.value"
         collapse-id="loans.scenarios.owed"
         start-collapsed
         data-testid="scenario-balance-chart"
@@ -236,14 +235,13 @@ async function remove(row: ScenarioRow): Promise<void> {
         </template>
       </ChartCard>
       <ChartCard
-        v-model:range="scenarioRange.range.value"
+        :range-choice="scenarioRange"
         :title="words.charts.interest"
         :subtitle="words.charts.interestSubtitle"
         :option="interestChart.option"
         :description="interestChart.description"
         :height="260"
         :phone-height="220"
-        :ranges="scenarioRange.ranges.value"
         collapse-id="loans.scenarios.interest"
         start-collapsed
         data-testid="scenario-interest-chart"

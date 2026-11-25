@@ -116,3 +116,36 @@ describe('a company profile in Kuna’s words', () => {
     })
   })
 })
+
+describe('a holding set to typed facts only', () => {
+  const facts = factsWith({
+    profiles: { 'finnhub:US000000DEF2': profileFact('2026-11-02', { industry: 'Technology', country: 'US' }) },
+    funds: { 'alphavantage:XYZ.DEX': fundFact('2026-11-02', { expenseRatio: '0.0022', sectors: [['Information Technology', '0.3']] }) },
+    dividends: { 'alphavantage:XYZ.DEX': { asked: '2026-11-02', dividends: [['2026-12-28', '2027-01-12', '0.34']] } },
+    types: { 'alphavantage:XYZ.DEX': { asked: '2026-11-02', type: 'ETF' } },
+  })
+
+  it('reads none of the facts its vendors gave, only its typed type', () => {
+    const world = { ...WORLD, type: null, typedFactsOnly: true }
+    const payer = { ...PAYER, typedFactsOnly: true }
+
+    expect([facts.typeOf(world), facts.fundProfileOf(world), facts.sectorWeightsOf(world), facts.announcedOf(world)]).toEqual([null, null, null, []])
+    expect([facts.typeOf(payer), facts.profileOf(payer)]).toEqual(['share', null])
+  })
+
+  it('warns of no empty or refused answer', () => {
+    const empty = factsWith({ funds: { 'alphavantage:XYZ.DEX': fundFact('2026-11-02') }, profiles: { 'finnhub:US000000DEF2': profileFact('2026-11-02', { failed: 'refused' }) } })
+
+    expect([empty.problemsOf({ ...WORLD, typedFactsOnly: true }), empty.problemsOf({ ...PAYER, typedFactsOnly: true })]).toEqual([[], []])
+    expect(empty.problemsOf(WORLD)).toHaveLength(1)
+  })
+
+  it('reads them again once the switch is off', () => {
+    expect([facts.typeOf({ ...WORLD, type: null }), facts.fundProfileOf(WORLD)?.ter, facts.sectorWeightsOf(WORLD)?.weights, facts.announcedOf(WORLD)]).toEqual([
+      'fund',
+      decimal('0.22'),
+      [{ sector: 'information-technology', percent: decimal('30') }],
+      [{ exDay: civil('2026-12-28'), paymentDay: civil('2027-01-12'), amount: decimal('0.34') }],
+    ])
+  })
+})

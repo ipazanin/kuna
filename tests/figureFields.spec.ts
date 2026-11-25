@@ -12,6 +12,7 @@ import {
   COMPANY_ADVANCE,
   COMPANY_ITEM,
   COMPANY_LEDGER_ROW,
+  INSTRUMENT,
   INVESTMENT_ACCOUNT,
   SPENDING_ACCOUNT,
   SPENDING_ITEM,
@@ -55,6 +56,31 @@ const KINDS = {
     figures: ['id', 'name', 'note'],
     cells: ['id', 'name', 'note'],
   },
+  'an instrument': {
+    kind: INSTRUMENT,
+    figures: ['benchmark', 'class', 'country', 'currency', 'distribution', 'exchange', 'id', 'isin', 'name', 'note', 'prices', 'quoted', 'sector', 'sourceSymbol', 'symbol', 'ter', 'type'],
+    cells: [
+      'benchmark',
+      'class',
+      'country',
+      'coupon',
+      'currency',
+      'distribution',
+      'exchange',
+      'id',
+      'isin',
+      'maturity',
+      'name',
+      'note',
+      'prices',
+      'quoted',
+      'sector',
+      'source_symbol',
+      'symbol',
+      'ter',
+      'type',
+    ],
+  },
   'a Company ledger row': {
     kind: COMPANY_LEDGER_ROW,
     figures: ['account', 'amount', 'balance', 'category', 'counterparty', 'date', 'id', 'ownerShare', 'reviewReasons', 'rowId'],
@@ -94,6 +120,7 @@ const STORED: Record<keyof typeof KINDS, readonly Stored[]> = {
   'a Spending item': spending.records.items.records,
   'a Spending account': spending.records.accounts.records,
   'an Investments account': investments.records.accounts.records,
+  'an instrument': investments.records.instruments.records,
   'a Company ledger row': company.records.ledger.records,
   'a Company item': company.records.items.records,
   'a cost the owner paid': recordsOfKindIn(company.records, OWNER_ADVANCE_RECORDS).records,
@@ -133,7 +160,7 @@ describe("the figure digest's fields", () => {
     expect([...storedCells].filter((cell) => !kind.cells.has(cell) && !(cells as readonly string[]).includes(cell))).toEqual([])
   })
 
-  it('leaves no field or stored cell that is not a figure in a Spending group, in Investments accounts or in Company ledger records, however deep', () => {
+  it('leaves no field or stored cell that is not a figure in a Spending group, in Investments accounts and instruments or in Company ledger records, however deep', () => {
     const group = {
       queue: reviewQueue(spending.workbook, DAY),
       records: spending.records,
@@ -145,6 +172,8 @@ describe("the figure digest's fields", () => {
     expect(leftOutIn(spendingFiguresOf(group), spendingKindOf)).toEqual([])
     expect(leftOutIn(investments.records.accounts, investmentsKindOf)).toContain('sources')
     expect(leftOutIn(investmentsFiguresOf(investments.records).accounts, investmentsKindOf)).toEqual([])
+    expect(leftOutIn(investments.records.instruments, investmentsKindOf)).toContain('typedFactsOnly')
+    expect(leftOutIn(investmentsFiguresOf(investments.records).instruments, investmentsKindOf)).toEqual([])
     expect(leftOutIn(company.records.ledger, companyKindOf)).toContain('signals')
     expect(leftOutIn(companyFiguresOf(company.records).ledger, companyKindOf)).toEqual([])
     expect(leftOutIn(company.records.items, companyKindOf)).toContain('label_ids')

@@ -84,7 +84,7 @@ function isFactFailure(reason: FailureReason): reason is FactFailure {
  * 3. A fund profile of each fund, and of each untyped holding whose sector is not typed and that no profile placed.
  * 4. The dividends of each holding that paid in the last 13 months, once a month.
  *
- * Only held instruments are asked about. A type is asked once, and a profile or a fund profile again once it is
+ * Only held instruments are asked about, and none set to typed facts only. A type is asked once, and a profile or a fund profile again once it is
  * as old as `daysBeforeAskedAgain` says. An empty answer is kept, and so is a failure the vendor answered for a profile or a fund profile,
  * which the holding's page shows. A fact wanted from a vendor this browser has no key for is not asked, and the vendor
  * is noted, so a browser that holds the key fetches again that day.
@@ -95,7 +95,9 @@ export function factWork(plans: readonly VendorPlan[], stored: FetchedFacts, boo
   const working: Mutable<FetchedFacts> = { profiles: { ...stored.profiles }, funds: { ...stored.funds }, dividends: { ...stored.dividends }, types: { ...stored.types } }
   const facts: FactsBook = fetchedFactsBook(working)
   const lots = investmentLots(book)
-  const held = book.instruments.filter((instrument) => (again === null || instrument.id === again) && (lots.get(instrument.id)?.open ?? []).some((lot) => lot.quantity > DECIMAL_ZERO))
+  const held = book.instruments.filter(
+    (instrument) => !instrument.typedFactsOnly && (again === null || instrument.id === again) && (lots.get(instrument.id)?.open ?? []).some((lot) => lot.quantity > DECIMAL_ZERO),
+  )
   const today = parseCivilDate(day)!
   /** Whether a profile or a fund profile is still to ask for: none kept, one old enough for what it holds, or one the holding asks for again. */
   const due = (fact: { readonly asked: string; readonly failed: FactFailure | null } | undefined): boolean =>

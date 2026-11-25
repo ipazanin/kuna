@@ -380,6 +380,7 @@ describe('the Investments file', () => {
           { ...EURO_FUND, id: 'n8', coupon: '3' },
           { ...DOLLAR_SHARE, id: 'n9', prices: 'yahoo' },
           { ...DOLLAR_SHARE, id: 'n10', benchmark: 'maybe' },
+          { ...DOLLAR_SHARE, id: 'n11', typed_facts_only: 'maybe' },
         ],
       }),
     ).toEqual([
@@ -394,6 +395,7 @@ describe('the Investments file', () => {
       ['instrument', 'Example Fund, EMF', 'coupon and maturity belong to a bond quoted in percent only'],
       ['instrument', 'Example Tech, ABC', '"yahoo" is not a price source. Use twelvedata, alphavantage, manual'],
       ['instrument', 'Example Tech, ABC', 'benchmark "maybe" is not true or false'],
+      ['instrument', 'Example Tech, ABC', 'typed_facts_only "maybe" is not true or false'],
     ])
   })
 
@@ -407,6 +409,18 @@ describe('the Investments file', () => {
       ['GHI', false],
     ])
     expect(roundTrip(INSTRUMENT_RECORDS, { ...SPUN_OFF, benchmark: false })).toEqual(SPUN_OFF)
+  })
+
+  it('reads typed facts only on the instrument that carries the field, and writes no field for the rest', () => {
+    const books = booksOf({ instrument: [DOLLAR_SHARE, { ...EURO_FUND, typed_facts_only: true }] })
+
+    expect(books.problems).toEqual([])
+    expect(books.book.instruments.map((instrument) => [instrument.symbol, instrument.typedFactsOnly])).toEqual([
+      ['ABC', false],
+      ['EMF', true],
+    ])
+    expect(roundTrip(INSTRUMENT_RECORDS, { ...EURO_FUND, typed_facts_only: true })).toEqual({ ...EURO_FUND, typed_facts_only: true })
+    expect(roundTrip(INSTRUMENT_RECORDS, { ...SPUN_OFF, typed_facts_only: false })).toEqual(SPUN_OFF)
   })
 
   it('refuses money records whose amounts, currencies or rates do not make one', () => {

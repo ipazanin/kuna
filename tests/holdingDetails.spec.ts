@@ -211,6 +211,17 @@ describe('the fetched facts a holding’s page shows', () => {
     expect(labelled(holdingDetails(held({ ...WORLD, ter: decimal('0.22') }), sources(book({})), fetched), 'TER')).toEqual(['TER', '0.22%', 'You typed it'])
   })
 
+  it('shows only typed facts of a holding set to typed facts only, says so, and gives no warning of an empty fund profile', () => {
+    const fetched = fetchedFactsBook({ ...NO_FETCHED_FACTS, funds: { 'alphavantage:XYZ.DEX': fundFact('2026-10-29', { expenseRatio: '0.0019', holdings: 120 }) } })
+    const empty = fetchedFactsBook({ ...NO_FETCHED_FACTS, funds: { 'alphavantage:XYZ.DEX': fundFact('2026-10-29') } })
+    const typedOnly = held({ ...WORLD, ter: null, typedFactsOnly: true })
+
+    expect(labelled(holdingDetails(typedOnly, sources(book({})), fetched), 'Holdings')).toBeUndefined()
+    expect(labelled(holdingDetails(typedOnly, sources(book({})), fetched), 'TER')?.[1]).not.toBe('0.19%')
+    expect(holdingDetails(typedOnly, sources(book({})), empty).problems).toBeNull()
+    expect([holdingDetails(typedOnly, sources(book({})), empty).typedFactsOnly, holdingDetails(held(WORLD), sources(book({})), empty).typedFactsOnly]).toEqual([true, false])
+  })
+
   it('shows a fund’s size, start and holdings from its fund profile', () => {
     const fetched = fetchedFactsBook({
       ...NO_FETCHED_FACTS,

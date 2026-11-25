@@ -9,7 +9,7 @@ import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, NEW_INSTRUMEN
 import type { Instrument } from '../../workbook/domain/instrument'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { FUND_MIXES, REGIONS, SECTORS } from '../../workbook/domain/mixGroup'
-import { TEXT, TEXT_OR_NULL, choiceOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { FLAG_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, flagOf, found, inputOf } from '../../../../shared/app/operationInput'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { decimalShown } from '../../../../shared/money/decimal'
@@ -53,6 +53,10 @@ const INSTRUMENT_FIELDS: Readonly<Record<string, StrictSchema>> = {
   country: { type: ['string', 'null'], description: `A country code such as US, or a region: ${REGIONS.join(', ')}. "" for none, or null to leave it.` },
   ter: { type: ['string', 'null'], description: 'A fund\'s yearly cost in percent with a point, such as 0.2, "" for none, or null to leave it.' },
   distribution: choices(FUND_DISTRIBUTIONS, 'for a fund only, "" for none, or null to leave it.'),
+  typedFactsOnly: {
+    ...FLAG_OR_NULL,
+    description: '"yes" stops Kuna asking vendors for its type, sector, country, TER and dividends, so only what is typed counts, "no" asks them again, or null to leave it.',
+  },
   note: TEXT_OR_NULL,
   sectors: MIX_LINES(`A sector: ${SECTORS.join(', ')}.`),
   countries: MIX_LINES(`A country code such as US, or a region: ${REGIONS.join(', ')}.`),
@@ -89,6 +93,7 @@ function textsOfStep(before: Instrument | null, field: Readonly<Record<string, u
     country: countryText(text('country')) ?? texts.country,
     ter: ter === null ? texts.ter : ter === '' ? '' : decimalShown(decimalOf(ter, 'ter')),
     distribution: pick('distribution', FUND_DISTRIBUTIONS) ?? texts.distribution,
+    typedFactsOnly: flagOf(text('typedFactsOnly'), texts.typedFactsOnly),
     note: text('note') ?? texts.note,
   }
 }
@@ -193,6 +198,7 @@ export const INSTRUMENT_STEPS: InvestmentSteps = {
         country: 'world',
         ter: '0.2',
         distribution: 'accumulating',
+        typedFactsOnly: 'no',
         note: '',
         sectors: [],
         countries: [

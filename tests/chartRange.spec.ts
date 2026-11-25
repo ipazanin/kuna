@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { chartRanges, monthInRange, rangeWindow, wholeMonthsSpan, yearInRange } from '../src/shared/charts/chartRange'
+import { chartRangeOfText, chartRangeText, chartRanges, monthInRange, rangeOfWindow, rangeWindow, wholeMonthsSpan, yearInRange } from '../src/shared/charts/chartRange'
+import { dateRangeOfText, withRangeEnd } from '../src/shared/calendar/dateRange'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import { civil } from './fixtures/ledger'
 
@@ -47,5 +48,36 @@ describe("a time chart's range", () => {
     // A chart that ends in November 2031 keeps that month in the next five years, which end on 3 Nov 2031.
     expect(chartRanges(wholeMonthsSpan(month('2026-11'), month('2031-11')), TODAY)).toEqual(['all'])
     expect(chartRanges(wholeMonthsSpan(month('2026-11'), month('2031-12')), TODAY)).toEqual(['next-5y', 'all'])
+  })
+})
+
+describe('a custom range', () => {
+  const SPRING = { from: civil('2026-03-01'), to: civil('2026-05-31') }
+
+  it('keeps its own days, and reads and writes them as the address does', () => {
+    expect(rangeWindow(SPRING, TODAY)).toEqual(SPRING)
+    expect(chartRangeText(SPRING)).toBe('2026-03-01..2026-05-31')
+    expect([chartRangeOfText('2026-03-01..2026-05-31'), chartRangeOfText('3y'), chartRangeOfText('2y')]).toEqual([SPRING, '3y', null])
+  })
+
+  it.each([
+    ['a range whose first day is after its last', '2026-05-31..2026-03-01'],
+    ['a day that does not exist', '2026-02-30..2026-03-31'],
+    ['one day alone', '2026-03-01'],
+    ['days with no dots between them', '2026-03-01 2026-05-31'],
+  ])('reads %s as no range', (_what, text) => {
+    expect(dateRangeOfText(text)).toBeNull()
+  })
+
+  it('drags the other end along when one end moves past it, so it never turns inside out', () => {
+    expect(withRangeEnd(SPRING, 'from', civil('2026-04-15'))).toEqual({ from: civil('2026-04-15'), to: civil('2026-05-31') })
+    expect(withRangeEnd(SPRING, 'from', civil('2026-07-01'))).toEqual({ from: civil('2026-07-01'), to: civil('2026-07-01') })
+    expect(withRangeEnd(SPRING, 'to', civil('2026-01-10'))).toEqual({ from: civil('2026-01-10'), to: civil('2026-01-10') })
+  })
+
+  it('names the preset that keeps the same days, and else stays custom', () => {
+    expect(rangeOfWindow(null, TODAY)).toBe('all')
+    expect(rangeOfWindow({ from: civil('2025-11-03'), to: TODAY }, TODAY)).toBe('1y')
+    expect(rangeOfWindow({ from: civil('2023-01-09'), to: TODAY }, TODAY)).toEqual({ from: civil('2023-01-09'), to: TODAY })
   })
 })

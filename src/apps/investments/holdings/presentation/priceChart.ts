@@ -61,10 +61,17 @@ const PRICE_PLACES = 6
  * The close at each point as a blue line, the average cost as a dashed grey rule across it, and each point's buys as one
  * dot and its sales as another of one size, told apart by colour, at the price they came to. A point is a day on a daily
  * line and a month end on a monthly one. With a ticker compared, the line and the dots read as change since the first
- * point, beside the ticker's change as a dashed grey line, and the average cost is left out. A canvas takes plain
- * numbers, so the decimals become numbers here and only for drawing.
+ * point, beside the ticker's change as a dashed grey line, and the average cost is left out. A rule in the buy colour
+ * stands at the point of the first buy. A canvas takes plain numbers, so the decimals become numbers here and only for
+ * drawing.
  */
-export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 'instrument' | 'averageCost'>, tokens: ChartTokens, phone: boolean, compared: ComparedLine | null = null): PriceChart {
+export function priceChart(
+  history: PriceHistory,
+  holding: Pick<HoldingFigures, 'instrument' | 'averageCost' | 'firstAcquired'>,
+  tokens: ChartTokens,
+  phone: boolean,
+  compared: ComparedLine | null = null,
+): PriceChart {
   const { instrument } = holding
   const { currency } = instrument
   const { daily, points } = history
@@ -80,6 +87,11 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
   const averageCost = comparing ? null : holding.averageCost
   const averageText = averageCost === null ? null : averageCostText(holding)
   const lineName = comparing ? instrument.symbol || instrument.name : words.chart.price
+  const firstBuyDay = history.firstBuy === null ? null : (holding.firstAcquired?.date ?? null)
+  const rules = [
+    ...(averageCost === null ? [] : [{ yAxis: drawn(averageCost), lineStyle: { color: tokenColour('--invest-reference'), type: [5, 4], width: 2 } }]),
+    ...(history.firstBuy === null ? [] : [{ xAxis: daily ? history.firstBuy : monthOf(history.firstBuy), lineStyle: { color: tokenColour('--invest-buy'), type: 'solid' as const, width: 1.5 } }]),
+  ]
   const price: LineSeries = {
     type: 'line',
     name: lineName,
@@ -87,17 +99,7 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
     showSymbol: points.length === 1,
     lineStyle: { width: 2 },
     data: points.map((point) => onAxis(point.price)),
-    ...(averageCost === null
-      ? {}
-      : {
-          markLine: {
-            silent: true,
-            symbol: 'none',
-            lineStyle: { color: tokenColour('--invest-reference'), type: [5, 4], width: 2 },
-            label: { show: false },
-            data: [{ yAxis: drawn(averageCost) }],
-          },
-        }),
+    ...(rules.length === 0 ? {} : { markLine: { silent: true, symbol: 'none', label: { show: false }, data: rules } }),
   }
   const bought = new Set(history.dots.filter((dot) => dot.side === 'buy').map((dot) => dot.date))
   const bothSides = new Set(history.dots.filter((dot) => dot.side === 'sell' && bought.has(dot.date)).map((dot) => dot.date))
@@ -191,12 +193,15 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
                 dayLabel(last.date),
                 formatUnitPrice(first.price, currency),
                 formatUnitPrice(last.price, currency),
-              ) + (averageText === null ? '' : words.chart.averageCostLine(averageText))) + dotsLine,
+              ) + (averageText === null ? '' : words.chart.averageCostLine(averageText))) +
+          (firstBuyDay === null ? '' : words.chart.firstBuyLine(dayLabel(firstBuyDay))) +
+          dotsLine,
     subtitle: comparing ? compareWords.sinceAsQuoted(dayLabel(first.date)) : (daily ? words.chart.dailySubtitle : words.chart.subtitle)(currency),
     legend: [
       { label: lineName, colour: 'var(--invest-portfolio)', mark: 'line' },
       ...(comparing ? [comparedLegend(compared)] : []),
       ...(averageText === null ? [] : [{ label: words.chart.averageCost(averageText), colour: 'var(--invest-reference)', mark: 'dashed' as const }]),
+      ...(firstBuyDay === null ? [] : [{ label: words.chart.firstBuy(dayLabel(firstBuyDay)), colour: 'var(--invest-buy)', mark: 'rule' as const }]),
       ...(sides.has('buy') ? [{ label: words.chart.buy, colour: 'var(--invest-buy)', mark: 'dot' as const }] : []),
       ...(sides.has('sell') ? [{ label: words.chart.sale, colour: 'var(--invest-sale)', mark: 'dot' as const }] : []),
     ],

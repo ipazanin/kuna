@@ -156,14 +156,13 @@ function openMovement(movement: Movement | null): void {
       <DashboardGrid layout="pair">
         <ChartCard
           v-if="chart !== null"
-          v-model:range="owedRange.range.value"
+          :range-choice="owedRange"
           :title="words.balance.title"
           :subtitle="book.loan.direction === 'owed-to-you' ? words.balance.subtitleOwedToYou : words.balance.subtitle"
           :option="chart.option"
           :description="chart.description"
           :height="260"
           :phone-height="220"
-          :ranges="owedRange.ranges.value"
           data-testid="loan-balance-chart"
         >
           <template #legend>

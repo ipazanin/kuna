@@ -71,6 +71,8 @@ export const en = {
     category: 'Category',
     openRows: (row: string, column: string) => `${row}, ${column}, open the rows`,
     range: (title: string) => `Period of ${title}`,
+    rangeFrom: (title: string) => `${title} from`,
+    rangeTo: (title: string) => `${title} to`,
     ranges: { '1y': '1Y', '3y': '3Y', '5y': '5Y', 'next-5y': 'Next 5Y', all: 'All' },
   },
   donut: {
@@ -171,6 +173,8 @@ export const hr: Translation<typeof en> = {
     category: 'Kategorija',
     openRows: (row, column) => `${row}, ${column}, otvori stavke`,
     range: (title) => `${title}: razdoblje`,
+    rangeFrom: (title) => `${title}: od`,
+    rangeTo: (title) => `${title}: do`,
     ranges: { '1y': '1G', '3y': '3G', '5y': '5G', 'next-5y': 'Idućih 5G', all: 'Sve' },
   },
   donut: {

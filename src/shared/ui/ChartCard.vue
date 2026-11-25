@@ -22,14 +22,18 @@ import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { ChartOption } from '../charts/echarts'
-import type { ChartRange } from '../charts/chartRange'
+import type { ChartPreset } from '../charts/chartRange'
 import { categoryData, isCategoryAxis } from '../charts/chartAxes'
+import type { ChartRangeChoice } from '../charts/useChartRange'
+import { parseCivilDate } from '../calendar/civilDate'
+import { overlapOf, withRangeEnd } from '../calendar/dateRange'
 import { monthAxisLabel } from '../calendar/monthLabel'
 import { usePhoneLayout } from '../layout/viewport'
 import { formatChartMoney } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import ChartCanvas from './ChartCanvas.vue'
 import ChoiceButtons from './ChoiceButtons.vue'
+import DayField from './DayField.vue'
 import DrillLink from './DrillLink.vue'
 import FigureTable from './FigureTable.vue'
 import { words } from './words'
@@ -62,8 +66,11 @@ const props = withDefaults(
     summary?: string
     startCollapsed?: boolean
     reveal?: boolean
-    /** The spans the chart can show, picked beside its legend with `v-model:range`. Shown only when there is more than All. */
-    ranges?: readonly ChartRange[]
+    /**
+     * The span the chart shows, picked beside its legend from its presets or as a custom from and to day. Shown only
+     * when it offers more than All.
+     */
+    rangeChoice?: ChartRangeChoice
   }>(),
   {
     formatValue: formatChartMoney,
@@ -76,12 +83,47 @@ const props = withDefaults(
     height: 260,
     startCollapsed: false,
     reveal: false,
-    ranges: () => [],
   },
 )
 
-const range = defineModel<ChartRange>('range', { default: 'all' })
-const rangeChoices = computed(() => (props.ranges.length > 1 ? props.ranges.map((value) => ({ value, label: words.chart.ranges[value] })) : []))
+type RangePick = ChartPreset | 'custom'
+
+/** The presets with Custom before All, where a preset leaves something out. */
+const rangeChoices = computed((): { value: RangePick; label: string }[] => {
+  const offered = props.rangeChoice?.ranges.value ?? []
+  if (offered.length <= 1) return []
+  const presets = offered.filter((preset) => preset !== 'all').map((value) => ({ value, label: words.chart.ranges[value] }))
+  return [...presets, { value: 'custom', label: words.periodBar.presets.custom }, { value: 'all', label: words.chart.ranges.all }]
+})
+const customRange = computed(() => {
+  const picked = props.rangeChoice?.range.value
+  return picked === undefined || typeof picked === 'string' ? null : picked
+})
+const rangePick = computed((): RangePick => {
+  const picked = props.rangeChoice?.range.value ?? 'all'
+  return typeof picked === 'string' ? picked : 'custom'
+})
+
+/** Custom starts from the days shown, inside the chart's span. */
+function pickRange(pick: RangePick): void {
+  const choice = props.rangeChoice
+  const span = choice?.span.value ?? null
+  if (choice === undefined || pick === rangePick.value) return
+  if (pick !== 'custom') {
+    choice.range.value = pick
+  } else if (span !== null) {
+    choice.range.value = choice.window.value === null ? span : (overlapOf(span, choice.window.value) ?? span)
+  }
+}
+
+/** A day typed outside the chart's span moves to its nearest end. The fields take any day, as a limit would refuse a year while its first digits are typed. */
+function setCustomEnd(end: 'from' | 'to', text: string): void {
+  const typed = parseCivilDate(text)
+  const span = props.rangeChoice?.span.value ?? null
+  if (typed === null || span === null || customRange.value === null) return
+  const day = typed < span.from ? span.from : typed > span.to ? span.to : typed
+  props.rangeChoice!.range.value = overlapOf(withRangeEnd(customRange.value, end, day), span) ?? span
+}
 
 const emit = defineEmits<{
   select: [selection: ChartPointSelection]
@@ -158,9 +200,24 @@ function valueOf(point: unknown): number | null {
       />
     </template>
     <template v-if="($slots.legend || rangeChoices.length > 0) && !empty" #header>
-      <div v-if="rangeChoices.length > 0" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div v-if="rangeChoices.length > 0" class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <slot name="legend" />
-        <ChoiceButtons v-model="range" :options="rangeChoices" :label="words.chart.range(title)" data-testid="chart-range" />
+        <div class="flex min-w-0 flex-col items-start gap-2 sm:items-end" :class="{ 'max-sm:basis-full': customRange !== null }">
+          <ChoiceButtons :model-value="rangePick" :options="rangeChoices" :label="words.chart.range(title)" data-testid="chart-range" @update:model-value="pickRange" />
+          <div v-if="customRange !== null" class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 self-stretch sm:flex sm:self-auto" data-testid="chart-range-days">
+            <span class="type-caption">{{ words.periodBar.from }}</span>
+            <DayField
+              size="sm"
+              :aria-label="words.chart.rangeFrom(title)"
+              :model-value="customRange.from"
+              class="w-full sm:w-40"
+              data-testid="chart-range-from"
+              @change="setCustomEnd('from', $event)"
+            />
+            <span class="type-caption sm:ms-1">{{ words.periodBar.to }}</span>
+            <DayField size="sm" :aria-label="words.chart.rangeTo(title)" :model-value="customRange.to" class="w-full sm:w-40" data-testid="chart-range-to" @change="setCustomEnd('to', $event)" />
+          </div>
+        </div>
       </div>
       <slot v-else name="legend" />
     </template>

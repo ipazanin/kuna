@@ -174,6 +174,7 @@ export const en = {
     rangeMonthEnds: 'Partly month-end closes',
     leveraged: (vendor: string) => `${vendor} says this fund is leveraged. It aims at a multiple of its index’s daily move, so over months its return can stray far from that multiple.`,
     leveragedTitle: 'A leveraged fund',
+    typedFactsOnly: 'Don’t fetch facts is on, so Kuna asks no source for this holding’s facts.',
     problems: {
       facts: { profile: 'company profile', fund: 'fund profile' },
       empty: (vendor: string, what: string, asked: string) => `${vendor} sent no ${what} for ${asked}`,
@@ -212,6 +213,8 @@ export const en = {
     description: (from: string, to: string, first: string, last: string) => `The close at each month end from ${from} to ${to}, from ${first} to ${last}.`,
     dailyDescription: (from: string, to: string, first: string, last: string) => `The close of each trading day from ${from} to ${to}, from ${first} to ${last}.`,
     averageCostLine: (price: string) => ` The average cost is ${price}.`,
+    firstBuy: (day: string) => `First buy ${day}`,
+    firstBuyLine: (day: string) => ` An upright line marks the first buy on ${day}.`,
     trades: (count: number, period: string): EnglishForms => ({
       one: ' A dot marks the one trade at its price.',
       other: ` Dots show the ${count} trades, a ${period}'s buys as one dot and its sales as another, each at the average price of its trades.`,
@@ -387,6 +390,8 @@ export const en = {
     terHelp: 'The fund’s yearly cost in percent, from its key information document',
     distribution: 'Dividends',
     distributionHelp: 'An accumulating fund keeps them in the fund, a distributing one pays them out',
+    typedFactsOnly: 'Don’t fetch facts',
+    typedFactsOnlyHelp: 'Kuna stops asking the price source for its type, sector, country, TER and dividends, and counts only what is typed here. Its prices are still fetched.',
     note: 'Note',
     mix: 'Fund mix',
     mixHelp: 'For a fund, its split from the factsheet. Leave it empty for a single company.',
@@ -631,6 +636,7 @@ export const hr: Translation<typeof en> = {
     rangeMonthEnds: 'Dijelom mjesečne cijene',
     leveraged: (vendor) => `${vendor} navodi da je ovo fond s polugom. Cilja višekratnik dnevne promjene svog indeksa, pa se kroz mjesece njegov prinos može jako udaljiti od tog višekratnika.`,
     leveragedTitle: 'Fond s polugom',
+    typedFactsOnly: 'Uključeno je Ne dohvaćaj podatke, pa Kuna ni od jednog izvora ne traži podatke o ovoj poziciji.',
     problems: {
       facts: { profile: 'profil tvrtke', fund: 'profil fonda' },
       empty: (vendor, what, asked) => `${vendor} nije poslao ${what} za ${asked}`,
@@ -669,6 +675,8 @@ export const hr: Translation<typeof en> = {
     description: (from, to, first, last) => `Zaključna cijena na kraju svakog mjeseca od ${from} do ${to}, od ${first} do ${last}.`,
     dailyDescription: (from, to, first, last) => `Zaključna cijena svakog dana trgovanja od ${from} do ${to}, od ${first} do ${last}.`,
     averageCostLine: (price) => ` Prosječna nabavna cijena je ${price}.`,
+    firstBuy: (day) => `Prva kupnja ${day}`,
+    firstBuyLine: (day) => ` Prvu kupnju ${day} označava okomita crta.`,
     trades: (count, period) => ({
       one:
         count === 1
@@ -857,6 +865,8 @@ export const hr: Translation<typeof en> = {
     terHelp: 'Godišnji trošak fonda u postotku, iz dokumenta s ključnim informacijama',
     distribution: 'Dividende',
     distributionHelp: 'Akumulirajući fond zadržava ih u fondu, a distribuirajući ih isplaćuje',
+    typedFactsOnly: 'Ne dohvaćaj podatke',
+    typedFactsOnlyHelp: 'Kuna više ne pita izvor cijena za vrstu, sektor, državu, TER i dividende, nego računa samo ono što je ovdje upisano. Cijene se i dalje dohvaćaju.',
     note: 'Napomena',
     mix: 'Raspodjela fonda',
     mixHelp: 'Za fond, njegova raspodjela iz informativnog lista. Za dionicu jedne tvrtke ostavite prazno.',

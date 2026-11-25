@@ -6,7 +6,7 @@ import { latestRecords } from '../src/apps/investments/holdings/domain/latestRec
 import { lotIsTaxFree, taxFreeUnits } from '../src/apps/investments/holdings/domain/lots'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
-import { priceHistory, yearRange } from '../src/apps/investments/holdings/domain/priceHistory'
+import { openingWindow, priceHistory, priceSpan, yearRange } from '../src/apps/investments/holdings/domain/priceHistory'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { addDays, weekdaysBetween } from '../src/shared/calendar/civilDate'
@@ -149,7 +149,7 @@ describe("a holding's price history", () => {
 
   it('gives each month end from the first close and the day, in the units held today', () => {
     // 31 Jan has no close yet. 104 before the split is 52 a unit today.
-    expect(priceHistory(holding, sources).points.map((point) => [point.date, decimalText(point.price)])).toEqual([
+    expect(priceHistory(holding, sources, null).points.map((point) => [point.date, decimalText(point.price)])).toEqual([
       ['2025-02-28', '52'],
       ['2025-03-31', '54'],
       ['2025-04-15', '55'],
@@ -157,7 +157,7 @@ describe("a holding's price history", () => {
   })
 
   it('leaves out the January buy, before the first close, and dots the sale after the split as it was', () => {
-    expect(priceHistory(holding, sources).dots.map((dot) => [dot.side, monthOf(dot.date), decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
+    expect(priceHistory(holding, sources, null).dots.map((dot) => [dot.side, monthOf(dot.date), decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
       ['sell', '2025-04', '4', '53', euros(212)],
     ])
   })
@@ -168,6 +168,87 @@ describe("a holding's price history", () => {
     expect(decimalText(priceInTodaysUnits(records, splitCo, civil('2025-03-10'), decimal('100')))).toBe('100')
     expect(decimalText(quantityInTodaysUnits(records, splitCo, civil('2025-01-15'), decimal('10')))).toBe('20')
     expect(decimalText(quantityInTodaysUnits(records, splitCo, civil('2025-03-10'), decimal('10')))).toBe('10')
+  })
+})
+
+describe("a holding's price chart over every close", () => {
+  // A listing with month-end closes from a vendor for 2015 to 2022 and daily ones since, bought on 9 Jan 2023, every figure made up.
+  const listed = instrument('listed', { name: 'Listed Co' })
+  const today = civil('2026-11-25')
+  const monthEnds = Array.from({ length: 96 }, (_, month): CloseRow => {
+    const year = 2015 + Math.floor(month / 12)
+    const day = new Date(Date.UTC(year, (month % 12) + 1, 0)).toISOString().slice(0, 10)
+    return [day, String(50 + month)]
+  })
+  const dailies: CloseRow[] = []
+  for (let day = civil('2023-01-02'); day <= today; day = addDays(day, 1)) {
+    if (weekdaysBetween(day, day) === 1) dailies.push([day, '100'])
+  }
+  const records = (bought: string, sold: string | null) =>
+    book({
+      accounts: [BROKER],
+      instruments: [listed],
+      cashMovements: [cashMovement('deposit', BROKER, bought, '1000')],
+      trades: [trade('buy', BROKER, listed, bought, '5', '100', '0'), ...(sold === null ? [] : [trade('sell', BROKER, listed, sold, '5', '100', '0')])],
+    })
+  const sourcesOf = (bought: string, rows: readonly CloseRow[] = [...monthEnds, ...dailies], sold: string | null = null) => ({
+    book: records(bought, sold),
+    prices: priceBookOf(new Map([[listed, rows]])),
+    rates: WORKED_RATES,
+    today,
+  })
+  const heldOf = (sources: ReturnType<typeof sourcesOf>) => holdingOf(portfolioFigures(sources), listed)
+
+  it('draws the closes before the first buy, month end by month end on All, and day by day over the last year', () => {
+    const sources = sourcesOf('2023-01-09')
+    const all = priceHistory(heldOf(sources), sources, null)
+    const lastYear = priceHistory(heldOf(sources), sources, { from: civil('2025-11-25'), to: today })
+
+    expect([all.daily, all.points[0]?.date]).toEqual([false, '2015-01-31'])
+    expect([lastYear.daily, lastYear.points[0]?.date]).toEqual([true, '2025-11-25'])
+  })
+
+  it('puts the first-buy rule at its point, and none where the window leaves the buy out', () => {
+    const sources = sourcesOf('2023-01-09')
+    const held = heldOf(sources)
+
+    expect(priceHistory(held, sources, null).firstBuy).toBe('2023-01-31')
+    // From June 2022 the daily closes fall on most weekdays, so the rule stands on the day itself.
+    expect(priceHistory(held, sources, { from: civil('2022-06-01'), to: today }).firstBuy).toBe('2023-01-09')
+    const lastYear = priceHistory(held, sources, { from: civil('2025-11-25'), to: today })
+    expect([lastYear.firstBuy, lastYear.dots]).toEqual([null, []])
+  })
+
+  it('opens a holding bought yesterday on the last year, and one held since 2023 on 3% of its held days before its first buy', () => {
+    const recent = sourcesOf('2026-11-24')
+    const longHeld = sourcesOf('2023-01-09')
+
+    expect(openingWindow(heldOf(recent), priceSpan(heldOf(recent), recent), recent)).toEqual({ from: civil('2025-11-25'), to: today })
+    // 9 Jan 2023 to 25 Nov 2026 is 1,416 days, and 3% of them rounds up to 43, longer than the month back to 9 Dec 2022.
+    expect(openingWindow(heldOf(longHeld), priceSpan(heldOf(longHeld), longHeld), longHeld)).toEqual({ from: civil('2022-11-27'), to: today })
+    // Closes that start less than a month before the first buy hold nothing before that month, so the chart opens on all of them.
+    const young = sourcesOf('2023-01-20', dailies)
+    expect(openingWindow(heldOf(young), priceSpan(heldOf(young), young), young)).toBeNull()
+  })
+
+  it('opens a holding sold years ago a month either side of its held days, though the series it shares runs on to today', () => {
+    const sold = sourcesOf('2023-01-09', [...monthEnds, ...dailies], '2024-03-15')
+    const soldThisYear = sourcesOf('2026-02-02', [...monthEnds, ...dailies], '2026-06-15')
+
+    expect(priceSpan(heldOf(sold), sold)?.to).toBe('2026-11-25')
+    // 9 Jan 2023 to 15 Apr 2024 is 462 days, and 3% of them rounds up to 14, so the month before the first buy is the longer lead-in.
+    expect(openingWindow(heldOf(sold), priceSpan(heldOf(sold), sold), sold)).toEqual({ from: civil('2022-12-09'), to: civil('2024-04-15') })
+    expect(openingWindow(heldOf(soldThisYear), priceSpan(heldOf(soldThisYear), soldThisYear), soldThisYear)).toEqual({ from: civil('2025-11-25'), to: today })
+    // A series fetched only to the sale has no close in the month after it, so the window ends on its last close.
+    const soldSeriesEnds = sourcesOf('2023-01-09', [...monthEnds, ...dailies.filter(([day]) => day <= '2024-03-15')], '2024-03-15')
+    expect(openingWindow(heldOf(soldSeriesEnds), priceSpan(heldOf(soldSeriesEnds), soldSeriesEnds), soldSeriesEnds)).toEqual({ from: civil('2022-12-09'), to: civil('2024-03-15') })
+  })
+
+  it('starts the line at a price typed by hand before the vendor’s first close', () => {
+    const sources = sourcesOf('2023-01-09', [['2018-06-29', '40', 'by hand'], ...dailies])
+
+    expect(priceSpan(heldOf(sources), sources)).toEqual({ from: civil('2018-06-29'), to: today })
+    expect(priceHistory(heldOf(sources), sources, null).points[0]?.date).toBe('2018-06-30')
   })
 })
 

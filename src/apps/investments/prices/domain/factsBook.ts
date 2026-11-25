@@ -72,7 +72,10 @@ export interface AnnouncedDividend {
   readonly amount: Decimal
 }
 
-/** What vendors answered about the instruments, read into Kuna's words. Every answer is a fallback for what is typed in the Investments file. */
+/**
+ * What vendors answered about the instruments, read into Kuna's words. Every answer is a fallback for what is typed in the
+ * Investments file, and an instrument set to typed facts only reads none of them.
+ */
 export interface FactsBook {
   /** Its type as typed, else what a search of its own price vendor calls it, or null where neither says. */
   typeOf(instrument: Instrument): InstrumentType | null
@@ -147,8 +150,21 @@ function problemOf(fact: ProfileFact | FundFact, empty: boolean): FactFailure | 
   return fact.failed ?? (empty ? 'empty' : null)
 }
 
-/** The facts kept in the prices file, read in the vendors' words through the tables of `vendorWords.ts`. */
+/** The facts kept in the prices file, read through the tables of `vendorWords.ts`, with none for an instrument set to typed facts only. */
 export function fetchedFactsBook(facts: FetchedFacts): FactsBook {
+  const fetched = vendorFactsBook(facts)
+  return {
+    typeOf: (instrument) => (instrument.typedFactsOnly ? instrument.type : fetched.typeOf(instrument)),
+    profileOf: (instrument) => (instrument.typedFactsOnly ? null : fetched.profileOf(instrument)),
+    fundProfileOf: (instrument) => (instrument.typedFactsOnly ? null : fetched.fundProfileOf(instrument)),
+    sectorWeightsOf: (instrument) => (instrument.typedFactsOnly ? null : fetched.sectorWeightsOf(instrument)),
+    problemsOf: (instrument) => (instrument.typedFactsOnly ? [] : fetched.problemsOf(instrument)),
+    announcedOf: (instrument) => (instrument.typedFactsOnly ? [] : fetched.announcedOf(instrument)),
+  }
+}
+
+/** Every instrument's facts as the vendors gave them. */
+function vendorFactsBook(facts: FetchedFacts): FactsBook {
   const bySymbol = (instrument: Instrument) => (vendorId: string, asked: string) => asked === vendorSymbolOf(instrument, vendorId)
   const typeOf = (instrument: Instrument): InstrumentType | null => {
     if (instrument.type !== null) {

@@ -5297,6 +5297,49 @@ export function investmentsBondFlowIn(language) {
 }
 
 /**
+ * Example World ETF, whose fund profile Alpha Vantage sent empty, warns on its Details card and in the checks of
+ * Holdings. Don't fetch facts, turned on in its Change dialog and saved, puts a line with a way to Change on the card
+ * in place of the warning and Ask again, and takes the holding off the checks' Fetched facts line.
+ */
+export function investmentsTypedFactsFlowIn(language) {
+  const croatian = language === 'hr'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    await page.waitForSelector('[data-testid="holding-fact-problem"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="holding-change"]')
+    await page.waitForSelector('[data-testid="instrument-form"]', { visible: true, timeout: 10_000 })
+    const toggle = ':is([data-testid="instrument-typed-facts-only"][role="switch"], [data-testid="instrument-typed-facts-only"] [role="switch"])'
+    await scrollIntoDialogView(page, toggle)
+    await delay(400)
+    await shoot('investments-typed-facts-off')
+    await pressSelector(page, press, toggle)
+    await page.waitForFunction((selector) => document.querySelector(selector)?.getAttribute('aria-checked') === 'true', { timeout: 5_000 }, toggle)
+    await inspect?.('the holding dialog with Don’t fetch facts on')
+    await shoot('investments-typed-facts-on')
+    await pressSelector(page, press, '[data-testid="instrument-save"]')
+    await dialogGone(page, '[data-testid="instrument-form"]')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="holding-fact-problem"]') === null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the fetched-facts warning stays on a holding set not to fetch its facts')
+      })
+    await page.waitForSelector('[data-testid="holding-typed-facts-only"] [data-testid="holding-typed-facts-change"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the Details card does not say its facts are typed only, with a way to Change')
+    })
+    // A phone's top bar covers a card scrolled to its start, so the shot centres the typed-only line with the card's title above it.
+    await shootAt(page, shoot, '[data-testid="holding-typed-facts-only"]', 'investments-typed-facts-details')
+    await page.evaluate(() => {
+      location.hash = '#/investments/holdings#portfolio-checks'
+    })
+    await page.waitForSelector('[data-testid="portfolio-checks"]', { visible: true, timeout: 10_000 })
+    const named = await page.$$eval('[data-testid="check-facts-holding"]', (links) => links.map((link) => link.textContent?.trim() ?? ''))
+    if (named.includes('Example World ETF')) throw new Error('the checks still name a holding set not to fetch its facts')
+    // The Fetched facts line still names the share whose profile Finnhub refused, without the fund.
+    await shootAt(page, shoot, '[data-testid="check-facts"]', 'investments-typed-facts-checks')
+  }
+}
+
+/**
  * A cursor a little beside the 8 Sep buy on Example Tech's daily Price chart still opens that buy's tooltip, though
  * a day on the long line is about a pixel wide. The buy dots are found by their colour on the canvas, then the
  * pointer moves out from inside the dot until the tooltip stops naming it.

@@ -14,6 +14,8 @@ export const SPENDING_ITEM = {
 }
 export const SPENDING_ACCOUNT = { record: new Set(['sources', 'cards']), cells: new Set(['sources', 'rows_from', 'also_from', 'cards']) }
 export const INVESTMENT_ACCOUNT = { record: new Set(['sources']), cells: new Set(['sources', 'rows_from', 'starts_on', 'also_from']) }
+/** An instrument leaves out whether its facts are typed only, which holds no figure. The mixes, costs and coming income it changes hash it. */
+export const INSTRUMENT = { record: new Set(['typedFactsOnly']), cells: new Set(['typed_facts_only']) }
 /** A Company item leaves out its labels, which company.labels hashes. Its invoice is a figure, since what an invoice is owed reads it. */
 export const COMPANY_ITEM = { record: new Set(['labels']), cells: new Set(['label_ids']) }
 export const COMPANY_ACCOUNT = { record: new Set(['sources', 'bank']), cells: new Set(['sources', 'rows_from', 'starts_on', 'also_from', 'bank']) }
@@ -32,8 +34,9 @@ export function spendingKindOf(record) {
   return null
 }
 
-/** An Investments account says how its rows come in. */
+/** An Investments account says how its rows come in, and an instrument whether its facts are typed only. */
 export function investmentsKindOf(record) {
+  if (Object.hasOwn(record, 'typedFactsOnly')) return INSTRUMENT
   return Object.hasOwn(record, 'sources') ? INVESTMENT_ACCOUNT : null
 }
 

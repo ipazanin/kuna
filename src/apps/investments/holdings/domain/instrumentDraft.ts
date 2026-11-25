@@ -34,6 +34,8 @@ export interface InstrumentTexts {
   ter: string
   /** Blank for none. Read only for a fund. */
   distribution: FundDistribution | ''
+  /** Whether Kuna stops asking vendors for its facts. */
+  typedFactsOnly: boolean
   note: string
 }
 
@@ -72,6 +74,7 @@ export function instrumentTexts(instrument: Omit<Instrument, 'id'> | null): Inst
     country: instrument?.country ?? '',
     ter: decimalShown(instrument?.ter ?? null),
     distribution: instrument?.distribution ?? '',
+    typedFactsOnly: instrument?.typedFactsOnly ?? false,
     note: instrument?.note ?? '',
   }
 }
@@ -149,6 +152,7 @@ export function instrumentOfTexts(texts: InstrumentTexts, others: readonly Instr
     country: countryOf(texts.country),
     ter: typedDecimal(texts.ter),
     distribution: texts.type === 'fund' && texts.distribution !== '' ? texts.distribution : null,
+    typedFactsOnly: texts.typedFactsOnly,
     note: texts.note.trim(),
   }
 }

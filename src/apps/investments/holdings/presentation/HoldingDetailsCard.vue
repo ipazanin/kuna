@@ -10,11 +10,13 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 
 /**
  * What the holding is and where each fact came from, a warning for each fact a vendor sent nothing usable for with a
- * way to ask again, a leveraged fund's warning, and what a fund's rings wait for: the way to type its mix, or its price.
+ * way to ask again, a line with the way to Change for one set not to fetch its facts, a leveraged fund's warning, and
+ * what a fund's rings wait for: the way to type its mix, or its price.
  */
 const props = defineProps<{
   details: HoldingDetails
@@ -73,6 +75,12 @@ const actions = computed(() =>
         :actions="actions"
         data-testid="holding-fact-problem"
       />
+      <NoteLine v-if="details.typedFactsOnly" tone="muted" icon="i-lucide-pencil-line" as="div" data-testid="holding-typed-facts-only">
+        <span class="flex flex-wrap items-center gap-x-1">
+          {{ words.details.typedFactsOnly }}
+          <UButton :label="words.actions.change" color="neutral" variant="link" size="sm" class="inline-target quiet-link px-0" data-testid="holding-typed-facts-change" @click="emit('change')" />
+        </span>
+      </NoteLine>
       <UAlert
         v-if="details.leveraged !== null"
         icon="i-lucide-triangle-alert"

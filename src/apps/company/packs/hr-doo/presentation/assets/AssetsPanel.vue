@@ -423,7 +423,7 @@ function employmentState(until: CivilDate | null): string | null {
       </AppCard>
 
       <ChartCard
-        v-model:range="bookRange.range.value"
+        :range-choice="bookRange"
         :title="words.panel.bookValueTitle"
         :subtitle="words.panel.bookValueSubtitle(thisMonth)"
         :definition="words.panel.bookValueDefinition"
@@ -434,7 +434,6 @@ function employmentState(until: CivilDate | null): string | null {
         :empty-description="words.panel.allSmallInventory"
         :height="300"
         :phone-height="240"
-        :ranges="bookRange.ranges.value"
         collapse-id="year.book-value"
         :summary="view.bookValueSummary"
         start-collapsed

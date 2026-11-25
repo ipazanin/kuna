@@ -260,14 +260,13 @@ function openLate(key: string | null): void {
         <DashboardGrid layout="pair">
           <ChartCard
             v-if="chart !== null"
-            v-model:range="loanRange.range.value"
+            :range-choice="loanRange"
             :title="loanWords.balance.title"
             :subtitle="loanWords.balance.subtitle(chart.drawsPlan)"
             :option="chart.option"
             :description="chart.description"
             :height="280"
             :phone-height="220"
-            :ranges="loanRange.ranges.value"
             data-testid="loan-balance-chart"
           >
             <template #legend>
@@ -276,13 +275,11 @@ function openLate(key: string | null): void {
           </ChartCard>
           <PaymentsCard
             v-if="book.plan !== null"
-            v-model:range="loanRange.range.value"
+            :range-choice="loanRange"
             :plan="book.plan"
             :current-year="yearOf(day)"
             :estimate-from-year="estimateFrom === null ? null : yearOf(estimateFrom)"
             :payer="payer"
-            :ranges="loanRange.ranges.value"
-            :shown-days="loanRange.window.value"
           />
         </DashboardGrid>
         <DashboardGrid layout="pair">

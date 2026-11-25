@@ -222,6 +222,10 @@ function fieldsOf(book: () => InvestmentBook | null) {
     country: { exposure: 'plain', meaning: 'A country code or a region typed by hand, or null.' },
     ter: { exposure: 'plain', meaning: "A fund's yearly cost in percent, so 0.2 is 0.20% a year.", read: (record) => decimalOrNull(record.ter) },
     distribution: { exposure: 'plain', meaning: "A fund's dividends: accumulating or distributing, or null." },
+    typedFactsOnly: {
+      exposure: 'plain',
+      meaning: 'Kuna asks no vendor for its type, sector, country, TER or dividends, so only the facts typed on it count. Its closes are still fetched.',
+    },
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
   const trade: FieldDocs<Trade> = {

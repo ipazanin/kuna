@@ -32,6 +32,8 @@ export interface HoldingDetails {
   readonly leveraged: string | null
   /** The facts a vendor sent nothing usable for, of a holding held, or null where there are none. */
   readonly problems: FactWarning | null
+  /** Whether Don’t fetch facts is on, so every fact shown is one typed by hand. */
+  readonly typedFactsOnly: boolean
 }
 
 /** What vendors sent nothing usable for, and when Kuna asks them again by itself. */
@@ -150,6 +152,7 @@ export function holdingDetails(holding: Pick<HoldingFigures, 'instrument' | 'qua
     ringsWaitFor: fund && spread.length === 0 ? 'mix' : spread.length > 0 && unpriced ? 'price' : null,
     leveraged: fundProfile?.leveraged === true ? text.leveraged(vendorName(fundProfile.vendor)) : null,
     problems: holding.quantity > DECIMAL_ZERO ? factWarning(facts.problemsOf(instrument)) : null,
+    typedFactsOnly: instrument.typedFactsOnly,
   }
 }
 

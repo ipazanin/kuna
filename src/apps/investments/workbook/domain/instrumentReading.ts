@@ -43,10 +43,10 @@ function quotingOf(fields: StoredFields): Quoting {
   }
 }
 
-/** Blank is false, so only the benchmark carries the field. */
-function benchmarkFlag(fields: StoredFields): boolean {
-  const field = fields.benchmark
-  return field === undefined ? false : (booleanOf(field) ?? refuse(words.notAFlag('benchmark', field.text)))
+/** Blank is false, so only an instrument with the flag on carries the field. */
+function flagOf(fields: StoredFields, name: string): boolean {
+  const field = fields[name]
+  return field === undefined ? false : (booleanOf(field) ?? refuse(words.notAFlag(name, field.text)))
 }
 
 function optionalSector(fields: StoredFields): Sector | null {
@@ -86,10 +86,11 @@ export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrum
     quoted: quotingOf(fields),
     prices,
     sourceSymbol,
-    benchmark: benchmarkFlag(fields),
+    benchmark: flagOf(fields, 'benchmark'),
     sector: optionalSector(fields),
     country: optionalCountry(fields, 'country'),
     ter: optionalUnsigned(fields, 'ter'),
+    typedFactsOnly: flagOf(fields, 'typed_facts_only'),
     note: textOf(fields.note),
   }
   const type = optionalType(fields, read.class, read.quoted)
@@ -119,6 +120,7 @@ export const INSTRUMENT_CODEC: RecordCodec<Instrument> = withIdField(
       country: instrument.country,
       ter: decimalField(instrument.ter),
       distribution: instrument.distribution,
+      typed_facts_only: instrument.typedFactsOnly ? true : null,
       note: instrument.note,
     }),
 )

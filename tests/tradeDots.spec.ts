@@ -50,7 +50,7 @@ const sources = {
   today: civil('2026-04-15'),
 }
 const holding = portfolioFigures(sources).holdings.find((figures) => figures.instrument.id === dotFund.id)!
-const history = priceHistory(holding, sources)
+const history = priceHistory(holding, sources, null)
 
 interface DrawnDots {
   name: string
@@ -93,7 +93,7 @@ describe("a holding's trade dots", () => {
     })
     const busySources = { ...sources, book: busyRecords, prices: priceBookOf(new Map([[busyFund, [['2026-03-02', '100.00']]]])), today: civil('2026-03-31') }
     const busyHolding = portfolioFigures(busySources).holdings.find((figures) => figures.instrument.id === busyFund.id)!
-    const busyHistory = priceHistory(busyHolding, busySources)
+    const busyHistory = priceHistory(busyHolding, busySources, null)
     const busyDots = busyHistory.dots
 
     // The two buys are 400.00 + 90.00 = €490.00 for 5 units, €98.00 a unit.
@@ -144,7 +144,7 @@ describe("a holding's trade dots", () => {
     const dollarHolding = portfolioFigures(dollarSources).holdings.find((figures) => figures.instrument.id === dollarCo.id)!
 
     // $320.00 at 1.10 dollars to the euro is €290.91.
-    expect(dotLines(priceHistory(dollarHolding, dollarSources).dots[0]!, USD)).toEqual(['Bought 2 units at $160.00 · €290.91'])
+    expect(dotLines(priceHistory(dollarHolding, dollarSources, null).dots[0]!, USD)).toEqual(['Bought 2 units at $160.00 · €290.91'])
   })
 
   it('draws the buys and the sale as filled dots of one size at their months, told apart by colour, which the legend and the table name', () => {
@@ -168,6 +168,7 @@ describe("a holding's trade dots", () => {
       // The sale closes the first buy and half a unit of the second, so 9.5 units cost 780.75 + 516.00 + 2,073.00 + 1,549.00 = €4,918.75 with
       // their fees, €517.763157… a unit, shown to the cent as every cost is.
       ['Average cost €517.76', 'var(--invest-reference)', 'dashed'],
+      ['First buy 2 Mar 2026', 'var(--invest-buy)', 'rule'],
       ['Buy', 'var(--invest-buy)', 'dot'],
       ['Sale', 'var(--invest-sale)', 'dot'],
     ])
@@ -212,7 +213,7 @@ describe("a holding's daily line", () => {
     today: civil('2026-03-13'),
   }
   const dailyHolding = portfolioFigures(dailySources).holdings.find((figures) => figures.instrument.id === dailyFund.id)!
-  const daily = priceHistory(dailyHolding, dailySources)
+  const daily = priceHistory(dailyHolding, dailySources, null)
 
   it('runs close by close once the series has a close on most weekdays, and month end by month end otherwise', () => {
     // 9 closes on the 10 weekdays from 2 to 13 Mar, against 3 closes on the 33 weekdays from 2 Mar to 15 Apr above.
@@ -237,7 +238,7 @@ describe("a holding's daily line", () => {
       today: civil('2026-10-30'),
     }
     const soldHolding = portfolioFigures(soldSources).holdings.find((figures) => figures.instrument.id === soldFund.id)!
-    const sold = priceHistory(soldHolding, soldSources)
+    const sold = priceHistory(soldHolding, soldSources, null)
     // 10 closes on the 10 weekdays to the sale, where 2 Mar to 30 Oct would hold 175 weekdays.
     expect(sold.daily).toBe(true)
     expect(sold.points.map((point) => point.date)).toEqual(soldDays)

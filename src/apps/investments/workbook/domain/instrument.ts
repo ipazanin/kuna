@@ -95,6 +95,8 @@ export interface Instrument {
   readonly ter: Decimal | null
   /** Typed by hand, and only on an instrument typed a fund. */
   readonly distribution: FundDistribution | null
+  /** Whether Kuna stops asking vendors for its facts, so only the facts typed here count. Its closes are still fetched. */
+  readonly typedFactsOnly: boolean
   readonly note: string
 }
 

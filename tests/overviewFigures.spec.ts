@@ -4,6 +4,7 @@ import { gainSources } from '../src/apps/investments/holdings/domain/gainSources
 import { noticeIsEmpty, pricesNotice } from '../src/apps/investments/holdings/domain/pricesNotice'
 import { incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures'
 import { shownValueOverTime, valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime'
+import { rangeWindow } from '../src/shared/charts/chartRange'
 import { rollingPeriods } from '../src/apps/investments/performance/domain/performancePeriod'
 import { firstDepositIn } from '../src/apps/investments/performance/domain/portfolioPerformance'
 import { accountCash } from '../src/apps/investments/holdings/domain/accountCash'
@@ -30,7 +31,11 @@ function figuresOf(records: InvestmentBook, prices: PriceBook = WORKED_PRICES): 
 function pricesWith(what: Instrument, rows: readonly CloseRow[]): PriceBook {
   const extra = priceBookOf(new Map([[what, rows]]))
   const pricesOf = (asked: Instrument): PriceBook => (asked.id === what.id ? extra : WORKED_PRICES)
-  return { closeOnOrBefore: (asked, day) => pricesOf(asked).closeOnOrBefore(asked, day), closesBetween: (asked, from, to) => pricesOf(asked).closesBetween(asked, from, to) }
+  return {
+    closeOnOrBefore: (asked, day) => pricesOf(asked).closeOnOrBefore(asked, day),
+    closesBetween: (asked, from, to) => pricesOf(asked).closesBetween(asked, from, to),
+    firstClose: (asked) => pricesOf(asked).firstClose(asked),
+  }
 }
 
 /** The worked portfolio with one more instrument bought on 5 May 2025 out of a deposit of the same day. */
@@ -191,7 +196,7 @@ describe('the value over time', () => {
   })
 
   it('values each month end and the last day against what was put in less what was taken out', () => {
-    const over = valueOverTime({ book: records, prices: PRICES, rates: RATES, today: civil('2026-04-10') }, { kind: 'all' })
+    const over = valueOverTime({ book: records, prices: PRICES, rates: RATES, today: civil('2026-04-10') }, null)
 
     // 31 Jan: 10 × 101 + 100 of cash = 1,110 against 1,100. 31 Mar: 990 + 0 against 1,000. 10 Apr: 1,050 against 1,000, 50 of gain.
     expect(over.points).toEqual([
@@ -201,6 +206,13 @@ describe('the value over time', () => {
       { date: '2026-04-10', value: euros(1050), putIn: euros(1000), gain: euros(50) },
     ])
     expect(over.heldBack).toEqual({ instruments: [], currencies: [] })
+  })
+
+  it('keeps to a custom window that ends before today, with its last day as the last point', () => {
+    const over = valueOverTime({ book: records, prices: PRICES, rates: RATES, today: civil('2026-04-10') }, { from: civil('2026-02-01'), to: civil('2026-03-15') })
+
+    expect(over.points.map((point) => point.date)).toEqual(['2026-02-28', '2026-03-15'])
+    expect(valueOverTime({ book: records, prices: PRICES, rates: RATES, today: civil('2026-04-10') }, { from: civil('2025-01-01'), to: civil('2025-12-31') }).points).toEqual([])
   })
 
   it('starts once every holding has a price, and names the holding that held it back', () => {
@@ -216,7 +228,7 @@ describe('the value over time', () => {
         [LATE_LISTED, [['2026-02-20', '52']]],
       ]),
     )
-    const over = valueOverTime({ book: later, prices, rates: RATES, today: civil('2026-03-05') }, { kind: 'all' })
+    const over = valueOverTime({ book: later, prices, rates: RATES, today: civil('2026-03-05') }, null)
 
     // 31 Jan has no close for Late Listed, so the chart starts on 28 Feb: 1,010 + 52 + 100 of cash = 1,162.
     expect(over.points.map((point) => [point.date, point.value])).toEqual([
@@ -227,7 +239,7 @@ describe('the value over time', () => {
   })
 
   it('keeps to the period asked for, from the same day a year back', () => {
-    const over = valueOverTime({ book: workedPortfolio(), prices: WORKED_PRICES, rates: WORKED_RATES, today: TODAY }, { kind: 'years', years: 1 })
+    const over = valueOverTime({ book: workedPortfolio(), prices: WORKED_PRICES, rates: WORKED_RATES, today: TODAY }, rangeWindow('1y', TODAY))
 
     // The worked closes start on 28 Oct 2026, so only the last day has every holding priced.
     expect(over.points.map((point) => point.date)).toEqual(['2026-10-29'])
@@ -244,11 +256,11 @@ describe('the value over time', () => {
     const sources = { book: unpricedSince, prices: PRICES_FROM_2025, rates: RATES, today: civil('2026-10-10') }
 
     // Late Listed has had no price since it was bought on 2 Jun 2025, so the last year has no whole day, while January to May 2025 do.
-    expect(valueOverTime(sources, { kind: 'years', years: 1 }).points).toEqual([])
-    const shown = shownValueOverTime(sources, { kind: 'years', years: 1 })
-    expect(shown.period).toEqual({ kind: 'all' })
+    expect(valueOverTime(sources, rangeWindow('1y', sources.today)).points).toEqual([])
+    const shown = shownValueOverTime(sources, rangeWindow('1y', sources.today))
+    expect(shown.window).toBeNull()
     expect(shown.over.points.map((point) => point.date).slice(0, 2)).toEqual(['2025-01-31', '2025-02-28'])
-    expect(shownValueOverTime(sources, { kind: 'all' }).period).toEqual({ kind: 'all' })
+    expect(shownValueOverTime(sources, null).window).toBeNull()
   })
 
   it('offers the last one, three and five years only when the first deposit is older', () => {

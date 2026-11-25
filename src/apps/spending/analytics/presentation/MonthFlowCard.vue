@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MonthFlowChart } from './monthFlowChart'
 import { words } from './words'
-import type { ChartRange } from '../../../../shared/charts/chartRange'
+import type { ChartRangeChoice } from '../../../../shared/charts/useChartRange'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 
@@ -12,24 +12,19 @@ withDefaults(
     subtitle?: string | undefined
     chart: MonthFlowChart
     loading: boolean
-    /** The spans the chart offers, picked with `v-model:range`. */
-    ranges?: readonly ChartRange[]
+    rangeChoice?: ChartRangeChoice | undefined
   }>(),
-  { subtitle: undefined, ranges: () => [] },
+  { subtitle: undefined, rangeChoice: undefined },
 )
-
-const range = defineModel<ChartRange>('range', { default: 'all' })
 </script>
 
 <template>
   <ChartCard
-    v-model:range="range"
     :title="title"
-    v-bind="subtitle === undefined ? {} : { subtitle }"
+    v-bind="{ ...(subtitle === undefined ? {} : { subtitle }), ...(rangeChoice === undefined ? {} : { rangeChoice }) }"
     :description="chart.description"
     :option="chart.option"
     :loading="loading"
-    :ranges="ranges"
     :height="300"
     :phone-height="260"
   >

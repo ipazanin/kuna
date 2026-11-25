@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
+import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import CurrencyField from './CurrencyField.vue'
 import { COUNTRY_ITEMS, DISTRIBUTION_ITEMS, SECTOR_ITEMS, typeItems } from './instrumentForm'
@@ -159,6 +160,14 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
       @update:model-value="update('distribution', $event)"
     />
   </UFormField>
+  <USwitch
+    :model-value="texts.typedFactsOnly"
+    :label="text.typedFactsOnly"
+    :description="text.typedFactsOnlyHelp"
+    class="sm:col-span-2"
+    :data-testid="`${testId}-typed-facts-only`"
+    @update:model-value="update('typedFactsOnly', $event)"
+  />
   <UFormField :label="text.note">
     <UInput :model-value="texts.note" class="w-full" :data-testid="`${testId}-note`" @update:model-value="update('note', String($event))" />
   </UFormField>

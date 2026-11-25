@@ -98,6 +98,7 @@ const SHARE_A: Instrument = {
   country: countryOf('US'),
   ter: null,
   distribution: null,
+  typedFactsOnly: false,
   note: '',
 }
 /** Its country comes from its ISIN. */

@@ -3,13 +3,14 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 
 import type { DateRange } from '../src/shared/calendar/dateRange'
+import type { ChartRange } from '../src/shared/charts/chartRange'
 import { useChartRange } from '../src/shared/charts/useChartRange'
 import { civil } from './fixtures/ledger'
 
 const TODAY = civil('2026-11-03')
 
-async function rangeAt(address: string, span: { value: DateRange | null }) {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/loans/bank-loan', component: { render: () => null } }] })
+async function rangeAt(address: string, span: { value: DateRange | null }, opening?: ChartRange) {
+  const router = createRouter({ history: createMemoryHistory(), routes: ['/loans/bank-loan', '/investments/holding'].map((path) => ({ path, component: { render: () => null } })) })
   await router.push(address)
   const app = createApp({}).use(router)
   return {
@@ -18,6 +19,7 @@ async function rangeAt(address: string, span: { value: DateRange | null }) {
       useChartRange(
         () => span.value,
         () => TODAY,
+        ...(opening === undefined ? [] : [() => opening]),
       ),
     ),
   }
@@ -56,5 +58,36 @@ describe("a screen's chart range", () => {
     choice.range.value = 'all'
     await settle()
     expect(router.currentRoute.value.query).toEqual({ loan: 'home' })
+  })
+
+  it('reads and writes a custom range in the address, and keeps its days as the window', async () => {
+    const { router, choice } = await rangeAt('/loans/bank-loan?loan=home&range=2024-02-01..2024-06-30', shallowRef({ from: civil('2023-03-31'), to: civil('2048-03-01') }))
+
+    expect(choice.range.value).toEqual({ from: civil('2024-02-01'), to: civil('2024-06-30') })
+    expect(choice.window.value).toEqual({ from: civil('2024-02-01'), to: civil('2024-06-30') })
+    choice.range.value = { from: civil('2025-01-01'), to: civil('2025-03-31') }
+    await settle()
+    expect(router.currentRoute.value.query).toEqual({ loan: 'home', range: '2025-01-01..2025-03-31' })
+  })
+
+  it('reads a custom range that misses the span, or comes where no preset is offered, as the opening range', async () => {
+    const loan = shallowRef<DateRange | null>({ from: civil('2023-03-31'), to: civil('2048-03-01') })
+    expect((await rangeAt('/loans/bank-loan?range=2019-01-01..2019-12-31', loan)).choice.range.value).toBe('all')
+    const young = shallowRef<DateRange | null>({ from: civil('2026-03-31'), to: civil('2026-11-01') })
+    expect((await rangeAt('/loans/bank-loan?range=2026-04-01..2026-06-30', young)).choice.range.value).toBe('all')
+  })
+
+  it('opens on a range of its own, which stays out of the address, and writes All once picked', async () => {
+    const held = { from: civil('2023-01-09'), to: TODAY }
+    const { router, choice } = await rangeAt('/investments/holding?instrument=tech', shallowRef({ from: civil('2019-01-31'), to: TODAY }), held)
+
+    expect(choice.range.value).toEqual(held)
+    choice.range.value = 'all'
+    await settle()
+    expect(router.currentRoute.value.query).toEqual({ instrument: 'tech', range: 'all' })
+    expect(choice.range.value).toBe('all')
+    choice.range.value = { ...held }
+    await settle()
+    expect(router.currentRoute.value.query).toEqual({ instrument: 'tech' })
   })
 })

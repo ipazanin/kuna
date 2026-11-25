@@ -679,7 +679,7 @@ function investmentsGroups(addGroup) {
   }
   add('investments.holdings.closed', closedPositions(figures))
   add('investments.income.coming', incomeForecast(sources, facts).months)
-  add('investments.value-over-time', valueOverTime(sources, { kind: 'all' }))
+  add('investments.value-over-time', valueOverTime(sources, null))
   const benchmark = benchmarkState(sources)
   add('investments.performance.benchmark', benchmark)
   const compared = comparedBenchmark(benchmark, workbook.book, prices.splits)

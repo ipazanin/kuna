@@ -1,11 +1,31 @@
 import { yearOf } from '../calendar/civilDate'
 import type { CivilDate } from '../calendar/civilDate'
+import { dateRangeOfText, dateRangeText } from '../calendar/dateRange'
 import type { DateRange } from '../calendar/dateRange'
 import { dayMonthsLater, firstDayOf, lastDayOf, monthOf } from '../calendar/monthKey'
 import type { MonthKey } from '../calendar/monthKey'
 
-/** The span a time chart shows: the last one, three or five years up to today, the next five years from today, or everything. */
-export type ChartRange = '1y' | '3y' | '5y' | 'next-5y' | 'all'
+export const CHART_PRESETS = ['1y', '3y', '5y', 'next-5y', 'all'] as const
+
+/** A span named by where it stands from today: the last one, three or five years up to today, the next five years from today, or everything. */
+export type ChartPreset = (typeof CHART_PRESETS)[number]
+
+/** The span a time chart shows: a preset, or the days from a from day to a to day. */
+export type ChartRange = ChartPreset | DateRange
+
+/** A range as the address writes it, such as `1y` or `2026-01-01..2026-03-31`. */
+export function chartRangeText(range: ChartRange): string {
+  return typeof range === 'string' ? range : dateRangeText(range)
+}
+
+/** The range an address names, or null for text that names none. */
+export function chartRangeOfText(text: string): ChartRange | null {
+  return CHART_PRESETS.find((preset) => preset === text) ?? dateRangeOfText(text)
+}
+
+export function sameChartRange(first: ChartRange, second: ChartRange): boolean {
+  return chartRangeText(first) === chartRangeText(second)
+}
 
 /**
  * The span of a chart of month ends from one month to another, each counted whole: from the last day of the
@@ -20,9 +40,20 @@ const NEXT_YEARS = 5
 
 /** The days a range keeps, null for All. */
 export function rangeWindow(range: ChartRange, today: CivilDate): DateRange | null {
+  if (typeof range !== 'string') return range
   if (range === 'all') return null
   if (range === 'next-5y') return { from: today, to: dayMonthsLater(today, 12 * NEXT_YEARS) }
   return { from: dayMonthsLater(today, -12 * PAST_YEARS[range]), to: today }
+}
+
+/** The range that keeps the days of a window: All for none, a past preset that keeps the same days, or else the window as a custom range. */
+export function rangeOfWindow(window: DateRange | null, today: CivilDate): ChartRange {
+  if (window === null) return 'all'
+  return (['1y', '3y', '5y'] as const).find((preset) => sameDays(rangeWindow(preset, today), window)) ?? window
+}
+
+function sameDays(first: DateRange | null, second: DateRange): boolean {
+  return first !== null && first.from === second.from && first.to === second.to
 }
 
 /**
@@ -30,7 +61,7 @@ export function rangeWindow(range: ChartRange, today: CivilDate): DateRange | nu
  * chart starts before it and still has figures in it, and the next five years once the chart runs on past
  * them, so no range shows what All shows and none shows nothing.
  */
-export function chartRanges(span: DateRange, today: CivilDate): ChartRange[] {
+export function chartRanges(span: DateRange, today: CivilDate): ChartPreset[] {
   const past = (['1y', '3y', '5y'] as const).filter((range) => {
     const from = dayMonthsLater(today, -12 * PAST_YEARS[range])
     return span.from < from && from <= span.to

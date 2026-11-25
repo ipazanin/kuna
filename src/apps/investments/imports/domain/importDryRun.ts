@@ -1057,6 +1057,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, t
     country: null,
     ter: null,
     distribution: null,
+    typedFactsOnly: false,
     note: '',
   }
 }

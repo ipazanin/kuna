@@ -70,5 +70,9 @@ export function quotedPriceBook(prices: PriceBook, quotes: readonly TodaysQuote[
       const stored = prices.closesBetween(instrument, from, to)
       return quote !== null && quote.day >= from && quote.day <= to ? [...stored, closeOfQuote(quote)] : stored
     },
+    firstClose(instrument) {
+      const quote = counted(instrument)
+      return prices.firstClose(instrument) ?? (quote === null ? null : closeOfQuote(quote))
+    },
   }
 }

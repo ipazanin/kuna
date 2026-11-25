@@ -1,11 +1,11 @@
 import type { PortfolioSources } from '../../holdings/domain/holding'
 import { portfolioFigures } from '../../holdings/domain/portfolioFigures'
-import { periodSpan } from '../../performance/domain/performancePeriod'
-import type { PerformancePeriod } from '../../performance/domain/performancePeriod'
 import { firstDepositIn, recordsOn } from '../../performance/domain/portfolioPerformance'
 import type { HeldBack } from '../../performance/domain/portfolioPerformance'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { overlapOf } from '../../../../shared/calendar/dateRange'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { Money } from '../../../../shared/money/money'
@@ -22,19 +22,21 @@ export interface ValuePoint {
 }
 
 export interface ValueOverTime {
-  /** Each month end in the period and the figures' day, from the first one every holding has a price for. */
+  /** Each month end in the window and its last day, from the first one every holding has a price for. */
   readonly points: readonly ValuePoint[]
   /** What the points leave unvalued: the instruments and currencies the chart starts after or has a gap for. */
   readonly heldBack: HeldBack
 }
 
 /**
- * The value at each month end of the period and on its last day, against what was put in less what was taken out by
- * then, so the gap between them is the total gain. The months before every holding has a price are left out.
+ * The value at each month end of the window and on its last day, against what was put in less what was taken out by
+ * then, so the gap between them is the total gain. The window, null for everything, runs from the first deposit at the
+ * earliest to today at the latest. The months before every holding has a price are left out.
  */
-export function valueOverTime(sources: PortfolioSources, period: PerformancePeriod): ValueOverTime {
+export function valueOverTime(sources: PortfolioSources, window: DateRange | null): ValueOverTime {
   const firstDeposit = firstDepositIn(sources.book)
-  const span = firstDeposit === null ? null : periodSpan(period, firstDeposit, sources.today)
+  const held = firstDeposit === null ? null : { from: firstDeposit, to: sources.today }
+  const span = held === null ? null : window === null ? held : overlapOf(held, window)
   if (span === null) {
     return { points: [], heldBack: { instruments: [], currencies: [] } }
   }
@@ -54,12 +56,14 @@ export function valueOverTime(sources: PortfolioSources, period: PerformancePeri
   return { points: firstWhole === -1 ? [] : valued.slice(firstWhole), heldBack: { instruments: [...instruments.values()], currencies: [...currencies] } }
 }
 
-/** The value over the period asked for, or over everything when no day of that period has every holding priced, so the chart never hides the way back. */
-export function shownValueOverTime(sources: PortfolioSources, period: PerformancePeriod): { readonly period: PerformancePeriod; readonly over: ValueOverTime } {
-  const over = valueOverTime(sources, period)
-  if (over.points.length > 0 || period.kind === 'all') {
-    return { period, over }
+/**
+ * The value over the window asked for, or over everything, a null window, when no day of that window has every holding
+ * priced, so the chart never hides the way back.
+ */
+export function shownValueOverTime(sources: PortfolioSources, window: DateRange | null): { readonly window: DateRange | null; readonly over: ValueOverTime } {
+  const over = valueOverTime(sources, window)
+  if (over.points.length > 0 || window === null) {
+    return { window, over }
   }
-  const everything: PerformancePeriod = { kind: 'all' }
-  return { period: everything, over: valueOverTime(sources, everything) }
+  return { window: null, over: valueOverTime(sources, null) }
 }

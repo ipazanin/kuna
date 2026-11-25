@@ -373,6 +373,7 @@ describe('the first dry run, before any answer', () => {
       country: null,
       ter: null,
       distribution: null,
+      typedFactsOnly: false,
       note: '',
     })
     expect([xyz!.proposal.exchange, xyz!.proposal.prices, xyz!.proposal.sourceSymbol, xyz!.proposal.currency]).toEqual(['XETR', 'alphavantage', 'XYZ.DEX', EURO])

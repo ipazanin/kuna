@@ -168,6 +168,7 @@ describe('the benchmark', () => {
       country: '',
       ter: '',
       distribution: '',
+      typedFactsOnly: null,
       note: '',
       sectors: [],
       countries: [],
@@ -197,6 +198,7 @@ describe('an instrument', () => {
       country: '',
       ter: '',
       distribution: '',
+      typedFactsOnly: null,
       note: '',
       sectors: [],
       countries: [],
@@ -233,6 +235,23 @@ describe('an instrument', () => {
     const answer = await desk.propose([fund(fields)])
 
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining(refusal) })
+  })
+
+  it('stops fetching facts for a holding and asks again, saying so on the card', async () => {
+    const desk = await investmentsDesk(used)
+    const change = (typedFactsOnly: string) =>
+      stepOf(INVESTMENTS_OPERATIONS, 'change-instrument', { instrument: desk.ref('instrument', DESK.FUND.id), mix: 'keep', sectors: [], countries: [], typedFactsOnly })
+    const typedOnly = () => bookOf(desk).instruments.find((instrument) => instrument.id === DESK.FUND.id)?.typedFactsOnly
+
+    await desk.propose([change('yes')])
+    const fields = desk.cards[0]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.map((field) => field.name)))
+    await desk.accept()
+    expect(fields).toContain(assistantWords.proposals.fields.typedFactsOnly)
+    expect(typedOnly()).toBe(true)
+
+    await desk.propose([change('no')])
+    await desk.accept()
+    expect(typedOnly()).toBe(false)
   })
 })
 

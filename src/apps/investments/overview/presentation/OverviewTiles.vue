@@ -11,6 +11,7 @@ import { todayLine } from '../../holdings/presentation/holdingText'
 import { words as holdingWords } from '../../holdings/presentation/words'
 import { words } from './words'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
+import { rangeWindow } from '../../../../shared/charts/chartRange'
 import { formatMoney, formatPercent, formatPercentChange } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -28,7 +29,7 @@ const unpriced = computed(() => props.figures.unpriced.length)
 
 /** The month ends of the last year as a sparkline, once there are two. */
 const valueTrend = computed((): { trend?: readonly number[] } => {
-  const trend = valueOverTime(props.sources, { kind: 'years', years: 1 }).points.flatMap((point) => (point.value === null ? [] : [point.value]))
+  const trend = valueOverTime(props.sources, rangeWindow('1y', props.sources.today)).points.flatMap((point) => (point.value === null ? [] : [point.value]))
   return trend.length >= 2 ? { trend } : {}
 })
 

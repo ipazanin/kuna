@@ -106,12 +106,11 @@ const unrated = computed(() => (props.waiting ? null : unratedNote(kept.value.re
     </DashboardGrid>
     <DashboardGrid>
       <MonthFlowCard
-        v-model:range="chartRange.range.value"
+        :range-choice="chartRange"
         :title="words.analysis.savings.flowTitle"
         v-bind="unrated === null ? {} : { subtitle: unrated }"
         :chart="flowChart"
         :loading="waiting"
-        :ranges="chartRange.ranges.value"
         data-testid="spending-analysis-flow"
       />
       <ChartCard

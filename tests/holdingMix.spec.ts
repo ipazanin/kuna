@@ -238,6 +238,15 @@ describe('the mixes from fetched facts', () => {
     expect(exposureOf(FUND, 'sector', book({}), fetchedFactsBook({ ...FETCHED, funds: {} }))).toEqual({ from: null, lines: [] })
   })
 
+  it('reads only the typed sector and country of a holding set to typed facts only, so a share with none typed is not known', () => {
+    const typedOnly = { ...SHARE, sector: null, isin: 'DE0000000001', typedFactsOnly: true }
+    const fetched = fetchedFactsBook({ ...FETCHED, profiles: { 'finnhub:DE0000000001': profileFact('2026-10-29', { industry: 'Semiconductors', country: 'NL' }) } })
+
+    expect(exposureOf(typedOnly, 'sector', book({}), fetched)).toEqual({ from: null, lines: [] })
+    expect(exposureOf(typedOnly, 'country', book({}), fetched)).toMatchObject({ from: { kind: 'isin' }, lines: [{ group: 'DE', percent: decimal('100') }] })
+    expect(exposureOf({ ...FUND, typedFactsOnly: true }, 'sector', book({}), facts)).toEqual({ from: null, lines: [] })
+  })
+
   it('takes a typed sector ahead of the fetched fund weights, and no profile of an instrument with no type known', () => {
     expect(exposureOf({ ...FUND, sector: 'utilities' }, 'sector', book({}), facts)).toEqual({ from: { kind: 'typed' }, lines: [{ group: 'utilities', percent: decimal('100') }] })
     expect(exposureOf({ ...SHARE, type: null, sector: null }, 'sector', book({}), facts)).toEqual({ from: null, lines: [] })

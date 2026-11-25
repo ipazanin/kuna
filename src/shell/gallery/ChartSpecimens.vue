@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import type { ChartRange } from '../../shared/charts/chartRange'
+import { parseCivilDate } from '../../shared/calendar/civilDate'
+import { rangeWindow } from '../../shared/charts/chartRange'
+import type { ChartPreset, ChartRange } from '../../shared/charts/chartRange'
+import type { ChartRangeChoice } from '../../shared/charts/useChartRange'
 import { chartTokens } from '../../shared/charts/chartTokens'
 import { moneyFromCents } from '../../shared/money/money'
 import { formatMoney, formatPercent } from '../../shared/money/moneyFormat'
@@ -74,8 +77,17 @@ const OPEN_SPLITS = [
 ]
 const openSplit = ref('sector')
 
-const GALLERY_RANGES: readonly ChartRange[] = ['1y', '3y', 'next-5y', 'all']
-const galleryRange = ref<ChartRange>('all')
+const GALLERY_TODAY = parseCivilDate('2026-10-31')!
+const GALLERY_SPAN = { from: parseCivilDate('2022-01-31')!, to: parseCivilDate('2032-01-31')! }
+const GALLERY_RANGES: ChartPreset[] = ['1y', '3y', 'next-5y', 'all']
+/** Opens on a custom span, so its from and to days show. */
+const galleryRange = ref<ChartRange>({ from: parseCivilDate('2025-04-01')!, to: GALLERY_TODAY })
+const galleryChoice: ChartRangeChoice = {
+  ranges: computed(() => GALLERY_RANGES),
+  range: computed({ get: () => galleryRange.value, set: (picked) => (galleryRange.value = picked) }),
+  window: computed(() => rangeWindow(galleryRange.value, GALLERY_TODAY)),
+  span: computed(() => GALLERY_SPAN),
+}
 </script>
 
 <template>
@@ -165,12 +177,11 @@ const galleryRange = ref<ChartRange>('all')
       </ChartCard>
 
       <ChartCard
-        v-model:range="galleryRange"
+        :range-choice="galleryChoice"
         title="Cash at month end"
         description="Made-up month-end cash for the gallery."
-        subtitle="All accounts together, with the span it shows picked beside the legend"
+        subtitle="All accounts together, with the span it shows picked beside the legend or typed as a from and a to day"
         :option="charts.cashAtMonthEnd"
-        :ranges="GALLERY_RANGES"
       >
         <template #legend>
           <ChartLegend

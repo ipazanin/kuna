@@ -106,6 +106,7 @@
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its badge, the nearest tax date or else the late prices,
  * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too, a fund with an empty fund profile, a money fund with a whole one and a share whose company profile Finnhub refused, each with its Details and warnings and in Croatian too,
+ * the young portfolio's fund, whose Price line runs from before its first buy with that buy marked and opens on the last year (`?investments=young`), a fund set not to fetch its facts in its Change dialog, which puts a typed-only line with a way to Change in place of its Details card's warning and takes its name off the checks, and a custom span typed on the Home loan's charts, each in Croatian too,
  * the sample's Performance over everything against its benchmark and compared with a named fund, over 2024 where it is ahead of the benchmark, in Croatian too, and over a quarter, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
  * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, its Months, its Sources over everything and over the last year, its Falls, and its Income, Coming, Costs and Saving tabs, in Croatian too,
  * the sample's Tax screen for 2026 with its Year, Sales, Foreign income and Turns tax-free tabs, in Croatian too,
@@ -477,6 +478,7 @@ import {
   investmentsDialogsFlowIn,
   investmentsInstrumentSearchFlowIn,
   investmentsBondFlowIn,
+  investmentsTypedFactsFlowIn,
   investmentsHoldingDotHoverFlow,
   deleteDataCopyFlow,
   deleteDataBrowserFlow,
@@ -638,6 +640,7 @@ import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { fetchTodayFlowIn } from './support/fetchTodayFlows.mjs'
 import { homeFetchTodayFlowIn } from './support/fetchTodayFlows.mjs'
 import { EVENING_CLOCK, SATURDAY_CLOCK } from './support/fetchTodayFlows.mjs'
+import { loanChartCustomRangeFlowIn } from './support/chartRangeFlows.mjs'
 import { runSelection } from './support/runSelection.mjs'
 import { servePreview } from './support/servePreview.mjs'
 import { shotIndex } from './support/shotIndex.mjs'
@@ -5065,7 +5068,7 @@ const SOURCE_SCREENS = [
     query: 'investments=sample',
     hash: `#/investments/holding?instrument=${SAMPLE_INDEX_FUND}`,
     title: 'Example Index Fund',
-    charts: 0,
+    charts: 1,
     ready: '[data-testid="holding-no-mix"]',
     shows: ['Details', 'No mix by sector or country yet', 'Type its mix', 'Not known'],
     cards: false,
@@ -5088,6 +5091,24 @@ const SOURCE_SCREENS = [
     charts: 1,
     ready: '[data-testid="compare-chip"]',
     shows: ['Promjena od', 'svaka linija kako kotira', 'EXQ', 'Kupnja'],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-young',
+    query: 'investments=young',
+    hash: `#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`,
+    title: 'Example World ETF',
+    charts: 1,
+    shows: ['Price', 'First buy', '1Y', 'Custom', 'All'],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-young-croatian',
+    query: 'investments=young&lang=hr',
+    hash: `#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`,
+    title: 'Example World ETF',
+    charts: 1,
+    shows: ['Cijena', 'Prva kupnja', '1G', 'Prilagođeno', 'Sve'],
     cards: false,
   },
   {
@@ -10876,6 +10897,42 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
     queries: { drive: '&investments=partial-history&lang=hr' },
+  },
+  {
+    name: 'investments-typed-facts',
+    hash: `#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`,
+    title: 'Example World ETF',
+    run: investmentsTypedFactsFlowIn('en'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-typed-facts-croatian',
+    hash: `#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`,
+    title: 'Example World ETF',
+    run: investmentsTypedFactsFlowIn('hr'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample&lang=hr' },
+  },
+  {
+    name: 'loan-chart-custom-range',
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
+    title: 'Home loan',
+    run: loanChartCustomRangeFlowIn('en'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&loans=sample' },
+  },
+  {
+    name: 'loan-chart-custom-range-croatian',
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
+    title: 'Home loan',
+    run: loanChartCustomRangeFlowIn('hr'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&loans=sample&lang=hr' },
   },
   {
     name: 'dialogs-investments-croatian',

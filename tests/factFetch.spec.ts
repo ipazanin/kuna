@@ -123,6 +123,16 @@ const ALPHA_VANTAGE_DAY_OUT = {
 }
 
 describe('the facts a day’s fetch asks for after the closes', () => {
+  it('asks nothing about a holding set to typed facts only, and still fetches its closes', async () => {
+    const held = records({ ...MONEY_FUND, typedFactsOnly: true })
+    const typedOnly = { ...held, instruments: held.instruments.map((listed) => (listed.id === PAYER.id ? { ...listed, typedFactsOnly: true } : listed)) }
+    const it = browser(new Map(), KEYS, () => typedOnly)
+    await it.run('2026-11-02')
+
+    expect(factsAsked(it.asked)).toEqual(['finnhub profile2 GHI'])
+    expect(it.asked.filter((url) => new URL(url).pathname === '/time_series').map((url) => new URL(url).searchParams.get('symbol'))).toContain('DEF')
+  })
+
   it('asks each fact once, in order, of the holdings held: the type, the profiles, the fund profile and the dividends', async () => {
     const it = browser()
     const file = await it.run('2026-11-02')

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { parseCivilDate } from '../calendar/civilDate'
+import { withRangeEnd } from '../calendar/dateRange'
 import type { LedgerWindow } from '../calendar/ledgerWindow'
 import { parseMonthKey } from '../calendar/monthKey'
 import { monthLabel } from '../calendar/monthLabel'
@@ -71,16 +72,13 @@ const selectedMonth = computed({
 
 const customRange = computed(() => (period.value.preset === 'custom' ? period.value.range : null))
 
-/** Moving one end past the other drags the other along, so the range never turns inside out. */
 function setCustomEnd(end: 'from' | 'to', text: string): void {
   const date = parseCivilDate(text)
   const range = customRange.value
   if (date === null || range === null) {
     return
   }
-  const from = end === 'from' ? date : date < range.from ? date : range.from
-  const to = end === 'to' ? date : date > range.to ? date : range.to
-  period.value = { preset: 'custom', range: { from, to } }
+  period.value = { preset: 'custom', range: withRangeEnd(range, end, date) }
 }
 
 function choosePreset(preset: PeriodPreset): void {

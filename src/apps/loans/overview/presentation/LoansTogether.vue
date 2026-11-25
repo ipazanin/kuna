@@ -55,14 +55,13 @@ const bands = computed((): LegendEntry[] => props.loans.map((loan, place) => ({ 
 <template>
   <DashboardGrid data-testid="loans-together">
     <ChartCard
-      v-model:range="monthRange.range.value"
+      :range-choice="monthRange"
       :title="words.together.owedTitle"
       :subtitle="words.together.owedSubtitle"
       :option="owed.option"
       :description="owed.description"
       :height="280"
       :phone-height="220"
-      :ranges="monthRange.ranges.value"
       data-testid="loans-owed-chart"
     >
       <template #legend>
@@ -70,14 +69,13 @@ const bands = computed((): LegendEntry[] => props.loans.map((loan, place) => ({ 
       </template>
     </ChartCard>
     <ChartCard
-      v-model:range="monthRange.range.value"
+      :range-choice="monthRange"
       :title="words.together.outgoingTitle"
       :subtitle="words.together.outgoingSubtitle"
       :option="outgoing.option"
       :description="outgoing.description"
       :height="280"
       :phone-height="220"
-      :ranges="monthRange.ranges.value"
       data-testid="loans-outgoing-chart"
     >
       <template #legend>

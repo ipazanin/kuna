@@ -48,13 +48,12 @@ const thisYear = computed(() => yearOf(props.sources.today))
   <EmptyState v-if="years.length === 0" icon="i-lucide-coins" :title="words.noIncome.title" :description="words.noIncome.description" data-testid="income-empty" />
   <DashboardGrid v-else data-testid="income-cards">
     <ChartCard
-      v-model:range="monthRange.range.value"
+      :range-choice="monthRange"
       :title="words.byMonth.title"
       :subtitle="words.byMonth.subtitle"
       :option="chart.option"
       :description="chart.description"
       :phone-height="220"
-      :ranges="monthRange.ranges.value"
       data-testid="income-by-month"
     />
     <AppCard

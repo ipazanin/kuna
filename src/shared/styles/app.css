@@ -855,3 +855,10 @@ tr[data-chat-tagged='row'] > :first-child {
 .swatch-dashed {
   background: repeating-linear-gradient(90deg, var(--swatch) 0 4px, transparent 4px 6px);
 }
+
+.swatch-rule {
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--swatch);
+}

@@ -72,6 +72,14 @@ export function pricesFileBook(file: PricesFile, handPrices: readonly HandPrice[
       }
       return [...byDay.values()].sort((earlier, later) => earlier.date.localeCompare(later.date))
     },
+    firstClose(instrument: Instrument): Close | null {
+      const [listed] = listedRows(instrument)
+      const [hand] = handRows(instrument)
+      if (hand !== undefined && (listed === undefined || hand.date < listed.date)) {
+        return { date: hand.date, price: hand.value, byHand: true }
+      }
+      return listed === undefined ? null : { date: listed.date, price: listed.value, byHand: false }
+    },
   }
 }
 

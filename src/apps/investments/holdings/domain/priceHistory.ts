@@ -4,8 +4,9 @@ import { closePerUnit, priceOfWorth, tradeWorth } from './quoting'
 import type { Close } from '../../prices/domain/priceBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { Trade, TradeSide } from '../../workbook/domain/trade'
-import { addDays, weekdaysBetween } from '../../../../shared/calendar/civilDate'
+import { addDays, daysBetween, weekdaysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { dayMonthsLater, lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import { DECIMAL_ZERO, inEuros, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
@@ -46,35 +47,80 @@ export interface PriceHistory {
   readonly points: readonly PricePoint[]
   /** Point by point, a point's buys before its sales. */
   readonly dots: readonly TradeDot[]
+  /** The point that holds the day the first units came in, null when the window leaves it out. */
+  readonly firstBuy: CivilDate | null
 }
 
 /** A line runs day by day once its closes fall on at least this share of the weekdays it spans, so month-end closes, or a vendor's monthly history, keep the monthly line. */
 const DAILY_SHARE = 0.5
 
+/** The days of a holding's line: from its first close, fetched or by hand, to the figures' day, or to the last close of a holding sold. Null for one with no close. */
+export function priceSpan(holding: Pick<HoldingFigures, 'instrument' | 'quantity'>, sources: PortfolioSources): DateRange | null {
+  const first = sources.prices.firstClose(holding.instrument)
+  const last = sources.prices.closeOnOrBefore(holding.instrument, sources.today)
+  if (first === null || last === null) return null
+  return { from: first.date, to: holding.quantity > DECIMAL_ZERO ? sources.today : last.date }
+}
+
+/** Before its first buy a held period's chart shows at least this share of the days from that buy to the window's end, so the first-buy rule stands clear of the axis on a long window too. */
+const LEAD_IN_SHARE = 0.03
+
 /**
- * A holding's closes from the day its first units came to the figures' day: each close once the series is daily,
- * otherwise the close at each month end and on the figures' day. Each point's trades merge into one dot per side, the
- * trades of a day on a daily line and of a month on a monthly one, those before the first close left out. A close per
- * troy ounce of gold becomes a price per gram, as its trades are.
+ * A holding's chart opens on the days it was held, with a lead-in before its first units of a month or 3% of the held
+ * days, whichever is longer, and a month after its last trade once sold. It never opens on less than the last year,
+ * nor beyond the first or last close. Null means its whole line.
  */
-export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'quantity' | 'firstAcquired'>, sources: PortfolioSources): PriceHistory {
+export function openingWindow(holding: Pick<HoldingFigures, 'instrument' | 'quantity' | 'firstAcquired'>, span: DateRange | null, sources: PortfolioSources): DateRange | null {
+  if (span === null) return null
+  const yearAgo = dayMonthsLater(sources.today, -12)
+  const firstDay = holding.firstAcquired?.date ?? yearAgo
+  // A holding opening on the last year keeps its whole year, sold in it or not.
+  if (firstDay >= yearAgo) return yearAgo <= span.from ? null : { from: yearAgo, to: span.to }
+  const lastTrade = holding.quantity > DECIMAL_ZERO ? null : lastTradeOf(holding.instrument, sources.book.trades)
+  const monthAfterSale = lastTrade === null ? span.to : dayMonthsLater(lastTrade, 1)
+  const to = monthAfterSale > span.to ? span.to : monthAfterSale
+  const monthBefore = dayMonthsLater(firstDay, -1)
+  const shareBefore = addDays(firstDay, -Math.ceil(LEAD_IN_SHARE * daysBetween(firstDay, to)))
+  const leadIn = shareBefore < monthBefore ? shareBefore : monthBefore
+  const from = leadIn < span.from ? span.from : leadIn
+  return from <= span.from && to >= span.to ? null : { from, to }
+}
+
+/** The day of the instrument's last trade, null for one never traded. */
+function lastTradeOf(instrument: Instrument, trades: readonly Trade[]): CivilDate | null {
+  return trades.reduce<CivilDate | null>((last, trade) => (trade.instrument === instrument.id && (last === null || trade.date > last) ? trade.date : last), null)
+}
+
+/**
+ * A holding's closes over the window, null for every close the prices file has, before its first units came too, up to
+ * the figures' day: each close once the closes fall on most weekdays of the window, otherwise the close at each month
+ * end and on the window's last day. Each point's trades in the window merge into one dot per side, the trades of a day
+ * on a daily line and of a month on a monthly one, those before the first close left out. A close per troy ounce of
+ * gold becomes a price per gram, as its trades are.
+ */
+export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'quantity' | 'firstAcquired'>, sources: PortfolioSources, window: DateRange | null): PriceHistory {
   const { instrument } = holding
-  const firstDay = holding.firstAcquired?.date ?? null
   const { book, prices, today } = sources
+  const firstClose = prices.firstClose(instrument)?.date ?? null
+  const from = firstClose === null ? null : window === null || window.from < firstClose ? firstClose : window.from
+  const to = window === null || window.to > today ? today : window.to
   const inTodaysUnits = (close: Close): PricePoint => ({ date: close.date, price: closePerUnit(instrument.quoted, priceInTodaysUnits(book, instrument, close.date, close.price)) })
-  const trades = book.trades.filter((trade) => trade.instrument === instrument.id).sort((earlier, later) => earlier.date.localeCompare(later.date))
+  const trades = book.trades
+    .filter((trade) => trade.instrument === instrument.id && trade.date <= to && (window === null || trade.date >= window.from))
+    .sort((earlier, later) => earlier.date.localeCompare(later.date))
+  const lastTrade = lastTradeOf(instrument, book.trades)
   // A fetch stops a sold holding's series at its last trade, so its share of closes counts the weekdays to that trade.
-  const seriesEnd = holding.quantity > DECIMAL_ZERO ? today : (trades.at(-1)?.date ?? today)
-  const closes = firstDay === null ? [] : prices.closesBetween(instrument, firstDay, today)
-  const daily = firstDay !== null && closes.length > 0 && closes.length >= DAILY_SHARE * weekdaysBetween(firstDay, seriesEnd)
+  const seriesEnd = holding.quantity > DECIMAL_ZERO || lastTrade === null || lastTrade > to ? to : lastTrade
+  const closes = from === null || from > to ? [] : prices.closesBetween(instrument, from, to)
+  const daily = from !== null && closes.length > 0 && closes.length >= DAILY_SHARE * weekdaysBetween(from, seriesEnd)
   const days =
-    firstDay === null || daily
+    from === null || from > to || daily
       ? []
       : [
-          ...monthsFrom(monthOf(firstDay), monthOf(today))
+          ...monthsFrom(monthOf(from), monthOf(to))
             .map(lastDayOf)
-            .filter((date) => date >= firstDay && date < today),
-          today,
+            .filter((date) => date >= from && date < to),
+          to,
         ]
   const points = daily
     ? closes.map(inTodaysUnits)
@@ -117,7 +163,9 @@ export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'quant
         amount: sumMoney(marks.map((mark) => mark.amount)),
       }
     })
-  return { daily, points, dots }
+  const firstDay = holding.firstAcquired?.date ?? null
+  const firstBuy = firstDay === null || from === null || firstDay < from || firstDay > to ? null : pointOf(firstDay)
+  return { daily, points, dots, firstBuy }
 }
 
 /** The lowest and highest close of the last 52 weeks, in the quote currency and in today's units, and how much of the year the closes cover. */

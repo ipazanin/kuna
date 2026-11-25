@@ -6,9 +6,8 @@ import type { PlanRow } from '../domain/loanPlan'
 import { paymentsChart } from './paymentsChart'
 import PaymentSplitFigures from './PaymentSplitFigures.vue'
 import { subsidyColourOf } from './subsidyColour'
-import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { yearInRange } from '../../../../shared/charts/chartRange'
-import type { ChartRange } from '../../../../shared/charts/chartRange'
+import type { ChartRangeChoice } from '../../../../shared/charts/useChartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
@@ -24,19 +23,15 @@ const props = defineProps<{
   estimateFromYear: number | null
   /** Who pays the subsidy, empty when the loan does not say. */
   payer: string
-  /** The ranges the screen's Owed over time offers, so both charts pick from one list and show one span. */
-  ranges: readonly ChartRange[]
-  /** The days the picked range keeps, null for All. A year counts whole once any of its days is kept. */
-  shownDays: DateRange | null
+  /** The range of the screen's Owed over time, so both charts pick from one list and show one span. A year counts whole once any of its days is kept. */
+  rangeChoice: ChartRangeChoice
 }>()
 const loanWords = useLoanWords()
-
-const range = defineModel<ChartRange>('range', { required: true })
 
 const phone = usePhoneLayout()
 const chart = computed(() =>
   paymentsChart(
-    paymentsByYear(props.plan).filter((entry) => yearInRange(props.shownDays, entry.year)),
+    paymentsByYear(props.plan).filter((entry) => yearInRange(props.rangeChoice.window.value, entry.year)),
     props.currentYear,
     props.payer,
     chartTokens(),
@@ -58,14 +53,13 @@ const legend = computed((): LegendEntry[] => [
 
 <template>
   <ChartCard
-    v-model:range="range"
+    :range-choice="rangeChoice"
     :title="loanWords.payments.title"
     :subtitle="chart.hasSubsidy ? loanWords.payments.subsidySubtitle(payer) : loanWords.payments.subtitle"
     :option="chart.option"
     :description="chart.description"
     :height="280"
     :phone-height="240"
-    :ranges="ranges"
     data-testid="loan-payments-chart"
   >
     <template #legend>

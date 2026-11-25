@@ -158,13 +158,13 @@ describe("a holding's price chart compared with a ticker", () => {
     today: civil('2026-02-27'),
   }
   const holding = portfolioFigures(sources).holdings.find((figures) => figures.instrument.id === fund.id)!
-  const chart = priceChart(priceHistory(holding, sources), holding, TOKENS, false, { name: 'EXQ', change: [0, 0.2].map(shareFromRatio) })
+  const chart = priceChart(priceHistory(holding, sources, null), holding, TOKENS, false, { name: 'EXQ', change: [0, 0.2].map(shareFromRatio) })
 
   it('reads the holding and the ticker as change since its first month end, with the buy on its line and no average cost', () => {
     const series = (chart.option as { series: { name: string; data: unknown[] }[] }).series
     expect(series.map((line) => line.name)).toEqual(['ECF', 'EXQ', 'Buy'])
     expect(series[0]!.data).toEqual([0, 0.10000000000000009])
-    expect(chart.legend.map((entry) => entry.label)).toEqual(['ECF', 'EXQ', 'Buy'])
+    expect(chart.legend.map((entry) => entry.label)).toEqual(['ECF', 'EXQ', 'First buy 30 Jan 2026', 'Buy'])
     expect(chart.subtitle).toBe('Change since 31 Jan 2026, each line as quoted.')
   })
 

@@ -67,6 +67,7 @@ export function instrument(key: string, overrides: Partial<Instrument> = {}): In
     country: null,
     ter: null,
     distribution: null,
+    typedFactsOnly: false,
     note: '',
     ...overrides,
   }
@@ -210,6 +211,7 @@ export function priceBookOf(closes: ReadonlyMap<Instrument, readonly CloseRow[]>
         .filter((close) => close.date <= day)
         .at(-1) ?? null,
     closesBetween: (what: Instrument, from: CivilDate, to: CivilDate) => sorted(what).filter((close) => close.date >= from && close.date <= to),
+    firstClose: (what: Instrument) => sorted(what)[0] ?? null,
   }
 }
 
