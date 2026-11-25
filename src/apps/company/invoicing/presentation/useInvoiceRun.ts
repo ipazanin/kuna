@@ -36,7 +36,6 @@ import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitc
 import { invoiceDatesProblems } from '../../receivables/domain/invoiceGuards'
 import { words as receivablesWords } from '../../receivables/domain/words'
 import { words as receivablesScreenWords } from '../../receivables/presentation/words'
-import { lineProblemsInWords } from '../domain/words'
 import { words } from './words'
 
 /** A new invoice, or the PDF and draft of one on the register made again. */
@@ -238,10 +237,10 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       number: typedNumber === '' ? words.run.numberError : taken ? receivablesWords.numberTaken(typedNumber) : null,
       due: dueDay === null ? receivablesScreenWords.dialog.issuedError : order.due === 'before-issue' ? receivablesScreenWords.dialog.dueBeforeIssue : null,
       period: from === null || to === null ? receivablesScreenWords.dialog.periodError : order.period === 'order' ? receivablesScreenWords.dialog.periodOrder : null,
-      lines: lineProblemsInWords(lineProblems(parsedLines.value)).join(' ') || null,
     }
   })
-  const fieldsValid = computed(() => Object.values(errors.value).every((error) => error === null))
+  const linesProblems = computed(() => lineProblems(parsedLines.value))
+  const fieldsValid = computed(() => Object.values(errors.value).every((error) => error === null) && linesProblems.value.length === 0)
 
   /** The PDF of the form as it stands, for the preview link, drawn again a moment after each change. */
   const previewUrl = shallowRef<string | null>(null)
@@ -463,6 +462,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     problems,
     tried,
     errors,
+    linesProblems,
     previewUrl,
     previewError,
     failed,

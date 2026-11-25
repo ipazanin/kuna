@@ -152,19 +152,18 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           </UFormField>
         </FormGrid>
 
-        <UFormField :error="(run.tried.value && run.errors.value.lines) || false">
-          <InvoiceLinesEditor
-            v-model:lines="run.lines.value"
-            :total="run.total.value"
-            :client="run.client.value"
-            :disabled="!editable"
-            planned
-            :templated="run.templated.value"
-            :reexport="reexport"
-            @plan="run.fillLines()"
-            @merge="run.mergeLines()"
-          />
-        </UFormField>
+        <InvoiceLinesEditor
+          v-model:lines="run.lines.value"
+          :total="run.total.value"
+          :client="run.client.value"
+          :disabled="!editable"
+          planned
+          :templated="run.templated.value"
+          :reexport="reexport"
+          :problems="run.tried.value ? run.linesProblems.value : []"
+          @plan="run.fillLines()"
+          @merge="run.mergeLines()"
+        />
 
         <div class="flex flex-col gap-2 type-body">
           <p class="text-toned" data-testid="invoice-run-where">{{ where }}</p>
@@ -179,15 +178,15 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           <p v-if="run.mail.value" class="min-w-0 break-words type-caption">{{ words.run.mailTo(run.mail.value.to, run.mail.value.subject) }}</p>
         </div>
       </template>
-      <dl v-else class="summary" data-testid="invoice-run-summary">
-        <dt>{{ words.run.invoice }}</dt>
-        <dd>{{ words.run.numberTo(run.number.value, clientName) }}</dd>
-        <dt>{{ words.run.total }}</dt>
-        <dd><MoneyText :cents="run.total.value" /> {{ plural(words.run.inLines(run.lines.value.length), run.lines.value.length) }}</dd>
-        <dt>{{ words.run.file }}</dt>
-        <dd class="break-all">{{ run.path.value ? pathInWords(run.path.value) : '' }}</dd>
-        <dt>{{ words.run.mail }}</dt>
-        <dd class="break-words">{{ mailInWords }}</dd>
+      <dl v-else class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1" data-testid="invoice-run-summary">
+        <dt class="type-aside">{{ words.run.invoice }}</dt>
+        <dd class="type-row-title">{{ words.run.numberTo(run.number.value, clientName) }}</dd>
+        <dt class="type-aside">{{ words.run.total }}</dt>
+        <dd class="type-row-title"><MoneyText :cents="run.total.value" /> {{ plural(words.run.inLines(run.lines.value.length), run.lines.value.length) }}</dd>
+        <dt class="type-aside">{{ words.run.file }}</dt>
+        <dd class="break-all type-row-title">{{ run.path.value ? pathInWords(run.path.value) : '' }}</dd>
+        <dt class="type-aside">{{ words.run.mail }}</dt>
+        <dd class="break-words type-row-title">{{ mailInWords }}</dd>
       </dl>
 
       <UAlert
@@ -291,20 +290,3 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
     </template>
   </AppDialog>
 </template>
-
-<style scoped>
-.summary {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.25rem 1rem;
-  font-size: 0.875rem;
-}
-
-.summary dt {
-  color: var(--ui-text-muted);
-}
-
-.summary dd {
-  color: var(--ui-text-highlighted);
-}
-</style>

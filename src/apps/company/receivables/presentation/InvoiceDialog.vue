@@ -46,7 +46,6 @@ import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 import { lineProblems, linesTotal } from '../../invoicing/domain/invoiceLine'
 import { registerItemOf } from '../../invoicing/domain/invoiceLines'
 import { invoiceLinesOf } from '../../invoicing/domain/registerInvoice'
-import { lineProblemsInWords } from '../../invoicing/domain/words'
 import InvoiceLinesEditor from '../../invoicing/presentation/InvoiceLinesEditor.vue'
 import { blankLine, draftOf, linesOf } from '../../invoicing/presentation/lineDrafts'
 import type { LineDraft } from '../../invoicing/presentation/lineDrafts'
@@ -119,11 +118,11 @@ const total = computed(() => linesTotal(parsedLines.value.filter((line) => !Numb
 /** Whether the lines differ from those the dialog opened on. A new invoice's lines always count as typed. */
 const linesChanged = computed(() => stored.value === null || JSON.stringify(lines.value) !== JSON.stringify(openedLines.value))
 /** What is wrong with the lines, checked once they are typed, so a row saved before every line needed a text still takes a new due date. */
-const linesError = computed(() => (linesChanged.value ? lineProblemsInWords(lineProblems(parsedLines.value)).join(' ') || null : null))
+const linesProblems = computed(() => (linesChanged.value ? lineProblems(parsedLines.value) : []))
 /** The amount the save writes: the total of the lines once they are typed, or the amount the row holds. */
 const parsedAmount = computed(() => {
   if (!linesChanged.value) return stored.value?.record.amount ?? null
-  return linesError.value === null ? linesTotal(parsedLines.value) : null
+  return linesProblems.value.length === 0 ? linesTotal(parsedLines.value) : null
 })
 
 function optionalDate(text: string): CivilDate | null | undefined {
@@ -139,7 +138,6 @@ const errors = computed(() => {
   return {
     number: fields.value.number.trim() === '' ? words.dialog.numberError : null,
     client: fields.value.client === '' ? words.dialog.clientError : null,
-    lines: linesError.value,
     issued: issued === null ? words.dialog.issuedError : null,
     due: due === undefined ? words.dialog.dueError : dates.due === 'before-issue' ? words.dialog.dueBeforeIssue : null,
     paidBy: notNeeded.value === null ? null : words.dialog.notNeeded(dayLabel(notNeeded.value.payment.date)),
@@ -203,7 +201,7 @@ const placement = computed(() => {
   return same ? null : chosen.value
 })
 
-const valid = computed(() => Object.values(errors.value).every((error) => error === null))
+const valid = computed(() => Object.values(errors.value).every((error) => error === null) && linesProblems.value.length === 0)
 
 async function save(): Promise<void> {
   tried.value = true
@@ -268,9 +266,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.client" :error="(tried && errors.client) || false" :help="words.dialog.clientHelp">
         <USelect v-model="fields.client" :items="clientItems" :placeholder="words.dialog.clientPlaceholder" class="w-full" data-testid="invoice-client" />
       </UFormField>
-      <UFormField :error="(tried && errors.lines) || false" class="sm:col-span-2">
-        <InvoiceLinesEditor v-model:lines="lines" :total="total" :client="fields.client" :disabled="writes.refused.value" />
-      </UFormField>
+      <InvoiceLinesEditor v-model:lines="lines" :total="total" :client="fields.client" :disabled="writes.refused.value" :problems="tried ? linesProblems : []" class="sm:col-span-2" />
       <UFormField :label="words.dialog.issued" :error="(tried && errors.issued) || false" :help="words.dialog.issuedHelp">
         <DayField v-model="fields.issued" class="w-full" data-testid="invoice-issued" />
       </UFormField>

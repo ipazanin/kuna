@@ -7819,7 +7819,7 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
   },
-  { name: 'invoices', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: invoiceFlow },
+  { name: 'invoices', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: invoiceFlow, viewports: DESIGN_REVIEW_VIEWPORTS },
   ...['en', 'hr'].map((language) => ({
     name: language === 'en' ? 'place-payment' : 'place-payment-croatian',
     hash: '#/company/invoicing?p=all',
@@ -7829,7 +7829,7 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: language === 'en' ? '&fake=unplaced' : '&fake=unplaced&lang=hr' },
   })),
-  { name: 'invoice-run', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: invoiceRunFlow },
+  { name: 'invoice-run', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: invoiceRunFlow, viewports: DESIGN_REVIEW_VIEWPORTS },
   {
     name: 'clients-ibans-croatian',
     hash: '#/company/invoicing?tab=clients',

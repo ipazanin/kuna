@@ -945,6 +945,7 @@ const MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'long', year: '
  * The `outgoing-plan` tab of Northwind's work: each worked month's fee and extras add up to its
  * invoice, the extra sprint is a bonus, and October is planned but not invoiced yet. Lumen's
  * invoices have no plan rows.
+ * The Subscription row writes its client as `Northwind`, so the fake set shows a client matching whatever its case.
  */
 function billingPlanRecords(invoices: readonly FakeInvoice[]): FakeFields[] {
   const item = (name: string, date: string, amount: number, client: string, description: string): FakeFields => ({ item: name, date, amount: money(amount), client, description })

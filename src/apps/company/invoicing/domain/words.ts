@@ -3,7 +3,7 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import type { Translation } from '../../../../shared/text/translation'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
-import type { RegisterLinesProblem } from './invoiceLine'
+import type { LineProblem, RegisterLinesProblem } from './invoiceLine'
 import type { TemplateProblem } from './invoiceTemplate'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -49,6 +49,17 @@ export const en = {
         return `${problem.item} is on an earlier line already`
     }
   },
+  /** What is wrong with one line of an invoice, said under that line. */
+  lineProblem: (problem: Exclude<LineProblem, { kind: 'no-lines' }>): string => {
+    switch (problem.kind) {
+      case 'blank-text':
+        return 'the line needs a description'
+      case 'not-above-zero':
+        return 'the amount must be above zero'
+      case 'separator':
+        return en.templateProblem(problem)
+    }
+  },
   /** Which line of a client's invoice lines a problem is on, counted from 1. */
   templateLine: (line: number, problem: string) => `line ${line + 1}: ${problem}`,
 }
@@ -88,6 +99,16 @@ export const hr: Translation<typeof en> = {
         return 'samo zadnja stavka smije biti bez usluga iz plana, jer ona preuzima sve usluge iz plana koje nijedna druga ne navodi'
       case 'item-twice':
         return `„${problem.item}” je već u jednoj od prethodnih stavki`
+    }
+  },
+  lineProblem: (problem) => {
+    switch (problem.kind) {
+      case 'blank-text':
+        return 'stavka mora imati opis'
+      case 'not-above-zero':
+        return 'iznos mora biti veći od nule'
+      case 'separator':
+        return hr.templateProblem(problem)
     }
   },
   templateLine: (line, problem) => `stavka ${line + 1}: ${problem}`,

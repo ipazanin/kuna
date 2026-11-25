@@ -7,7 +7,6 @@
     "src/apps/company/categories/presentation/CategoriesEditor.vue",
     "src/apps/company/data-source/presentation/DataSourceChoices.vue",
     "src/apps/company/filters/presentation/FilterBar.vue",
-    "src/apps/company/invoicing/presentation/InvoiceRunDialog.vue",
     "src/apps/company/overview/presentation/WindowComparison.vue",
     "src/apps/company/owner-share/presentation/OwnerShareDialog.vue",
     "src/apps/company/packs/hr-doo/presentation/AdvanceList.vue",

@@ -86,7 +86,7 @@ describe('the checks before an invoice is made', () => {
     vi.useRealTimers()
   })
 
-  it('says a line without an amount under the lines only once Check is pressed, and stays on the form without asking the file', async () => {
+  it('keeps a line without an amount as a problem of that line once Check is pressed, and stays on the form without asking the file', async () => {
     const run = openedRun()
     run.lines.value = [...run.lines.value, { description: 'Maintenance', amount: '', items: [] }]
 
@@ -96,7 +96,7 @@ describe('the checks before an invoice is made', () => {
     await run.check()
 
     expect(run.tried.value).toBe(true)
-    expect(run.errors.value.lines).toBe('Every line needs an amount above zero.')
+    expect(run.linesProblems.value).toEqual([{ kind: 'not-above-zero', line: run.lines.value.length - 1 }])
     expect(run.stage.value).toEqual({ kind: 'edit', message: null })
     expect(store.checks).toBe(0)
     expect(store.written).toEqual([])
@@ -117,8 +117,8 @@ describe('the checks before an invoice is made', () => {
       number: 'Invoice 9-1-26 is already on the invoices tab, and each number is used once.',
       due: 'Not before the issue date',
       period: null,
-      lines: 'Every line needs a description.',
     })
+    expect(run.linesProblems.value).toEqual([{ kind: 'blank-text', line: 0 }])
     expect(run.problems.value).toEqual([])
     expect(store.checks).toBe(0)
     run.reset()

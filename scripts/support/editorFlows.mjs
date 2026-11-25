@@ -1152,7 +1152,27 @@ async function typeInvoiceLine(page, index, text, amount) {
   await setField((await page.$$('[data-testid="invoice-line-amount"]'))[index], amount)
 }
 
-/** Invoices in a language: add one of two lines, change its due date and see both lines kept, change a line, delete it, and Undo the delete. */
+/** The invoice lines in `form` say `sentence` under the line at `index`, counted from the end when below zero, and no problem under any other line. */
+async function problemUnderLineOnly(page, form, language, index, sentence) {
+  const said = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
+  const phrases = ['blank-text', 'not-above-zero', 'separator'].map((kind) => said.lineProblem({ kind, line: 0 }).toLowerCase())
+  const lines = `${form} [data-testid="invoice-line"]`
+  await page
+    .waitForFunction((css, wanted) => [...document.querySelectorAll(css)].some((line) => line.textContent?.includes(wanted)), { timeout: 10_000 }, lines, sentence)
+    .catch(() => {
+      throw new Error(`no invoice line says "${sentence}"`)
+    })
+  const texts = await page.$$eval(lines, (found) => found.map((line) => (line.textContent ?? '').toLowerCase()))
+  const bad = index < 0 ? texts.length + index : index
+  if (!texts[bad]?.includes(sentence.toLowerCase())) throw new Error(`invoice line ${bad + 1} does not say "${sentence}"`)
+  const others = texts.flatMap((text, at) => (at !== bad && phrases.some((phrase) => text.includes(phrase)) ? [at + 1] : []))
+  if (others.length > 0) throw new Error(`invoice lines ${others.join(', ')} show a problem that is only on line ${bad + 1}`)
+}
+
+/**
+ * Invoices in a language: add one of two lines, with Save pressed on the blank second line saying its problems under it alone, change its
+ * due date and see both lines kept, change a line, delete it, and Undo the delete.
+ */
 export function invoiceFlowIn(language) {
   const words = SCREEN_WORDS[language]
   const dialog = words.receivables.dialog
@@ -1167,6 +1187,11 @@ export function invoiceFlowIn(language) {
     await setField(await page.$('[data-testid="invoice-number"]'), number)
     await typeInvoiceLine(page, 0, 'Workshop follow-up', '1250.00')
     await pressSelector(page, press, '[data-testid="invoice-line-add"]')
+    await pressSelector(page, press, '[data-testid="invoice-save"]')
+    const said = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
+    const blankLine = [said.lineProblem({ kind: 'blank-text', line: 1 }), said.lineProblem({ kind: 'not-above-zero', line: 1 })].join(', ')
+    await problemUnderLineOnly(page, '[data-testid="invoice-form"]', language, 1, capitalised(blankLine))
+    await shoot('invoice-line-problem')
     await typeInvoiceLine(page, 1, 'Workshop follow-up II', '50.00')
     await choose(page, press, await page.$('[data-testid="invoice-client"]'), 'Lumen Labs')
     await inspect?.('add an invoice')
@@ -1310,12 +1335,14 @@ function dayIn(field) {
 }
 
 /**
- * Make an invoice shows nothing wrong while a line's amount is cleared and the due date is set before the issue date, then one Check says
- * each under its own field and asks the file nothing. The amount and the due date go back before the run goes on.
+ * Make an invoice shows nothing wrong while the last line's amount is cleared and the due date is set before the issue date, then one Check
+ * says each under its own field, the amount's under that line alone, and asks the file nothing. The line is shot in view too, since a phone
+ * shows the due date first. The amount and the due date go back before the run goes on.
  */
 async function fieldProblemsShowAfterCheck(page, press, language, shoot) {
   const dialog = SCREEN_WORDS[language].receivables.dialog
-  const lineWords = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
+  const said = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
+  const amountProblem = capitalised(said.lineProblem({ kind: 'not-above-zero', line: 0 }))
   const form = '[data-testid="invoice-run"]'
   const amounts = await page.$$(`${form} [data-testid="invoice-line-amount"]`)
   const lastAmount = amounts.at(-1)
@@ -1326,11 +1353,14 @@ async function fieldProblemsShowAfterCheck(page, press, language, shoot) {
   await typeDay(dueField, '2020-01-02')
   await delay(300)
   const early = await page.$eval(form, (element) => element.textContent ?? '')
-  if (early.includes(dialog.dueBeforeIssue) || early.includes(lineWords.lineAmount)) throw new Error('Make an invoice says the due date or the lines are wrong before Check is pressed')
+  if (early.includes(dialog.dueBeforeIssue) || early.includes(amountProblem)) throw new Error('Make an invoice says the due date or the lines are wrong before Check is pressed')
   await pressSelector(page, press, '[data-testid="invoice-run-check"]')
-  await elementSays(page, form, [dialog.dueBeforeIssue, lineWords.lineAmount], 'one Check does not say the due date and the lines under their fields')
+  await elementSays(page, form, [dialog.dueBeforeIssue], 'one Check does not say the due date under its field')
+  await problemUnderLineOnly(page, form, language, -1, amountProblem)
   if ((await page.$('[data-testid="invoice-run-ready"]')) !== null) throw new Error('Make an invoice went on to its checks with a line without an amount')
   await shoot('invoice-run-field-problems')
+  const lastLine = (await page.$$(`${form} [data-testid="invoice-line"]`)).at(-1)
+  await shootAt(page, shoot, lastLine, 'invoice-run-line-problem')
   await setField(lastAmount, amount)
   await typeDay(dueField, due)
   await delay(300)

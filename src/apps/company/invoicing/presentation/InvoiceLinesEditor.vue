@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { capitalised } from '../../../../shared/text/capitalised'
 import { planItemsOf } from '../../billingPlan/domain/planItems'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import type { LineProblem } from '../domain/invoiceLine'
+import { lineProblemsInWords, words as domainWords } from '../domain/words'
 import { blankLine } from './lineDrafts'
 import type { LineDraft } from './lineDrafts'
 import PlanItemsSelect from './PlanItemsSelect.vue'
@@ -28,8 +32,10 @@ const props = withDefaults(
     templated?: boolean
     /** The lines start from those the invoice went out with. */
     reexport?: boolean
+    /** What is wrong with the lines, each shown under its own line, once the person has pressed Check or Save. */
+    problems?: readonly LineProblem[]
   }>(),
-  { planned: false, templated: false, reexport: false },
+  { planned: false, templated: false, reexport: false, problems: () => [] },
 )
 
 const emit = defineEmits<{
@@ -43,6 +49,13 @@ const store = useWorkbook()
 const titleId = useId()
 const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?? [], props.client))
 const linesItems = computed(() => lines.value.flatMap((line) => line.items))
+const lineErrors = computed(() =>
+  lines.value.map((_, index) => {
+    const found = props.problems.flatMap((problem) => (problem.kind !== 'no-lines' && problem.line === index ? [domainWords.lineProblem(problem)] : []))
+    return found.length === 0 ? null : capitalised(found.join(', '))
+  }),
+)
+const listError = computed(() => lineProblemsInWords(props.problems.filter((problem) => problem.kind === 'no-lines')).join(' '))
 
 const intro = computed(() => {
   if (!props.planned) return words.lines.introTyped
@@ -95,49 +108,54 @@ function amountError(text: string): boolean {
       </div>
     </div>
     <ol class="flex flex-col divide-y divide-default border-y border-default">
-      <li v-for="(line, index) in lines" :key="index" class="flex flex-col gap-2 py-3" data-testid="invoice-line">
-        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 @sm:grid-cols-[minmax(0,1fr)_7.5rem_auto]">
-          <UInput
-            :model-value="line.description"
-            :placeholder="words.lines.descriptionPlaceholder"
-            class="col-span-full min-w-0 @sm:col-span-1"
-            :aria-label="words.lines.description(index + 1)"
-            :disabled="disabled"
-            data-testid="invoice-line-text"
-            @update:model-value="update(index, { description: String($event) })"
-          />
-          <MoneyInput
-            :model-value="line.amount"
-            :placeholder="words.lines.amountPlaceholder"
-            class="w-full"
-            v-bind="amountError(line.amount) ? { color: 'error', highlight: true } : {}"
-            :aria-label="words.lines.amount(index + 1)"
-            :disabled="disabled"
-            data-testid="invoice-line-amount"
-            @update:model-value="update(index, { amount: $event })"
-          />
-          <UButton
-            icon="i-lucide-trash-2"
-            color="neutral"
-            variant="ghost"
-            class="size-11 justify-center sm:size-9"
-            :aria-label="words.lines.remove(index + 1)"
-            :disabled="disabled || lines.length === 1"
-            @click="remove(index)"
-          />
-        </div>
-        <PlanItemsSelect
-          :model-value="line.items"
-          :plan-items="planItems"
-          :lines-items="linesItems"
-          :label="words.clientLines.items(index + 1)"
-          :placeholder="words.clientLines.itemsPlaceholder"
-          :disabled="disabled"
-          test-id="invoice-line"
-          @update:model-value="update(index, { items: $event })"
-        />
+      <li v-for="(line, index) in lines" :key="index" class="py-3" data-testid="invoice-line">
+        <UFormField :error="lineErrors[index] ?? false">
+          <div class="flex flex-col gap-2">
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 @sm:grid-cols-[minmax(0,1fr)_7.5rem_auto]">
+              <UInput
+                :model-value="line.description"
+                :placeholder="words.lines.descriptionPlaceholder"
+                class="col-span-full min-w-0 @sm:col-span-1"
+                :aria-label="words.lines.description(index + 1)"
+                :disabled="disabled"
+                data-testid="invoice-line-text"
+                @update:model-value="update(index, { description: String($event) })"
+              />
+              <MoneyInput
+                :model-value="line.amount"
+                :placeholder="words.lines.amountPlaceholder"
+                class="w-full"
+                v-bind="amountError(line.amount) ? { color: 'error', highlight: true } : {}"
+                :aria-label="words.lines.amount(index + 1)"
+                :disabled="disabled"
+                data-testid="invoice-line-amount"
+                @update:model-value="update(index, { amount: $event })"
+              />
+              <UButton
+                icon="i-lucide-trash-2"
+                color="neutral"
+                variant="ghost"
+                class="size-11 justify-center sm:size-9"
+                :aria-label="words.lines.remove(index + 1)"
+                :disabled="disabled || lines.length === 1"
+                @click="remove(index)"
+              />
+            </div>
+            <PlanItemsSelect
+              :model-value="line.items"
+              :plan-items="planItems"
+              :lines-items="linesItems"
+              :label="words.clientLines.items(index + 1)"
+              :placeholder="words.clientLines.itemsPlaceholder"
+              :disabled="disabled"
+              test-id="invoice-line"
+              @update:model-value="update(index, { items: $event })"
+            />
+          </div>
+        </UFormField>
       </li>
     </ol>
+    <p v-if="listError" class="type-caption text-error">{{ listError }}</p>
     <div class="flex flex-wrap items-center justify-between gap-2">
       <UButton :label="words.lines.add" icon="i-lucide-plus" size="sm" color="neutral" variant="outline" :disabled="disabled" data-testid="invoice-line-add" @click="add" />
       <p class="type-body">{{ words.lines.total }} <MoneyText :cents="total" class="font-medium text-highlighted" /></p>
