@@ -37,7 +37,7 @@ import type { AssistantOperation, ProposalStep } from '../../../../shared/app/as
 import { FLAG_OR_NULL, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, found, inputOf } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
-import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
+import type { Rule, RuleConfidence } from '../../rules/domain/rule'
 import { moneyParts } from '../../../../shared/money/decimal'
 import { partsOfWhole } from '../../../../shared/money/partsOfWhole'
 import type { GivenPart } from '../../../../shared/money/partsOfWhole'

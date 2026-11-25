@@ -1,9 +1,9 @@
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { categorise } from '../../../../shared/categorising/domain/categorise'
-import type { Verdict } from '../../../../shared/categorising/domain/categorise'
-import type { Rule } from '../../../../shared/categorising/domain/rule'
+import { categorise } from './categorise'
+import type { Verdict } from './categorise'
+import type { Rule } from './rule'
 import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 
 export type BacktestTransaction = CategorisableRow & Pick<Transaction, 'category' | 'flaggedBy' | 'bucket'>

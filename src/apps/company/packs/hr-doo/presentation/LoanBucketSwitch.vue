@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../../../../shared/ui/AppCard.vue'
-import { CATEGORY_WRITES } from '../../../settings/application/namedRecordWrites'
+import { CATEGORY_WRITES } from '../../../categories/application/categoryWrites'
 import { NO_RECORDS, recordWithId } from '../../../../../shared/storage/domain/recordsRead'
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
 import { useBookedWorkbook } from '../../../transactions/application/useBookedWorkbook'

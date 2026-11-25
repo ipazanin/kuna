@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { categorise } from '../src/shared/categorising/domain/categorise'
-import type { Rule, RuleCondition } from '../src/shared/categorising/domain/rule'
+import { categorise } from '../src/apps/company/rules/domain/categorise'
+import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
 import { budgetRevenueCode, isCardTransaction, isForeignCurrency, postedCurrency, transactionFacts } from '../src/shared/categorising/domain/transactionFacts'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { foldRuleText } from '../src/shared/text/fold'

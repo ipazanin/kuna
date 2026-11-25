@@ -9,8 +9,8 @@ import USlideover from '@nuxt/ui/components/Slideover.vue'
 
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { BUCKETS } from '../../workbook/domain/bucket'
-import { NO_FILTERS, filtersInUse } from '../../settings/domain/categoryListing'
-import type { CategoryFilters } from '../../settings/domain/categoryListing'
+import { NO_FILTERS, filtersInUse } from '../domain/categoryListing'
+import type { CategoryFilters } from '../domain/categoryListing'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 

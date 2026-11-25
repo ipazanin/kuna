@@ -2,8 +2,8 @@ import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { categorise } from '../../../../shared/categorising/domain/categorise'
-import type { Rule } from '../../../../shared/categorising/domain/rule'
+import { categorise } from './categorise'
+import type { Rule } from './rule'
 import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 
 type CoverageRow = CategorisableRow & Pick<Transaction, 'category' | 'flaggedBy' | 'bucket'>

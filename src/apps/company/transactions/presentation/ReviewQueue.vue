@@ -14,7 +14,7 @@ import type { RecordWriteOptions } from '../../../../shared/storage/presentation
 import { plural } from '../../../../shared/text/translation'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { installedPack, shownPack } from '../../packs/packContribution'
-import type { Verdict } from '../../../../shared/categorising/domain/categorise'
+import type { Verdict } from '../../rules/domain/categorise'
 import { draftForRow } from '../../rules/domain/ruleDraft'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
 import RuleEditor from '../../rules/presentation/RuleEditor.vue'

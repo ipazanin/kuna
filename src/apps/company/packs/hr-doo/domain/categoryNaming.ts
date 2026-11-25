@@ -3,7 +3,7 @@ import { slugListOf, slugOf } from '../../../../../shared/storage/domain/storedF
 import { recordsOf } from '../../../../../shared/storage/domain/recordsRead'
 import type { RecordsRead } from '../../../../../shared/storage/domain/recordsRead'
 import { movedTo } from '../../../owner-share/domain/ownerShare'
-import type { MovedRecord } from '../../../settings/domain/categoryMove'
+import type { MovedRecord } from '../../../categories/domain/categoryMove'
 import type { CategoryNaming, NamedRecordsMove } from '../../../workbook/domain/packPart'
 import type { PlanLine } from './forecast/plan'
 import { OWNER_ADVANCE_WRITES, PLAN_WRITES, YEAR_END_WRITES } from './hrDooWrites'

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
-import { rolesOfText } from '../../settings/domain/categoryDrafts'
+import { rolesOfText } from '../domain/categoryDrafts'
 import { words } from './words'
 
 /**

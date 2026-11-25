@@ -74,7 +74,7 @@ export const en = {
     onAnotherAccount: (iban: string, account: string) => `${iban} is already the IBAN of the ${account} account, and the app files each statement by its IBAN, so one IBAN names one account.`,
     onAClient: (iban: string, client: string) => `${iban} is the IBAN of the client ${client}, so the rules would read its payments as transfers between your own accounts.`,
   },
-  /** What the categories editor says beside a field it cannot save. */
+  /** What the categories, the accounts and the data sources editors say beside a field they cannot save. */
   fields: {
     required: 'Required',
     period: {

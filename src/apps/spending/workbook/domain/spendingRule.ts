@@ -1,9 +1,9 @@
 import type { RowLink } from './rowLink'
 import type { Transaction } from './transaction'
-import { rulePattern } from '../../../../shared/categorising/domain/textTest'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { stripAccents } from '../../../../shared/text/fold'
 
 /** The tests that compare a row's text with values the rule lists, any of which may match. An IBAN is kept in capitals without spaces. */
 export const TEXT_TESTS = ['payee_is', 'payee_contains', 'payee_starts_with', 'payee_matches', 'iban_is', 'description_contains', 'description_starts_with', 'description_matches'] as const
@@ -137,4 +137,21 @@ function sameConditions(one: readonly SpendingRuleCondition[], other: readonly S
 export function payeeCondition(row: Pick<Transaction, 'payee' | 'counterpartyIban'>): SpendingRuleCondition | null {
   if (row.counterpartyIban !== '') return { test: 'iban_is', values: [row.counterpartyIban], not: false }
   return row.payee === '' ? null : { test: 'payee_contains', values: [row.payee], not: false }
+}
+
+/**
+ * A rule's regular expression as it tests folded text: its accents stripped and any case matching, since folded text has no
+ * accents and is in capitals. Null when the text is not a regular expression.
+ */
+export function rulePattern(pattern: string): RegExp | null {
+  try {
+    return new RegExp(stripAccents(pattern), 'i')
+  } catch {
+    return null
+  }
+}
+
+/** Whether folded text matches a pattern `rulePattern` made. Blank text matches none. */
+export function foldedTextMatches(folded: string, pattern: RegExp): boolean {
+  return folded !== '' && pattern.test(folded)
 }

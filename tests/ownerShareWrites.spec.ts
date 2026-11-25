@@ -8,7 +8,7 @@ import { confirmation, recategorisation, waitingRowsSettledBy } from '../src/app
 import type { RowVerdict } from '../src/apps/company/transactions/domain/verdictChanges'
 import { writeRulesChange } from '../src/apps/company/rules/application/ruleWrites'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
-import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import { CATEGORY_WRITES } from '../src/apps/company/categories/application/categoryWrites'
 import { writeSplit } from '../src/apps/company/transactions/application/splitWrites'
 import { LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { SplitKey } from '../src/apps/company/workbook/domain/splits'

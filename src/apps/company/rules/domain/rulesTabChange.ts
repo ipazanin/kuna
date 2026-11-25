@@ -4,7 +4,7 @@ import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import { idsText } from '../../../../shared/storage/domain/storedFields'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RuleTabRow } from './readRules'
-import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
+import type { Rule, RuleCondition } from './rule'
 import { words } from './words'
 
 export type RuleFields = RuleTabRow['fields']

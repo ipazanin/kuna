@@ -10,8 +10,9 @@ import type { RecordProblem } from '../../../../shared/storage/domain/recordsRea
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { idsInText, slugOf, textOf as fieldTextOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
-import { CONDITION_COLUMNS, inTryingOrder } from '../../../../shared/categorising/domain/rule'
-import type { Rule, RuleCondition, RuleConfidence } from '../../../../shared/categorising/domain/rule'
+import { CONDITION_COLUMNS } from './rule'
+import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
+import type { Rule, RuleCondition, RuleConfidence } from './rule'
 import { words } from './words'
 
 /** Every column of the `rules` tab in its seeded order. */

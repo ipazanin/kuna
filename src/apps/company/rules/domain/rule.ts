@@ -1,5 +1,4 @@
-import type { RecordId } from '../../storage/domain/recordId'
-import { naturalOrder } from '../../text/naturalOrder'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** `rule` files a row at full confidence. `review` writes `ai`, so the row waits on Needs review. */
 export type RuleConfidence = 'rule' | 'review'
@@ -52,8 +51,3 @@ export const CONDITION_COLUMNS = [
   'is_card',
   'foreign_currency',
 ] as const
-
-/** The rules in the order they are tried: by order, then by id. */
-export function inTryingOrder<Tried extends Pick<Rule, 'id' | 'order'>>(rules: readonly Tried[]): Tried[] {
-  return [...rules].sort((earlier, later) => earlier.order - later.order || naturalOrder(earlier.id.toLowerCase(), later.id.toLowerCase()))
-}

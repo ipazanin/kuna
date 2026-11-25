@@ -9,7 +9,7 @@ import type { OwnerAdvanceEntry } from '../src/apps/company/packs/hr-doo/domain/
 import type { YearEndLine } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEnd'
 import { words as packWords } from '../src/apps/company/packs/hr-doo/presentation/words'
 import { installedPack } from '../src/apps/company/packs/packContribution'
-import { categoryMove, keptByMove } from '../src/apps/company/settings/domain/categoryMove'
+import { categoryMove, keptByMove } from '../src/apps/company/categories/domain/categoryMove'
 import type { CategoryNaming } from '../src/apps/company/workbook/domain/packPart'
 import { BUCKETS } from '../src/apps/company/workbook/domain/bucket'
 import { CATEGORY_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'

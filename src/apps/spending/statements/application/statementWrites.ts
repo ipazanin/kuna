@@ -29,7 +29,7 @@ import type { RuleDraft, SpendingRule } from '../../workbook/domain/spendingRule
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'

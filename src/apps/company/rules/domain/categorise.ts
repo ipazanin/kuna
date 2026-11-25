@@ -1,12 +1,12 @@
-import type { RecordId } from '../../storage/domain/recordId'
-import { inTryingOrder } from './rule'
 import type { Rule, RuleCondition } from './rule'
-import { foldedTextHolds } from './textTest'
-import { transactionFacts } from './transactionFacts'
-import type { CategorisableRow, CategorisationContext, TransactionFacts } from './transactionFacts'
+import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
+import { foldedTextHolds } from '../../../../shared/categorising/domain/textTest'
+import { transactionFacts } from '../../../../shared/categorising/domain/transactionFacts'
+import type { CategorisableRow, CategorisationContext, TransactionFacts } from '../../../../shared/categorising/domain/transactionFacts'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** What the categoriser writes for a row no rule decides, or a `review` rule with no category. */
-export const UNKNOWN_CATEGORY = 'unknown'
+const UNKNOWN_CATEGORY = 'unknown'
 
 export interface Verdict {
   readonly category: string
@@ -34,7 +34,7 @@ export function categorise(transaction: CategorisableRow, rules: readonly Rule[]
   }
 }
 
-export function ruleMatches(rule: Rule, facts: TransactionFacts): boolean {
+function ruleMatches(rule: Rule, facts: TransactionFacts): boolean {
   return rule.conditions.every((condition) => conditionHolds(condition, facts))
 }
 

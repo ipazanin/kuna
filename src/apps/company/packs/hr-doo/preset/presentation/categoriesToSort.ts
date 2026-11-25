@@ -1,7 +1,7 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { plural } from '../../../../../../shared/text/translation'
 import type { CategoryToSort } from '../../../packContribution'
-import { classFindings } from '../../../../settings/domain/categoryClasses'
+import { classFindings } from '../../../../categories/domain/categoryClasses'
 import { words as categoryWords } from '../../../../categories/presentation/words'
 import type { Dismissal } from '../../../../workbook/domain/dismissals'
 import { displayName } from '../../../../workbook/domain/displayName'

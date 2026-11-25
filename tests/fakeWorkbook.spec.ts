@@ -22,7 +22,7 @@ import {
   withPaymentsMatched,
 } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
-import { categorise } from '../src/shared/categorising/domain/categorise'
+import { categorise } from '../src/apps/company/rules/domain/categorise'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
 import { planAgainstActual } from '../src/apps/company/packs/hr-doo/domain/forecast/planAgainstActual'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'

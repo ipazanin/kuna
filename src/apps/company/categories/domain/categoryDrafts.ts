@@ -11,9 +11,9 @@ import { isVatTreatment, vatCell } from '../../workbook/domain/vatTreatment'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 import { sameClassedFields } from './categoryClasses'
 import type { ClassedFields } from './categoryClasses'
-import { madeOfDrafts } from './recordDrafts'
-import type { MadeDraft } from './recordDrafts'
-import { words } from './words'
+import { madeOfDrafts } from '../../settings/domain/recordDrafts'
+import type { MadeDraft } from '../../settings/domain/recordDrafts'
+import { words } from '../../settings/domain/words'
 
 /** One row of the categories editor, as text, the way the tab holds it. */
 export interface CategoryDraft {

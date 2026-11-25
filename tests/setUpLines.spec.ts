@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { Rule } from '../src/shared/categorising/domain/rule'
+import type { Rule } from '../src/apps/company/rules/domain/rule'
 import { assetsSetUp } from '../src/apps/assets/overview/presentation/assetsSetUp'
 import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettingSetUp'
 import { hr as croatianWords } from '../src/apps/company/onboarding/presentation/words'

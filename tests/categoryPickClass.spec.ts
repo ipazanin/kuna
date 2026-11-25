@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { PACK_ROLES } from '../src/apps/company/packs/hr-doo/domain/packRoles'
 import { CATEGORY_CLASSES } from '../src/apps/company/packs/hr-doo/preset/domain/taxClassOf'
-import { categoryClassRefusals } from '../src/apps/company/settings/domain/categoryGuards'
-import { categoriesOfDrafts, categoryDraftErrors, draftWithClass, rolesOfText } from '../src/apps/company/settings/domain/categoryDrafts'
-import type { CategoryDraft } from '../src/apps/company/settings/domain/categoryDrafts'
+import { categoryClassRefusals } from '../src/apps/company/categories/domain/categoryGuards'
+import { categoriesOfDrafts, categoryDraftErrors, draftWithClass, rolesOfText } from '../src/apps/company/categories/domain/categoryDrafts'
+import type { CategoryDraft } from '../src/apps/company/categories/domain/categoryDrafts'
 
 const KNOWN_ROLES = Object.values(PACK_ROLES)
 const CAR_CLASS = PACK_ROLES.vehicleInsuranceInterestTaxAndFees

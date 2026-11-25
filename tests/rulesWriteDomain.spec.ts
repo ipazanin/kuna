@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { confirmation } from '../src/apps/company/transactions/domain/verdictChanges'
 import { RULE_CODEC, readRules } from '../src/apps/company/rules/domain/readRules'
-import type { Rule, RuleCondition } from '../src/shared/categorising/domain/rule'
+import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'
 import { placeBefore, swapWithNeighbour } from '../src/apps/company/rules/domain/rulePlacement'
 import { ruleFieldsOf, rulesTabAfter } from '../src/apps/company/rules/domain/rulesTabChange'

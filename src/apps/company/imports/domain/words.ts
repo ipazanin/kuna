@@ -1,6 +1,6 @@
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import type { EntrySide } from '../../../../shared/categorising/domain/rule'
+import type { EntrySide } from '../../rules/domain/rule'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'

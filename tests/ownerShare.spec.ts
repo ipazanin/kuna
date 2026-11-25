@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { filedIn, movedTo, ownerShareOf, ownerShareProblem, storedOwnerShare } from '../src/apps/company/owner-share/domain/ownerShare'
 import type { OwnerShare } from '../src/apps/company/owner-share/domain/ownerShare'
-import { categoryShareRefusals } from '../src/apps/company/settings/domain/categoryGuards'
+import { categoryShareRefusals } from '../src/apps/company/categories/domain/categoryGuards'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { EMPTY_TABS, sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'

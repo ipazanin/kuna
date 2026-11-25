@@ -1,7 +1,7 @@
 import { newCondition, withCondition } from '../rules/domain/ruleDraft'
 import type { ConditionColumn, DraftCondition } from '../rules/domain/ruleDraft'
 import type { StrictSchema } from '../../../shared/ai/domain/strictSchema'
-import type { RuleCondition } from '../../../shared/categorising/domain/rule'
+import type { RuleCondition } from '../rules/domain/rule'
 import { normaliseIban } from '../../../shared/text/fold'
 
 /**

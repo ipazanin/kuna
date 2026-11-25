@@ -1,4 +1,4 @@
-import type { EntrySide } from '../../../../shared/categorising/domain/rule'
+import type { EntrySide } from '../../rules/domain/rule'
 import type { Money } from '../../../../shared/money/money'
 
 /** The side each paired role takes, by role. */

@@ -1,9 +1,9 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
-import { categoriesOfDrafts, categoryDraftsOf, pickedColour } from '../src/apps/company/settings/domain/categoryDrafts'
-import { categoryColourRefusals } from '../src/apps/company/settings/domain/categoryGuards'
+import { CATEGORY_WRITES } from '../src/apps/company/categories/application/categoryWrites'
+import { categoriesOfDrafts, categoryDraftsOf, pickedColour } from '../src/apps/company/categories/domain/categoryDrafts'
+import { categoryColourRefusals } from '../src/apps/company/categories/domain/categoryGuards'
 import { categoryColourOf, isCategoryColour } from '../src/apps/company/workbook/domain/categoryColour'
 import { readCategories } from '../src/apps/company/workbook/domain/categoriesReading'
 import { CATEGORY_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'

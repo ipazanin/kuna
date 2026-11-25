@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { recategorisation } from '../src/apps/company/transactions/domain/verdictChanges'
-import type { Rule } from '../src/shared/categorising/domain/rule'
+import type { Rule } from '../src/apps/company/rules/domain/rule'
 import { ruleAgainst } from '../src/apps/company/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'

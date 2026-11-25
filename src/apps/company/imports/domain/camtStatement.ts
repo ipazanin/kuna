@@ -1,6 +1,6 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { EntrySide } from '../../../../shared/categorising/domain/rule'
+import type { EntrySide } from '../../rules/domain/rule'
 import { ZERO, addMoney, moneyFromAmount, negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'

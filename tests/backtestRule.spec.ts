@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { backtestRuleChange } from '../src/apps/company/rules/domain/backtestRule'
-import { categorise } from '../src/shared/categorising/domain/categorise'
+import { categorise } from '../src/apps/company/rules/domain/categorise'
 import { proposeRule } from '../src/apps/company/rules/domain/proposeRule'
 import { HR_DOO_PART } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
-import type { Rule, RuleCondition } from '../src/shared/categorising/domain/rule'
+import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Category } from '../src/apps/company/workbook/domain/workbook'

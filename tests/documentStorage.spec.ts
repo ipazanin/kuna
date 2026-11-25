@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import { CATEGORY_WRITES } from '../src/apps/company/categories/application/categoryWrites'
 import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
 import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { settingRow } from '../src/shared/storage/domain/settingRows'

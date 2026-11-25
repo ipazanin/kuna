@@ -1,9 +1,9 @@
 import { RECEIVABLE_ROLES } from '../../receivables/domain/invoiceMatching'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
-import { categorise } from '../../../../shared/categorising/domain/categorise'
+import { categorise } from './categorise'
 import { placeBefore } from './rulePlacement'
-import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
+import type { Rule, RuleCondition } from './rule'
 import { fold, foldRuleText } from '../../../../shared/text/fold'
 import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import { CATEGORY_WRITES } from '../src/apps/company/categories/application/categoryWrites'
 import { ownerAdvanceOfDraft } from '../src/apps/company/packs/hr-doo/application/ownerAdvanceWrites'
 import type { OwnerAdvanceDraft } from '../src/apps/company/packs/hr-doo/application/ownerAdvanceWrites'
 import { OWNER_ADVANCE_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'

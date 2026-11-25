@@ -1,6 +1,6 @@
-import { classFindings } from '../../settings/domain/categoryClasses'
-import { classChanged, classedFieldsOf } from '../../settings/domain/categoryDrafts'
-import type { CategoryDraft, CategoryField } from '../../settings/domain/categoryDrafts'
+import { classFindings } from '../domain/categoryClasses'
+import { classChanged, classedFieldsOf } from '../domain/categoryDrafts'
+import type { CategoryDraft, CategoryField } from '../domain/categoryDrafts'
 import type { CategoryClass } from '../../workbook/domain/packPart'
 import { words } from './words'
 

@@ -6,7 +6,7 @@ import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook
 import type { ImportDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import { writeOwnerShare } from '../src/apps/company/owner-share/application/ownerShareWrites'
 import { ownerShareOf } from '../src/apps/company/owner-share/domain/ownerShare'
-import { deleteCategoryInto } from '../src/apps/company/settings/application/namedRecordWrites'
+import { deleteCategoryInto } from '../src/apps/company/categories/application/categoryWrites'
 import { fileRows } from '../src/apps/company/transactions/application/fileRows'
 import { ITEM_WRITES } from '../src/apps/company/transactions/application/itemWrites'
 import { removeSplit, writeSplit } from '../src/apps/company/transactions/application/splitWrites'

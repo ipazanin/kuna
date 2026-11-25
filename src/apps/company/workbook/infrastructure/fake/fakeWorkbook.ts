@@ -115,7 +115,7 @@ const CATEGORY_VAT: Readonly<Record<string, string>> = {
 }
 
 /**
- * Colours picked on Settings, Categories: every swatch, Blue twice in one bucket, and a few blanks.
+ * Colours picked on Sorting, Categories: every swatch, Blue twice in one bucket, and a few blanks.
  * The rest keep the seed's pastel, which reads as the bucket colour. The benefits category wears
  * Violet, so it takes none of the owner pay chart's free slots.
  */

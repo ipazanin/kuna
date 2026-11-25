@@ -10,7 +10,7 @@ import type { OwnerPart, OwnerPartOf } from '../../owner-share/domain/ownerParts
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { InvoiceLine } from '../../invoicing/domain/invoiceLine'
 import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
-import type { Rule } from '../../../../shared/categorising/domain/rule'
+import type { Rule } from '../../rules/domain/rule'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import type { Settings } from '../../settings/domain/settings'
 import type { BillingItem } from './billingPlan'

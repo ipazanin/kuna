@@ -133,6 +133,13 @@ describe('a stored Spending rule', () => {
     expect(make({ counterparty_contains: 'Corner market', category: 'x' }).conditions).toEqual([payeeContains('Corner market')])
   })
 
+  it.each(['direction', 'has_counterparty_iban', 'counterparty_is_own', 'counterparty_is_client', 'tx_domain', 'tx_family', 'tx_sub_family', 'purpose', 'revenue_code', 'is_card', 'foreign_currency'])(
+    'refuses a rule holding %s, a condition only Company reads',
+    (column) => {
+      expect(() => make({ payee_contains: 'a', category: 'x', [column]: 'credit' })).toThrow(`Spending's rules read no ${column}`)
+    },
+  )
+
   it.each([
     [{ category: 'x' }, 'tests at least one thing'],
     [{ payee_contains: 'a', category: 'x', money_out: true }, ''],

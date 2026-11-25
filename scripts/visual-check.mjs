@@ -47,7 +47,7 @@
  * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
  * warned line, a rule for Laptop Store re-files a confirmed row with a warning, trying the second rule first is a card that says where it is tried, a category for training or for
  * donations is a card that names its tax class, and Kuna's dark look is a card with Undo. In the fake books with a donation of 3,000.00, well above its cap,
- * and a sponsorship to a listed club, Year's PD return shows PD lines 14 and 33.a with a caption that neither is averaged, and the categories tab,
+ * and a sponsorship to a listed club, Year's PD return shows PD lines 14 and 33.a with a caption that neither is averaged, and Sorting's Categories card,
  * scrolled to the two rows, names their classes.
  * In Loans a loan offer is a card that sets Kuna's EKS and first instalment beside the printed ones and warns where they differ, a bank loan
  * from its contract warns where its first instalment differs from the printed one, and an extra
@@ -1489,14 +1489,14 @@ const SCREENS = [
     shows: ['GADGET CORNER', '2 stavke za provjeru', 'Za provjeru'],
   },
   {
-    name: 'company-settings-category-rules',
+    name: 'company-sorting-rules',
     hash: '#/company/sorting#rules',
     title: 'Sorting',
     charts: 0,
     shows: ['tax-office-payroll', 'Show all 20', 'Confirmed rows no rule repeats', 'Rules'],
   },
   {
-    name: 'company-settings-category-rules-croatian',
+    name: 'company-sorting-rules-croatian',
     query: 'lang=hr',
     hash: '#/company/sorting#rules',
     title: 'Razvrstavanje',
@@ -1504,7 +1504,7 @@ const SCREENS = [
     shows: ['tax-office-payroll', 'Potvrđene stavke koje nijedno pravilo ne ponavlja', 'IBAN partnera je', 'Pravila'],
   },
   {
-    name: 'company-settings-category-rules-linked',
+    name: 'company-sorting-rules-linked',
     hash: '#/company/sorting?rule=merchant-airline',
     title: 'Sorting',
     charts: 0,
@@ -1513,7 +1513,7 @@ const SCREENS = [
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
   {
-    name: 'company-settings-category-rules-linked-croatian',
+    name: 'company-sorting-rules-linked-croatian',
     query: 'lang=hr',
     hash: '#/company/sorting?rule=merchant-airline',
     title: 'Razvrstavanje',
@@ -1717,7 +1717,7 @@ const SCREENS = [
     linkedPart: 'owner-loan-interest',
   },
   {
-    name: 'company-settings-categories',
+    name: 'company-sorting-categories',
     hash: '#/company/sorting#categories',
     title: 'Sorting',
     charts: 0,
@@ -1726,7 +1726,7 @@ const SCREENS = [
     linkedCard: 'company-sorting.categories',
   },
   {
-    name: 'company-settings-categories-croatian',
+    name: 'company-sorting-categories-croatian',
     query: 'lang=hr',
     hash: '#/company/sorting#categories',
     title: 'Razvrstavanje',
@@ -2313,8 +2313,8 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'company-settings-browser', query: 'fake=browser', hash: '#/company/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
-  { name: 'company-settings-categories-browser', query: 'fake=browser', hash: '#/company/sorting#categories', title: 'Sorting', charts: 0, shows: 'Save categories' },
-  { name: 'company-settings-categories-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/sorting#categories', title: 'Razvrstavanje', charts: 0, shows: 'Spremi kategorije' },
+  { name: 'company-sorting-categories-browser', query: 'fake=browser', hash: '#/company/sorting#categories', title: 'Sorting', charts: 0, shows: 'Save categories' },
+  { name: 'company-sorting-categories-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/sorting#categories', title: 'Razvrstavanje', charts: 0, shows: 'Spremi kategorije' },
   { name: 'company-settings-accounts-browser', query: 'fake=browser', hash: '#/company/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
   { name: 'company-settings-books-browser', query: 'fake=browser', hash: '#/company/settings?tab=books', title: 'Settings', charts: 0, shows: ['Import a file', 'Keep on Google Drive'], cards: false },
   { name: 'company-settings-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/settings', title: 'Postavke', charts: 0, shows: ['Spremi postavke', 'Zapis brojeva'] },
@@ -7431,7 +7431,7 @@ const FLOWS = [
     queries: { browser: '&fake=browser-donations&lang=hr' },
   },
   {
-    name: 'company-settings-categories-donations',
+    name: 'company-sorting-categories-donations',
     hash: '#/company/sorting#categories',
     title: 'Sorting',
     run: categoriesDonationsFlowIn('en'),
@@ -7440,7 +7440,7 @@ const FLOWS = [
     queries: { browser: '&fake=browser-donations' },
   },
   {
-    name: 'company-settings-categories-donations-croatian',
+    name: 'company-sorting-categories-donations-croatian',
     hash: '#/company/sorting#categories',
     title: 'Razvrstavanje',
     run: categoriesDonationsFlowIn('hr'),

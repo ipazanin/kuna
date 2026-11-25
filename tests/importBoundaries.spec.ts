@@ -183,7 +183,6 @@ const OPERATIONS_ON_PRESENTATION = [
   'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/assetTexts.ts',
   'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/loanChoices.ts',
   'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/valuationTexts.ts',
-  'src/apps/company/assistant/operations/proposalLines.ts -> src/apps/company/settings/presentation/vatTreatmentLabel.ts',
   'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/packs/hr-doo/presentation/editorColumns.ts',
   'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/settings/presentation/factTabColumns.ts',
   'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/imports/presentation/dryRunLines.ts',
@@ -212,6 +211,47 @@ function readsPublished(entry: Import): boolean {
 
 /** The shared modules that each hold one capability two apps use, which stay apart so none grows into another. */
 const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail/', 'src/shared/privacy/', 'src/shared/bank-sync/']
+
+/** The one file that holds the write rules of Company's categories. */
+const COMPANY_CATEGORY_WRITES = 'src/apps/company/categories/application/categoryWrites.ts'
+
+/**
+ * Each function or const a folder of `src` exports, as `file#name`, with the files in `src` that call it: those that import it
+ * by name outside `import type`, and its own file when that file calls it too. An export only the tests use has none.
+ */
+function valueImportersOf(folder: string): ReadonlyMap<string, readonly string[]> {
+  const callers = new Map<string, string[]>()
+  for (const file of SOURCE_FILES.filter((name) => name.startsWith(folder))) {
+    const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest)
+    for (const statement of source.statements) {
+      if (!ts.getModifiers(statement as ts.HasModifiers)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue
+      const names = ts.isFunctionDeclaration(statement)
+        ? [statement.name?.text ?? '']
+        : ts.isVariableStatement(statement)
+          ? statement.declarationList.declarations.map((declaration) => declaration.name.getText(source))
+          : []
+      const text = source.getFullText()
+      names.forEach((name) => callers.set(`${file}#${name}`, (text.match(new RegExp(`\\b${name}\\b`, 'g')) ?? []).length > 1 ? [file] : []))
+    }
+  }
+  const importers = new Set(IMPORTS.filter((entry) => !entry.typeOnly && entry.target?.startsWith(folder) && entry.from !== entry.target).map((entry) => entry.from))
+  for (const file of importers) {
+    for (const { code } of scriptsOf(join(ROOT, file))) {
+      const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest)
+      for (const statement of source.statements) {
+        if (!ts.isImportDeclaration(statement) || statement.importClause?.isTypeOnly || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+        const specifier = statement.moduleSpecifier.text
+        const bindings = statement.importClause?.namedBindings
+        if (!specifier.startsWith('.') || bindings === undefined || !ts.isNamedImports(bindings)) continue
+        const target = resolvedFile(dirname(join(ROOT, file)), specifier)
+        for (const element of bindings.elements) {
+          if (!element.isTypeOnly) callers.get(`${target}#${(element.propertyName ?? element.name).text}`)?.push(file)
+        }
+      }
+    }
+  }
+  return callers
+}
 
 function capabilityOf(file: string): string | null {
   return CAPABILITIES.find((folder) => file.startsWith(folder)) ?? null
@@ -402,6 +442,23 @@ describe('import boundaries', () => {
 
   it('keeps each shared capability module off the others', () => {
     expect(broken((entry) => capabilityOf(entry.from) === null || entry.target === null || capabilityOf(entry.target) === null || capabilityOf(entry.target) === capabilityOf(entry.from))).toEqual([])
+  })
+
+  it("keeps in the rules core only what both Company and Spending call, so neither app's rule shape sits in shared code", () => {
+    const callers = valueImportersOf('src/shared/categorising/')
+    expect(callers.get('src/shared/categorising/domain/ruleOrder.ts#inTryingOrder')).toEqual(expect.arrayContaining(['src/apps/company/rules/domain/categorise.ts']))
+    const oneApp = [...callers].filter(([, files]) => files.length > 0 && files.every((file) => appOf(file) !== null && appOf(file) === appOf(files[0]!)))
+    expect(oneApp.map(([name, files]) => `${name} is called only by ${appOf(files[0]!)}`)).toEqual([])
+  })
+
+  it("keeps Company's settings off its categories, which read the settings", () => {
+    expect(broken((entry) => !entry.from.startsWith('src/apps/company/settings/') || entry.target === null || !entry.target.startsWith('src/apps/company/categories/'))).toEqual([])
+  })
+
+  it("writes Company's categories in one file under categories", () => {
+    const writes = /WriteRules<\s*CategoryRecord\s*>/
+    expect(linesHolding(writes, () => false).map((line) => line.split(':')[0])).toContain(COMPANY_CATEGORY_WRITES)
+    expect(linesHolding(writes, (file) => file === COMPANY_CATEGORY_WRITES)).toEqual([])
   })
 
   it('leaves the names of the secrets, in this browser and on Drive, to the secrets module alone', () => {

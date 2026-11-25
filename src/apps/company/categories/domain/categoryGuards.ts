@@ -10,7 +10,7 @@ import type { CategoryClass } from '../../workbook/domain/packPart'
 import { ADVANCE_BUCKETS } from '../../workbook/domain/workbook'
 import { classFindings, sameClassedFields } from './categoryClasses'
 import type { ClassedFields } from './categoryClasses'
-import { words } from './words'
+import { words } from '../../settings/domain/words'
 
 /** One categories row before and after a change, as the fields a check reads. `before` is null for an added row, `after` for a deleted one. */
 export interface CategoryEdit<Cells extends { readonly slug: string }> {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { CategoryDraft } from '../src/apps/company/settings/domain/categoryDrafts'
-import { NO_FILTERS, categoryListing, filtersInUse } from '../src/apps/company/settings/domain/categoryListing'
-import type { CategoryFilters, ListedDraft } from '../src/apps/company/settings/domain/categoryListing'
+import type { CategoryDraft } from '../src/apps/company/categories/domain/categoryDrafts'
+import { NO_FILTERS, categoryListing, filtersInUse } from '../src/apps/company/categories/domain/categoryListing'
+import type { CategoryFilters, ListedDraft } from '../src/apps/company/categories/domain/categoryListing'
 import type { CategoryClass } from '../src/apps/company/workbook/domain/packPart'
 
 function listed(saved: number | null, name: string, overrides: Partial<CategoryDraft> = {}, state: Partial<Omit<ListedDraft, 'draft'>> = {}): ListedDraft {

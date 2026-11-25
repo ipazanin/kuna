@@ -1,5 +1,5 @@
-import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
-import type { Rule } from '../../../../shared/categorising/domain/rule'
+import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
+import type { Rule } from '../domain/rule'
 import { words } from './words'
 
 /** Where a rule is tried, as the rule form and the chat's card say it: first, before the rule tried next, or after every rule. */

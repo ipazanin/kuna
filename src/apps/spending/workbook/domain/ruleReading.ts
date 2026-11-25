@@ -7,7 +7,6 @@ import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LABEL_RECORDS, RULE_RECORDS } from '
 import { AMOUNT_TESTS, CONDITION_TESTS, FLAG_TESTS, TEXT_TESTS, ruleProblem } from './spendingRule'
 import type { ConditionTest, RuleWithdrawal, SpendingRule, SpendingRuleCondition } from './spendingRule'
 import { words } from './words'
-import { CONDITION_COLUMNS } from '../../../../shared/categorising/domain/rule'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
@@ -27,6 +26,24 @@ import type { Reading, RecordsRead } from '../../../../shared/storage/domain/rec
 
 /** The fields a file from before conditions holds a rule's one test in, read as payee contains and IBAN is. */
 const OLDER_TESTS = { counterparty_contains: 'payee_contains', counterparty_iban: 'iban_is' } as const
+
+/**
+ * Company's condition fields that Spending does not read. A file once held Spending's rules in Company's shape, so a rule with one
+ * of these is refused rather than read wider than it is. The list is fixed and does not follow Company's conditions.
+ */
+const COMPANY_ONLY_CONDITIONS = [
+  'direction',
+  'has_counterparty_iban',
+  'counterparty_is_own',
+  'counterparty_is_client',
+  'tx_domain',
+  'tx_family',
+  'tx_sub_family',
+  'purpose',
+  'revenue_code',
+  'is_card',
+  'foreign_currency',
+] as const
 
 /** The field that holds a test, with `not_` before it for a test turned around. */
 function columnOf(test: ConditionTest, not: boolean): string {
@@ -71,11 +88,10 @@ function conditionIn(fields: StoredFields, test: ConditionTest, not: boolean): S
 
 /**
  * The conditions a stored rule states, one field per test, and a test of a file from before conditions read as the condition it
- * meant. Any of Company's condition columns Spending does not read is refused, so a rule never reads as wider than it is.
+ * meant. Company's condition fields in COMPANY_ONLY_CONDITIONS are refused, so a rule never reads as wider than it is.
  */
 function conditionsOf(fields: StoredFields): readonly SpendingRuleCondition[] {
-  const read = new Set<string>([...CONDITION_TESTS, ...Object.keys(OLDER_TESTS)])
-  const other = CONDITION_COLUMNS.find((column) => !read.has(column) && fields[column] !== undefined)
+  const other = COMPANY_ONLY_CONDITIONS.find((column) => fields[column] !== undefined)
   if (other !== undefined) refuse(words.ruleOtherCondition(other))
   const older = Object.entries(OLDER_TESTS).flatMap(([column, test]): SpendingRuleCondition[] => {
     const text = textOf(fields[column])

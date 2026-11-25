@@ -26,7 +26,7 @@ import { categoryIdNamed, labelNamed, SORTING_CARDS } from '../../overview/prese
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import { words as spendingWords } from '../../words'
-import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
 import { rulesFiling } from '../../../../shared/categorising/domain/rulesFiling'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'

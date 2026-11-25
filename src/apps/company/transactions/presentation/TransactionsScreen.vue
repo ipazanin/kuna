@@ -22,7 +22,7 @@ import OwnerShareDialog from '../../owner-share/presentation/OwnerShareDialog.vu
 import { counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
-import { categorise } from '../../../../shared/categorising/domain/categorise'
+import { categorise } from '../../rules/domain/categorise'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
 import ItemsMoveNotice from '../../workbook/presentation/ItemsMoveNotice.vue'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
