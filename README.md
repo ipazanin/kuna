@@ -1989,6 +1989,7 @@ npm run dev            # http://localhost:5173/kuna/, talks to Google
 npm run dev:fake       # same app on a small synthetic workbook, no Google needed
 KUNA_REAL_BOOKS_DIR=/scratch/copy npm run dev:real -- --port 4420   # same app on a copy of real books, see below
 npm run check          # lint, format check, typecheck and unit tests, the import boundaries among them
+npm run test:changed   # the specs that cover the changed files, the local run, since CI runs the full suite. -- --base <ref> for work since a commit
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173

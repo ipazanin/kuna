@@ -21,7 +21,7 @@ The repo is public, so an issue holds no personal data: no names, IBANs, OIBs, a
 ## Delivering
 
 1. Work on `main`, or in a temporary worktree for parallel items, as the plan says.
-2. Check the work: `npm run check`, both builds, `npm run check:figures` against main, and the targeted visual and touch runs. CI runs the full suites.
+2. Check the work: the checks in AGENTS.md, Checks, both builds, `npm run check:figures` against main, and the targeted visual and touch runs. CI runs the full suites.
 3. Put the issue number at the end of the commit subject, in Kuna's plain-sentence style: `Spending reads a Revolut export (#45)`. Several issues list each number. Never use `closes` or `fixes`, since an issue must stay open until CI is green. No AI trailers.
 4. Push to `origin/main`. Never force-push.
 5. Watch the run: `gh run watch <id> --exit-status`. Read a failure before retrying it.

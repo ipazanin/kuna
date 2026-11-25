@@ -28,7 +28,7 @@ The shots hold real money, names and IBANs. They stay in the scratch folder. Nev
 
 ## What to check
 
-Run `npm run check`, which runs lint, the format check, typecheck and tests, and report failures first. Then check what lint cannot see.
+Run the checks in AGENTS.md, Checks, and report failures first, with the vitest filter you ran. Then check what lint cannot see.
 
 On the shots:
 

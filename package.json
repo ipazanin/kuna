@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "preview:fake": "vite preview --outDir dist-fake",
     "test": "vitest run",
+    "test:changed": "node scripts/test-changed.mjs",
     "typecheck": "vue-tsc -b --noEmit",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",

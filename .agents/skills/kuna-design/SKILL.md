@@ -122,7 +122,7 @@ Prettier owns layout: no semicolons, single quotes, 200 columns. Run `npm run fo
 
 ## Check your work
 
-1. `npm run format`, `npm run lint`, `npm run typecheck` and `npx vitest run`. `npm run check` runs them together.
+1. `npm run format`, then the checks in AGENTS.md, Checks.
 2. `npm run build` and `npm run build:fake` after a change to styles or the gallery.
 3. `npm run check:visual -- --only <screen> --widths 360,768,1440,1920` and `npm run check:touch -- --only <flow>` for the screens you changed. Never run the full suites locally, CI does.
 4. Open the gallery at `#/gallery` in a fake build, in light and dark (`?theme=dark`) and Croatian (`?lang=hr`). Tab through the changed screen and check the focus ring.

@@ -38,6 +38,14 @@ A change to anything a person sees gets a design review before it is pushed. Tha
 - Anything a person can change on a record can be changed in every dialog that edits it, so nobody has to find a specific window to finish a change. The Dialogs section of the design patterns says how.
 - Use the existing component library, colours and tokens first. A change may extend them or propose new ones, stating what it replaces or why nothing fits, with at least two uses or a clear second one coming. Removing or merging is a good outcome.
 
+## Checks
+
+CI runs the full test suite on every push, so run it locally only when asked. Run `npm run lint`, `npm run format:check` and `npm run typecheck` in full, since they are fast and catch breaks elsewhere.
+
+Run the specs that cover the change with `npm run test:changed`, or `npm run test:changed -- --base <ref>` for work since a commit. It runs every spec that imports a changed file directly or through other files, every spec that names a changed path, and the specs that read the whole tree when a file is added, moved or renamed or a shared file changes. `vitest related` does not work in this repo. For one spec or test, run `npx vitest run <name> -t "<test name>"`.
+
+Report the vitest filter you ran, not "tests pass".
+
 ## Parallel work
 
 - Run at most four worktrees in parallel.
