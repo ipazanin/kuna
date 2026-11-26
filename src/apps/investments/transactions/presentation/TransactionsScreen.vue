@@ -113,23 +113,25 @@ function change(entry: ListedTransaction): void {
       </template>
     </EmptyState>
     <AppCard v-else-if="state.workbook !== null" data-testid="transactions">
-      <div class="flex flex-wrap items-center gap-2 px-4 pt-4 pb-3 sm:px-5">
-        <USelect v-model="kind" :items="kindItems" size="sm" :aria-label="words.filters.kind" class="w-full sm:w-52" data-testid="transactions-kind" />
-        <USelect v-model="account" :items="accountItems" size="sm" :aria-label="words.filters.account" class="w-full sm:w-44" data-testid="transactions-account" />
-        <USelectMenu
-          v-model="instrument"
-          :items="instrumentItems"
-          value-key="value"
-          :filter-fields="['label', 'description']"
-          size="sm"
-          :aria-label="words.filters.holding"
-          class="w-full sm:w-52"
-          data-testid="transactions-instrument"
-        />
-        <UInput v-model="search" icon="i-lucide-search" :placeholder="words.filters.search" :aria-label="words.filters.search" size="sm" class="w-full sm:w-56" data-testid="transactions-search" />
-      </div>
-      <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="transactions-none">{{ words.noMatch }}</p>
-      <FigureTable v-else-if="wide" class="px-1 pb-2 sm:px-2" :label="words.title" data-testid="transactions-table">
+      <template #header>
+        <div class="flex flex-wrap items-center gap-2">
+          <USelect v-model="kind" :items="kindItems" size="sm" :aria-label="words.filters.kind" class="w-full sm:w-52" data-testid="transactions-kind" />
+          <USelect v-model="account" :items="accountItems" size="sm" :aria-label="words.filters.account" class="w-full sm:w-44" data-testid="transactions-account" />
+          <USelectMenu
+            v-model="instrument"
+            :items="instrumentItems"
+            value-key="value"
+            :filter-fields="['label', 'description']"
+            size="sm"
+            :aria-label="words.filters.holding"
+            class="w-full sm:w-52"
+            data-testid="transactions-instrument"
+          />
+          <UInput v-model="search" icon="i-lucide-search" :placeholder="words.filters.search" :aria-label="words.filters.search" size="sm" class="w-full sm:w-56" data-testid="transactions-search" />
+        </div>
+      </template>
+      <EmptyState v-if="rows.length === 0" line :title="words.noMatch" data-testid="transactions-none" />
+      <FigureTable v-else-if="wide" class="px-1 pt-3 pb-2 sm:px-2" :label="words.title" data-testid="transactions-table">
         <thead>
           <tr>
             <th scope="col" class="text-start">{{ words.columns.date }}</th>
@@ -167,7 +169,7 @@ function change(entry: ListedTransaction): void {
           </tr>
         </tbody>
       </FigureTable>
-      <div v-else class="pb-2" data-testid="transactions-rows">
+      <div v-else class="pt-3 pb-2" data-testid="transactions-rows">
         <section v-for="month in months" :key="month.key">
           <h2 class="group-row flex items-baseline justify-between gap-3 px-4 py-2.5 type-body" data-testid="transactions-month">
             <span>{{ month.label }}</span>

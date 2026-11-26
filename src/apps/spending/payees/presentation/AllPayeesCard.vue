@@ -16,6 +16,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** Every payee of the period from A to Z, each with their IBANs and opening their entries, found by any of their names or an IBAN. */
 const props = defineProps<{
@@ -53,8 +54,8 @@ const lines = computed(() =>
     <template v-if="totals.length > 0" #header>
       <UInput v-model="find" icon="i-lucide-search" :placeholder="words.all.find" :aria-label="words.all.find" class="w-full max-w-sm" data-testid="spending-payees-find" />
     </template>
-    <p v-if="totals.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="spending-payees-all-none">{{ words.all.none }}</p>
-    <p v-else-if="lines.length === 0" class="px-4 py-4 type-body sm:px-5" data-testid="spending-payees-all-unmatched">{{ words.all.unmatched }}</p>
+    <EmptyState v-if="totals.length === 0" line :title="words.all.none" data-testid="spending-payees-all-none" />
+    <EmptyState v-else-if="lines.length === 0" line :title="words.all.unmatched" data-testid="spending-payees-all-unmatched" />
     <ul v-else class="flex flex-col py-2">
       <li v-for="line in lines" :key="line.payee.key" class="border-t border-default first:border-t-0">
         <ListRow :to="payeePageLink(line.payee.key, period)" :title="line.payee.name" :caption="line.caption" data-testid="spending-payees-all-row">

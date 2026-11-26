@@ -17,6 +17,7 @@ import ComparisonTable from './ComparisonTable.vue'
 import KontoTable from './KontoTable.vue'
 import StatusBadge from './StatusBadge.vue'
 import { words } from './words'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 
 /**
  * A closed year's statements line by line beside the accountant's, the konto lines, and the
@@ -49,9 +50,9 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
         :summary="table.summary"
         :start-collapsed="index > 0"
       >
-        <div class="px-4 pt-3 pb-3 sm:px-3">
-          <p v-if="table.rows.length === 0" class="py-4 type-aside">{{ words.statements.noneOfThese(year) }}</p>
-          <ComparisonTable v-else :rows="table.rows" :test-id="`comparison-${table.key}`" />
+        <EmptyState v-if="table.rows.length === 0" line :title="words.statements.noneOfThese(year)" />
+        <div v-else class="px-4 pt-3 pb-3 sm:px-3">
+          <ComparisonTable :rows="table.rows" :test-id="`comparison-${table.key}`" />
         </div>
         <div v-if="table.key === 'tax' && (view.recorded.length > 0 || view.distribution)" class="flex flex-col gap-2 border-t border-default px-4 py-3 sm:px-5" data-testid="recorded-lines">
           <h3 class="type-label">{{ words.statements.recorded }}</h3>
@@ -84,9 +85,9 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
 
       <AppCard :title="words.statements.kontoTitle" collapse-id="year.konto" :summary="view.kontoSummary" start-collapsed>
         <template #subtitle> {{ words.statements.kontoBefore }}<span class="identifier">categories</span>{{ words.statements.kontoAfter }} </template>
-        <div class="px-4 pt-2 pb-3 sm:px-5">
-          <p v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" class="py-4 type-aside">{{ words.statements.noKonto(year) }}</p>
-          <KontoTable v-else :groups="view.konto" :unnamed="view.unnamedKonto" />
+        <EmptyState v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" line :title="words.statements.noKonto(year)" />
+        <div v-else class="px-4 pt-2 pb-3 sm:px-5">
+          <KontoTable :groups="view.konto" :unnamed="view.unnamedKonto" />
         </div>
       </AppCard>
     </template>

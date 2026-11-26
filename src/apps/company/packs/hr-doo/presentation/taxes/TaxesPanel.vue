@@ -44,6 +44,7 @@ import { words as packWords } from '../words'
 import { words } from './words'
 import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 import CutText from '../../../../../../shared/ui/CutText.vue'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 
 /** What the state took in a year, by type, and whether every payroll month and corporate tax payment landed. */
 const props = defineProps<{
@@ -256,7 +257,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
             </div>
           </div>
         </div>
-        <p v-if="corporateTax.years.length === 0" class="px-4 py-4 type-aside sm:px-5">{{ words.corporate.noYears }}</p>
+        <EmptyState v-if="corporateTax.years.length === 0" line :title="words.corporate.noYears" />
         <div v-else class="flex flex-col gap-5 px-4 pt-3 pb-4 sm:px-3">
           <section v-for="entry in corporateTax.years" :key="entry.taxYear" :aria-label="words.corporate.forYear(entry.taxYear)" class="flex flex-col gap-2">
             <h3 class="type-card-title sm:px-2">
@@ -283,7 +284,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
         <DrillLink to="/company/salaries" in-prose class="text-highlighted" data-testid="payroll-cadence-salaries">{{ words.cadence.salaries }}</DrillLink
         >{{ words.cadence.salariesChecks }}
       </template>
-      <p v-if="taxes.cadences.length === 0" class="px-5 py-8 type-aside">{{ words.cadence.none }}</p>
+      <EmptyState v-if="taxes.cadences.length === 0" line :title="words.cadence.none" />
       <div v-else class="flex flex-col gap-6 px-4 pt-3 pb-4 sm:px-5">
         <section v-for="cadence in taxes.cadences" :key="cadence.category" :aria-label="cadence.name" class="flex flex-col gap-3">
           <h3 class="type-card-title">{{ words.cadence.since(cadence.name, cadence.since) }}</h3>

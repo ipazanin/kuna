@@ -181,9 +181,9 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               <span class="block">{{ plural(words.panel.leftOut(problems.length), problems.length) }}</span>
               <span v-for="(problem, index) in problems" :key="index" class="block type-caption">{{ problem.label }}: {{ problem.reason }}</span>
             </NoteLine>
-            <p v-if="view.rows.length === 0" class="px-5 py-8 type-aside">
+            <EmptyState v-if="view.rows.length === 0" line>
               {{ words.panel.noRowsInYear(year) }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted">{{ words.panel.setTerms }}</DrillLink> {{ words.panel.fillOrAdd }}
-            </p>
+            </EmptyState>
             <div v-else class="px-4 pt-2 pb-3 sm:px-5">
               <BillingRowList :rows="view.rows" :show-client="showClient" @edit="editRow" />
             </div>
@@ -200,7 +200,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               start-collapsed
               :reveal="selectedMonth !== null || route.hash === '#billing-months-card'"
             >
-              <p v-if="view.months.length === 0" class="px-5 py-8 type-aside">{{ words.panel.noMonthRows(year) }}</p>
+              <EmptyState v-if="view.months.length === 0" line :title="words.panel.noMonthRows(year)" />
               <div v-else class="px-4 pt-1 pb-2 sm:px-5">
                 <BillingMonthList :months="view.months" :selected="selectedMonth" :show-client="showClient" />
               </div>

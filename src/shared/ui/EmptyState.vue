@@ -5,21 +5,34 @@ import UEmpty from '@nuxt/ui/components/Empty.vue'
 /**
  * The card a screen or a part of it shows in place of what it has nothing of yet, dashed, or of what
  * could not be worked out, with an error edge and icon. The description and actions slots take richer content.
+ * With `line` it is the one quiet sentence an empty list shows in its card, at the card's body padding.
+ * Its default slot then takes a sentence with a link in it.
  */
 withDefaults(
-  defineProps<{
-    icon: string
-    title: string
-    description?: string | undefined
-    actions?: readonly ButtonProps[]
-    tone?: 'empty' | 'error'
-  }>(),
+  defineProps<
+    | {
+        line?: false
+        icon: string
+        title: string
+        description?: string | undefined
+        actions?: readonly ButtonProps[]
+        tone?: 'empty' | 'error'
+      }
+    | {
+        line: true
+        title?: string
+      }
+  >(),
   { tone: 'empty' },
 )
 </script>
 
 <template>
+  <p v-if="line" class="px-4 pt-3 pb-4 type-aside sm:px-5">
+    <slot>{{ title }}</slot>
+  </p>
   <UEmpty
+    v-else
     :icon="icon"
     :title="title"
     v-bind="description === undefined ? {} : { description }"

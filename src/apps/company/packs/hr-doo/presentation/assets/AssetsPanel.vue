@@ -417,9 +417,7 @@ function employmentState(until: CivilDate | null): string | null {
       </AppCard>
 
       <AppCard :title="words.panel.grantTitle" :subtitle="words.panel.grantSubtitle">
-        <div class="px-4 pt-3 pb-4 sm:px-5">
-          <GrantPanel :grants="view.grants" :comparisons="view.comparisons" />
-        </div>
+        <GrantPanel :grants="view.grants" :comparisons="view.comparisons" />
       </AppCard>
 
       <ChartCard
@@ -442,9 +440,9 @@ function employmentState(until: CivilDate | null): string | null {
       </ChartCard>
 
       <AppCard :title="words.panel.perYearTitle" :subtitle="words.panel.perYearSubtitle" collapse-id="year.depreciation" :summary="view.yearsSummary" start-collapsed>
-        <div class="px-4 pt-2 pb-2 sm:px-5">
-          <p v-if="view.years.length === 0" class="py-6 type-aside">{{ words.panel.noDepreciationNote }}</p>
-          <DepreciationYears v-else :key="String(view.doubled)" :years="view.years" />
+        <EmptyState v-if="view.years.length === 0" line :title="words.panel.noDepreciationNote" />
+        <div v-else class="px-4 pt-2 pb-2 sm:px-5">
+          <DepreciationYears :key="String(view.doubled)" :years="view.years" />
         </div>
       </AppCard>
     </template>

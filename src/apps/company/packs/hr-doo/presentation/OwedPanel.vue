@@ -215,9 +215,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
             </div>
           </dl>
         </template>
-        <div class="px-4 pt-1 pb-2 sm:px-5">
-          <LoanList :loans="shownLoans" :empty="words.owed.loans.empty(owed.period)" />
-        </div>
+        <LoanList :loans="shownLoans" :empty="words.owed.loans.empty(owed.period)" />
         <ShowAllButton v-if="owed.loans.length > FIRST_SHOWN" v-model:expanded="showAllLoans" :total="owed.loans.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
 
@@ -237,9 +235,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
             </div>
           </dl>
         </template>
-        <div class="px-4 pt-1 pb-2 sm:px-5">
-          <AdvanceList :advances="shownAdvances" :empty="words.owed.advances.empty(owed.period)" @edit="editAdvance" />
-        </div>
+        <AdvanceList :advances="shownAdvances" :empty="words.owed.advances.empty(owed.period)" @edit="editAdvance" />
         <ShowAllButton v-if="owed.advances.length > FIRST_SHOWN" v-model:expanded="showAllAdvances" :total="owed.advances.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
     </DashboardGrid>

@@ -195,22 +195,26 @@ function openEntry(entry: Transaction | null): void {
             <UButton :label="words.labelling.label" icon="i-lucide-tag" :disabled="picked.size === 0" data-testid="spending-selection-label" @click="pickerOpen = true" />
           </SelectionBar>
           <AppCard v-if="transactions.length > 0" data-testid="spending-transactions">
-            <EntryFilters :filters="filters">
-              <UButton
-                v-if="canLabel && picked === null && rows.length > 0"
-                v-bind="phone ? {} : { label: words.labelling.select }"
-                :aria-label="words.labelling.selectHelp"
-                icon="i-lucide-list-checks"
-                size="sm"
-                color="neutral"
-                variant="outline"
-                class="sm:ms-auto"
-                data-testid="spending-select"
-                @click="picked = new Set()"
-              />
-            </EntryFilters>
-            <FilterTotals :filters="filters" />
-            <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="spending-transactions-none">{{ words.noMatch }}</p>
+            <template #header>
+              <div class="flex flex-col gap-3">
+                <EntryFilters :filters="filters">
+                  <UButton
+                    v-if="canLabel && picked === null && rows.length > 0"
+                    v-bind="phone ? {} : { label: words.labelling.select }"
+                    :aria-label="words.labelling.selectHelp"
+                    icon="i-lucide-list-checks"
+                    size="sm"
+                    color="neutral"
+                    variant="outline"
+                    class="sm:ms-auto"
+                    data-testid="spending-select"
+                    @click="picked = new Set()"
+                  />
+                </EntryFilters>
+                <FilterTotals :filters="filters" />
+              </div>
+            </template>
+            <EmptyState v-if="rows.length === 0" line :title="words.noMatch" data-testid="spending-transactions-none" />
             <template v-else>
               <EntryList
                 :lines="listed"
@@ -219,6 +223,7 @@ function openEntry(entry: Transaction | null): void {
                 :labels="labels"
                 :picked="picked"
                 :takes-receipt="takesReceipt"
+                class="pt-3"
                 data-testid="spending-transactions-list"
                 @open="openEntry"
                 @pick="pick"

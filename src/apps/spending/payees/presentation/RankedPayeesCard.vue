@@ -11,6 +11,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** The ten payees that took the most money on one side in the period, each opening their entries, and the rest as one line. The title names the direction, so the amounts stay in ink. */
 const props = defineProps<{
@@ -34,7 +35,7 @@ const lines = computed(() =>
 
 <template>
   <AppCard :title="sideWords.title" :subtitle="subtitle ?? undefined" :data-testid="`spending-payees-${side}`">
-    <p v-if="lines.length === 0" class="px-4 pb-4 type-body sm:px-5" :data-testid="`spending-payees-${side}-none`">{{ sideWords.none }}</p>
+    <EmptyState v-if="lines.length === 0" line :title="sideWords.none" :data-testid="`spending-payees-${side}-none`" />
     <ul v-else class="row-list near-figures flex flex-col py-2">
       <li v-for="line in lines" :key="line.payee.key" class="border-t border-default first:border-t-0">
         <ListRow :to="payeePageLink(line.payee.key, period)" :title="line.payee.name" :caption="line.caption" data-testid="spending-payee-open">

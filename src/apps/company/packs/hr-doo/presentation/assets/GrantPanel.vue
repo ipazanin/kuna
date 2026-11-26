@@ -41,6 +41,7 @@ import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 
 /** Each grant's release beside the assets it paid for, its employment condition and what a broken condition would cost today. */
 defineProps<{
@@ -50,8 +51,8 @@ defineProps<{
 </script>
 
 <template>
-  <p v-if="grants.length === 0" class="type-aside">{{ words.grants.none }}</p>
-  <div v-else class="grid gap-x-8 gap-y-5 @2xl:grid-cols-2" data-testid="grant-panel">
+  <EmptyState v-if="grants.length === 0" line :title="words.grants.none" />
+  <div v-else class="grid gap-x-8 gap-y-5 px-4 pt-3 pb-4 sm:px-5 @2xl:grid-cols-2" data-testid="grant-panel">
     <section v-for="grant in grants" :key="grant.key" :aria-label="grant.name" class="flex min-w-0 flex-col gap-3">
       <div>
         <h3 class="type-card-title">

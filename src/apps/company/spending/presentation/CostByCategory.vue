@@ -39,6 +39,7 @@ import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 import type { Money } from '../../../../shared/money/money'
 import CutText from '../../../../shared/ui/CutText.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /**
  * Cost by category as a list of bars under their buckets, each against a mark for the period
@@ -78,7 +79,7 @@ function changeText(change: CostChange | null): string {
       <ChartLegend v-if="legend.length > 0" :entries="legend" />
     </template>
 
-    <p v-if="sections.length === 0" class="px-5 py-8 type-aside">{{ words.costs.nothingSpentSentence }}</p>
+    <EmptyState v-if="sections.length === 0" line :title="words.costs.nothingSpentSentence" />
     <div v-else class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
       <section v-for="section in sections" :key="section.key" :aria-label="section.title">
         <h3 class="cost-row cost-heading">

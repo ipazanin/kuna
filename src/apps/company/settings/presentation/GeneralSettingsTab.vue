@@ -15,6 +15,7 @@ import GeneralSettingsForm from './GeneralSettingsForm.vue'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 import { useSettingsSave } from './useSettingsSave'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 const { state } = useWorkbook()
 const { settings, facts: packFacts, saving: savingSettings, refused, saveGeneral } = useSettingsSave()
@@ -50,8 +51,8 @@ function removeKey(key: string): void {
       :reveal="problems.length > 0"
       :summary="problems.length > 0 ? plural(words.problems.count(problems.length), problems.length) : words.problems.none"
     >
-      <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-        <ProblemList v-if="problems.length > 0" :problems="problems">
+      <div v-if="problems.length > 0" class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+        <ProblemList :problems="problems">
           <template #action="{ problem }">
             <UButton
               v-if="problem.tab === 'settings' && unreadKeys.get(problem.label) === 1"
@@ -72,8 +73,8 @@ function removeKey(key: string): void {
             </p>
           </template>
         </ProblemList>
-        <p v-else class="type-aside">{{ words.problems.allRead }}</p>
       </div>
+      <EmptyState v-else line :title="words.problems.allRead" />
     </AppCard>
   </div>
 </template>

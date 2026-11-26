@@ -37,6 +37,7 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { absMoney } from '../../../../shared/money/money'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** One informal loan: who owes how much and what made it so, how repayments stand against its expected plan, the balance over time, and its movements newest first. */
 const { state } = useLoansBooks()
@@ -176,7 +177,7 @@ function openMovement(movement: Movement | null): void {
           :summary="plural(words.tiles.movements(lines.length), lines.length)"
           data-testid="movement-list"
         >
-          <p v-if="lines.length === 0" class="px-4 pb-4 type-aside sm:px-5">{{ words.movements.none(formatMoney(book.loan.openingBalance)) }}</p>
+          <EmptyState v-if="lines.length === 0" line :title="words.movements.none(formatMoney(book.loan.openingBalance))" />
           <ul v-else class="flex flex-col pb-2">
             <li v-for="line in shown" :key="line.movement.id" class="flex items-center gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5" data-testid="movement-line">
               <div class="min-w-0 flex-1">

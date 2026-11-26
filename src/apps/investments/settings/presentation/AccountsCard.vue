@@ -12,6 +12,7 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** The accounts of the Investments file, each with how its rows come in and its change, and a way to add one. */
 const { state } = useInvestmentsBooks()
@@ -54,7 +55,7 @@ function openAccount(account: InvestmentAccount | null): void {
         </ListRow>
       </li>
     </ul>
-    <p v-else class="px-4 pb-2 type-body sm:px-5">{{ words.accounts.none }}</p>
+    <EmptyState v-else line :title="words.accounts.none" />
     <div class="px-4 pb-4 sm:px-5">
       <UButton :label="words.accounts.add" icon="i-lucide-plus" color="neutral" variant="outline" data-testid="account-add" @click="openAccount(null)" />
     </div>

@@ -21,6 +21,7 @@ import { withFullStop } from '../../../../shared/text/withFullStop'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** Where the portfolio leans past a threshold, failing checks first, each with an icon and a word beside its colour, then the holdings a vendor sent nothing usable for. */
 const props = defineProps<{
@@ -60,7 +61,7 @@ const summary = computed(() => {
     <template #actions>
       <UButton :to="INVESTMENTS_CHECKS_ROUTE" :label="text.thresholds" icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" size="sm" data-testid="checks-thresholds" />
     </template>
-    <p v-if="lines.length === 0 && troubled.length === 0" class="px-4 pt-3 pb-4 type-body sm:px-5" data-testid="checks-none">{{ none }}</p>
+    <EmptyState v-if="lines.length === 0 && troubled.length === 0" line :title="none" data-testid="checks-none" />
     <ul v-else class="grid gap-x-6 px-4 pt-1 pb-3 sm:px-5 @2xl:grid-cols-2" data-testid="checks-lines">
       <NoteLine
         v-for="line in lines"

@@ -172,20 +172,22 @@ const description = computed(() => {
       <PortfolioChecksCard v-if="on === null && sources !== null && today !== null" :sources="sources" :figures="today" :facts="facts" />
       <HoldingsMapCard v-if="figures !== null && held > 0" :figures="figures" />
       <AppCard data-testid="holdings">
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-4 pb-3 sm:px-5">
-          <UInput
-            v-model="find"
-            icon="i-lucide-search"
-            :placeholder="phone ? words.findShort : words.find"
-            :aria-label="words.find"
-            size="sm"
-            class="min-w-0 flex-1 sm:w-56 sm:flex-none"
-            data-testid="holdings-find"
-          />
-          <USelect v-model="grouping" :items="groupings" size="sm" :aria-label="words.groupBy" class="w-36 shrink-0" data-testid="holdings-group-by" />
-        </div>
-        <p v-if="list.groups.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="holdings-none">{{ find === '' ? words.nothingHeld : words.noMatch(find) }}</p>
-        <HoldingsTable v-else v-model:sort="sort" :list="list" :quoted-day="on === null && figures?.lastDay?.quoted !== undefined ? figures.lastDay.to : null" />
+        <template #header>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <UInput
+              v-model="find"
+              icon="i-lucide-search"
+              :placeholder="phone ? words.findShort : words.find"
+              :aria-label="words.find"
+              size="sm"
+              class="min-w-0 flex-1 sm:w-56 sm:flex-none"
+              data-testid="holdings-find"
+            />
+            <USelect v-model="grouping" :items="groupings" size="sm" :aria-label="words.groupBy" class="w-36 shrink-0" data-testid="holdings-group-by" />
+          </div>
+        </template>
+        <EmptyState v-if="list.groups.length === 0" line :title="find === '' ? words.nothingHeld : words.noMatch(find)" data-testid="holdings-none" />
+        <HoldingsTable v-else v-model:sort="sort" class="pt-3" :list="list" :quoted-day="on === null && figures?.lastDay?.quoted !== undefined ? figures.lastDay.to : null" />
       </AppCard>
       <ClosedPositionsCard v-if="closed.length > 0" :positions="closed" />
       <GainSourcesCard v-if="figures !== null" :figures="figures" />

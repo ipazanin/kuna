@@ -293,6 +293,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     { name: 'kuna/link-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/link-rows': 'error' } },
+    { name: 'kuna/empty-lines', files: ['src/**/*.vue'], rules: { 'kuna/empty-lines': 'error' } },
     { name: 'kuna/optional-selects', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/ui/OptionalSelect.vue'], rules: { 'kuna/optional-selects': ['error', { allowed: optionalSelectsAllowed }] } },
     { name: 'kuna/record-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/record-rows': 'error' } },
     { name: 'kuna/move-buttons', files: ['src/**/*.vue'], ignores: ['src/shared/ui/MoveButtons.vue'], rules: { 'kuna/move-buttons': 'error' } },

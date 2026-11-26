@@ -47,6 +47,7 @@ import NoteLine from '../../../../../shared/ui/NoteLine.vue'
 import { words } from './words'
 import type { Money } from '../../../../../shared/money/money'
 import CutText from '../../../../../shared/ui/CutText.vue'
+import EmptyState from '../../../../../shared/ui/EmptyState.vue'
 
 /** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
 defineProps<{
@@ -62,8 +63,8 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <p v-if="advances.length === 0" class="py-6 type-aside" data-testid="advance-list-empty">{{ empty }}</p>
-  <ul v-else class="flex flex-col" data-testid="advance-list">
+  <EmptyState v-if="advances.length === 0" line :title="empty" data-testid="advance-list-empty" />
+  <ul v-else class="flex flex-col px-4 pt-1 pb-2 sm:px-5" data-testid="advance-list">
     <li v-for="advance in advances" :key="advance.id" class="advance-row">
       <div class="advance-head">
         <div class="min-w-0">

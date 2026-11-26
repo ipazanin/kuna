@@ -10,6 +10,7 @@ import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import RecordRow from '../../../../../../shared/ui/RecordRow.vue'
 import type { PersonRow } from './salariesView'
 import { words } from './words'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 
 /** Everyone paid on the payday with their total: a table on a wide screen, a card per person on a phone. A person's row opens their month. */
 defineProps<{
@@ -26,7 +27,7 @@ const phone = usePhoneLayout()
 
 <template>
   <AppCard :title="words.people.title(label)" :subtitle="words.people.subtitle" data-testid="salaries-people">
-    <p v-if="rows.people.length === 0" class="px-4 py-6 type-aside sm:px-5">{{ words.people.noOne(label) }}</p>
+    <EmptyState v-if="rows.people.length === 0" line :title="words.people.noOne(label)" />
     <ul v-else-if="phone" class="row-list flex flex-col py-2">
       <li v-for="person in [...rows.people, rows.total]" :key="person.slug" class="border-t border-default first:border-t-0" :data-person="person.slug">
         <ListRow v-bind="person.slug === 'total' ? { as: 'div' } : { to: monthLink(payday, person.slug) }" :title="person.name" :class="{ 'font-medium': person.slug === 'total' }">

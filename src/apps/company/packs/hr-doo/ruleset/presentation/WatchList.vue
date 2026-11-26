@@ -10,6 +10,7 @@ import { ruleLink } from './taxRuleLinks'
 import type { WatchView } from './ruleWording'
 import { words } from './words'
 import { plural } from '../../../../../../shared/text/translation'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 
 /** The estimates, pending and unconfirmed values, then the matters with no value yet. */
 const props = defineProps<{
@@ -33,7 +34,7 @@ const shown = computed(() => (folds.value && !expanded.value ? props.items.slice
     <template #subtitle>
       <span class="block max-w-prose">{{ words.watch.about(checkedOn) }}</span>
     </template>
-    <p v-if="items.length === 0" class="px-5 py-6 type-aside">{{ words.watch.nothing }}</p>
+    <EmptyState v-if="items.length === 0" line :title="words.watch.nothing" />
     <ul v-else class="watch-items px-4 pt-2 pb-3 sm:px-5">
       <li v-for="item in shown" :key="item.key" class="watch-item" data-testid="watch-item">
         <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">

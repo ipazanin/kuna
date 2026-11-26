@@ -38,6 +38,7 @@ import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** One account: what it holds today, in euros too for a foreign one, its balance over the last 90 days, and its entries newest first, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat. */
 const { state } = useSpendingBooks()
@@ -164,7 +165,7 @@ function openEntry(picked: Transaction): void {
         @change="edit(Number($event))"
       />
       <AppCard :title="words.entries" :subtitle="words.entriesSubtitle" data-testid="spending-account-entries">
-        <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5">{{ words.noEntries }}</p>
+        <EmptyState v-if="rows.length === 0" line :title="words.noEntries" />
         <template v-else>
           <EntryList
             :lines="listed"

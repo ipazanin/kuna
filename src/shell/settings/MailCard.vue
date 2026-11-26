@@ -11,6 +11,7 @@ import AppCard from '../../shared/ui/AppCard.vue'
 import AppDialog from '../../shared/ui/AppDialog.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import { words } from './words'
+import EmptyState from '../../shared/ui/EmptyState.vue'
 
 /**
  * Kuna settings: every app's mail source with its line from this page's run and a link to its card, and one button that turns
@@ -77,20 +78,18 @@ async function stopAll(): Promise<void> {
 
 <template>
   <AppCard :title="text.title" :subtitle="text.subtitle" data-testid="mail-card">
-    <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-      <p v-if="apps.length === 0" class="type-aside" data-testid="mail-card-none">{{ text.none }}</p>
+    <EmptyState v-if="apps.length === 0" line :title="text.none" data-testid="mail-card-none" />
+    <div v-else class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <section v-for="app in apps" :key="app.app" class="flex flex-col gap-2" :aria-label="app.name" :data-group="app.app">
         <h3 class="type-label">{{ app.name }}</h3>
         <ol class="flex flex-col gap-2.5">
           <SyncStepRow v-for="row in app.sources" :key="row.id" :app="app.app" :step="stepOf(row)" :running="running" :line="lineOf(row)" :link="linkOf(row, app.name)" without-undo />
         </ol>
       </section>
-      <template v-if="apps.length > 0">
-        <div v-if="on.length > 0" class="flex flex-wrap gap-2">
-          <UButton icon="i-lucide-mail-x" :label="text.stop" color="neutral" variant="outline" size="sm" data-testid="mail-stop" @click="open = true" />
-        </div>
-        <p v-else class="type-aside" data-testid="mail-all-off">{{ text.allOff }}</p>
-      </template>
+      <div v-if="on.length > 0" class="flex flex-wrap gap-2">
+        <UButton icon="i-lucide-mail-x" :label="text.stop" color="neutral" variant="outline" size="sm" data-testid="mail-stop" @click="open = true" />
+      </div>
+      <p v-else class="type-aside" data-testid="mail-all-off">{{ text.allOff }}</p>
     </div>
     <AppDialog v-model:open="open" :title="text.stopTitle" :description="text.stopDescription" :dismissible="!stopping" changes>
       <ul class="flex flex-col gap-3" data-testid="mail-stop-dialog">

@@ -12,6 +12,7 @@ import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import RecordRow from '../../../../shared/ui/RecordRow.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /**
  * Every line of a span's breakdown, a group of categories as a group row with its children indented under it, each row opening
@@ -41,7 +42,7 @@ const heading = words.analysis.breakdown.heading
 
 <template>
   <AppCard :title="words.analysis.breakdown.tableTitles[grouping]" :subtitle="subtitle" data-testid="spending-analysis-table">
-    <p v-if="rows.length === 0" class="px-4 pb-4 type-aside sm:px-5" data-testid="spending-analysis-nothing">{{ words.analysis.breakdown.nothing }}</p>
+    <EmptyState v-if="rows.length === 0" line :title="words.analysis.breakdown.nothing" data-testid="spending-analysis-nothing" />
     <template v-else>
       <FigureTable class="px-1 pb-2 sm:px-2">
         <thead>

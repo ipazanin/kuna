@@ -111,9 +111,9 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
         start-collapsed
         data-testid="forecast-plan-actual"
       >
-        <div class="px-4 pt-2 pb-3 sm:px-5">
-          <p v-if="view.planActual.length === 0" class="py-4 type-aside">{{ words.panel.noPlanToCompare(year) }}</p>
-          <PlanActualList v-else :lines="view.planActual" />
+        <EmptyState v-if="view.planActual.length === 0" line :title="words.panel.noPlanToCompare(year)" />
+        <div v-else class="px-4 pt-2 pb-3 sm:px-5">
+          <PlanActualList :lines="view.planActual" />
         </div>
       </AppCard>
     </template>

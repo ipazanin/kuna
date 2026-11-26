@@ -23,6 +23,7 @@ import type { PeriodReview, ReviewPeriod } from '../domain/periodReview'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** A year, quarter or custom range against the equal period just before it. */
 const ledger = useFilteredLedger()
@@ -173,7 +174,7 @@ const shownSections = computed(() => {
       </AppCard>
 
       <AppCard :title="words.byCategory" :subtitle="words.biggestFirst" collapse-id="analysis.compare-categories" :summary="review.categoriesSummary">
-        <p v-if="review.sections.length === 0" class="px-5 py-8 type-aside">{{ words.noCategorisedRowsSentence }}</p>
+        <EmptyState v-if="review.sections.length === 0" line :title="words.noCategorisedRowsSentence" />
         <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
           <template v-for="section in shownSections" :key="section.key">
             <thead>

@@ -33,7 +33,7 @@ function remove(key: string): void {
 </script>
 
 <template>
-  <div v-if="phone" class="flex items-center gap-2 px-4 pt-4 pb-3" data-testid="spending-filter-chips">
+  <div v-if="phone" class="flex items-center gap-2" data-testid="spending-filter-chips">
     <FiltersSheet :active-count="filters.active.length" :show-label="words.filters.show">
       <div class="flex flex-col gap-3" data-testid="spending-filter-sheet">
         <USelect
@@ -85,7 +85,7 @@ function remove(key: string): void {
     <FilterChipRow :chips="chips" one-line @remove="remove" @clear="filters.clear()" />
     <slot />
   </div>
-  <div v-else class="flex flex-wrap items-center gap-2 px-4 pt-4 pb-3 sm:px-5">
+  <div v-else class="flex flex-wrap items-center gap-2">
     <USelect
       :model-value="filters.month"
       :items="filters.monthItems"

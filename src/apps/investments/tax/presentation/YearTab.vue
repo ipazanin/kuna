@@ -24,6 +24,7 @@ import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** The year's capital gains tax in four tiles, what to type into the JOPPD, the year's deadlines and the rules the figures rest on. */
 const props = defineProps<{
@@ -162,10 +163,10 @@ const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'sett
         </div>
       </AppCard>
       <AppCard :title="text.deadlines.title" data-testid="tax-deadlines">
-        <div class="px-4 pt-3 pb-4 sm:px-5">
-          <FactGrid v-if="deadlineFacts.length > 0" :facts="deadlineFacts" />
-          <p v-else class="type-body">{{ text.deadlines.none }}</p>
+        <div v-if="deadlineFacts.length > 0" class="px-4 pt-3 pb-4 sm:px-5">
+          <FactGrid :facts="deadlineFacts" />
         </div>
+        <EmptyState v-else line :title="text.deadlines.none" />
       </AppCard>
     </DashboardGrid>
     <AppCard

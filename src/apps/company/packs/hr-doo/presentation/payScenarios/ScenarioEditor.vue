@@ -12,6 +12,7 @@ import ScenarioNameDialog from './ScenarioNameDialog.vue'
 import StartingScenariosDialog from './StartingScenariosDialog.vue'
 import { componentText, spanText } from './scenarioWording'
 import { words } from './words'
+import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 
 /** The year's scenarios as their rows: add, edit and delete a component, rename or copy a scenario, or add the starting four. */
 const props = defineProps<{
@@ -56,8 +57,8 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
     <template v-if="!startingTaken" #actions>
       <UButton :label="words.editor.addStarting" icon="i-lucide-list-plus" color="neutral" variant="outline" size="sm" data-testid="add-starting-scenarios" @click="startingOpen = true" />
     </template>
-    <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-      <p v-if="scenarios.length === 0" class="py-4 type-aside">{{ words.editor.noneForYear(year) }}</p>
+    <EmptyState v-if="scenarios.length === 0" line :title="words.editor.noneForYear(year)" />
+    <div v-else class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
       <article v-for="scenario in scenarios" :key="scenario.slug" class="scenario-card" :data-scenario="scenario.slug">
         <header class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0">

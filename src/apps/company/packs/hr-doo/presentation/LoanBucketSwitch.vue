@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../../../../shared/ui/AppCard.vue'
+import EmptyState from '../../../../../shared/ui/EmptyState.vue'
 import { CATEGORY_WRITES } from '../../../categories/application/categoryWrites'
 import { NO_RECORDS, recordWithId } from '../../../../../shared/storage/domain/recordsRead'
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
@@ -49,18 +50,16 @@ async function choose(asPay: boolean): Promise<void> {
 
 <template>
   <AppCard :title="words.loanBucket.title" :subtitle="words.loanBucket.subtitle" data-testid="loan-bucket">
-    <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-      <p v-if="loanCategories.length === 0" class="type-aside">{{ words.loanBucket.none }}</p>
-      <template v-else>
-        <USwitch
-          :model-value="countsAsPay"
-          :loading="writes.saving(LOAN_BUCKET_KEY)"
-          :label="words.loanBucket.label"
-          :description="countsAsPay ? words.loanBucket.on : words.loanBucket.off"
-          @update:model-value="choose($event)"
-        />
-        <p v-if="mixed" class="mt-3 type-caption text-warning">{{ words.loanBucket.mixed(listed) }}</p>
-      </template>
+    <EmptyState v-if="loanCategories.length === 0" line :title="words.loanBucket.none" />
+    <div v-else class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
+      <USwitch
+        :model-value="countsAsPay"
+        :loading="writes.saving(LOAN_BUCKET_KEY)"
+        :label="words.loanBucket.label"
+        :description="countsAsPay ? words.loanBucket.on : words.loanBucket.off"
+        @update:model-value="choose($event)"
+      />
+      <p v-if="mixed" class="mt-3 type-caption text-warning">{{ words.loanBucket.mixed(listed) }}</p>
     </div>
   </AppCard>
 </template>

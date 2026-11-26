@@ -314,7 +314,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                   </div>
                 </dl>
               </template>
-              <p v-if="view.invoices.length === 0" class="px-5 py-8 type-aside">{{ words.panel.noneInPeriod }}</p>
+              <EmptyState v-if="view.invoices.length === 0" line :title="words.panel.noneInPeriod" />
               <template v-else>
                 <div class="px-4 pt-1 pb-2 sm:px-5">
                   <InvoiceList :invoices="shownInvoices" :show-client="view.showClient" @edit="openInvoice" />
@@ -376,7 +376,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                 start-collapsed
                 :reveal="route.hash === '#invoices-days'"
               >
-                <p v-if="view.daysRows.length === 0" class="px-5 py-8 type-aside">{{ words.panel.noClientInvoices }}</p>
+                <EmptyState v-if="view.daysRows.length === 0" line :title="words.panel.noClientInvoices" />
                 <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
                   <DaysToPaidStrip :rows="view.daysRows" />
                 </div>

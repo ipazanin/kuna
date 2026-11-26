@@ -28,6 +28,7 @@ import PayeeCategories from './PayeeCategories.vue'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 import { ZERO } from '../../../../shared/money/money'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** Where the money goes in the period: cost by category and who the company paid most. */
 const ledger = useFilteredLedger()
@@ -104,7 +105,7 @@ const spending = computed(() => {
     />
 
     <AppCard :title="words.breakdown.payees" :subtitle="words.breakdown.payeesSubtitle" collapse-id="analysis.payees" :summary="spending.payeesSummary" start-collapsed data-testid="top-payees">
-      <p v-if="spending.payees.length === 0" class="px-5 py-8 type-aside">{{ words.breakdown.nothingLeftSentence }}</p>
+      <EmptyState v-if="spending.payees.length === 0" line :title="words.breakdown.nothingLeftSentence" />
       <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
         <thead>
           <tr>

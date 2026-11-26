@@ -8,6 +8,7 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** The categories that grow or shrink, the largest change first, each opening Over time on that category. The change is a difference between two months, so it stays in ink with its sign. */
 const props = defineProps<{
@@ -22,7 +23,7 @@ const none = computed(() => (props.trend === 'growing' ? words.analysis.savings.
 
 <template>
   <AppCard :title="title" :subtitle="words.analysis.savings.trendsSubtitle" :data-testid="`spending-analysis-${trend}`">
-    <p v-if="shown.length === 0" class="px-4 pb-4 type-aside sm:px-5">{{ none }}</p>
+    <EmptyState v-if="shown.length === 0" line :title="none" />
     <ul v-else class="near-figures flex flex-col py-2">
       <li v-for="held in shown" :key="held.category.id" class="border-t border-default first:border-t-0">
         <ListRow

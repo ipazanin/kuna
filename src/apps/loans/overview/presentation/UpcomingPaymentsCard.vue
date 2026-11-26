@@ -15,6 +15,7 @@ import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** The next payments over the bank loans and the plans of informal loans you owe in date order, then a way to each loan's page. */
 const props = defineProps<{
@@ -51,7 +52,7 @@ const links = computed((): LoanLink[] => [
 
 <template>
   <AppCard :title="words.upcoming.title[kind]" :subtitle="words.upcoming.subtitle" data-testid="loans-upcoming">
-    <p v-if="payments.length === 0" class="px-4 pt-3 type-body sm:px-5">{{ words.upcoming.none }}</p>
+    <EmptyState v-if="payments.length === 0" line :title="words.upcoming.none" />
     <FigureTable v-else class="mt-2 px-1 sm:px-2" :label="words.upcoming.tableLabel[kind]">
       <thead>
         <tr>

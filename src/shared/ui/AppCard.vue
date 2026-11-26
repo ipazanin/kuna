@@ -8,7 +8,8 @@ import InfoPopover from './InfoPopover.vue'
 
 /**
  * The raised card every screen is built from. With a title it has a header, and with a collapse id
- * the header gets a toggle that hides the body. Without a title it is the bare surface, for tiles.
+ * the header gets a toggle that hides the body. A header slot alone, such as a list's filters, gets the header without a title.
+ * Without either it is the bare surface, for tiles.
  * The header's actions sit beside the title from 640 px while the title keeps 12rem, and on a phone on a row of their own under it.
  */
 const props = withDefaults(
@@ -73,9 +74,9 @@ function toggle(): void {
     :data-card="collapseId"
     :data-collapsed="collapseId === undefined ? undefined : String(collapsed)"
   >
-    <template v-if="title !== undefined">
+    <template v-if="title !== undefined || $slots.header">
       <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5" :class="{ 'pb-4': collapsed || !$slots.default }">
-        <div class="flex items-start gap-3">
+        <div v-if="title !== undefined" class="flex items-start gap-3">
           <div class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1 basis-full sm:basis-48">
               <component :is="heading" :id="titleId" class="flex items-center gap-2 type-card-title">

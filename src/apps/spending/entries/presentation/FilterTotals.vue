@@ -83,7 +83,7 @@ const lines = computed(() => {
 </script>
 
 <template>
-  <div v-if="lines.length > 0" class="flex flex-col gap-4 px-4 pb-4 sm:px-5" data-testid="spending-filter-totals">
+  <div v-if="lines.length > 0" class="flex flex-col gap-4" data-testid="spending-filter-totals">
     <div v-for="line in lines" :key="line.key" class="flex flex-col gap-1.5" data-testid="spending-filter-total">
       <div class="flex items-baseline justify-between gap-3">
         <h3 class="min-w-0 type-label wrap-anywhere">

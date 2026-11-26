@@ -35,6 +35,7 @@ import RuleEditor from './RuleEditor.vue'
 import type { RuleEditorSource } from './RuleEditor.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /**
  * The Rules card of Sorting in the order rules are tried, each with what it files and the labels it puts on, and each switched, moved, edited, deleted or added
@@ -258,10 +259,10 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
         </li>
       </ol>
       <ShowAllButton v-if="shown.length > FIRST_SHOWN" v-model:expanded="allShown" :total="shown.length" class="px-4 pt-3 sm:px-5" />
+      <div class="h-2" />
     </template>
-    <p v-else-if="shownFor !== null" class="px-4 pt-3 pb-4 type-aside sm:px-5" data-testid="company-rules-none-for">{{ shownFor.none }}</p>
-    <p v-else class="px-4 py-6 type-aside sm:px-5">{{ words.tab.none }}</p>
-    <div class="h-2" />
+    <EmptyState v-else-if="shownFor !== null" line :title="shownFor.none" data-testid="company-rules-none-for" />
+    <EmptyState v-else line :title="words.tab.none" />
 
     <RuleEditor v-model:open="editorOpen" :source="editorSource" />
     <RuleChangeDialog v-model:open="dialogOpen" :pending="pending" />

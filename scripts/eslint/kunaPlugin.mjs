@@ -273,6 +273,46 @@ function namesToneIcon(node) {
 }
 
 /** A UIcon of a tone with words after it, which is a NoteLine. A mark beside a figure with only a screen reader's words after it stays. */
+const isCard = (node) => node?.type === 'VElement' && /^(?:AppCard|app-card)$/.test(node.rawName)
+const emptyTest = /\.(?:length|size)\s*===\s*0\b|!\s*[\w$.?]+\.(?:length|size)\b/
+const someTest = /\.(?:length|size)\s*>\s*0\b/
+
+/** A line in a card body, or in a div or template of it that only picks between the line and what replaces it, that shows while a list is empty, as its own condition or as the v-else of a list shown while it has rows. */
+const emptyLines = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const branchOf = (element) => element.startTag.attributes.find((attribute) => attribute.directive && ['if', 'else-if', 'else'].includes(attribute.key.name.name))?.key.name.name
+    const holdsOneChoice = (wrapper) => {
+      const branches = wrapper.children.filter((node) => node.type === 'VElement').map(branchOf)
+      return branches.every((branch) => branch !== undefined) && branches.filter((branch) => branch === 'if').length === 1
+    }
+    const inCardBody = (element) => isCard(element.parent) || (/^(?:div|template)$/.test(element.parent?.name ?? '') && isCard(element.parent.parent) && holdsOneChoice(element.parent))
+    const conditionText = (element, names) => {
+      const condition = element.startTag.attributes.find((attribute) => attribute.directive && names.includes(attribute.key.name.name))
+      return condition?.value?.expression ? context.sourceCode.getText(condition.value.expression) : null
+    }
+    const previousElement = (element) => {
+      const siblings = element.parent.children
+      return siblings.slice(0, siblings.indexOf(element)).findLast((node) => node.type === 'VElement')
+    }
+    const visitors = {
+      "VElement[name='p']"(element) {
+        if (!inCardBody(element)) return
+        const own = conditionText(element, ['if', 'else-if'])
+        const afterList = element.startTag.attributes.some((attribute) => attribute.directive && attribute.key.name.name === 'else') ? previousElement(element) : undefined
+        const listTest = afterList === undefined ? null : conditionText(afterList, ['if'])
+        if ((own !== null && emptyTest.test(own)) || (listTest !== null && someTest.test(listTest))) {
+          context.report({
+            node: element.startTag,
+            message: "An empty list in a card shows its one quiet line through EmptyState with line, so every card's empty line sits at the card's body padding.",
+          })
+        }
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, {}) ?? {}
+  },
+}
+
 const noteLines = {
   meta: { type: 'problem', schema: [] },
   create(context) {
@@ -471,6 +511,7 @@ export const kunaPlugin = {
       ],
       "A row of a list that opens a page is a ListRow with to, which draws its arrow on the title's line.",
     ),
+    'empty-lines': emptyLines,
     'optional-selects': optionalSelects,
     'record-rows': refusedSyntax(
       ["VElement[name='tr'] VElement[name='th']:has(VAttribute[directive=false][key.name='scope'][value.value='row']) VElement[rawName=/^(?:DrillLink|drill-link|RouterLink|router-link)$/]"],
