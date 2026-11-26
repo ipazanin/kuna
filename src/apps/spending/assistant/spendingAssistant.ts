@@ -1,3 +1,4 @@
+import { breakdownPeriodOf } from '../analytics/domain/breakdownPeriod'
 import { words as analysisWords } from '../analytics/presentation/words'
 import {
   SPENDING_ACCOUNT_ROUTE,
@@ -15,6 +16,7 @@ import {
   SPENDING_TRANSACTIONS_ROUTE,
 } from '../overview/presentation/spendingLinks'
 import { payeeDirectory, personPayees } from '../payees/domain/payeeDirectory'
+import { PAYEE_PERIODS, periodNamed } from '../payees/domain/payeePeriod'
 import { words as receiptWords } from '../receipts/presentation/words'
 import { words as workbookWords } from '../workbook/domain/words'
 import { words as screenWords } from '../screenWords'
@@ -23,7 +25,7 @@ import { words as statementWords } from '../statements/presentation/words'
 import * as spendingKinds from '../workbook/domain/spendingKinds'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../workbook/domain/spendingKinds'
 import { BANK_SYNC_APPLICATION_KEY } from '../workbook/domain/spendingSettings'
-import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
+import type { AppAssistant, AssistantPlace, PeriodParam } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
 import { PAYEE_LINES, spendingReader } from './spendingReader'
 import type { SpendingReading } from './spendingReader'
@@ -34,6 +36,18 @@ const IMPORT_LINK = `${SPENDING_TRANSACTIONS_ROUTE}?tab=import`
 const RECEIPTS_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=receipts`
 
 /** Every Spending screen and tab, the tabs first, since a person on a tab is on that tab and not on its screen. */
+/** The periods of a payee's page, read back the way the page reads its address. */
+const PAYEE_PERIOD: PeriodParam = {
+  periods: `one of ${PAYEE_PERIODS.join(', ')}, for this month, the twelve months up to it and all time`,
+  reads: (key) => periodNamed(key) === key,
+}
+
+/** The periods of Analysis's breakdown, read back the way the tab reads its address. */
+const BREAKDOWN_PERIOD: PeriodParam = {
+  periods: 'a month such as 2026-10, a quarter such as 2026q3, a year such as 2026, l12 for the twelve months up to this one, or days such as 2026-01-01..2026-03-31',
+  reads: (key) => breakdownPeriodOf(key) !== null,
+}
+
 const PLACES: readonly AssistantPlace[] = [
   { route: SPENDING_REVIEW_LINK, title: statementWords.tabs.review },
   { route: IMPORT_LINK, title: statementWords.tabs.import },
@@ -52,8 +66,8 @@ const PLACES: readonly AssistantPlace[] = [
   { route: SPENDING_BUDGETS_ROUTE, title: screenWords.limits, params: { month: 'month' } },
   { route: SPENDING_SORTING_ROUTE, title: screenWords.sorting },
   { route: SPENDING_PAYEES_ROUTE, title: screenWords.payees },
-  { route: SPENDING_PAYEE_ROUTE, title: screenWords.payee, params: { payee: { kind: PAYEE_LINES.name } } },
-  { route: SPENDING_ANALYSIS_ROUTE, title: screenWords.analysis, params: { period: 'period' } },
+  { route: SPENDING_PAYEE_ROUTE, title: screenWords.payee, params: { payee: { kind: PAYEE_LINES.name }, period: PAYEE_PERIOD } },
+  { route: SPENDING_ANALYSIS_ROUTE, title: screenWords.analysis, params: { period: BREAKDOWN_PERIOD } },
   { route: SPENDING_ACCOUNTS_ROUTE, title: screenWords.accounts },
   { route: SPENDING_ACCOUNT_ROUTE, title: screenWords.account, params: { account: { kind: ACCOUNT_RECORDS.name } } },
   { route: SPENDING_SETTINGS_ROUTE, title: screenWords.settings },

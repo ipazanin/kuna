@@ -4,12 +4,13 @@ import { words as mailWords } from '../mail/presentation/words'
 import { ASSISTANT_SETTINGS_LINK, BOOKS_FILE_LINK } from '../settings/presentation/settingsTabs'
 import { PERSON_PAYEES_KEY, SETTING_DEFINITIONS } from '../settings/domain/settings'
 import { words as settingsWords } from '../settings/presentation/words'
+import { decodePeriod } from '../filters/domain/filterQuery'
 import { COMPANY_SORTING_ROUTE } from '../sorting/presentation/sortingLinks'
 import { words as sortingWords } from '../sorting/presentation/words'
 import { REVIEW_LINK } from '../transactions/presentation/transactionsLinks'
 import { words as transactionWords } from '../transactions/presentation/words'
 import * as coreKinds from '../workbook/domain/coreKinds'
-import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
+import type { AppAssistant, AssistantPlace, PeriodParam } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer, AssistantOperation, ProposalStep } from '../../../shared/app/assistantOperations'
 import { words as chatWords } from '../../../shared/ai/presentation/words'
 import type { ProposalDescriber } from '../../../shared/app/proposalGroups'
@@ -42,8 +43,14 @@ const AUTOMATION_LABELS: AutomationLabels = {
   review: transactionWords.tabs.review,
 }
 
+/** The periods Company's filters read from `?p=`, which never name a single month. */
+export const LEDGER_PERIOD: PeriodParam = {
+  periods: 'l3 or l12 for the months up to this one, all, a year such as 2026, a quarter such as 2026q3, or days such as 2026-01-01..2026-03-31, never a single month',
+  reads: (key) => decodePeriod(key) !== null,
+}
+
 /** The query keys the ledger's filters share across screens: the period as Company's filters write it, and an account and a category by the ref Kuna handed out. */
-const LEDGER_FILTERS: AssistantPlace['params'] = { p: 'period', acc: { kind: coreKinds.ACCOUNT_RECORDS.name }, cat: { kind: coreKinds.CATEGORY_RECORDS.name } }
+const LEDGER_FILTERS: AssistantPlace['params'] = { p: LEDGER_PERIOD, acc: { kind: coreKinds.ACCOUNT_RECORDS.name }, cat: { kind: coreKinds.CATEGORY_RECORDS.name } }
 
 /** Every tab of Company's own screens, with the query keys a link may fill. */
 const PLACES: readonly AssistantPlace[] = [

@@ -28,6 +28,9 @@ import type { CatalogueApp } from '../src/shared/ai/application/catalogue'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { PART_AMOUNT } from '../src/shared/app/operationInput'
 import { words as statementWords } from '../src/apps/spending/statements/presentation/words'
+import { words as spendingScreenWords } from '../src/apps/spending/screenWords'
+import { performancePeriods } from '../src/apps/investments/performance/domain/performancePeriod'
+import { periodKey, periodOfKey } from '../src/apps/investments/performance/presentation/performanceLinks'
 
 import { assetsAcceptance, assetsProposer } from '../src/apps/assets/assistant/operations/assetsOperations'
 import { companyAcceptance, companyProposer } from '../src/apps/company/assistant/operations/companyOperations'
@@ -36,6 +39,7 @@ import { loansAcceptance, loansProposer } from '../src/apps/loans/assistant/oper
 import { spendingAcceptance, spendingProposer } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { FILE_OPEN } from './fixtures/browserFile'
 import { CHAT_READING } from './fixtures/chatBook'
+import { civil } from './fixtures/ledger'
 import { deskPorts } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 
@@ -414,6 +418,86 @@ describe('what a page says a link and a search take', () => {
     expect(catalogue.system).toContain('Never fill in a row or a balance')
     expect(catalogue.system).toContain('read_build_up')
     expect(catalogue.system).not.toContain('by its label only')
+  })
+})
+
+describe('the periods a link takes', () => {
+  const catalogue = catalogueOf(APPS, KUNA)
+  const readsOf = (): ChatReads => ({ readers: catalogue.readers, pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => false })
+  const show = async (reads: ChatReads, route: string, params: readonly { readonly name: string; readonly value: string }[]) => {
+    const chips: unknown[] = []
+    const tools = { catalogue, reads, attachments: [], readsPdf: false, showChip: (chip: unknown) => void chips.push(chip), showProposal: () => undefined }
+    const answer = await runChatTool(tools, { id: 'call', name: 'show_screen', args: { route, params } })
+    return { answer, chips }
+  }
+  const periodPlaces = [...catalogue.placeParams].flatMap(([route, { app, params }]) =>
+    Object.entries(params).flatMap(([name, shape]) => (typeof shape !== 'string' && 'reads' in shape ? [{ app, route, name, shape }] : [])),
+  )
+
+  it('prints on each page what every period a place takes reads as', () => {
+    expect(periodPlaces.map(({ route, name }) => `${route} ${name}`)).toEqual([
+      '/company/transactions?tab=rows p',
+      '/company/analysis?tab=breakdown p',
+      '/company/analysis?tab=over-time p',
+      '/company/analysis?tab=compare p',
+      '/company/owner?tab=taken p',
+      '/company/owner?tab=owed p',
+      '/investments/performance?tab=sources period',
+      '/investments/performance?tab=falls period',
+      '/investments/performance period',
+      '/spending/payee period',
+      '/spending/analysis period',
+    ])
+    for (const { app, route, name, shape } of periodPlaces) {
+      const line = catalogue.pages
+        .get(app)!
+        .split('\n')
+        .find((candidate) => candidate.includes(`: ${route}. Takes `))
+      expect(line, route).toContain(`${name} (${shape.periods})`)
+    }
+    expect(catalogue.pages.get('spending')).toContain(
+      `- ${spendingScreenWords.payee}: /spending/payee. Takes payee (a ref of the kind payee), period (one of month, year, all, for this month, the twelve months up to it and all time)`,
+    )
+  })
+
+  it.each([
+    [[{ name: 'period', value: 'month' }], '/spending/payee?payee=shop&period=month'],
+    [[{ name: 'period', value: 'all' }], '/spending/payee?payee=shop&period=all'],
+    [[], '/spending/payee?payee=shop'],
+  ])("links a payee's page with the period %j", async (period, to) => {
+    const reads = readsOf()
+    const payee = reads.refs.recordRef({ app: 'spending', kind: 'payee', id: 'shop' })
+    const { answer, chips } = await show(reads, '/spending/payee', [{ name: 'payee', value: payee }, ...period])
+    expect(answer.isError).toBe(false)
+    expect(chips).toEqual([{ kind: 'screen', to, label: `spending: ${spendingScreenWords.payee}` }])
+  })
+
+  it.each([
+    ['/spending/analysis', 'period', '2026q3', '/spending/analysis?period=2026q3'],
+    ['/investments/performance', 'period', '2025q3', '/investments/performance?period=2025q3'],
+    ['/investments/performance?tab=falls', 'period', '3y', '/investments/performance?tab=falls&period=3y'],
+    ['/company/owner?tab=taken', 'p', 'l12', '/company/owner?tab=taken&p=l12'],
+  ])('links %s with the %s %s its screen reads', async (route, name, value, to) => {
+    const { answer, chips } = await show(readsOf(), route, [{ name, value }])
+    expect(answer.isError).toBe(false)
+    expect(chips).toMatchObject([{ kind: 'screen', to }])
+  })
+
+  it.each([
+    ['/spending/payee', 'period', 'this-month'],
+    ['/spending/analysis', 'period', 'l3'],
+    ['/investments/performance', 'period', '2y'],
+    ['/company/analysis?tab=breakdown', 'p', '2026-10'],
+  ])('refuses to link %s with a %s of %s its screen does not read, and says what it takes', async (route, name, value) => {
+    const { shape } = periodPlaces.find((place) => place.route === route)!
+    const { answer, chips } = await show(readsOf(), route, [{ name, value }])
+    expect(answer).toEqual({ text: `That period is not one the screen reads. It takes ${shape.periods}.`, isError: true })
+    expect(chips).toEqual([])
+  })
+
+  it('reads back the key of every period Performance offers', () => {
+    const offered = performancePeriods(civil('2019-05-14'), civil('2026-11-26'))
+    expect(offered.map((period) => periodOfKey(periodKey(period)))).toEqual(offered)
   })
 })
 

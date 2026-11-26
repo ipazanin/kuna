@@ -208,7 +208,7 @@ describe("the company's places", () => {
   it('lets a link fill a record parameter only from a ref of a kind the chat reads, or of a rule a build-up cites', () => {
     const places = companyAssistant(HR_DOO_ASSISTANT, readingOf(BOOKS), () => []).places
     const read = new Set([...READER.kinds.map((readable) => readable.name), ...(READER.traceRules?.ruleKind === undefined ? [] : [READER.traceRules.ruleKind])])
-    const kinds = places.flatMap((place) => Object.values(place.params ?? {}).flatMap((param) => (typeof param === 'string' ? [] : [param.kind])))
+    const kinds = places.flatMap((place) => Object.values(place.params ?? {}).flatMap((param) => (typeof param === 'string' || !('kind' in param) ? [] : [param.kind])))
     expect(kinds.length).toBeGreaterThan(0)
     expect(kinds.filter((name) => !read.has(name))).toEqual([])
   })

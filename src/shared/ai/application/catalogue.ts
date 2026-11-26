@@ -73,7 +73,8 @@ function section(title: string, lines: readonly string[]): readonly string[] {
 }
 
 function paramText(shape: NonNullable<AssistantPlace['params']>[string]): string {
-  return typeof shape === 'string' ? shape : `a ref of the kind ${shape.kind}`
+  if (typeof shape === 'string') return shape
+  return 'kind' in shape ? `a ref of the kind ${shape.kind}` : shape.periods
 }
 
 function placeLine(place: AssistantPlace): string {
@@ -192,7 +193,7 @@ async function lawPageAt(law: ReadonlyMap<string, readonly LawSource[]>, path: s
 export function recordPageParam(placeParams: ReadonlyMap<string, PlaceParams>, app: string, kind: Pick<ReadableKind, 'name' | 'page'>): string | null {
   const declared = kind.page === undefined ? undefined : placeParams.get(kind.page)
   if (declared === undefined || declared.app !== app) return null
-  return Object.entries(declared.params).find(([, shape]) => typeof shape !== 'string' && shape.kind === kind.name)?.[0] ?? null
+  return Object.entries(declared.params).find(([, shape]) => typeof shape !== 'string' && 'kind' in shape && shape.kind === kind.name)?.[0] ?? null
 }
 
 /** How a filter and a sort treat each class of field, as a kind's page says it. */

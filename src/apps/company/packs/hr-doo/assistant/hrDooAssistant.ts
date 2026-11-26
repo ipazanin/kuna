@@ -1,3 +1,4 @@
+import { LEDGER_PERIOD } from '../../../assistant/companyAssistant'
 import type { PackAssistant } from '../../../assistant/companyAssistant'
 import { COMPANY_FACT_SETTINGS } from '../domain/companyFacts'
 import * as hrDooKinds from '../domain/hrDooKinds'
@@ -15,8 +16,8 @@ const EMPLOYEE = { kind: hrDooKinds.EMPLOYEE_RECORDS.name }
 
 /** The tabs of the pack's own screens, and its tab on Settings, with the query keys a link may fill. */
 const PLACES: readonly AssistantPlace[] = [
-  { route: '/company/owner?tab=taken', title: packWords.owner.tabs.taken, params: { p: 'period' } },
-  { route: '/company/owner?tab=owed', title: packWords.owner.tabs.owed, params: { p: 'period' } },
+  { route: '/company/owner?tab=taken', title: packWords.owner.tabs.taken, params: { p: LEDGER_PERIOD } },
+  { route: '/company/owner?tab=owed', title: packWords.owner.tabs.owed, params: { p: LEDGER_PERIOD } },
   { route: '/company/year?tab=forecast', title: yearWords.tabs.forecast, params: YEAR },
   { route: '/company/year?tab=plan', title: yearWords.tabs.plan, params: YEAR },
   { route: '/company/year?tab=pay', title: yearWords.tabs.pay, params: YEAR },

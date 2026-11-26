@@ -11,7 +11,7 @@ import {
   INVESTMENTS_SETTINGS_ROUTE,
 } from '../overview/presentation/investmentLinks'
 import { words as overviewWords } from '../overview/presentation/words'
-import { PERFORMANCE_ROUTE } from '../performance/presentation/performanceLinks'
+import { PERFORMANCE_ROUTE, periodOfKey } from '../performance/presentation/performanceLinks'
 import { words as performanceWords } from '../performance/presentation/words'
 import { words as settingsWords } from '../settings/presentation/words'
 import { TAX_ROUTE } from '../tax/presentation/taxLinks'
@@ -21,7 +21,7 @@ import { words as transactionWords } from '../transactions/presentation/words'
 import * as investmentKinds from '../workbook/domain/investmentKinds'
 import { INSTRUMENT_RECORDS } from '../workbook/domain/investmentKinds'
 import { SURTAX_CITY_2023_KEY } from '../workbook/domain/investmentSettings'
-import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
+import type { AppAssistant, AssistantPlace, PeriodParam } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
 import { lawFilesIn } from '../../../shared/law/infrastructure/lawFiles'
 import { investmentsReader } from './investmentsReader'
@@ -39,11 +39,17 @@ const AUTOMATION_LABELS: AutomationLabels = {
 const performanceTab = (tab: string): `/${string}` => `${PERFORMANCE_ROUTE}?tab=${tab}`
 const taxTab = (tab: string): `/${string}` => `${TAX_ROUTE}?tab=${tab}`
 
+/** The periods of Performance, read back the way the screen writes its address. One the books do not reach yet opens all. */
+const PERFORMANCE_PERIOD: PeriodParam = {
+  periods: '1y, 3y, 5y or all, a year such as 2025, or a quarter such as 2025q3',
+  reads: (key) => periodOfKey(key) !== null,
+}
+
 /** Every Investments screen and tab, the tabs first, since a person on a tab is on that tab and not on its screen. */
 const PLACES: readonly AssistantPlace[] = [
   { route: performanceTab('months'), title: performanceWords.tabs.months },
-  { route: performanceTab('sources'), title: performanceWords.tabs.sources, params: { period: 'period' } },
-  { route: performanceTab('falls'), title: performanceWords.tabs.falls, params: { period: 'period' } },
+  { route: performanceTab('sources'), title: performanceWords.tabs.sources, params: { period: PERFORMANCE_PERIOD } },
+  { route: performanceTab('falls'), title: performanceWords.tabs.falls, params: { period: PERFORMANCE_PERIOD } },
   { route: performanceTab('income'), title: incomeWords.tabs.income },
   { route: performanceTab('coming'), title: incomeWords.tabs.coming },
   { route: performanceTab('costs'), title: incomeWords.tabs.costs },
@@ -59,7 +65,7 @@ const PLACES: readonly AssistantPlace[] = [
   { route: HOLDINGS_ROUTE, title: holdingsWords.title, params: { on: 'day' } },
   { route: HOLDING_ROUTE, title: holdingsWords.holding, params: { instrument: { kind: INSTRUMENT_RECORDS.name } } },
   { route: TRANSACTIONS_ROUTE, title: transactionWords.title },
-  { route: PERFORMANCE_ROUTE, title: performanceWords.title, params: { period: 'period' } },
+  { route: PERFORMANCE_ROUTE, title: performanceWords.title, params: { period: PERFORMANCE_PERIOD } },
   { route: TAX_ROUTE, title: taxWords.title, params: { year: 'year' } },
   { route: INVESTMENTS_SETTINGS_ROUTE, title: settingsWords.title },
 ]

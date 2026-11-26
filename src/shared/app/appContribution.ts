@@ -128,12 +128,18 @@ export type HubState<Part extends HubPart = HubPart> = HubFigures<Part> | 'openi
  */
 export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart> } | { readonly counts: false; figures(): HubState }
 
+/** The period keys a screen reads from its address: how they are written, for the chat, and whether a key is one the screen's own reader takes. */
+export interface PeriodParam {
+  readonly periods: string
+  readonly reads: (key: string) => boolean
+}
+
 /** A part of a screen the chat can link to, such as a tab, with the address that opens it. */
 export interface AssistantPlace {
   readonly route: `/${string}`
   readonly title: string
-  /** The query keys a link may fill: a month, a year, a day, a period, or a ref of a record of a kind. */
-  readonly params?: Readonly<Record<string, 'month' | 'year' | 'day' | 'period' | { readonly kind: string }>>
+  /** The query keys a link may fill: a month, a year, a day, a period the screen reads, or a ref of a record of a kind. */
+  readonly params?: Readonly<Record<string, 'month' | 'year' | 'day' | PeriodParam | { readonly kind: string }>>
 }
 
 /** A settings key the app reads and what it means. Only ever the meaning, never the value a file holds. */

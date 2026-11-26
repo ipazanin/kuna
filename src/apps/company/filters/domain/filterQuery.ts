@@ -103,7 +103,7 @@ export function withoutFilterKeys<Query extends FilterQuery>(query: Query): Part
 }
 
 /** Company names no single month, so an address that does reads as no period. */
-function decodePeriod(text: string | null): Period | null {
+export function decodePeriod(text: string | null): Period | null {
   const period = periodOfText(text)
   return period?.preset === 'month' ? null : period
 }

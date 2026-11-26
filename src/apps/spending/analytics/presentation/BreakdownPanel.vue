@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import BreakdownTable from './BreakdownTable.vue'
 import { breakdownChart } from './breakdownChart'
 import { words } from './words'
+import { BREAKDOWN_PRESETS, breakdownPeriodOf } from '../domain/breakdownPeriod'
 import type { SpendingFigures } from '../domain/spendingFigures'
 import type { BreakdownLine, Grouping } from '../domain/spanBreakdown'
 import { categoryColours } from '../../categories/presentation/categoryColours'
@@ -19,8 +20,7 @@ import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
 import { periodRange } from '../../../../shared/calendar/period'
 import type { Period } from '../../../../shared/calendar/period'
 import { periodInWords } from '../../../../shared/calendar/periodInWords'
-import type { PeriodPreset } from '../../../../shared/calendar/periodPresets'
-import { periodOfText, periodText } from '../../../../shared/calendar/periodText'
+import { periodText } from '../../../../shared/calendar/periodText'
 import { monthRange } from '../../../../shared/calendar/dateRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
@@ -41,15 +41,13 @@ const route = useRoute()
 const phone = usePhoneLayout()
 const router = useRouter()
 
-const PRESETS: readonly PeriodPreset[] = ['month', 'quarter', 'year', 'l12', 'custom']
 const GROUPINGS: readonly Grouping[] = ['category', 'payee', 'label', 'account']
 
 /** This month, which stays out of the address. */
 const thisMonth = computed((): Period => ({ preset: 'month', month: props.window.partMonth }))
 const period = computed<Period>({
   get: () => {
-    const named = periodOfText(typeof route.query.period === 'string' ? route.query.period : null)
-    return named !== null && PRESETS.includes(named.preset) ? named : thisMonth.value
+    return breakdownPeriodOf(typeof route.query.period === 'string' ? route.query.period : null) ?? thisMonth.value
   },
   set: (picked) => {
     const { period: _left, ...others } = route.query
@@ -126,7 +124,7 @@ const subtitle = computed(() => (props.waiting ? rateWords.loading : (unratedNot
 <template>
   <div class="flex flex-col gap-6">
     <div class="flex flex-col gap-3">
-      <PeriodBar v-model:period="period" :window="window" :presets="PRESETS" />
+      <PeriodBar v-model:period="period" :window="window" :presets="BREAKDOWN_PRESETS" />
       <ChoiceButtons v-model="grouping" :options="groupings" :label="words.analysis.breakdown.grouping" data-testid="spending-analysis-grouping" />
     </div>
     <ChartCard

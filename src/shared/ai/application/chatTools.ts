@@ -319,9 +319,6 @@ async function openPage({ catalogue, reads }: ChatTools, path: string): Promise<
   return { text: page, isError: false }
 }
 
-/** A period as an app's filter writes it, such as `2026q3`, `l12` or `2026-01-01..2026-03-31`. */
-const PERIOD_KEY = /^[a-z0-9][a-z0-9.-]{0,23}$/
-
 /** The value a link puts in the address for a parameter of this shape, or null when the value is not one. A record goes by its key, as its page reads it back. */
 function paramValue(shape: PlaceParams['params'][string], value: string, app: string, reads: ChatReads): string | null {
   switch (shape) {
@@ -331,15 +328,20 @@ function paramValue(shape: PlaceParams['params'][string], value: string, app: st
       return /^\d{4}$/.test(value) ? value : null
     case 'day':
       return parseCivilDate(value)
-    case 'period':
-      return PERIOD_KEY.test(value) ? value : null
     default: {
+      if ('reads' in shape) return shape.reads(value) ? value : null
       const record = reads.refs.recordOf(value)
       if (record === null || record.app !== app || record.kind !== shape.kind) return null
       const prefix = `${shape.kind}:`
       return record.id.startsWith(prefix) ? record.id.slice(prefix.length) : record.id
     }
   }
+}
+
+/** Why a value does not fill a parameter of this shape, in words that repeat none of what the model wrote. */
+function refusedValue(shape: PlaceParams['params'][string]): string {
+  if (typeof shape === 'string') return `That ${shape} does not read as one.`
+  return 'kind' in shape ? `That is not a ref Kuna handed out for a ${shape.kind} in this app.` : `That period is not one the screen reads. It takes ${shape.periods}.`
 }
 
 /** The address with each parameter filled, or why not, in a sentence that repeats none of what the model wrote. */
@@ -351,7 +353,7 @@ function filledAddress(route: string, declared: PlaceParams | undefined, params:
     const shape = Object.hasOwn(declared.params, name) ? declared.params[name] : undefined
     if (shape === undefined || query.has(name)) return refusal('That address does not take that parameter, or takes it once. Take them from its page.')
     const filled = paramValue(shape, value, declared.app, reads)
-    if (filled === null) return refusal(typeof shape === 'string' ? `That ${shape} does not read as one.` : `That is not a ref Kuna handed out for a ${shape.kind} in this app.`)
+    if (filled === null) return refusal(refusedValue(shape))
     query.set(name, filled)
   }
   return `${route.split('?')[0]}?${query}`
