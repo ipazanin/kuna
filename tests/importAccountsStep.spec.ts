@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { asksAboutAccount } from '../src/apps/investments/imports/domain/importChoices'
-import type { AccountQuestion } from '../src/apps/investments/imports/domain/importDryRun'
+import type { AccountQuestion } from '../src/apps/investments/imports/domain/importQuestions'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { account } from './fixtures/investments'
 

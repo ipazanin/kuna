@@ -1,4 +1,4 @@
-import type { LikelyAccount } from './importDryRun'
+import type { LikelyAccount } from './importQuestions'
 import type { ImportedRecord } from './importedRecords'
 import { accountScopeOf, isAskedKey, isReportKey, isWorkbookKey } from './reportKey'
 import type { RowEntry } from './workbookEntries'

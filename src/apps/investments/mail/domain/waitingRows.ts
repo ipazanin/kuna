@@ -1,5 +1,6 @@
-import { waitingQuestions } from '../../imports/domain/importDryRun'
-import type { ReportQuestion, WorkbookRows } from '../../imports/domain/importDryRun'
+import type { WorkbookRows } from '../../imports/domain/importDryRun'
+import { waitingQuestions } from '../../imports/domain/importQuestions'
+import type { ReportQuestion } from '../../imports/domain/importQuestions'
 import { importedByKey } from '../../imports/domain/importKeys'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { bookingStart } from './askedRowStart'

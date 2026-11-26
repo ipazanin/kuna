@@ -1,5 +1,5 @@
 import { accountSources } from '../../imports/domain/accountIntake'
-import type { ReportQuestion } from '../../imports/domain/importDryRun'
+import type { ReportQuestion } from '../../imports/domain/importQuestions'
 import type { Happening, TransactionTexts } from '../../transactions/domain/transactionDraft'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { amountShown } from '../../../../shared/money/amountTyping'
