@@ -1,7 +1,7 @@
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
-import { croatianBucket } from '../../settings/domain/words'
+import { croatianBucket } from '../../workbook/domain/bucketNames'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A role keeps its name as the categories tab stores it, such as owner-benefit. A bucket takes its Croatian name in quotes.

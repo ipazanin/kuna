@@ -224,6 +224,13 @@ export const en = {
     already: (slug: string, noun: SlugNoun) => `"${slug}" is already ${withArticle(noun)}.`,
     inUse: (slug: string, deleted: boolean, users: string) => `"${slug}" cannot be ${deleted ? 'deleted' : 'renamed'}, since it is used by ${users}.`,
   },
+  /** What a tab editor says beside a field it cannot save. */
+  fields: {
+    required: 'Required',
+    usedAbove: 'Already used above',
+    keepsName: (name: string) => `${name} is in use, so it keeps its name`,
+    slugFormat: 'Lower-case letters, digits and single hyphens',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -339,6 +346,12 @@ export const hr: Translation<typeof en> = {
     addedTwice: (slug) => `Naziv „${slug}” dodan je dvaput.`,
     already: (slug, noun) => `„${slug}” već postoji kao ${SLUG_NOUNS[noun].one}.`,
     inUse: (slug, deleted, users) => `„${slug}” ne može se ${deleted ? 'obrisati' : 'preimenovati'} jer je u upotrebi (${users}).`,
+  },
+  fields: {
+    required: 'Obavezno',
+    usedAbove: 'Već se koristi iznad',
+    keepsName: (name) => `„${name}” je u upotrebi, pa zadržava naziv`,
+    slugFormat: 'Mala slova, znamenke i pojedinačne crtice',
   },
 }
 

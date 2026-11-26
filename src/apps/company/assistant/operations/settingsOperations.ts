@@ -5,7 +5,7 @@ import { words } from './words'
 import { fillShares } from '../../owner-share/application/ownerShareWrites'
 import { shareFillsOf } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
-import { writeDrafts } from '../../settings/application/draftWrites'
+import { writeDrafts } from '../../workbook/application/draftWrites'
 import { accountUses, writeAccounts } from '../../settings/application/namedRecordWrites'
 import { CATEGORY_WRITES, categoryKeptAfterMove, categoryUses, deleteCategoryInto, joinedInWords, keptInWords } from '../../categories/application/categoryWrites'
 import type { RecordsOfKind } from '../../settings/application/namedRecordWrites'
@@ -16,7 +16,7 @@ import { rolesBesideClass } from '../../categories/domain/categoryClasses'
 import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, rolesOfText } from '../../categories/domain/categoryDrafts'
 import type { CategoryDraft } from '../../categories/domain/categoryDrafts'
 import { knownRoles } from '../../categories/domain/categoryGuards'
-import type { MadeDraft } from '../../settings/domain/recordDrafts'
+import type { MadeDraft } from '../../workbook/domain/recordDrafts'
 import {
   CLIENT_PAYMENTS_PLACED_KEY,
   STATEMENTS_MAIL_READ_TO_KEY,

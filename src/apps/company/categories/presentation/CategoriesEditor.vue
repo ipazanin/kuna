@@ -34,6 +34,7 @@ import CategoryFilterBar from './CategoryFilterBar.vue'
 import { rulesCountLink } from '../../rules/presentation/rulesCountLink'
 import RolesSelect from './RolesSelect.vue'
 import { words as settingsWords } from '../../settings/presentation/words'
+import { words as fieldWords } from '../domain/words'
 import { vatTreatmentLabel, words } from './words'
 
 const props = defineProps<{
@@ -430,7 +431,7 @@ function save(): void {
               </UInput>
               <p v-if="errors.get(index)?.ownerShare" class="field-error">{{ errors.get(index)?.ownerShare }}</p>
             </template>
-            <span v-else class="inline-block px-2 py-1 text-muted" :title="words.categories.onlyOperating">–</span>
+            <span v-else class="inline-block px-2 py-1 text-muted" :title="fieldWords.fields.onlyOperating">–</span>
           </td>
           <td>
             <UButton

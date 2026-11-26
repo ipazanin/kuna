@@ -10,9 +10,10 @@ import { BY_HAND_SOURCES } from '../../workbook/domain/workbook'
 import type { Account, CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
-import { madeOfDrafts } from './recordDrafts'
-import type { MadeDraft } from './recordDrafts'
+import { madeOfDrafts } from '../../workbook/domain/recordDrafts'
+import type { MadeDraft } from '../../workbook/domain/recordDrafts'
 import { currencyProblem } from './settings'
+import { words as editorWords } from '../../workbook/domain/words'
 import { words } from './words'
 
 /** One row of the accounts editor, as text. */
@@ -81,13 +82,13 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
     const name = draft.account.trim().toLowerCase()
     const saved = draft.savedName.trim().toLowerCase()
     if (name === '') {
-      found.account = words.fields.required
+      found.account = editorWords.fields.required
     } else if (named.has(name)) {
-      found.account = words.fields.usedAbove
+      found.account = editorWords.fields.usedAbove
     } else if (saved !== '' && saved !== name && usedNames.has(saved)) {
-      found.account = words.fields.keepsName(draft.savedName)
+      found.account = editorWords.fields.keepsName(draft.savedName)
     } else if (name !== saved && slugProblem(name, 'account') !== null) {
-      found.account = words.fields.slugFormat
+      found.account = editorWords.fields.slugFormat
     }
     if (name !== '') {
       named.add(name)

@@ -3,7 +3,7 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 import type { VatTreatment } from '../../workbook/domain/vatTreatment'
-import { croatianBucket, croatianBucketName } from '../../settings/domain/words'
+import { croatianBucket, croatianBucketName } from '../../workbook/domain/bucketNames'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Dodaj, Odbaci, Vrati.
 // A category is kategorija, a family grupa and a bucket skupina. A role keeps its name as the tab stores it, and a bucket takes its Croatian name in quotes.
@@ -85,7 +85,6 @@ export const en = {
     colourAlone: (swatch: string, bucket: string) => `${swatch}. No other ${bucket} category looks like it.`,
     colourLooksLike: (others: string) => `Hard to tell apart from ${others} on a chart.`,
     shareLabel: 'Owner share, in percent',
-    onlyOperating: 'Only an operating category holds a share',
     removeNew: 'Remove this new category',
     deleteName: (name: string) => `Delete ${name || 'this category'}`,
     /** Deleting a category in use, whose rows and rules move to another in the same write. */
@@ -220,7 +219,6 @@ export const hr: Translation<typeof en> = {
     colourAlone: (swatch, bucket) => `${swatch}. Nijedna druga kategorija skupine ${croatianBucket(bucket)} ne izgleda kao ona.`,
     colourLooksLike: (others) => `Na grafikonu se teško razlikuje od: ${others}.`,
     shareLabel: 'Udio vlasnika, u postocima',
-    onlyOperating: `Udio može imati samo kategorija skupine ${croatianBucket('operating')}`,
     removeNew: 'Ukloni ovu novu kategoriju',
     deleteName: (name) => (name === '' ? 'Obriši ovu kategoriju' : `Obriši „${name}”`),
     moveAndDelete: {

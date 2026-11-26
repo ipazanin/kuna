@@ -1,4 +1,4 @@
-import type { DraftColumn, FieldReader } from '../domain/recordDrafts'
+import type { DraftColumn, FieldReader } from '../../workbook/domain/recordDrafts'
 import { words } from './words'
 
 export interface ChoiceItem {

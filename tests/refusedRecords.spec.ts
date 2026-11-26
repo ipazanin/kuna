@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { writeDrafts } from '../src/apps/company/settings/application/draftWrites'
+import { writeDrafts } from '../src/apps/company/workbook/application/draftWrites'
 import { CATEGORY_WRITES } from '../src/apps/company/categories/application/categoryWrites'
 import { categoriesOfDrafts, categoryDraftsOf } from '../src/apps/company/categories/domain/categoryDrafts'
 import { CATEGORY_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'

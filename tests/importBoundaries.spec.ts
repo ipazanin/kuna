@@ -455,6 +455,10 @@ describe('import boundaries', () => {
     expect(broken((entry) => !entry.from.startsWith('src/apps/company/settings/') || entry.target === null || !entry.target.startsWith('src/apps/company/categories/'))).toEqual([])
   })
 
+  it("keeps Company's categories off the Settings domain, since their words, the bucket names and the tab-editor parts live elsewhere", () => {
+    expect(broken((entry) => !entry.from.startsWith('src/apps/company/categories/') || entry.target === null || !entry.target.startsWith('src/apps/company/settings/domain/'))).toEqual([])
+  })
+
   it("writes Company's categories in one file under categories", () => {
     const writes = /WriteRules<\s*CategoryRecord\s*>/
     expect(linesHolding(writes, () => false).map((line) => line.split(':')[0])).toContain(COMPANY_CATEGORY_WRITES)

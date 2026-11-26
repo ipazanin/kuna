@@ -23,7 +23,7 @@ import type { HandoverWords } from '../../../../shared/ui/sourceHandover'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import AccountsEditor from './AccountsEditor.vue'
 import { accountBankNames } from '../../workbook/domain/accountBanks'
-import { storedCount } from './settingsCounts'
+import { storedCount } from '../../workbook/presentation/storedCount'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 

@@ -11,9 +11,10 @@ import { isVatTreatment, vatCell } from '../../workbook/domain/vatTreatment'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 import { sameClassedFields } from './categoryClasses'
 import type { ClassedFields } from './categoryClasses'
-import { madeOfDrafts } from '../../settings/domain/recordDrafts'
-import type { MadeDraft } from '../../settings/domain/recordDrafts'
-import { words } from '../../settings/domain/words'
+import { madeOfDrafts } from '../../workbook/domain/recordDrafts'
+import type { MadeDraft } from '../../workbook/domain/recordDrafts'
+import { words as editorWords } from '../../workbook/domain/words'
+import { words } from './words'
 
 /** One row of the categories editor, as text, the way the tab holds it. */
 export interface CategoryDraft {
@@ -97,22 +98,22 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
     const found: Partial<Record<CategoryField, string>> = {}
     const name = draft.category.trim().toLowerCase()
     if (name === '') {
-      found.category = words.fields.required
+      found.category = editorWords.fields.required
     } else if (named.has(name)) {
-      found.category = words.fields.usedAbove
+      found.category = editorWords.fields.usedAbove
     } else if (renamesUsed(draft, drafts, usedNames)) {
-      found.category = words.fields.keepsName(draft.savedName)
+      found.category = editorWords.fields.keepsName(draft.savedName)
     } else if (name !== draft.savedName.trim().toLowerCase() && slugProblem(name, 'category') !== null) {
-      found.category = words.fields.slugFormat
+      found.category = editorWords.fields.slugFormat
     }
     if (name !== '') {
       named.add(name)
     }
     if (draft.family.trim() === '') {
-      found.family = words.fields.required
+      found.family = editorWords.fields.required
     }
     if (!(BUCKETS as readonly string[]).includes(draft.bucket.trim().toLowerCase())) {
-      found.bucket = draft.bucket.trim() === '' ? words.fields.required : words.fields.notABucket
+      found.bucket = draft.bucket.trim() === '' ? editorWords.fields.required : words.fields.notABucket
     }
     const unknownRoles = rolesOfText(draft.roles).filter((role) => !knownRoles.includes(role))
     if (unknownRoles.length > 0) {

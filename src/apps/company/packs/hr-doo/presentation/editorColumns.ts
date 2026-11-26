@@ -1,5 +1,5 @@
 import type { ChoiceItem, EditorColumn } from '../../../settings/presentation/factTabColumns'
-import type { DraftFieldKind, FieldReader } from '../../../settings/domain/recordDrafts'
+import type { DraftFieldKind, FieldReader } from '../../../workbook/domain/recordDrafts'
 import { ASSET_GROUPS } from '../domain/assets/assets'
 import { GRANT_RELEASES } from '../domain/grants/grants'
 import { YEAR_END_LINES, YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd/yearEnd'

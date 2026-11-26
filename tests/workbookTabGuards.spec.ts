@@ -6,7 +6,7 @@ import { newInvoiceDates } from '../src/apps/company/invoicing/domain/invoiceDat
 import { accountChangeRefusals } from '../src/apps/company/settings/domain/accountGuards'
 import { categoryChangeRefusals, categoryRoleRefusals, knownRoles } from '../src/apps/company/categories/domain/categoryGuards'
 import { clientChangeRefusals } from '../src/apps/company/settings/domain/clientGuards'
-import { writeDrafts } from '../src/apps/company/settings/application/draftWrites'
+import { writeDrafts } from '../src/apps/company/workbook/application/draftWrites'
 import type { Repository } from '../src/shared/storage/application/repository'
 import type { ReadRecord, RefusedRecord } from '../src/shared/storage/domain/recordsRead'
 import { isIban } from '../src/shared/text/iban'

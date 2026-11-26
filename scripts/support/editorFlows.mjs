@@ -191,6 +191,7 @@ const SCREEN_WORDS = {
     rules: rulesEnglish,
     ruleChanges: ruleChangesEnglish.changes,
     categoryName: companyBooksEnglish.unlabelled,
+    editorFields: companyBooksEnglish.fields,
     swatches: chartsEnglish.swatches,
     sortBy: uiEnglish.sortBy,
     splitEditor: uiEnglish.split,
@@ -287,6 +288,7 @@ const SCREEN_WORDS = {
     rules: rulesCroatian,
     ruleChanges: ruleChangesCroatian.changes,
     categoryName: companyBooksCroatian.unlabelled,
+    editorFields: companyBooksCroatian.fields,
     swatches: chartsCroatian.swatches,
     sortBy: uiCroatian.sortBy,
     splitEditor: uiCroatian.split,
@@ -886,7 +888,7 @@ export function categoryFiltersFlowIn(language) {
       .waitForFunction(
         (required, at) => [...document.querySelectorAll('[data-testid="category-row"]')][at]?.querySelector('.field-error')?.textContent?.trim() === required,
         { timeout: 5_000 },
-        words.settingsReasons.fields.required,
+        words.editorFields.required,
         order.indexOf(moved),
       )
       .catch(() => {
