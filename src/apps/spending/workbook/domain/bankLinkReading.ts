@@ -1,5 +1,6 @@
 import { BANK_LINK_RECORDS } from './spendingKinds'
-import { utcTimeOf } from './spendingSettings'
+import { dayCheck, utcTimeOf } from './spendingSettings'
+import type { SpendingSettingWords } from './spendingSettings'
 import { BANK_USAGES, OLD_BANK_KEYS, linkKey } from '../../../../shared/bank-sync/domain/bankLink'
 import type { BankLink } from '../../../../shared/bank-sync/domain/bankLink'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
@@ -11,7 +12,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { keyedId, requiredChoice, requiredDate, requiredRead, requiredText, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { settingValue } from '../../../../shared/storage/domain/settingRows'
-import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
+import type { SettingChecks, SettingRow } from '../../../../shared/storage/domain/settingRows'
 
 /** The id a link of the bank and login is kept under, the same on every device. */
 export function bankLinkId(link: Pick<BankLink, 'bank' | 'usage'>): RecordId {
@@ -49,6 +50,19 @@ export function oldLinkFetchedKey(oldKey: string): string {
 
 /** Every setting a book from before bank-link records keeps its links in. */
 export const OLD_LINK_SETTING_KEYS: readonly string[] = Object.values(OLD_BANK_KEYS).flatMap((oldKey) => [oldLinkEndKey(oldKey), oldLinkFetchedKey(oldKey)])
+
+/** The old link settings of a book from before bank-link records, each bank's link ending only on a day and its last fetch only at a UTC time. */
+export function oldLinkSettingChecks(said: SpendingSettingWords): SettingChecks {
+  return new Map(
+    Object.values(OLD_BANK_KEYS).flatMap((oldKey) => {
+      const fetchedKey = oldLinkFetchedKey(oldKey)
+      return [
+        [oldLinkEndKey(oldKey), dayCheck(oldLinkEndKey(oldKey), said)],
+        [fetchedKey, (value: string) => (utcTimeOf(value) === null ? [said.settingNotATime(fetchedKey, value)] : [])],
+      ] as const
+    }),
+  )
+}
 
 /**
  * Whether the old link settings still say which banks are linked: while no bank-link record counts. The reader and the

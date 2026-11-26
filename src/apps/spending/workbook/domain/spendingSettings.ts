@@ -1,7 +1,7 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { settingValue } from '../../../../shared/storage/domain/settingRows'
-import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
+import { ANY_VALUE, settingValue } from '../../../../shared/storage/domain/settingRows'
+import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 
 /** What the Spending file keeps besides its records. */
 export interface SpendingSettings {
@@ -95,4 +95,37 @@ export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSetting
     companyRolesPutOff: parseCivilDate(settingValue(rows, COMPANY_ROLES_PUT_OFF_KEY)),
     companyPaymentsPutOff: parseCivilDate(settingValue(rows, COMPANY_PAYMENTS_PUT_OFF_KEY)),
   }
+}
+
+/** The sentences a setting's check refuses a value with, each naming the key and the value or line it refuses. */
+export interface SpendingSettingWords {
+  readonly settingNotADay: (key: string, text: string) => string
+  readonly settingNotATime: (key: string, text: string) => string
+  readonly settingNotABankAccount: (key: string, line: string) => string
+  readonly settingNotAPutOff: (key: string, line: string) => string
+}
+
+/** A check that refuses a value that is not a day. */
+export function dayCheck(key: string, said: SpendingSettingWords): SettingValueCheck {
+  return (value) => (parseCivilDate(value) === null ? [said.settingNotADay(key, value)] : [])
+}
+
+function bankAccountLinesCheck(key: string, said: SpendingSettingWords): SettingValueCheck {
+  return (value) => linesOf(value).flatMap((line) => (isBankAccountLine(line) ? [] : [said.settingNotABankAccount(key, line)]))
+}
+
+function instalmentsPutOffCheck(said: SpendingSettingWords): SettingValueCheck {
+  return (value) => linesOf(value).flatMap((line) => (instalmentPutOffOf(line) === null ? [said.settingNotAPutOff(INSTALMENTS_PUT_OFF_KEY, line)] : []))
+}
+
+/** Each key `spendingSettingsOf` reads, with the check of its value. */
+export function spendingSettingChecks(said: SpendingSettingWords): SettingChecks {
+  return new Map<string, SettingValueCheck>([
+    [BANK_SYNC_APPLICATION_KEY, ANY_VALUE],
+    [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY, said)],
+    [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY, said)],
+    [INSTALMENTS_PUT_OFF_KEY, instalmentsPutOffCheck(said)],
+    [COMPANY_ROLES_PUT_OFF_KEY, dayCheck(COMPANY_ROLES_PUT_OFF_KEY, said)],
+    [COMPANY_PAYMENTS_PUT_OFF_KEY, dayCheck(COMPANY_PAYMENTS_PUT_OFF_KEY, said)],
+  ])
 }

@@ -24,8 +24,7 @@ import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import type { Payee } from './payee'
 import type { SpendingEvent } from './event'
 import type { Receipt } from './receipt'
-import { OLD_LINK_SETTING_KEYS, bankLinksOf, oldLinkEndKey, oldLinksCount } from './bankLinkReading'
-import { OLD_BANK_KEYS } from '../../../../shared/bank-sync/domain/bankLink'
+import { OLD_LINK_SETTING_KEYS, bankLinksOf, oldLinkSettingChecks, oldLinksCount } from './bankLinkReading'
 import type { BankLink } from '../../../../shared/bank-sync/domain/bankLink'
 import { readReceipts } from './receiptReading'
 import {
@@ -52,20 +51,7 @@ import {
 import type { SpendingRule } from './spendingRule'
 import { readRules } from './ruleReading'
 import type { Shortcut, ShortcutPart } from './shortcut'
-import {
-  BANK_ACCOUNTS_KEEP_MINE_KEY,
-  BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
-  BANK_SYNC_APPLICATION_KEY,
-  INSTALMENTS_PUT_OFF_KEY,
-  COMPANY_ROLES_PUT_OFF_KEY,
-  COMPANY_PAYMENTS_PUT_OFF_KEY,
-  PERSON_PAYEES_KEY,
-  instalmentPutOffOf,
-  isBankAccountLine,
-  linesOf,
-  spendingSettingsOf,
-  utcTimeOf,
-} from './spendingSettings'
+import { PERSON_PAYEES_KEY, spendingSettingChecks, spendingSettingsOf } from './spendingSettings'
 import type { SpendingSettings } from './spendingSettings'
 import type { StoredRow, Transaction } from './transaction'
 import { readDropped, readHeld, readTransactions } from './transactionReading'
@@ -75,30 +61,12 @@ import type { MemberProblem } from '../../sharedCosts/domain/sharedCostMembers'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { doubted, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { ANY_VALUE, readSettingRows } from '../../../../shared/storage/domain/settingRows'
+import { readSettingRows } from '../../../../shared/storage/domain/settingRows'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
-import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import type { SettingChecks, SettingRow } from '../../../../shared/storage/domain/settingRows'
 
-function oldLinkCheck(key: string): SettingValueCheck {
-  if (Object.values(OLD_BANK_KEYS).some((oldKey) => oldLinkEndKey(oldKey) === key)) return (value) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])
-  return (value) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])
-}
-
-function bankAccountLinesCheck(key: string): SettingValueCheck {
-  return (value: string) => linesOf(value).flatMap((line) => (isBankAccountLine(line) ? [] : [words.settingNotABankAccount(key, line)]))
-}
-
-/** Each key Spending knows, and of a book from before bank-link records a bank's link ending only on a day and a bank's last fetch only at a UTC time. */
-export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingValueCheck>([
-  [BANK_SYNC_APPLICATION_KEY, ANY_VALUE],
-  [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
-  [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY)],
-  [INSTALMENTS_PUT_OFF_KEY, (value: string) => linesOf(value).flatMap((line) => (instalmentPutOffOf(line) === null ? [words.settingNotAPutOff(INSTALMENTS_PUT_OFF_KEY, line)] : []))],
-  [COMPANY_ROLES_PUT_OFF_KEY, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(COMPANY_ROLES_PUT_OFF_KEY, value)] : [])],
-  [COMPANY_PAYMENTS_PUT_OFF_KEY, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(COMPANY_PAYMENTS_PUT_OFF_KEY, value)] : [])],
-  ...OLD_LINK_SETTING_KEYS.map((key) => [key, oldLinkCheck(key)] as const),
-])
+/** Each key Spending knows, and of a book from before bank-link records the old link settings. */
+export const SPENDING_SETTING_CHECKS: SettingChecks = new Map([...spendingSettingChecks(words), ...oldLinkSettingChecks(words)])
 
 /**
  * Keys Spending no longer reads that older files may still hold. Company's OIB is read from Company now, the bank sync script is
