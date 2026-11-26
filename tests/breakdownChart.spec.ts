@@ -6,7 +6,7 @@ import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import type { BarSeries } from '../src/shared/charts/echarts'
 import { euros } from './fixtures/ledger'
 
-const GREY = '#a3adb9'
+const GREY = '#858f9d'
 const TOKENS = { series: ['s1', 's2', 's3', 's4'], deemphasis: GREY, hatch: 'hatch', inkSecondary: 'ink-secondary', inkMuted: 'ink-muted' } as unknown as ChartTokens
 
 // A group with no swatch left falls back to the grey token, which the page resolves to the same grey the rest bar takes.

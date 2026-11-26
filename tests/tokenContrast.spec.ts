@@ -33,10 +33,15 @@ const APP_TILE_WASH = 0.14
 const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
 /** The gain and loss steps, which tint a tile or a cell under a figure in ink. */
 const STEPS = ['--gain-1', '--gain-2', '--gain-3', '--loss-1', '--loss-2', '--loss-3']
-/** The class ring's colours that are not series, marks on the card and on the chart's surface. */
-const CLASS_MARKS = ['--invest-gold', '--invest-crypto']
-/** The dots that mark a buy, a sale or a loan's movement on a time chart, and the ring of a new rate, as marks on the card and on the chart's surface. */
-const DOT_MARKS = ['--invest-buy', '--invest-sale', '--loan-lowers', '--loan-raises', '--loan-interest']
+/** The families of tokens a chart paints its bars, slices, lines and dots with. */
+const CHART_MARK_FAMILY = /^--(chart|series|bucket|pay|loan|scenario|invest|net)-/
+/** The chart tokens that are no mark: the surfaces, the recessive grid, axis, ghost, hatch and tooltip edge, and the inks, which carry text. */
+const NOT_CHART_MARKS = ['--chart-surface', '--chart-tooltip', '--chart-tooltip-border', '--chart-grid', '--chart-axis', '--chart-ghost', '--chart-hatch', '--chart-on-fill', ...CHART_INKS]
+
+/** Every chart mark the theme sets, through the block both themes share as well. */
+function chartMarksOf(tokens: ReadonlyMap<string, string>): readonly string[] {
+  return [...new Set([...tokens.keys(), ...SHARED_TOKENS.keys()])].filter((name) => CHART_MARK_FAMILY.test(name) && !NOT_CHART_MARKS.includes(name))
+}
 /** The edge of a checkbox or a radio and of a switch that is off, a mark on the surfaces a control sits on. */
 const CONTROL_EDGE = '--control-edge'
 /** The twelve categorical slots, which a category may wear as its swatch beside its name on the page, a card and a popover. */
@@ -83,7 +88,7 @@ function colourOf(tokens: ReadonlyMap<string, string>, name: string): string {
  * The pairs that carry text in one theme: every ink and tone on the page, a card and a popover, each
  * tone on the 10% wash of itself that Nuxt UI's subtle badges and alerts lie on, ink on the accent
  * wash of a picked row or tab, each app's colour on the surfaces as text and on its own tile as a mark, the label of a primary button, the chart's ink, and the ink inside a
- * filled chart mark, which carries icons and large text only, each categorical slot as a mark on the page, a card and a popover, ink on each gain and loss step and on each net position's tint, and each class colour, each dot colour and the edge of a checkbox, a radio or an off switch as a mark.
+ * filled chart mark, which carries icons and large text only, each categorical slot as a mark on the page, a card and a popover, ink on each gain and loss step and on each net position's tint, every chart mark on the card and the chart's surface, and the edge of a checkbox, a radio or an off switch as a mark.
  */
 function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
   const colour = (name: string): string => colourOf(tokens, name)
@@ -105,7 +110,7 @@ function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
     ...SERIES.map((series) => pair('--chart-on-fill', series, MARK)),
     ...SERIES.flatMap((series) => SURFACES.map((surface) => pair(series, surface, MARK))),
     ...SURFACES.map((surface) => pair(CONTROL_EDGE, surface, MARK)),
-    ...[...CLASS_MARKS, ...DOT_MARKS].flatMap((mark) => ['--surface-raised', '--chart-surface'].map((surface) => pair(mark, surface, MARK))),
+    ...chartMarksOf(tokens).flatMap((mark) => ['--surface-raised', '--chart-surface'].map((surface) => pair(mark, surface, MARK))),
     ...STEPS.flatMap((step) => ['--ink', '--ink-strong', '--chart-ink'].map((ink) => pair(ink, step))),
   ]
 }
@@ -241,6 +246,24 @@ describe('the dot colours', () => {
           return normal >= DOT_APART ? [] : [`${dot} and ${other}: ${normal.toFixed(1)}`]
         }),
       )
+      expect(failing).toEqual([])
+    })
+  }
+})
+
+/** The least OKLab distance, times 100, between the grey a chart sets back and the chart's inks, so a set-back bar reads as neither text nor the muted bar of last year beside a set-back year. */
+const DEEMPHASIS_APART_FROM_INK = 10
+
+describe('the de-emphasis grey', () => {
+  for (const [theme, tokens] of [
+    ['light', LIGHT_TOKENS],
+    ['dark', DARK_TOKENS],
+  ] as const) {
+    it(`stays apart from every chart ink in the ${theme} theme`, () => {
+      const failing = CHART_INKS.flatMap((ink) => {
+        const { normal } = distancesOf(colourOf(tokens, '--chart-deemphasis'), colourOf(tokens, ink))
+        return normal >= DEEMPHASIS_APART_FROM_INK ? [] : [`--chart-deemphasis and ${ink}: ${normal.toFixed(1)}`]
+      })
       expect(failing).toEqual([])
     })
   }

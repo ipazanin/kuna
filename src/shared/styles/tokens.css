@@ -106,7 +106,8 @@
   --chart-grid: #e8ecf0;
   --chart-axis: #b9c3ce;
   --chart-ghost: rgba(71, 84, 103, 0.16);
-  --chart-deemphasis: #a3adb9;
+  /* What a chart sets back, such as the folded rest or last year's bars. It passes 3:1 on the card and stays lighter than --chart-ink-muted, which last year's bars wear beside it. */
+  --chart-deemphasis: #858f9d;
   --chart-hatch: rgba(255, 255, 255, 0.62);
   --chart-tooltip: #ffffff;
   --chart-tooltip-border: #dbe0e6;

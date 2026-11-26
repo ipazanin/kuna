@@ -31,19 +31,20 @@ export const SWATCHES: readonly Swatch[] = [
   paletteSwatch(words.swatches.plum, '#8e5bab', 10),
   paletteSwatch(words.swatches.olive, '#908126', 11),
   paletteSwatch(words.swatches.petrol, '#0f86ad', 12),
-  paletteSwatch(words.swatches.grey, '#a3adb9', null),
+  paletteSwatch(words.swatches.grey, '#858f9d', null),
 ]
 
 /** How many categorical slots the palette holds, `--series-1` to `--series-12`. */
 export const CHART_SLOTS = SWATCHES.filter((swatch) => swatch.slot !== null).length
 
-/** Other light steps of five slots that a file may hold, each naming its slot. */
+/** Other light steps of five slots and of the grey that a file may hold, each naming its swatch. */
 const STORED_LIGHTER: Readonly<Record<string, string>> = {
   '#1baf7a': '#1c9b5e',
   '#eb6834': '#dd5e1a',
   '#eda100': '#b77610',
   '#e87ba4': '#c96292',
   '#e34948': '#ec5061',
+  '#a3adb9': '#858f9d',
 }
 
 /** The palette's swatch a stored colour names, matched without regard to case, or null. */

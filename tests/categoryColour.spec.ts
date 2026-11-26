@@ -40,7 +40,7 @@ function withColours(): Record<string, CellValue[][]> {
 describe('CategoryColour', () => {
   it('reads a swatch or an own colour by its light hex in any case, and anything else as the bucket colour, keeping it as stored', () => {
     expect(categoryColourOf('#2A78D6')).toEqual({ swatch: { name: 'Blue', hex: '#2a78d6', slot: 3, own: false }, stored: '#2A78D6' })
-    expect(categoryColourOf('#a3adb9').swatch).toEqual({ name: 'Grey', hex: '#a3adb9', slot: null, own: false })
+    expect(categoryColourOf('#858F9D').swatch).toEqual({ name: 'Grey', hex: '#858f9d', slot: null, own: false })
     expect(categoryColourOf('#7A3E12').swatch).toEqual({ name: 'Own colour #7A3E12', hex: '#7a3e12', slot: null, own: true })
     expect(categoryColourOf('#dce9f9')).toEqual({ swatch: null, stored: '#dce9f9' })
     expect(categoryColourOf('blue')).toEqual({ swatch: null, stored: 'blue' })

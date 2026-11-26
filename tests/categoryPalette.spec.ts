@@ -48,8 +48,8 @@ describe('the category palette', () => {
     expect(['--surface-page', '--surface-raised', '--surface-elevated'].map((surface) => DARK_TOKENS.get(surface))).toEqual(DARK_SURFACES)
   })
 
-  it('reads the steps older files hold as their slot, in any case', () => {
-    expect(['#1BAF7A', '#eb6834', '#eda100', '#e87ba4', '#e34948'].map((stored) => paletteSwatchOf(stored)?.slot)).toEqual([1, 2, 4, 5, 8])
+  it('reads the steps older files hold as their swatch, in any case', () => {
+    expect(['#1BAF7A', '#eb6834', '#eda100', '#e87ba4', '#e34948', '#A3ADB9'].map((stored) => paletteSwatchOf(stored)?.hex)).toEqual(['#1c9b5e', '#dd5e1a', '#b77610', '#c96292', '#ec5061', '#858f9d'])
   })
 })
 
@@ -103,7 +103,7 @@ describe('an own colour', () => {
 
   it('keeps every slot it looks like from a category that takes the next free one, where a swatch of the palette keeps its own', () => {
     expect(slotsTakenBy(paletteSwatchOf('#1c9b5e')!)).toEqual([1])
-    expect(slotsTakenBy(paletteSwatchOf('#a3adb9')!)).toEqual([])
+    expect(slotsTakenBy(paletteSwatchOf('#858f9d')!)).toEqual([])
     expect(slotsTakenBy(ownSwatch('#139a6c'))).toEqual([1, 9])
   })
 })
