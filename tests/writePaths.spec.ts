@@ -41,6 +41,36 @@ function notesApp(operation: string): string {
   return root
 }
 
+/**
+ * The notes app with a page sync whose one step is made from the notes store and a file id. The step's stop saves a note, and its run
+ * is the body given. The chat's operation runs the sync and nothing else.
+ */
+function syncedNotesApp(run: string): string {
+  const root = notesApp('')
+  const files: Record<string, string> = {
+    'src/shared/sync/presentation/pageSync.ts': [
+      'export function usePageSync() { return { syncNow() {} } }',
+      'function booksStep(group) { const { store } = group\nreturn { run() { return store.sync() } } }',
+    ].join('\n'),
+    'src/apps/notes/app.ts': "import { notesSyncGroup } from './sync/presentation/notesSyncGroup'\nexport const NOTES_APP = { syncGroup: notesSyncGroup }\n",
+    'src/apps/notes/sync/presentation/notesSyncGroup.ts': [
+      "import { NOTE_STORE } from '../../notes/application/notes'",
+      "import { noteStep } from './noteStep'",
+      "export function notesSyncGroup() { const step = noteStep(NOTE_STORE, () => '1')\nreturn { steps: () => [step] } }",
+    ].join('\n'),
+    'src/apps/notes/sync/presentation/noteStep.ts': `export function noteStep(notes, fileId) { function stop(unit) { notes.save(unit) }\nreturn { readsMail: { stop }, run(unit) { ${run} } } }\n`,
+    'src/apps/notes/assistant/operations/noteOperations.ts': [
+      "import { usePageSync } from '../../../../shared/sync/presentation/pageSync'",
+      'export function planned() { usePageSync().syncNow() }',
+    ].join('\n'),
+  }
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, file)), { recursive: true })
+    writeFileSync(join(root, file), text)
+  }
+  return root
+}
+
 function chatSavesNotes(operation: string): boolean {
   const graph = writeGraph(notesApp(operation))
   expect([...screenWrites(graph).keys()]).toEqual([SAVE_NOTE])
@@ -83,5 +113,14 @@ describe('the write graph', () => {
 
   it('does not take a parameter for the import it hides', () => {
     expect(chatSavesNotes('return [unit].map((saveNote) => saveNote)')).toBe(false)
+  })
+
+  it("reaches what a sync step's run does with a value its group hands the step, and not what the rest of the step does", () => {
+    const stopOnly = writeGraph(syncedNotesApp('return fileId()'))
+    const runSaves = writeGraph(syncedNotesApp('notes.save(unit)'))
+
+    expect([...chatReach(stopOnly).get('notes')!.symbols]).not.toContain(SAVE_NOTE)
+    expect(chatCovers(stopOnly, chatReach(stopOnly), SAVE_NOTE)).toBe(false)
+    expect(chatCovers(runSaves, chatReach(runSaves), SAVE_NOTE)).toBe(true)
   })
 })

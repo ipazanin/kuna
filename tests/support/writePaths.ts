@@ -541,19 +541,25 @@ export function chatReach(graph: WriteGraph): ReadonlyMap<string, ChatReach> {
 /** The page's one sync, which an operation runs once it names it. */
 const PAGE_SYNC: SymbolKey = 'src/shared/sync/presentation/pageSync.ts#usePageSync'
 
-/** The read of an app's books, which the page's sync runs before the app's own steps. */
-const BOOKS_STEP_RUN: SymbolKey = 'src/shared/sync/presentation/pageSync.ts#booksStep'
+/** The step that reads an app's books, which the page's sync runs before the app's own steps. */
+const PAGE_BOOKS_STEP: SymbolKey = 'src/shared/sync/presentation/pageSync.ts#booksStep'
 
 /**
- * What a run of the page's sync names: the read of each app's books, and the `steps` each app's sync group lists, as the `syncGroup` of its
- * `app.ts` names the group. The rest of a group, such as its export control and its Undo, is not the run's. An operation that runs the sync
- * reaches what these name through screen code too, since an app builds its steps in its presentation code.
+ * What a run of the page's sync names: the `run` of the step that reads each app's books, and the `run` of each step the `steps` of an
+ * app's sync group lists, as the `syncGroup` of its `app.ts` names the group. The rest of a step, such as the stop of a step that reads mail,
+ * and the rest of a group, such as its export control and its Undo, are the screen's. An operation that runs the sync reaches what these
+ * name through screen code too, since an app builds its steps in its presentation code.
  */
 function pageSyncRun(graph: WriteGraph): Named {
   const run: Named = { symbols: [], fileActions: [], deviceWrites: [] }
-  const books = graph.named(BOOKS_STEP_RUN)
-  run.symbols.push(...books.symbols)
-  run.fileActions.push(...books.fileActions)
+  const add = (named: Named) => {
+    run.symbols.push(...named.symbols)
+    run.fileActions.push(...named.fileActions)
+  }
+  // A tree with no page sync, such as a spec's small app, has no books step to read.
+  const books = stepFactoryRun(graph, PAGE_BOOKS_STEP)
+  if (books === null && graph.modules.has(PAGE_BOOKS_STEP.split('#')[0]!)) throw new Error(`${PAGE_BOOKS_STEP} returns no step with a run`)
+  books?.nodes.forEach((node) => add(graph.namedIn(books.module, books.script, node)))
   for (const module of [...graph.modules.values()].filter((found) => /^src\/apps\/[^/]+\/app\.ts$/.test(found.file))) {
     for (const script of module.scripts) {
       const visit = (node: ts.Node): void => {
@@ -562,10 +568,7 @@ function pageSyncRun(graph: WriteGraph): Named {
           const declared = group === null ? undefined : graph.modules.get(group.split('#')[0]!)
           declared?.declarations.get(group!.split('#')[1]!)?.forEach(({ node: declaration, script: groupScript }) => {
             const steps = stepsOfGroup(declaration)
-            if (steps === null) return
-            const named = wiredNames(graph, declared, groupScript, steps, new Set())
-            run.symbols.push(...named.symbols)
-            run.fileActions.push(...named.fileActions)
+            if (steps !== null) add(stepRuns(graph, declared, groupScript, steps, new Set()))
           })
         }
         ts.forEachChild(node, visit)
@@ -574,6 +577,117 @@ function pageSyncRun(graph: WriteGraph): Named {
     }
   }
   return run
+}
+
+/**
+ * What the `run` of each step a stretch of a sync group lists names, through the list, a local, a constant step or a call of a function that
+ * makes one. A value handed to such a function counts only when its run reads it, as `ratesStep` reads `besideFileId`. A step the scan cannot
+ * see the run of counts whole.
+ */
+function stepRuns(graph: WriteGraph, module: Module, script: Script, step: ts.Node, seen: Set<ts.Node>): Named {
+  const found: Named = { symbols: [], fileActions: [], deviceWrites: [] }
+  const add = (named: Named) => {
+    found.symbols.push(...named.symbols)
+    found.fileActions.push(...named.fileActions)
+  }
+  if (seen.has(step)) return found
+  seen.add(step)
+  if (ts.isParenthesizedExpression(step) || ts.isAsExpression(step) || ts.isSatisfiesExpression(step) || ts.isSpreadElement(step)) return stepRuns(graph, module, script, step.expression, seen)
+  if (ts.isArrayLiteralExpression(step)) {
+    step.elements.forEach((element) => add(stepRuns(graph, module, script, element, seen)))
+    return found
+  }
+  if (ts.isConditionalExpression(step)) {
+    add(stepRuns(graph, module, script, step.whenTrue, seen))
+    add(stepRuns(graph, module, script, step.whenFalse, seen))
+    return found
+  }
+  if (ts.isArrowFunction(step) && !ts.isBlock(step.body)) return stepRuns(graph, module, script, step.body, seen)
+  if (ts.isIdentifier(step) && (boundLocally(step) || (!module.declarations.has(step.text) && !module.imports.has(step.text)))) {
+    const local = localValue(step)
+    return local === null ? found : stepRuns(graph, module, script, local, seen)
+  }
+  if (ts.isIdentifier(step)) {
+    const key = graph.declaredAt(module.file, step.text)
+    const declared = key === null ? [] : (graph.modules.get(key.split('#')[0]!)?.declarations.get(key.split('#')[1]!) ?? [])
+    const [only, ...others] = declared
+    if (key !== null && only !== undefined && others.length === 0 && ts.isVariableDeclaration(only.node) && only.node.initializer !== undefined) {
+      const members = objectMembers(only.node)
+      if (members?.has('run') === true) return graph.named(`${key}.run`)
+      if (members === null) return stepRuns(graph, graph.modules.get(key.split('#')[0]!)!, only.script, only.node.initializer, seen)
+    }
+  }
+  if (ts.isCallExpression(step) && ts.isIdentifier(step.expression)) {
+    const key = graph.declaredAt(module.file, step.expression.text)
+    const factory = key === null ? null : stepFactoryRun(graph, key)
+    if (factory !== null) {
+      factory.nodes.forEach((node) => add(graph.namedIn(factory.module, factory.script, node)))
+      factory.parameters.forEach((index) => {
+        const argument = step.arguments[index]
+        if (argument !== undefined) add(wiredNames(graph, module, script, argument, new Set()))
+      })
+      return found
+    }
+  }
+  return wiredNames(graph, module, script, step, new Set())
+}
+
+/**
+ * The `run` of the step a function returns as an object literal, with each local of the function the run reads, through the locals those
+ * read, and the position of each parameter the run reads. Null when the function returns no such step.
+ */
+function stepFactoryRun(graph: WriteGraph, key: SymbolKey): { readonly module: Module; readonly script: Script; readonly nodes: readonly ts.Node[]; readonly parameters: readonly number[] } | null {
+  const [file, name] = key.split('#') as [string, string]
+  const module = graph.modules.get(file)
+  const [only, ...others] = module?.declarations.get(name) ?? []
+  if (module === undefined || only === undefined || others.length > 0) return null
+  const factory = ts.isFunctionDeclaration(only.node)
+    ? only.node
+    : ts.isVariableDeclaration(only.node) && only.node.initializer !== undefined && (ts.isArrowFunction(only.node.initializer) || ts.isFunctionExpression(only.node.initializer))
+      ? only.node.initializer
+      : null
+  if (factory === null || factory.body === undefined || !ts.isBlock(factory.body)) return null
+  const returned = factory.body.statements.find(
+    (statement): statement is ts.ReturnStatement => ts.isReturnStatement(statement) && statement.expression !== undefined && ts.isObjectLiteralExpression(statement.expression),
+  )
+  const run = (returned?.expression as ts.ObjectLiteralExpression | undefined)?.properties.find(
+    (property) => property.name !== undefined && ts.isIdentifier(property.name) && property.name.text === 'run',
+  )
+  if (run === undefined) return null
+  const locals = new Map<string, ts.Node>()
+  const bind = (binding: ts.BindingName, node: ts.Node): void => {
+    if (ts.isIdentifier(binding)) locals.set(binding.text, node)
+    else binding.elements.forEach((element) => !ts.isOmittedExpression(element) && bind(element.name, node))
+  }
+  for (const statement of factory.body.statements) {
+    if (ts.isVariableStatement(statement)) statement.declarationList.declarations.forEach((declaration) => bind(declaration.name, declaration))
+    if (ts.isFunctionDeclaration(statement) && statement.name !== undefined) locals.set(statement.name.text, statement)
+  }
+  const parameters = new Map<string, number>()
+  factory.parameters.forEach((parameter, index) => {
+    const names: string[] = []
+    const collect = (binding: ts.BindingName): void => {
+      if (ts.isIdentifier(binding)) names.push(binding.text)
+      else binding.elements.forEach((element) => !ts.isOmittedExpression(element) && collect(element.name))
+    }
+    collect(parameter.name)
+    names.forEach((parameterName) => parameters.set(parameterName, index))
+  })
+  const nodes: ts.Node[] = [run]
+  const read = new Set<number>()
+  for (let at = 0; at < nodes.length; at++) {
+    const visit = (inner: ts.Node): void => {
+      if (ts.isIdentifier(inner) && !isOnlyAName(inner)) {
+        const local = locals.get(inner.text)
+        if (local !== undefined && !nodes.includes(local)) nodes.push(local)
+        const parameter = parameters.get(inner.text)
+        if (parameter !== undefined) read.add(parameter)
+      }
+      ts.forEachChild(inner, visit)
+    }
+    visit(nodes[at]!)
+  }
+  return { module, script: only.script, nodes, parameters: [...read] }
 }
 
 /** The apps whose `app.ts` hands the page's sync a group. */

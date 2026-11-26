@@ -57,7 +57,12 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   },
   {
     reason: "Google sign-in and consent. Google's consent window needs the person, so signing in or out and allowing access stay on the screen.",
-    paths: ['company: src/shared/google/googleAuth.ts#needScopes', 'shared: src/shared/google/googleAuth.ts#needScopes', 'kuna: src/shared/google/googleAuth.ts#signOutOfGoogle'],
+    paths: [
+      'company: src/shared/google/googleAuth.ts#needScopes',
+      'shared: src/shared/google/googleAuth.ts#needScopes',
+      'kuna: src/shared/google/googleAuth.ts#signOutOfGoogle',
+      'kuna: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
+    ],
   },
   {
     reason: "The Picker. Google's Picker shows the person's Drive, so picking a file or the folder beside it stays on the screen.",
