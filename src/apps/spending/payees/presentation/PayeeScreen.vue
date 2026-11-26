@@ -104,7 +104,6 @@ const averageLink = computed(() => {
 const editing = ref(false)
 
 const categoryName = (id: string | null): string => (id === null ? '' : (state.workbook?.categories.find((category) => category.id === id)?.name ?? ''))
-const ibans = computed(() => (summary.value?.totals?.ibans ?? record.value?.ibans ?? []).map(groupedIban))
 /** The entry facts read the lines the Entries card lists, so they agree with it. */
 const facts = computed(() => {
   const shown = summary.value
@@ -121,6 +120,7 @@ const facts = computed(() => {
     { label: words.page.taxId, value: held?.taxId ?? '' },
     { label: words.page.website, value: held?.website ?? '' },
     { label: words.page.note, value: held?.note ?? '' },
+    { label: words.page.ibans, value: (shown.totals?.ibans ?? held?.ibans ?? []).map(groupedIban).join('\n'), wide: true },
   ].filter((fact) => fact.value !== '')
 })
 
@@ -218,18 +218,12 @@ function openSharedCost(picked: SharedCost): void {
           </template>
         </KpiTile>
       </DashboardGrid>
-      <AppCard v-if="facts.length > 0 || ibans.length > 0" :title="words.page.details" data-testid="spending-payee-details">
-        <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-          <FactGrid v-if="facts.length > 0" :facts="facts">
-            <template #value="{ fact }">
-              <span class="type-body break-words">{{ fact.value }}</span>
-            </template>
-          </FactGrid>
-          <dl v-if="ibans.length > 0">
-            <dt class="type-caption">{{ words.page.ibans }}</dt>
-            <dd v-for="iban in ibans" :key="iban" class="mt-0.5 figure type-body" data-testid="spending-payee-iban">{{ iban }}</dd>
-          </dl>
-        </div>
+      <AppCard v-if="facts.length > 0" :title="words.page.details" data-testid="spending-payee-details">
+        <FactGrid :facts="facts" class="px-4 pt-3 pb-4 sm:px-5">
+          <template #value="{ fact }">
+            <span class="type-body break-words whitespace-pre-line" :class="{ figure: fact.wide }">{{ fact.value }}</span>
+          </template>
+        </FactGrid>
       </AppCard>
       <ChartCard
         v-for="shown in charts"

@@ -48,16 +48,12 @@ const facts = computed((): Fact[] => {
         ]),
     { label: words.order.advance, value: trip.advance === null ? none : formatMoney(trip.advance) },
     { label: words.order.settleBy, value: trip.settleBy === null ? none : dayLabel(trip.settleBy) },
+    ...[
+      { label: words.order.task, value: trip.task, wide: true },
+      { label: words.order.note, value: trip.note, wide: true },
+    ].filter((sentence) => sentence.value !== ''),
   ]
 })
-
-/** What the order says in sentences, below the figures. */
-const notes = computed(() =>
-  [
-    { label: words.order.task, text: props.file.trip.task },
-    { label: words.order.note, text: props.file.trip.note },
-  ].filter((note) => note.text !== ''),
-)
 </script>
 
 <template>
@@ -67,12 +63,6 @@ const notes = computed(() =>
     </template>
     <div class="flex flex-col gap-4 px-4 pt-1 pb-4 sm:px-5">
       <FactGrid :facts="facts" />
-      <dl v-if="notes.length > 0" class="flex flex-col gap-3">
-        <div v-for="note in notes" :key="note.label">
-          <dt class="type-caption">{{ note.label }}</dt>
-          <dd class="mt-0.5 type-body">{{ note.text }}</dd>
-        </div>
-      </dl>
       <div class="flex flex-wrap items-center gap-2 border-t border-default pt-4" data-testid="trip-downloads">
         <TripDownloads :file="file" :employees="employees" :company="company" />
       </div>

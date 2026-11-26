@@ -121,6 +121,12 @@ const AMOUNT_FACTS: readonly Fact[] = [
   { label: 'Forgiven', amount: { cents: moneyFromCents(-100_000), sign: 'always' }, caption: '24 Dec' },
 ]
 
+/** Facts on a row of their own under the columns, for a list or a sentence. */
+const WIDE_FACTS: readonly Fact[] = [
+  { label: 'IBANs', value: 'HR12 1001 0051 8630 0016 0\nHR35 1234 5670 0000 0000 2', wide: true },
+  { label: 'Note', value: 'Pays at the end of the month and sends the invoice by mail a few days after, so the day here may sit later than the day on the invoice.', wide: true },
+]
+
 /** Labels that are a Croatian form's own field names, read in Croatian whatever the screen's language. */
 const FORM_FACTS: readonly Fact[] = [
   { label: '11 Primitak', value: formatMoney(moneyFromCents(21_584)), caption: 'A reading', lang: 'hr' },
@@ -293,7 +299,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
     <GallerySection
       id="progress-meter"
       title="ProgressMeter and FactGrid"
-      description="A bar split into parts, striped where someone else pays, read out as one sentence, and labelled figures two to a row or in one, with a form's own field names marked Croatian and an amount in the look of its kind."
+      description="A bar split into parts, striped where someone else pays, read out as one sentence, and labelled figures two to a row or in one, a wide fact on a row of its own for a list or a sentence, with a form's own field names marked Croatian and an amount in the look of its kind."
     >
       <AppCard class="gap-4 p-4 sm:p-5">
         <ProgressMeter
@@ -313,7 +319,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
           :height="10"
         />
         <FactGrid :facts="FOUR_FACTS" />
-        <FactGrid :facts="FOUR_FACTS.slice(0, 3)" class="border-t border-default pt-4" />
+        <FactGrid :facts="[...FOUR_FACTS.slice(0, 3), ...WIDE_FACTS]" class="border-t border-default pt-4" />
         <FactGrid :facts="FORM_FACTS" class="border-t border-default pt-4" />
         <FactGrid :facts="AMOUNT_FACTS" class="border-t border-default pt-4" data-testid="gallery-amount-facts" />
         <FactGrid :facts="KEY_FACTS" class="border-t border-default pt-4">

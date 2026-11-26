@@ -51,7 +51,7 @@ function momentText(moment: TripMoment | null): string {
 }
 
 const facts = computed((): Fact[] => {
-  const { left, returned, abroad, odometer, settledOn } = trip.value
+  const { left, returned, abroad, odometer, settledOn, report } = trip.value
   return [
     { label: words.settlement.left, value: momentText(left) },
     { label: words.settlement.returned, value: momentText(returned) },
@@ -65,6 +65,7 @@ const facts = computed((): Fact[] => {
       ? [{ label: words.settlement.odometer, value: odometer === null ? words.order.none : words.settlement.odometerRange(formatCount(odometer.start), formatCount(odometer.end)) }]
       : []),
     { label: words.settlement.settledOn, value: settledOn === null ? words.settlement.notYet : dayLabel(settledOn) },
+    ...(report === '' ? [] : [{ label: words.settlement.report, value: report, wide: true }]),
   ]
 })
 
@@ -153,13 +154,7 @@ function route(leg: TripLeg): string {
       <template #actions>
         <UButton :label="words.settlement.change" icon="i-lucide-pencil" color="neutral" variant="outline" size="sm" data-testid="trip-settlement-edit" @click="settlementOpen = true" />
       </template>
-      <div class="px-4 pt-1 pb-4 sm:px-5">
-        <FactGrid :facts="facts" />
-        <dl v-if="trip.report !== ''" class="mt-4">
-          <dt class="type-caption">{{ words.settlement.report }}</dt>
-          <dd class="mt-0.5 type-body">{{ trip.report }}</dd>
-        </dl>
-      </div>
+      <FactGrid :facts="facts" class="px-4 pt-1 pb-4 sm:px-5" />
     </AppCard>
 
     <AppCard v-if="buildUps" :title="words.totals.title" data-testid="trip-totals">
