@@ -2,7 +2,7 @@ import { INSTRUMENT_WRITES } from '../../holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, replaceRows } from '../../holdings/application/mixWrites'
 import { fundMixChanges, fundMixFaults, fundMixTexts, mixLineTexts } from '../../holdings/domain/fundMixDraft'
 import type { FundMix, FundMixTexts } from '../../holdings/domain/fundMixDraft'
-import { instrumentFaults, instrumentOfTexts, instrumentTexts, withQuoting } from '../../holdings/domain/instrumentDraft'
+import { instrumentFaults, instrumentOfTexts, instrumentTexts, fieldsProposeTypedFactsOnly, withQuoting } from '../../holdings/domain/instrumentDraft'
 import type { InstrumentTexts } from '../../holdings/domain/instrumentDraft'
 import { fundMixErrors, instrumentErrors } from '../../holdings/presentation/words'
 import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, NEW_INSTRUMENT_DEFAULTS, PRICE_SOURCES, QUOTING_KINDS } from '../../workbook/domain/instrument'
@@ -55,7 +55,8 @@ const INSTRUMENT_FIELDS: Readonly<Record<string, StrictSchema>> = {
   distribution: choices(FUND_DISTRIBUTIONS, 'for a fund only, "" for none, or null to leave it.'),
   typedFactsOnly: {
     ...FLAG_OR_NULL,
-    description: '"yes" stops Kuna asking vendors for its type, sector, country, TER and dividends, so only what is typed counts, "no" asks them again, or null to leave it.',
+    description:
+      '"yes" stops Kuna asking vendors for its type, sector, country, TER and dividends, so only what is typed counts, "no" asks them again, or null to leave it. Null on a new fund or untyped instrument alphavantage prices on XETR, XAMS or XLON is "yes", since its fund profile comes back empty.',
   },
   note: TEXT_OR_NULL,
   sectors: MIX_LINES(`A sector: ${SECTORS.join(', ')}.`),
@@ -64,7 +65,7 @@ const INSTRUMENT_FIELDS: Readonly<Record<string, StrictSchema>> = {
 
 const MIX_FIELDS: Readonly<Record<FundMix, string>> = { sector: 'sectors', country: 'countries' }
 
-/** The dialog's fields with the step's values in place of those it names. */
+/** The dialog's fields with the step's values in place of those it names. A new instrument whose step leaves Don't fetch facts open takes it on where no vendor would send its facts. */
 function textsOfStep(before: Instrument | null, field: Readonly<Record<string, unknown>>): InstrumentTexts {
   const held = instrumentTexts(before)
   const text = (name: keyof InstrumentTexts): string | null => (field[name] as string | null) ?? null
@@ -76,7 +77,7 @@ function textsOfStep(before: Instrument | null, field: Readonly<Record<string, u
   const texts = quoted === held.quoted ? held : withQuoting(held, quoted, before?.type ?? '')
   const ter = text('ter')
   const coupon = text('coupon')
-  return {
+  const stepped: InstrumentTexts = {
     quoted,
     coupon: coupon === null ? texts.coupon : coupon === '' ? '' : decimalShown(decimalOf(coupon, 'coupon')),
     maturity: text('maturity') ?? texts.maturity,
@@ -96,6 +97,7 @@ function textsOfStep(before: Instrument | null, field: Readonly<Record<string, u
     typedFactsOnly: flagOf(text('typedFactsOnly'), texts.typedFactsOnly),
     note: text('note') ?? texts.note,
   }
+  return before === null && text('typedFactsOnly') === null ? { ...stepped, typedFactsOnly: fieldsProposeTypedFactsOnly(stepped) } : stepped
 }
 
 /** A country a step sets, refused when it is no country code or region, "" for none, or null to keep it. */

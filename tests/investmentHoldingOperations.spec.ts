@@ -237,6 +237,22 @@ describe('an instrument', () => {
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining(refusal) })
   })
 
+  it("adds a fund Alpha Vantage prices on Xetra with Don't fetch facts on unless the step says no", async () => {
+    const desk = await investmentsDesk(used)
+    const xetra = { exchange: 'XETR', prices: 'alphavantage', sourceSymbol: 'EXF.DEX' }
+
+    await desk.propose([fund(xetra), fund({ ...xetra, name: 'Example Fund B', symbol: 'EXFB', sourceSymbol: 'EXFB.DEX', typedFactsOnly: 'no' })])
+    await desk.accept()
+    expect(
+      bookOf(desk)
+        .instruments.filter((instrument) => instrument.symbol.startsWith('EXF'))
+        .map((instrument) => [instrument.symbol, instrument.typedFactsOnly]),
+    ).toEqual([
+      ['EXF', true],
+      ['EXFB', false],
+    ])
+  })
+
   it('stops fetching facts for a holding and asks again, saying so on the card', async () => {
     const desk = await investmentsDesk(used)
     const change = (typedFactsOnly: string) =>

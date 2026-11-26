@@ -5298,7 +5298,7 @@ export function investmentsBondFlowIn(language) {
 
 /**
  * Example World ETF, whose fund profile Alpha Vantage sent empty, warns on its Details card and in the checks of
- * Holdings. Don't fetch facts, turned on in its Change dialog and saved, puts a line with a way to Change on the card
+ * Holdings. Don't fetch facts, turned on in the Change dialog the warning opens and saved, puts a line with a way to Change on the card
  * in place of the warning and Ask again, and takes the holding off the checks' Fetched facts line.
  */
 export function investmentsTypedFactsFlowIn(language) {
@@ -5306,7 +5306,7 @@ export function investmentsTypedFactsFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
     await page.waitForSelector('[data-testid="holding-fact-problem"]', { visible: true, timeout: 10_000 })
-    await pressSelector(page, press, '[data-testid="holding-change"]')
+    await pressSelector(page, press, '[data-testid="holding-fact-problem"] [data-testid="holding-fact-problem-change"]')
     await page.waitForSelector('[data-testid="instrument-form"]', { visible: true, timeout: 10_000 })
     const toggle = ':is([data-testid="instrument-typed-facts-only"][role="switch"], [data-testid="instrument-typed-facts-only"] [role="switch"])'
     await scrollIntoDialogView(page, toggle)

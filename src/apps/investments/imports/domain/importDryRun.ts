@@ -41,6 +41,7 @@ import type { Trade } from '../../workbook/domain/trade'
 import { TRADE_CODEC } from '../../workbook/domain/tradeReading'
 import type { Transfer } from '../../workbook/domain/transfer'
 import { TRANSFER_CODEC } from '../../workbook/domain/transferReading'
+import { proposedTypedFactsOnly } from '../../prices/domain/factsBook'
 import type { CloseRow } from '../../prices/domain/pricesFile'
 import { addDays, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -1027,7 +1028,8 @@ function instrumentQuestions(entries: readonly DryRunEntry[], book: InvestmentBo
 
 /**
  * A first guess the person corrects: stocks of the type the workbook shows, named by its symbol, quoting in the currency of
- * its trades, priced by Twelve Data for a US symbol and by Alpha Vantage for Xetra and Amsterdam, by hand otherwise.
+ * its trades, priced by Twelve Data for a US symbol and by Alpha Vantage for Xetra and Amsterdam, by hand otherwise,
+ * with Don't fetch facts on where no vendor would send its facts.
  */
 function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, type: InstrumentType | null): Omit<Instrument, 'id'> {
   const symbol = rows.find((row) => row.yahooSymbol !== '')?.yahooSymbol ?? rows.find((row) => row.brokerSymbol !== '')?.brokerSymbol ?? ''
@@ -1057,7 +1059,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, t
     country: null,
     ter: null,
     distribution: null,
-    typedFactsOnly: false,
+    typedFactsOnly: proposedTypedFactsOnly({ ...listing, type }),
     note: '',
   }
 }

@@ -1,5 +1,6 @@
 import { words } from './words'
 import type { SearchedListing } from '../../prices/application/symbolSearch'
+import { fieldsProposeTypedFactsOnly } from '../domain/instrumentDraft'
 import type { InstrumentTexts } from '../domain/instrumentDraft'
 import { FUND_DISTRIBUTIONS, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from '../../workbook/domain/instrument'
 import type { FundDistribution, InstrumentType, Quoting } from '../../workbook/domain/instrument'
@@ -30,12 +31,13 @@ export const COUNTRY_ITEMS: { readonly value: string; readonly label: string }[]
  * its vendor's words propose where the quoting allows it, and its market's code and currency where the vendor gives
  * them. Where a vendor that found it gives its closes on a free key, that vendor becomes the price source with the
  * listing's symbol at the source, the source already chosen first. Otherwise the price source stays as it was.
+ * Don't fetch facts turns on where the listing is one no vendor sends facts for, and stays as it was otherwise.
  */
 export function withListing(texts: InstrumentTexts, listing: SearchedListing): InstrumentTexts {
   const sources = listing.sources.flatMap((vendorId) => PRICE_SOURCES.filter((known) => known === vendorId))
   const source = sources.find((known) => known === texts.prices) ?? sources[0]
   const proposed = listing.proposedType
-  return {
+  const listed: InstrumentTexts = {
     ...texts,
     symbol: texts.symbol.trim() === '' ? listing.symbol : texts.symbol,
     name: texts.name.trim() === '' ? listing.name : texts.name,
@@ -44,4 +46,5 @@ export function withListing(texts: InstrumentTexts, listing: SearchedListing): I
     currency: listing.currency !== null && currencyCodeOf(listing.currency) !== null ? listing.currency : texts.currency,
     ...(source === undefined ? {} : { prices: source, sourceSymbol: listing.symbol }),
   }
+  return { ...listed, typedFactsOnly: texts.typedFactsOnly || fieldsProposeTypedFactsOnly(listed) }
 }

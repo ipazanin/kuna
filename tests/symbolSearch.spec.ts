@@ -109,6 +109,14 @@ describe('a listing picked in the instrument dialog', () => {
     expect(withListing(instrumentTexts(null), european)).toMatchObject({ symbol: 'XYZ', prices: 'twelvedata', sourceSymbol: '', exchange: 'XETR' })
   })
 
+  it("turns Don't fetch facts on for a fund Alpha Vantage prices on Xetra or London, and keeps it as it was for a share or one Twelve Data prices", () => {
+    expect(withListing(instrumentTexts(null), listing).typedFactsOnly).toBe(true)
+    expect(withListing(instrumentTexts(null), { ...listing, symbol: 'XYZ.LON', mic: 'XLON', currency: 'GBP' }).typedFactsOnly).toBe(true)
+    expect(withListing(instrumentTexts(null), { ...listing, proposedType: 'share' }).typedFactsOnly).toBe(false)
+    expect(withListing({ ...instrumentTexts(null), typedFactsOnly: true }, { ...listing, mic: 'XNAS', sources: ['twelvedata'] }).typedFactsOnly).toBe(true)
+    expect(withListing(instrumentTexts(null), { ...listing, mic: 'XNAS', sources: ['twelvedata'] }).typedFactsOnly).toBe(false)
+  })
+
   it('keeps the source already chosen when it is one of the vendors that price the listing', () => {
     const both: SearchedListing = { ...listing, sources: ['twelvedata', 'alphavantage'] }
     expect(withListing({ ...instrumentTexts(null), prices: 'alphavantage' }, both)).toMatchObject({ prices: 'alphavantage', sourceSymbol: 'XYZ.DEX' })

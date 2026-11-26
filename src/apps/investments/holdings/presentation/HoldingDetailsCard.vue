@@ -15,7 +15,7 @@ import { withFullStop } from '../../../../shared/text/withFullStop'
 
 /**
  * What the holding is and where each fact came from, a warning for each fact a vendor sent nothing usable for with a
- * way to ask again, a line with the way to Change for one set not to fetch its facts, a leveraged fund's warning, and
+ * way to ask again and to Change, a line with the way to Change for one set not to fetch its facts, a leveraged fund's warning, and
  * what a fund's rings wait for: the way to type its mix, or its price.
  */
 const props = defineProps<{
@@ -55,11 +55,21 @@ const note = computed(() => {
   ].join(' ')
 })
 
-const actions = computed(() =>
+/** Ask again or the way to the keys, then Change, where the person can type the facts or set the holding not to fetch them. */
+const actions = computed(() => [
   askable.value
-    ? [{ label: text.askAgain, icon: 'i-lucide-refresh-cw', color: 'neutral' as const, variant: 'outline' as const, size: 'sm' as const, loading: props.asking, onClick: () => emit('askAgain') }]
-    : [{ label: text.toSettings, icon: 'i-lucide-key-round', color: 'neutral' as const, variant: 'outline' as const, size: 'sm' as const, to: INVESTMENTS_PRICES_ROUTE }],
-)
+    ? { label: text.askAgain, icon: 'i-lucide-refresh-cw', color: 'neutral' as const, variant: 'outline' as const, size: 'sm' as const, loading: props.asking, onClick: () => emit('askAgain') }
+    : { label: text.toSettings, icon: 'i-lucide-key-round', color: 'neutral' as const, variant: 'outline' as const, size: 'sm' as const, to: INVESTMENTS_PRICES_ROUTE },
+  {
+    label: words.actions.change,
+    icon: 'i-lucide-pencil',
+    color: 'neutral' as const,
+    variant: 'outline' as const,
+    size: 'sm' as const,
+    'data-testid': 'holding-fact-problem-change',
+    onClick: () => emit('change'),
+  },
+])
 </script>
 
 <template>

@@ -2,6 +2,7 @@ import { CLASS_OF_TYPE, TYPE_OF_QUOTING } from '../../workbook/domain/instrument
 import type { FundDistribution, Instrument, InstrumentClass, InstrumentType, PriceSource, Quoting } from '../../workbook/domain/instrument'
 import { ISIN, MIC } from '../../workbook/domain/instrumentReading'
 import { countryOf } from '../../workbook/domain/mixGroup'
+import { proposedTypedFactsOnly } from '../../prices/domain/factsBook'
 import type { Sector } from '../../workbook/domain/mixGroup'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
@@ -77,6 +78,11 @@ export function instrumentTexts(instrument: Omit<Instrument, 'id'> | null): Inst
     typedFactsOnly: instrument?.typedFactsOnly ?? false,
     note: instrument?.note ?? '',
   }
+}
+
+/** Whether the fields describe a listing that a new instrument takes with Don't fetch facts on. */
+export function fieldsProposeTypedFactsOnly(texts: InstrumentTexts): boolean {
+  return proposedTypedFactsOnly({ prices: texts.prices, exchange: texts.exchange.trim().toUpperCase() || null, type: texts.type || null })
 }
 
 /** The one type a bond or gold quoting allows, or null for a quoting per unit. */

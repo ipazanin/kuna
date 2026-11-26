@@ -379,6 +379,37 @@ describe('the first dry run, before any answer', () => {
     expect([xyz!.proposal.exchange, xyz!.proposal.prices, xyz!.proposal.sourceSymbol, xyz!.proposal.currency]).toEqual(['XETR', 'alphavantage', 'XYZ.DEX', EURO])
   })
 
+  it("proposes Don't fetch facts on for an untyped listing Alpha Vantage prices on Xetra or Amsterdam, and off for a share there or a listing priced elsewhere", async () => {
+    const buy = (symbol: string) =>
+      line('2025-11-04', { ...MAIN, 'Symbol (Yahoo)': symbol, 'Broker symbol': symbol, Type: 'BUY', 'Quantity (as executed)': 1, 'Price (as executed)': 10, Currency: 'EUR', 'Net cash': -10 })
+    const rows = await readRows([
+      [...HEADER],
+      buy('XYZ.DE'),
+      buy('XYZB.AS'),
+      buy('GHI'),
+      buy('JKL.L'),
+      line('2025-11-05', {
+        ...MAIN,
+        'Symbol (Yahoo)': 'MNO.DE',
+        'Broker symbol': 'MNO',
+        Type: 'SPINOFF',
+        'Quantity (as executed)': 1,
+        'Price (as executed)': 5,
+        Currency: 'EUR',
+        Note: 'MNO spun off from XYZ',
+      }),
+    ])
+    const dryRun = workbookDryRun(rows, { book: book({}), rates: RATES, answers: NO_ANSWERS })
+
+    expect(dryRun.questions.instruments.map(({ proposal }) => [proposal.symbol, proposal.type, proposal.prices, proposal.typedFactsOnly])).toEqual([
+      ['XYZ.DE', null, 'alphavantage', true],
+      ['XYZB.AS', null, 'alphavantage', true],
+      ['GHI', null, 'twelvedata', false],
+      ['JKL.L', null, 'manual', false],
+      ['MNO.DE', 'share', 'alphavantage', false],
+    ])
+  })
+
   it('asks for the split and the spin-off, and holds every row until its account or instrument is named', async () => {
     const dryRun = workbookDryRun(await readRows(), { book: book({}), rates: RATES, answers: NO_ANSWERS })
     expect(dryRun.questions.splits.map((question) => [question.date, decimalText(question.added), question.held, question.proposal])).toEqual([['2025-06-10', '14.5', null, null]])

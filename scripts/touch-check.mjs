@@ -2882,12 +2882,12 @@ async function checkWidth(browser, width) {
     }
   })
 
-  // Don't fetch facts, tapped on in the fund's Change dialog and saved, takes the warning of its empty fund profile off its Details card, and the card's typed-only line opens Change again.
+  // Don't fetch facts, tapped on in the Change dialog the fund's fetched-facts warning opens and saved, takes the warning of its empty fund profile off its Details card, and the card's typed-only line opens Change again.
   await step('investments-typed-facts', async () => {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Example World ETF')
     await waitForText(page, '[data-testid="holding-fact-problem"]', 'Alpha Vantage sent no fund profile for XYZ.DEX')
-    await (await page.waitForSelector('[data-testid="holding-change"]', { visible: true })).tap()
+    await (await page.waitForSelector('[data-testid="holding-fact-problem-change"]', { visible: true })).tap()
     await page.waitForSelector('[data-testid="instrument-form"]', { visible: true })
     const toggle = await page.waitForSelector(':is([data-testid="instrument-typed-facts-only"][role="switch"], [data-testid="instrument-typed-facts-only"] [role="switch"])', { visible: true })
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))

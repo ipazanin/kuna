@@ -100,6 +100,17 @@ export function vendorSymbolOf(instrument: Instrument, vendorId: string): string
   return instrument.prices === vendorId && instrument.sourceSymbol !== '' ? instrument.sourceSymbol : instrument.symbol
 }
 
+/** The markets whose funds Alpha Vantage, the only vendor of fund profiles, sends an empty fund profile for. */
+const NO_FUND_PROFILE_MARKETS: readonly string[] = ['XETR', 'XAMS', 'XLON']
+
+/**
+ * Whether a new instrument is proposed with Don't fetch facts on: a fund or an untyped instrument that Alpha Vantage
+ * prices on Xetra, Amsterdam or London, since its fund profile always comes back empty and would only warn.
+ */
+export function proposedTypedFactsOnly(listing: Pick<Instrument, 'prices' | 'exchange' | 'type'>): boolean {
+  return listing.prices === 'alphavantage' && listing.exchange !== null && NO_FUND_PROFILE_MARKETS.includes(listing.exchange) && (listing.type === null || listing.type === 'fund')
+}
+
 /** A profile is asked by ISIN, which names one company wherever it lists, else by symbol. */
 export function profileQueryOf(instrument: Instrument): string {
   return instrument.isin ?? instrument.symbol
