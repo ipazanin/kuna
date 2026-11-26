@@ -8484,6 +8484,29 @@ export function spendingBankSyncSetupFlowIn(language, shot, { waitFor, tap = nul
 }
 
 /**
+ * The earliest and the latest day a day field's calendar offers, as YYYY-MM-DD. The calendar opens on the field's month and
+ * steps back a month at a time until it offers no earlier month, and closes again.
+ */
+async function calendarLimitsOf(page, press, field) {
+  const header = '[data-reka-popper-content-wrapper] [data-slot="header"]'
+  const offered = (edge) =>
+    page.$$eval(
+      '[data-reka-popper-content-wrapper] [data-reka-calendar-cell-trigger]:not([data-disabled]):not([data-outside-view])',
+      (cells, wanted) => cells.at(wanted === 'first' ? 0 : -1)?.dataset.value ?? '',
+      edge,
+    )
+  await pressSelector(page, press, `${field} button`)
+  await page.waitForSelector(header, { visible: true, timeout: 5_000 })
+  const max = (await page.$(`${header} > button:nth-last-of-type(2)[data-disabled]`)) === null ? '' : await offered('last')
+  const previousMonth = `${header} > button:nth-of-type(2)`
+  for (let month = 0; month < 24 && (await page.$(`${previousMonth}[data-disabled]`)) === null; month += 1) await pressSelector(page, press, previousMonth)
+  const min = await offered('first')
+  await page.keyboard.press('Escape')
+  await page.waitForSelector(header, { hidden: true, timeout: 5_000 })
+  return { min, max }
+}
+
+/**
  * On Settings, Bank sync with two accounts to add: each starts on the day of the fetch, a day before the bank's first row is
  * refused with the days it can start on, and the earliest day works the opening back to an empty account and adds it.
  */
@@ -8498,7 +8521,8 @@ export function spendingBankSyncStartDayFlowIn(language) {
     await page.waitForSelector(start, { visible: true, timeout: 5_000 })
     await dismissToasts(page)
     const input = await page.$(start)
-    const { value, min, max } = await input.$eval('input', (element) => ({ value: element.value, min: element.min, max: element.max }))
+    const value = await input.$eval('input', (element) => element.value)
+    const { min, max } = await calendarLimitsOf(page, press, start)
     if (value !== max || min >= max) throw new Error(`the first account to add should start on the day of the fetch, ${max}, and reach back to ${min}, not ${value}`)
     const before = new Date(Date.parse(`${min}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
     await setField(input, before)
