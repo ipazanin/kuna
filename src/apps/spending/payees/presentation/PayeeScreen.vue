@@ -172,7 +172,7 @@ function openSharedCost(picked: SharedCost): void {
     <UButton :to="payeesLink(period)" :label="words.page.allPayees" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="spending-back-to-payees" />
     <ScreenSkeleton v-if="state.workbook === null && state.status !== 'error'" />
     <template v-else-if="state.workbook !== null && payee !== null && summary !== null">
-      <PageHeader :title="payee.name" v-bind="description === null ? {} : { description }" class="break-words">
+      <PageHeader :title="payee.name" v-bind="description === null ? {} : { description }">
         <template #actions>
           <UButton :label="words.dialog.edit" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="spending-payee-edit" @click="editing = true" />
         </template>

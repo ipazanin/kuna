@@ -41,7 +41,7 @@ const marks = computed(() => {
     <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 pt-10 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-16">
       <header class="flex flex-col gap-3">
         <HomeLink :label="sharedWords.homeLink" look="quiet" class="self-start" />
-        <h1 data-testid="screen-title" tabindex="-1" class="screen-title text-title font-semibold text-highlighted">{{ appName }}</h1>
+        <h1 data-testid="screen-title" tabindex="-1" class="screen-title break-words type-page-title">{{ appName }}</h1>
         <p class="max-w-prose text-base text-toned">{{ lead }}</p>
       </header>
       <ol v-if="marks.length" class="first-run-steps" :aria-label="words.firstRun.steps" data-testid="onboarding-stepper">

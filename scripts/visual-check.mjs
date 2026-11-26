@@ -4136,6 +4136,24 @@ const SOURCE_SCREENS = [
     shows: ['Tvrtka · Također CORNER MARKET D.O.O.', 'Zadnjih 12 mjeseci', 'HR62 1234 5670 0000 0000 1', 'Pojedinosti', 'Otvori u Unosima'],
     cards: false,
   },
+  {
+    name: 'spending-payee-page-long-name',
+    query: 'spending=people',
+    hash: '#/spending/payee?payee=EXAMPLEVERYLONGMERCHANTNAMEWITHOUTSPACES',
+    title: 'EXAMPLEVERYLONGMERCHANTNAMEWITHOUTSPACES',
+    charts: 1,
+    shows: ['Last 12 months', 'Open in Entries'],
+    cards: false,
+  },
+  {
+    name: 'spending-payee-page-long-name-croatian',
+    query: 'spending=people&lang=hr',
+    hash: '#/spending/payee?payee=EXAMPLEVERYLONGMERCHANTNAMEWITHOUTSPACES',
+    title: 'EXAMPLEVERYLONGMERCHANTNAMEWITHOUTSPACES',
+    charts: 1,
+    shows: ['Zadnjih 12 mjeseci', 'Otvori u Unosima'],
+    cards: false,
+  },
   { name: 'spending-analysis', query: 'spending=years', hash: '#/spending/analysis', title: 'Analysis', charts: 1, shows: ['Where the money went', 'By category', 'Total'], cards: false },
   {
     name: 'spending-analysis-croatian',
@@ -5897,6 +5915,8 @@ const NEAR_FIGURE_SCREENS = [
   'spending-payees-croatian',
   'spending-payee-page',
   'spending-payee-page-croatian',
+  'spending-payee-page-long-name',
+  'spending-payee-page-long-name-croatian',
   'company-labels',
   'company-labels-croatian',
 ]

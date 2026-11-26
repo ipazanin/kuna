@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <header class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
     <div class="min-w-0">
-      <h1 data-testid="screen-title" tabindex="-1" class="screen-title text-title font-semibold text-highlighted">{{ title }}</h1>
+      <h1 data-testid="screen-title" tabindex="-1" class="screen-title break-words type-page-title">{{ title }}</h1>
       <p v-if="description" class="mt-1 max-w-prose type-aside">{{ description }}</p>
     </div>
     <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2">
