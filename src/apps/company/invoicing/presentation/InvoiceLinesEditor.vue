@@ -5,7 +5,6 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import type { Money } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { capitalised } from '../../../../shared/text/capitalised'
@@ -47,6 +46,7 @@ const emit = defineEmits<{
 
 const store = useWorkbook()
 const titleId = useId()
+const lineId = useId()
 const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?? [], props.client))
 const linesItems = computed(() => lines.value.flatMap((line) => line.items))
 const lineErrors = computed(() =>
@@ -73,11 +73,6 @@ function remove(index: number): void {
 
 function add(): void {
   lines.value = [...lines.value, blankLine()]
-}
-
-function amountError(text: string): boolean {
-  const amount = typedAmount(text)
-  return text.trim() !== '' && (amount === null || amount <= 0)
 }
 </script>
 
@@ -113,6 +108,7 @@ function amountError(text: string): boolean {
           <div class="flex flex-col gap-2">
             <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 @sm:grid-cols-[minmax(0,1fr)_7.5rem_auto]">
               <UInput
+                :id="`${lineId}-${index}-text`"
                 :model-value="line.description"
                 :placeholder="words.lines.descriptionPlaceholder"
                 class="col-span-full min-w-0 @sm:col-span-1"
@@ -122,10 +118,10 @@ function amountError(text: string): boolean {
                 @update:model-value="update(index, { description: String($event) })"
               />
               <MoneyInput
+                :id="`${lineId}-${index}-amount`"
                 :model-value="line.amount"
                 :placeholder="words.lines.amountPlaceholder"
                 class="w-full"
-                v-bind="amountError(line.amount) ? { color: 'error', highlight: true } : {}"
                 :aria-label="words.lines.amount(index + 1)"
                 :disabled="disabled"
                 data-testid="invoice-line-amount"
@@ -142,6 +138,7 @@ function amountError(text: string): boolean {
               />
             </div>
             <PlanItemsSelect
+              :id="`${lineId}-${index}-items`"
               :model-value="line.items"
               :plan-items="planItems"
               :lines-items="linesItems"

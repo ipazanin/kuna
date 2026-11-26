@@ -1170,7 +1170,42 @@ async function problemUnderLineOnly(page, form, language, index, sentence) {
 }
 
 /**
- * Invoices in a language: add one of two lines, with Save pressed on the blank second line saying its problems under it alone, change its
+ * The line of `lines` at `index`, counted from the end when below zero, gives each of its controls an id no other element has. While
+ * `marked` is false nothing in the line is red or invalid, as before Check or Save. Once it is true every control is invalid and described
+ * by the problem under the line.
+ */
+async function lineMarkedOnlyWhen(page, lines, index, marked) {
+  const found = await page.$$eval(
+    lines,
+    (rows, at) => {
+      const line = rows.at(at)
+      if (!line) return null
+      const controls = [...line.querySelectorAll('[id][aria-invalid]')]
+      return {
+        ids: controls.map((control) => control.id),
+        shared: controls.filter((control) => document.querySelectorAll(`[id="${CSS.escape(control.id)}"]`).length > 1).map((control) => control.id),
+        invalid: controls.filter((control) => control.getAttribute('aria-invalid') === 'true').length,
+        described: controls.filter((control) =>
+          (control.getAttribute('aria-describedby') ?? '').split(' ').some((id) => id !== '' && line.querySelector(`[id="${CSS.escape(id)}"]`)?.textContent?.trim()),
+        ).length,
+        red: line.querySelectorAll('[class*="ring-error"], [class*="text-error"]').length,
+      }
+    },
+    index,
+  )
+  const name = `invoice line ${index < 0 ? `${-index} from the end` : index + 1}`
+  if (found === null) throw new Error(`${lines} has no ${name}`)
+  if (found.ids.length < 2) throw new Error(`${name} has ${found.ids.length} controls with an id and a validity, not its text and at least one more`)
+  if (found.shared.length > 0) throw new Error(`${name} shares the ids ${[...new Set(found.shared)].join(', ')} between its controls or with another element`)
+  if (!marked && (found.invalid > 0 || found.red > 0)) throw new Error(`${name} shows a problem before Check or Save is pressed`)
+  if (marked && (found.invalid !== found.ids.length || found.described !== found.ids.length)) {
+    throw new Error(`${name} marks ${found.invalid} and describes ${found.described} of its ${found.ids.length} controls by its problem`)
+  }
+}
+
+/**
+ * Invoices in a language: add one of two lines, with an amount of 0 on the blank second line showing nothing wrong until Save, which says
+ * its problems under it alone and connects them to each of its controls by their own ids, change its
  * due date and see both lines kept, change a line, delete it, and Undo the delete.
  */
 export function invoiceFlowIn(language) {
@@ -1187,10 +1222,15 @@ export function invoiceFlowIn(language) {
     await setField(await page.$('[data-testid="invoice-number"]'), number)
     await typeInvoiceLine(page, 0, 'Workshop follow-up', '1250.00')
     await pressSelector(page, press, '[data-testid="invoice-line-add"]')
+    await setField((await page.$$('[data-testid="invoice-line-amount"]'))[1], '0')
+    await delay(300)
+    const lines = '[data-testid="invoice-form"] [data-testid="invoice-line"]'
+    await lineMarkedOnlyWhen(page, lines, 1, false)
     await pressSelector(page, press, '[data-testid="invoice-save"]')
     const said = language === 'en' ? invoicingEnglish.lines : invoicingCroatian.lines
     const blankLine = [said.problem({ kind: 'blank-text', line: 1 }), said.problem({ kind: 'not-above-zero', line: 1 })].join(', ')
     await problemUnderLineOnly(page, '[data-testid="invoice-form"]', language, 1, capitalised(blankLine))
+    await lineMarkedOnlyWhen(page, lines, 1, true)
     await shoot('invoice-line-problem')
     await typeInvoiceLine(page, 1, 'Workshop follow-up II', '50.00')
     await choose(page, press, await page.$('[data-testid="invoice-client"]'), 'Lumen Labs')
@@ -1335,8 +1375,8 @@ function dayIn(field) {
 }
 
 /**
- * Make an invoice shows nothing wrong while the last line's amount is cleared and the due date is set before the issue date, then one Check
- * says each under its own field, the amount's under that line alone, and asks the file nothing. The line is shot in view too, since a phone
+ * Make an invoice shows nothing wrong, the line not red, while the last line's amount is 0 and the due date is set before the issue date,
+ * then one Check says each under its own field, the amount's under that line alone and tied to each of its controls, and asks the file nothing. The line is shot in view too, since a phone
  * shows the due date first. The amount and the due date go back before the run goes on.
  */
 async function fieldProblemsShowAfterCheck(page, press, language, shoot) {
@@ -1349,14 +1389,16 @@ async function fieldProblemsShowAfterCheck(page, press, language, shoot) {
   const amount = await lastAmount.evaluate((input) => input.value)
   const dueField = await page.$(`${form} [data-testid="invoice-run-due"]`)
   const due = await dayIn(dueField)
-  await setField(lastAmount, '')
+  await setField(lastAmount, '0')
   await typeDay(dueField, '2020-01-02')
   await delay(300)
   const early = await page.$eval(form, (element) => element.textContent ?? '')
   if (early.includes(dialog.dueBeforeIssue) || early.includes(amountProblem)) throw new Error('Make an invoice says the due date or the lines are wrong before Check is pressed')
+  await lineMarkedOnlyWhen(page, `${form} [data-testid="invoice-line"]`, -1, false)
   await pressSelector(page, press, '[data-testid="invoice-run-check"]')
   await elementSays(page, form, [dialog.dueBeforeIssue], 'one Check does not say the due date under its field')
   await problemUnderLineOnly(page, form, language, -1, amountProblem)
+  await lineMarkedOnlyWhen(page, `${form} [data-testid="invoice-line"]`, -1, true)
   if ((await page.$('[data-testid="invoice-run-ready"]')) !== null) throw new Error('Make an invoice went on to its checks with a line without an amount')
   await shoot('invoice-run-field-problems')
   const lastLine = (await page.$$(`${form} [data-testid="invoice-line"]`)).at(-1)
@@ -14929,7 +14971,8 @@ export function companyAccountSourcesFlowIn(language) {
 
 /**
  * On Invoicing, Clients the client's name on its row of the clients grid opens every field of the client, and so does a tap on the row
- * outside its cells' fields. A tag that is not an IBAN and an invoice line with no text are each said under their own field after Save. A
+ * outside its cells' fields. A tag that is not an IBAN and an invoice line with no text are each said under their own field after Save,
+ * the line's under it and tied to each of its controls, and the new line shows nothing wrong before Save. A
  * line moves down and back up. An address change is saved with Undo, and Undo puts the address back. A line added on Lumen, which the
  * billing plan names no item for, offers none of Northwind's plan items.
  */
@@ -14974,6 +15017,7 @@ export function clientDialogFlowIn(language) {
 
     await typeIban(page, press, await page.$('[data-testid="client-ibans"]'), 'XX00 NOT AN IBAN')
     await pressSelector(page, press, '[data-testid="client-line-add"]')
+    await lineMarkedOnlyWhen(page, `${form} [data-testid="client-line"]`, -1, false)
     await pressSelector(page, press, '[data-testid="client-save"]')
     await elementSays(
       page,
@@ -14981,6 +15025,7 @@ export function clientDialogFlowIn(language) {
       [words.settingsReasons.notAnIban('XX00NOTANIBAN'), capitalised(domain.templateProblem({ kind: 'blank-text', line: 2 }))],
       'the client dialog does not say the refusals under their fields',
     )
+    await lineMarkedOnlyWhen(page, `${form} [data-testid="client-line"]`, -1, true)
     await inspect?.('the client dialog refusing an IBAN and a blank line')
     await shoot('dialog-client-refused')
     await removeLastTag(page, press, form)

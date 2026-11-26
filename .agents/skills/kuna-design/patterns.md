@@ -70,7 +70,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A dialog whose fields sit two to a row lays them out in a `FormGrid as="form"`. A single column of fields, or rows of its own such as a split's parts, can stay a plain form.
 - A dialog that edits a record, or a part of one, offers every field a person can change on it. A split's part takes its category, note, labels and event in the Split dialog as in the entry dialog. Two dialogs that edit the same thing share the component and the composable behind each field, so the field works the same in both.
 - After Save, a dialog shows each field's problem under that field, through `tried && errors.field`. An alert holds only a rule across fields, such as an odometer that runs backwards, and shows once every field is valid. `tests/dialogErrors.spec.ts` fails on a dialog whose refusal alert sits beside fields that bind no `:error`.
-- A list of rows in a dialog, such as a client's or an invoice's lines, shows each row's problem under that row, and only that row turns red. A sentence under the list is only for the list as a whole, such as an invoice with no lines.
+- A list of rows in a dialog, such as a client's or an invoice's lines, shows each row's problem under that row, and only that row turns red. Nothing in a row turns red before Check or Save, and each control in a row takes its own id so the row's problem describes it. A sentence under the list is only for the list as a whole, such as an invoice with no lines.
 
 ## Undo instead of a confirm
 

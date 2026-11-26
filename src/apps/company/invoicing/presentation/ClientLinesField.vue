@@ -27,6 +27,7 @@ defineProps<{
 }>()
 
 const titleId = useId()
+const lineId = useId()
 const linesItems = computed(() => lines.value.flatMap((line) => line.items))
 
 function update(index: number, change: Partial<InvoiceTemplateLine>): void {
@@ -53,6 +54,7 @@ function move(index: number, by: -1 | 1): void {
         <UFormField :error="errors[index] ?? false">
           <div class="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <UInput
+              :id="`${lineId}-${index}-text`"
               :model-value="line.text"
               :placeholder="words.clientLines.textPlaceholder"
               :aria-label="words.clientLines.text(index + 1)"
@@ -84,6 +86,7 @@ function move(index: number, by: -1 | 1): void {
               />
             </div>
             <PlanItemsSelect
+              :id="`${lineId}-${index}-items`"
               :model-value="line.items"
               :plan-items="planItems"
               :lines-items="linesItems"
