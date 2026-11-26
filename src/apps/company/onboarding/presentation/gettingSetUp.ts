@@ -72,7 +72,7 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
       link: { label: words.setUp.categoriesLink, to: CATEGORIES_LINK },
     })
   }
-  if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {
+  if (workbook.clients.length > 0 && REQUIRED_ISSUER.some((field) => workbook.settings.invoicing[field].trim() === '')) {
     lines.push({ key: 'invoice-terms', text: words.setUp.invoiceTerms, link: { label: words.setUp.clientsLink, to: { path: '/company/invoicing', query: { tab: 'clients' } } } })
   }
   if (offersDelivery && workbook.transactions.length > 0 && !bankFills && statementsMailFrom.length === 0) {

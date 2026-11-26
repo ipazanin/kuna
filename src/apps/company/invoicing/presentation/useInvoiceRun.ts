@@ -34,7 +34,7 @@ import type { LineDraft } from './lineDrafts'
 import { nextYearlyNumber, numberTaken } from '../../documents/domain/yearlyNumber'
 import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitch'
 import { invoiceDatesProblems } from '../../receivables/domain/invoiceGuards'
-import { words as receivablesWords } from '../../receivables/domain/words'
+import { words as receivablesWords } from '../../receivables/application/words'
 import { words as receivablesScreenWords } from '../../receivables/presentation/words'
 import { words } from './words'
 
@@ -216,7 +216,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   const problems = computed((): string[] => {
     const terms = settings.value
     if (terms === null || workbook.value === null) return [words.run.noWorkbook]
-    const found = invoiceProblems(terms.invoicing, chosenClient.value)
+    const found = invoiceProblems(terms.invoicing, chosenClient.value).map(words.run.problem)
     if (mailDraft.value && google.value && chosenClient.value !== null && chosenClient.value.invoicing.invoiceMail === '') {
       found.push(words.run.needsMail(chosenClient.value.name || chosenClient.value.slug))
     }

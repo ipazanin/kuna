@@ -9,6 +9,10 @@ import { lineProblems, linesOfText, linesTotal, registerLinesProblems, textOfLin
 import { mergedLine, registerItemOf, startingLines } from '../src/apps/company/invoicing/domain/invoiceLines'
 import { invoiceLinesOf, registerInvoiceOf, reexportedInvoice } from '../src/apps/company/invoicing/domain/registerInvoice'
 import { invoiceChangeRefusals } from '../src/apps/company/receivables/domain/invoiceGuards'
+import { en as receivablesEn } from '../src/apps/company/receivables/application/words'
+import { en as invoicingDomainEn } from '../src/apps/company/invoicing/domain/words'
+import type { PatternProblem } from '../src/apps/company/invoicing/domain/templateTokens'
+import { en as invoicingEn } from '../src/apps/company/invoicing/presentation/words'
 import { INVOICE_CODEC, readInvoices } from '../src/apps/company/workbook/domain/invoicesReading'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import type { InvoiceTemplateLine } from '../src/apps/company/invoicing/domain/invoiceTemplate'
@@ -26,6 +30,10 @@ import { invoiceOf, planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
+
+function patternInWords(problem: PatternProblem | null): string | null {
+  return problem === null ? null : invoicingDomainEn.patternProblem(problem)
+}
 
 /** An invented register of the same shape as a real one: a first part month, one invoice a month, a bonus month, and one issued early for the next month's work. */
 const REGISTER = [
@@ -68,8 +76,9 @@ describe('invoice numbers and dates, as the generator set them', () => {
   it('keeps each number once across clients, and refuses a pattern without the sequence', () => {
     expect(numberTaken(' 7-1-26', [{ number: '7-1-26' }])).toBe(true)
     expect(numberPatternProblem('{n}-1-{yy}')).toBeNull()
-    expect(numberPatternProblem('INV-{yy}')).toBe('the pattern needs {n}, the sequence, exactly once')
-    expect(numberPatternProblem('{n}-{month}')).toBe('{month} is not one of {n}, {yy}, {yyyy}')
+    expect(patternInWords(numberPatternProblem(''))).toBe('a pattern such as {n}-1-{yy}')
+    expect(patternInWords(numberPatternProblem('INV-{yy}'))).toBe('the pattern needs {n}, the sequence, exactly once')
+    expect(patternInWords(numberPatternProblem('{n}-{month}'))).toBe('{month} is not one of {n}, {yy}, {yyyy}')
   })
 
   it('clamps the due date to the next month’s last day, as addOneMonth does', () => {
@@ -85,9 +94,9 @@ describe('the file path', () => {
 
   it('names a PDF and only the words it fills in', () => {
     expect(filePathProblem(DEFAULT_FILE_PATH)).toBeNull()
-    expect(filePathProblem('{yyyy}/invoice.txt')).toBe('the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf')
-    expect(filePathProblem('{yyyy}//x.pdf')).toBe('a folder name between two slashes is blank')
-    expect(filePathProblem('{year}/x.pdf')).toBe('{year} is not one of {yyyy}, {yy}, {mm}, {client}, {number}')
+    expect(patternInWords(filePathProblem('{yyyy}/invoice.txt'))).toBe('the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf')
+    expect(patternInWords(filePathProblem('{yyyy}//x.pdf'))).toBe('a folder name between two slashes is blank')
+    expect(patternInWords(filePathProblem('{year}/x.pdf'))).toBe('{year} is not one of {yyyy}, {yy}, {mm}, {client}, {number}')
   })
 })
 
@@ -264,7 +273,9 @@ describe('the lines cell of the register', () => {
   it('refuses a write of lines that do not add up to the amount, and takes a due date change on a row whose lines were broken in the sheet', () => {
     const broken = { number: '11-1-26', amount: 3620, lines: 'Development | 3000.00\nMaintenance | 600.00' }
 
-    expect(invoiceChangeRefusals([{ before: null, after: broken }], [])).toEqual(['The lines of invoice 11-1-26 cannot be saved. The lines add up to €3,600.00, not the amount of €3,620.00.'])
+    expect(invoiceChangeRefusals([{ before: null, after: broken }], []).map(receivablesEn.refusal)).toEqual([
+      'The lines of invoice 11-1-26 cannot be saved. The lines add up to €3,600.00, not the amount of €3,620.00.',
+    ])
     expect(invoiceChangeRefusals([{ before: { ...broken, lines: '' }, after: broken }], [])).toHaveLength(1)
     expect(invoiceChangeRefusals([{ before: broken, after: broken }], [])).toEqual([])
     expect(invoiceChangeRefusals([{ before: broken, after: { ...broken, amount: 3600 } }], [])).toEqual([])
@@ -277,8 +288,8 @@ describe('what keeps an invoice from being made', () => {
 
   it('needs the issuer’s details and the client’s address and reverse charge', () => {
     expect(invoiceProblems(issuer, client)).toEqual([])
-    expect(invoiceProblems({ ...issuer, oib: '', place: '' }, client)).toEqual(['The invoice terms on Invoicing, Clients need your OIB, the place of issue.'])
-    expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } })).toEqual([
+    expect(invoiceProblems({ ...issuer, oib: '', place: '' }, client).map(invoicingEn.run.problem)).toEqual(['The invoice terms on Invoicing, Clients need your OIB, the place of issue.'])
+    expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } }).map(invoicingEn.run.problem)).toEqual([
       'Invoicing, Clients needs an address for North Ltd.',
       'The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for North Ltd on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.',
     ])
@@ -292,7 +303,7 @@ describe('the invoice mail', () => {
     expect(filledMail('Invoice {number} - {month}', values)).toBe('Invoice 10-1-26 - October 2026')
     expect(filledMail(DEFAULT_MAIL_BODY, values)).toBe("Hello,\n\nI'm sending you the invoice for October 2026 in the attachment.\n\nBest regards,\nAna Čolić")
     expect(monthInLanguage(civil('2026-10-21'), 'hr')).toMatch(/^listopad/)
-    expect(mailTemplateProblem('{month} {when}')).toBe('{when} is not one of {month}, {number}, {client}, {company}, {signatory}')
+    expect(patternInWords(mailTemplateProblem('{month} {when}'))).toBe('{when} is not one of {month}, {number}, {client}, {company}, {signatory}')
   })
 
   it('opens Gmail’s compose window filled in when the draft is off', () => {

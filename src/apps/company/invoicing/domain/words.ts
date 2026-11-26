@@ -3,37 +3,34 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import type { Translation } from '../../../../shared/text/translation'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
-import type { LineProblem, RegisterLinesProblem } from './invoiceLine'
+import type { RegisterLinesProblem } from './invoiceLine'
 import type { TemplateProblem } from './invoiceTemplate'
+import type { PatternProblem } from './templateTokens'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // An invoice is račun and its line stavka, and a plan item usluga iz plana. Invoicing, Clients names the screen and its tab. A word in braces keeps its spelling, such as {yyyy}.
 
 export const en = {
-  /** What the invoice terms lack, each as the sentence of missing details lists it. */
-  issuer: {
-    name: 'your company name',
-    address: 'your address',
-    oib: 'your OIB',
-    iban: 'your IBAN',
-    place: 'the place of issue',
-    signatory: 'the signatory',
-  },
-  termsNeed: (missing: readonly string[]) => `The invoice terms on Invoicing, Clients need ${missing.join(', ')}.`,
-  needsAddress: (client: string) => `Invoicing, Clients needs an address for ${client}.`,
-  reverseChargeOnly: (client: string) =>
-    `The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for ${client} on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.`,
   addLine: 'Add a line.',
   lineDescription: 'Every line needs a description.',
   lineAmount: 'Every line needs an amount above zero.',
   lineSeparator: 'No line or plan item can hold | or a line break.',
   linesTotal: (total: Money, amount: Money) => `The lines add up to ${formatMoney(total)}, not the amount of ${formatMoney(amount)}.`,
-  /** Why a pattern with words in braces cannot be used. */
-  unknownTokens: (unknown: readonly string[], known: readonly string[]) => `${unknown.join(', ')} is not one of ${known.join(', ')}`,
-  pathEndsInPdf: 'the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf',
-  blankFolder: 'a folder name between two slashes is blank',
-  patternExample: 'a pattern such as {n}-1-{yy}',
-  sequenceOnce: 'the pattern needs {n}, the sequence, exactly once',
+  /** Why an invoice number, filing path or mail pattern cannot be used. */
+  patternProblem: (problem: PatternProblem): string => {
+    switch (problem.kind) {
+      case 'unknown-tokens':
+        return `${problem.unknown.join(', ')} is not one of ${problem.known.join(', ')}`
+      case 'path-not-pdf':
+        return 'the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf'
+      case 'blank-folder':
+        return 'a folder name between two slashes is blank'
+      case 'blank-pattern':
+        return 'a pattern such as {n}-1-{yy}'
+      case 'sequence-not-once':
+        return 'the pattern needs {n}, the sequence, exactly once'
+    }
+  },
   /** What is wrong with one line of a client's invoice lines, without naming the line. */
   templateProblem: (problem: TemplateProblem): string => {
     switch (problem.kind) {
@@ -49,44 +46,30 @@ export const en = {
         return `${problem.item} is on an earlier line already`
     }
   },
-  /** What is wrong with one line of an invoice, said under that line. */
-  lineProblem: (problem: Exclude<LineProblem, { kind: 'no-lines' }>): string => {
-    switch (problem.kind) {
-      case 'blank-text':
-        return 'the line needs a description'
-      case 'not-above-zero':
-        return 'the amount must be above zero'
-      case 'separator':
-        return en.templateProblem(problem)
-    }
-  },
   /** Which line of a client's invoice lines a problem is on, counted from 1. */
   templateLine: (line: number, problem: string) => `line ${line + 1}: ${problem}`,
 }
 
 export const hr: Translation<typeof en> = {
-  issuer: {
-    name: 'naziv vaše tvrtke',
-    address: 'vaša adresa',
-    oib: 'vaš OIB',
-    iban: 'vaš IBAN',
-    place: 'mjesto izdavanja',
-    signatory: 'potpisnik',
-  },
-  termsNeed: (missing) => `U uvjetima računa pod Računi, Klijenti nedostaje: ${listInWords(missing)}.`,
-  needsAddress: (client) => `Upišite adresu klijenta „${client}” pod Računi, Klijenti.`,
-  reverseChargeOnly: (client) =>
-    `Aplikacija izrađuje račune bez PDV-a samo za klijente s prijenosom porezne obveze. Ako PDV obračunava klijent „${client}”, označite mu prijenos porezne obveze pod Računi, Klijenti, ili ovaj račun izradite drugdje.`,
   addLine: 'Dodajte stavku.',
   lineDescription: 'Svaka stavka mora imati opis.',
   lineAmount: 'Svaka stavka mora imati iznos veći od nule.',
   lineSeparator: 'Nijedna stavka ni usluga iz plana ne smije sadržavati | ni prijelom retka.',
   linesTotal: (total, amount) => `Stavke zajedno iznose ${formatMoney(total)}, a ne ${formatMoney(amount)}, koliko glasi iznos.`,
-  unknownTokens: (unknown, known) => `${listInWords(unknown)} nije među oznakama ${listInWords(known)}`,
-  pathEndsInPdf: 'putanja završava nazivom datoteke, na primjer {yyyy}-{mm}-{client}-invoice.pdf',
-  blankFolder: 'naziv mape između dviju kosih crta je prazan',
-  patternExample: 'uzorak, na primjer {n}-1-{yy}',
-  sequenceOnce: 'uzorak mora sadržavati {n}, redni broj, točno jednom',
+  patternProblem: (problem) => {
+    switch (problem.kind) {
+      case 'unknown-tokens':
+        return `${listInWords(problem.unknown)} nije među oznakama ${listInWords(problem.known)}`
+      case 'path-not-pdf':
+        return 'putanja završava nazivom datoteke, na primjer {yyyy}-{mm}-{client}-invoice.pdf'
+      case 'blank-folder':
+        return 'naziv mape između dviju kosih crta je prazan'
+      case 'blank-pattern':
+        return 'uzorak, na primjer {n}-1-{yy}'
+      case 'sequence-not-once':
+        return 'uzorak mora sadržavati {n}, redni broj, točno jednom'
+    }
+  },
   templateProblem: (problem) => {
     switch (problem.kind) {
       case 'blank-text':
@@ -101,24 +84,14 @@ export const hr: Translation<typeof en> = {
         return `„${problem.item}” je već u jednoj od prethodnih stavki`
     }
   },
-  lineProblem: (problem) => {
-    switch (problem.kind) {
-      case 'blank-text':
-        return 'stavka mora imati opis'
-      case 'not-above-zero':
-        return 'iznos mora biti veći od nule'
-      case 'separator':
-        return hr.templateProblem(problem)
-    }
-  },
   templateLine: (line, problem) => `stavka ${line + 1}: ${problem}`,
 }
 
 export const words = language === 'hr' ? hr : en
 
-/** Each problem of a client's invoice lines as a phrase that names its line. */
-export function templateProblemsInWords(problems: readonly TemplateProblem[]): string[] {
-  return problems.map((problem) => words.templateLine(problem.line, words.templateProblem(problem)))
+/** Each problem of a client's invoice lines as a phrase that names its line, in the screen's language or the one given. */
+export function templateProblemsInWords(problems: readonly TemplateProblem[], said: typeof en = words): string[] {
+  return problems.map((problem) => said.templateLine(problem.line, said.templateProblem(problem)))
 }
 
 /** What is wrong with an invoice's lines as sentences, each kind once, in the order the lines show them, in the screen's language or the one given. */

@@ -1154,8 +1154,8 @@ async function typeInvoiceLine(page, index, text, amount) {
 
 /** The invoice lines in `form` say `sentence` under the line at `index`, counted from the end when below zero, and no problem under any other line. */
 async function problemUnderLineOnly(page, form, language, index, sentence) {
-  const said = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
-  const phrases = ['blank-text', 'not-above-zero', 'separator'].map((kind) => said.lineProblem({ kind, line: 0 }).toLowerCase())
+  const said = language === 'en' ? invoicingEnglish.lines : invoicingCroatian.lines
+  const phrases = ['blank-text', 'not-above-zero', 'separator'].map((kind) => said.problem({ kind, line: 0 }).toLowerCase())
   const lines = `${form} [data-testid="invoice-line"]`
   await page
     .waitForFunction((css, wanted) => [...document.querySelectorAll(css)].some((line) => line.textContent?.includes(wanted)), { timeout: 10_000 }, lines, sentence)
@@ -1188,8 +1188,8 @@ export function invoiceFlowIn(language) {
     await typeInvoiceLine(page, 0, 'Workshop follow-up', '1250.00')
     await pressSelector(page, press, '[data-testid="invoice-line-add"]')
     await pressSelector(page, press, '[data-testid="invoice-save"]')
-    const said = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
-    const blankLine = [said.lineProblem({ kind: 'blank-text', line: 1 }), said.lineProblem({ kind: 'not-above-zero', line: 1 })].join(', ')
+    const said = language === 'en' ? invoicingEnglish.lines : invoicingCroatian.lines
+    const blankLine = [said.problem({ kind: 'blank-text', line: 1 }), said.problem({ kind: 'not-above-zero', line: 1 })].join(', ')
     await problemUnderLineOnly(page, '[data-testid="invoice-form"]', language, 1, capitalised(blankLine))
     await shoot('invoice-line-problem')
     await typeInvoiceLine(page, 1, 'Workshop follow-up II', '50.00')
@@ -1341,8 +1341,8 @@ function dayIn(field) {
  */
 async function fieldProblemsShowAfterCheck(page, press, language, shoot) {
   const dialog = SCREEN_WORDS[language].receivables.dialog
-  const said = language === 'en' ? invoicingDomainEnglish : invoicingDomainCroatian
-  const amountProblem = capitalised(said.lineProblem({ kind: 'not-above-zero', line: 0 }))
+  const said = language === 'en' ? invoicingEnglish.lines : invoicingCroatian.lines
+  const amountProblem = capitalised(said.problem({ kind: 'not-above-zero', line: 0 }))
   const form = '[data-testid="invoice-run"]'
   const amounts = await page.$$(`${form} [data-testid="invoice-line-amount"]`)
   const lastAmount = amounts.at(-1)

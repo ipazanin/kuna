@@ -12,7 +12,7 @@ import { capitalised } from '../../../../shared/text/capitalised'
 import { planItemsOf } from '../../billingPlan/domain/planItems'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { LineProblem } from '../domain/invoiceLine'
-import { lineProblemsInWords, words as domainWords } from '../domain/words'
+import { lineProblemsInWords } from '../domain/words'
 import { blankLine } from './lineDrafts'
 import type { LineDraft } from './lineDrafts'
 import PlanItemsSelect from './PlanItemsSelect.vue'
@@ -51,7 +51,7 @@ const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?
 const linesItems = computed(() => lines.value.flatMap((line) => line.items))
 const lineErrors = computed(() =>
   lines.value.map((_, index) => {
-    const found = props.problems.flatMap((problem) => (problem.kind !== 'no-lines' && problem.line === index ? [domainWords.lineProblem(problem)] : []))
+    const found = props.problems.flatMap((problem) => (problem.kind !== 'no-lines' && problem.line === index ? [words.lines.problem(problem)] : []))
     return found.length === 0 ? null : capitalised(found.join(', '))
   }),
 )

@@ -1,7 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { FilingPath } from '../../documents/domain/filingPath'
-import { unknownTokensIn } from './templateTokens'
-import { words } from './words'
+import { unknownTokensProblem } from './templateTokens'
+import type { PatternProblem } from './templateTokens'
 
 /** Where the invoice generator filed each invoice, under the invoice folder. */
 export const DEFAULT_FILE_PATH = '{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoice.pdf'
@@ -9,11 +9,11 @@ export const DEFAULT_FILE_PATH = '{yyyy}/{yyyy}-{mm}/{yyyy}-{mm}-{client}-invoic
 const PATH_TOKENS = ['{yyyy}', '{yy}', '{mm}', '{client}', '{number}'] as const
 
 /** Null when the pattern names a PDF, with no blank folder and no word in braces the app does not fill in. */
-export function filePathProblem(pattern: string): string | null {
-  const unknown = unknownTokensIn(pattern, PATH_TOKENS)
-  if (unknown.length > 0) return words.unknownTokens(unknown, PATH_TOKENS)
-  if (!pattern.trim().toLowerCase().endsWith('.pdf')) return words.pathEndsInPdf
-  if (pattern.split('/').some((segment) => segment.trim() === '')) return words.blankFolder
+export function filePathProblem(pattern: string): PatternProblem | null {
+  const unknown = unknownTokensProblem(pattern, PATH_TOKENS)
+  if (unknown !== null) return unknown
+  if (!pattern.trim().toLowerCase().endsWith('.pdf')) return { kind: 'path-not-pdf' }
+  if (pattern.split('/').some((segment) => segment.trim() === '')) return { kind: 'blank-folder' }
   return null
 }
 

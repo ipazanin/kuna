@@ -13,6 +13,14 @@ function croatianDays(days: number): string {
 }
 
 export const en = {
+  /** How late what is still owed is, by days past its due date. */
+  ageing: {
+    'not-due': 'Not due yet',
+    'days-0-30': '0–30 days',
+    'days-31-60': '31–60 days',
+    'days-61-90': '61–90 days',
+    'days-over-90': 'Over 90 days',
+  },
   days: (days: number) => `${formatDays(days)} ${days === 1 ? 'day' : 'days'}`,
   panel: {
     noDueDate: 'no due date',
@@ -131,6 +139,13 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  ageing: {
+    'not-due': 'Još nije dospjelo',
+    'days-0-30': '0–30 dana',
+    'days-31-60': '31–60 dana',
+    'days-61-90': '61–90 dana',
+    'days-over-90': 'Više od 90 dana',
+  },
   days: croatianDays,
   panel: {
     noDueDate: 'bez dospijeća',

@@ -23,6 +23,8 @@ import type { ImportProfile } from '../../imports/domain/importProfile'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
+import type { PatternProblem } from '../../invoicing/domain/templateTokens'
+import { words as invoicingWords } from '../../invoicing/domain/words'
 import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail/domain/mailSource'
 import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
 import { words as mailWords } from '../../../../shared/mail/domain/words'
@@ -367,15 +369,19 @@ function invoicingProblem(field: InvoicingField, value: string): string | null {
     case 'oib':
       return value === '' || isValidOib(value) ? null : words.terms.notAnOib(value)
     case 'numberPattern':
-      return numberPatternProblem(value)
+      return patternInWords(numberPatternProblem(value))
     case 'filePath':
-      return filePathProblem(value)
+      return patternInWords(filePathProblem(value))
     case 'mailSubject':
     case 'mailBody':
-      return mailTemplateProblem(value)
+      return patternInWords(mailTemplateProblem(value))
     default:
       return null
   }
+}
+
+function patternInWords(problem: PatternProblem | null): string | null {
+  return problem === null ? null : invoicingWords.patternProblem(problem)
 }
 
 function invoicingDefinition(key: string, field: InvoicingField, note: string): SettingDefinition<Settings> {

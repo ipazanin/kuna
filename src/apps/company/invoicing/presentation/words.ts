@@ -2,6 +2,10 @@ import { formatDays } from '../../../../shared/money/moneyFormat'
 import type { InvoicingField } from '../../settings/domain/settings'
 import { en as settingsDomainEn, hr as settingsDomainHr } from '../../settings/domain/words'
 import { language } from '../../../../shared/text/language'
+import { listInWords } from '../../../../shared/text/listInWords'
+import type { InvoiceProblem } from '../domain/invoiceDocument'
+import type { LineProblem } from '../domain/invoiceLine'
+import { en as domainEn, hr as domainHr } from '../domain/words'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -154,8 +158,39 @@ export const en = {
     remove: (line: number) => `Remove line ${line}`,
     add: 'Add a line',
     total: 'Total',
+    /** What is wrong with one line of an invoice, said under that line. */
+    problem: (problem: Exclude<LineProblem, { kind: 'no-lines' }>): string => {
+      switch (problem.kind) {
+        case 'blank-text':
+          return 'the line needs a description'
+        case 'not-above-zero':
+          return 'the amount must be above zero'
+        case 'separator':
+          return domainEn.templateProblem(problem)
+      }
+    },
   },
   run: {
+    /** What the invoice terms lack, each as the sentence of missing details lists it. */
+    issuer: {
+      name: 'your company name',
+      address: 'your address',
+      oib: 'your OIB',
+      iban: 'your IBAN',
+      place: 'the place of issue',
+      signatory: 'the signatory',
+    },
+    /** What keeps the app from making the invoice, fixed on Invoicing, Clients. */
+    problem: (problem: InvoiceProblem): string => {
+      switch (problem.kind) {
+        case 'terms-missing':
+          return `The invoice terms on Invoicing, Clients need ${problem.missing.map((detail) => en.run.issuer[detail]).join(', ')}.`
+        case 'no-address':
+          return `Invoicing, Clients needs an address for ${problem.client}.`
+        case 'not-reverse-charge':
+          return `The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for ${problem.client} on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.`
+      }
+    },
     reexportTitle: (number: string) => `Re-export invoice ${number}`,
     makeTitle: 'Make an invoice',
     reexportDescription: 'Draws the PDF again, replaces it in Drive and saves a fresh mail draft. The register row changes only where the lines do.',
@@ -360,8 +395,36 @@ export const hr: Translation<typeof en> = {
     remove: (line) => `Ukloni stavku ${line}`,
     add: 'Dodaj stavku',
     total: 'Ukupno',
+    problem: (problem) => {
+      switch (problem.kind) {
+        case 'blank-text':
+          return 'stavka mora imati opis'
+        case 'not-above-zero':
+          return 'iznos mora biti veći od nule'
+        case 'separator':
+          return domainHr.templateProblem(problem)
+      }
+    },
   },
   run: {
+    issuer: {
+      name: 'naziv vaše tvrtke',
+      address: 'vaša adresa',
+      oib: 'vaš OIB',
+      iban: 'vaš IBAN',
+      place: 'mjesto izdavanja',
+      signatory: 'potpisnik',
+    },
+    problem: (problem) => {
+      switch (problem.kind) {
+        case 'terms-missing':
+          return `U uvjetima računa pod Računi, Klijenti nedostaje: ${listInWords(problem.missing.map((detail) => hr.run.issuer[detail]))}.`
+        case 'no-address':
+          return `Upišite adresu klijenta „${problem.client}” pod Računi, Klijenti.`
+        case 'not-reverse-charge':
+          return `Aplikacija izrađuje račune bez PDV-a samo za klijente s prijenosom porezne obveze. Ako PDV obračunava klijent „${problem.client}”, označite mu prijenos porezne obveze pod Računi, Klijenti, ili ovaj račun izradite drugdje.`
+      }
+    },
     reexportTitle: (number) => `Ponovni izvoz računa ${number}`,
     makeTitle: 'Izradi račun',
     reexportDescription: 'Ponovno izrađuje PDF, zamjenjuje ga na Driveu i sprema novu skicu poruke. Redak u popisu računa mijenja se samo ako se promijene stavke.',

@@ -429,13 +429,14 @@ describe('imports, sync and mail in Croatian', () => {
 
 describe('invoicing and billing in Croatian', () => {
   it('lists what the invoice terms lack with i, and quotes the client a sentence names', async () => {
-    const { invoiceProblems } = await inCroatian(() => import('../src/apps/company/invoicing/domain/invoiceDocument'))
+    const { invoiceProblems } = await import('../src/apps/company/invoicing/domain/invoiceDocument')
+    const { words } = await inCroatian(() => import('../src/apps/company/invoicing/presentation/words'))
     const { DEFAULT_SETTINGS } = await import('../src/apps/company/settings/domain/settings')
     const { NO_CLIENT_INVOICING } = await import('../src/apps/company/workbook/domain/workbook')
     const issuer = { ...DEFAULT_SETTINGS.invoicing, name: 'Example Studio', address: 'Street 1', iban: 'HR6212345670000000001', signatory: 'Ana' }
     const client = { slug: 'north', name: 'North Ltd', ibans: [], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road', reverseCharge: false } }
 
-    expect(invoiceProblems(issuer, client)).toEqual([
+    expect(invoiceProblems(issuer, client).map(words.run.problem)).toEqual([
       'U uvjetima računa pod Računi, Klijenti nedostaje: vaš OIB i mjesto izdavanja.',
       'Aplikacija izrađuje račune bez PDV-a samo za klijente s prijenosom porezne obveze. Ako PDV obračunava klijent „North Ltd”, označite mu prijenos porezne obveze pod Računi, Klijenti, ili ovaj račun izradite drugdje.',
     ])

@@ -1,6 +1,6 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { unknownTokensIn } from './templateTokens'
-import { words } from './words'
+import { unknownTokensProblem } from './templateTokens'
+import type { PatternProblem } from './templateTokens'
 
 export const DEFAULT_MAIL_SUBJECT = 'Invoice {number}, {month}'
 
@@ -26,9 +26,8 @@ export interface InvoiceMail {
 }
 
 /** Null when every word in braces is one the app fills in. */
-export function mailTemplateProblem(template: string): string | null {
-  const unknown = unknownTokensIn(template, MAIL_TOKENS)
-  return unknown.length === 0 ? null : words.unknownTokens(unknown, MAIL_TOKENS)
+export function mailTemplateProblem(template: string): PatternProblem | null {
+  return unknownTokensProblem(template, MAIL_TOKENS)
 }
 
 /** The issue month as the client reads it, such as October 2026. An unknown language falls back to English. */

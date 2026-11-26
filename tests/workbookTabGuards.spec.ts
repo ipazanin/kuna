@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { invoiceChangeRefusals } from '../src/apps/company/receivables/domain/invoiceGuards'
+import { en as receivablesEn } from '../src/apps/company/receivables/application/words'
 import { newInvoiceDates } from '../src/apps/company/invoicing/domain/invoiceDates'
 import { accountChangeRefusals } from '../src/apps/company/settings/domain/accountGuards'
 import { categoryChangeRefusals, categoryRoleRefusals, knownRoles } from '../src/apps/company/categories/domain/categoryGuards'
@@ -217,12 +218,12 @@ describe('the invoices tab', () => {
     const untouched = [{ number: '1-1-26' }]
 
     expect(invoiceChangeRefusals([{ before: null, after: { number: '2-1-26', amount: 4200, lines: '' } }], untouched)).toEqual([])
-    expect(invoiceChangeRefusals([{ before: null, after: { number: ' 1-1-26 ', amount: 4200, lines: '' } }], untouched)).toEqual([
-      'Invoice 1-1-26 is already on the invoices tab, and each number is used once.',
-    ])
+    expect(invoiceChangeRefusals([{ before: null, after: { number: ' 1-1-26 ', amount: 4200, lines: '' } }], untouched)).toEqual([{ kind: 'number-taken', number: '1-1-26' }])
     expect(invoiceChangeRefusals([{ before: { number: '2-1-26', amount: 10, lines: '' }, after: { number: '2-1-26', amount: -10, lines: '' } }], untouched)).toEqual([
-      'Invoice 2-1-26 is for -10, and an invoice is for an amount above zero.',
+      { kind: 'not-above-zero', number: '2-1-26', amount: -10 },
     ])
+    expect(receivablesEn.refusal({ kind: 'number-taken', number: '1-1-26' })).toBe('Invoice 1-1-26 is already on the invoices tab, and each number is used once.')
+    expect(receivablesEn.refusal({ kind: 'not-above-zero', number: '2-1-26', amount: -10 })).toBe('Invoice 2-1-26 is for -10, and an invoice is for an amount above zero.')
     expect(invoiceChangeRefusals([{ before: { number: '1-1-26', amount: 10, lines: '' }, after: { number: '1-1-26', amount: 20, lines: '' } }], [])).toEqual([])
   })
 

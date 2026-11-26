@@ -20,7 +20,7 @@ import type { InvoiceLine } from '../../invoicing/domain/invoiceLine'
 import { registerItemOf } from '../../invoicing/domain/invoiceLines'
 import { templateProblems } from '../../invoicing/domain/invoiceTemplate'
 import type { InvoiceTemplateLine } from '../../invoicing/domain/invoiceTemplate'
-import { en as invoicingEn, lineProblemsInWords } from '../../invoicing/domain/words'
+import { en as invoicingEn, lineProblemsInWords, templateProblemsInWords } from '../../invoicing/domain/words'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import type { Invoice } from '../../workbook/domain/workbook'
 import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
@@ -322,8 +322,7 @@ function clientFieldsOf(stored: StoredFields, input: Readonly<Record<string, unk
   const reverse = input['reverseCharge']
   const lines = Array.isArray(input['lines']) ? (input['lines'] as readonly InvoiceTemplateLine[]).map((line) => ({ text: line.text.trim(), items: line.items.map((item) => item.trim()) })) : undefined
   const problems = lines === undefined ? [] : templateProblems(lines)
-  if (problems.length > 0)
-    throw new StepRefused(`The invoice lines cannot be saved: ${problems.map((problem) => invoicingEn.templateLine(problem.line, invoicingEn.templateProblem(problem))).join(', ')}.`)
+  if (problems.length > 0) throw new StepRefused(`The invoice lines cannot be saved: ${templateProblemsInWords(problems, invoicingEn).join(', ')}.`)
   return clientFieldsWith(stored, {
     texts,
     ...(reverse === 'yes' || reverse === 'no' ? { reverseCharge: reverse === 'yes' } : {}),

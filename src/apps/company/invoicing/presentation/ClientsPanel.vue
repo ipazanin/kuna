@@ -44,7 +44,7 @@ const billingItems = computed(() => planItemsOf(state.workbook?.billingPlan ?? [
 const termsSummary = computed(() => {
   const client = settings.value.billing.client
   const billed = state.workbook?.clients.find((candidate) => candidate.slug === client)
-  const missing = REQUIRED_ISSUER.filter(([field]) => settings.value.invoicing[field].trim() === '').length
+  const missing = REQUIRED_ISSUER.filter((field) => settings.value.invoicing[field].trim() === '').length
   const billing = client === '' ? words.clients.noTermsClient : words.clients.billedOnTerms(billed?.name || client)
   return `${billing}. ${missing === 0 ? words.clients.allDetails : plural(words.clients.detailsMissing(missing, REQUIRED_ISSUER.length), missing)}`
 })

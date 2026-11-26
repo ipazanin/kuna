@@ -10,7 +10,6 @@ import type { DrillTarget } from '../../filters/domain/drillTarget'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import { AGEING_BUCKETS } from '../domain/ageing'
 import type { AgeingBucket } from '../domain/ageing'
-import { words as domainWords } from '../domain/words'
 import { words } from './words'
 
 /** One client's money still owed, by how late it is. */
@@ -22,14 +21,14 @@ export interface ClientAgeing {
 }
 
 export function ageingLegend(tokens: ChartTokens): LegendEntry[] {
-  return AGEING_BUCKETS.map((bucket, step) => ({ label: domainWords.ageing[bucket], colour: tokens.ageing[step] ?? tokens.ink }))
+  return AGEING_BUCKETS.map((bucket, step) => ({ label: words.ageing[bucket], colour: tokens.ageing[step] ?? tokens.ink }))
 }
 
 /** One horizontal bar per client, its segments from not due yet to over 90 days late, left to right. */
 export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartTokens): DrillChart {
   const bars: BarSeries[] = AGEING_BUCKETS.map((bucket, step) => ({
     type: 'bar',
-    name: domainWords.ageing[bucket],
+    name: words.ageing[bucket],
     stack: 'owed',
     color: tokens.ageing[step] ?? tokens.ink,
     // The rounded end goes on whichever segment ends each bar, so a bar ending early keeps its shape.
@@ -58,7 +57,7 @@ export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartToken
               .map(
                 (client) =>
                   `${client.name}: ${AGEING_BUCKETS.filter((bucket) => client.byBucket[bucket] > 0)
-                    .map((bucket) => `${formatMoney(client.byBucket[bucket])} ${domainWords.ageing[bucket].toLowerCase()}`)
+                    .map((bucket) => `${formatMoney(client.byBucket[bucket])} ${words.ageing[bucket].toLowerCase()}`)
                     .join(', ')}`,
               )
               .join('. '),

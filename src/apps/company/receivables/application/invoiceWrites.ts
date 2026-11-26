@@ -11,6 +11,7 @@ import type { Invoice } from '../../workbook/domain/workbook'
 import { pickedEdits, pickedUntouched } from '../../../../shared/storage/domain/writeRules'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { invoiceChangeRefusals } from '../domain/invoiceGuards'
+import { words } from './words'
 
 function invoiceOfFields(fields: StoredFields): { readonly number: string; readonly amount: string | number; readonly lines: string } {
   return { number: textOf(fields.number), amount: fields.amount?.number ?? textOf(fields.amount), lines: textOf(fields.lines) }
@@ -26,7 +27,7 @@ export const INVOICE_WRITES: WriteRules<Invoice> = {
     invoiceChangeRefusals(
       pickedEdits(change, invoiceOfFields),
       pickedUntouched(change, (fields) => ({ number: textOf(fields.number) })),
-    ),
+    ).map(words.refusal),
 }
 
 /** Deletes the invoice, and the payments placed on it wait to be placed again. */
