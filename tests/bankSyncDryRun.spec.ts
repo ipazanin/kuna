@@ -269,7 +269,7 @@ describe('a Revolut export and a sync answer of the same days', () => {
   ]
 
   function exported(): StatementRows {
-    const reading = recipeStatement(REVOLUT_STATEMENT, EXPORT, 'revolut.csv', { accounts: ACCOUNTS, categories: CATEGORIES }, statementWords.feeOn)
+    const reading = recipeStatement(REVOLUT_STATEMENT, { texts: EXPORT, numbers: [] }, 'revolut.csv', { accounts: ACCOUNTS, categories: CATEGORIES }, statementWords.feeOn)
     if (!('statement' in reading)) throw new Error(reading.refused.kind)
     return reading.statement
   }

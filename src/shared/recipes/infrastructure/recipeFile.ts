@@ -2,6 +2,7 @@ import { decodedText } from '../../text/decodedText'
 import { readFirstSheetCells } from '../../xlsx/sheetGrids'
 import { sectionColumns } from '../domain/recipe'
 import type { Recipe, RecipeFileReading, RecipeSection, SourceRow, SourceRows, XmlFile } from '../domain/recipe'
+import type { TableCells } from '../domain/tableRows'
 
 /** The attachment names a recipe's format can be, by their ending. */
 const ENDINGS: Readonly<Record<Recipe['file']['format'], RegExp>> = { xml: /\.xml$/i, table: /\.(csv|xlsx|xls|ods)$/i }
@@ -87,7 +88,7 @@ export function readRecipeDocument(recipe: Recipe<XmlFile>, document: Document):
   return { kind: 'read', ...xmlRows(recipe, document.documentElement) }
 }
 
-/** A table file's first sheet as text for `tableRows`: a csv or txt decoded by what its bytes are, anything else read by SheetJS. */
-export async function tableFileCells(fileName: string, bytes: ArrayBuffer): Promise<string[][]> {
+/** A table file's first sheet for `tableRows`: a csv or txt decoded by what its bytes are, anything else read by SheetJS. */
+export async function tableFileCells(fileName: string, bytes: ArrayBuffer): Promise<TableCells> {
   return readFirstSheetCells(/\.(csv|txt)$/i.test(fileName) ? decodedText(bytes) : bytes)
 }

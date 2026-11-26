@@ -18,15 +18,18 @@ describe('what a statement file holds', () => {
   it('counts the rows of each product and currency with their first and last day and the account they go to, current first', () => {
     const reading = recipeStatement(
       REVOLUT_STATEMENT,
-      [
-        HEADER,
-        line('2026-10-03', '5.00', 'EUR', 'Savings'),
-        line('2026-10-05', '-2.00'),
-        line('2026-10-01', '-3.00'),
-        line('2026-10-04', '-1.00', 'EUR', 'Current', 'PENDING'),
-        line('2026-10-02', '-9.00', 'EUR', 'Deposit'),
-        line('2026-10-02', '-9.00', 'EUR', 'Current', 'REVERTED'),
-      ],
+      {
+        texts: [
+          HEADER,
+          line('2026-10-03', '5.00', 'EUR', 'Savings'),
+          line('2026-10-05', '-2.00'),
+          line('2026-10-01', '-3.00'),
+          line('2026-10-04', '-1.00', 'EUR', 'Current', 'PENDING'),
+          line('2026-10-02', '-9.00', 'EUR', 'Deposit'),
+          line('2026-10-02', '-9.00', 'EUR', 'Current', 'REVERTED'),
+        ],
+        numbers: [],
+      },
       'export.csv',
       { accounts: ACCOUNTS, categories: CATEGORIES },
       en.feeOn,
@@ -41,7 +44,7 @@ describe('what a statement file holds', () => {
   it('still says what a file refused for its missing accounts holds', () => {
     const reading = recipeStatement(
       REVOLUT_STATEMENT,
-      [HEADER, line('2026-10-02', '-4.00', 'GBP'), line('2026-10-01', '-1.00')],
+      { texts: [HEADER, line('2026-10-02', '-4.00', 'GBP'), line('2026-10-01', '-1.00')], numbers: [] },
       'export.csv',
       { accounts: ACCOUNTS, categories: CATEGORIES },
       en.feeOn,

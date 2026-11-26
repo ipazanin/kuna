@@ -47,7 +47,7 @@ function compact(day: CivilDate): string {
 function rowsOfReport(report: string): WorkbookRows {
   const read = readRecipeFile(IBKR_FLEX_RECIPE, new TextEncoder().encode(report).buffer as ArrayBuffer)
   if (read.kind !== 'read') throw new Error('It did not read.')
-  const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
+  const run = runRecipe(IBKR_FLEX_RECIPE, read)
   if (run.kind !== 'read') throw new Error('It does not fit.')
   return reportRows(IBKR_FLEX_RECIPE, [{ fileName: 'report.xml', run }], { leftOut: [] }, MAILED)
 }

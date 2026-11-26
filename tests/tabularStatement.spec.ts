@@ -8,7 +8,7 @@ import { fileShapeOf } from '../src/apps/company/imports/domain/recipeGuess'
 import { recipeOfProfile } from '../src/apps/company/imports/domain/profileRecipe'
 import { tableRecipesOf } from '../src/apps/company/imports/domain/tableRecipes'
 import { readTabularStatement } from '../src/apps/company/imports/domain/tabularStatement'
-import type { TableCells } from '../src/apps/company/imports/domain/tabularStatement'
+import type { TableCells } from '../src/shared/recipes/domain/tableRows'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { parseSettings, settingsTabEntries } from '../src/apps/company/settings/domain/settings'
 import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -43,7 +43,7 @@ const PROFILE: ImportProfile = {
   reference: '',
 }
 
-async function gridOfXlsx(grid: readonly (readonly (string | XLSX.CellObject)[])[]): Promise<TableCells> {
+async function gridOfXlsx(grid: readonly (readonly (string | number | XLSX.CellObject)[])[]): Promise<TableCells> {
   const book = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(grid.map((row) => [...row])), 'Promet')
   const bytes = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
@@ -91,6 +91,20 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
     })
     expect(statement.notes).toEqual(['Row 9 has no date, so it is skipped.'])
     expect(statement.rows.every((row) => /^row-[0-9a-f]{16}-1$/.test(row.reference))).toBe(true)
+  })
+
+  it('reads an xlsx whose amounts are number cells with a decimal comma, each by its number', async () => {
+    const numbers = [
+      HEADER,
+      ['01.03.2031', '01.03.2031', 'Primjer banka d.d.', '', 'Naknada za vođenje računa', 14.5, '', 1234.5],
+      ['02.03.2031', '02.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', 3.4, '', 1231.1],
+    ]
+    const statement = statementOf(readByProfile(await gridOfXlsx(numbers), PROFILE, 'numbers.xlsx', HASH))
+
+    expect(statement.rows.map((row) => [row.amount, row.balance])).toEqual([
+      [moneyFromCents(-1_450), moneyFromCents(123_450)],
+      [moneyFromCents(-340), moneyFromCents(123_110)],
+    ])
   })
 
   it('gives the same row the same key in a later export that overlaps it', async () => {
@@ -164,7 +178,7 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
   it('reads a csv’s amounts as written, with a semicolon between fields', async () => {
     const csv = [HEADER.join(';'), '01.03.2031;01.03.2031;Primjer banka d.d.;;Naknada;14,50;;185,50'].join('\n')
     const loaded = await loadImportFile('promet.csv', new TextEncoder().encode(csv).buffer as ArrayBuffer)
-    const statement = statementOf(readByProfile(loaded.kind === 'table' ? loaded.cells : [], PROFILE, 'promet.csv', HASH))
+    const statement = statementOf(readByProfile(loaded.kind === 'table' ? loaded.cells : { texts: [], numbers: [] }, PROFILE, 'promet.csv', HASH))
 
     expect(statement.rows[0]).toMatchObject({ amount: moneyFromCents(-1_450), balance: moneyFromCents(18_550) })
   })
@@ -174,7 +188,7 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
     const latin2 = (text: string): number[] => [...text].map((character) => ({ ć: 0xe6, Č: 0xc8 })[character] ?? character.charCodeAt(0))
     const bytes = new Uint8Array([...latin2('Datum;Opis plaćanja;Iznos\n'), ...latin2('01.03.2031;Članarina;-3,40')])
     const loaded = await loadImportFile('promet.csv', bytes.buffer)
-    const grid = loaded.kind === 'table' ? loaded.cells : []
+    const grid = loaded.kind === 'table' ? loaded.cells.texts : []
 
     expect(grid[0]).toEqual(['Datum', 'Opis plaćanja', 'Iznos'])
     expect(grid[1]).toEqual(['01.03.2031', 'Članarina', '-3,40'])

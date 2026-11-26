@@ -86,7 +86,7 @@ function byParent(rows: readonly { readonly section: string; readonly place: num
 /** A document's statements as the camt recipe reads them, in the document's order, or null for a document that holds no camt.053 statement. */
 function statementRowsOf(reading: RecipeFileReading): StatementRows[] | null {
   if (reading.kind === 'misfit') return null
-  const run = runRecipe(CAMT_RECIPE, reading.rows)
+  const run = runRecipe(CAMT_RECIPE, reading)
   if (run.kind === 'misfit') return null
   const parentOf = (row: RecipeRow): number => reading.parents.get(row.section)?.[row.place] ?? 0
   const rowsUnder = (section: string): Map<number, RecipeRow[]> => {

@@ -20,6 +20,7 @@ import type { Recipe, RecipeField, TableFile } from '../../../../shared/recipes/
 import { runRecipe } from '../../../../shared/recipes/domain/runRecipe'
 import type { AskedRow, RecipeRow } from '../../../../shared/recipes/domain/runRecipe'
 import { tableRows } from '../../../../shared/recipes/domain/tableRows'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
@@ -206,13 +207,7 @@ function daysCovered(rows: readonly StatementRow[]): ReadonlyMap<RecordId, DateR
  * accounts a row could go to. A fee becomes a row of its own in Bank fees. A last balance its rows do not add up to is a
  * note, per product. Each account the file needs and Kuna does not keep comes drafted, every currency at once.
  */
-export function recipeStatement(
-  source: StatementRecipe,
-  cells: readonly (readonly string[])[],
-  fileName: string,
-  book: Pick<SpendingBook, 'accounts' | 'categories'>,
-  feeOn: FeeDescription,
-): StatementReading {
+export function recipeStatement(source: StatementRecipe, cells: TableCells, fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>, feeOn: FeeDescription): StatementReading {
   try {
     return readRows(source, cells, fileName, book, feeOn)
   } catch (failure) {
@@ -228,7 +223,7 @@ export function statementRecipesOf(book: Pick<SpendingBook, 'recipes'>): readonl
 }
 
 /** The first of the recipes whose columns head one of the file's first rows, which reads the file. */
-export function fittingRecipe(recipes: readonly StatementRecipe[], cells: readonly (readonly string[])[]): StatementRecipe | undefined {
+export function fittingRecipe(recipes: readonly StatementRecipe[], cells: TableCells): StatementRecipe | undefined {
   return recipes.find((source) => tableRows(source.recipe, cells).kind === 'read')
 }
 
@@ -238,7 +233,7 @@ export function fittingRecipe(recipes: readonly StatementRecipe[], cells: readon
  */
 export function statementOfFile(
   recipes: readonly StatementRecipe[],
-  cells: readonly (readonly string[])[],
+  cells: TableCells,
   fileName: string,
   book: Pick<SpendingBook, 'accounts' | 'categories'>,
   feeOn: FeeDescription,
@@ -253,11 +248,11 @@ export function statementOfFile(
   return { refused: { kind: 'no-recipe', misses }, missing: [], holdings: [] }
 }
 
-function readRows(source: StatementRecipe, cells: readonly (readonly string[])[], fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>, feeOn: FeeDescription): StatementReading {
+function readRows(source: StatementRecipe, cells: TableCells, fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>, feeOn: FeeDescription): StatementReading {
   const { recipe } = source
   const table = tableRows(recipe, cells)
   if (table.kind === 'misfit') throw new Refused({ kind: 'no-column', column: table.misfit.kind === 'no-column' ? table.misfit.column : '' })
-  const run = runRecipe(recipe, table.rows)
+  const run = runRecipe(recipe, table)
   if (run.kind === 'misfit') throw new Refused({ kind: 'no-column', column: run.misfit.kind === 'no-column' ? run.misfit.column : '' })
   const [asked] = [...run.asked].sort((one, other) => (one.place ?? 0) - (other.place ?? 0))
   if (asked !== undefined) throw new Refused(askedRefusal(recipe, asked, table.lines))

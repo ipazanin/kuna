@@ -27,7 +27,7 @@ import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import type { StatementReading } from '../domain/importedStatement'
 import { readTabularStatement } from '../domain/tabularStatement'
 import { words } from './words'
-import type { TableCells } from '../domain/tabularStatement'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 
 /** A file dropped on Import, as far as reading it goes: a camt document's rows as its recipe reads them, or a spreadsheet's first sheet as text. */
 export type LoadedImportFile =

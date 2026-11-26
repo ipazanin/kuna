@@ -1,6 +1,6 @@
 import { sha256Hex } from '../../../../shared/files/sha256'
 import type { LoadedImportFile } from '../application/importStatements'
-import type { TableCells } from '../domain/tabularStatement'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 import { readRecipeDocument, tableFileCells } from '../../../../shared/recipes/infrastructure/recipeFile'
 import { CAMT_RECIPE } from '../domain/camtRecipe'
 import { words } from './words'

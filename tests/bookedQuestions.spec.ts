@@ -38,7 +38,7 @@ function unseenRows(days: readonly CivilDate[] = [DAY]): WorkbookRows {
   const bytes = new TextEncoder().encode(sampleFlexReport(days, 'unseen')).buffer as ArrayBuffer
   const read = readRecipeFile(IBKR_FLEX_RECIPE, bytes)
   if (read.kind !== 'read') throw new Error(`It did not read: ${read.misfit.kind}`)
-  const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
+  const run = runRecipe(IBKR_FLEX_RECIPE, read)
   if (run.kind !== 'read') throw new Error(`It does not fit: ${run.misfit.kind}`)
   return reportRows(IBKR_FLEX_RECIPE, [{ fileName: 'report.xml', run }], { leftOut: [] }, { kind: 'mailed', since: SINCE })
 }

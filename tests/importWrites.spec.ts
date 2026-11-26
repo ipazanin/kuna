@@ -282,7 +282,7 @@ describe('a tabular import through its recipe', () => {
       ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'],
       ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00'],
     ]
-    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: grid }
+    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: { texts: grid, numbers: [] } }
     const workbook = withAccountBank(store.state.workbook!, 'main', 'Primjer banka')
     const run = dryRunFor(statementReadings(file, workbook, tableRecipe(draft, 'Primjer banka')), companyBooksOf(store.state)!, new Map())
 
@@ -318,7 +318,7 @@ describe('a tabular import through its recipe', () => {
       ['17.10.2026', 'KAVANA PRIMJER', 'Kartično plaćanje', '-3,40'],
       ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00'],
     ]
-    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: grid }
+    const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: { texts: grid, numbers: [] } }
     const runOf = (read: TableRecipeDraft) =>
       dryRunFor(statementReadings(file, withAccountBank(store.state.workbook!, 'main', 'Primjer banka'), tableRecipe(read, 'Primjer banka')), companyBooksOf(store.state)!, new Map())
     await importRows(store, runOf(draft).added)

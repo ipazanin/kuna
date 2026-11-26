@@ -10,6 +10,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { likeliestHeaderRow } from '../../../../shared/recipes/domain/headerRow'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 
 /**
  * What a person can do about a file no recipe reads, or one a saved recipe stopped reading: write a recipe or edit the saved
@@ -17,7 +18,7 @@ import { likeliestHeaderRow } from '../../../../shared/recipes/domain/headerRow'
  */
 const props = defineProps<{
   file: File
-  cells: readonly (readonly string[])[]
+  cells: TableCells
   refusal: StatementRefusal
   /** What Import said of the file, which the chat hears too. */
   said: string
@@ -43,8 +44,9 @@ const nothingReads = computed(() => props.refusal.kind === 'no-recipe' || props.
 const shown = computed(() => failing.value !== null || nothingReads.value)
 
 const header = computed(() => {
-  const at = likeliestHeaderRow(props.cells)
-  return at === null ? null : props.cells[at]!.filter((cell) => cell.trim() !== '')
+  const { texts } = props.cells
+  const at = likeliestHeaderRow(texts)
+  return at === null ? null : texts[at]!.filter((cell) => cell.trim() !== '')
 })
 
 const editing = ref<SavedRecipe | null>(null)

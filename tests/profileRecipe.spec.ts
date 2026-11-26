@@ -58,10 +58,10 @@ describe('moving import profiles to recipes', () => {
 
     expect(workbook.accounts.find((account) => account.slug === 'main')?.bank).toBe('Primjer banka')
     expect(primjer?.saved).toMatchObject({ bank: 'Primjer banka', currency: 'EUR', recipe: { name: 'primjer-banka' } })
-    const [reading] = statementReadings({ kind: 'table', fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: CELLS }, workbook, primjer!.saved)
+    const [reading] = statementReadings({ kind: 'table', fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: { texts: CELLS, numbers: [] } }, workbook, primjer!.saved)
     expect(reading).toMatchObject({ statement: { account: 'main', rows: [{ date: '2026-10-17', counterparty: 'KAVANA PRIMJER' }] } })
     expect(orphan?.saved).toMatchObject({ bank: 'Old bank', currency: 'EUR' })
-    expect(statementReadings({ kind: 'table', fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: CELLS }, workbook, orphan!.saved)[0]).toMatchObject({
+    expect(statementReadings({ kind: 'table', fileName: 'promet.csv', fileHash: 'f'.repeat(64), cells: { texts: CELLS, numbers: [] } }, workbook, orphan!.saved)[0]).toMatchObject({
       refusal: 'No account of Old bank keeps EUR. Give the account the file is of the bank Old bank on Settings, Accounts.',
     })
   })

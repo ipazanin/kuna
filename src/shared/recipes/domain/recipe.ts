@@ -77,7 +77,8 @@ export type RowTest =
  * How one field of a record is read from its column. A blank cell makes the row a question unless `blank` allows it.
  * `part` takes one piece of the text, such as the EUR of `EUR.USD`. A date or a time gives the formats it may be written
  * in, using yyyy, MM, dd, HH, mm and ss, and a time reads the same column as its date. A decimal written with a decimal
- * comma, or with thousands grouped, names its `mark`. Without one it is read as a record stores it, such as `-12.5`.
+ * comma, or with thousands grouped, names its `mark`. Without one it is read as a record stores it, such as `-12.5`. A
+ * sheet's number cell is read as its number whatever the mark, since only text carries a mark.
  */
 export type RecipeField =
   | { readonly from: string; readonly as: 'text'; readonly blank?: true }
@@ -97,6 +98,9 @@ export type SourceRow = ReadonlyMap<string, string>
 
 /** The rows of each section by the section's name. A section the file does not hold is absent. */
 export type SourceRows = ReadonlyMap<string, readonly SourceRow[]>
+
+/** For each section of a table file, row by row, the columns whose cells the sheet holds as numbers rather than text. */
+export type NumberCells = ReadonlyMap<string, readonly ReadonlySet<string>[]>
 
 /** Why a file does not fit its recipe, which stops the whole file. */
 export type RecipeMisfit =

@@ -9,14 +9,12 @@ import type { Recipe, TableFile } from '../../../../shared/recipes/domain/recipe
 import { runRecipe } from '../../../../shared/recipes/domain/runRecipe'
 import type { AskedRow, RecipeRow } from '../../../../shared/recipes/domain/runRecipe'
 import { tableRows } from '../../../../shared/recipes/domain/tableRows'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
 import { NO_SIGNALS, StatementRefused } from './importedStatement'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 import { words } from './words'
-
-/** A table file's first sheet as text from A1, row by row, as `readFirstSheetCells` reads it. */
-export type TableCells = readonly (readonly string[])[]
 
 /**
  * The rows of a bank's table file, read by a recipe into the account its bank and currency find: the header row found by its
@@ -78,7 +76,7 @@ function askedNoteOrProblem(asked: AskedRow, fileRow: number, formats: string): 
 function tabularStatement(cells: TableCells, recipe: Recipe<TableFile>, account: string, fileName: string, fileHash: string, label: string): ImportedStatement {
   const [section] = recipe.sections
   const table = tableRows(recipe, cells)
-  const run = table.kind === 'read' ? runRecipe(recipe, table.rows) : null
+  const run = table.kind === 'read' ? runRecipe(recipe, table) : null
   if (section === undefined || table.kind === 'misfit' || run === null || run.kind === 'misfit') {
     throw new StatementRefused(words.table.noHeader(HEADER_SEARCH_ROWS, fileName, recipe.name, section === undefined ? [] : sectionColumns(section)))
   }

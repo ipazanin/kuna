@@ -19,7 +19,7 @@ const READ_AT = '2026-10-06T07:02:00.000Z'
 function runOfReport(): Extract<RecipeRun, { readonly kind: 'read' }> {
   const read = readRecipeFile(IBKR_FLEX_RECIPE, new TextEncoder().encode(sampleFlexReport([DAY])).buffer as ArrayBuffer)
   if (read.kind !== 'read') throw new Error('It did not read.')
-  const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
+  const run = runRecipe(IBKR_FLEX_RECIPE, read)
   if (run.kind !== 'read') throw new Error('It does not fit.')
   return run
 }

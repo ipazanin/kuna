@@ -463,7 +463,7 @@ function statementRow(place: number, account: RecordId, date: CivilDate, amount:
 function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, categories: readonly Category[], accounts: readonly Account[]): readonly FakeRow[] {
   const back = (days: number): CivilDate => addDays(day, -days)
   const between = idOf('Between my accounts')
-  const read = recipeStatement(REVOLUT_STATEMENT, sampleRevolutRows(day), 'earlier-statement.csv', { accounts, categories }, statementWords.feeOn)
+  const read = recipeStatement(REVOLUT_STATEMENT, { texts: sampleRevolutRows(day), numbers: [] }, 'earlier-statement.csv', { accounts, categories }, statementWords.feeOn)
   const bistroKey = 'statement' in read ? (read.statement.rows.find((row) => row.payee === 'Harbour bistro')?.importKey ?? '') : ''
   const [paidOut, paidIn] = [fixedId(TRANSACTION_RECORDS, 1703), fixedId(TRANSACTION_RECORDS, 1704)]
   const typed = (place: number, account: RecordId, date: CivilDate, amount: number, payee: string, category: string): FakeRow => ({

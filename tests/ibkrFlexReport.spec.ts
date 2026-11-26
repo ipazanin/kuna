@@ -49,7 +49,7 @@ function fileOfReport(report: string) {
   const bytes = new TextEncoder().encode(report).buffer as ArrayBuffer
   const read = readRecipeFile(IBKR_FLEX_RECIPE, bytes)
   if (read.kind !== 'read') throw new Error(`It did not read: ${read.misfit.kind}`)
-  const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
+  const run = runRecipe(IBKR_FLEX_RECIPE, read)
   if (run.kind !== 'read') throw new Error(`It does not fit: ${run.misfit.kind}`)
   return { fileName: 'report.xml', run }
 }
@@ -207,7 +207,7 @@ describe("IBKR's built-in recipe", () => {
   ] as const)('fails a report that no longer fits, reading nothing: %s', (shape, misfit) => {
     const bytes = new TextEncoder().encode(sampleFlexReport([DAY], shape)).buffer as ArrayBuffer
     const read = readRecipeFile(IBKR_FLEX_RECIPE, bytes)
-    expect(read.kind === 'read' && runRecipe(IBKR_FLEX_RECIPE, read.rows)).toEqual({ kind: 'misfit', misfit })
+    expect(read.kind === 'read' && runRecipe(IBKR_FLEX_RECIPE, read)).toEqual({ kind: 'misfit', misfit })
   })
 })
 

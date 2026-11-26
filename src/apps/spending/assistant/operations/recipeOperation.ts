@@ -9,6 +9,7 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { runRecipe } from '../../../../shared/recipes/domain/runRecipe'
 import { tableRows } from '../../../../shared/recipes/domain/tableRows'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 import { unclaimedValues } from '../../../../shared/recipes/domain/unclaimedValues'
 import { tableFileCells } from '../../../../shared/recipes/infrastructure/recipeFile'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -112,7 +113,7 @@ export function isRecipeStep(operation: string): boolean {
 /** An attached file a recipe step reads, with its first sheet's cells as Import reads them. */
 interface ReadFile {
   readonly name: string
-  readonly cells: readonly (readonly string[])[]
+  readonly cells: TableCells
 }
 
 function isReadFile(value: unknown): value is ReadFile {
@@ -177,13 +178,13 @@ function problemText(problem: StatementRecipeProblem): string {
 }
 
 /** Why Kuna could not read the file with the recipe, naming only the values no kind took or the one cell it could not read. */
-function readRefusal(refusal: StatementRefusal, { recipe, bank }: StatementRecipe, cells: readonly (readonly string[])[]): string {
+function readRefusal(refusal: StatementRefusal, { recipe, bank }: StatementRecipe, cells: TableCells): string {
   switch (refusal.kind) {
     case 'no-column':
       return `None of the first 40 rows holds every column the recipe reads. ${refusal.column} is missing.`
     case 'no-kind': {
       const table = tableRows(recipe, cells)
-      const run = table.kind === 'read' ? runRecipe(recipe, table.rows) : null
+      const run = table.kind === 'read' ? runRecipe(recipe, table) : null
       const [section] = recipe.sections
       const rows = table.kind === 'read' && section !== undefined ? (table.rows.get(section.name) ?? []) : []
       const unclaimed = run === null || run.kind === 'misfit' || section === undefined ? [] : unclaimedValues(section, rows, run.asked)

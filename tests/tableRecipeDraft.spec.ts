@@ -31,9 +31,9 @@ describe('a table recipe draft', () => {
       ['02.11.2026 14:05', 'Corner market', '1.234,50', '', 'booked'],
       ['03.11.2026 09:00', 'Refund', '', '', 'Declined'],
     ]
-    const table = tableRows(made.recipe, cells)
+    const table = tableRows(made.recipe, { texts: cells, numbers: [] })
     if (table.kind !== 'read') throw new Error(table.misfit.kind)
-    const run = runRecipe(made.recipe, table.rows)
+    const run = runRecipe(made.recipe, table)
     if (run.kind !== 'read') throw new Error(run.misfit.kind)
 
     expect(run.rows.map((row) => [row.kind, row.dates['started'] ?? null, row.texts['startedTime'] ?? null, row.texts['description'] ?? null])).toEqual([

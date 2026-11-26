@@ -16,7 +16,7 @@ import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
 import { camtFile } from '../src/apps/company/imports/infrastructure/importFiles'
 
 const FAKE_BOOKS = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
-const cells = sampleTableGrid().map((row) => row.map((cell) => (cell === null || cell === undefined ? '' : String(cell))))
+const cells = { texts: sampleTableGrid().map((row) => row.map((cell) => (cell === null || cell === undefined ? '' : String(cell)))), numbers: [] }
 const named = accountNamedIn(cells, FAKE_BOOKS.workbook.accounts)
 const workbook = withAccountBank(FAKE_BOOKS.workbook, named?.slug ?? '', 'Example banka')
 const camt = camtFile(SAMPLE_CAMT_FILE_NAME, sampleCamtXml())

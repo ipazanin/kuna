@@ -66,7 +66,7 @@ function row(attributes: Readonly<Record<string, string>>): string {
 
 function runXml(body: string, recipe: Recipe<XmlFile> = XML_RECIPE): RecipeRun {
   const file = readRecipeFile(recipe, bytesOf(`<Report><Inner><Rows>${body}</Rows></Inner></Report>`))
-  return file.kind === 'misfit' ? { kind: 'misfit', misfit: file.misfit } : runRecipe(recipe, file.rows)
+  return file.kind === 'misfit' ? { kind: 'misfit', misfit: file.misfit } : runRecipe(recipe, file)
 }
 
 function readRows(run: RecipeRun): readonly RecipeRow[] {
@@ -139,7 +139,7 @@ describe('a recipe run', () => {
 
   it('fails a file with no such section, even when its other sections fit', () => {
     const file = readRecipeFile(XML_RECIPE, bytesOf('<Report><Other /></Report>'))
-    expect(file.kind === 'read' && runRecipe(XML_RECIPE, file.rows)).toEqual({ kind: 'misfit', misfit: { kind: 'no-section', section: 'Rows' } })
+    expect(file.kind === 'read' && runRecipe(XML_RECIPE, file)).toEqual({ kind: 'misfit', misfit: { kind: 'no-section', section: 'Rows' } })
   })
 
   it('takes an empty section as no rows', () => {
@@ -192,7 +192,7 @@ describe('an XML recipe that reads elements', () => {
       ),
     )
     if (file.kind === 'misfit') throw new Error('expected rows')
-    const run = runRecipe(NESTED, file.rows)
+    const run = runRecipe(NESTED, file)
 
     expect(file.parents.get('Entries')).toEqual([0, 1, 1])
     expect(
@@ -270,10 +270,10 @@ function dayCell(day: CivilDate, fraction = 0): XLSX.CellObject {
 describe('a table recipe', () => {
   it('finds its header below a title by the columns it reads, ignoring case and spacing, and numbers each row by its line', () => {
     const cells = [['Account statement'], [], ['booked', ' AMOUNT ', 'Note'], ['01.03.2031', '-1.234,56', 'Rent'], ['', '', ''], ['02.03.2031', '0,8', '']]
-    const reading = tableRows(TABLE_RECIPE, cells)
+    const reading = tableRows(TABLE_RECIPE, { texts: cells, numbers: [] })
     if (reading.kind !== 'read') throw new Error('It fits.')
     expect(reading.lines).toEqual([4, 6])
-    const run = runRecipe(TABLE_RECIPE, reading.rows)
+    const run = runRecipe(TABLE_RECIPE, reading)
     if (run.kind !== 'read') throw new Error('It fits.')
     expect(run.rows.map((read) => [read.place, read.dates.day, read.decimals.amount])).toEqual([
       [0, '2031-03-01', decimalOfText('-1234.56')],
@@ -282,10 +282,10 @@ describe('a table recipe', () => {
   })
 
   it('names the first column the likeliest header lacks when no row holds them all', () => {
-    expect(tableRows(TABLE_RECIPE, [['Title'], ['Booked', 'Sum', 'Note']])).toEqual({ kind: 'misfit', misfit: { kind: 'no-column', section: 'Rows', column: 'Amount' } })
+    expect(tableRows(TABLE_RECIPE, { texts: [['Title'], ['Booked', 'Sum', 'Note']], numbers: [] })).toEqual({ kind: 'misfit', misfit: { kind: 'no-column', section: 'Rows', column: 'Amount' } })
   })
 
-  it('reads an xlsx day cell to the second, a whole day as a day, and a number as its full value', async () => {
+  it('reads an xlsx day cell to the second, a whole day as a day, and a number as its full value, marked as a number cell', async () => {
     const cells = await readFirstSheetCells(
       xlsxBytes([
         ['Booked', 'Amount'],
@@ -293,18 +293,51 @@ describe('a table recipe', () => {
         [dayCell(civil('2031-03-02')), 0.1 + 0.2],
       ]),
     )
-    expect(cells).toEqual([
-      ['Booked', 'Amount'],
-      ['2031-03-01 14:06:00', '-12.5'],
-      ['2031-03-02', '0.3'],
-    ])
+    expect(cells).toEqual({
+      texts: [
+        ['Booked', 'Amount'],
+        ['2031-03-01 14:06:00', '-12.5'],
+        ['2031-03-02', '0.3'],
+      ],
+      numbers: [[], [1], [1]],
+    })
   })
 
-  it('keeps a csv as written', async () => {
-    expect(await readFirstSheetCells('Booked;Amount\n01.03.2031;"1.234,56"\n')).toEqual([
-      ['Booked', 'Amount'],
-      ['01.03.2031', '1.234,56'],
-    ])
+  it('keeps a csv as written, with no number cells', async () => {
+    expect(await readFirstSheetCells('Booked;Amount\n01.03.2031;"1.234,56"\n')).toEqual({
+      texts: [
+        ['Booked', 'Amount'],
+        ['01.03.2031', '1.234,56'],
+      ],
+      numbers: [[], []],
+    })
+  })
+
+  it.each([
+    ['comma', -1234.5, '-1234.5'],
+    ['comma', 1.234, '1.234'],
+    ['comma', { t: 's', v: '1.234' }, '1234'],
+    ['comma', { t: 's', v: '-1.234,5' }, '-1234.5'],
+    ['point', 1.234, '1.234'],
+    ['point', { t: 's', v: '1.234' }, '1.234'],
+    ['point', { t: 's', v: '1,234' }, '1234'],
+  ] as const)('with a decimal %s reads the xlsx amount cell %o as %s, a number cell by its number and a text cell by the mark', async (mark: DecimalMark, cell, decimal) => {
+    const section = TABLE_RECIPE.sections[0]!
+    const recipe: Recipe<TableFile> = { ...TABLE_RECIPE, sections: [{ ...section, fields: { ...section.fields, amount: { from: 'Amount', as: 'decimal', mark } } }] }
+    const reading = tableRows(
+      recipe,
+      await readFirstSheetCells(
+        xlsxBytes([
+          ['Booked', 'Amount'],
+          [dayCell(civil('2031-03-01')), cell],
+        ]),
+      ),
+    )
+    if (reading.kind !== 'read') throw new Error('It fits.')
+    const run = runRecipe(recipe, reading)
+    if (run.kind !== 'read') throw new Error('It fits.')
+    expect(run.asked).toEqual([])
+    expect(run.rows.map((read) => [read.dates.day, read.decimals.amount])).toEqual([['2031-03-01', decimalOfText(decimal)]])
   })
 })
 

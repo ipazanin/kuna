@@ -30,6 +30,7 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import type { Account } from '../../workbook/domain/account'
 import type { LeftOut } from '../domain/leftOut'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 import { EURO } from '../../../../shared/money/currencyCode'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
@@ -50,7 +51,7 @@ const picked = ref<File | null>(null)
 const loading = ref(false)
 const unreadable = ref<string | null>(null)
 // Shallow, so the cells stay plain data.
-const loaded = shallowRef<{ readonly name: string; readonly cells: readonly (readonly string[])[] } | null>(null)
+const loaded = shallowRef<{ readonly name: string; readonly cells: TableCells } | null>(null)
 /** What the person said of the file's rows that look like rows the AI copied, by the row's key. */
 const twinAnswers = ref<Readonly<Record<string, TwinAnswer>>>({})
 

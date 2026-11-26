@@ -174,7 +174,7 @@ export async function cellSheetsOf(kind: AttachmentKind, bytes: Uint8Array): Pro
     case 'sheet':
       return (await readEveryTabCells(bytes)).map((tab) => ({ name: cleanCell(tab.name), layout: 'table', rows: textRows(tab.cells) }))
     case 'csv':
-      return [{ name: null, layout: 'table', rows: textRows(await readFirstSheetCells(decodedText(bytes))) }]
+      return [{ name: null, layout: 'table', rows: textRows((await readFirstSheetCells(decodedText(bytes))).texts) }]
     case 'json':
       return jsonSheets(JSON.parse(decodedText(bytes)) as JsonValue)
     case 'xml': {

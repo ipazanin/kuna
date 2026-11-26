@@ -60,7 +60,7 @@ describe('an import that knows the worth the broker booked', () => {
     })
     const read = readRecipeFile(IBKR_FLEX_RECIPE, new TextEncoder().encode(report).buffer as ArrayBuffer)
     if (read.kind !== 'read') throw new Error(`It did not read: ${read.misfit.kind}`)
-    const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
+    const run = runRecipe(IBKR_FLEX_RECIPE, read)
     if (run.kind !== 'read') throw new Error(`It does not fit: ${run.misfit.kind}`)
     const rows = reportRows(IBKR_FLEX_RECIPE, [{ fileName: 'report.xml', run }], { leftOut: [] }, { kind: 'mailed', since: null })
     const held = book({ accounts: [ACCOUNT], instruments: [PFE], trades: [trade('buy', ACCOUNT, PFE, '2024-01-05', '10', '30', '1', '1.1')] })

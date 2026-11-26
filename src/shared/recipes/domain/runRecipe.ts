@@ -6,7 +6,7 @@ import { DECIMAL_ZERO, decimalOfMarkedText, decimalOfText } from '../../money/de
 import type { Decimal } from '../../money/decimal'
 import { factKey } from '../../text/factKey'
 import { sectionColumns } from './recipe'
-import type { Recipe, RecipeFields, RecipeMisfit, RecipeSection, RowKind, RowTest, SourceRow, SourceRows } from './recipe'
+import type { NumberCells, Recipe, RecipeFields, RecipeMisfit, RecipeSection, RowKind, RowTest, SourceRow, SourceRows } from './recipe'
 
 /** A row a kind took, with its fields by type. A blank field is null where the recipe allows it. */
 export interface RecipeRow {
@@ -40,6 +40,8 @@ export interface AskedRow {
 }
 
 export type RecipeRun = { readonly kind: 'misfit'; readonly misfit: RecipeMisfit } | { readonly kind: 'read'; readonly rows: readonly RecipeRow[]; readonly asked: readonly AskedRow[] }
+
+const NO_NUMBERS: ReadonlySet<string> = new Set()
 
 function passes(test: RowTest, row: SourceRow): boolean {
   const text = (row.get(test.column) ?? '').trim()
@@ -77,8 +79,12 @@ function timeFrom(text: string, formats: readonly string[]): string | null {
   return parts.HH === undefined ? '' : [parts.HH, parts.mm ?? '00', parts.ss ?? '00'].join(':')
 }
 
-/** The fields read from the row, or the first that cannot be. */
-function fieldsOf(fields: RecipeFields, row: SourceRow): Pick<RecipeRow, 'texts' | 'decimals' | 'dates' | 'currencies'> | { readonly unreadable: string; readonly text: string } {
+/** The fields read from the row, or the first that cannot be. A column in `numbers` holds a sheet's number cell. */
+function fieldsOf(
+  fields: RecipeFields,
+  row: SourceRow,
+  numbers: ReadonlySet<string>,
+): Pick<RecipeRow, 'texts' | 'decimals' | 'dates' | 'currencies'> | { readonly unreadable: string; readonly text: string } {
   const texts: Record<string, string | null> = {}
   const decimals: Record<string, Decimal | null> = {}
   const dates: Record<string, CivilDate | null> = {}
@@ -99,7 +105,7 @@ function fieldsOf(fields: RecipeFields, row: SourceRow): Pick<RecipeRow, 'texts'
         break
       }
       case 'decimal': {
-        const decimal = blank ? null : field.mark === undefined ? decimalOfText(text) : decimalOfMarkedText(text, field.mark)
+        const decimal = blank ? null : field.mark === undefined || numbers.has(field.from) ? decimalOfText(text) : decimalOfMarkedText(text, field.mark)
         if (!blank && decimal === null) return unreadable
         decimals[name] = decimal
         break
@@ -148,13 +154,14 @@ function firstKind(section: RecipeSection, row: SourceRow): RowKind | undefined 
 /**
  * Runs a recipe over the rows of a file. A section the file lacks, or a column a section reads that a row lacks, means the
  * file is not the document the recipe describes, so nothing is read. A row that fits no kind, or whose field cannot be
- * read, is asked about and everything else goes on.
+ * read, is asked about and everything else goes on. A sheet's reading says which of its cells are numbers.
  */
-export function runRecipe(recipe: Recipe, source: SourceRows): RecipeRun {
+export function runRecipe(recipe: Recipe, source: { readonly rows: SourceRows; readonly numbers?: NumberCells }): RecipeRun {
   const rows: RecipeRow[] = []
   const asked: AskedRow[] = []
   for (const section of recipe.sections) {
-    const sourceRows = source.get(section.name)
+    const sourceRows = source.rows.get(section.name)
+    const numbers = source.numbers?.get(section.name) ?? []
     if (sourceRows === undefined) return { kind: 'misfit', misfit: { kind: 'no-section', section: section.name } }
     const columns = sectionColumns(section)
     for (const [place, row] of sourceRows.entries()) {
@@ -167,7 +174,7 @@ export function runRecipe(recipe: Recipe, source: SourceRows): RecipeRun {
         continue
       }
       const fields = { ...section.fields, ...kind.fields }
-      const read = fieldsOf(fields, row)
+      const read = fieldsOf(fields, row, numbers[place] ?? NO_NUMBERS)
       if ('unreadable' in read) {
         asked.push(askedRow(section, row, place, { kind: 'unreadable', field: read.unreadable, text: read.text }))
         continue

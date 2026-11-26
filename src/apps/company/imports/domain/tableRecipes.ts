@@ -3,6 +3,7 @@ import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import { placeOfProblem, tableRecipeOf } from '../../../../shared/recipes/domain/tableRecipeDraft'
 import type { DraftPlace, DraftProblem, TableRecipeDraft, TableRecipeFields } from '../../../../shared/recipes/domain/tableRecipeDraft'
 import { tableRows } from '../../../../shared/recipes/domain/tableRows'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 import type { Recipe, TableFile } from '../../../../shared/recipes/domain/recipe'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -50,7 +51,7 @@ export function tableRecipesOf(recipes: readonly SavedRecipe[]): TableRecipe[] {
 }
 
 /** The recipes whose columns all head one row among a file's first rows, in the order the file keeps them. */
-export function fittingRecipes(cells: readonly (readonly string[])[], recipes: readonly TableRecipe[]): TableRecipe[] {
+export function fittingRecipes(cells: TableCells, recipes: readonly TableRecipe[]): TableRecipe[] {
   return recipes.filter(({ recipe }) => tableRows(recipe, cells).kind === 'read')
 }
 

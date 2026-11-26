@@ -33,13 +33,7 @@ type Grid = readonly (readonly (string | number)[])[]
 
 /** The reading of an export whose cells are all text, as a csv gives them, with a refusal worded as Import shows it. */
 function reading(grid: Grid, book = BOOK): StatementReading | { readonly refusal: string; readonly missing: StatementReading['missing'] } {
-  const read = recipeStatement(
-    REVOLUT_STATEMENT,
-    grid.map((cells) => cells.map(String)),
-    'export.csv',
-    book,
-    en.feeOn,
-  )
+  const read = recipeStatement(REVOLUT_STATEMENT, { texts: grid.map((cells) => cells.map(String)), numbers: [] }, 'export.csv', book, en.feeOn)
   return 'refused' in read ? { refusal: refusalLine(read.refused, read.missing), missing: read.missing } : read
 }
 

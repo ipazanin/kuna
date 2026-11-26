@@ -34,7 +34,7 @@ function reportOf(): WorkbookRows {
   const bytes = new TextEncoder().encode(sampleFlexReport([parseCivilDate('2026-10-12')!])).buffer as ArrayBuffer
   const read = readRecipeFile(IBKR_FLEX_RECIPE, bytes)
   if (read.kind !== 'read') throw new Error(`It did not read: ${read.misfit.kind}`)
-  const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
+  const run = runRecipe(IBKR_FLEX_RECIPE, read)
   if (run.kind !== 'read') throw new Error(`It does not fit: ${run.misfit.kind}`)
   return reportRows(IBKR_FLEX_RECIPE, [{ fileName: 'kuna-daily.xml', run }], { leftOut: [] }, { kind: 'uploaded' })
 }

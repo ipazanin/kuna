@@ -5,7 +5,7 @@ import { DRAFT_DATE_FORMATS } from '../../../../shared/recipes/domain/tableRecip
 import type { TableRecipeDraft } from '../../../../shared/recipes/domain/tableRecipeDraft'
 import type { DecimalMark } from '../../../../shared/money/decimal'
 import type { Account } from '../../workbook/domain/workbook'
-import type { TableCells } from './tabularStatement'
+import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
 
 /** Header words of Croatian and English bank exports, in the order they are tried. */
 const HINTS = {
@@ -37,7 +37,7 @@ function isDate(text: string): boolean {
  * The likely header row of a bank export, the first row of three or more text cells that a row with a date follows, and a
  * recipe guessed from its header words and the cells below.
  */
-export function fileShapeOf(cells: TableCells): FileShape | null {
+export function fileShapeOf({ texts: cells }: TableCells): FileShape | null {
   const headerRow = cells.slice(0, HEADER_SEARCH_ROWS).findIndex((row, index) => {
     const texts = row.filter((cell) => cell.trim() !== '' && !/^[\d.,\s-]+$/.test(cell))
     return texts.length >= 3 && cells.slice(index + 1, index + 4).some((below) => below.some(isDate))
@@ -102,6 +102,6 @@ function decimalOf(cells: readonly string[]): DecimalMark {
 
 /** The account whose IBAN the file names in its first rows, as a bank's title lines do, or the only account there is, or none. */
 export function accountNamedIn<Named extends Pick<Account, 'iban'>>(cells: TableCells, accounts: readonly Named[]): Named | null {
-  const text = normaliseIban(cells.slice(0, HEADER_SEARCH_ROWS).flat().join(' '))
+  const text = normaliseIban(cells.texts.slice(0, HEADER_SEARCH_ROWS).flat().join(' '))
   return accounts.find((account) => account.iban !== '' && text.includes(account.iban)) ?? (accounts.length === 1 ? accounts[0]! : null)
 }

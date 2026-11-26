@@ -71,15 +71,39 @@ describe('Import with a saved recipe', () => {
   const book = { accounts: [...ACCOUNTS, bank], categories: CATEGORIES, recipes: [SAVED!] }
 
   it("reads a file Revolut's recipe does not fit by the saved recipe, its rows going to the account of the recipe's bank and currency", () => {
-    const reading = statementOfFile(statementRecipesOf(book), [['Promet po računu'], ['Datum', 'Iznos', 'Opis'], ['03.10.2026', '-1.234,50', 'Najam']], 'promet.csv', book, en.feeOn)
+    const reading = statementOfFile(
+      statementRecipesOf(book),
+      { texts: [['Promet po računu'], ['Datum', 'Iznos', 'Opis'], ['03.10.2026', '-1.234,50', 'Najam']], numbers: [] },
+      'promet.csv',
+      book,
+      en.feeOn,
+    )
 
     expect('statement' in reading && reading.statement.rows.map((row) => [row.account, row.date, row.amount, row.payee])).toEqual([
       [bank.id, civil('2026-10-03'), accountMoneyFromAmount(-1234.5), 'Najam'],
     ])
   })
 
+  it("reads a sheet's number cell by its number though the saved recipe writes a decimal comma", () => {
+    const reading = statementOfFile(
+      statementRecipesOf(book),
+      {
+        texts: [
+          ['Datum', 'Iznos', 'Opis'],
+          ['03.10.2026', '-1234.5', 'Najam'],
+        ],
+        numbers: [[], [1]],
+      },
+      'promet.xlsx',
+      book,
+      en.feeOn,
+    )
+
+    expect('statement' in reading && reading.statement.rows.map((row) => row.amount)).toEqual([accountMoneyFromAmount(-1234.5)])
+  })
+
   it('says no recipe reads a file none fits, with the column each one looked for', () => {
-    const reading = statementOfFile(statementRecipesOf(book), [['Date', 'Sum']], 'other.csv', book, en.feeOn)
+    const reading = statementOfFile(statementRecipesOf(book), { texts: [['Date', 'Sum']], numbers: [] }, 'other.csv', book, en.feeOn)
 
     expect('refused' in reading && refusalLine(reading.refused, [])).toBe('No recipe reads this file: Revolut needs a State column and Promet Primjer banke needs a Datum column')
   })

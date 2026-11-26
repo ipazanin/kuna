@@ -81,7 +81,7 @@ export async function readMailReports(ports: MailReportPorts): Promise<MailRepor
 }
 
 function runOf(recipe: Recipe, reading: SourceReading): RecipeRun {
-  return reading.kind === 'misfit' ? { kind: 'misfit', misfit: reading.misfit } : runRecipe(recipe, reading.rows)
+  return reading.kind === 'misfit' ? { kind: 'misfit', misfit: reading.misfit } : runRecipe(recipe, reading)
 }
 
 /** A report the person picked, run through the recipe under its name, or why it does not fit. */
