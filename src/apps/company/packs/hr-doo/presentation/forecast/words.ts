@@ -1,5 +1,5 @@
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel, monthName, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
+import { monthName, monthRangeLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
@@ -90,7 +90,7 @@ export const en = {
     plannedOrAveraged: 'Planned or averaged',
     runningMonth: (month: string) => `Running month, ${month}`,
     none: 'No months to show.',
-    byMonth: (from: MonthKey, to: MonthKey, total: string) => `Income and costs by month from ${monthLabel(from)} to ${monthLabel(to)}, with profit before tax as a line, ${total} for the year.`,
+    byMonth: (from: MonthKey, to: MonthKey, total: string) => `Income and costs by month, ${monthRangeLabel(from, to)}, with profit before tax as a line, ${total} for the year.`,
     everyMonthFromLedger: 'Every month comes from the ledger.',
     standsIn: (months: string) => `A plan row or an average stands in for part of ${months}.`,
     stillRunning: (month: string) => `${month} is still running and counts as forecast.`,
@@ -342,7 +342,7 @@ export const hr: Translation<typeof en> = {
     plannedOrAveraged: 'Planirano ili prosjek',
     runningMonth: (month) => `Mjesec u tijeku, ${month}`,
     none: 'Nema mjeseci za prikaz.',
-    byMonth: (from, to, total) => `Prihodi i troškovi po mjesecima, ${monthLabel(from)} – ${monthLabel(to)}, s dobiti prije oporezivanja kao crtom, ${total} za godinu.`,
+    byMonth: (from, to, total) => `Prihodi i troškovi po mjesecima, ${monthRangeLabel(from, to)}, s dobiti prije oporezivanja kao crtom, ${total} za godinu.`,
     everyMonthFromLedger: 'Svaki mjesec dolazi iz evidencije.',
     standsIn: (months) => `Redak plana ili prosjek zamjenjuje dio mjeseci: ${withFullStop(months)}`,
     stillRunning: (month) => `${month} je još u tijeku i broji se kao prognoza.`,

@@ -2167,7 +2167,7 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
     'Pay without loans and dividends, 10 months',
     'Rent tax the owner pays the tax office',
     'Pay after the rent tax',
-    'Profit before tax, Jan 2026 – Sep 2026',
+    'Profit before tax, Jan – Sep 2026',
     'Corporate tax at',
     'Dividend tax at',
     'Profit after both taxes, 9 months',

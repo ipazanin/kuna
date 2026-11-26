@@ -1,5 +1,5 @@
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthRangeLabel } from '../../../../../../shared/calendar/monthLabel'
 import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
@@ -203,7 +203,7 @@ export const en = {
   },
   chart: {
     none: 'No payday to show.',
-    description: (from: MonthKey, to: MonthKey, parts: string, total: string) => `Cost to the company by payday from ${monthLabel(from)} to ${monthLabel(to)}, stacked by ${parts}. ${total} in all.`,
+    description: (from: MonthKey, to: MonthKey, parts: string, total: string) => `Cost to the company by payday, ${monthRangeLabel(from, to)}, stacked by ${parts}. ${total} in all.`,
     monthSoFar: 'Month so far',
   },
 }
@@ -401,7 +401,7 @@ export const hr: Translation<typeof en> = {
   },
   chart: {
     none: 'Nema dana isplate za prikaz.',
-    description: (from, to, parts, total) => `Trošak tvrtke po danu isplate, ${monthLabel(from)} – ${monthLabel(to)}, složen po dijelovima: ${parts}. Ukupno ${total}.`,
+    description: (from, to, parts, total) => `Trošak tvrtke po danu isplate, ${monthRangeLabel(from, to)}, složen po dijelovima: ${parts}. Ukupno ${total}.`,
     monthSoFar: 'Tekući mjesec',
   },
 }

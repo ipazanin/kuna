@@ -1,4 +1,4 @@
-import { monthAxisLabel, monthLabel } from '../../../../../shared/calendar/monthLabel'
+import { monthAxisLabel, monthLabel, monthRangeLabel } from '../../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 import { BAR_END_DOWN, BAR_END_UP, incompleteBand, markIncomplete, moneyAxisLabel, stackGap } from '../../../../../shared/charts/chartTheme'
 import { tokenColour } from '../../../../../shared/charts/chartTokens'
@@ -264,7 +264,7 @@ function monthAxis(months: readonly { readonly month: MonthKey }[], tokens: Char
 function spanOf(months: readonly { readonly month: MonthKey }[]): string {
   const first = months[0]
   const last = months[months.length - 1]
-  return first === undefined || last === undefined ? '' : words.charts.span(first.month, last.month)
+  return first === undefined || last === undefined ? '' : monthRangeLabel(first.month, last.month)
 }
 
 /**

@@ -8,8 +8,8 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
-import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
+import { monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import { useFilters } from '../../filters/application/filterStore'
 import { useSettings } from '../../settings/application/useSettings'
 import { lineLabel, lineShown } from '../../settings/domain/profitAndLossLabels'
@@ -31,21 +31,17 @@ const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
-/** "Jan – Sep 2026" within a year, "Jun 2025 – Feb 2026" across one. */
-function monthSpan(months: { readonly from: MonthKey; readonly to: MonthKey }): string {
-  if (months.from === months.to) return monthLabel(months.from)
-  return words.monthSpan(months.from, months.to, months.from.slice(0, 4) === months.to.slice(0, 4))
-}
-
 /** One sentence on what is compared, when the ledger leaves out part of either period. Null when both are whole. */
 function coverageSentence(result: PeriodReview, currentLabel: string, priorLabel: string | null): string | null {
-  const own = result.partOfPeriod && result.current.coveredMonths !== null ? words.coverage.countsOnly(currentLabel, monthSpan(result.current.coveredMonths)) : null
+  const own =
+    result.partOfPeriod && result.current.coveredMonths !== null ? words.coverage.countsOnly(currentLabel, monthRangeLabel(result.current.coveredMonths.from, result.current.coveredMonths.to)) : null
   const prior = result.prior
   if (prior === null) {
     return own === null ? null : words.coverage.nothingEarlier(own)
   }
   if (prior.partial) {
-    const held = prior.coveredMonths === null ? words.coverage.noCompleteMonth(priorLabel ?? '') : words.coverage.hasOnly(priorLabel ?? '', monthSpan(prior.coveredMonths))
+    const held =
+      prior.coveredMonths === null ? words.coverage.noCompleteMonth(priorLabel ?? '') : words.coverage.hasOnly(priorLabel ?? '', monthRangeLabel(prior.coveredMonths.from, prior.coveredMonths.to))
     return own === null ? words.coverage.noChange(capitalised(held)) : words.coverage.bothNoChange(own, held)
   }
   return own === null ? null : words.coverage.sameMonths(own, priorLabel ?? '')
@@ -58,7 +54,7 @@ function periodLabel(period: ReviewPeriod): string {
     case 'quarter':
       return words.period.quarter(period.quarter, period.year)
     case 'custom':
-      return words.period.custom(period.range.from, period.range.to)
+      return dayRangeLabel(period.range)
   }
 }
 

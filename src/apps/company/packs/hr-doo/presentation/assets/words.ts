@@ -1,5 +1,5 @@
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthRangeLabel } from '../../../../../../shared/calendar/monthLabel'
 import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
@@ -48,7 +48,6 @@ export const en = {
   rate: (rate: string, doubled: boolean) => `${rate}${doubled ? ', doubled' : ''}`,
   fixedThenAssets: 'The fixed part counts as income on receipt, and the variable part as the assets it paid for are depreciated.',
   straightLine: (period: string | null) => `Released evenly over the grant period${period === null ? '' : `, ${period}`}.`,
-  span: (from: string, to: string) => `${from} to ${to}`,
   daysToGo: (days: number): EnglishForms => ({ one: `${days} day to go`, other: `${days} days to go` }),
   lastDayToday: 'The last required day is today',
   periodOver: 'The required period is over',
@@ -166,8 +165,7 @@ export const en = {
   chart: {
     ahead: 'Months still to come',
     none: 'No asset is depreciated.',
-    description: (assets: string, from: MonthKey, to: MonthKey, today: string) =>
-      `Book value of ${assets} at the end of each month from ${monthLabel(from)} to ${monthLabel(to)}. ${today} in all today.`,
+    description: (assets: string, from: MonthKey, to: MonthKey, today: string) => `Book value of ${assets} at the end of each month, ${monthRangeLabel(from, to)}. ${today} in all today.`,
     otherAssets: 'Other assets',
   },
 }
@@ -220,7 +218,6 @@ export const hr: Translation<typeof en> = {
   rate: (rate, doubled) => `${rate}${doubled ? ', udvostručeno' : ''}`,
   fixedThenAssets: 'Fiksni dio broji se kao prihod pri primitku, a varijabilni kako se amortiziraju sredstva koja je platio.',
   straightLine: (period) => `Priznaje se ravnomjerno kroz razdoblje potpore${period === null ? '.' : `, ${withFullStop(period)}`}`,
-  span: (from, to) => `${from} – ${to}`,
   daysToGo: (days) => ({ one: `Još ${days} dan`, few: `Još ${days} dana`, other: `Još ${days} dana` }),
   lastDayToday: 'Zadnji traženi dan je danas',
   periodOver: 'Traženo razdoblje je prošlo',
@@ -340,7 +337,7 @@ export const hr: Translation<typeof en> = {
   chart: {
     ahead: 'Mjeseci koji tek slijede',
     none: 'Nijedno sredstvo se ne amortizira.',
-    description: (assets, from, to, today) => `Knjigovodstvena vrijednost sredstava (${assets}) na kraju svakog mjeseca, ${monthLabel(from)} – ${monthLabel(to)}. Danas ukupno ${today}.`,
+    description: (assets, from, to, today) => `Knjigovodstvena vrijednost sredstava (${assets}) na kraju svakog mjeseca, ${monthRangeLabel(from, to)}. Danas ukupno ${today}.`,
     otherAssets: 'Ostala sredstva',
   },
 }

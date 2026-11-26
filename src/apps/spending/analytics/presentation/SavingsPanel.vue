@@ -16,7 +16,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthRange } from '../../../../shared/calendar/dateRange'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
 import { monthsFrom } from '../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { useChartRange } from '../../../../shared/charts/useChartRange'
@@ -68,7 +68,7 @@ const wentSubtitle = computed(() => {
   const first = months.value[0]
   const last = months.value.at(-1)
   if (first === undefined || last === undefined) return undefined
-  return words.analysis.savings.wentSubtitle(first === last ? monthLabel(first) : `${monthLabel(first)} – ${monthLabel(last)}`)
+  return words.analysis.savings.wentSubtitle(monthRangeLabel(first, last))
 })
 const caption = computed(() => (averaged.value.length === 0 ? undefined : plural(words.analysis.overTime.averageCaption(averaged.value.length), averaged.value.length)))
 const trends = computed(() => props.figures.trendsOn(props.day))

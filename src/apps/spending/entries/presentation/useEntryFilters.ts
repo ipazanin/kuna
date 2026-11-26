@@ -75,7 +75,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
   })
 
   const span = computed((): DateRange | null => entriesSpanNamed(route.query.from, route.query.to))
-  /** The span as Company's period bar names its days, such as "1 – 15 Oct 2026" or "Oct so far". */
+  /** The span as Company's period bar names its days, such as "1–15 Oct 2026" or "Sep – Oct 2026". */
   const spanLabel = computed(() => {
     const shown = span.value
     if (shown === null) return ''

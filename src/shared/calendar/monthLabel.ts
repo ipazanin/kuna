@@ -5,6 +5,7 @@ import type { MonthKey } from './monthKey'
 
 // Croatian names the month in full where there is room, since its short names read as words.
 const LONG = dateFormat({ month: language === 'hr' ? 'long' : 'short', year: 'numeric', timeZone: 'UTC' })
+const LONG_NO_YEAR = dateFormat({ month: language === 'hr' ? 'long' : 'short', timeZone: 'UTC' })
 const SHORT = dateFormat({ month: 'short', year: '2-digit', timeZone: 'UTC' })
 const NAME = dateFormat({ month: 'long', timeZone: 'UTC' })
 const SHORT_NAME = dateFormat({ month: 'short', timeZone: 'UTC' })
@@ -13,6 +14,12 @@ const NAME_AND_YEAR = dateFormat({ month: 'long', year: 'numeric', timeZone: 'UT
 /** "Oct 2026", or "listopad 2026." in Croatian, for tooltips and running text. */
 export function monthLabel(month: MonthKey): string {
   return LONG(new Date(firstDayOf(month)))
+}
+
+/** A run of months, its year once within a year: "Sep – Oct 2026", "Dec 2025 – Feb 2026", or "rujan – listopad 2026." in Croatian. */
+export function monthRangeLabel(from: MonthKey, to: MonthKey): string {
+  if (from === to) return monthLabel(to)
+  return `${yearOfMonth(from) === yearOfMonth(to) ? LONG_NO_YEAR(new Date(firstDayOf(from))) : monthLabel(from)} – ${monthLabel(to)}`
 }
 
 /** "Oct 26", for a month axis where space is tight. */

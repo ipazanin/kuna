@@ -6,7 +6,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { civilDate, daysBetween, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { LedgerWindow } from '../../../../../../shared/calendar/ledgerWindow'
 import { monthOf } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
@@ -300,7 +300,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       received: dayLabel(grant.received),
       receipt: receiptOf(grant),
       amount: grant.amount,
-      policy: schedule.policy === 'fixed-then-assets' ? words.fixedThenAssets : words.straightLine(grant.period === null ? null : words.span(dayLabel(grant.period.from), dayLabel(grant.period.to))),
+      policy: schedule.policy === 'fixed-then-assets' ? words.fixedThenAssets : words.straightLine(grant.period === null ? null : dayRangeLabel(grant.period)),
       employmentUntil: grant.employmentRequiredUntil === null ? null : dayLabel(grant.employmentRequiredUntil),
       employmentState: employmentState(grant.employmentRequiredUntil),
       clawback: exposure === null ? null : { amount: exposure.amount.amount, until: exposure.until === null ? null : dayLabel(exposure.until) },

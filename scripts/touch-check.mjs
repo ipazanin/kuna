@@ -1316,7 +1316,7 @@ async function checkWidth(browser, width) {
     // 2026 runs past the newest booking, so its balances stand on that day.
     await waitForText(page, '[data-testid="owner-owed-tiles"] p', 'The owner owes the company on 8 Oct 2026')
     await (await waitForText(page, '[role="tab"]', 'Taken')).tap()
-    await waitForText(page, '[data-testid="period-range"]', 'Jan 2026 – Dec 2026')
+    await waitForText(page, '[data-testid="period-range"]', 'Jan – Dec 2026')
     await inspect(page, `${width}px owner, the period on both tabs`)
   })
 
@@ -1441,7 +1441,7 @@ async function checkWidth(browser, width) {
     await waitForText(page, '[data-slot="title"]', 'Advance added')
     await expect(
       page.$eval('li[data-slot="base"] [data-slot="description"]', (element) => element.textContent ?? ''),
-      (said) => said.includes('Outside the period in view, Jan 2025 – Dec 2025'),
+      (said) => said.includes('Outside the period in view, Jan – Dec 2025'),
       'the toast does not say the advance is outside the period in view',
     )
     await delay(700)

@@ -1429,7 +1429,7 @@ const SCREENS = [
     shows: ['Ukupno vlasniku po vrsti', 'Neto udio u bruto trošku', 'Mjesečna neto isplata', 'Koristi od troškova tvrtke'],
     cards: false,
   },
-  { name: 'owner-2025', hash: '#/company/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan 2025 – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
+  { name: 'owner-2025', hash: '#/company/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
   {
     name: 'owner-2025-croatian',
     query: 'lang=hr',
@@ -1459,7 +1459,7 @@ const SCREENS = [
     hash: '#/company/owner?tab=owed&p=2025',
     title: 'Owner',
     charts: 0,
-    shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan 2025 – Dec 2025'],
+    shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan – Dec 2025'],
   },
   {
     name: 'owner-owed-2025-croatian',

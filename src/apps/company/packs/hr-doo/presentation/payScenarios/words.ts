@@ -119,7 +119,6 @@ export const en = {
     allYear: 'All year',
     until: (day: string) => `Until ${day}`,
     from: (day: string) => `From ${day}`,
-    span: (from: string, to: string) => `${from} to ${to}`,
   },
   comparison: {
     best: ', the best',
@@ -360,7 +359,6 @@ export const hr: Translation<typeof en> = {
     allYear: 'Cijelu godinu',
     until: (day) => `Do ${day}`,
     from: (day) => `Od ${day}`,
-    span: (from, to) => `${from} – ${to}`,
   },
   comparison: {
     best: ', najbolje',

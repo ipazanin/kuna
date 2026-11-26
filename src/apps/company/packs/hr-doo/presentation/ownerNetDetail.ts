@@ -1,7 +1,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import { dayLabel } from '../../../../../shared/calendar/dayLabel'
-import { monthLabel } from '../../../../../shared/calendar/monthLabel'
+import { monthRangeLabel } from '../../../../../shared/calendar/monthLabel'
 import { addMoney, negateMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
@@ -36,7 +36,7 @@ export function ownerNetDetail(net: OwnerNetWithProfit, period: string, link: (d
   const profitLines = net.years.flatMap(({ year, months: inYear, amount, route }) => {
     const first = inYear[0]
     const last = inYear[inYear.length - 1]
-    const span = first === undefined || last === undefined ? String(year) : first === last ? monthLabel(first) : `${monthLabel(first)} – ${monthLabel(last)}`
+    const span = first === undefined || last === undefined ? String(year) : monthRangeLabel(first, last)
     return [
       step(`profit-${year}`, words.ownerNet.profitBeforeTax(span), amount.amount, { path: '/company/year', query: { year: String(year) } }),
       step(`corporate-${year}`, route.corporateTax.label, negateMoney(route.corporateTax.amount), null, 1),

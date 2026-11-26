@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { monthInYear, monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthInYear, monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { currencyUnitName, formatDecimal, formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -125,7 +125,7 @@ const overview = computed(() => {
   const costChange = subtractMoney(averages.last12.lines.cost.perMonth, averages.last3.lines.cost.perMonth)
   const said = headline(months)
   const lastTwelveTotals = bucketTotals(transactionsInPeriod(profitAndLossRows, LAST_12_MONTHS, window))
-  const averagedMonths = `${monthLabel(averages.last12.span.from)} – ${monthLabel(averages.last12.span.to)}`
+  const averagedMonths = monthRangeLabel(averages.last12.span.from, averages.last12.span.to)
   const euro = euroSplit(lastTwelveTotals, LAST_12_MONTHS)
   const closedCount = balances.accounts.filter((account) => account.closed).length
   return {

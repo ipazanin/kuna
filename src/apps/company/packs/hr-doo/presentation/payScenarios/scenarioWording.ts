@@ -1,4 +1,4 @@
-import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { DirectorBasis, ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
 import { civilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../../../shared/calendar/monthKey'
@@ -38,7 +38,7 @@ export function spanText(component: ScenarioComponent): string {
   if (component.from === null && component.to === null) return words.components.allYear
   if (component.from === null) return words.components.until(dayLabel(component.to!))
   if (component.to === null) return words.components.from(dayLabel(component.from))
-  return words.components.span(dayLabel(component.from), dayLabel(component.to))
+  return dayRangeLabel({ from: component.from, to: component.to })
 }
 
 export interface YearlyItem {

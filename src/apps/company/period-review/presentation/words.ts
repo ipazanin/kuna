@@ -1,7 +1,3 @@
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { monthLabel, monthName, shortMonthName } from '../../../../shared/calendar/monthLabel'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -14,10 +10,7 @@ export const en = {
   period: {
     year: (year: number) => String(year),
     quarter: (quarter: number, year: number) => `Q${quarter} ${year}`,
-    custom: (from: CivilDate, to: CivilDate) => `${dayLabel(from)} to ${dayLabel(to)}`,
   },
-  /** "Jan – Sep 2026" within a year, "Jun 2025 – Feb 2026" across one. */
-  monthSpan: (from: MonthKey, to: MonthKey, sameYear: boolean) => `${sameYear ? shortMonthName(from) : monthLabel(from)} – ${monthLabel(to)}`,
   /** What is compared when the ledger leaves out part of either period. */
   coverage: {
     countsOnly: (period: string, months: string) => `${period} counts ${months} only`,
@@ -51,9 +44,7 @@ export const hr: Translation<typeof en> = {
   period: {
     year: (year) => `${year}.`,
     quarter: (quarter, year) => `Q${quarter} ${year}.`,
-    custom: (from, to) => `${dayLabel(from)} – ${dayLabel(to)}`,
   },
-  monthSpan: (from, to, sameYear) => `${sameYear ? monthName(from) : monthLabel(from)} – ${monthLabel(to)}`,
   coverage: {
     countsOnly: (period, months) => `${period} broji samo ${months}`,
     nothingEarlier: (countsOnly) => `${countsOnly}, a evidencija nema ništa ranije za usporedbu.`,

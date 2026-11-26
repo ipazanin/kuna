@@ -123,9 +123,9 @@ describe('ownerNetWithProfit on the worked example', () => {
     expect(net.owed.amount).toBe(euros(0))
     expect(net.setsOff).toBe(euros(0))
 
-    const lines = ownerNetDetail(lent, 'Jan 2026 – Jun 2026', () => null).steps.map((step) => [step.label, step.cents])
+    const lines = ownerNetDetail(lent, 'Jan – Jun 2026', () => null).steps.map((step) => [step.label, step.cents])
     expect(lines).toContainEqual(['Of it, sets off what the owner owes on 30 Jun 2026', euros(2000)])
-    expect(lines).toContainEqual(['Profit before tax, Jan 2026 – Jun 2026', euros(30000)])
+    expect(lines).toContainEqual(['Profit before tax, Jan – Jun 2026', euros(30000)])
     expect(lines).toContainEqual(['Dividends left out, since the profit counts them', euros(8800)])
   })
 })
@@ -146,7 +146,7 @@ describe('ownerNetWithProfit with rent', () => {
     expect(net.rentTax.amount).toBe(euros(151.2))
     expect(net.pay.amount).toBe(euros(7648.8))
     expect(net.payPerMonth).toBe(euros(1274.8))
-    const lines = ownerNetDetail(net, 'Jan 2026 – Jun 2026', () => null).steps.map((step) => [step.label, step.cents, step.depth])
+    const lines = ownerNetDetail(net, 'Jan – Jun 2026', () => null).steps.map((step) => [step.label, step.cents, step.depth])
     expect(lines.slice(0, 4)).toEqual([
       ['Pay without loans and dividends, 6 months', euros(7800), 0],
       ['Dividends left out, since the profit counts them', euros(8800), 1],

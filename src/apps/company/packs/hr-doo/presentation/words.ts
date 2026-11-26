@@ -1,7 +1,5 @@
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../shared/calendar/dayLabel'
-import type { MonthKey } from '../../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../../shared/calendar/monthLabel'
 import { withFullStop } from '../../../../../shared/text/withFullStop'
 import { percentText } from '../../../../../shared/money/percent'
 import type { Percent } from '../../../../../shared/money/percent'
@@ -433,12 +431,11 @@ export const en = {
     repaid: 'Repaid',
     owedByOwner: 'Owed by the owner',
     noMonths: 'No months to show.',
-    span: (from: MonthKey, to: MonthKey) => `from ${monthLabel(from)} to ${monthLabel(to)}`,
-    taxesByMonth: (span: string, series: string, total: string) => `Taxes paid by month ${span}, stacked by ${series}. ${total} in all, net of refunds.`,
-    ownerPayByMonth: (span: string, series: string, total: string) => `Owner pay by month ${span}, stacked by ${series}. ${total} in all.`,
-    loansByMonth: (span: string, lent: string, repaid: string) => `Loans to the owner by month ${span}: money lent below zero and repayments above it. ${lent} lent and ${repaid} repaid in all.`,
+    taxesByMonth: (span: string, series: string, total: string) => `Taxes paid by month, ${span}, stacked by ${series}. ${total} in all, net of refunds.`,
+    ownerPayByMonth: (span: string, series: string, total: string) => `Owner pay by month, ${span}, stacked by ${series}. ${total} in all.`,
+    loansByMonth: (span: string, lent: string, repaid: string) => `Loans to the owner by month, ${span}: money lent below zero and repayments above it. ${lent} lent and ${repaid} repaid in all.`,
     owedAtMonthEnds: (span: string, complete: boolean, month: string, owed: string) =>
-      `What the owner owed the company at each month's end ${span}. ${complete ? 'At the end of' : 'So far in'} ${month} the owner owed ${owed}.`,
+      `What the owner owed the company at each month's end, ${span}. ${complete ? 'At the end of' : 'So far in'} ${month} the owner owed ${owed}.`,
   },
   /** The columns of the pack's tab editors, by the field each stores. */
   assetColumns: {
@@ -916,7 +913,6 @@ export const hr: Translation<typeof en> = {
     repaid: 'Vraćeno',
     owedByOwner: 'Dug vlasnika',
     noMonths: 'Nema mjeseci za prikaz.',
-    span: (from, to) => `${monthLabel(from)} – ${monthLabel(to)}`,
     taxesByMonth: (span, series, total) => `Plaćeni porezi po mjesecima, ${span}, složeni po vrstama: ${series}. Ukupno ${total}, umanjeno za povrate.`,
     ownerPayByMonth: (span, series, total) => `Isplate vlasniku po mjesecima, ${span}, složene po vrstama: ${series}. Ukupno ${total}.`,
     loansByMonth: (span, lent, repaid) => `Pozajmice vlasniku po mjesecima, ${span}: posuđeno ispod nule, a povrati iznad nje. Ukupno posuđeno ${lent} i vraćeno ${repaid}.`,

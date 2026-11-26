@@ -10,7 +10,7 @@ import { BILLING_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS } from '../../workbook
 import type { Invoice, Workbook } from '../../workbook/domain/workbook'
 import { fieldNameIn } from '../../../../shared/app/proposalGroups'
 import type { CardField, ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
@@ -70,8 +70,7 @@ export function invoicingDescriber(workbook: Workbook): ProposalDescriber {
         if (field === 'issued' || field === 'due' || field === 'date') return dayLabel(value as Invoice['issued'])
         if (field === 'lines' && isKind(kind, INVOICE_RECORDS, record))
           return (record.lines ?? []).map((line) => `${lineWithItems(line.description, line.items)} ${formatMoney(line.amount, 'negative', money)}`).join(', ') || null
-        if (field === 'deliveryPeriod' && isKind(kind, INVOICE_RECORDS, record) && record.deliveryPeriod !== null)
-          return `${dayLabel(record.deliveryPeriod.from)} – ${dayLabel(record.deliveryPeriod.to)}`
+        if (field === 'deliveryPeriod' && isKind(kind, INVOICE_RECORDS, record) && record.deliveryPeriod !== null) return dayRangeLabel(record.deliveryPeriod)
       }
       if (isKind(kind, CLIENT_RECORDS, record)) {
         if (field === 'ibans') return record.ibans.join(', ') || null
