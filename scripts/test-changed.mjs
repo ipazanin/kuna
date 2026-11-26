@@ -1,8 +1,8 @@
 /**
  * Runs the specs that cover the changed files: every spec that imports a changed file directly or through other files,
- * every spec that names a changed file's path, and the specs that read the whole tree when a file is added, moved or
- * renamed or when a shared file changes. CI runs the full suite, so this is the local run. It prints the vitest filter it
- * ran, which is what a report names.
+ * every spec that names a changed file's path, the lint baseline spec when a changed file is on the baseline, and the
+ * specs that read the whole tree when a file is added, moved or renamed or when a shared file changes. CI runs the full
+ * suite, so this is the local run. It prints the vitest filter it ran, which is what a report names.
  *   npm run test:changed                     the working tree against HEAD, untracked files included
  *   npm run test:changed -- --base main      everything since main, such as a lane's work
  *   npm run test:changed -- --list           print the filter without running it
@@ -93,6 +93,9 @@ for (const spec of specFiles) {
   const text = readFileSync(join(ROOT, spec), 'utf8')
   if (changed.some((change) => text.includes(change.path))) specs.add(spec)
 }
+
+const baselined = readFileSync(join(ROOT, 'scripts/lint-baseline.json'), 'utf8')
+if (changed.some((change) => baselined.includes(change.path))) specs.add('tests/lintBaseline.spec.ts')
 
 const touchesTree = changed.some((change) => change.moved || TREE_PATHS.some((pattern) => pattern.test(change.path)))
 if (touchesTree) for (const name of TREE_SPECS) specs.add(`tests/${name}.spec.ts`)
