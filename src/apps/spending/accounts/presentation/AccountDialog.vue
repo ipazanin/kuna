@@ -38,6 +38,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import SourceHandoverAlert from '../../../../shared/ui/SourceHandoverAlert.vue'
 
 /** One of your accounts in one currency: its name, kind, bank, where its rows come from on which days, what it held on the day you start counting from, its IBAN and the cards that pay from it. One with entries is closed rather than deleted. */
 const open = defineModel<boolean>('open', { required: true })
@@ -275,15 +276,7 @@ async function remove(): Promise<void> {
           <p class="mt-2">{{ shownCutover.opening }}</p>
         </template>
       </UAlert>
-      <UAlert v-if="shownHandover !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="shownHandover.title" class="sm:col-span-2" data-testid="spending-account-handover">
-        <template #description>
-          <p v-for="line in shownHandover.days" :key="line">{{ line }}</p>
-          <ul class="mt-2 list-disc ps-5">
-            <li v-for="line in shownHandover.rows" :key="line">{{ line }}</li>
-          </ul>
-          <p v-for="line in shownHandover.notes" :key="line" class="mt-2">{{ line }}</p>
-        </template>
-      </UAlert>
+      <SourceHandoverAlert v-if="shownHandover !== null" :handover="shownHandover" class="sm:col-span-2" data-testid="spending-account-handover" />
       <p v-if="account !== null && hasEntries" class="type-caption sm:col-span-2" data-testid="spending-account-has-entries">{{ words.dialog.hasEntries }}</p>
     </FormGrid>
     <template #start>

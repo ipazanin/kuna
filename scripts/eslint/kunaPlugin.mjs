@@ -330,6 +330,13 @@ export const kunaPlugin = {
       ],
       'A pair of buttons that moves a row up or down is a MoveButtons, which keeps both at 44 px and alike in every list.',
     ),
+    'handover-alerts': refusedSyntax(
+      [
+        "VElement[rawName=/^(?:UAlert|u-alert)$/] > VStartTag > VAttribute[directive=false][key.name='data-testid'][value.value=/-handover$/]",
+        "VElement[rawName=/^(?:UAlert|u-alert)$/] > VStartTag > VAttribute[directive=true][key.argument.name='data-testid'] > VExpressionContainer Literal[value=/-handover$/]",
+      ],
+      'A warning of the rows a source handover takes out is a SourceHandoverAlert, so it looks and lists its rows alike in every app.',
+    ),
     'link-rows': refusedSyntax(
       [
         `${linkIcon} > VStartTag > VAttribute[directive=false][key.name='name'][value.value='i-lucide-chevron-right']`,

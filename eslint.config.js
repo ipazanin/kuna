@@ -277,6 +277,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/optional-selects', files: ['src/**/*.vue'], ignores: ['src/shared/ui/OptionalSelect.vue'], rules: { 'kuna/optional-selects': 'error' } },
     { name: 'kuna/record-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/record-rows': 'error' } },
     { name: 'kuna/move-buttons', files: ['src/**/*.vue'], ignores: ['src/shared/ui/MoveButtons.vue'], rules: { 'kuna/move-buttons': 'error' } },
+    { name: 'kuna/handover-alerts', files: ['src/**/*.vue'], ignores: ['src/shared/ui/SourceHandoverAlert.vue'], rules: { 'kuna/handover-alerts': 'error' } },
     { name: 'kuna/all-links', files: ['src/**/*.vue'], rules: { 'kuna/all-links': 'error' } },
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },

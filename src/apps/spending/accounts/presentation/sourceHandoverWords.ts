@@ -8,23 +8,11 @@ import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
-
-/** How many rows that go the warning lists by name before it counts the rest. */
-const LISTED_ROWS = 6
+import { listedRows } from '../../../../shared/ui/sourceHandover'
+import type { HandoverWords } from '../../../../shared/ui/sourceHandover'
 
 /** The days a bank gives rows of only right after a new approval. */
 const BANK_HISTORY_DAYS = 90
-
-/** What giving days to another source deletes, in the words the account dialog shows before it is written. */
-export interface HandoverWords {
-  readonly title: string
-  /** One line for each run of days that changes source. */
-  readonly days: readonly string[]
-  /** The rows that go by day, payee and amount, the first few of them. */
-  readonly rows: readonly string[]
-  /** What else follows, one sentence each. */
-  readonly notes: readonly string[]
-}
 
 function spanOf(from: CivilDate, to: CivilDate | null): string {
   return to === null ? words.dialog.handover.onwards(dayLabel(from)) : dayRangeLabel({ from, to })
@@ -35,7 +23,7 @@ export function handoverWords(handover: SourceHandover, book: Pick<SpendingBook,
   const { rows, receipts, held, loneLegs, linked, runs, account } = handover
   if (rows.length + held.length === 0) return null
   const days = runs.map((run) => words.dialog.handover.days(spanOf(run.from ?? account.openedOn, run.to), words.rowsFrom[run.before], words.rowsFrom[run.after]))
-  const listed = rows.slice(0, LISTED_ROWS).map((row) => `${dayLabel(row.date)}, ${row.payee === '' ? row.description : row.payee}, ${formatAccountMoney(row.amount, account.currency)}`)
+  const listed = rows.map((row) => `${dayLabel(row.date)}, ${row.payee === '' ? row.description : row.payee}, ${formatAccountMoney(row.amount, account.currency)}`)
   const names = (ids: readonly string[], of: readonly { readonly id: string; readonly name: string }[]): string =>
     listInWords([...new Set(ids)].map((id) => of.find((record) => record.id === id)?.name ?? ''))
   const itemsOf = rowItemsOf(book)
@@ -51,7 +39,7 @@ export function handoverWords(handover: SourceHandover, book: Pick<SpendingBook,
   return {
     title: rows.length === 0 ? plural(words.dialog.handover.heldTitle(held.length), held.length) : plural(words.dialog.handover.title(rows.length), rows.length),
     days,
-    rows: rows.length > LISTED_ROWS ? [...listed, words.dialog.handover.more(rows.length - LISTED_ROWS)] : listed,
+    rows: listedRows(listed, words.dialog.handover.more),
     notes: [
       ...(receipts.length === 0 ? [] : [plural(words.dialog.handover.receipts(receipts.length), receipts.length)]),
       ...(linked === 0 ? [] : [plural(words.dialog.handover.linked(linked), linked)]),
