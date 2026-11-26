@@ -4,11 +4,17 @@ import { sectionColumns } from '../domain/recipe'
 import type { Recipe, RecipeFileReading, RecipeSection, SourceRow, SourceRows, XmlFile } from '../domain/recipe'
 import type { TableCells } from '../domain/tableRows'
 
-/** The attachment names a recipe's format can be, by their ending. */
-const ENDINGS: Readonly<Record<Recipe['file']['format'], RegExp>> = { xml: /\.xml$/i, table: /\.(csv|xlsx|xls|ods)$/i }
+/** The file endings a recipe's format reads. */
+const ENDINGS: Readonly<Record<Recipe['file']['format'], readonly string[]>> = { xml: ['.xml'], table: ['.csv', '.xlsx', '.xls', '.ods'] }
 
 export function fileNameFits(recipe: Pick<Recipe, 'file'>, name: string): boolean {
-  return ENDINGS[recipe.file.format].test(name)
+  const lowered = name.toLowerCase()
+  return ENDINGS[recipe.file.format].some((ending) => lowered.endsWith(ending))
+}
+
+/** The endings a file picker offers for a recipe format, such as `.csv,.xlsx`. */
+export function fileEndingsOf(format: Recipe['file']['format']): string {
+  return ENDINGS[format].join(',')
 }
 
 function childrenNamed(element: Element, name: string): Element[] {

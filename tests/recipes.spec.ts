@@ -6,7 +6,7 @@ import { dateFrom, runRecipe } from '../src/shared/recipes/domain/runRecipe'
 import { readRecipe } from '../src/shared/recipes/domain/readRecipe'
 import { CAMT_RECIPE } from '../src/apps/company/imports/domain/camtRecipe'
 import type { RecipeRow, RecipeRun } from '../src/shared/recipes/domain/runRecipe'
-import { fileNameFits, readRecipeFile } from '../src/shared/recipes/infrastructure/recipeFile'
+import { fileEndingsOf, fileNameFits, readRecipeFile } from '../src/shared/recipes/infrastructure/recipeFile'
 import { decimalOfMarkedText, decimalOfText } from '../src/shared/money/decimal'
 import type { DecimalMark } from '../src/shared/money/decimal'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
@@ -232,9 +232,18 @@ describe('the file a recipe reads', () => {
   it.each([
     ['export.CSV', true],
     ['export.xlsx', true],
+    ['export.xls', true],
+    ['export.ods', true],
     ['export.xml', false],
   ])('tells whether an attachment is a table by its name: %s', (name, fits) => {
     expect(fileNameFits({ file: { format: 'table' } }, name)).toBe(fits)
+  })
+
+  it('offers a file picker every ending a table recipe reads', () => {
+    const offered = fileEndingsOf('table').split(',')
+
+    expect(offered).toEqual(['.csv', '.xlsx', '.xls', '.ods'])
+    expect(offered.every((ending) => fileNameFits({ file: { format: 'table' } }, `export${ending}`))).toBe(true)
   })
 })
 

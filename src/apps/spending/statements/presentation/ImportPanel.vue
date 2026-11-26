@@ -41,7 +41,7 @@ import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
-import { tableFileCells } from '../../../../shared/recipes/infrastructure/recipeFile'
+import { fileEndingsOf, tableFileCells } from '../../../../shared/recipes/infrastructure/recipeFile'
 
 /** A dropped file's dry run, worked out again as the file changes, so an Undo brings it back. Nothing is written until the button. */
 const store = useSpendingBooks()
@@ -212,7 +212,7 @@ async function confirm(): Promise<void> {
   <div class="flex flex-col gap-6">
     <AppCard :title="words.import.title" :subtitle="words.import.subtitle">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="spending-import-file">
-        <FileDrop v-model="picked" accept=".xlsx,.csv" :label="words.import.drop" :description="words.import.orChoose" />
+        <FileDrop v-model="picked" :accept="fileEndingsOf('table')" :label="words.import.drop" :description="words.import.orChoose" />
         <p v-if="loading" class="flex items-center gap-2 type-aside">
           <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
           {{ words.import.reading }}
