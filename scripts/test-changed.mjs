@@ -20,8 +20,8 @@ const { values } = parseArgs({ options: { base: { type: 'string', default: 'HEAD
 /** The specs that read the whole source tree or the docs instead of importing what they check, so no import leads to them. */
 const TREE_SPECS = ['importBoundaries', 'designCatalogue', 'machinePaths', 'docsIndex', 'uiImports', 'checkScriptImports', 'chatCatalogue', 'dialogErrors', 'appOrder']
 
-/** Paths whose change can break a tree spec without adding or moving a file. */
-const TREE_PATHS = [/^src\/shared\/ui\//, /words\.ts$/, /^docs\//, /^\.agents\/skills\/kuna-design\//, /^scripts\/lint-baseline\.json$/, /^src\/shell\/gallery\//]
+/** Paths whose change can break a tree spec without adding or moving a file. A screen file can change how often it uses a component, which the design catalogue counts. */
+const TREE_PATHS = [/\.vue$/, /^src\/shared\/ui\//, /words\.ts$/, /^docs\//, /^\.agents\/skills\/kuna-design\//, /^scripts\/lint-baseline\.json$/, /^src\/shell\/gallery\//]
 
 const SOURCE_ENDINGS = ['.ts', '.mjs', '.js', '.vue']
 
