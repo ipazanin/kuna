@@ -138,7 +138,7 @@ export function rowFiledBy(row: Transaction, merchant: string): Transaction {
  * waits, as with a tip or a misread line, one Difference line in the main category shows what is left, and no line you confirmed changes.
  * Every line takes the row's link when its items named one record, and none when they named several or none. A line takes the
  * labels and event choice you set on it, or else those of `openingLineChoices`, as the Difference line does, with `lineRuleLabels` still a rule's. A line counts under the payee you give it, or else under
- * `payeeOfAll`, kept blank when that is the entry's payee.
+ * `payeeOfAll`, as the Difference line does, kept blank when that is the entry's payee.
  */
 export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: readonly ReceiptPart[], newKey: () => string = newRecordId): ReceiptSplit {
   const merchant = draft.merchant.trim()
@@ -189,6 +189,6 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
     }
   })
   const difference = differenceItem(row?.amount ?? amount, lines, { transaction, receipt: receipt.id, category, link }, words.difference, newKey)
-  const openingDifference = { ...opening, ruleLabels: lineRuleLabels(opening.labels, replaced) }
+  const openingDifference = { ...opening, ruleLabels: lineRuleLabels(opening.labels, replaced), payee: partPayeeOf(openingPayee, entryPayee) }
   return { before, row, receipt, lines: difference === null ? lines : [...lines, { ...difference, ...openingDifference }], replaced }
 }

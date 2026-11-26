@@ -1,13 +1,12 @@
 import type { CompanyMoney, CompanyTarget } from './linkTarget'
 import type { LinkedEntry, LinkedOn, LinkFiling, LinkPlace } from './linkFiling'
 import { companyMoneyCategoryIn, fixedCategoryIn } from '../../categories/domain/starterCategories'
-import { eventOfLargest, payeeOfAll, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { carriedFields } from '../../workbook/domain/carriedChoices'
 import type { Category, CompanyMoneyRole } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { filedAsTransfer, linkedItems, wholeRowItemId } from '../../workbook/domain/rowItems'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
-import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -121,10 +120,7 @@ export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, pl
   if (filing.split !== 'payment') return { entry: { row: entry.row, items: linkedItems(entry.items, target.link) }, interest: null, added: [] }
   const { ids, added } = partCategories(filing, place, newKey)
   const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
-  const labels = labelsOf(entry.items)
-  const ruleLabels = ruleLabelsOf(entry.items)
-  const event = eventOfLargest(entry.items)
-  const payee = payeeOfAll(entry.items)
+  const carried = carriedFields(entry.items)
   const several = filing.parts.length > 1
   const items = filing.parts.map((part, at): TransactionItem => ({
     id: at === 0 ? firstId : recordIdOf(ITEM_RECORDS, newKey()),
@@ -134,11 +130,8 @@ export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, pl
     note: part.home === 'difference' ? place.notes.difference : '',
     amount: part.amount,
     category: ids[at] ?? null,
-    payee,
     link: target.link,
-    labels,
-    ruleLabels,
-    event,
+    ...carried,
     sharedCost: null,
     splitByLink: several,
   }))

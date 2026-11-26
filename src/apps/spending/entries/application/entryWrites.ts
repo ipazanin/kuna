@@ -1,8 +1,7 @@
 import type { EntrySplit } from '../domain/entrySplit'
 import type { TypedTransfer } from '../domain/transfer'
-import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
-import { eventOfLargest, payeeOfAll, ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { carriedFields } from '../../workbook/domain/carriedChoices'
 import { linkedEntry, linkedWithExtraPayment } from '../../links/domain/linkFiling'
 import type { LinkPlace, LinkedEntry } from '../../links/domain/linkFiling'
 import type { ExtraPaymentTarget, InstalmentTarget, LinkTarget } from '../../links/domain/linkTarget'
@@ -61,7 +60,8 @@ export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' 
  * counts under. Who filed it follows `filerAfterTyping`. A split row keeps its items, each with the labels, event and
  * payee of the typed part of its id, and a receipt's line takes that part's category and note too, while its amount stays the
  * receipt's. A part left counting under the entry's new payee keeps no payee of its own. A part takes the typed shared cost, and one
- * typed with none stays in its own while it keeps its category, so filing it elsewhere takes it out.
+ * typed with none stays in its own while it keeps its category, so filing it elsewhere takes it out. Every part keeps its rule
+ * labels, since typing puts none on.
  */
 export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
   const { description, counterpartyIban, importKey, statement, movedAt, pocket, cashWithdrawal, pending, id, source } = before.row
@@ -84,10 +84,12 @@ export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedR
   }
 }
 
-/** A transfer's leg typed over a row, which keeps the row's labels, since a transfer is labelled by selecting it on Entries. */
+/**
+ * A transfer's leg typed over a row, which keeps the row's labels and event choice, since a transfer is labelled by selecting it
+ * on Entries. No payee carries over, as a leg counts under none of its own, and `retypedEntry` keeps each part's rule labels.
+ */
 function legOver(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
-  const labels = labelsOf(before.items)
-  const event = eventOfLargest(before.items)
+  const { labels, event } = carriedFields(before.items)
   return retypedEntry(before, { ...typed, items: typed.items.map((item) => ({ ...item, labels, event })) })
 }
 
@@ -218,19 +220,12 @@ export function writeEntrySplit(unit: UnitOfWork, records: FilingRecords, { row,
 }
 
 /**
- * The one item a split row stands for again: all of its money under the category most of it was in, with the note and event
- * choice of its largest part, its link and every label of its parts, a rule's still its, and the payee every part counted under.
+ * The one item a split row stands for again: all of its money under the category most of it was in, with the note of its
+ * largest part, its link and what `carriedFields` carries of its parts.
  */
 export function unsplitItem(row: Pick<Transaction, 'id' | 'amount'>, held: readonly TransactionItem[]): TransactionItem {
-  return wholeItemOf(row, {
-    category: mainCategoryOf(held),
-    note: largestItem(held)?.note ?? '',
-    link: linkOfItems(held),
-    labels: labelsOf(held),
-    ruleLabels: ruleLabelsOf(held),
-    event: eventOfLargest(held),
-    countsUnder: payeeOfAll(held),
-  })
+  const carried = carriedFields(held)
+  return { ...wholeItemOf(row, { category: mainCategoryOf(held), note: largestItem(held)?.note ?? '', link: linkOfItems(held), labels: carried.labels }), ...carried }
 }
 
 /**

@@ -1,14 +1,13 @@
 import { loanLinkOf, sameRecord } from './linkTarget'
 import { expectedOf, interestCategoryOf, paidOut, planParts, splitByInstalment, splitIntoParts } from './instalmentParts'
 import type { InstalmentSplit, LinkedPart, PartNotes } from './instalmentParts'
-import { labelsOf } from '../../../../shared/categorising/domain/labels'
 import type { AppTargets, AssetTarget, CompanyTarget, ExtraPaymentTarget, InstalmentTarget, LinkTarget } from './linkTarget'
 import { assetLinkedEntry } from './assetLinks'
 import { companyLinkedEntry, companyPaymentFiling } from './companyPaymentFiling'
 import type { CompanyPaymentSplit } from './companyPaymentFiling'
 import { inWindow, isNear, nearestTo } from '../../../../shared/app/moneyMatch'
 import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
-import { ruleLabelsOf } from '../../workbook/domain/carriedChoices'
+import { carriedFields } from '../../workbook/domain/carriedChoices'
 import type { Category, FixedKind } from '../../workbook/domain/category'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { filedAsTransfer, linkedItems, wholeItemOf } from '../../workbook/domain/rowItems'
@@ -115,7 +114,7 @@ export interface LinkedEntry {
 
 /**
  * The entry linked to the record in Loans or Investments it is, filed as `linkFiling` says: split by an instalment, whole under its loan's
- * fixed category, Saved to investments or Bought assets and filed by you, its parts joined into one that keeps every label, or each item as it is with the link on it, which for a cost of or income from an asset is each part chosen, filed under the category picked while it waits for one.
+ * fixed category, Saved to investments or Bought assets and filed by you, its parts joined into one that carries what `carriedFields` carries, or each item as it is with the link on it, which for a cost of or income from an asset is each part chosen, filed under the category picked while it waits for one.
  */
 export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkPlace & Pick<LinkedOn, 'receipt'>, newKey: () => string = newRecordId): LinkedEntry {
   if (target.kind === 'owner-payment' || target.kind === 'owner-advance') return companyLinkedEntry(entry, target, place, newKey)
@@ -132,8 +131,7 @@ export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkP
       amount: entry.row.amount,
       category: principal.category.id,
       link: target.link,
-      labels: labelsOf(entry.items),
-      ruleLabels: ruleLabelsOf(entry.items),
+      ...carriedFields(entry.items),
       sharedCost: null,
       splitByLink: false,
     }

@@ -23,6 +23,17 @@ export function payeeOfAll(items: readonly Pick<TransactionItem, 'payee'>[]): st
   return first !== undefined && rest.every((item) => samePayee(item.payee, first.payee)) ? first.payee : ''
 }
 
+/** The fields of a part's own money and place, which a write that rebuilds parts sets for each part it leaves. */
+type PartOwnField = 'id' | 'transaction' | 'receipt' | 'printed' | 'note' | 'amount' | 'category' | 'link' | 'sharedCost' | 'splitByLink'
+
+/** What a person put on money, which parts rebuilt from other parts keep. A field added to an item is carried until it is named a part's own. */
+export type CarriedFields = Omit<TransactionItem, PartOwnField>
+
+/** What parts rebuilt from the replaced ones carry: every label, a rule's still its, the event choice of the largest and the payee all of them counted under. */
+export function carriedFields(replaced: readonly TransactionItem[]): CarriedFields {
+  return { labels: labelsOf(replaced), ruleLabels: ruleLabelsOf(replaced), event: eventOfLargest(replaced), payee: payeeOfAll(replaced) }
+}
+
 /** The item, in the shared cost of the part of its id it replaces while it keeps that part's category, so a write that rebuilds a member keeps it a member. */
 function withSharedCostKept(found: readonly TransactionItem[], item: TransactionItem): TransactionItem {
   if (item.sharedCost !== null) return item
