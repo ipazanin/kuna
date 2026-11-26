@@ -64,7 +64,7 @@ import {
 } from '../workbook/domain/spendingKinds'
 import { conditionText } from './ruleConditionText'
 import { STATEMENT_RECIPE_FIELDS } from '../statements/domain/statementRecipeDraft'
-import type { SavedRecipe } from '../workbook/domain/savedRecipe'
+import type { SavedRecipe } from '../../../shared/recipes/domain/savedRecipe'
 import { draftOfRecipe } from '../../../shared/recipes/domain/tableRecipeDraft'
 import { inputOfDraft } from '../../../shared/recipes/domain/draftInput'
 import type { SpendingRule } from '../workbook/domain/spendingRule'

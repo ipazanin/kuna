@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { bankNamesOf } from '../src/apps/spending/accounts/domain/bankNames'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
-import { sameBank } from '../src/apps/spending/workbook/domain/account'
+import { sameBank } from '../src/shared/recipes/domain/savedRecipe'
 import { ACCOUNT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'

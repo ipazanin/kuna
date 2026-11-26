@@ -7,7 +7,7 @@ import type { StatementRefusal } from '../domain/statementRows'
 import StatementRecipeDialog from './StatementRecipeDialog.vue'
 import { words } from './recipeWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import type { SavedRecipe } from '../../workbook/domain/savedRecipe'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { likeliestHeaderRow } from '../../../../shared/recipes/domain/headerRow'
 

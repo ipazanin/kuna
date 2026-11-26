@@ -1,5 +1,5 @@
 import { STATEMENT_KINDS } from './recipeStatement'
-import type { SavedRecipe } from '../../workbook/domain/savedRecipe'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import { RECIPE_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { placeOfProblem, tableRecipeOf } from '../../../../shared/recipes/domain/tableRecipeDraft'
@@ -12,7 +12,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
  * debit and credit pair, and the payee, a fee and a currency where the file has them. A kind that comes in reads them all, and
  * a row the bank did not complete or of another product is only counted.
  */
-export const STATEMENT_RECIPE_FIELDS: TableRecipeFields = {
+export const STATEMENT_RECIPE_FIELDS = {
   date: 'started',
   time: 'startedTime',
   amount: 'amount',
@@ -24,7 +24,10 @@ export const STATEMENT_RECIPE_FIELDS: TableRecipeFields = {
     { field: 'currency', as: 'text' },
   ],
   kinds: STATEMENT_KINDS.map((kind) => ({ kind, reads: kind !== 'not-completed' && kind !== 'other-product' })),
-}
+} as const satisfies TableRecipeFields
+
+/** A field a person picks a column for. The time reads the day's own column, so it has none. */
+export type StatementRecipeField = (typeof STATEMENT_RECIPE_FIELDS)['date' | 'amount' | 'debit' | 'credit'] | (typeof STATEMENT_RECIPE_FIELDS)['optional'][number]['field']
 
 /** What a statement recipe lacks beyond its draft: the bank whose accounts take its rows, or a currency for a file whose rows name none. */
 export type StatementRecipeProblem = DraftProblem | { readonly kind: 'no-bank' } | { readonly kind: 'no-currency' }

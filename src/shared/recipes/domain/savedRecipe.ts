@@ -22,9 +22,9 @@ export interface SavedRecipe {
   readonly recipe: Recipe
 }
 
-/** Whether two names are one bank's, read without case or accents, as a recipe finds the accounts of its bank. */
-export function sameBank(one: string, other: string): boolean {
-  return fold(one) === fold(other)
+/** Whether two accounts, or an account and a recipe, name the same bank, ignoring case, accents and spacing. A blank and a missing bank are the same. */
+export function sameBank(one: string | null, other: string | null): boolean {
+  return fold(one ?? '') === fold(other ?? '')
 }
 
 const RECIPE_FORMATS = ['table', 'xml'] as const

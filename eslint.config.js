@@ -133,6 +133,16 @@ const scriptColourStrings = [
   { selector: `TemplateElement[value.raw=/${arbitraryColourUtility}/]`, message: arbitraryColourMessage },
 ]
 
+const wordTableCastMessage = 'Type a table of words by its keys with `satisfies Record<Key, string>`, so Translation checks every language for each key.'
+const wordTableCasts = [
+  {
+    selector:
+      'TSAsExpression > TSTypeReference[typeName.name="Readonly"] > TSTypeParameterInstantiation > TSTypeReference[typeName.name="Record"] > TSTypeParameterInstantiation > TSStringKeyword:last-child',
+    message: wordTableCastMessage,
+  },
+  { selector: 'TSAsExpression > TSTypeReference[typeName.name="Record"] > TSTypeParameterInstantiation > TSStringKeyword:last-child', message: wordTableCastMessage },
+]
+
 const formattingMessage = 'Format numbers and dates with the helpers in src/shared/money, src/shared/calendar and src/shared/text.'
 const formattingMethods = ['toFixed', 'toLocaleString', 'toLocaleDateString', 'toLocaleTimeString', 'toLocaleUpperCase', 'toLocaleLowerCase']
 const templateFormatting = [
@@ -275,6 +285,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },
     { name: 'kuna/book-casts', files: ['tests/**/*.ts'], rules: { 'kuna/book-casts': 'error' } },
     { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },
+    { name: 'kuna/typed-words', files: ['src/**/words.ts', 'src/**/*Words.ts'], rules: { 'no-restricted-syntax': ['error', ...scriptColourStrings, ...wordTableCasts] } },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,
   )

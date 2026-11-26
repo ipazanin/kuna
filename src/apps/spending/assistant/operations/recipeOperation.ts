@@ -20,7 +20,7 @@ import type { StatementRecipeProblem } from '../../statements/domain/statementRe
 import type { StatementRefusal, StatementRows } from '../../statements/domain/statementRows'
 import { words as statementWords } from '../../statements/domain/words'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { SavedRecipe } from '../../workbook/domain/savedRecipe'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import { RECIPE_RECORDS } from '../../workbook/domain/spendingKinds'
 
 const RECIPE_INPUT = tableRecipeInput(STATEMENT_RECIPE_FIELDS)

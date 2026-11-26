@@ -6,7 +6,7 @@ import { placeOfStatementProblem, STATEMENT_RECIPE_FIELDS, statementRecipeOf } f
 import { words as recipeWords } from './recipeWords'
 import { bankNamesOf } from '../../accounts/domain/bankNames'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import type { SavedRecipe } from '../../workbook/domain/savedRecipe'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import { currencyCodeOf, EURO } from '../../../../shared/money/currencyCode'
 import { draftOfRecipe } from '../../../../shared/recipes/domain/tableRecipeDraft'
 import type { TableRecipeDraft } from '../../../../shared/recipes/domain/tableRecipeDraft'

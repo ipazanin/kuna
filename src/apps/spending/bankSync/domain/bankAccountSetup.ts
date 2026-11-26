@@ -9,7 +9,7 @@ import type { BankOpening, OpeningEvidence } from '../../accounts/domain/bankOpe
 import { bankSyncRows } from './bankSyncRows'
 import type { SyncedRows } from './bankSyncRows'
 import { draftedAccount } from '../../accounts/domain/accountDraft'
-import { sameBank } from '../../workbook/domain/account'
+import { sameBank } from '../../../../shared/recipes/domain/savedRecipe'
 import type { Account, AccountKind } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import type { SpendingSettings } from '../../workbook/domain/spendingSettings'

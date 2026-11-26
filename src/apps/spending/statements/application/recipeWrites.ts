@@ -1,5 +1,5 @@
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
-import type { SavedRecipe } from '../../workbook/domain/savedRecipe'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import { RECIPE_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'

@@ -1,6 +1,8 @@
+import { STATEMENT_KINDS } from '../domain/recipeStatement'
+import type { StatementKind } from '../domain/recipeStatement'
 import { STATEMENT_RECIPE_FIELDS } from '../domain/statementRecipeDraft'
-import type { StatementRecipeProblem } from '../domain/statementRecipeDraft'
-import type { SavedRecipe } from '../../workbook/domain/savedRecipe'
+import type { StatementRecipeField, StatementRecipeProblem } from '../domain/statementRecipeDraft'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import { draftOfRecipe } from '../../../../shared/recipes/domain/tableRecipeDraft'
 import { dayExample } from '../../../../shared/recipes/presentation/dayExample'
 import type { DraftKind, TableRecipeDraft } from '../../../../shared/recipes/domain/tableRecipeDraft'
@@ -10,7 +12,7 @@ import type { Translation } from '../../../../shared/text/translation'
 // Croatian addresses the reader as vi, written lowercase inside a sentence. A recipe is recept, a column stupac and a row redak.
 
 export const en = {
-  fields: { started: 'Day', amount: 'Amount', debit: 'Money out', credit: 'Money in', description: 'Payee', fee: 'Fee', currency: 'Row currency' } as Readonly<Record<string, string>>,
+  fields: { started: 'Day', amount: 'Amount', debit: 'Money out', credit: 'Money in', description: 'Payee', fee: 'Fee', currency: 'Row currency' } satisfies Record<StatementRecipeField, string>,
   kinds: {
     payment: 'Booked rows',
     pending: 'Rows the bank has not booked',
@@ -18,7 +20,7 @@ export const en = {
     'cash-withdrawal': 'Cash taken out',
     'other-product': 'Rows of another product, counted',
     'not-completed': 'Declined or reverted rows, counted',
-  } as Readonly<Record<string, string>>,
+  } satisfies Record<StatementKind, string>,
   marks: { comma: 'decimal comma', point: 'decimal point' },
   readsFrom: (field: string, column: string) => `${field} from ${column}`,
   dayFrom: (column: string, format: string) => `Day from ${column}, as ${format}`,
@@ -122,7 +124,8 @@ export const hr: Translation<typeof en> = {
 export const words = language === 'hr' ? hr : en
 
 function kindLine({ kind, test }: DraftKind): string {
-  const name = words.kinds[kind] ?? kind
+  const known = STATEMENT_KINDS.find((statementKind) => statementKind === kind)
+  const name = known === undefined ? kind : words.kinds[known]
   if (test === null) return words.everyRow(name)
   return 'filled' in test ? words.whenFilled(name, test.column) : words.whenIs(name, test.column, test.is.join(words.or))
 }
@@ -131,11 +134,11 @@ function kindLine({ kind, test }: DraftKind): string {
 export function draftLines(draft: TableRecipeDraft): readonly string[] {
   const amount =
     'column' in draft.amount
-      ? [words.readsFrom(words.fields['amount']!, draft.amount.column)]
-      : [words.readsFrom(words.fields['debit']!, draft.amount.debit), words.readsFrom(words.fields['credit']!, draft.amount.credit)]
+      ? [words.readsFrom(words.fields.amount, draft.amount.column)]
+      : [words.readsFrom(words.fields.debit, draft.amount.debit), words.readsFrom(words.fields.credit, draft.amount.credit)]
   const optional = STATEMENT_RECIPE_FIELDS.optional.flatMap(({ field }) => {
     const column = draft.columns[field]
-    return column === undefined ? [] : [words.readsFrom(words.fields[field] ?? field, column)]
+    return column === undefined ? [] : [words.readsFrom(words.fields[field], column)]
   })
   return [words.dayFrom(draft.date.column, dayExample(draft.date.format)), ...amount.map((line) => `${line}, ${words.marks[draft.mark]}`), ...optional, ...draft.kinds.map(kindLine)]
 }

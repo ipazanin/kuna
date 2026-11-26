@@ -6,7 +6,6 @@ import { bankSyncSetUp } from './spendingSettings'
 import type { SpendingSettings } from './spendingSettings'
 import { sourceOn } from '../../../../shared/app/accountSource'
 import type { PeriodSource, SourcePeriod } from '../../../../shared/app/accountSource'
-import { fold } from '../../../../shared/text/fold'
 
 /** A current account at a bank, cash in hand, or savings kept apart. */
 export const ACCOUNT_KINDS = ['bank', 'cash', 'savings'] as const
@@ -41,11 +40,6 @@ export interface Account {
   /** The last four digits of each card that pays from the account, which a top-up on another account may name in place of an IBAN. Empty on cash. */
   readonly cards: readonly string[]
   readonly closed: boolean
-}
-
-/** Whether two accounts, or an account and a recipe, name the same bank, ignoring case, accents and spacing as the bank field does. Two blanks are the same. */
-export function sameBank(one: string | null, other: string | null): boolean {
-  return fold(one ?? '') === fold(other ?? '')
 }
 
 /** What a new account holds unless a person sets it: open, with no card. */

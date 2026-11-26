@@ -9,7 +9,7 @@ import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
 import { SHORTCUT_CODEC, SHORTCUT_PART_CODEC } from '../domain/shortcutReading'
-import { SETTING_RECORDS } from '../domain/spendingKinds'
+import { RECIPE_RECORDS, SETTING_RECORDS } from '../domain/spendingKinds'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
   BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
@@ -24,7 +24,7 @@ import { BANK_LINK_CODEC, oldLinkEndKey, oldLinkFetchedKey } from '../domain/ban
 import { OLD_BANK_KEYS } from '../../../../shared/bank-sync/domain/bankLink'
 import { settingCodec } from '../../../../shared/storage/domain/settingRows'
 import { DROPPED_ROW_CODEC, HELD_ROW_CODEC, TRANSACTION_CODEC } from '../domain/transactionReading'
-import { RECIPE_CODEC } from '../domain/recipeReading'
+import { savedRecipeCodec } from '../../../../shared/recipes/domain/savedRecipe'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
@@ -66,7 +66,7 @@ const SPENDING_CODECS = [
   ITEM_CODEC,
   HELD_ROW_CODEC,
   DROPPED_ROW_CODEC,
-  RECIPE_CODEC,
+  savedRecipeCodec(RECIPE_RECORDS),
   PAYEE_CODEC,
   BANK_LINK_CODEC,
   SHARED_COST_CODEC,

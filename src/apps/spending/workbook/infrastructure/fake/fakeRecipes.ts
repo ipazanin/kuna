@@ -1,5 +1,5 @@
 import { RECIPE_RECORDS } from '../../domain/spendingKinds'
-import type { SavedRecipe } from '../../domain/savedRecipe'
+import type { SavedRecipe } from '../../../../../shared/recipes/domain/savedRecipe'
 import { EURO } from '../../../../../shared/money/currencyCode'
 import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 

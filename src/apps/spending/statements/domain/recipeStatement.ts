@@ -5,7 +5,7 @@ import { PENDING_KEY_FACT } from './statementRows'
 import type { DraftedAccount, FileNote, StatementReading, StatementRefusal, StatementRow } from './statementRows'
 import { REVOLUT_BANK, draftedAccount, revolutIban } from '../../accounts/domain/accountDraft'
 import { earliestStart, openingOn } from '../../accounts/domain/bankOpening'
-import { sameBank } from '../../workbook/domain/account'
+import { sameBank } from '../../../../shared/recipes/domain/savedRecipe'
 import type { Account } from '../../workbook/domain/account'
 import { categoryWithRole } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -31,7 +31,7 @@ import { occurrenceKeys } from '../../../../shared/text/factKey'
  */
 export const STATEMENT_KINDS = ['payment', 'exchange', 'cash-withdrawal', 'pending', 'other-product', 'not-completed'] as const
 
-type StatementKind = (typeof STATEMENT_KINDS)[number]
+export type StatementKind = (typeof STATEMENT_KINDS)[number]
 
 /**
  * A recipe Spending reads statement files with, the name of the bank whose accounts take its rows, which is also a fee row's

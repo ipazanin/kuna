@@ -35,7 +35,7 @@ import {
 } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import { PAYEE_RECORDS, RECIPE_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import type { Payee } from '../../src/apps/spending/workbook/domain/payee'
-import type { SavedRecipe } from '../../src/apps/spending/workbook/domain/savedRecipe'
+import type { SavedRecipe } from '../../src/shared/recipes/domain/savedRecipe'
 import { statementRecipeOf } from '../../src/apps/spending/statements/domain/statementRecipeDraft'
 import { plainLineOf } from '../../src/apps/spending/workbook/domain/beforeItems'
 import { rowItemsOf, wholeItemOf } from '../../src/apps/spending/workbook/domain/rowItems'

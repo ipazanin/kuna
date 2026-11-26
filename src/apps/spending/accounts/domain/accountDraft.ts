@@ -1,5 +1,6 @@
 import { words } from './words'
-import { NEW_ACCOUNT_DEFAULTS, sameBank, sourceOfDetails } from '../../workbook/domain/account'
+import { NEW_ACCOUNT_DEFAULTS, sourceOfDetails } from '../../workbook/domain/account'
+import { sameBank } from '../../../../shared/recipes/domain/savedRecipe'
 import type { Account, AccountKind } from '../../workbook/domain/account'
 import type { RowOrigin } from '../../../../shared/app/accountSource'
 

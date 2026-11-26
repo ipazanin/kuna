@@ -1,4 +1,4 @@
-import { sameBank } from '../../workbook/domain/account'
+import { sameBank } from '../../../../shared/recipes/domain/savedRecipe'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 
