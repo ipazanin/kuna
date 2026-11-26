@@ -4,9 +4,9 @@ import type { Transaction } from '../../workbook/domain/workbook'
 import { categorise } from './categorise'
 import type { Verdict } from './categorise'
 import type { Rule } from './rule'
-import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
+import type { CompanyRuleRow, CategorisationContext } from './companyFacts'
 
-export type BacktestTransaction = CategorisableRow & Pick<Transaction, 'category' | 'flaggedBy' | 'bucket'>
+export type BacktestTransaction = CompanyRuleRow & Pick<Transaction, 'category' | 'flaggedBy' | 'bucket'>
 
 /** One row whose verdict the change alters. */
 export interface VerdictChange<Row> {

@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import { categorise } from '../src/apps/company/rules/domain/categorise'
 import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
-import { budgetRevenueCode, isCardTransaction, isForeignCurrency, postedCurrency, transactionFacts } from '../src/shared/categorising/domain/transactionFacts'
+import { budgetRevenueCode, companyFacts, isCardTransaction, isForeignCurrency, postedCurrency } from '../src/apps/company/rules/domain/companyFacts'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { foldRuleText } from '../src/shared/text/fold'
-import type { CategorisableRow } from '../src/shared/categorising/domain/transactionFacts'
+import type { CompanyRuleRow } from '../src/apps/company/rules/domain/companyFacts'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_SIGNALS } from './fixtures/ledger'
@@ -25,7 +25,7 @@ const context = categorisationContextOf({
   settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [CARD_SETTLEMENT_IBAN] },
 })
 
-function row(overrides: Partial<Omit<CategorisableRow, 'amount' | 'signals'>> & { amount?: number; signals?: Partial<CategorisableRow['signals']> } = {}): CategorisableRow {
+function row(overrides: Partial<Omit<CompanyRuleRow, 'amount' | 'signals'>> & { amount?: number; signals?: Partial<CompanyRuleRow['signals']> } = {}): CompanyRuleRow {
   return {
     account: overrides.account ?? 'main',
     amount: moneyFromAmount(overrides.amount ?? -10),
@@ -50,7 +50,7 @@ function rule(conditions: RuleCondition[], outcome: Partial<Rule> = {}): Rule {
   }
 }
 
-function matches(condition: RuleCondition, transaction: CategorisableRow): boolean {
+function matches(condition: RuleCondition, transaction: CompanyRuleRow): boolean {
   return categorise(transaction, [rule([condition])], context).category === 'matched'
 }
 
@@ -206,12 +206,12 @@ describe('the derived signals', () => {
 
   it('takes the currency of the row’s account, else the workbook’s', () => {
     const paidInPounds = { signals: { instructedCurrency: 'GBP' } }
-    expect(transactionFacts(row({ account: 'sterling', ...paidInPounds }), context).foreignCurrency).toBe(false)
-    expect(transactionFacts(row({ account: 'main', ...paidInPounds }), context).foreignCurrency).toBe(true)
+    expect(companyFacts(row({ account: 'sterling', ...paidInPounds }), context).foreignCurrency).toBe(false)
+    expect(companyFacts(row({ account: 'main', ...paidInPounds }), context).foreignCurrency).toBe(true)
   })
 
   it('works out own account and IBAN presence once per row', () => {
-    expect(transactionFacts(row({ counterpartyIban: OWN_IBAN }), context)).toMatchObject({ ownAccount: true, hasCounterpartyIban: true })
-    expect(transactionFacts(row(), context)).toMatchObject({ ownAccount: false, hasCounterpartyIban: false })
+    expect(companyFacts(row({ counterpartyIban: OWN_IBAN }), context)).toMatchObject({ ownAccount: true, hasCounterpartyIban: true })
+    expect(companyFacts(row(), context)).toMatchObject({ ownAccount: false, hasCounterpartyIban: false })
   })
 })

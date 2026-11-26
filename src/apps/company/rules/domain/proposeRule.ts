@@ -5,7 +5,7 @@ import { categorise } from './categorise'
 import { placeBefore } from './rulePlacement'
 import type { Rule, RuleCondition } from './rule'
 import { fold, foldRuleText } from '../../../../shared/text/fold'
-import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
+import type { CompanyRuleRow, CategorisationContext } from './companyFacts'
 
 /**
  * A rule that files rows like this one in its category: by the counterparty IBAN when the row has
@@ -18,7 +18,7 @@ import type { CategorisableRow, CategorisationContext } from '../../../../shared
  * beside core's revenue and client refund, so one side of a pair never files the other.
  */
 export function proposeRule(
-  transaction: CategorisableRow & Pick<Transaction, 'category'>,
+  transaction: CompanyRuleRow & Pick<Transaction, 'category'>,
   workbook: Pick<Workbook, 'rules' | 'categories'>,
   context: CategorisationContext,
   packPairedRoles: readonly string[],

@@ -12,7 +12,7 @@ import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
 import { foldedTextHolds } from '../../../../shared/categorising/domain/textTest'
 import { transactionFacts } from '../../../../shared/categorising/domain/transactionFacts'
-import type { CategorisableRow, CategorisationContext, TransactionFacts, TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
+import type { CategorisableRow, TransactionFacts } from '../../../../shared/categorising/domain/transactionFacts'
 import { dayOfMonth } from '../../../../shared/calendar/civilDate'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -21,14 +21,19 @@ import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 
-const NO_SIGNALS: TransactionSignals = { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' }
+/** What the rules know of the owner besides the row. */
+export interface SpendingCategorisationContext {
+  /** The accounts' own IBANs, normalised. */
+  readonly ownIbans: ReadonlySet<string>
+  /** Each account's currency. An account not listed counts in `defaultCurrency`. */
+  readonly accountCurrencies: ReadonlyMap<string, string>
+  readonly defaultCurrency: string
+}
 
-/** What the rules know of the owner: the accounts' IBANs as own and each account's currency. Personal money has no clients and no card settlement accounts. */
-export function spendingCategorisationContext(book: Pick<SpendingBook, 'accounts'>): CategorisationContext {
+/** The accounts' IBANs as own and each account's currency. */
+export function spendingCategorisationContext(book: Pick<SpendingBook, 'accounts'>): SpendingCategorisationContext {
   return {
     ownIbans: new Set(book.accounts.flatMap((account) => (account.iban === '' ? [] : [normaliseIban(account.iban)]))),
-    clientIbans: new Set(),
-    cardSettlementIbans: new Set(),
     accountCurrencies: new Map(book.accounts.map((account) => [account.id, account.currency])),
     defaultCurrency: EURO,
   }
@@ -131,14 +136,12 @@ export function holdingRules(rules: readonly SpendingRule[], book: Pick<Spending
   if (tried.length === 0) return () => []
   return (row) => {
     const categorisable: CategorisableRow = {
-      account: row.account,
       amount: moneyFromCents(row.amount),
       counterparty: row.payee,
       counterpartyIban: row.counterpartyIban,
       description: row.description,
-      signals: NO_SIGNALS,
     }
-    const facts: RowFacts = { row, facts: transactionFacts(categorisable, context), currency: context.accountCurrencies.get(row.account) ?? context.defaultCurrency }
+    const facts: RowFacts = { row, facts: transactionFacts(categorisable), currency: context.accountCurrencies.get(row.account) ?? context.defaultCurrency }
     const holding: SpendingRule[] = []
     for (const { rule, holds } of tried) {
       if (!holds(facts)) continue

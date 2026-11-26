@@ -494,8 +494,8 @@ describe('a rule change', () => {
     expect(payeeCondition({ payee: '', counterpartyIban: '' })).toBeNull()
   })
 
-  it('states the accounts as own and fills the fields Spending has no use for', () => {
-    expect(spendingCategorisationContext({ accounts: ACCOUNTS_FROM_FILES })).toMatchObject({ clientIbans: new Set(), cardSettlementIbans: new Set(), defaultCurrency: 'EUR' })
+  it('states the accounts as own and counts an unlisted account in euros', () => {
+    expect(spendingCategorisationContext({ accounts: ACCOUNTS_FROM_FILES })).toMatchObject({ defaultCurrency: 'EUR' })
     expect(spendingCategorisationContext({ accounts: ACCOUNTS_FROM_FILES }).ownIbans.has(OTP.iban)).toBe(true)
   })
 })

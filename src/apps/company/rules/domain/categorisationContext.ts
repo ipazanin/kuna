@@ -1,4 +1,4 @@
-import type { CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
+import type { CategorisationContext } from './companyFacts'
 import type { Settings } from '../../settings/domain/settings'
 import type { Account, Client } from '../../workbook/domain/workbook'
 

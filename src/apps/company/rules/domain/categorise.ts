@@ -1,8 +1,8 @@
 import type { Rule, RuleCondition } from './rule'
 import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
 import { foldedTextHolds } from '../../../../shared/categorising/domain/textTest'
-import { transactionFacts } from '../../../../shared/categorising/domain/transactionFacts'
-import type { CategorisableRow, CategorisationContext, TransactionFacts } from '../../../../shared/categorising/domain/transactionFacts'
+import { companyFacts } from './companyFacts'
+import type { CategorisationContext, CompanyFacts, CompanyRuleRow } from './companyFacts'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** What the categoriser writes for a row no rule decides, or a `review` rule with no category. */
@@ -19,8 +19,8 @@ export interface Verdict {
 }
 
 /** The first enabled rule, in order, whose every condition holds decides the row. No match is `unknown` / `ai`. */
-export function categorise(transaction: CategorisableRow, rules: readonly Rule[], context: CategorisationContext): Verdict {
-  const facts = transactionFacts(transaction, context)
+export function categorise(transaction: CompanyRuleRow, rules: readonly Rule[], context: CategorisationContext): Verdict {
+  const facts = companyFacts(transaction, context)
   const deciding = inTryingOrder(rules).find((rule) => rule.enabled && ruleMatches(rule, facts))
   if (deciding === undefined) {
     return { category: UNKNOWN_CATEGORY, flaggedBy: 'ai', ruleId: null }
@@ -34,12 +34,12 @@ export function categorise(transaction: CategorisableRow, rules: readonly Rule[]
   }
 }
 
-function ruleMatches(rule: Rule, facts: TransactionFacts): boolean {
+function ruleMatches(rule: Rule, facts: CompanyFacts): boolean {
   return rule.conditions.every((condition) => conditionHolds(condition, facts))
 }
 
 /** A blank counterparty matches no fragment and a blank IBAN matches no IBAN, so a row without one never equals a blank cell. */
-function conditionHolds(condition: RuleCondition, facts: TransactionFacts): boolean {
+function conditionHolds(condition: RuleCondition, facts: CompanyFacts): boolean {
   switch (condition.column) {
     case 'direction':
       return condition.direction === 'credit' ? facts.isCredit : !facts.isCredit

@@ -29,7 +29,8 @@ import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../.
 import type { MailSearchFault } from '../../../../shared/mail/domain/mailSource'
 import { words as mailWords } from '../../../../shared/mail/domain/words'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
-import { personPayeesOf, personPayeesText } from '../../../../shared/privacy/domain/personPayees'
+import { personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
+import { personPayeesText } from './personPayeesSetting'
 import { words } from './words'
 
 /** The workbook format this app writes. A higher number comes from a newer app. */

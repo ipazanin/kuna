@@ -1,7 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 import { absMoney, addMoney, subtractMoney } from '../../../../shared/money/money'
-import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
+import type { TransactionSignals } from '../../workbook/domain/transactionSignals'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { cardDaysRefusal, givesPrintedBalances, statementTies } from '../../../../shared/money/statementTies'
 import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'

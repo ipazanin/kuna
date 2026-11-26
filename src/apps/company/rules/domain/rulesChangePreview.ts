@@ -9,7 +9,7 @@ import type { RuleLabelIds, RuleTabRow } from './readRules'
 import type { Rule } from './rule'
 import { rulesTabAfter } from './rulesTabChange'
 import type { RulesTabChange } from './rulesTabChange'
-import type { CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
+import type { CategorisationContext } from './companyFacts'
 
 /** A rule a change gives labels it did not put on rows before, which the rows it files from then on take. */
 export interface RuleLabelsGained {

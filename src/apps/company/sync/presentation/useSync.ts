@@ -7,12 +7,14 @@ import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync'
 import { mailDraftsOn } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { mailNeeds, statementMailStep } from '../../mail/presentation/useMailSync'
+import { installedPack } from '../../packs/packContribution'
 import { BOOKS_FILE_LINK } from '../../settings/presentation/settingsTabs'
 import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbookStatus.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { assistAllowedNow } from '../../../../shared/ai/presentation/aiProvider'
+import { ratesStep } from '../../../../shared/rates/presentation/ratesStep'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
 import { words } from './words'
 
@@ -25,11 +27,16 @@ function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
   ]
 }
 
-/** The company's part of the page's sync: its books, then the bank's statement mail, then the keys while the assistant is on for the company. */
+/** The company's part of the page's sync: its books, then the bank's statement mail, the ECB rates the pack's figures need, then the keys while the assistant is on for the company. */
 export function companySyncGroup(): AppSyncGroup {
   const store = useWorkbook()
   const writes = useRecordWrites(store)
-  const steps = [statementMailStep(writes), secretsStep(assistAllowedNow)]
+  // Before the books are first read the step counts as on, as every step does.
+  const ratesOfBooks = ratesStep(
+    () => store.state.workbook === null || installedPack().ratesDemand(store.state.workbook).size > 0,
+    () => store.state.choice?.id ?? null,
+  )
+  const steps = [statementMailStep(writes), ratesOfBooks, secretsStep(assistAllowedNow)]
   return {
     store,
     steps: () => steps,

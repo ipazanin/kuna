@@ -212,6 +212,11 @@ function readsPublished(entry: Import): boolean {
 /** The shared modules that each hold one capability two apps use, which stay apart so none grows into another. */
 const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail/', 'src/shared/privacy/', 'src/shared/bank-sync/']
 
+/** The capability modules kept shared though one app calls them, each with the reason. A list that only shrinks. */
+const ONE_APP_CAPABILITIES: Readonly<Record<string, string>> = {
+  'src/shared/bank-sync/': 'Spending links its banks through it today, and Company will read its business account through it once that bank supports the link',
+}
+
 /** The one file that holds the write rules of Company's categories. */
 const COMPANY_CATEGORY_WRITES = 'src/apps/company/categories/application/categoryWrites.ts'
 
@@ -223,7 +228,8 @@ const COMPANY_CATEGORY_OPERATIONS = 'src/apps/company/assistant/operations/categ
 
 /**
  * Each function or const a folder of `src` exports, as `file#name`, with the files in `src` that call it: those that import it
- * by name outside `import type`, and its own file when that file calls it too. An export only the tests use has none.
+ * by name outside `import type`, re-export it, or load its whole file as a namespace or by `import()`, and its own file when
+ * that file calls it too. An export only the tests use has none.
  */
 function valueImportersOf(folder: string): ReadonlyMap<string, readonly string[]> {
   const callers = new Map<string, string[]>()
@@ -240,19 +246,38 @@ function valueImportersOf(folder: string): ReadonlyMap<string, readonly string[]
       names.forEach((name) => callers.set(`${file}#${name}`, (text.match(new RegExp(`\\b${name}\\b`, 'g')) ?? []).length > 1 ? [file] : []))
     }
   }
-  const importers = new Set(IMPORTS.filter((entry) => !entry.typeOnly && entry.target?.startsWith(folder) && entry.from !== entry.target).map((entry) => entry.from))
+  const callsEach = (target: string, file: string): void => {
+    for (const [name, files] of callers) {
+      if (name.startsWith(`${target}#`)) files.push(file)
+    }
+  }
+  const calls = (target: string, file: string, elements: readonly (ts.ImportSpecifier | ts.ExportSpecifier)[]): void => {
+    for (const element of elements) {
+      if (!element.isTypeOnly) callers.get(`${target}#${(element.propertyName ?? element.name).text}`)?.push(file)
+    }
+  }
+  for (const entry of IMPORTS.filter((entry) => entry.dynamic && entry.target?.startsWith(folder))) {
+    callsEach(entry.target!, entry.from)
+  }
+  const importers = new Set(IMPORTS.filter((entry) => !entry.typeOnly && !entry.dynamic && entry.target?.startsWith(folder) && entry.from !== entry.target).map((entry) => entry.from))
   for (const file of importers) {
     for (const { code } of scriptsOf(join(ROOT, file))) {
       const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest)
       for (const statement of source.statements) {
-        if (!ts.isImportDeclaration(statement) || statement.importClause?.isTypeOnly || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+        if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) || statement.moduleSpecifier === undefined || !ts.isStringLiteral(statement.moduleSpecifier)) continue
         const specifier = statement.moduleSpecifier.text
-        const bindings = statement.importClause?.namedBindings
-        if (!specifier.startsWith('.') || bindings === undefined || !ts.isNamedImports(bindings)) continue
+        if (!specifier.startsWith('.')) continue
         const target = resolvedFile(dirname(join(ROOT, file)), specifier)
-        for (const element of bindings.elements) {
-          if (!element.isTypeOnly) callers.get(`${target}#${(element.propertyName ?? element.name).text}`)?.push(file)
+        if (ts.isExportDeclaration(statement)) {
+          if (statement.isTypeOnly) continue
+          if (statement.exportClause === undefined || ts.isNamespaceExport(statement.exportClause)) callsEach(target, file)
+          else calls(target, file, statement.exportClause.elements)
+          continue
         }
+        const bindings = statement.importClause?.isTypeOnly ? undefined : statement.importClause?.namedBindings
+        if (bindings === undefined) continue
+        if (ts.isNamespaceImport(bindings)) callsEach(target, file)
+        else calls(target, file, bindings.elements)
       }
     }
   }
@@ -450,11 +475,13 @@ describe('import boundaries', () => {
     expect(broken((entry) => capabilityOf(entry.from) === null || entry.target === null || capabilityOf(entry.target) === null || capabilityOf(entry.target) === capabilityOf(entry.from))).toEqual([])
   })
 
-  it("keeps in the rules core only what both Company and Spending call, so neither app's rule shape sits in shared code", () => {
-    const callers = valueImportersOf('src/shared/categorising/')
+  it("keeps in each shared capability module only what two apps call, so no app's own rule sits in shared code, but for a list that only shrinks", () => {
+    const callers = new Map(CAPABILITIES.flatMap((folder) => [...valueImportersOf(folder)]))
     expect(callers.get('src/shared/categorising/domain/ruleOrder.ts#inTryingOrder')).toEqual(expect.arrayContaining(['src/apps/company/rules/domain/categorise.ts']))
     const oneApp = [...callers].filter(([, files]) => files.length > 0 && files.every((file) => appOf(file) !== null && appOf(file) === appOf(files[0]!)))
-    expect(oneApp.map(([name, files]) => `${name} is called only by ${appOf(files[0]!)}`)).toEqual([])
+    const kept = Object.keys(ONE_APP_CAPABILITIES)
+    expect(oneApp.filter(([name]) => !kept.some((entry) => name.startsWith(entry))).map(([name, files]) => `${name} is called only by ${appOf(files[0]!)}`)).toEqual([])
+    expect(kept.filter((entry) => !oneApp.some(([name]) => name.startsWith(entry))).map((entry) => `${entry} is called by two apps now, so it leaves the list`)).toEqual([])
   })
 
   it("keeps Company's settings off its categories, which read the settings, and off invoicing but for its domain, since invoicing writes the clients", () => {

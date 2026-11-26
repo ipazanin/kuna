@@ -10,10 +10,12 @@ import type { FakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDr
 import { en, hr } from '../src/shared/secrets/presentation/words'
 import { en as shellEn, hr as shellHr } from '../src/shell/settings/words'
 import { book, instrument } from './fixtures/investments'
+import type { SyncStep } from '../src/shared/sync/application/sync'
 
 const page = vi.hoisted(() => ({
   state: null as unknown as { choice: { source: 'drive' | 'browser'; id: string; name: string } | null; workbook: { book: unknown } | null; missing: boolean },
-  companyState: null as unknown as { workbook: null; missing: boolean },
+  companyState: null as unknown as { workbook: object | null; missing: boolean },
+  packRates: new Map() as ReadonlyMap<string, string>,
   drive: null as unknown as FakeDrive,
   order: [] as string[],
 }))
@@ -38,6 +40,10 @@ vi.mock('../src/apps/company/workbook/application/workbookStore', () => ({
     },
   }),
 }))
+vi.mock('../src/apps/company/packs/packContribution', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/apps/company/packs/packContribution')>()
+  return { ...original, installedPack: () => ({ ...original.installedPack(), ratesDemand: () => page.packRates }) }
+})
 vi.mock('../src/apps/company/workbook-files/presentation/LocalWorkbookStatus.vue', () => ({ default: {} }))
 vi.mock('../src/apps/company/mail/presentation/useMailSync', () => ({ statementMailStep: () => ({ id: 'mail' }), mailNeeds: () => [] }))
 vi.mock('../src/shared/storage/presentation/useRecordWrites', () => ({ useRecordWrites: () => ({ undo: async () => {} }) }))
@@ -66,6 +72,7 @@ beforeEach(() => {
   localStorage.clear()
   page.state = shallowReactive({ choice: { source: 'drive', id: 'investments-file-1', name: 'Investments' }, workbook: { book: book({}) }, missing: false })
   page.companyState = shallowReactive({ workbook: null, missing: false })
+  page.packRates = new Map()
   page.drive = createFakeDrive()
 })
 
@@ -158,6 +165,24 @@ describe('the Investments part of the sync', () => {
 })
 
 describe('the Company part of the sync', () => {
+  const ratesStepOf = (): SyncStep =>
+    companySyncGroup()
+      .steps()
+      .find((step) => step.id === 'rates')!
+
+  it('lists the rates step as on before the books are read, and while the pack asks for rates', () => {
+    expect(ratesStepOf()).toMatchObject({ leftOutWhenOff: true })
+    expect(ratesStepOf().on()).toBe(true)
+    page.companyState.workbook = {}
+    page.packRates = new Map([['USD', '2026-01-01']])
+    expect(ratesStepOf().on()).toBe(true)
+  })
+
+  it('leaves the rates step out once the books are read and the pack asks for no rates', () => {
+    page.companyState.workbook = {}
+    expect(ratesStepOf().on()).toBe(false)
+  })
+
   it('asks for the hidden folder while there are keys to carry', () => {
     PAGE_SECRET_STORE.write('anthropic', 'made-up-anthropic-key-5521')
     expect(companySyncGroup().needs()).toContainEqual({ scope: 'drive.appdata', label: 'Keys' })

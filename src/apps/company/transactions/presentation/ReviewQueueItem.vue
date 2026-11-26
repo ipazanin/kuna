@@ -23,7 +23,7 @@ import type { Bucket } from '../../workbook/domain/bucket'
 import { LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { COMPANY_APP } from '../../workbook/domain/companyApp'
-import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
+import type { TransactionSignals } from '../../workbook/domain/transactionSignals'
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words } from './words'
 
