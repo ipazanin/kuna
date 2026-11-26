@@ -116,7 +116,13 @@ function pickRange(pick: RangePick): void {
   }
 }
 
-/** A day typed outside the chart's span moves to its nearest end. The fields take any day, as a limit would refuse a year while its first digits are typed. */
+/** The custom days keep inside the chart's span. */
+const customLimits = computed(() => {
+  const span = props.rangeChoice?.span.value ?? null
+  return span === null ? {} : { min: span.from, max: span.to }
+})
+
+/** A day typed outside the chart's span moves to its nearest end. */
 function setCustomEnd(end: 'from' | 'to', text: string): void {
   const typed = parseCivilDate(text)
   const span = props.rangeChoice?.span.value ?? null
@@ -124,6 +130,12 @@ function setCustomEnd(end: 'from' | 'to', text: string): void {
   const day = typed < span.from ? span.from : typed > span.to ? span.to : typed
   props.rangeChoice!.range.value = overlapOf(withRangeEnd(customRange.value, end, day), span) ?? span
 }
+
+/**
+ * A DayField whose caller does not listen to `update:model-value` keeps a typed day as its own, so a day moved back to an
+ * unchanged range would stay in the field. Listening here lets the field show the range's day again once it is left.
+ */
+function keepRangeDays(): void {}
 
 const emit = defineEmits<{
   select: [selection: ChartPointSelection]
@@ -210,12 +222,23 @@ function valueOf(point: unknown): number | null {
               size="sm"
               :aria-label="words.chart.rangeFrom(title)"
               :model-value="customRange.from"
+              v-bind="customLimits"
               class="w-full sm:w-40"
               data-testid="chart-range-from"
+              @update:model-value="keepRangeDays"
               @change="setCustomEnd('from', $event)"
             />
             <span class="type-caption sm:ms-1">{{ words.periodBar.to }}</span>
-            <DayField size="sm" :aria-label="words.chart.rangeTo(title)" :model-value="customRange.to" class="w-full sm:w-40" data-testid="chart-range-to" @change="setCustomEnd('to', $event)" />
+            <DayField
+              size="sm"
+              :aria-label="words.chart.rangeTo(title)"
+              :model-value="customRange.to"
+              v-bind="customLimits"
+              class="w-full sm:w-40"
+              data-testid="chart-range-to"
+              @update:model-value="keepRangeDays"
+              @change="setCustomEnd('to', $event)"
+            />
           </div>
         </div>
       </div>

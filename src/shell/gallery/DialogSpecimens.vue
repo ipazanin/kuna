@@ -205,7 +205,7 @@ const ROWS = [
   <GallerySection
     id="day-field"
     title="DayField"
-    description="A day typed or picked from the calendar beside it, shown in the language on screen whatever the browser's, bound with v-model to the day as YYYY-MM-DD, blank while no whole day is typed. The value follows each keystroke, and change comes once the field is left or a day is picked, so a field that writes listens to change. A native date field shows the browser's order, which lint refuses."
+    description="A day typed or picked from the calendar beside it, shown in the language on screen whatever the browser's, bound with v-model to the day as YYYY-MM-DD, blank while no whole day is typed. The value follows each keystroke, and change comes once the field is left or a day is picked, so a field that writes listens to change. Its min and max limit the calendar, and a whole day typed outside them shows as an error. A native date field shows the browser's order, which lint refuses."
   >
     <AppCard as="div" class="p-5">
       <FormGrid>
@@ -215,10 +215,10 @@ const ROWS = [
         <UFormField label="Blank" help="No day yet.">
           <DayField v-model="blankDay" class="w-full" />
         </UFormField>
-        <UFormField label="From today on" help="Takes no day before 11 Nov 2026.">
+        <UFormField label="From today on" help="A day before 11 Nov 2026 shows as an error.">
           <DayField v-model="laterDay" min="2026-11-11" class="w-full" />
         </UFormField>
-        <UFormField label="Up to today" help="Takes no day after 11 Nov 2026.">
+        <UFormField label="Up to today" help="A day after 11 Nov 2026 shows as an error.">
           <DayField v-model="earlierDay" max="2026-11-11" class="w-full" />
         </UFormField>
         <UFormField label="With an error" error="A day, such as 1 Mar 2026">

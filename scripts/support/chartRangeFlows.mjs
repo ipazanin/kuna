@@ -14,14 +14,43 @@ async function rangeButton(page, card, label) {
   return handle.asElement()
 }
 
+/** True while the day field shows its day as an error. */
+async function markedInvalid(field) {
+  return field.evaluate((element) => element.querySelector('[data-invalid]') !== null)
+}
+
+/** Types a day segment by segment as `typeDay` does, failing when a year short of its four digits shows as an error. */
+async function typeDayWatchingYear(page, field, day) {
+  const [year, month, date] = day.split('-')
+  for (const [part, digits] of [
+    ['year', year],
+    ['month', month],
+    ['day', date],
+  ]) {
+    const segment = await field.$(`[data-segment="${part}"]`)
+    await segment.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await segment.click()
+    for (const [typed, digit] of [...digits].entries()) {
+      await page.keyboard.type(digit)
+      if (part === 'year' && typed < 3 && (await markedInvalid(field))) throw new Error(`a year typed digit by digit shows as an error at ${digits.slice(0, typed + 1)}`)
+    }
+  }
+}
+
+async function blurField(page) {
+  await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined))
+}
+
 async function pressedOn(page, card) {
   return page.$eval(`${card} [data-testid="chart-range"] [aria-pressed="true"]`, (button) => button.textContent?.trim() ?? '')
 }
 
 /**
  * A custom span on the Home loan's charts. From All, Custom fills the whole span into its from and to days on Owed over
- * time. A from day typed there narrows both of the loan's charts, Where the payments go shows Custom pressed too, and the
- * span goes into the address. A from day past the chart keeps to its last day. All takes it out again and hides the days.
+ * time, and the days keep inside the chart's span. A from day before the chart shows as an error while typed and the chart's
+ * first day again once left. A from day typed there narrows both of the loan's charts with no error while its year is typed
+ * digit by digit, Where the payments go shows Custom pressed too, and the span goes into the address. A from day past the
+ * chart keeps to its last day. All takes it out again and hides the days.
  */
 export function loanChartCustomRangeFlowIn(language) {
   const croatian = language === 'hr'
@@ -40,9 +69,21 @@ export function loanChartCustomRangeFlowIn(language) {
     await delay(400)
     await inspect?.('a loan chart with Custom picked over its whole span')
     await shoot('loan-chart-range-custom')
-    await typeDay(from, '2025-01-01')
+    const firstDay = await from.evaluate((element) => element.textContent?.trim() ?? '')
+    const wholeSpan = await page.evaluate(() => location.hash)
+    await typeDay(from, '2000-01-01')
+    if (!(await markedInvalid(from))) throw new Error('a from day before the chart does not show as an error')
+    await blurField(page)
+    await page
+      .waitForFunction((day) => document.querySelector('[data-testid="loan-balance-chart"] [data-testid="chart-range-from"]')?.textContent?.trim() === day, { timeout: 10_000 }, firstDay)
+      .catch(() => {
+        throw new Error("a from day before the chart stays in its field instead of the chart's first day")
+      })
+    if ((await page.evaluate(() => location.hash)) !== wholeSpan) throw new Error('a from day before the chart changed the span')
+    await typeDayWatchingYear(page, from, '2025-01-01')
+    if (await markedInvalid(from)) throw new Error('a from day inside the chart shows as an error')
     // The day is written once the field is left.
-    await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined))
+    await blurField(page)
     await page
       .waitForFunction(() => location.hash.includes('range=2025-01-01..'), { timeout: 10_000 })
       .catch(() => {
@@ -55,7 +96,7 @@ export function loanChartCustomRangeFlowIn(language) {
     await shoot('loan-chart-range-custom-from')
     // A from day past the chart's last day moves to that day, so the span shrinks to it instead of going back to all of it.
     await typeDay(await page.waitForSelector(`${balance} [data-testid="chart-range-from"]`, VISIBLE), '2099-01-01')
-    await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined))
+    await blurField(page)
     await page
       .waitForFunction(() => /range=(\d{4}-\d{2}-\d{2})\.\.\1(&|$)/.test(location.hash), { timeout: 10_000 })
       .catch(() => {
