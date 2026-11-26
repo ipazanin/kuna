@@ -68,7 +68,7 @@ const props = withDefaults(
     reveal?: boolean
     /**
      * The span the chart shows, picked beside its legend from its presets or as a custom from and to day. Shown only
-     * when it offers more than All.
+     * when the chart offers a pick.
      */
     rangeChoice?: ChartRangeChoice
   }>(),
@@ -88,10 +88,10 @@ const props = withDefaults(
 
 type RangePick = ChartPreset | 'custom'
 
-/** The presets with Custom before All, where a preset leaves something out. */
+/** The presets with Custom before All, where the chart offers a pick. */
 const rangeChoices = computed((): { value: RangePick; label: string }[] => {
-  const offered = props.rangeChoice?.ranges.value ?? []
-  if (offered.length <= 1) return []
+  if (props.rangeChoice?.pickable.value !== true) return []
+  const offered = props.rangeChoice.ranges.value
   const presets = offered.filter((preset) => preset !== 'all').map((value) => ({ value, label: words.chart.ranges[value] }))
   return [...presets, { value: 'custom', label: words.periodBar.presets.custom }, { value: 'all', label: words.chart.ranges.all }]
 })

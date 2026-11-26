@@ -460,6 +460,14 @@ const TAX_INCOME: readonly Income[] = [
   { ...interest(BROKER_ONE, '2026-09-02', '40.00'), kind: 'referral', note: '' },
 ]
 
+/** The retired share's prices at the quarter ends of the year before its first buy, so its chart opens on the days it was held rather than on All. */
+const RETIRED_CO_EARLIER_PRICES: readonly HandPrice[] = [
+  handPrice(RETIRED_CO, '2022-03-31', '26.40'),
+  handPrice(RETIRED_CO, '2022-06-30', '27.90'),
+  handPrice(RETIRED_CO, '2022-09-30', '25.60'),
+  handPrice(RETIRED_CO, '2022-12-30', '28.70'),
+]
+
 /** A sale of 2023 with a gain on a lot under two years, so its year owes a JOPPD with the city's surtax. Made only for its variant, so the sample's ids stay as they are. */
 function sale2023(): Trade {
   return { ...trade('sell', BROKER_ONE, WORLD_ETF, '2023-09-14', '5', '112.00', '2.00', null), id: fixedId(TRADE_RECORDS, 980) }
@@ -572,7 +580,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
       ...stored(TRANSFER_RECORDS, TRANSFERS),
       ...stored(SPLIT_RECORDS, SPLITS),
       ...stored(SPIN_OFF_RECORDS, SPIN_OFFS),
-      ...stored(PRICE_RECORDS, withRecentHandPrices([...HAND_PRICES, ...LATER_HAND_PRICES], today)),
+      ...stored(PRICE_RECORDS, withRecentHandPrices([...HAND_PRICES, ...LATER_HAND_PRICES, ...RETIRED_CO_EARLIER_PRICES], today)),
       ...stored(FUND_MIX_RECORDS, FUND_MIXES),
       ...stored(TARGET_RECORDS, TARGETS),
       ...stored(CHECK_RECORDS, CHECKS),

@@ -15,6 +15,7 @@ import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { formatCompactMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import { ZERO } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 
 /** One compared scenario as the charts draw it. */
 export interface ChartedScenario {
@@ -31,6 +32,8 @@ export interface ChartedScenario {
 export interface ScenarioChart {
   readonly option: ChartOption
   readonly description: string
+  /** A line per scenario, and the variable-rate rule while the chart draws it. */
+  readonly legend: readonly LegendEntry[]
 }
 
 /** The share of the tallest total that keeps two labels at the right edge from overlapping. */
@@ -99,11 +102,22 @@ function lineOf(scenario: ChartedScenario, data: readonly (number | null)[]): Li
   return { type: 'line', name: `${scenario.letter} ${scenario.name}`, color: colour, showSymbol: false, lineStyle: { width: 2 }, data: [...data] }
 }
 
-/** A dashed hairline at the first variable month while the chart shows it, on a wide screen only, since a phone notes it under the chart. */
-function variableRule(scenarios: readonly ChartedScenario[], months: readonly MonthKey[], tokens: ChartTokens, phone: boolean): Pick<LineSeries, 'markLine'> {
+/** The first variable month while the chart shows it, on a wide screen only, since a phone notes it under the chart. */
+function ruledVariable(scenarios: readonly ChartedScenario[], months: readonly MonthKey[], phone: boolean): MonthKey | null {
   const variable = earliestVariable(scenarios)
-  if (phone || variable === null || !months.includes(variable)) return {}
-  return { markLine: { silent: true, symbol: 'none', lineStyle: { color: tokens.axis, type: 'dashed', width: 1 }, label: { show: false }, data: [{ xAxis: variable }] } }
+  return phone || variable === null || !months.includes(variable) ? null : variable
+}
+
+/** A solid rule at the ruled variable month, as the legend's swatch draws it. */
+function variableRule(variable: MonthKey | null, tokens: ChartTokens): Pick<LineSeries, 'markLine'> {
+  return variable === null ? {} : { markLine: { silent: true, symbol: 'none', lineStyle: { color: tokens.inkMuted, type: 'solid', width: 1.5 }, label: { show: false }, data: [{ xAxis: variable }] } }
+}
+
+function legendOf(scenarios: readonly ChartedScenario[], variable: MonthKey | null): LegendEntry[] {
+  return [
+    ...scenarios.map((scenario) => ({ label: `${scenario.letter} ${scenario.name}`, colour: `var(${scenario.colour})`, mark: 'line' as const })),
+    ...(variable === null ? [] : [{ label: balanceWords.variableRule(monthLabel(variable)), colour: 'var(--chart-ink-muted)', mark: 'rule' as const }]),
+  ]
 }
 
 /**
@@ -113,6 +127,7 @@ function variableRule(scenarios: readonly ChartedScenario[], months: readonly Mo
  */
 export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, shownDays: DateRange | null): ScenarioChart {
   const months = monthsOfAll(scenarios).filter((month) => monthInRange(shownDays, month))
+  const variable = ruledVariable(scenarios, months, phone)
   const ends = new Map<MonthKey, ChartedScenario[]>()
   for (const scenario of scenarios) {
     const last = scenario.months.at(-1)
@@ -127,7 +142,7 @@ export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base
         scenario,
         months.map((month) => owed.get(month) ?? null),
       ),
-      ...(index === 0 ? variableRule(scenarios, months, tokens, phone) : {}),
+      ...(index === 0 ? variableRule(variable, tokens) : {}),
       markPoint: {
         silent: true,
         symbolSize: 0,
@@ -140,7 +155,7 @@ export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base
     }
   })
   const entries = scenarios.flatMap((scenario) => scenario.months.slice(-1).map((last) => words.charts.owedEntry(scenario.letter, scenario.name, monthLabel(last.month))))
-  return { option: { ...frame(months, scenarios, tokens, phone, 16), series }, description: words.charts.owedDescription(entries.join(' ')) }
+  return { option: { ...frame(months, scenarios, tokens, phone, 16), series }, description: words.charts.owedDescription(entries.join(' ')), legend: legendOf(scenarios, variable) }
 }
 
 /**
@@ -150,6 +165,7 @@ export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base
  */
 export function scenarioInterestChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, shownDays: DateRange | null): ScenarioChart {
   const months = monthsOfAll(scenarios).filter((month) => monthInRange(shownDays, month))
+  const variable = ruledVariable(scenarios, months, phone)
   const edge = months.at(-1)
   const totals = new Map(scenarios.map((scenario) => [scenario.key, scenario.months.at(-1)?.interest ?? ZERO]))
   const interestBy = new Map(scenarios.map((scenario) => [scenario.key, new Map(scenario.months.map((entry) => [entry.month, entry.interest]))]))
@@ -176,7 +192,7 @@ export function scenarioInterestChart(scenarios: readonly ChartedScenario[], bas
         scenario,
         months.map((month) => interestOn(scenario, month)),
       ),
-      ...(index === 0 ? variableRule(scenarios, months, tokens, phone) : {}),
+      ...(index === 0 ? variableRule(variable, tokens) : {}),
       markPoint: {
         silent: true,
         symbolSize: 0,
@@ -189,5 +205,5 @@ export function scenarioInterestChart(scenarios: readonly ChartedScenario[], bas
     }
   })
   const entries = scenarios.map((scenario) => words.charts.interestEntry(scenario.letter, scenario.name, formatMoney(totals.get(scenario.key)!)))
-  return { option: { ...frame(months, scenarios, tokens, phone, 88), series }, description: words.charts.interestDescription(entries.join(' ')) }
+  return { option: { ...frame(months, scenarios, tokens, phone, 88), series }, description: words.charts.interestDescription(entries.join(' ')), legend: legendOf(scenarios, variable) }
 }

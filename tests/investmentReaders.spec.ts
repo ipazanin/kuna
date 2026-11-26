@@ -566,7 +566,7 @@ describe('the Investments file', () => {
       transfers: 2,
       splits: 1,
       spinOffs: 1,
-      prices: 13,
+      prices: 17,
       fundMixes: 19,
       targets: 3,
       checks: 1,

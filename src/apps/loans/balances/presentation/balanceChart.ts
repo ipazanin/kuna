@@ -44,7 +44,7 @@ export interface BalanceMarks {
   readonly token: string
   /** Every move to mark, in any order. A move outside the chart's months is left out. */
   readonly moves?: readonly BalanceMove[]
-  /** The first month the plan works out at a variable rate. A wide screen marks it on the chart while the chart shows that month, and every width notes it in the tooltip. */
+  /** The first month the plan works out at a variable rate. A wide screen marks it with a solid rule the legend names while the chart shows that month, and every width notes it in the tooltip. */
   readonly estimateFrom?: MonthKey | null
   /**
    * What an informal loan's expected plan has it owe at each month end, empty for a loan without one. It is
@@ -99,7 +99,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
     markLine: {
       silent: true,
       symbol: 'none',
-      lineStyle: { color: tokens.axis, type: 'dashed', width: 1 },
+      lineStyle: { color: tokens.inkMuted, type: 'dashed', width: 1 },
       label: { formatter: words.today, position: 'end', color: tokens.inkSecondary, fontSize: 11 },
       data: now === undefined || now.month !== current ? [] : [{ xAxis: current }],
     },
@@ -114,6 +114,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
     },
   }
   const estimateFrom = marks.estimateFrom ?? null
+  const marksEstimate = !phone && estimateFrom !== null && categories.includes(estimateFrom)
   const stillToCome: LineSeries = {
     ...line(
       words.stillToCome,
@@ -122,18 +123,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
       true,
       0.08,
     ),
-    // A mark area carries the note, since a mark line turns its label along the line.
-    ...(phone || estimateFrom === null || last === undefined || !categories.includes(estimateFrom)
-      ? {}
-      : {
-          markLine: { silent: true, symbol: 'none', lineStyle: { color: tokens.axis, type: 'dotted', width: 1 }, label: { show: false }, data: [{ xAxis: estimateFrom }] },
-          markArea: {
-            silent: true,
-            itemStyle: { color: 'transparent' },
-            label: { formatter: words.variableFrom, position: 'insideBottomLeft', color: tokens.inkMuted, fontSize: 11 },
-            data: [[{ xAxis: estimateFrom }, { xAxis: last.month }]],
-          },
-        }),
+    ...(marksEstimate ? { markLine: { silent: true, symbol: 'none', lineStyle: { color: tokens.inkMuted, type: 'solid', width: 1.5 }, label: { show: false }, data: [{ xAxis: estimateFrom }] } } : {}),
   }
   const shared = months.some((entry) => entry.yours !== undefined)
   const yourPartLine: LineSeries = {
@@ -246,6 +236,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
       ...(effects.has('lowers') ? [{ label: words.lowers, colour: 'var(--loan-lowers)', mark: 'dot' as const }] : []),
       ...(effects.has('raises') ? [{ label: words.raises, colour: 'var(--loan-raises)', mark: 'dot' as const }] : []),
       ...(effects.has('rate') ? [{ label: words.rateChange, colour: 'var(--loan-interest)', mark: 'ring' as const }] : []),
+      ...(marksEstimate ? [{ label: words.variableRule(monthLabel(estimateFrom)), colour: 'var(--chart-ink-muted)', mark: 'rule' as const }] : []),
     ],
     drawsPlan: hasPlan,
   }

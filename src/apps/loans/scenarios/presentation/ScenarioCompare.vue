@@ -76,7 +76,6 @@ const scenarioRange = useChartRange(
 )
 const balanceChart = computed(() => scenarioBalanceChart(charted.value, base.value ?? '', chartTokens(), phone.value, scenarioRange.window.value))
 const interestChart = computed(() => scenarioInterestChart(charted.value, base.value ?? '', chartTokens(), phone.value, scenarioRange.window.value))
-const legend = computed(() => charted.value.map((entry) => ({ label: `${entry.letter} ${entry.name}`, colour: `var(${entry.colour})`, mark: 'line' as const })))
 /** The first due date at a variable rate in any compared offer, after which its figures are estimates. */
 const variableFrom = computed(() =>
   compared.value.reduce<CivilDate | null>((earliest, { worked: entry }) => {
@@ -229,7 +228,7 @@ async function remove(row: ScenarioRow): Promise<void> {
         start-collapsed
         data-testid="scenario-balance-chart"
       >
-        <template #legend><ChartLegend :entries="legend" /></template>
+        <template #legend><ChartLegend :entries="balanceChart.legend" /></template>
         <template v-if="variableFrom !== null" #footer>
           <p class="border-t border-default px-4 py-2 type-caption sm:px-5">{{ words.charts.variableFrom(dayLabel(variableFrom)) }}</p>
         </template>
@@ -246,7 +245,7 @@ async function remove(row: ScenarioRow): Promise<void> {
         start-collapsed
         data-testid="scenario-interest-chart"
       >
-        <template #legend><ChartLegend :entries="legend" /></template>
+        <template #legend><ChartLegend :entries="interestChart.legend" /></template>
         <template #footer>
           <p class="border-t border-default px-4 py-2 type-caption sm:px-5">{{ words.charts.flat }}</p>
         </template>

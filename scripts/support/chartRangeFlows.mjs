@@ -1,4 +1,5 @@
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/ui/words.ts'
+import { shootAt } from './editorFlows.mjs'
 import { delay, pressSelector, typeDay } from './pressing.mjs'
 
 const VISIBLE = { visible: true, timeout: 10_000 }
@@ -106,5 +107,37 @@ export function loanChartCustomRangeFlowIn(language) {
     await page.waitForFunction(() => !location.hash.includes('range='), { timeout: 10_000 })
     if ((await page.$(`${balance} [data-testid="chart-range-days"]`)) !== null) throw new Error('All keeps the custom days on screen')
     if ((await pressedOn(page, balance)) !== words.chart.ranges.all) throw new Error('All is not pressed after it is picked')
+  }
+}
+
+/**
+ * A sold holding with prices from a year before its first buy opens its Price chart on the days it was held, as Custom
+ * with its from and to days, and the range stays out of the address. All shows the whole line and keeps the span
+ * control, and Custom brings back days inside the line.
+ */
+export function holdingCustomOpeningFlowIn(language) {
+  const croatian = language === 'hr'
+  const words = croatian ? sharedCroatian : sharedEnglish
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    const chart = '[data-testid="holding-price-chart"]'
+    await page.waitForSelector(`${chart} [data-testid="chart-range-days"]`, VISIBLE).catch(() => {
+      throw new Error('the sold holding does not open on a custom range')
+    })
+    const opened = await pressedOn(page, chart)
+    if (opened !== words.periodBar.presets.custom) throw new Error(`the sold holding opens with ${opened} pressed, not Custom`)
+    if (await page.evaluate(() => location.hash.includes('range='))) throw new Error('the opening range goes into the address')
+    await shootAt(page, shoot, chart, 'holding-chart-custom-opening', { block: 'start', inspected: () => inspect?.('a sold holding opening on the days it was held') })
+    await press(await rangeButton(page, chart, words.chart.ranges.all))
+    await page
+      .waitForFunction(() => location.hash.includes('range=all'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('All does not go into the address on a chart that opens on Custom')
+      })
+    if ((await page.$(`${chart} [data-testid="chart-range-days"]`)) !== null) throw new Error('All keeps the custom days on screen')
+    await press(await rangeButton(page, chart, words.periodBar.presets.custom))
+    await page.waitForSelector(`${chart} [data-testid="chart-range-days"]`, VISIBLE).catch(() => {
+      throw new Error('Custom does not come back after All')
+    })
   }
 }

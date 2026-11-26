@@ -141,7 +141,7 @@ describe('the balance chart', () => {
     expect(words.balance.subtitle(behind)).toBe('At each month end. Dots mark the payments and new rates.')
   })
 
-  it('notes the variable rate in the tooltip from its month on at every width, and marks it on the chart only on a wide screen', () => {
+  it('notes the variable rate in the tooltip from its month on at every width, and marks it on the chart and in the legend only on a wide screen', () => {
     const estimateFrom = parseMonthKey('2026-11')!
     const wide = balanceChart(months, current, TOKENS, false, { ...OWED, estimateFrom })
     const phone = balanceChart(months, current, TOKENS, true, { ...OWED, estimateFrom })
@@ -150,8 +150,11 @@ describe('the balance chart', () => {
       expect(tooltipOf(chart, '2026-10')).not.toContain('estimate')
       expect(tooltipOf(chart, '2026-11')).toContain('An estimate at the variable rate')
     }
-    expect(seriesOf(wide)[1]).toHaveProperty('markArea')
-    expect(seriesOf(phone)[1]).not.toHaveProperty('markArea')
+    expect(seriesOf(wide)[1]).toHaveProperty('markLine.data', [{ xAxis: '2026-11' }])
+    expect(seriesOf(wide)[1]).not.toHaveProperty('markArea')
+    expect(seriesOf(phone)[1]).not.toHaveProperty('markLine')
+    expect(wide.legend.at(-1)).toEqual({ label: 'Variable rate from Nov 2026', colour: 'var(--chart-ink-muted)', mark: 'rule' })
+    expect(phone.legend.map((entry) => entry.mark)).not.toContain('rule')
   })
 
   it("marks a month's moves as one dot per effect on its balance, all one size, a new rate as a wider ring around its month, and names them in the tooltip", () => {
@@ -322,11 +325,21 @@ describe('the scenario charts', () => {
     expect(chart.description).toBe('What each scenario owes at each month end. A, as it stands, is paid off in Jan 2027. B, shorter, is paid off in Nov 2026. C, lower, is paid off in Jan 2027.')
   })
 
-  it('marks the first variable month with a hairline on a wide screen only', () => {
+  it('marks the first variable month with a solid rule on a wide screen only, named in the legend while it is drawn', () => {
     const variable = scenarios.map((entry, index) => (index === 1 ? { ...entry, variableFrom: parseMonthKey('2026-09')! } : entry))
+    const wide = scenarioBalanceChart(variable, 'as it stands', TOKENS, false, null)
+    const phone = scenarioBalanceChart(variable, 'as it stands', TOKENS, true, null)
 
-    expect(seriesOf(scenarioBalanceChart(variable, 'as it stands', TOKENS, false, null))[0]).toHaveProperty('markLine.data', [{ xAxis: '2026-09' }])
-    expect(seriesOf(scenarioBalanceChart(variable, 'as it stands', TOKENS, true, null))[0]).not.toHaveProperty('markLine')
+    expect(seriesOf(wide)[0]).toHaveProperty('markLine.data', [{ xAxis: '2026-09' }])
+    expect(seriesOf(phone)[0]).not.toHaveProperty('markLine')
+    expect(wide.legend.map((entry) => [entry.label, entry.mark])).toEqual([
+      ['A as it stands', 'line'],
+      ['B shorter', 'line'],
+      ['C lower', 'line'],
+      ['Variable rate from Sep 2026', 'rule'],
+    ])
+    expect(phone.legend.map((entry) => entry.mark)).toEqual(['line', 'line', 'line'])
+    expect(scenarioInterestChart(variable, 'as it stands', TOKENS, false, null).legend.at(-1)).toEqual({ label: 'Variable rate from Sep 2026', colour: 'var(--chart-ink-muted)', mark: 'rule' })
     expect(tooltipOf(scenarioBalanceChart(variable, 'as it stands', TOKENS, false, null), '2026-10')).toContain('An estimate at the variable rate')
   })
 

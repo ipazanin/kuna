@@ -84,6 +84,7 @@ const GALLERY_RANGES: ChartPreset[] = ['1y', '3y', 'next-5y', 'all']
 const galleryRange = ref<ChartRange>({ from: parseCivilDate('2025-04-01')!, to: GALLERY_TODAY })
 const galleryChoice: ChartRangeChoice = {
   ranges: computed(() => GALLERY_RANGES),
+  pickable: computed(() => true),
   range: computed({ get: () => galleryRange.value, set: (picked) => (galleryRange.value = picked) }),
   window: computed(() => rangeWindow(galleryRange.value, GALLERY_TODAY)),
   span: computed(() => GALLERY_SPAN),

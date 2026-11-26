@@ -90,4 +90,18 @@ describe("a screen's chart range", () => {
     await settle()
     expect(router.currentRoute.value.query).toEqual({ instrument: 'tech' })
   })
+
+  it('offers a custom range on a chart no preset cuts that opens on less than its span, and keeps a custom range in the address there', async () => {
+    // A holding sold in 2021 has closes from 2018 to 2021, which 1Y, 3Y and 5Y all leave out.
+    const sold = shallowRef<DateRange | null>({ from: civil('2018-01-31'), to: civil('2021-06-15') })
+    const held = { from: civil('2019-05-01'), to: civil('2021-06-15') }
+    const opened = await rangeAt('/investments/holding?instrument=tech', sold, held)
+
+    expect(opened.choice.ranges.value).toEqual(['all'])
+    expect(opened.choice.pickable.value).toBe(true)
+    expect(opened.choice.range.value).toEqual(held)
+    expect((await rangeAt('/investments/holding?instrument=tech&range=2020-01-01..2020-12-31', sold, held)).choice.range.value).toEqual({ from: civil('2020-01-01'), to: civil('2020-12-31') })
+    expect((await rangeAt('/investments/holding?instrument=tech', sold)).choice.pickable.value).toBe(false)
+    expect((await rangeAt('/investments/holding?instrument=tech', sold, { ...sold.value! })).choice.pickable.value).toBe(false)
+  })
 })
