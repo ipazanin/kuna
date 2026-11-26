@@ -10,7 +10,10 @@ import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
 import type { Movement } from '../src/apps/loans/workbook/domain/movement'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { draftedAccount } from '../src/apps/spending/accounts/domain/accountDraft'
 import { civilDate } from '../src/shared/calendar/civilDate'
+import { ZERO_ACCOUNT_MONEY } from '../src/shared/money/accountMoney'
+import { currencyCodeOf } from '../src/shared/money/currencyCode'
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import { monthKey } from '../src/shared/calendar/monthKey'
 import { decimalOfText } from '../src/shared/money/decimal'
@@ -424,6 +427,22 @@ describe('imports, sync and mail in Croatian', () => {
     expect(dryRunWords.dryRun.sequenceGap(30, 27, 'main', 2)).toContain('pa u evidenciji nedostaju 2 izvoda.')
     expect(dryRunWords.dryRun.partlyHeld(1, 2)).toBe('Stavke izvoda već u evidenciji: 1. Nove stavke koje dolaze nakon njih: 2.')
     expect(words.camt.summaryCount('TtlDbtNtries', 3, 2, 'debit')).toBe('TtlDbtNtries navodi 3 stavke, a aplikacija je pročitala 2 stavke proknjiženih terećenja.')
+  })
+})
+
+describe('the accounts a statement file needs, in Croatian', () => {
+  it('names the bank once after u banci, so a name of any gender, starting with a vowel or ending in banka, stays as its accounts write it', async () => {
+    const { addMissingAccounts } = await inCroatian(() => import('../src/apps/spending/statements/presentation/readingLines'))
+    const drafted = (bank: string, kind: 'bank' | 'savings', currency: string) => ({
+      account: draftedAccount({ kind, bank, currency: currencyCodeOf(currency)!, iban: '', opening: ZERO_ACCOUNT_MONEY, openedOn: civil('2026-10-01') }, [], 'provider-file'),
+      evidence: { rows: [], stated: null },
+    })
+
+    expect(addMissingAccounts([drafted('Example bank', 'bank', 'GBP')], 'file')).toBe('Dodaj bankovni račun u valuti GBP u banci Example bank za uvoz ove datoteke')
+    expect(addMissingAccounts([drafted('Primjer banka', 'bank', 'GBP'), drafted('Primjer banka', 'bank', 'CHF'), drafted('Primjer banka', 'savings', 'GBP')], 'file')).toBe(
+      'Dodaj bankovne račune u valutama GBP i CHF i štedni račun u valuti GBP u banci Primjer banka za uvoz ove datoteke',
+    )
+    expect(addMissingAccounts([drafted('Orbit', 'savings', 'EUR')], 'savings')).toBe('Dodaj štedni račun u valuti EUR u banci Orbit za uvoz izostavljenih redaka štednje')
   })
 })
 

@@ -15,10 +15,10 @@ export const en = {
     manyAccounts: (bank: string, names: string, currency: string) => `More than one open ${bank} account keeps ${currency}: ${names}. Close the one the file is not for`,
     noRecipe: (misses: string) => `No recipe reads this file: ${misses}`,
     recipeMiss: (recipe: string, column: string) => `${recipe} needs a ${column} column`,
-    addToBringIn: (accounts: string) => `Add ${accounts} to bring in this file`,
-    addToBringInSavings: (accounts: string) => `Add ${accounts} to bring in the savings rows left out`,
-    bankAccounts: (_count: number, bank: string, currencies: string): EnglishForms => ({ one: `a ${bank} bank account in ${currencies}`, other: `${bank} bank accounts in ${currencies}` }),
-    savingsAccounts: (_count: number, bank: string, currencies: string): EnglishForms => ({ one: `a ${bank} savings account in ${currencies}`, other: `${bank} savings accounts in ${currencies}` }),
+    addToBringIn: (accounts: string, bank: string) => `Add ${accounts} at ${bank} to bring in this file`,
+    addToBringInSavings: (accounts: string, bank: string) => `Add ${accounts} at ${bank} to bring in the savings rows left out`,
+    bankAccounts: (_count: number, currencies: string): EnglishForms => ({ one: `a bank account in ${currencies}`, other: `bank accounts in ${currencies}` }),
+    savingsAccounts: (_count: number, currencies: string): EnglishForms => ({ one: `a savings account in ${currencies}`, other: `savings accounts in ${currencies}` }),
   },
   notes: {
     notCompleted: (count: number): EnglishForms => ({ one: '1 reverted or declined row left out.', other: `${count} reverted or declined rows left out.` }),
@@ -69,17 +69,17 @@ export const hr: Translation<typeof en> = {
     manyAccounts: (bank, names, currency) => `Valutu ${currency} vodi više otvorenih računa banke ${bank}: ${names}. Zatvorite onaj za koji datoteka nije`,
     noRecipe: (misses) => `Nijedan recept ne čita ovu datoteku: ${misses}`,
     recipeMiss: (recipe, column) => `${recipe} traži stupac „${column}”`,
-    addToBringIn: (accounts) => `Dodaj ${accounts} za uvoz ove datoteke`,
-    addToBringInSavings: (accounts) => `Dodaj ${accounts} za uvoz izostavljenih redaka štednje`,
-    bankAccounts: (_count, bank, currencies): CroatianForms => ({
-      one: `bankovni račun banke ${bank} u valuti ${currencies}`,
-      few: `bankovne račune banke ${bank} u valutama ${currencies}`,
-      other: `bankovne račune banke ${bank} u valutama ${currencies}`,
+    addToBringIn: (accounts, bank) => `Dodaj ${accounts} u banci ${bank} za uvoz ove datoteke`,
+    addToBringInSavings: (accounts, bank) => `Dodaj ${accounts} u banci ${bank} za uvoz izostavljenih redaka štednje`,
+    bankAccounts: (_count, currencies): CroatianForms => ({
+      one: `bankovni račun u valuti ${currencies}`,
+      few: `bankovne račune u valutama ${currencies}`,
+      other: `bankovne račune u valutama ${currencies}`,
     }),
-    savingsAccounts: (_count, bank, currencies): CroatianForms => ({
-      one: `štedni račun banke ${bank} u valuti ${currencies}`,
-      few: `štedne račune banke ${bank} u valutama ${currencies}`,
-      other: `štedne račune banke ${bank} u valutama ${currencies}`,
+    savingsAccounts: (_count, currencies): CroatianForms => ({
+      one: `štedni račun u valuti ${currencies}`,
+      few: `štedne račune u valutama ${currencies}`,
+      other: `štedne račune u valutama ${currencies}`,
     }),
   },
   notes: {

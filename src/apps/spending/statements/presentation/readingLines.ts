@@ -10,12 +10,13 @@ import { plural } from '../../../../shared/text/translation'
 
 /** What to add to bring in the rows the drafted accounts would keep, of the bank the file's recipe names: the whole file when it was refused for them, else the savings rows left out. */
 export function addMissingAccounts(missing: readonly DraftedAccount[], rows: 'file' | 'savings'): string {
-  const phrase = (kind: Account['kind'], forms: (count: number, bank: string, currencies: string) => EnglishForms | CroatianForms): string[] => {
+  const phrase = (kind: Account['kind'], forms: (count: number, currencies: string) => EnglishForms | CroatianForms): string[] => {
     const drafts = missing.filter(({ account }) => account.kind === kind).map(({ account }) => account)
-    return drafts.length === 0 ? [] : [plural(forms(drafts.length, drafts[0]!.bank ?? '', listInWords(drafts.map((account) => account.currency))), drafts.length)]
+    return drafts.length === 0 ? [] : [plural(forms(drafts.length, listInWords(drafts.map((account) => account.currency))), drafts.length)]
   }
   const accounts = listInWords([...phrase('bank', words.refused.bankAccounts), ...phrase('savings', words.refused.savingsAccounts)])
-  return rows === 'file' ? words.refused.addToBringIn(accounts) : words.refused.addToBringInSavings(accounts)
+  const bank = missing[0]?.account.bank ?? ''
+  return rows === 'file' ? words.refused.addToBringIn(accounts, bank) : words.refused.addToBringInSavings(accounts, bank)
 }
 
 /** Why a reader read nothing of a file, as a sentence. */

@@ -8649,7 +8649,7 @@ export function spendingImportMissingFlowIn(language, paths) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const offer = '[data-testid="spending-import-missing-accounts"]'
-    const wanted = reading.addToBringIn(language === 'en' ? 'Revolut bank accounts in GBP and CHF' : 'bankovne račune banke Revolut u valutama GBP i CHF')
+    const wanted = reading.addToBringIn(language === 'en' ? 'bank accounts in GBP and CHF' : 'bankovne račune u valutama GBP i CHF', 'Revolut')
     await dropSpendingFile(page, paths.missing)
     await waitForTextIn(page, offer, wanted)
     await countOf(page, '[data-testid="spending-import-missing-account"]', 2, 'the offer for the missing accounts')

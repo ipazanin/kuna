@@ -201,7 +201,7 @@ describe("Revolut's export", () => {
     ])
 
     expect({ ...refused, missing: refused.missing.map(({ account }) => account) }).toEqual({
-      refusal: 'Add Revolut bank accounts in GBP and CHF and a Revolut savings account in GBP to bring in this file',
+      refusal: 'Add bank accounts in GBP and CHF and a savings account in GBP at Revolut to bring in this file',
       missing: [
         {
           name: 'Revolut GBP',
@@ -247,7 +247,7 @@ describe("Revolut's export", () => {
     const refused = reading([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'GBP')])
 
     expect({ ...refused, missing: refused.missing.map(({ account }) => account) }).toEqual({
-      refusal: 'Add a Revolut bank account in GBP to bring in this file',
+      refusal: 'Add a bank account in GBP at Revolut to bring in this file',
       missing: [
         {
           name: 'Revolut GBP',
@@ -309,7 +309,7 @@ describe("Revolut's export", () => {
         closed: false,
       },
     ])
-    expect(addMissingAccounts(reading([HEADER, row]).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')
+    expect(addMissingAccounts(reading([HEADER, row]).missing, 'savings')).toBe('Add a savings account in EUR at Revolut to bring in the savings rows left out')
     expect(read([row], { accounts: [...ACCOUNTS, savings], categories: CATEGORIES }).rows[0]?.account).toBe(savings.id)
   })
 
