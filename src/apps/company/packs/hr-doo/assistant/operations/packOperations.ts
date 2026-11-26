@@ -217,13 +217,13 @@ const COMPONENT_FIELDS = {
 const PAID_BACK_BY =
   'paidBackBy lists the items of payments to the owner on a reimbursement category that paid it back, each paid on or after the cost, in books that keep items: one the advance names already, or one no advance accounts for, whose part the cost still needs becomes an item of its own noted with the description. Books from before items take an empty list, since they match those payments by themselves.'
 
-const PAID_BACK_ITEMS = { type: 'array', items: inputOf({ item: TEXT }) } as const satisfies StrictSchema
+const PAID_BACK_ITEMS = { type: 'array', items: TEXT } as const satisfies StrictSchema
 
 /** The labels a cost carries, which change no figure of its category, or an empty list for none. Books from before items keep none. */
-const ADVANCE_LABEL_LIST = { type: 'array', items: inputOf({ label: TEXT }) } as const satisfies StrictSchema
+const ADVANCE_LABEL_LIST = { type: 'array', items: TEXT } as const satisfies StrictSchema
 
 /** The costs the owner paid a label goes on or comes off. */
-const LABELLED_ADVANCES = { type: 'array', items: inputOf({ advance: TEXT }) } as const satisfies StrictSchema
+const LABELLED_ADVANCES = { type: 'array', items: TEXT } as const satisfies StrictSchema
 
 /** Every change the chat can propose in the Croatian d.o.o. pack. Each calls the write functions the pack's screens use. */
 export const PACK_OPERATIONS: readonly AssistantOperation[] = [
@@ -231,7 +231,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
     name: 'add-owner-advance',
     about: `A cost the owner paid privately for the company, which the company owes back, in an operating or taxes category, above zero. ${PAID_BACK_BY}`,
     input: inputOf({ date: DAY, amount: NUMBER, description: TEXT, category: TEXT, paidBackBy: PAID_BACK_ITEMS, labels: ADVANCE_LABEL_LIST }),
-    refs: { category: 'category', 'paidBackBy.item': ITEM_RECORDS.name, 'labels.label': LABEL_RECORDS.name },
+    refs: { category: 'category', paidBackBy: ITEM_RECORDS.name, labels: LABEL_RECORDS.name },
     creates: null,
     alone: false,
     example: { date: '2026-10-10', amount: 117.3, description: 'Desk lamp', category: 'category', paidBackBy: [], labels: [] },
@@ -252,7 +252,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
       paidBack: { type: 'string', enum: ['keep', 'set'] },
       paidBackBy: PAID_BACK_ITEMS,
     }),
-    refs: { advance: OWNER_ADVANCE_RECORDS.name, category: 'category', 'paidBackBy.item': ITEM_RECORDS.name },
+    refs: { advance: OWNER_ADVANCE_RECORDS.name, category: 'category', paidBackBy: ITEM_RECORDS.name },
     creates: null,
     alone: false,
     example: { advance: 'advance', date: null, amount: null, description: 'Train tickets to the client', category: null, ownerShare: null, paidBack: 'keep', paidBackBy: [] },
@@ -262,19 +262,19 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
     about:
       'Puts a label on costs the owner paid privately, beside their categories, which it changes no figure of, as picking them on Transactions does. A label-rows step on the same card labels ledger rows in the same write. Books from before items keep no labels.',
     input: inputOf({ label: TEXT, advances: LABELLED_ADVANCES }),
-    refs: { label: LABEL_RECORDS.name, 'advances.advance': OWNER_ADVANCE_RECORDS.name },
+    refs: { label: LABEL_RECORDS.name, advances: OWNER_ADVANCE_RECORDS.name },
     creates: null,
     alone: false,
-    example: { label: 'label', advances: [{ advance: 'advance' }] },
+    example: { label: 'label', advances: ['advance'] },
   },
   {
     name: 'unlabel-advances',
     about: 'Takes a label off costs the owner paid privately. The label stays for the rows and costs that keep it.',
     input: inputOf({ label: TEXT, advances: LABELLED_ADVANCES }),
-    refs: { label: LABEL_RECORDS.name, 'advances.advance': OWNER_ADVANCE_RECORDS.name },
+    refs: { label: LABEL_RECORDS.name, advances: OWNER_ADVANCE_RECORDS.name },
     creates: null,
     alone: false,
-    example: { label: 'label-on-advance', advances: [{ advance: 'advance' }] },
+    example: { label: 'label-on-advance', advances: ['advance'] },
   },
   {
     name: 'delete-owner-advance',
@@ -570,20 +570,14 @@ function yearLines(books: CompanyBooks, year: number, matches: (line: PlanLine) 
  * change that names none the ones it names already. Refused when one is not on offer, when they add up to more than the cost,
  * or when the cost is paid back before one of them.
  */
-function chosenRepayments(
-  books: CompanyBooks,
-  before: OwnerAdvanceEntry | null,
-  advance: OwnerAdvanceEntry,
-  named: readonly { readonly item: string }[] | null,
-  idOf: (value: unknown) => string,
-): RepaymentChoice[] {
+function chosenRepayments(books: CompanyBooks, before: OwnerAdvanceEntry | null, advance: OwnerAdvanceEntry, named: readonly string[] | null, idOf: (value: unknown) => string): RepaymentChoice[] {
   const choices = repaymentChoices(hrDooWorkbook(presentedWorkbook(books.workbook)), before, advance.date)
   if (named !== null && named.length > 0 && !storesItems(books.records))
     throw new StepRefused('These books are from before items and match payments to the owner by themselves, so paidBackBy is an empty list.')
   const chosen =
     named === null
       ? choices.filter((choice) => choice.named)
-      : named.map(({ item }) => {
+      : named.map((item) => {
           const choice = choices.find((candidate) => candidate.item === idOf(item))
           if (choice === undefined)
             throw new StepRefused('Each paidBackBy item is a payment to the owner on a reimbursement category, paid on or after the cost, that this advance names already or no advance accounts for.')
@@ -606,8 +600,8 @@ function replaceLine(unit: UnitOfWork, held: readonly PlanLine[], key: string, l
 }
 
 /** The labels a step names, each one the books hold, and none on books from before items, which refuse one. */
-function labelsOf(books: CompanyBooks, given: readonly { readonly label: string }[], idOf: (value: unknown) => string): readonly RecordId[] {
-  const ids = given.map(({ label }) => {
+function labelsOf(books: CompanyBooks, given: readonly string[], idOf: (value: unknown) => string): readonly RecordId[] {
+  const ids = given.map((label) => {
     const held = books.workbook.labels.find((candidate) => candidate.id === idOf(label))
     if (held === undefined) throw new StepRefused('That label is no longer in the books.')
     return held.id
@@ -649,7 +643,7 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
       const label = books.workbook.labels.find((held) => held.id === idOf(field['label']))?.id
       if (label === undefined) throw new StepRefused('That label is no longer in the books.')
       if (!storesItems(books.records)) throw new StepRefused('These books keep their rows the way older versions of Kuna did, so they keep no labels. Propose move-to-items first.')
-      const ids = (field['advances'] as readonly { readonly advance: string }[]).map(({ advance }) => heldOf(advances(), 'advance', (held) => held.id === idOf(advance)).id)
+      const ids = (field['advances'] as readonly string[]).map((advance) => heldOf(advances(), 'advance', (held) => held.id === idOf(advance)).id)
       labelPackRecords(unit, books.records, new Set(ids), label, operation === 'label-advances')
       return
     }

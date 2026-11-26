@@ -516,6 +516,32 @@ describe('a rule card', () => {
   })
 })
 
+describe("a rule's labels", () => {
+  it('puts every label it names on a rule, keeps them on null, and takes them all off with an empty list', async () => {
+    const desk = await spendingDesk(used)
+    const label = EXAMPLE_RECORDS['label']!
+    const held = new Set(bookOf(desk).rules.map((each) => each.id))
+    await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-rule', {
+        conditions: [{ test: 'payee_contains', values: ['Nobody at all'], not: false }],
+        category: desk.ref('category', categoryNamed(desk, 'Rent').id),
+        labels: [desk.ref('label', label)],
+      }),
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    const rule = bookOf(desk).rules.find((each) => !held.has(each.id))!
+    expect(rule.labels).toEqual([label])
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-rule', { rule: desk.ref('rule', rule.id), stop: 'yes' })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).rules.find((each) => each.id === rule.id)!.labels).toEqual([label])
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-rule', { rule: desk.ref('rule', rule.id), labels: [] })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).rules.find((each) => each.id === rule.id)!.labels).toEqual([])
+  })
+})
+
 describe('a rule whose rows are for an asset', () => {
   it('names the asset by its name in Assets, so each row it files links to it whole', async () => {
     const car: LinkTarget = { kind: 'asset', link: { app: 'assets', kind: 'asset', key: 'made-up-car', due: null }, name: 'Family car', assetKind: 'car', bought: null }

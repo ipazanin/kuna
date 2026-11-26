@@ -669,7 +669,7 @@ describe('what the write check refuses for the chat as for the screens', () => {
         amount: 20,
         description: 'Parking at the client',
         category: desk.ref(CATEGORY_RECORDS.name, 'travel'),
-        paidBackBy: [{ item: desk.ref(ITEM_RECORDS.name, item) }],
+        paidBackBy: [desk.ref(ITEM_RECORDS.name, item)],
       })
 
     const taken = await desk.propose([add(recordIdOf(ITEM_RECORDS, train.rowId!))])

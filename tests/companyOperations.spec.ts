@@ -195,7 +195,7 @@ describe('rules', () => {
     name: null,
     on: null,
     before: null,
-    label: null,
+    labels: [],
     ...conditionsLeft,
     confidence: null,
     note: null,
@@ -205,7 +205,7 @@ describe('rules', () => {
     rule: desk.ref(RULE_RECORDS.name, id),
     name: null,
     category: null,
-    label: null,
+    labels: null,
     on: null,
     before: null,
     last: null,
@@ -232,18 +232,22 @@ describe('rules', () => {
   it('puts the label it takes on the waiting rows the rule settles, and on the rule', async () => {
     const desk = await labelledDesk()
     const berlin = desk.store.state.workbook!.labels[0]!
-    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'MARKET', label: desk.ref(LABEL_RECORDS.name, berlin.id) }) }])
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'MARKET', labels: [desk.ref(LABEL_RECORDS.name, berlin.id)] }) }])
     await desk.accept()
     expect(storedRule(desk, 'office-market').labels).toEqual([berlin.id])
     expect(storedItemsOfRow(desk.store.state.records!.items, desk.row('REF-8')).map((item) => item.labels)).toEqual([[berlin.id]])
   })
 
-  it('takes a label in place of the labels of a rule it changes, and refuses one on books from before items', async () => {
+  it('takes labels in place of the labels of a rule it changes, takes them all off with an empty list, and refuses one on books from before items', async () => {
     const labelled = await labelledDesk()
     const berlin = labelled.store.state.workbook!.labels[0]!
-    await labelled.propose([{ op: 'change-rule', input: changeRuleInput(labelled, 'merchant-model', { label: labelled.ref(LABEL_RECORDS.name, berlin.id) }) }])
+    await labelled.propose([{ op: 'change-rule', input: changeRuleInput(labelled, 'merchant-model', { labels: [labelled.ref(LABEL_RECORDS.name, berlin.id)] }) }])
     await labelled.accept()
     expect(storedRule(labelled, 'merchant-model').labels).toEqual([berlin.id])
+
+    await labelled.propose([{ op: 'change-rule', input: changeRuleInput(labelled, 'merchant-model', { labels: [] }) }])
+    await labelled.accept()
+    expect(storedRule(labelled, 'merchant-model').labels).toBeUndefined()
 
     const before = await companyDesk(
       used,
@@ -255,7 +259,7 @@ describe('rules', () => {
         ],
       },
     )
-    const answer = await before.propose([{ op: 'add-rule', input: ruleInput(before, { payeeWords: 'MARKET', label: before.ref(LABEL_RECORDS.name, before.store.state.workbook!.labels[0]!.id) }) }])
+    const answer = await before.propose([{ op: 'add-rule', input: ruleInput(before, { payeeWords: 'MARKET', labels: [before.ref(LABEL_RECORDS.name, before.store.state.workbook!.labels[0]!.id)] }) }])
     expect(answer.isError).toBe(true)
   })
 

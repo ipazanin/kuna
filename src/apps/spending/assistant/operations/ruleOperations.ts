@@ -13,49 +13,57 @@ import { payeeCondition, ruleProblem } from '../../workbook/domain/spendingRule'
 import type { RuleDraft, RuleWithdrawal, SpendingRule } from '../../workbook/domain/spendingRule'
 import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
+import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+
+const LABELS: StrictSchema = { type: 'array', items: TEXT, description: 'Every label it puts on the rows it files, each by its ref, an empty list for none.' }
+const LABELS_OR_NULL: StrictSchema = {
+  type: ['array', 'null'],
+  items: TEXT,
+  description: 'Every label it puts on the rows it files in place of its own, each by its ref, an empty list for none, or null to keep them.',
+}
 
 /** What Rules does: add, change, move and delete a rule. */
 export const RULE_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
-    about: `A rule that files rows into a category, adds a label, or both, tried after the rules there are. A row's payee or IBAN by its ref makes the one condition, else ${CONDITIONS_ABOUT} An alias of a person in values covers every way they were written. stop yes ends the trying for a row it holds for. On Accept the person picks whether rows already in the book follow. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency. pays names a bank loan as Loans lists it: each row is then linked to the instalment it pays and split into its interest under the category and its principal under Loan principal. pays may instead name an asset as Assets lists it: each row is then linked to it whole and keeps the category.`,
+    about: `A rule that files rows into a category, adds labels, or both, tried after the rules there are. A row's payee or IBAN by its ref makes the one condition, else ${CONDITIONS_ABOUT} An alias of a person in values covers every way they were written. stop yes ends the trying for a row it holds for. On Accept the person picks whether rows already in the book follow. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency. pays names a bank loan as Loans lists it: each row is then linked to the instalment it pays and split into its interest under the category and its principal under Loan principal. pays may instead name an asset as Assets lists it: each row is then linked to it whole and keeps the category.`,
     input: inputOf({
       row: TEXT_OR_NULL,
       conditions: RULE_CONDITIONS,
       category: TEXT_OR_NULL,
-      label: TEXT_OR_NULL,
+      labels: LABELS,
       stop: FLAG_OR_NULL,
       withdrawal: FLAG_OR_NULL,
       cash_account: TEXT_OR_NULL,
       pays: TEXT_OR_NULL,
     }),
-    refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name, label: LABEL_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
+    refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name, labels: LABEL_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
     spellings: ['conditions.values'],
     creates: null,
     alone: false,
-    example: { row: 'transaction', conditions: [], category: 'category', label: null, stop: null, withdrawal: null, cash_account: null, pays: null },
+    example: { row: 'transaction', conditions: [], category: 'category', labels: [], stop: null, withdrawal: null, cash_account: null, pays: null },
   },
   {
     name: 'change-rule',
     about:
-      'Fixes a rule: conditions in place of its own, or none to keep them, another category, a label in place of its labels, stop, whether it spots cash taken out, the cash account the cash goes to, or the bank loan its rows pay by its name in Loans or the asset they are for by its name in Assets, none for no link. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. On Accept the person picks whether rows already in the book follow.',
+      'Fixes a rule: conditions in place of its own, or none to keep them, another category, labels in place of its own, stop, whether it spots cash taken out, the cash account the cash goes to, or the bank loan its rows pay by its name in Loans or the asset they are for by its name in Assets, none for no link. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. On Accept the person picks whether rows already in the book follow.',
     input: inputOf({
       rule: TEXT,
       conditions: RULE_CONDITIONS,
       category: TEXT_OR_NULL,
-      label: TEXT_OR_NULL,
+      labels: LABELS_OR_NULL,
       stop: FLAG_OR_NULL,
       withdrawal: FLAG_OR_NULL,
       cash_account: TEXT_OR_NULL,
       pays: TEXT_OR_NULL,
     }),
-    refs: { rule: RULE_RECORDS.name, category: CATEGORY_RECORDS.name, label: LABEL_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
+    refs: { rule: RULE_RECORDS.name, category: CATEGORY_RECORDS.name, labels: LABEL_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
     spellings: ['conditions.values'],
     creates: null,
     alone: false,
-    example: { rule: 'rule', conditions: [{ test: 'payee_starts_with', values: ['Market'], not: false }], category: null, label: null, stop: null, withdrawal: null, cash_account: null, pays: null },
+    example: { rule: 'rule', conditions: [{ test: 'payee_starts_with', values: ['Market'], not: false }], category: null, labels: null, stop: null, withdrawal: null, cash_account: null, pays: null },
   },
   {
     name: 'move-rule',
@@ -138,7 +146,7 @@ export function editRuleStep(
   assets: readonly LinkTarget[],
 ): void {
   const categoryOf = (value: unknown): RecordId => found(book.categories, idOf(value), 'category').id
-  const labelOf = (value: unknown): RecordId => found(book.labels, idOf(value), 'label').id
+  const labelsOf = (refs: readonly string[]): RecordId[] => [...new Set(refs.map((ref) => found(book.labels, idOf(ref), 'label').id))]
   const cashAccount = (): Account | null => (field['cash_account'] === null ? null : found(book.accounts, idOf(field['cash_account']), 'account'))
   switch (operation) {
     case 'add-rule': {
@@ -148,7 +156,7 @@ export function editRuleStep(
       const draft: RuleDraft = {
         conditions,
         category: field['category'] === null ? null : categoryOf(field['category']),
-        labels: field['label'] === null ? [] : [labelOf(field['label'])],
+        labels: labelsOf(field['labels']),
         stop: flagOf(field['stop'], false),
         withdrawal: withdrawalOf(field['withdrawal'], cashAccount(), null),
         link: paidLoanOf(loans, assets, field['pays'], null),
@@ -162,7 +170,7 @@ export function editRuleStep(
       const draft: RuleDraft = {
         conditions: typed.length === 0 ? rule.conditions : conditionsOfStep(field['conditions'], book.accounts),
         category: field['category'] === null ? rule.category : categoryOf(field['category']),
-        labels: field['label'] === null ? rule.labels : [labelOf(field['label'])],
+        labels: field['labels'] === null ? rule.labels : labelsOf(field['labels']),
         stop: flagOf(field['stop'], rule.stop),
         withdrawal: withdrawalOf(field['withdrawal'], cashAccount(), rule.withdrawal),
         link: paidLoanOf(loans, assets, field['pays'], rule.link),

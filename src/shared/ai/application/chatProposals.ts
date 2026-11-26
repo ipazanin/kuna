@@ -35,18 +35,21 @@ function restoredIn(value: unknown, pseudonyms: Pseudonyms): unknown {
 }
 
 /**
- * Puts the id in place of each ref at `path` of a record, one for each entry of a list at its end, and says whether every ref
- * was one Kuna handed out. A null stays. A list anywhere else on the path is refused.
+ * Puts the id in place of each ref at `path` of a record, and says whether every ref was one Kuna handed out. A list on the
+ * way or at the end is read entry by entry, so `parts.choices.labels` reaches each label of each part. A null stays.
  */
 function idsInPlace(record: Record<string, unknown>, path: readonly string[], idOf: (value: unknown) => string | null): boolean {
   const [name, ...inner] = path
   const held = record[name!]
   if (held === null || held === undefined) return true
-  if (inner.length > 0) return typeof held === 'object' && !Array.isArray(held) && idsInPlace(held as Record<string, unknown>, inner, idOf)
-  const ids = (Array.isArray(held) ? held : [held]).map(idOf)
-  if (ids.some((id) => id === null)) return false
-  record[name!] = Array.isArray(held) ? ids : ids[0]
-  return true
+  if (inner.length === 0) {
+    const ids = (Array.isArray(held) ? held : [held]).map(idOf)
+    if (ids.some((id) => id === null)) return false
+    record[name!] = Array.isArray(held) ? ids : ids[0]
+    return true
+  }
+  const objects: readonly unknown[] = Array.isArray(held) ? held : [held]
+  return objects.every((object) => object !== null && typeof object === 'object' && !Array.isArray(object) && idsInPlace(object as Record<string, unknown>, inner, idOf))
 }
 
 /** List items with each alias in the named list fields turned into every way the person was written, and the rest restored. */
@@ -71,8 +74,9 @@ function spelledItems(items: readonly unknown[], names: readonly string[], pseud
 /**
  * A step with refs turned into ids, attachment ids into the files, and aliases into what they stand for, so a model writes
  * `Person 3` and the record holds the name. A field the operation lists under `spellings` gets every way the person was
- * written, so a rule covers each, and so does a list field of a list's items named as `list.field`. A ref of a list's items
- * may sit in an object of the item or in a list, named as `list.object.field`. Or why not, in a sentence.
+ * written, so a rule covers each, and so does a list field of a list's items named as `list.field`. A field of refs holds one
+ * ref or a list of them, and a ref may sit in an object or in a list's items, named by its path such as `list.object.field`.
+ * Or why not, in a sentence.
  */
 function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['steps'][number], names: Set<string>, reads: ChatReads, attachments: readonly ChatAttachment[]): ProposalStep | string {
   const operation = proposer.operations.find((candidate) => candidate.name === step.op)
@@ -91,17 +95,13 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
   const resolved: Record<string, unknown> = {}
   for (const [field, value] of Object.entries(input)) {
     const kind = operation.refs[field]
-    const itemRefs = Object.entries(operation.refs).flatMap(([name, of]) => (name.startsWith(`${field}.`) ? [[name.slice(field.length + 1), of] as const] : []))
-    if (itemRefs.length > 0 && Array.isArray(value)) {
-      const items: unknown[] = []
-      for (const item of value as readonly Readonly<Record<string, unknown>>[]) {
-        const restored = restoredIn(item, reads.pseudonyms) as Record<string, unknown>
-        for (const [name, of] of itemRefs) {
-          if (!idsInPlace(restored, name.split('.'), (value) => idOf(value, of))) return notARef(`${field}.${name}`, of)
-        }
-        items.push(restored)
+    const innerRefs = Object.entries(operation.refs).filter(([name]) => name.startsWith(`${field}.`))
+    if (innerRefs.length > 0 && value !== null && typeof value === 'object') {
+      const held: Record<string, unknown> = { [field]: restoredIn(value, reads.pseudonyms) }
+      for (const [name, of] of innerRefs) {
+        if (!idsInPlace(held, name.split('.'), (ref) => idOf(ref, of))) return notARef(name, of)
       }
-      resolved[field] = items
+      resolved[field] = held[field]
     } else if (kind === undefined || value === null) {
       const spellings = typeof value === 'string' && operation.spellings?.includes(field) === true ? reads.pseudonyms.spellingsOf(value) : []
       const itemSpellings = (operation.spellings ?? []).flatMap((name) => (name.startsWith(`${field}.`) ? [name.slice(field.length + 1)] : []))
@@ -113,9 +113,9 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
       if (attachment === undefined) return `${operation.name}: ${field} is not the id of a file attached to this chat.`
       resolved[field] = attachment
     } else {
-      const id = idOf(value, kind)
-      if (id === null) return notARef(field, kind)
-      resolved[field] = id
+      const held: Record<string, unknown> = { [field]: value }
+      if (!idsInPlace(held, [field], (ref) => idOf(ref, kind))) return notARef(field, kind)
+      resolved[field] = held[field]
     }
   }
   if (step.as !== null) {

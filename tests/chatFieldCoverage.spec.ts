@@ -41,7 +41,7 @@ interface FieldSource {
 }
 
 const CONDITION_RENAMES = Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [`conditions.${field.column}`, field.name]))
-const SPENDING_RULE_RENAMES = { labels: 'label', 'withdrawal.cashAccount': 'cash_account', 'link.app': 'pays', 'link.kind': 'pays', 'link.key': 'pays', 'link.due': 'pays' }
+const SPENDING_RULE_RENAMES = { 'withdrawal.cashAccount': 'cash_account', 'link.app': 'pays', 'link.kind': 'pays', 'link.key': 'pays', 'link.due': 'pays' }
 const INVOICING_RENAMES = Object.fromEntries(['address', 'country', 'taxId', 'invoiceMail', 'mailLanguage', 'reverseCharge', 'lines'].map((field) => [`invoicing.${field}`, field]))
 /** An invoice's item and amount are its lines' texts and their total, which the chat gives as lines. */
 const INVOICE_RENAMES = { item: 'lines.text', amount: 'lines.amount', 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' }
@@ -146,8 +146,8 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/company/rules/domain/ruleDraft.ts#RuleDraft',
     columns: 'conditions',
     operations: [
-      { name: 'add-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
-      { name: 'change-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
+      { name: 'add-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
+      { name: 'change-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
     ],
   },
   {
@@ -155,8 +155,8 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/company/rules/domain/ruleDraft.ts#RuleDraft',
     columns: 'conditions',
     operations: [
-      { name: 'add-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
-      { name: 'change-rule', renames: { id: 'name', enabled: 'on', labels: 'label', ...CONDITION_RENAMES } },
+      { name: 'add-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
+      { name: 'change-rule', renames: { id: 'name', enabled: 'on', ...CONDITION_RENAMES } },
     ],
   },
   {
@@ -192,18 +192,12 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#writeOwnerAdvance',
     type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
-    operations: [
-      { name: 'add-owner-advance', renames: { labels: 'labels.label' } },
-      { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } },
-    ],
+    operations: ['add-owner-advance', { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } }],
   },
   {
     path: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#ownerAdvanceOfDraft',
     type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
-    operations: [
-      { name: 'add-owner-advance', renames: { labels: 'labels.label' } },
-      { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } },
-    ],
+    operations: ['add-owner-advance', { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } }],
   },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#ASSET_WRITES', operations: ['add-asset', 'change-asset'].map((name) => ({ name, renames: ASSET_RENAMES })) },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#GRANT_WRITES', operations: ['add-grant', 'change-grant'].map((name) => ({ name, renames: GRANT_RENAMES })) },

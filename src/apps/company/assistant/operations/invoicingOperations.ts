@@ -51,7 +51,7 @@ const REGISTER_LINES =
 
 const REGISTER_LINE = inputOf({ text: TEXT, amount: NUMBER, items: { type: 'array', items: TEXT } })
 
-const PAID_BY_ITEMS = { type: 'array', items: inputOf({ item: TEXT }) } as const satisfies StrictSchema
+const PAID_BY_ITEMS = { type: 'array', items: TEXT } as const satisfies StrictSchema
 
 const INVOICE_LINE = inputOf({ text: TEXT, items: { type: 'array', items: TEXT } })
 
@@ -74,7 +74,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
       periodTo: DAY_OR_NULL,
       paidBy: PAID_BY_ITEMS,
     }),
-    refs: { client: CLIENT_RECORDS.name, 'paidBy.item': ITEM_RECORDS.name },
+    refs: { client: CLIENT_RECORDS.name, paidBy: ITEM_RECORDS.name },
     creates: null,
     alone: false,
     example: {
@@ -103,7 +103,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
       paid: { type: 'string', enum: ['keep', 'set'] },
       paidBy: PAID_BY_ITEMS,
     }),
-    refs: { invoice: INVOICE_RECORDS.name, client: CLIENT_RECORDS.name, 'paidBy.item': ITEM_RECORDS.name },
+    refs: { invoice: INVOICE_RECORDS.name, client: CLIENT_RECORDS.name, paidBy: ITEM_RECORDS.name },
     creates: null,
     alone: false,
     example: {
@@ -281,18 +281,12 @@ function periodOf(from: string | null, to: string | null, kept: Invoice['deliver
  * item's money on offer for each item named, or null to leave them as they are, as a step that names none on a new invoice does.
  * Refused when one is not on offer or when the invoice is paid in full without one of them.
  */
-function chosenPayments(
-  books: CompanyBooks,
-  held: RecordId | null,
-  invoice: Invoice,
-  named: readonly { readonly item: string }[] | null,
-  idOf: (value: unknown) => string,
-): readonly PaymentChoice[] | null {
+function chosenPayments(books: CompanyBooks, held: RecordId | null, invoice: Invoice, named: readonly string[] | null, idOf: (value: unknown) => string): readonly PaymentChoice[] | null {
   if (named === null || (held === null && named.length === 0)) return null
   if (named.length > 0 && !storesItems(books.records)) throw new StepRefused('These books are from before items and match client payments to invoices by themselves, so paidBy is an empty list.')
   const choices = paymentChoices(presentedWorkbook(books.workbook), held, invoice.client)
   const items = new Set(
-    named.map(({ item }) => {
+    named.map((item) => {
       const id = idOf(item)
       if (!choices.some((choice) => choice.item === id))
         throw new StepRefused('Each paidBy item is a revenue credit that this invoice holds already, or that no invoice holds from its client or from an account no client names.')

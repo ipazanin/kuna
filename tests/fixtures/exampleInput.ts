@@ -21,13 +21,10 @@ export function exampleInput(operation: AssistantOperation, chat: RefsHandedOut,
     if (id === undefined) throw new Error(`The example of ${operation.name} names ${named}, which the spec's books do not hold.`)
     return chat.ref(kind, id)
   }
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      if (!Array.isArray(value)) return [field, refOf(operation.refs[field], value)]
-      const items = (value as readonly unknown[]).map((listed) =>
-        typeof listed === 'object' && listed !== null ? Object.fromEntries(Object.entries(listed).map(([name, held]) => [name, refOf(operation.refs[`${field}.${name}`], held)])) : listed,
-      )
-      return [field, items]
-    }),
-  )
+  const placed = (path: string, value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map((listed: unknown) => placed(path, listed))
+    if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([name, held]) => [name, placed(`${path}.${name}`, held)]))
+    return refOf(operation.refs[path], value)
+  }
+  return Object.fromEntries(Object.entries(operation.example).map(([field, value]) => [field, placed(field, value)]))
 }

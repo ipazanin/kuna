@@ -19,7 +19,7 @@ import { language } from '../../../../shared/text/language'
 const ENTRY_REFS = { 'entries.entry': TRANSACTION_RECORDS.name, 'entries.part': ITEM_RECORDS.name }
 const EVENT_RULES = ['on-its-day', 'out-of-events'] as const
 
-const LABELS: StrictSchema = { type: ['array', 'null'], items: inputOf({ label: TEXT }), description: 'Every label it carries, each by its ref, an empty list for none, or null to keep its own.' }
+const LABELS: StrictSchema = { type: ['array', 'null'], items: TEXT, description: 'Every label it carries, each by its ref, an empty list for none, or null to keep its own.' }
 const EVENT: StrictSchema = { type: ['string', 'null'], description: 'The ref of the event it is put in by hand, or null.' }
 const EVENT_RULE: StrictSchema = {
   type: ['string', 'null'],
@@ -28,7 +28,7 @@ const EVENT_RULE: StrictSchema = {
     'on-its-day puts it on the event its day gives it, out-of-events takes it out of every event, or null. With null in event and in eventRule it keeps its own, and a new one goes by its day.',
 }
 const SHARED_COST_FIELDS = { day: TEXT_OR_NULL, payee: TEXT_OR_NULL, category: TEXT_OR_NULL, labels: LABELS, event: EVENT, eventRule: EVENT_RULE, note: TEXT_OR_NULL }
-const SHARED_COST_REFS = { category: CATEGORY_RECORDS.name, 'labels.label': LABEL_RECORDS.name, event: EVENT_RECORDS.name }
+const SHARED_COST_REFS = { category: CATEGORY_RECORDS.name, labels: LABEL_RECORDS.name, event: EVENT_RECORDS.name }
 
 /** What the shared cost dialog and the selection on Entries do: add, change and delete a shared cost, and put entries in one or take them out. */
 export const SHARED_COST_OPERATIONS: readonly AssistantOperation[] = [
@@ -40,7 +40,7 @@ export const SHARED_COST_OPERATIONS: readonly AssistantOperation[] = [
     refs: SHARED_COST_REFS,
     creates: SHARED_COST_RECORDS.name,
     alone: false,
-    example: { day: '2026-11-20', payee: 'Ana', category: 'category', labels: [{ label: 'label' }], event: 'event', eventRule: null, note: 'Birthday gift' },
+    example: { day: '2026-11-20', payee: 'Ana', category: 'category', labels: ['label'], event: 'event', eventRule: null, note: 'Birthday gift' },
   },
   {
     name: 'change-shared-cost',
@@ -103,8 +103,7 @@ function draftOf(book: SpendingBook, field: Readonly<Record<string, never>>, idO
   const day = field['day'] === null ? held?.day : dayOf(field['day'])
   const category = field['category'] === null ? held?.category : found(book.categories, idOf(field['category']), 'category').id
   if (day === undefined || category === undefined) throw new StepRefused('A new shared cost needs its day and its category.')
-  const labels =
-    field['labels'] === null ? (held?.labels ?? []) : [...new Set((field['labels'] as readonly { readonly label: string }[]).map(({ label }) => found(book.labels, idOf(label), 'label').id))]
+  const labels = field['labels'] === null ? (held?.labels ?? []) : [...new Set((field['labels'] as readonly string[]).map((label) => found(book.labels, idOf(label), 'label').id))]
   return {
     day,
     payee: (field['payee'] as string | null) ?? held?.payee ?? '',

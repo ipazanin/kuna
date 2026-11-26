@@ -6,6 +6,7 @@ import { PROVIDER_PRESETS, presetOf } from '../src/shared/ai/domain/providerPres
 import { anthropicMessages } from '../src/shared/ai/infrastructure/anthropicMessages'
 import { openAiResponses } from '../src/shared/ai/infrastructure/openAiResponses'
 import { openRouterChat } from '../src/shared/ai/infrastructure/openRouterChat'
+import { APP_OPERATIONS } from './fixtures/appOperations'
 
 type Schema = Readonly<Record<string, unknown>>
 
@@ -97,6 +98,15 @@ function schemaProblems(schema: Schema): readonly string[] {
     if (values.some((value) => value !== null && !['string', 'number', 'boolean'].includes(typeof value))) problems.push('an enum holds a value that is not a string, a number, a boolean or null')
     return problems
   })
+}
+
+/** Whether a schema holds a field at the path, reading a list as its items, as the chat finds a ref there. */
+function holdsPath(schema: Schema, path: readonly string[]): boolean {
+  if (schema['items'] !== undefined) return holdsPath(schema['items'] as Schema, path)
+  const [name, ...inner] = path
+  if (name === undefined) return true
+  const property = ((schema['properties'] ?? {}) as Readonly<Record<string, Schema>>)[name]
+  return property !== undefined && holdsPath(property, inner)
 }
 
 /** What OpenAI's strict mode caps in one schema: 10 levels of objects, 5000 properties, 1000 enum values, and 120,000 characters of property names and enum values. */
@@ -191,6 +201,18 @@ describe('the chat’s tools in each AI company’s strict mode', () => {
       (await sentRequest(openRouterChat(presetOf('openrouter').baseUrl, 'made-up-key', model), tools)).headers['x-anthropic-beta']
     expect(await headerWith(CHAT_TOOLS)).toBe(model.id.startsWith('anthropic/') ? 'structured-outputs-2025-11-13' : undefined)
     expect(await headerWith(CHAT_TOOLS.map((tool) => ({ ...tool, strict: false })))).toBeUndefined()
+  })
+
+  // A model writes each step's input as a JSON string, which Kuna checks against the operation's schema as strict mode would.
+  it.each([...APP_OPERATIONS])("keeps each operation's input of %s in the strict subset, with each ref at a field the input holds", (_app, operations) => {
+    for (const operation of operations) {
+      const input = operation.input as unknown as Schema
+      expect(schemaProblems(input), operation.name).toEqual([])
+      expect(
+        Object.keys(operation.refs).filter((path) => !holdsPath(input, path.split('.'))),
+        operation.name,
+      ).toEqual([])
+    }
   })
 
   it('would have stopped the request Anthropic refused, with every tool strict', async () => {

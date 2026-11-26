@@ -229,7 +229,7 @@ describe('the payments that pay an invoice', () => {
   it('takes the payments off an invoice on a card that names the invoice each item comes off, and places them again', async () => {
     const company = await desk()
     const { invoice, paying } = paidInvoice(company)
-    const change = (paidBy: readonly { item: string }[]) => stepOf(INVOICING_OPERATIONS.operations, 'change-invoice', { invoice: company.ref('invoice', invoice.id), paid: 'set', paidBy })
+    const change = (paidBy: readonly string[]) => stepOf(INVOICING_OPERATIONS.operations, 'change-invoice', { invoice: company.ref('invoice', invoice.id), paid: 'set', paidBy })
 
     const answer = await company.propose([change([])])
 
@@ -239,7 +239,7 @@ describe('the payments that pay an invoice', () => {
     expect((await company.accept()).kind).toBe('done')
     expect(recordsOf(company.store.state.records!.items).filter((item) => item.invoice === invoice.id)).toEqual([])
 
-    const again = await company.propose([change(paying.map((item) => ({ item: company.ref('item', item.id) })))])
+    const again = await company.propose([change(paying.map((item) => company.ref('item', item.id)))])
 
     expect(again.isError, again.text).toBe(false)
     expect((await company.accept()).kind).toBe('done')
@@ -256,7 +256,7 @@ describe('the payments that pay an invoice', () => {
     const cost = recordsOf(company.store.state.records!.items).find((item) => item.amount < 0)!
 
     const answer = await company.propose([
-      stepOf(INVOICING_OPERATIONS.operations, 'change-invoice', { invoice: company.ref('invoice', invoice.id), paid: 'set', paidBy: [{ item: company.ref('item', cost.id) }] }),
+      stepOf(INVOICING_OPERATIONS.operations, 'change-invoice', { invoice: company.ref('invoice', invoice.id), paid: 'set', paidBy: [company.ref('item', cost.id)] }),
     ])
 
     expect(answer.isError).toBe(true)

@@ -439,11 +439,74 @@ describe('a proposal of another app', () => {
       expect(parts).toBeUndefined()
     })
 
-    it('refuses a list on the way to a ref, which it cannot say which entry of it names', async () => {
-      const { answer, parts } = await proposed(operationWith({ type: 'array', items: object({ labels: LABELS, event: EVENT }) }), [{ choices: [{ labels: null, event: refOf('event', 'wedding') }] }])
+    it('puts the id in place of each ref through a list on the way, entry by entry', async () => {
+      const { answer, parts } = await proposed(operationWith({ type: 'array', items: object({ labels: LABELS, event: EVENT }) }), [
+        {
+          choices: [
+            { labels: [refOf('label', 'trip')], event: refOf('event', 'wedding') },
+            { labels: null, event: null },
+          ],
+        },
+      ])
+      expect(answer.isError, answer.text).toBe(false)
+      expect(parts).toEqual([
+        {
+          choices: [
+            { labels: ['trip'], event: 'wedding' },
+            { labels: null, event: null },
+          ],
+        },
+      ])
+    })
+  })
+
+  describe('with refs in a top-level list or a nested object', () => {
+    const object = (properties: Readonly<Record<string, StrictSchema>>): StrictSchema => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false })
+    const FILE_COST: AssistantOperation = {
+      name: 'file-cost',
+      about: 'Files a cost.',
+      input: object({ labels: { type: ['array', 'null'], items: { type: 'string' } }, filing: object({ category: { type: 'string' }, place: object({ event: { type: ['string', 'null'] } }) }) }),
+      refs: { labels: 'label', 'filing.category': 'category', 'filing.place.event': 'event' },
+      creates: null,
+      alone: false,
+      example: { labels: [], filing: { category: 'category', place: { event: null } } },
+    }
+    const refOf = (kind: string, id: string) => reads.refs.recordRef({ app: 'kuna', kind, id })
+
+    async function proposed(input: unknown) {
+      const seen: ProposalStep[][] = []
+      const answer = await proposeChanges(
+        { app: 'kuna', title: 'File', steps: [{ op: FILE_COST.name, input: JSON.stringify(input), as: null }], next: false },
+        new Map([['kuna', { ...stubProposer(false, seen), operations: [FILE_COST] }]]),
+        reads,
+        [],
+        () => undefined,
+      )
+      return { answer, input: seen[0]?.[0]?.input }
+    }
+
+    it('puts the id in place of each ref of a top-level list, and keeps an empty list and a null', async () => {
+      const filing = { category: refOf('category', 'travel'), place: { event: null } }
+      expect((await proposed({ labels: [refOf('label', 'trip'), refOf('label', 'flat')], filing })).input?.['labels']).toEqual(['trip', 'flat'])
+      expect((await proposed({ labels: [], filing })).input?.['labels']).toEqual([])
+      expect((await proposed({ labels: null, filing })).input?.['labels']).toBeNull()
+    })
+
+    it('refuses a top-level list that holds one value that is not a ref', async () => {
+      const { answer, input } = await proposed({ labels: [refOf('label', 'trip'), 'Trip'], filing: { category: refOf('category', 'travel'), place: { event: null } } })
       expect(answer.isError).toBe(true)
-      expect(answer.text).toMatch(/parts\.choices\.(labels|event) is not a ref/)
-      expect(parts).toBeUndefined()
+      expect(answer.text).toContain('file-cost: labels is not a ref Kuna handed out for a label')
+      expect(input).toBeUndefined()
+    })
+
+    it('puts the id in place of a ref at a path through nested objects, and refuses one that is not a ref', async () => {
+      const { answer, input } = await proposed({ labels: null, filing: { category: refOf('category', 'travel'), place: { event: refOf('event', 'wedding') } } })
+      expect(answer.isError, answer.text).toBe(false)
+      expect(input?.['filing']).toEqual({ category: 'travel', place: { event: 'wedding' } })
+
+      const refused = await proposed({ labels: null, filing: { category: refOf('category', 'travel'), place: { event: 'Wedding' } } })
+      expect(refused.answer.isError).toBe(true)
+      expect(refused.answer.text).toContain('filing.place.event is not a ref')
     })
   })
 
