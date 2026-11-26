@@ -38,8 +38,17 @@ export const NOT_FILE_ACTIONS = [
 
 const FILE_ACTION_NAMES = new Set<string>(FILE_ACTIONS)
 
-/** A top-level declaration of a file, as `src/a/b.ts#name`. */
+/**
+ * A top-level declaration of a file, as `src/a/b.ts#name`, or one member of a top-level constant object, as `src/a/b.ts#PORTS.save`, which
+ * code that reads only that member reaches without the rest of the object.
+ */
 type SymbolKey = string
+
+/** The top-level declaration a key names, without the member it may name. */
+function wholeOf(key: SymbolKey): SymbolKey {
+  const dot = key.indexOf('.', key.indexOf('#'))
+  return dot === -1 ? key : key.slice(0, dot)
+}
 
 export interface Script {
   readonly source: ts.SourceFile
@@ -75,20 +84,20 @@ export interface Site {
  */
 export type WritePath = string
 
-function sourceFiles(): string[] {
-  return readdirSync(join(ROOT, 'src'), { recursive: true, encoding: 'utf8' })
+function sourceFiles(root: string): string[] {
+  return readdirSync(join(root, 'src'), { recursive: true, encoding: 'utf8' })
     .filter((name) => /\.(ts|vue)$/.test(name) && !name.endsWith('.d.ts'))
     .map((name) => join('src', name))
 }
 
-function resolvedFile(directory: string, specifier: string): string {
+function resolvedFile(root: string, directory: string, specifier: string): string {
   const base = resolve(directory, specifier)
   const found = [base, `${base}.ts`, `${base}.vue`, join(base, 'index.ts')].find((candidate) => existsSync(candidate) && statSync(candidate).isFile())
-  return relative(ROOT, found ?? base)
+  return relative(root, found ?? base)
 }
 
-function moduleOf(file: string): Module {
-  const text = readFileSync(join(ROOT, file), 'utf8')
+function moduleOf(root: string, file: string): Module {
+  const text = readFileSync(join(root, file), 'utf8')
   const blocks = file.endsWith('.vue') ? parse(text, { filename: file }).descriptor : null
   const scripts: Script[] =
     blocks === null
@@ -101,7 +110,7 @@ function moduleOf(file: string): Module {
   const starExports: string[] = []
   const declarations = new Map<string, { node: ts.Node; script: Script }[]>()
   const declare = (name: string, node: ts.Node, script: Script) => declarations.set(name, [...(declarations.get(name) ?? []), { node, script }])
-  const fileOf = (specifier: string) => (specifier.startsWith('.') ? resolvedFile(dirname(join(ROOT, file)), specifier) : null)
+  const fileOf = (specifier: string) => (specifier.startsWith('.') ? resolvedFile(root, dirname(join(root, file)), specifier) : null)
   for (const script of scripts) {
     for (const statement of script.source.statements) {
       if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
@@ -130,6 +139,13 @@ function moduleOf(file: string): Module {
   scripts.forEach((script) => dynamicImports(script.source).forEach(({ local, specifier, name }) => imports.set(local, { file: fileOf(specifier), name })))
   const template = blocks?.template === null || blocks?.template === undefined ? null : { text: blocks.template.content, firstLine: blocks.template.loc.start.line }
   return { file, scripts, template, imports, reExports, starExports, declarations }
+}
+
+/** Whether a local takes what `await import('./x')` or `await Promise.all([import('./x'), ...])` loads. */
+function loadsModules(declaration: ts.VariableDeclaration): boolean {
+  const awaited = declaration.initializer !== undefined && ts.isAwaitExpression(declaration.initializer) ? declaration.initializer.expression : null
+  if (awaited === null || !ts.isCallExpression(awaited)) return false
+  return awaited.expression.kind === ts.SyntaxKind.ImportKeyword || awaited.expression.getText() === 'Promise.all'
 }
 
 /** Each name bound from an `import()`, as `const { a } = await import('./x')` or `const [{ a }, { b }] = await Promise.all([import('./x'), import('./y')])` bind them. */
@@ -189,8 +205,9 @@ export interface WriteGraph {
   writes(key: SymbolKey): boolean
 }
 
-export function writeGraph(): WriteGraph {
-  const modules = new Map(sourceFiles().map((file) => [file, moduleOf(file)]))
+/** The write graph of the `src` folder under a root, Kuna's own by default. */
+export function writeGraph(root: string = ROOT): WriteGraph {
+  const modules = new Map(sourceFiles(root).map((file) => [file, moduleOf(root, file)]))
   const declaredCache = new Map<string, SymbolKey | null>()
   const declaredAt = (file: string, name: string, seen: ReadonlySet<string> = new Set()): SymbolKey | null => {
     const asked = `${file}#${name}`
@@ -232,8 +249,9 @@ export function writeGraph(): WriteGraph {
   const namedIn = (module: Module, script: Script, node: ts.Node, into: Named = { symbols: [], fileActions: [], deviceWrites: [] }): Named => {
     const at = (inner: ts.Node) => `${module.file}:${script.firstLine + script.source.getLineAndCharacterOfPosition(inner.getStart(script.source)).line}`
     const visit = (inner: ts.Node): void => {
-      if (ts.isIdentifier(inner) && !isOnlyAName(inner)) {
-        const key = module.declarations.has(inner.text) ? `${module.file}#${inner.text}` : module.imports.has(inner.text) ? symbolOfImport(module, inner.text) : null
+      if (ts.isIdentifier(inner) && !isOnlyAName(inner) && !boundLocally(inner)) {
+        const whole = module.declarations.has(inner.text) ? `${module.file}#${inner.text}` : module.imports.has(inner.text) ? symbolOfImport(module, inner.text) : null
+        const key = whole === null ? null : memberRead(whole, inner)
         if (key !== null && !isWriteRulesRead(inner, key)) into.symbols.push({ key, at: at(inner), verb: writeRulesKeys.has(key) ? verbOf(inner) : null })
       }
       if (ts.isPropertyAccessExpression(inner) && ts.isCallExpression(inner.parent) && inner.parent.expression === inner) {
@@ -257,15 +275,36 @@ export function writeGraph(): WriteGraph {
     writeRulesKeys.has(key) &&
     !(ts.isCallExpression(identifier.parent) && identifier.parent.arguments.includes(identifier)) &&
     !(ts.isPropertyAssignment(identifier.parent) && identifier.parent.initializer === identifier)
+  const objectCache = new Map<SymbolKey, { readonly members: ReadonlyMap<string, ts.Node>; readonly script: Script } | null>()
+  const objectOf = (key: SymbolKey): { readonly members: ReadonlyMap<string, ts.Node>; readonly script: Script } | null => {
+    if (!objectCache.has(key)) {
+      const [file, name] = key.split('#') as [string, string]
+      const [declaration, ...others] = modules.get(file)?.declarations.get(name) ?? []
+      const members = declaration === undefined || others.length > 0 || writeRulesKeys.has(key) ? null : objectMembers(declaration.node)
+      objectCache.set(key, members === null ? null : { members, script: declaration!.script })
+    }
+    return objectCache.get(key)!
+  }
+  // `PORTS.save` reaches the one member, while `PORTS` handed on, spread or destructured reaches the whole object.
+  const memberRead = (whole: SymbolKey, identifier: ts.Identifier): SymbolKey => {
+    const access = identifier.parent
+    if (!ts.isPropertyAccessExpression(access) || access.expression !== identifier) return whole
+    return objectOf(whole)?.members.has(access.name.text) === true ? `${whole}.${access.name.text}` : whole
+  }
   const namedCache = new Map<SymbolKey, Named>()
   const named = (key: SymbolKey): Named => {
     const cached = namedCache.get(key)
     if (cached !== undefined) return cached
     const [file, name] = key.split('#') as [string, string]
-    const module = modules.get(file)!
+    const module = modules.get(file)
     const found: Named = { symbols: [], fileActions: [], deviceWrites: [] }
     namedCache.set(key, found)
-    module.declarations.get(name)?.forEach(({ node, script }) => namedIn(module, script, node, found))
+    if (module === undefined) return found
+    const whole = wholeOf(key)
+    const object = whole === key ? null : objectOf(whole)
+    const member = object?.members.get(key.slice(whole.length + 1))
+    if (object !== null && member !== undefined) namedIn(module, object.script, member, found)
+    else module.declarations.get(name)?.forEach(({ node, script }) => namedIn(module, script, node, found))
     return found
   }
   const writesCache = new Map<SymbolKey, boolean>()
@@ -320,6 +359,46 @@ function isOnlyAName(identifier: ts.Identifier): boolean {
   if ((ts.isPropertyAssignment(parent) || ts.isPropertySignature(parent) || ts.isMethodDeclaration(parent) || ts.isPropertyDeclaration(parent)) && parent.name === identifier) return true
   if ((ts.isVariableDeclaration(parent) || ts.isFunctionDeclaration(parent) || ts.isParameter(parent) || ts.isBindingElement(parent)) && parent.name === identifier) return true
   return ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isExportSpecifier(parent)
+}
+
+/** Each member of a constant an object literal makes, by name, or null for any other declaration. A spread in the object stays with the whole. */
+function objectMembers(declaration: ts.Node): ReadonlyMap<string, ts.Node> | null {
+  if (!ts.isVariableDeclaration(declaration) || declaration.initializer === undefined) return null
+  if (!ts.isVariableDeclarationList(declaration.parent) || (declaration.parent.flags & ts.NodeFlags.Const) === 0) return null
+  let literal: ts.Expression = declaration.initializer
+  while (ts.isAsExpression(literal) || ts.isSatisfiesExpression(literal) || ts.isParenthesizedExpression(literal)) literal = literal.expression
+  if (!ts.isObjectLiteralExpression(literal)) return null
+  return new Map(
+    literal.properties.flatMap((property) => (property.name !== undefined && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) ? [[property.name.text, property] as const] : [])),
+  )
+}
+
+/** Whether a name stands for a parameter or a local of a function or block around it, which hides a top-level declaration or import of that name. */
+function boundLocally(identifier: ts.Identifier): boolean {
+  const name = identifier.text
+  const binds = (binding: ts.BindingName): boolean => (ts.isIdentifier(binding) ? binding.text === name : binding.elements.some((element) => !ts.isOmittedExpression(element) && binds(element.name)))
+  // A name bound from an `import()` stands for what the module exports, which `dynamicImports` reads as an import.
+  const declaresIn = (list: ts.VariableDeclarationList) => list.declarations.some((declaration) => binds(declaration.name) && !loadsModules(declaration))
+  for (let scope = identifier.parent; !ts.isSourceFile(scope); scope = scope.parent) {
+    if (ts.isFunctionLike(scope) && scope.parameters.some((parameter) => binds(parameter.name))) return true
+    if ((ts.isFunctionExpression(scope) || ts.isClassExpression(scope)) && scope.name?.text === name) return true
+    if (ts.isCatchClause(scope) && scope.variableDeclaration !== undefined && binds(scope.variableDeclaration.name)) return true
+    if (
+      (ts.isForStatement(scope) || ts.isForOfStatement(scope) || ts.isForInStatement(scope)) &&
+      scope.initializer !== undefined &&
+      ts.isVariableDeclarationList(scope.initializer) &&
+      declaresIn(scope.initializer)
+    )
+      return true
+    if (ts.isBlock(scope) || ts.isCaseClause(scope) || ts.isDefaultClause(scope)) {
+      const declared = scope.statements.some(
+        (statement) =>
+          (ts.isVariableStatement(statement) && declaresIn(statement.declarationList)) || ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name?.text === name),
+      )
+      if (declared) return true
+    }
+  }
+  return false
 }
 
 /** The verb of `unit.of(KIND_WRITES).add(...)`, or null when the kind's writes are handed on whole. */
@@ -546,7 +625,7 @@ function wiredNames(graph: WriteGraph, module: Module, script: Script, node: ts.
     found.fileActions.push(...named.fileActions)
   })
   const visit = (inner: ts.Node): void => {
-    if (ts.isIdentifier(inner) && !isOnlyAName(inner) && !module.declarations.has(inner.text) && !module.imports.has(inner.text)) {
+    if (ts.isIdentifier(inner) && !isOnlyAName(inner) && (boundLocally(inner) || (!module.declarations.has(inner.text) && !module.imports.has(inner.text)))) {
       const local = localValue(inner)
       if (local !== null && !seen.has(local)) {
         seen.add(local)
@@ -602,14 +681,22 @@ export function chatCovers(graph: WriteGraph, reaches: ReadonlyMap<string, ChatR
   return within.some((reach) => reachedBy(graph, reach, scoped?.[2] ?? path, new Set()))
 }
 
+/** The record kind and verb of a path such as `src/a.ts#ASSET_WRITES.add`, or null for a path that names no kind's verb. */
+function verbPathOf(graph: WriteGraph, path: string): { readonly kind: SymbolKey; readonly verb: string } | null {
+  const kind = wholeOf(path)
+  const verb = path.slice(kind.length + 1)
+  return kind !== path && graph.isWriteRules(kind) && VERBS.has(verb) ? { kind, verb } : null
+}
+
 function reachedBy(graph: WriteGraph, reach: ChatReach, path: string, seen: ReadonlySet<string>): boolean {
   if (path.startsWith('store.')) return reach.fileActions.has(path.slice('store.'.length))
-  const verb = /^(.*#[A-Z_]+)\.(add|change|remove)$/.exec(path)
+  const verb = verbPathOf(graph, path)
   if (verb !== null) {
-    const reached = reach.verbs.get(verb[1]!)
-    return reached !== undefined && (reached.has(verb[2]!) || reached.has('*'))
+    const reached = reach.verbs.get(verb.kind)
+    return reached !== undefined && (reached.has(verb.verb) || reached.has('*'))
   }
-  if (reach.symbols.has(path) || reach.verbs.has(path)) return seen.size === 0 || !reach.ranBySync.has(path)
+  const reached = [path, wholeOf(path)].find((key) => reach.symbols.has(key) || reach.verbs.has(key))
+  if (reached !== undefined) return seen.size === 0 || !reach.ranBySync.has(reached)
   if (seen.has(path) || graph.isWriteRules(path) || !graph.modules.has(path.split('#')[0]!)) return false
   const named = graph.named(path)
   const writing = named.symbols.filter((symbol) => symbol.key !== path && graph.writes(symbol.key))
@@ -620,7 +707,7 @@ function reachedBy(graph: WriteGraph, reach: ChatReach, path: string, seen: Read
 
 /** Whether a declaration is exported. One its file keeps to itself, such as a helper that sets a browser key, is that file's own way to write. */
 function isExported(graph: WriteGraph, key: SymbolKey): boolean {
-  const [file, name] = key.split('#') as [string, string]
+  const [file, name] = wholeOf(key).split('#') as [string, string]
   return (graph.modules.get(file)?.declarations.get(name) ?? []).some(({ node }) => {
     const statement = ts.isVariableDeclaration(node) ? node.parent.parent : node
     return ts.canHaveModifiers(statement) && (ts.getModifiers(statement) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
@@ -670,8 +757,8 @@ function screenReach(graph: WriteGraph): ScreenReach {
   const pending = [...screenWrites(graph).keys()].map((path) => /^[a-z-]+: (.*)$/.exec(path)?.[1] ?? path)
   while (pending.length > 0) {
     const path = pending.pop()!
-    const verb = /^(.*#[A-Z_]+)\.(add|change|remove)$/.exec(path)
-    if (verb !== null) addVerb(verb[1]!, verb[2]!)
+    const verb = verbPathOf(graph, path)
+    if (verb !== null) addVerb(verb.kind, verb.verb)
     else if (graph.isWriteRules(path)) addVerb(path, '*')
     else if (!symbols.has(path) && !path.startsWith('store.') && graph.modules.has(path.split('#')[0]!)) {
       symbols.add(path)
@@ -696,7 +783,7 @@ export function chatOnlyWrites(graph: WriteGraph, reaches: ReadonlyMap<string, C
     for (const key of reach.symbols) {
       const file = key.split('#')[0]!
       const ownWrite = !isOperationsFile(file) && !isScreenFile(file) && !reach.ranBySync.has(key) && !graph.isWriteRules(key) && graph.writes(key) && isExported(graph, key)
-      if (ownWrite && !screens.symbols.has(key)) found.push(`${app}: ${key}`)
+      if (ownWrite && !screens.symbols.has(key) && !screens.symbols.has(wholeOf(key))) found.push(`${app}: ${key}`)
     }
     for (const [kind, verbs] of reach.verbs) {
       const written = screens.verbs.get(kind)

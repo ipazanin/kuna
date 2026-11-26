@@ -194,11 +194,6 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
     operations: ['add-owner-advance', { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } }],
   },
-  {
-    path: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#ownerAdvanceOfDraft',
-    type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
-    operations: ['add-owner-advance', { name: 'change-owner-advance', renames: { labels: 'label-advances:label' } }],
-  },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#ASSET_WRITES', operations: ['add-asset', 'change-asset'].map((name) => ({ name, renames: ASSET_RENAMES })) },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#GRANT_WRITES', operations: ['add-grant', 'change-grant'].map((name) => ({ name, renames: GRANT_RENAMES })) },
   {
