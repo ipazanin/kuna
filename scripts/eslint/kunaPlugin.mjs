@@ -1,3 +1,5 @@
+import { relative } from 'node:path'
+
 import { DATE_PARAMETER, DATE_WORDS } from '../support/dateParameters.mjs'
 
 // Consumes the variants of a class, including arbitrary ones such as `[&_svg]:`, plus a leading ! or minus sign. The
@@ -105,6 +107,101 @@ const pickerMinWidths = {
       },
     }
     return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, {}) ?? {}
+  },
+}
+
+const plainSelect = /^(?:USelect|USelectMenu|u-select|u-select-menu)$/
+const formField = /^(?:UFormField|u-form-field)$/
+const notSetKey = /^(?:notSet|none|no[A-Z]\w*)$/
+
+/** The attribute of an element by its name, written plain or bound. */
+function attributeOf(element, name) {
+  return element.startTag.attributes.find((attribute) => (attribute.directive ? attribute.key.name.name === 'bind' && attribute.key.argument?.name === name : attribute.key.name === name))
+}
+
+/** The v-model or :model-value a select is bound by. */
+const modelOf = (element) =>
+  element.startTag.attributes.find(
+    (attribute) => attribute.directive && (attribute.key.name.name === 'model' ? attribute.key.argument === null : ['modelValue', 'model-value'].includes(attribute.key.argument?.name)),
+  )
+
+/** The nearest UFormField around an element, which shows the field's error when the select itself has none. */
+function enclosingFormField(element) {
+  for (let parent = element.parent; parent !== null && parent !== undefined; parent = parent.parent) {
+    if (parent.type === 'VElement' && formField.test(parent.rawName)) return parent
+  }
+  return null
+}
+
+/** The first choice of a list of items, or of its first group. */
+function firstChoice(list) {
+  const first = list.elements[0]
+  return first?.type === 'ArrayExpression' ? firstChoice(first) : first
+}
+
+/** The value of a plain property of an object literal. */
+const propertyOf = (object, name) => object.properties.find((property) => property.type === 'Property' && !property.computed && property.key.name === name)?.value
+
+/** Whether a select shows an error itself, through error, a bound colour or highlight, or through the UFormField around it. */
+function showsError(element) {
+  if (['error', 'color', 'highlight'].some((name) => attributeOf(element, name)?.directive)) return true
+  const field = enclosingFormField(element)
+  return field !== null && attributeOf(field, 'error') !== undefined
+}
+
+/**
+ * A select whose field may stay empty, written without OptionalSelect: a plain select with a clear button, a single bound select
+ * with a placeholder and no error to show, or a list whose first choice is a hand-made Not set row. Each keeps its first pick
+ * for good, since only OptionalSelect gives the cross and the row for empty together. A deliberate one sits in `allowed`, by
+ * file and by its data-testid, its v-model or its row's words, with the reason it may stay.
+ */
+const optionalSelects = {
+  meta: { type: 'problem', schema: [{ type: 'object', properties: { allowed: { type: 'object' } }, additionalProperties: false }] },
+  create(context) {
+    const file = relative(context.cwd, context.filename)
+    const allowed = context.options[0]?.allowed?.[file] ?? {}
+    const report = (node, name, message) => {
+      if (name === null || allowed[name] === undefined)
+        context.report({ node, message: name === null ? message : `${message} If it is deliberate, allow "${name}" in eslint.config.js with its reason.` })
+    }
+    const nameOf = (element) => {
+      const testid = attributeOf(element, 'data-testid')
+      if (testid !== undefined && !testid.directive) return testid.value?.value ?? ''
+      return context.sourceCode.getText(modelOf(element).value.expression)
+    }
+    const templateVisitors = {
+      VElement(element) {
+        if (!plainSelect.test(element.rawName)) return
+        const clear = attributeOf(element, 'clear')
+        if (clear !== undefined) {
+          report(clear, null, 'A select whose field may stay empty is an OptionalSelect, which gives it the cross and the row for empty together.')
+          return
+        }
+        if (attributeOf(element, 'placeholder') === undefined || attributeOf(element, 'multiple') !== undefined || modelOf(element) === undefined) return
+        if (showsError(element)) return
+        report(
+          element.startTag,
+          nameOf(element),
+          'A select with a placeholder and no error to show lets its field stay empty, but has no way back to empty once picked. Make it an OptionalSelect, or show an error while it is empty.',
+        )
+      },
+    }
+    const rowVisitors = {
+      ArrayExpression(list) {
+        if (list.parent?.type === 'ArrayExpression' && list.parent.elements[0] === list) return
+        const first = firstChoice(list)
+        if (first?.type !== 'ObjectExpression' || propertyOf(first, 'value') === undefined) return
+        const label = propertyOf(first, 'label')
+        const key = label?.type === 'MemberExpression' ? label.property.name : label?.type === 'Identifier' ? label.name : null
+        if (key === null || key === undefined || !notSetKey.test(key)) return
+        report(
+          first,
+          context.sourceCode.getText(label),
+          'A list that starts with a row for empty is an OptionalSelect, which gives the row and the cross together and clears the field to blank, never to a stand-in value.',
+        )
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.({ ...templateVisitors, ...rowVisitors }, rowVisitors) ?? rowVisitors
   },
 }
 
@@ -374,13 +471,7 @@ export const kunaPlugin = {
       ],
       "A row of a list that opens a page is a ListRow with to, which draws its arrow on the title's line.",
     ),
-    'optional-selects': refusedSyntax(
-      [
-        "VElement[rawName=/^(?:USelect|USelectMenu|u-select|u-select-menu)$/] > VStartTag > VAttribute[directive=false][key.name='clear']",
-        "VElement[rawName=/^(?:USelect|USelectMenu|u-select|u-select-menu)$/] > VStartTag > VAttribute[directive=true][key.argument.name='clear']",
-      ],
-      'A select whose field may stay empty is an OptionalSelect, which gives it the cross and the row for empty together.',
-    ),
+    'optional-selects': optionalSelects,
     'record-rows': refusedSyntax(
       ["VElement[name='tr'] VElement[name='th']:has(VAttribute[directive=false][key.name='scope'][value.value='row']) VElement[rawName=/^(?:DrillLink|drill-link|RouterLink|router-link)$/]"],
       "A table row that stands for a record is a RecordRow, which opens the record from anywhere on the row. A link in a row's heading cell names the row's record.",

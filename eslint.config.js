@@ -106,6 +106,25 @@ const cutSelectTriggers = [
   'src/apps/spending/statements/presentation/RuleDialog.vue',
 ]
 
+// Selects kuna/optional-selects finds that may stay as they are, each with its reason. Keyed by file, then by the select's
+// data-testid, its v-model or its first row's words. tests/optionalSelectsLint.spec.ts fails on an entry the rule no longer finds.
+export const optionalSelectsAllowed = {
+  'src/apps/company/imports/presentation/ImportPanel.vue': { 'recipe-choice': 'An import reads with one saved recipe, and Write a recipe starts a new one.' },
+  'src/apps/company/settings/presentation/FactTabEditor.vue': {
+    "draft.fields[column.name] ?? ''": 'A column with no blank label must hold a value, and the reasons under the row name it while empty.',
+  },
+  'src/apps/company/transactions/presentation/TransactionsScreen.vue': { 'words.groupings.none': 'No grouping is a real way to show the rows.' },
+  'src/apps/investments/performance/presentation/PeriodPanel.vue': { 'performance-year': 'It picks the period on view, and the period buttons beside it leave the year.' },
+  'src/apps/loans/bankLoans/presentation/WhatIfPanel.vue': { 'what-if-due': 'A try-out needs a due to start from and saves nothing.' },
+  'src/apps/spending/entries/presentation/EntrySplitDialog.vue': { 'split-part-category': "SplitEditor shows the part's missing category from categoryError." },
+  'src/apps/spending/links/presentation/EntryLinkField.vue': { 'spending-entry-link-target': 'It picks what the Link button links, not a field the entry keeps.' },
+  'src/apps/spending/payees/presentation/CountsUnderField.vue': { 'counts-under-pick': "Picking the entry's payee, first on the list, sets it back to blank." },
+  'src/apps/spending/receipts/presentation/ReceiptDialog.vue': { 'spending-receipt-line-category': "SplitEditor shows the line's missing category from categoryError." },
+  'src/apps/spending/statements/presentation/ReviewPanel.vue': { 'spending-review-file-picked': 'Picking files the picked rows at once and keeps nothing.' },
+  'src/apps/spending/statements/presentation/RuleDialog.vue': { 'words.rules.dialog.noCategory': 'No category is a real choice for a rule that only labels, apart from the blank the dialog refuses.' },
+  'src/shell/gallery/SplitEditorSpecimens.vue': { 'field.category': "A specimen of SplitEditor's category slot, whose editor shows the missing category." },
+}
+
 // Tailwind only knows the classes of its entry point, so a class a stylesheet declares is known where that stylesheet
 // applies: app.css and a :deep() or :slotted() selector everywhere, the rest of a scoped style block in its own
 // component. The browser checks find charts by chart-body, which no stylesheet declares.
@@ -274,7 +293,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     { name: 'kuna/link-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/link-rows': 'error' } },
-    { name: 'kuna/optional-selects', files: ['src/**/*.vue'], ignores: ['src/shared/ui/OptionalSelect.vue'], rules: { 'kuna/optional-selects': 'error' } },
+    { name: 'kuna/optional-selects', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/ui/OptionalSelect.vue'], rules: { 'kuna/optional-selects': ['error', { allowed: optionalSelectsAllowed }] } },
     { name: 'kuna/record-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/record-rows': 'error' } },
     { name: 'kuna/move-buttons', files: ['src/**/*.vue'], ignores: ['src/shared/ui/MoveButtons.vue'], rules: { 'kuna/move-buttons': 'error' } },
     { name: 'kuna/handover-alerts', files: ['src/**/*.vue'], ignores: ['src/shared/ui/SourceHandoverAlert.vue'], rules: { 'kuna/handover-alerts': 'error' } },
