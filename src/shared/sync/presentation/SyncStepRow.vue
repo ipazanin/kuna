@@ -4,6 +4,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import DrillLink from '../../ui/DrillLink.vue'
+import { TONE_ICONS } from '../../ui/toneText'
 import type { RunStep, StepLink, StepState } from '../application/syncRun'
 import { words as syncWords } from '../application/words'
 import { usePageSync } from './pageSync'
@@ -31,9 +32,9 @@ const ICONS: Readonly<Record<StepState['kind'], { readonly name: string; readonl
   queued: { name: 'i-lucide-circle-dashed', tone: 'text-muted' },
   running: { name: 'i-lucide-loader-circle', tone: 'text-muted animate-spin' },
   done: { name: 'i-lucide-check', tone: 'text-success' },
-  waits: { name: 'i-lucide-circle-alert', tone: 'text-warning' },
+  waits: { name: TONE_ICONS.warning, tone: 'text-warning' },
   'needs-access': { name: 'i-lucide-key-round', tone: 'text-warning' },
-  failed: { name: 'i-lucide-triangle-alert', tone: 'text-error' },
+  failed: { name: TONE_ICONS.error, tone: 'text-error' },
   skipped: { name: 'i-lucide-circle-slash', tone: 'text-muted' },
 }
 

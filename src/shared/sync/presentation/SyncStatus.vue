@@ -17,10 +17,11 @@ import SyncStepList from './SyncStepList.vue'
 import { words as appWords } from '../../app/words'
 import { words } from './words'
 import CutText from '../../ui/CutText.vue'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /**
  * The sync control: what the sync is doing, Sign in to Google or Allow access while the page lacks
- * a permission, the problems of the last sync, or how long ago it ran. A tap does what it says: it
+ * a permission, the problems of the last sync in red, the steps that wait for you in amber, or how long ago it ran. A tap does what it says: it
  * syncs, asks Google, or opens the steps, in a popover from 640 px and a bottom sheet on a phone.
  * A dot on the button says a file kept in this browser holds changes in no exported file.
  */
@@ -77,7 +78,13 @@ const asOfText = computed(() => {
   return synced.toDateString() === now.value.toDateString() ? words.asOfToday(timeOnly(synced)) : words.asOf(dayAndTime(synced))
 })
 
-const problemWords = computed(() => (props.control.kind === 'problems' ? plural(words.problems(props.control.count), props.control.count) : ''))
+/** What the button says after a sync that left something: its problems, or else what waits for you. */
+const leftWords = computed(() => {
+  const { control } = props
+  if (control.kind === 'problems') return plural(words.problems(control.count), control.count)
+  if (control.kind === 'waiting') return plural(words.waiting(control.count), control.count)
+  return ''
+})
 
 /** What the steps that need access lack, in a sentence, such as "Statements need your Drive read access". */
 const accessWords = computed(() => {
@@ -108,7 +115,8 @@ const label = computed(() => {
     case 'allow-access':
       return words.allowAccess
     case 'problems':
-      return problemWords.value
+    case 'waiting':
+      return leftWords.value
     case 'ready':
       return props.compact && !props.rail && syncedAt.value !== null ? syncAge(syncedAt.value, now.value) : words.sync
   }
@@ -127,7 +135,8 @@ const controlName = computed(() => {
     case 'allow-access':
       return words.allowAccessBecause(`${failureWords.value === null ? '' : `${failureWords.value} `}${accessWords.value}`)
     case 'problems':
-      return words.problemsInLastSync(problemWords.value)
+    case 'waiting':
+      return words.leftByLastSync(leftWords.value)
     case 'ready': {
       const synced = syncedAt.value
       return synced === null ? words.syncNotYet : words.syncedAgo(syncAge(synced, now.value), fullStamp(synced))
@@ -139,8 +148,18 @@ const ICONS: Readonly<Record<SyncControl['kind'], string>> = {
   running: 'i-lucide-refresh-cw',
   'sign-in': 'i-lucide-log-in',
   'allow-access': 'i-lucide-key-round',
-  problems: 'i-lucide-triangle-alert',
+  problems: TONE_ICONS.error,
+  waiting: TONE_ICONS.warning,
   ready: 'i-lucide-refresh-cw',
+}
+
+const LINE_TONES: Readonly<Record<SyncControl['kind'], string>> = {
+  running: 'type-caption',
+  'sign-in': 'type-caption',
+  'allow-access': 'type-caption',
+  problems: 'type-label text-error',
+  waiting: 'type-label text-warning',
+  ready: 'type-caption',
 }
 
 /** The line beside the sidebar's button, which a screen reader hears as it changes. */
@@ -155,6 +174,7 @@ const statusLine = computed(() => {
     case 'allow-access':
       return failureWords.value ?? accessWords.value
     case 'problems':
+    case 'waiting':
       return listed(words.lookAt(control.labels.length, listInWords([...control.labels])), control.labels.length)
     case 'ready':
       return asOfText.value
@@ -168,6 +188,7 @@ function tap(): void {
       emit('allow')
       return
     case 'problems':
+    case 'waiting':
       listOpen.value = true
       return
     case 'ready':
@@ -198,9 +219,9 @@ function syncAgain(): void {
     :data-control="control.kind"
   >
     <p v-if="compact" class="sr-only" role="status">
-      {{ saving ? appWords.saving : control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}
+      {{ saving ? appWords.saving : control.kind === 'ready' ? '' : name }}
     </p>
-    <p v-else class="w-full min-w-0" :class="control.kind === 'problems' ? 'type-label text-error' : 'type-caption'" role="status" data-testid="sync-line">
+    <p v-else class="w-full min-w-0" :class="LINE_TONES[control.kind]" role="status" data-testid="sync-line">
       <CutText v-if="control.kind === 'ready' || control.kind === 'running' || saving" class="block">
         <time v-if="control.kind === 'ready' && syncedAt && !saving" :datetime="control.syncedAt ?? undefined" class="figure">{{ statusLine }}</time>
         <template v-else>{{ statusLine }}</template>
@@ -223,14 +244,14 @@ function syncAgain(): void {
           'top-bar-action': compact && !rail,
           'has-reminder': exportReminder !== null,
           'text-error': control.kind === 'problems',
-          'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in',
+          'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in' || control.kind === 'waiting',
         }"
         data-testid="sync-button"
         @click="tap"
       />
     </UTooltip>
     <UButton
-      v-if="!compact && run !== null && control.kind !== 'running' && control.kind !== 'problems'"
+      v-if="!compact && run !== null && control.kind !== 'running' && control.kind !== 'problems' && control.kind !== 'waiting'"
       icon="i-lucide-list-checks"
       :aria-label="words.lastSyncSteps"
       color="neutral"

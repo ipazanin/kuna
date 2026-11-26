@@ -31,7 +31,7 @@
  * on a card, accepted and undone, and a sale over the units held refused, a text note beside a photo refused on the chat's
  * prompt, a salary figure's build-up read with Anonymise off and refused with nothing sent once Anonymise is on again, a chat left empty by Sign out on Kuna settings
  * and by Company's last file on Drive kept in this browser in its place,
- * a statement filed on Sync from the fake bank's mail with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
+ * a statement filed on Sync from the fake bank's mail with Undo in its step on Kuna settings and no toast, one held with 1 waiting in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
  * a save on the Mail card that asks for Gmail read in its own tap and syncs, Allow access whose Google window closed with why in what a screen reader hears,

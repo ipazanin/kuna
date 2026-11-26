@@ -4,14 +4,15 @@ import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
 import AppCard from '../../shared/ui/AppCard.vue'
 import GallerySection from './GallerySection.vue'
 
-/** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statement mail step filed a statement. */
+/** One of each state of the sync control, Allow access also after a closed popup, a step that failed and one that waits for you, over a last sync whose statement mail step held a statement and whose accountant step failed. */
 const SYNC_CONTROLS: readonly SyncControl[] = [
   { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
   { kind: 'running', label: 'Statement mail', position: 2, of: 3, line: 'Filing 3 rows' },
   { kind: 'sign-in', failure: null },
   { kind: 'allow-access', scopes: ['gmail.readonly'], labels: ['Statement mail'], failure: null },
   { kind: 'allow-access', scopes: ['gmail.readonly'], labels: ['Statement mail'], failure: "Google's window was closed before access was allowed." },
-  { kind: 'problems', count: 1, labels: ['Statement mail'] },
+  { kind: 'problems', count: 1, labels: ['Accountant'] },
+  { kind: 'waiting', count: 1, labels: ['Statement mail'] },
 ]
 
 const SYNC_RUN: SyncRun = {
@@ -29,6 +30,7 @@ const SYNC_RUN: SyncRun = {
           scopes: ['gmail.readonly'],
           state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/gallery' } },
         },
+        { id: 'accountant', label: 'Accountant', scopes: ['drive.file'], state: { kind: 'failed', line: 'The accountant folder could not be read.', link: null } },
       ],
     },
   ],

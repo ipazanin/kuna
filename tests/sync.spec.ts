@@ -269,7 +269,7 @@ describe('a sync', () => {
 
     expect(seen).toEqual({ kind: 'running', label: 'Statements', position: 2, of: 2, line: 'Filing 4 rows' })
     expect(stepsOf(harnessed.sync.state.run)[1]?.state).toMatchObject({ kind: 'waits', writeId: 3 })
-    expect(harnessed.control()).toEqual({ kind: 'problems', count: 1, labels: ['Statements'] })
+    expect(harnessed.control()).toEqual({ kind: 'waiting', count: 1, labels: ['Statements'] })
   })
 })
 

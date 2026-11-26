@@ -138,9 +138,12 @@ The sync control shows one of these, the first that applies:
   setting needs access. The tap asks Google for one token with every scope the settings need, as
   _Google sign-in_ describes, and syncs again. When the tap's popup gives no token, the line says
   why and that a tap tries again.
-- "1 problem", or the count, while a step failed or waits for you. The tap opens the steps of the
-  last sync, in a popover from 640 px and in a bottom sheet on a phone: each step's line, with Undo
-  or a link where the step left one, and "Sync again".
+- "1 problem", or the count, in red while a step failed. The tap opens the steps of the last sync,
+  in a popover from 640 px and in a bottom sheet on a phone: each step's line, with Undo or a link
+  where the step left one, and "Sync again". A step that waits for you shows in the same list with
+  its own amber mark.
+- "1 waiting", or the count, in amber while no step failed and a step waits for you, such as a
+  statement the sync held or a report that names a new instrument. The tap opens the same steps.
 - Otherwise how long ago the books were read, the oldest read among the files on Drive. The tap syncs.
 
 While no app has a file chosen the control is not shown. While no app keeps its file on Drive, the top bar shows the export of each file kept in this browser

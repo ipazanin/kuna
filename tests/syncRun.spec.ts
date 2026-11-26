@@ -219,16 +219,27 @@ describe('the sync control', () => {
     expect(syncControlOf(run, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: null })
   })
 
-  it('counts the steps that failed or wait for you as problems, and is ready otherwise', () => {
-    const waits: StepState = { kind: 'waits', line: '1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } }
-    const problems = finishedRun(
-      withStep(withStep(withStep(started(), 'company', 'books', DONE), 'company', 'statements', waits), 'company', 'accountant', { kind: 'failed', line: 'No folder.', link: null }),
-      FINISHED,
-    )
-    const clean = finishedRun(withStep(withStep(withStep(started(), 'company', 'books', DONE), 'company', 'statements', DONE), 'company', 'accountant', DONE), FINISHED)
+  describe('after a run that left steps for you', () => {
+    const WAITS: StepState = { kind: 'waits', line: '1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/company/transactions?tab=import' } }
+    const FAILED: StepState = { kind: 'failed', line: 'No folder.', link: null }
+    const ended = (statements: StepState, accountant: StepState) =>
+      finishedRun(withStep(withStep(withStep(started(), 'company', 'books', DONE), 'company', 'statements', statements), 'company', 'accountant', accountant), FINISHED)
 
-    expect(syncControlOf(problems, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'problems', count: 2, labels: ['Statements', 'Accountant'] })
-    expect(syncControlOf(clean, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'ready', syncedAt: FINISHED })
+    it('counts the steps that wait for you as waiting, not as problems', () => {
+      expect(syncControlOf(ended(WAITS, DONE), BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'waiting', count: 1, labels: ['Statements'] })
+    })
+
+    it('counts the steps that failed as problems', () => {
+      expect(syncControlOf(ended(DONE, FAILED), BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'problems', count: 1, labels: ['Accountant'] })
+    })
+
+    it('shows the problems when one step failed and another waits for you', () => {
+      expect(syncControlOf(ended(WAITS, FAILED), BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'problems', count: 1, labels: ['Accountant'] })
+    })
+
+    it('is ready when every step is done', () => {
+      expect(syncControlOf(ended(DONE, DONE), BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'ready', syncedAt: FINISHED })
+    })
   })
 
   it('shows a failed read of the books outside a run as the books step of a run', () => {

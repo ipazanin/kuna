@@ -2643,17 +2643,17 @@ export async function statementSyncFlow(page, { press, shoot }) {
 
 /**
  * With a statement of an account the accounts tab lacks in the bank's mail, Sync files the sample and
- * holds the other: the control says 1 problem, and its steps, in a popover from 640 px and a bottom
+ * holds the other: the control says 1 waiting, not a problem, and its steps, in a popover from 640 px and a bottom
  * sheet on a phone, link to Import, which offers to add the account. Overview lists the held
  * statement too. Named and confirmed on Import, the account is added and the statement filed.
  */
 export async function heldStatementFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
-  const control = await controlShows(page, 'problems')
-  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  const control = await controlShows(page, 'waiting')
+  if (control.label !== '1 waiting') throw new Error(`the sync control says "${control.label}", not 1 waiting`)
   await noToast(page, 'a sync that held a statement showed a toast')
-  await inspect?.('the sync control with a problem')
-  await shoot('sync-problem')
+  await inspect?.('the sync control with a step waiting for you')
+  await shoot('sync-waiting')
   await press(await syncButton(page))
   const said = await stepSays(page, '', 'mail', 'waits', /1 statement was not filed/)
   if (!FILED.test(said)) throw new Error(`the statements step does not say what it filed, it says: ${said}`)
@@ -2881,7 +2881,7 @@ export async function syncRunningFlow(page, { press, shoot, inspect }) {
 }
 
 /**
- * A held statement in a language: the sync control says 1 problem, its steps name the statement mail
+ * A held statement in a language: the sync control says 1 waiting, its steps name the statement mail
  * step and link to Import, which offers to add the account the statement names. Nothing is written.
  */
 export function heldStatementFlowIn(language) {
@@ -2889,7 +2889,7 @@ export function heldStatementFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await syncAndSettle(page, press)
-    await controlShows(page, 'problems')
+    await controlShows(page, 'waiting')
     await press(await syncButton(page))
     const held = countedIn(words, words.imports.step.held(1), 1)
     await stepSays(page, '', 'mail', 'waits', new RegExp(held.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
@@ -2979,10 +2979,10 @@ export function syncStatesFlowIn(language, stored = {}) {
     await inspect?.('the sync control once the sync is done')
     await shoot('sync-control')
     const control = await page.evaluate(() => [...document.querySelectorAll('[data-testid="sync-status"]')].find((element) => element.offsetParent !== null)?.dataset.control ?? '')
-    if (control === 'problems') {
+    if (control === 'problems' || control === 'waiting') {
       await press(await syncButton(page))
       await page.waitForSelector(`${SYNC_STEPS} [data-step]`, { visible: true, timeout: 10_000 }).catch(() => {
-        throw new Error('the sync control with problems did not open its steps')
+        throw new Error(`the sync control with ${control} did not open its steps`)
       })
       await delay(400)
       await inspect?.('the steps the sync control opens')

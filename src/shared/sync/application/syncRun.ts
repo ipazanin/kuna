@@ -163,14 +163,19 @@ export function stepsNeedingAccess(run: SyncRun | null): readonly RunStep[] {
   return stepsOf(run).filter((step) => step.state.kind === 'needs-access')
 }
 
-/** The steps that failed or wait for a person, which the control counts as problems. */
+/** The steps that failed, which the control counts as problems. */
 export function problemsOf(run: SyncRun | null): readonly RunStep[] {
-  return stepsOf(run).filter((step) => step.state.kind === 'failed' || step.state.kind === 'waits')
+  return stepsOf(run).filter((step) => step.state.kind === 'failed')
+}
+
+/** The steps that left something for a person, such as a held statement, which the control counts as waiting for you. */
+export function waitingOf(run: SyncRun | null): readonly RunStep[] {
+  return stepsOf(run).filter((step) => step.state.kind === 'waits')
 }
 
 /**
  * What the sync control shows: the step running with its place among the steps that are on, Sign in to Google when Google asks for that first, Allow access while
- * a step or a setting lacks its permission, the problems of the last run, or else ready with the time
+ * a step or a setting lacks its permission, the problems of the last run, the steps that wait for the person while none failed, or else ready with the time
  * of the last read. `failure` says why the last tap's ask to Google gave no token, such as a closed
  * popup, or is null.
  */
@@ -179,6 +184,7 @@ export type SyncControl =
   | { readonly kind: 'sign-in'; readonly failure: string | null }
   | { readonly kind: 'allow-access'; readonly scopes: readonly GoogleScope[]; readonly labels: readonly string[]; readonly failure: string | null }
   | { readonly kind: 'problems'; readonly count: number; readonly labels: readonly string[] }
+  | { readonly kind: 'waiting'; readonly count: number; readonly labels: readonly string[] }
   | { readonly kind: 'ready'; readonly syncedAt: string | null }
 
 /** How the books on Drive stand in their stores, which read them outside a run too, such as when a file is found. */
@@ -252,6 +258,10 @@ export function syncControlOf(run: SyncRun | null, books: BooksStanding, access:
   const problems = problemsOf(run)
   if (problems.length > 0) {
     return { kind: 'problems', count: problems.length, labels: problems.map((step) => step.label) }
+  }
+  const waiting = waitingOf(run)
+  if (waiting.length > 0) {
+    return { kind: 'waiting', count: waiting.length, labels: waiting.map((step) => step.label) }
   }
   return { kind: 'ready', syncedAt: books.syncedAt }
 }
