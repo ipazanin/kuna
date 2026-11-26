@@ -91,7 +91,7 @@ function remove(key: string): void {
       :items="filters.monthItems"
       size="sm"
       :aria-label="words.filters.month"
-      :class="filters.span === null ? 'w-44' : 'max-w-full min-w-44'"
+      :class="filters.span === null ? 'w-44' : 'max-w-full min-w-0 sm:min-w-44'"
       data-testid="spending-filter-month"
       @update:model-value="filters.pickMonth"
     />

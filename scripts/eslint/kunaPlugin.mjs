@@ -80,6 +80,34 @@ const moneyToneColours = {
   },
 }
 
+const selectOrPicker = /^(?:\w*Select(?:Menu)?|\w+Picker|u-select(?:-menu)?)$/
+const wideMinWidth = /^min-w-(?:(?:4\d|[5-9]\d|\d{3,})|xs|sm|md|lg|[2-7]?xl)$/
+
+/**
+ * A select or picker with a min-w of 10rem or more on every width. A phone row is narrower than that beside a label, so the
+ * floor sits behind sm: and the phone takes min-w-0, as ScenarioPicker's base select does.
+ */
+const pickerMinWidths = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const visitors = {
+      VElement(element) {
+        if (!selectOrPicker.test(element.rawName)) return
+        for (const attribute of element.startTag.attributes) {
+          const plain = !attribute.directive && attribute.key.name === 'class'
+          const bound = attribute.directive && attribute.key.name.name === 'bind' && attribute.key.argument?.name === 'class'
+          if (!plain && !bound) continue
+          const classes = plain ? [attribute.value?.value ?? ''] : boundClassStrings(attribute.value?.expression ?? null)
+          if (classes.some((names) => utilitiesOf(names).some(({ name, varied }) => !varied && wideMinWidth.test(name)))) {
+            context.report({ node: attribute, message: 'A select or picker keeps its min width from sm: up and takes min-w-0 on a phone, such as min-w-0 sm:min-w-48, so it fits a phone row.' })
+          }
+        }
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, {}) ?? {}
+  },
+}
+
 /** A type a worded date comes as: text, maybe missing, or no type at all where the builder's type gives it. */
 const isTextType = (annotation) =>
   annotation === undefined ||
@@ -269,6 +297,7 @@ export const kunaPlugin = {
     'shoot-at': shootAt,
     'date-parameters': dateParameters,
     'money-tone-colours': moneyToneColours,
+    'picker-min-widths': pickerMinWidths,
     'money-casts': refusedSyntax(
       [...castedAs('TSAsExpression'), ...castedAs('TSTypeAssertion')],
       'Make Money, AccountMoney, Percent, Share and Decimal with the functions in src/shared/money. A cast skips the check that keeps the brand true.',

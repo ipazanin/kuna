@@ -73,7 +73,7 @@ const MENU_CONTENT = { align: 'start', collisionPadding: 12 } as const
     :loading="loading"
     color="neutral"
     variant="outline"
-    class="min-w-48"
+    class="min-w-0 sm:min-w-48"
   >
     <span v-if="picked" class="flex min-w-0 items-center gap-1.5">
       <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: picked.colour }" aria-hidden="true" />

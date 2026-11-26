@@ -205,7 +205,7 @@ const summary = computed(() => {
         <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5" data-testid="import-recipe">
           <UAlert v-if="shape === null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="words.panel.noHeader" />
           <div class="flex flex-wrap items-end gap-2">
-            <UFormField v-if="recipes.length" :label="words.panel.savedRecipe" class="min-w-56 flex-1">
+            <UFormField v-if="recipes.length" :label="words.panel.savedRecipe" class="w-full sm:w-auto sm:min-w-56 sm:flex-1">
               <USelect v-model="recipeChoice" :items="recipeItems" :placeholder="words.panel.pickRecipe" class="w-full" data-testid="recipe-choice" />
             </UFormField>
             <UButton v-if="chosen" :label="words.panel.editRecipe" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="recipe-edit" @click="editRecipe" />

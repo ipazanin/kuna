@@ -39,6 +39,6 @@ const selected = computed({
     icon="i-lucide-landmark"
     size="sm"
     :aria-label="words.accounts"
-    class="min-w-44"
+    class="min-w-0 sm:min-w-44"
   />
 </template>
