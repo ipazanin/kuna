@@ -34,6 +34,8 @@ export const en = {
   values: 'Values, separated by commas',
   addKind: 'Add a kind',
   removeKind: 'Remove this kind',
+  moveKindUp: (place: number) => `Move kind ${place} up`,
+  moveKindDown: (place: number) => `Move kind ${place} down`,
   oneKind: 'A recipe keeps at least one kind.',
   kindAt: (place: number) => `Kind ${place}`,
 }
@@ -68,6 +70,8 @@ export const hr: Translation<typeof en> = {
   values: 'Vrijednosti, odvojene zarezima',
   addKind: 'Dodaj vrstu',
   removeKind: 'Ukloni ovu vrstu',
+  moveKindUp: (place) => `Pomakni ${place}. vrstu gore`,
+  moveKindDown: (place) => `Pomakni ${place}. vrstu dolje`,
   oneKind: 'Recept ima barem jednu vrstu.',
   kindAt: (place) => `${place}. vrsta`,
 }

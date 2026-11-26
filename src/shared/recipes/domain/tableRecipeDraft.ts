@@ -42,6 +42,30 @@ export interface TableRecipeDraft {
   readonly kinds: readonly DraftKind[]
 }
 
+/** The draft with its kind at the place replaced by the kind given. */
+export function kindChanged(draft: TableRecipeDraft, at: number, kind: DraftKind): TableRecipeDraft {
+  return { ...draft, kinds: draft.kinds.map((held, place) => (place === at ? kind : held)) }
+}
+
+/** The draft with one more kind last, the app's first kind taking every row. */
+export function kindAdded(draft: TableRecipeDraft, fields: TableRecipeFields): TableRecipeDraft {
+  return { ...draft, kinds: [...draft.kinds, { kind: fields.kinds[0]?.kind ?? '', test: null }] }
+}
+
+/** The draft without its kind at the place. */
+export function kindRemoved(draft: TableRecipeDraft, at: number): TableRecipeDraft {
+  return { ...draft, kinds: draft.kinds.filter((_kind, place) => place !== at) }
+}
+
+/** The draft with its kind at the place moved one place earlier or later, so rows try it sooner or later. A kind already first or last stays. */
+export function kindMoved(draft: TableRecipeDraft, at: number, step: -1 | 1): TableRecipeDraft {
+  const to = at + step
+  const moving = draft.kinds[at]
+  const swapped = draft.kinds[to]
+  if (moving === undefined || swapped === undefined) return draft
+  return { ...draft, kinds: draft.kinds.map((kind, place) => (place === at ? swapped : place === to ? moving : kind)) }
+}
+
 /** What a draft still lacks, or what in it cannot be a recipe. A problem of one kind names it and its place in the draft's kinds. */
 export type DraftProblem =
   | { readonly kind: 'no-name' }

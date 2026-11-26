@@ -50,6 +50,7 @@ import { en as workbookImportEnglish, hr as workbookImportCroatian } from '../..
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
 import { en as uiEnglish, hr as uiCroatian } from '../../src/shared/ui/words.ts'
+import { en as recipeEditorEnglish, hr as recipeEditorCroatian } from '../../src/shared/recipes/presentation/words.ts'
 import { en as chartsEnglish, hr as chartsCroatian } from '../../src/shared/charts/words.ts'
 import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
 import { en as netWorthEnglish, hr as netWorthCroatian } from '../../src/shell/netWorth/words.ts'
@@ -198,6 +199,7 @@ const SCREEN_WORDS = {
     splitEditor: uiEnglish.split,
     filterChips: uiEnglish.chips,
     labelName: uiEnglish.labelName,
+    recipeEditor: recipeEditorEnglish,
     imports: importEnglish,
     mail: mailEnglish,
     invoicing: invoicingEnglish,
@@ -296,6 +298,7 @@ const SCREEN_WORDS = {
     splitEditor: uiCroatian.split,
     filterChips: uiCroatian.chips,
     labelName: uiCroatian.labelName,
+    recipeEditor: recipeEditorCroatian,
     imports: importCroatian,
     mail: mailCroatian,
     invoicing: invoicingCroatian,
@@ -14767,7 +14770,8 @@ export function spendingAccountBankNameFlowIn(language) {
 /**
  * Settings, General on the statements set lists its saved recipe by name, bank and format. Its row opens the editor, whose
  * Delete leaves the card with Add recipe and Undo brings the recipe back. Add recipe opens a blank recipe that shows no
- * problem until Save shows each one under its field. A second Save keeps them, and typing a name clears the name's.
+ * problem until Save shows each one under its field. A second Save keeps them, and typing a name clears the name's. A second
+ * kind moves up above the first, with focus kept on the moved kind.
  */
 export function spendingSettingsRecipesFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -14823,6 +14827,34 @@ export function spendingSettingsRecipesFlowIn(language) {
       .catch(() => {
         throw new Error('typing a name left its problem under the name')
       })
+    await pressSelector(page, press, '[data-testid="recipe-add-kind"]')
+    await countOf(page, '[data-testid="recipe-kind"]', 2, 'the kinds after Add a kind')
+    const tests = await page.$$('[data-testid="recipe-kind"] [data-testid="recipe-kind-test"]')
+    await choose(page, press, tests[1], words.recipeEditor.isFilled)
+    const testsInOrder = () => page.$$eval('[data-testid="recipe-kind"] [data-testid="recipe-kind-test"]', (fields) => fields.map((field) => field.textContent?.trim() ?? ''))
+    const { everyRow, isFilled } = words.recipeEditor
+    if ((await testsInOrder()).join() !== [everyRow, isFilled].join()) throw new Error(`the kinds before a move test ${(await testsInOrder()).join(', ')}`)
+    const ups = await page.$$('[data-testid="recipe-kind"] [data-testid="recipe-kind-up"]')
+    const downs = await page.$$('[data-testid="recipe-kind"] [data-testid="recipe-kind-down"]')
+    const disabled = (button) => button.evaluate((element) => element.disabled)
+    if (!(await disabled(ups[0])) || !(await disabled(downs[1]))) throw new Error('the first kind can move up or the last kind down')
+    await press(ups[1])
+    await page
+      .waitForFunction(
+        (wanted) => [...document.querySelectorAll('[data-testid="recipe-kind"] [data-testid="recipe-kind-test"]')].map((field) => field.textContent?.trim()).join() === wanted,
+        { timeout: 5_000 },
+        [isFilled, everyRow].join(),
+      )
+      .catch(async () => {
+        throw new Error(`Move up left the kinds testing ${(await testsInOrder()).join(', ')}`)
+      })
+    const focused = await page.evaluate(() => {
+      const kinds = [...document.querySelectorAll('[data-testid="recipe-kind"]')]
+      return { at: kinds.findIndex((kind) => kind.contains(document.activeElement)), button: document.activeElement?.getAttribute('data-testid') }
+    })
+    if (focused.at !== 0 || focused.button !== 'recipe-kind-down') throw new Error(`after Move up focus is on ${focused.button} of kind ${focused.at + 1}, not on the moved kind`)
+    await inspect?.('a recipe with its second kind moved up')
+    await shootAt(page, shoot, '[data-testid="recipe-kinds"]', 'spending-settings-recipe-kinds', { block: 'start' })
   }
 }
 

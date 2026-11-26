@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { STATEMENT_RECIPE_FIELDS } from '../src/apps/spending/statements/domain/statementRecipeDraft'
 import { REVOLUT_STATEMENT } from '../src/apps/spending/statements/domain/revolutRecipe'
 import { draftOfInput, inputOfDraft } from '../src/shared/recipes/domain/draftInput'
-import { DRAFT_DATE_FORMATS, draftOfRecipe, draftProblems, placeOfProblem, tableRecipeOf } from '../src/shared/recipes/domain/tableRecipeDraft'
+import { DRAFT_DATE_FORMATS, draftOfRecipe, draftProblems, kindAdded, kindChanged, kindMoved, kindRemoved, placeOfProblem, tableRecipeOf } from '../src/shared/recipes/domain/tableRecipeDraft'
 import type { TableRecipeDraft } from '../src/shared/recipes/domain/tableRecipeDraft'
 import { runRecipe } from '../src/shared/recipes/domain/runRecipe'
 import { tableRows } from '../src/shared/recipes/domain/tableRows'
@@ -99,6 +99,24 @@ describe('a table recipe draft', () => {
     ])
 
     expect(drafts.map((draft) => 'recipe' in tableRecipeOf('example', draft, STATEMENT_RECIPE_FIELDS))).toEqual(drafts.map(() => true))
+  })
+
+  it("changes a kind at its place, adds the app's first kind taking every row last, and removes a kind at its place", () => {
+    const [booked, notCompleted] = DRAFT.kinds
+    const everyRow = { kind: 'payment', test: null }
+
+    expect(kindChanged(DRAFT, 1, everyRow).kinds).toEqual([booked, everyRow])
+    expect(kindAdded(DRAFT, STATEMENT_RECIPE_FIELDS).kinds).toEqual([booked, notCompleted, { kind: STATEMENT_RECIPE_FIELDS.kinds[0]!.kind, test: null }])
+    expect(kindRemoved(DRAFT, 0).kinds).toEqual([notCompleted])
+  })
+
+  it('moves a kind one place up or down, so rows try it sooner or later, and keeps a first kind first and a last kind last', () => {
+    const [booked, notCompleted] = DRAFT.kinds
+
+    expect(kindMoved(DRAFT, 1, -1).kinds).toEqual([notCompleted, booked])
+    expect(kindMoved(DRAFT, 0, 1).kinds).toEqual([notCompleted, booked])
+    expect(kindMoved(DRAFT, 0, -1)).toBe(DRAFT)
+    expect(kindMoved(DRAFT, 1, 1)).toBe(DRAFT)
   })
 
   it('shows each day format by how it writes the last day of 2026', () => {

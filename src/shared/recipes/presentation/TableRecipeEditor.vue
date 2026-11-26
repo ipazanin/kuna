@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -12,18 +13,19 @@ import RecipeColumnField from './RecipeColumnField.vue'
 import { NO_RECIPE_ERRORS } from './recipeErrors'
 import type { RecipeErrors } from './recipeErrors'
 import { words } from './words'
-import { DRAFT_DATE_FORMATS } from '../domain/tableRecipeDraft'
-import type { DraftKind, DraftTest, TableRecipeDraft, TableRecipeFields } from '../domain/tableRecipeDraft'
+import { DRAFT_DATE_FORMATS, kindAdded, kindChanged, kindMoved, kindRemoved } from '../domain/tableRecipeDraft'
+import type { DraftTest, TableRecipeDraft, TableRecipeFields } from '../domain/tableRecipeDraft'
 import BankNameField from '../../ui/BankNameField.vue'
 import CurrencySelect from '../../ui/CurrencySelect.vue'
 import FormGrid from '../../ui/FormGrid.vue'
+import MoveButtons from '../../ui/MoveButtons.vue'
 import NoteLine from '../../ui/NoteLine.vue'
 
 /**
  * Edits a table recipe column by column: its name, the bank and currency of its rows, the day and how it is written, the
  * amount as one signed column or a debit and credit pair, the columns the app may read besides, the decimal mark, and the
- * kinds of row in the order rows are tried. The app hands in what it reads, its words for each field and kind, and the
- * problems to show under the fields.
+ * kinds of row in the order rows are tried, each moved up or down with its buttons. The app hands in what it reads, its
+ * words for each field and kind, and the problems to show under the fields.
  */
 const props = withDefaults(
   defineProps<{
@@ -90,10 +92,6 @@ function setOptional(field: string, column: string): void {
   update({ columns: column.trim() === '' ? others : { ...others, [field]: column } })
 }
 
-function setKind(at: number, kind: DraftKind): void {
-  update({ kinds: draft.value.kinds.map((held, place) => (place === at ? kind : held)) })
-}
-
 function testShape(test: DraftTest | null): string {
   return test === null ? 'every' : 'filled' in test ? 'filled' : 'is'
 }
@@ -101,18 +99,21 @@ function testShape(test: DraftTest | null): string {
 function setTestShape(at: number, shape: string): void {
   const held = draft.value.kinds[at]!
   const column = held.test?.column ?? ''
-  setKind(at, { ...held, test: shape === 'every' ? null : shape === 'filled' ? { column, filled: true } : { column, is: held.test !== null && 'is' in held.test ? held.test.is : [] } })
+  draft.value = kindChanged(draft.value, at, {
+    ...held,
+    test: shape === 'every' ? null : shape === 'filled' ? { column, filled: true } : { column, is: held.test !== null && 'is' in held.test ? held.test.is : [] },
+  })
 }
 
 function setTestColumn(at: number, column: string): void {
   const held = draft.value.kinds[at]!
-  if (held.test !== null) setKind(at, { ...held, test: { ...held.test, column } })
+  if (held.test !== null) draft.value = kindChanged(draft.value, at, { ...held, test: { ...held.test, column } })
 }
 
 /** The values as typed, commas and spaces kept, so the field never rewrites its text. The recipe trims them when it is made. */
 function setValues(at: number, text: string): void {
   const held = draft.value.kinds[at]!
-  if (held.test !== null) setKind(at, { ...held, test: { column: held.test.column, is: text.split(',') } })
+  if (held.test !== null) draft.value = kindChanged(draft.value, at, { ...held, test: { column: held.test.column, is: text.split(',') } })
 }
 
 /** The problem of the amount under each of its columns left blank. */
@@ -120,12 +121,22 @@ function amountError(column: string): string | false {
   return column.trim() === '' ? (props.errors.fields.amount ?? false) : false
 }
 
-function addKind(): void {
-  update({ kinds: [...draft.value.kinds, { kind: props.fields.kinds[0]?.kind ?? '', test: null }] })
+/** Each kind's row by its place, so a move can put focus back on the moved kind. */
+const kindRows: (Element | null)[] = []
+
+function holdKindRow(at: number, row: Element | ComponentPublicInstance | null): void {
+  kindRows[at] = row instanceof Element ? row : null
 }
 
-function removeKind(at: number): void {
-  update({ kinds: draft.value.kinds.filter((_kind, place) => place !== at) })
+/** Rows are keyed by place, so focus goes after the moved kind to its button at its new place, or to the other one once it reaches an end. */
+async function moveKind(at: number, step: -1 | 1): Promise<void> {
+  draft.value = kindMoved(draft.value, at, step)
+  await nextTick()
+  const place = at + step + 1
+  const [pressed, other] = step === -1 ? [words.moveKindUp(place), words.moveKindDown(place)] : [words.moveKindDown(place), words.moveKindUp(place)]
+  const button = (label: string) => kindRows[at + step]?.querySelector<HTMLButtonElement>(`button[aria-label="${CSS.escape(label)}"]:not(:disabled)`)
+  const target = button(pressed) ?? button(other)
+  target?.focus()
 }
 </script>
 
@@ -185,11 +196,11 @@ function removeKind(at: number): void {
         <h3 class="type-card-title">{{ words.kinds }}</h3>
         <p class="type-caption">{{ words.kindsHelp }}</p>
       </div>
-      <fieldset v-for="(held, at) in draft.kinds" :key="at" class="flex flex-col gap-2 border-t border-default pt-3" data-testid="recipe-kind">
+      <fieldset v-for="(held, at) in draft.kinds" :key="at" :ref="(row) => holdKindRow(at, row)" class="flex flex-col gap-2 border-t border-default pt-3" data-testid="recipe-kind">
         <legend class="sr-only">{{ words.kindAt(at + 1) }}</legend>
         <FormGrid>
           <UFormField :label="words.kind" :error="errors.kinds[at]?.kind ?? false">
-            <USelect :model-value="held.kind" :items="kindItems" class="w-full" @update:model-value="setKind(at, { ...held, kind: String($event) })" />
+            <USelect :model-value="held.kind" :items="kindItems" class="w-full" @update:model-value="draft = kindChanged(draft, at, { ...held, kind: String($event) })" />
           </UFormField>
           <UFormField :label="words.test">
             <USelect :model-value="testShape(held.test)" :items="testItems" class="w-full" data-testid="recipe-kind-test" @update:model-value="setTestShape(at, String($event))" />
@@ -201,24 +212,35 @@ function removeKind(at: number): void {
             <UInput :model-value="held.test.is.join(',')" autocomplete="off" class="w-full" data-testid="recipe-kind-values" @update:model-value="setValues(at, String($event))" />
           </UFormField>
         </FormGrid>
-        <UTooltip :text="draft.kinds.length <= 1 ? words.oneKind : words.removeKind" class="self-start">
-          <span class="inline-flex self-start">
-            <UButton
-              :label="words.removeKind"
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              class="disabled:opacity-40"
-              :disabled="draft.kinds.length <= 1"
-              data-testid="recipe-remove-kind"
-              @click="removeKind(at)"
-            />
-          </span>
-        </UTooltip>
+        <div class="flex items-center justify-end gap-1">
+          <MoveButtons
+            :up-label="words.moveKindUp(at + 1)"
+            :down-label="words.moveKindDown(at + 1)"
+            :first="at === 0"
+            :last="at === draft.kinds.length - 1"
+            test-id="recipe-kind"
+            @up="moveKind(at, -1)"
+            @down="moveKind(at, 1)"
+          />
+          <UTooltip :text="draft.kinds.length <= 1 ? words.oneKind : words.removeKind">
+            <span class="inline-flex">
+              <UButton
+                :label="words.removeKind"
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                class="disabled:opacity-40"
+                :disabled="draft.kinds.length <= 1"
+                data-testid="recipe-remove-kind"
+                @click="draft = kindRemoved(draft, at)"
+              />
+            </span>
+          </UTooltip>
+        </div>
       </fieldset>
       <NoteLine v-if="errors.fields.kinds !== undefined" tone="error" data-testid="recipe-kinds-error">{{ errors.fields.kinds }}</NoteLine>
-      <UButton :label="words.addKind" icon="i-lucide-plus" color="neutral" variant="outline" class="self-start" data-testid="recipe-add-kind" @click="addKind" />
+      <UButton :label="words.addKind" icon="i-lucide-plus" color="neutral" variant="outline" class="self-start" data-testid="recipe-add-kind" @click="draft = kindAdded(draft, fields)" />
     </section>
   </div>
 </template>

@@ -73,7 +73,7 @@ const oneCurrencyCode = ref('EUR')
   <GallerySection
     id="table-recipe-editor"
     title="TableRecipeEditor"
-    description="A table recipe column by column, from src/shared/recipes: its name, bank and currency, the day and how it is written, one amount or money out and in, the columns the app reads besides, the decimal mark, and the kinds of row in the order rows are tried. Columns are picked from an open file's header, or typed with none. The second is typed, as Settings opens it, with one amount column, the currency read from a column, and the problems a Save shows under their fields. The third leaves no column to name a row's currency, as Company's import recipes do, so its currency is always picked."
+    description="A table recipe column by column, from src/shared/recipes: its name, bank and currency, the day and how it is written, one amount or money out and in, the columns the app reads besides, the decimal mark, and the kinds of row in the order rows are tried, each moved up or down with its arrows. Columns are picked from an open file's header, or typed with none. The second is typed, as Settings opens it, with one amount column, the currency read from a column, and the problems a Save shows under their fields. The third leaves no column to name a row's currency, as Company's import recipes do, so its currency is always picked."
   >
     <div class="flex flex-col gap-8">
       <TableRecipeEditor
