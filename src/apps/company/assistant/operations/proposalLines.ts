@@ -35,8 +35,17 @@ import type { Workbook } from '../../workbook/domain/workbook'
 import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import { storesItems } from '../../workbook/domain/rowItems'
 import type { CardNote, ProposalField, ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
-import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
-import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import { fieldNameIn, proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
+import type { CardField, ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import type { Label } from '../../../../shared/categorising/domain/labels'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
+import type { AccountRecord } from '../../workbook/domain/accountsReading'
+import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
+import type { Dismissal } from '../../workbook/domain/dismissals'
+import type { HeldStatement } from '../../workbook/domain/heldStatements'
+import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
+import type { ItemRecord, SplitTabRow } from '../../workbook/domain/splitsReading'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
@@ -46,14 +55,22 @@ import { inTryingOrder } from '../../../../shared/categorising/domain/ruleOrder'
 import type { Rule } from '../../rules/domain/rule'
 import { cellText } from '../../../../shared/text/cellText'
 
+const KEPT_FIELDS = ['id', 'rowId', 'signals', 'reviewReasons', 'reference', 'statement', 'balance', 'key', 'row', 'ownerPart', 'mailId'] as const
+
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
-export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'rowId', 'signals', 'reviewReasons', 'reference', 'statement', 'balance', 'key', 'row'])
+export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(KEPT_FIELDS)
 
 /** The fields that say where money goes, which a card warns on. */
 const WARNS: ReadonlySet<string> = new Set(['iban', 'counterpartyIban'])
 
-function fieldName(field: string): string {
-  return (words.fields as Readonly<Record<string, string>>)[field] ?? field
+/** The records the chat writes that the core card reads, whose fields it names, with the tax class a category's roles read as. */
+type CardRecord = CategoryRecord | Dismissal | LedgerEntry | SplitTabRow | ItemRecord | SettingRow | RuleTabRow | Label | SavedRecipe | AccountRecord | HeldStatement
+
+const FIELD_NAMES: Readonly<Record<CardField<CardRecord, (typeof KEPT_FIELDS)[number]> | 'taxClass', string>> = words.fields
+
+/** A field's name on the card. */
+export function fieldName(field: string): string {
+  return fieldNameIn(FIELD_NAMES, field)
 }
 
 /** Whether the record is of the kind, so its fields read with their types. */

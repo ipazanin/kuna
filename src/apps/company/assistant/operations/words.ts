@@ -1,3 +1,5 @@
+import { en as importsEn, hr as importsHr } from '../../imports/presentation/words'
+import { en as settingsEn, hr as settingsHr } from '../../settings/presentation/words'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 
@@ -30,6 +32,13 @@ export const en = {
     dismissedOn: 'Dismissed on',
     invoice: 'Invoice',
     labels: 'Labels',
+    name: 'Name',
+    bank: settingsEn.accounts.columns.bank,
+    sources: settingsEn.accounts.columns.rowsFrom,
+    recipe: importsEn.panel.recipe,
+    attachment: 'File',
+    mailedOn: 'Mailed',
+    passedOverOn: 'Passed over',
   },
   filedBy: {
     person: 'you',
@@ -99,6 +108,13 @@ export const hr: Translation<typeof en> = {
     dismissedOn: 'Odbačeno',
     invoice: 'Račun',
     labels: 'Oznake',
+    name: 'Naziv',
+    bank: settingsHr.accounts.columns.bank,
+    sources: settingsHr.accounts.columns.rowsFrom,
+    recipe: importsHr.panel.recipe,
+    attachment: 'Datoteka',
+    mailedOn: 'Stiglo poštom',
+    passedOverOn: 'Preskočeno',
   },
   filedBy: {
     person: 'vi',

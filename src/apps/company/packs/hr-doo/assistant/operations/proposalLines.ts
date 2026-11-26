@@ -7,17 +7,24 @@ import { splitLedger } from '../../../../workbook/domain/splits'
 import { moneyFormatOf } from '../../../../settings/domain/settings'
 import { assetItemOf, paymentRowsOf } from '../../domain/assets/assetRegister'
 import { NEW_ASSET_DEFAULTS } from '../../domain/assets/assets'
-import type { GrantClawback, GrantParts } from '../../domain/grants/grants'
+import type { Grant, GrantClawback, GrantParts } from '../../domain/grants/grants'
 import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../../domain/hrDooKinds'
 import type { ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
 import { componentInWords } from '../../domain/scenarios/scenarioGuards'
 import { scenarioName } from '../../domain/scenarios/startingScenarios'
-import type { YearEndFigure } from '../../domain/yearEnd/yearEnd'
+import type { YearEndFigure, YearEndLine } from '../../domain/yearEnd/yearEnd'
+import type { Asset } from '../../domain/assets/assets'
+import type { Employee } from '../../domain/employees/employees'
+import type { PlanLine } from '../../domain/forecast/plan'
+import type { OwnerAdvanceEntry } from '../../domain/ownerAdvancesReading'
+import type { ScenarioRow } from '../../domain/scenarios/scenariosReading'
+import type { Trip, TripCost, TripLeg } from '../../domain/trips/trip'
 import { words as forecastWords } from '../../presentation/forecast/words'
 import { words as packWords } from '../../presentation/words'
 import { words } from '../words'
 import { TRIP_KINDS, tripFieldsInLabel, tripLabel, tripShownValue } from './tripProposalLines'
-import type { ProposedRecord } from '../../../../../../shared/app/proposalGroups'
+import { fieldNameIn } from '../../../../../../shared/app/proposalGroups'
+import type { CardField, ProposedRecord } from '../../../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthKey } from '../../../../../../shared/calendar/monthKey'
@@ -32,11 +39,23 @@ import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import { listInWords } from '../../../../../../shared/text/listInWords'
 
 /** The fields Kuna keeps by itself on the pack's records, which no operation sets. A plan row's kind and a scenario row's key show through other fields, so the card reads them as nothing. */
-const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'ownerPart'])
+const KEPT_FIELDS = ['id', 'ownerPart'] as const
+const KEPT_BY_KUNA: ReadonlySet<string> = new Set(KEPT_FIELDS)
 const SHOWN_ELSEWHERE: ReadonlyMap<string, string> = new Map([
   [PLAN_RECORDS.name, 'kind'],
   [SCENARIO_RECORDS.name, 'key'],
 ])
+
+/** The pack's records the chat writes, whose fields a card names. */
+type CardRecord = YearEndLine | Asset | Grant | Employee | PlanLine | OwnerAdvanceEntry | ScenarioRow | Trip | TripLeg | TripCost
+
+/** A scenario row's key shows through its other fields, so it needs no name. */
+const FIELD_NAMES: Readonly<Record<CardField<CardRecord, (typeof KEPT_FIELDS)[number] | 'key'>, string>> = words.proposals.fields
+
+/** A field of the pack's records by its name on the card. */
+export function fieldName(field: string): string {
+  return fieldNameIn(FIELD_NAMES, field)
+}
 
 /** Whether the record is of the kind, so its fields read with their types. */
 function isKind<R>(kind: RecordKind<unknown>, of: RecordKind<R>, record: ProposedRecord): record is ProposedRecord & R {
@@ -170,7 +189,7 @@ export function packDescriber(workbook: Workbook): PackDescriber {
   return {
     kinds: new Set([OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS, ASSET_RECORDS, GRANT_RECORDS, EMPLOYEE_RECORDS, ...TRIP_KINDS].map((kind) => kind.name)),
     keptByKuna: KEPT_BY_KUNA,
-    fieldName: (field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
+    fieldName,
     shown: (kind, field, record) => {
       if (isKind(kind, ASSET_RECORDS, record) && (field === 'rowId' || field === 'payment')) return paymentText(workbook, assetItemOf(record), format)
       if (isKind(kind, OWNER_ADVANCE_RECORDS, record) && field === 'repaidBy') return repaidByText(workbook, record.repaidBy ?? [], format)

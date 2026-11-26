@@ -14,15 +14,18 @@ import { refusalText, spanOf } from '../../scenarios/presentation/scenarioCompar
 import { changeSummary } from '../../scenarios/presentation/scenariosView'
 import { words as scenarioWords } from '../../scenarios/presentation/words'
 import type { BankLoan, InterimInterest, LoanSubsidy } from '../../workbook/domain/bankLoan'
-import type { ExpectedPlan } from '../../workbook/domain/informalLoan'
+import type { ExtraPayment } from '../../workbook/domain/extraPayment'
+import type { ExpectedPlan, InformalLoan } from '../../workbook/domain/informalLoan'
+import type { LateInstalment } from '../../workbook/domain/lateInstalment'
+import type { Movement } from '../../workbook/domain/movement'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LOAN_SCENARIO_RECORDS, MOVEMENT_RECORDS, RATE_PERIOD_RECORDS, SCENARIO_CHANGE_RECORDS } from '../../workbook/domain/loanKinds'
 import type { LoanShare } from '../../workbook/domain/loanShare'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { LoanBook } from '../../workbook/domain/readLoanBook'
 import { words } from '../words'
 import type { ProposalField, ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
-import { proposalGroups } from '../../../../shared/app/proposalGroups'
-import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import { fieldNameIn, proposalGroups } from '../../../../shared/app/proposalGroups'
+import type { CardField, ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
@@ -32,8 +35,15 @@ import type { CheckedWrite } from '../../../../shared/storage/application/record
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
+const KEPT_FIELDS = ['id'] as const
+
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
-export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id'])
+export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(KEPT_FIELDS)
+
+/** The records the chat writes, whose fields a card names. */
+type CardRecord = BankLoan | RatePeriod | ExtraPayment | LateInstalment | LoanShare | InformalLoan | Movement | LoanScenario | ScenarioChange
+
+const FIELD_NAMES: Readonly<Record<CardField<CardRecord, (typeof KEPT_FIELDS)[number]>, string>> = words.proposals.fields
 
 const DAY_FIELDS: ReadonlySet<string> = new Set(['drawdown', 'firstInstalment', 'from', 'date', 'due', 'paid', 'until', 'on'])
 
@@ -41,7 +51,7 @@ const DAY_FIELDS: ReadonlySet<string> = new Set(['drawdown', 'firstInstalment', 
 export function proposalFieldName(field: string, record: ProposedRecord): string {
   const start = record['start']
   if (field === 'start' && typeof start === 'object' && start !== null) return (start as LoanScenario['start']).kind === 'offer' ? words.proposals.fields.offer : words.proposals.fields.loan
-  return (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field
+  return fieldNameIn(FIELD_NAMES, field)
 }
 
 const rateShown = (rate: YearlyRate): string => formatRate(fractionOf(rate))

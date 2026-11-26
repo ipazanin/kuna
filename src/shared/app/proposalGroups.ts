@@ -6,6 +6,18 @@ import { words } from './words'
 /** A record of a change as the storage holds it, read field by field. */
 export type ProposedRecord = Readonly<Record<string, unknown>>
 
+/** Each field of the records a card reads, but the fields Kuna keeps by itself, which the card leaves off. */
+export type CardField<R, Kept extends string> = Exclude<R extends unknown ? keyof R & string : never, Kept>
+
+function isNamedIn<F extends string>(names: Readonly<Record<F, string>>, field: string): field is F {
+  return Object.hasOwn(names, field)
+}
+
+/** A field's name from a table that names every field of the card's records, or the field as it is held for one no record type declares. */
+export function fieldNameIn<F extends string>(names: Readonly<Record<F, string>>, field: string): string {
+  return isNamedIn(names, field) ? names[field] : field
+}
+
 /** How an app's card reads the records of a change, in the words its screens use. */
 export interface ProposalDescriber {
   /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */

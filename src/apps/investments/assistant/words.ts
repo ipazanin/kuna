@@ -175,6 +175,9 @@ export const en = {
       benchmark: 'Benchmark',
       typedFactsOnly: 'Don’t fetch facts',
       leftOut: 'Rows asked about',
+      since: 'Start day',
+      key: 'Setting',
+      value: 'Value',
     },
   },
   cards: {
@@ -360,6 +363,9 @@ export const hr: Translation<typeof en> = {
       benchmark: 'Referentni indeks',
       typedFactsOnly: 'Ne dohvaćaj podatke',
       leftOut: 'Retci o kojima se pita',
+      since: 'Početni dan',
+      key: 'Postavka',
+      value: 'Vrijednost',
     },
   },
   cards: {

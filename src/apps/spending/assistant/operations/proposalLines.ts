@@ -49,8 +49,19 @@ import type { Payee } from '../../workbook/domain/payee'
 import { NO_RATES } from '../../../../shared/money/rateBook'
 import type { CardStatement, CopiedRows } from './statementImport'
 import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
-import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
-import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import { fieldNameIn, proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
+import type { CardField, ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import type { Label } from '../../../../shared/categorising/domain/labels'
+import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
+import type { Budget } from '../../workbook/domain/budget'
+import type { Category } from '../../workbook/domain/category'
+import type { Receipt } from '../../workbook/domain/receipt'
+import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
+import type { DroppedRow } from '../../workbook/domain/droppedRow'
+import type { SpendingRule } from '../../workbook/domain/spendingRule'
+import type { Shortcut, ShortcutPart } from '../../workbook/domain/shortcut'
+import type { StoredLine } from '../../workbook/domain/beforeItems'
 import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { swatchOf } from '../../../../shared/charts/swatches'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
@@ -64,8 +75,7 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 
-/** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
-export const KEPT_BY_KUNA: ReadonlySet<string> = new Set([
+const KEPT_FIELDS = [
   'id',
   'categorisedBy',
   'source',
@@ -81,13 +91,40 @@ export const KEPT_BY_KUNA: ReadonlySet<string> = new Set([
   'receipt',
   'splitByLink',
   'ruleLabels',
-])
+] as const
+
+/** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
+export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(KEPT_FIELDS)
 
 /** The fields that say where money or mail goes, which the owner lets a model fill with a warning on the field. */
 const WARNS: ReadonlySet<string> = new Set(['iban', 'counterpartyIban', 'value'])
 
-function fieldName(field: string): string {
-  return (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field
+/** The records the chat writes, whose fields a card names. */
+type CardRecord =
+  | Account
+  | Category
+  | Receipt
+  | StoredRow
+  | StoredLine
+  | TransactionItem
+  | Payee
+  | SettingRow
+  | SpendingRule
+  | DroppedRow
+  | HeldBankRow
+  | Shortcut
+  | ShortcutPart
+  | SharedCost
+  | SavedRecipe
+  | Budget
+  | Label
+  | SpendingEvent
+
+const FIELD_NAMES: Readonly<Record<CardField<CardRecord, (typeof KEPT_FIELDS)[number]>, string>> = words.proposals.fields
+
+/** A field's name on the card. */
+export function fieldName(field: string): string {
+  return fieldNameIn(FIELD_NAMES, field)
 }
 
 /** Whether the record is of the kind, so its fields read with their types. */

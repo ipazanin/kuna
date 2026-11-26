@@ -17,7 +17,7 @@ import type { HandPrice } from '../../workbook/domain/handPrice'
 import type { Income } from '../../workbook/domain/income'
 import { NEW_INSTRUMENT_DEFAULTS } from '../../workbook/domain/instrument'
 import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
-import type { InvestmentPeriod } from '../../workbook/domain/investmentAccount'
+import type { InvestmentAccount, InvestmentPeriod } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import {
   CASH_MOVEMENT_RECORDS,
@@ -40,14 +40,15 @@ import { REGIONS } from '../../workbook/domain/mixGroup'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import type { MixGroup, Region } from '../../workbook/domain/mixGroup'
 import type { SpinOff } from '../../workbook/domain/spinOff'
+import type { Split } from '../../workbook/domain/split'
 import type { Target } from '../../workbook/domain/target'
 import type { Trade } from '../../workbook/domain/trade'
 import type { Transfer } from '../../workbook/domain/transfer'
 import { words as recordWords } from '../../workbook/domain/words'
 import { words } from '../words'
 import type { CardNote, ProposalGroup } from '../../../../shared/app/assistantOperations'
-import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
-import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import { fieldNameIn, proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
+import type { CardField, ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -62,16 +63,22 @@ import { countryName } from '../../../../shared/text/countryName'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself or an import brought, which no operation sets, so a card leaves them off. */
-const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKeys', 'dividend', 'settles', 'recipe'])
+const KEPT_FIELDS = ['id', 'importKeys', 'dividend', 'settles', 'recipe'] as const
+const KEPT_BY_KUNA: ReadonlySet<string> = new Set(KEPT_FIELDS)
 
 /** The mail reader's fields by the names its card gives them, and how an account's rows come in by the account dialog's. */
-const MAIL_FIELD_NAMES: Readonly<Record<string, string>> = {
+const MAIL_FIELD_NAMES = {
   on: mailWords.card.on,
   senders: mailWords.card.senders,
   subject: mailWords.card.subject,
   contents: mailWords.card.contents,
   sources: settingsWords.accountDialog.rowsFrom,
 }
+
+/** The records the chat writes, whose fields a card names. */
+type CardRecord = InvestmentAccount | Instrument | Target | FundMixLine | SettingRow | Trade | Income | CashMovement | Exchange | Transfer | Split | SpinOff | HandPrice | MailReader | CheckSetting
+
+const FIELD_NAMES: Readonly<Record<CardField<CardRecord, (typeof KEPT_FIELDS)[number]>, string>> = { ...words.proposals.fields, ...MAIL_FIELD_NAMES }
 
 /** The mail reader's senders say whose mail Kuna reads, so the card marks them. */
 const WARNS: ReadonlySet<string> = new Set(['senders'])
@@ -327,10 +334,7 @@ export function proposalGroupsOf(checked: CheckedWrite, before: InvestmentBook, 
   const original = (record: ProposedRecord): ProposedRecord => originals.get(record) ?? record
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
-    fieldName: (field, record) =>
-      record['key'] === SURTAX_CITY_2023_KEY && field === 'value'
-        ? taxWords.surtaxCity.field
-        : (MAIL_FIELD_NAMES[field] ?? (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field),
+    fieldName: (field, record) => (record['key'] === SURTAX_CITY_2023_KEY && field === 'value' ? taxWords.surtaxCity.field : fieldNameIn(FIELD_NAMES, field)),
     shown: (kind, field, record) => shownValue(kind, field, original(record), book, namesOf),
     label: (kind, record, fallback) => labelOf(kind, original(record), fallback, namesOf),
     defaultsOf: (kind) => (kind.name === INSTRUMENT_RECORDS.name ? NEW_INSTRUMENT_DEFAULTS : kind.name === CHECK_RECORDS.name ? NEW_CHECK_DEFAULTS : {}),

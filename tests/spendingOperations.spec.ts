@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 import { today } from '../src/shared/calendar/civilDate'
 
-import { KEPT_BY_KUNA, defaultsOnAdd } from '../src/apps/spending/assistant/operations/proposalLines'
+import { KEPT_BY_KUNA, defaultsOnAdd, fieldName } from '../src/apps/spending/assistant/operations/proposalLines'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { words } from '../src/apps/spending/assistant/words'
@@ -57,7 +57,7 @@ function namesSet(kind: RecordKind<unknown>, before: Readonly<Record<string, unk
   const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field) && !(kind.name === 'rule' && field === 'order'))
   const unchanged = before ?? defaultsOnAdd(kind)
   const altered = fields.filter((field) => JSON.stringify(said(unchanged[field])) !== JSON.stringify(said(after[field])))
-  return altered.map((field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field)
+  return altered.map((field) => fieldName(field))
 }
 
 describe('a new category or account on its card', () => {

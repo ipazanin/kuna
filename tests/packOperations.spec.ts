@@ -1,7 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { words } from '../src/apps/company/packs/hr-doo/assistant/words'
 import { hrDooOperations, PACK_OPERATIONS } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
 import {
   ASSET_RECORDS,
@@ -40,8 +39,7 @@ import type { WorkbookStore } from '../src/shared/storage/application/createWork
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
-import { defaultsOnAdd } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
-import { packFieldsInLabel } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
+import { defaultsOnAdd, fieldName, packFieldsInLabel } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { CATEGORY_WRITES } from '../src/apps/company/categories/application/categoryWrites'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
@@ -228,7 +226,7 @@ function fieldsOnCard(card: CheckedProposal): { readonly shown: readonly string[
     const said = (value: unknown) => JSON.stringify(value === undefined || value === '' || (Array.isArray(value) && value.length === 0) ? null : value)
     const inLabel = change.verb === 'add' ? packFieldsInLabel(change.kind) : new Set<string>()
     const set = Object.keys({ ...before, ...after }).filter((field) => !NOT_ON_CARD.has(field) && !inLabel.has(field) && said(before[field]) !== said(after[field]))
-    return [{ shown: group.lines[at]!.fields.map((field) => field.name), set: set.map((field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field) }]
+    return [{ shown: group.lines[at]!.fields.map((field) => field.name), set: set.map(fieldName) }]
   })
 }
 

@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ASSETS_OPERATIONS } from '../src/apps/assets/assistant/operations/assetsOperations'
-import { FIELD_NAMES, KEPT_BY_KUNA } from '../src/apps/assets/assistant/operations/proposalLines'
+import { KEPT_BY_KUNA, fieldName } from '../src/apps/assets/assistant/operations/proposalLines'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
 import { CAR_LOAN_KEY, EXAMPLE_RECORDS, HOME_LOAN_KEY, assetsDesk } from './fixtures/assetsDesk'
 import type { AssetsDesk } from './fixtures/assetsDesk'
@@ -30,7 +30,7 @@ function said(value: unknown): unknown {
 function namesSet(before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
   const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field))
   const altered = fields.filter((field) => JSON.stringify(said(before?.[field])) !== JSON.stringify(said(after[field])))
-  return altered.filter((field) => said(after[field]) !== null || said(before?.[field]) !== null).map((field) => FIELD_NAMES[field] ?? field)
+  return altered.filter((field) => said(after[field]) !== null || said(before?.[field]) !== null).map(fieldName)
 }
 
 function operation(name: string) {

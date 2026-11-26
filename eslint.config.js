@@ -286,7 +286,11 @@ export function kunaConfig(exempt) {
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },
     { name: 'kuna/book-casts', files: ['tests/**/*.ts'], rules: { 'kuna/book-casts': 'error' } },
     { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },
-    { name: 'kuna/typed-words', files: ['src/**/words.ts', 'src/**/*Words.ts'], rules: { 'no-restricted-syntax': ['error', ...scriptColourStrings, ...wordTableCasts] } },
+    {
+      name: 'kuna/typed-words',
+      files: ['src/**/words.ts', 'src/**/*Words.ts', 'src/**/assistant/operations/**'],
+      rules: { 'no-restricted-syntax': ['error', ...scriptColourStrings, ...wordTableCasts] },
+    },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,
   )

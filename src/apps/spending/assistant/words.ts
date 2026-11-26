@@ -1,5 +1,7 @@
 import type { AssetUse } from '../links/domain/linkTarget'
+import { en as budgetEn, hr as budgetHr } from '../budgets/presentation/words'
 import { en as linkEn, hr as linkHr } from '../links/presentation/words'
+import { en as shortcutEn, hr as shortcutHr } from '../shortcuts/presentation/words'
 import { language } from '../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
 import { en as statementsEnglish, hr as statementsCroatian } from '../statements/presentation/words'
@@ -98,6 +100,12 @@ export const en = {
       text: 'Note',
       withdrawal: 'Where the money goes',
       recipe: 'How it reads',
+      photo: 'Photo',
+      like: 'Looks like',
+      role: 'Role',
+      due: budgetEn.dialog.due,
+      filing: 'Filed as',
+      shortcut: shortcutEn.title,
     },
   },
   receipts: {
@@ -356,6 +364,12 @@ export const hr: Translation<typeof en> = {
       text: 'Bilješka',
       withdrawal: 'Kamo ide novac',
       recipe: 'Kako čita',
+      photo: 'Fotografija',
+      like: 'Nalik na',
+      role: 'Uloga',
+      due: budgetHr.dialog.due,
+      filing: 'Razvrstano kao',
+      shortcut: shortcutHr.title,
     },
   },
   receipts: {

@@ -1,3 +1,4 @@
+import { en as salariesEn, hr as salariesHr } from '../presentation/salaries/words'
 import { language } from '../../../../../shared/text/language'
 import type { Translation } from '../../../../../shared/text/translation'
 
@@ -96,6 +97,13 @@ export const en = {
       kind: 'Kind',
       foreign: 'On the receipt',
       paidBy: 'Paid by',
+      advanceItems: 'Advance payment',
+      advanceRow: 'Advance payment',
+      payoutItems: 'Payout payment',
+      payoutRow: 'Payout payment',
+      dismissedItems: 'Set aside',
+      dismissedRows: 'Set aside',
+      reportedOn: salariesEn.tripReports.reported,
     },
     car: (make: string, plate: string, rate: string) => `${make}, ${plate}, ${rate} a km`,
     odometer: (start: number, end: number) => `${start} to ${end} km`,
@@ -210,6 +218,13 @@ export const hr: Translation<typeof en> = {
       kind: 'Vrsta',
       foreign: 'Na računu',
       paidBy: 'Platio',
+      advanceItems: 'Plaćanje predujma',
+      advanceRow: 'Plaćanje predujma',
+      payoutItems: 'Plaćanje isplate',
+      payoutRow: 'Plaćanje isplate',
+      dismissedItems: 'Više nije ponuđeno',
+      dismissedRows: 'Više nije ponuđeno',
+      reportedOn: salariesHr.tripReports.reported,
     },
     car: (make, plate, rate) => `${make}, ${plate}, ${rate} po km`,
     odometer: (start, end) => `${start} do ${end} km`,

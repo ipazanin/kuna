@@ -8,8 +8,8 @@ import type { AssetBook } from '../../workbook/domain/readAssetBook'
 import type { Valuation } from '../../workbook/domain/valuation'
 import { words as assetsWords } from '../../words'
 import type { ProposalGroup } from '../../../../shared/app/assistantOperations'
-import { proposalGroups } from '../../../../shared/app/proposalGroups'
-import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import { fieldNameIn, proposalGroups } from '../../../../shared/app/proposalGroups'
+import type { CardField, ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
@@ -17,8 +17,10 @@ import type { Money } from '../../../../shared/money/money'
 import { percentText } from '../../../../shared/money/percent'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 
+const KEPT_FIELDS = ['id'] as const
+
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
-export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id'])
+export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(KEPT_FIELDS)
 
 const DAY_FIELDS: ReadonlySet<string> = new Set(['bought', 'firstRegistration', 'date', 'from'])
 
@@ -32,8 +34,10 @@ function moneyIn(field: string, record: ProposedRecord): Money | null {
   return null
 }
 
-/** A field's name on the card, as the dialog that sets it names it. */
-export const FIELD_NAMES: Readonly<Record<string, string>> = {
+/** The records the chat writes, whose fields a card names. */
+type CardRecord = Asset | Valuation | AssetShare
+
+const FIELD_NAMES: Readonly<Record<CardField<CardRecord, (typeof KEPT_FIELDS)[number]>, string>> = {
   name: assetWords.assetDialog.name,
   kind: assetWords.assetDialog.kind,
   bought: assetWords.assetDialog.bought,
@@ -49,6 +53,11 @@ export const FIELD_NAMES: Readonly<Record<string, string>> = {
   value: assetWords.valuationDialog.value,
 }
 
+/** A field's name on the card, as the dialog that sets it names it. */
+export function fieldName(field: string): string {
+  return fieldNameIn(FIELD_NAMES, field)
+}
+
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. A loan shows by the name Loans lists it under. */
 export function proposalGroupsOf(checked: CheckedWrite, book: AssetBook, loans: LoansOnScreen): readonly ProposalGroup[] {
   const namesOf = new Map<unknown, string>(book.readings.assets.facts.map((asset) => [asset.id, asset.name]))
@@ -59,7 +68,7 @@ export function proposalGroupsOf(checked: CheckedWrite, book: AssetBook, loans: 
   for (const loan of Array.isArray(loans) ? loans : []) namesOf.set(loan.key, loan.name)
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
-    fieldName: (field) => FIELD_NAMES[field] ?? field,
+    fieldName,
     shown: (_kind, field, record) => {
       const value = record[field]
       if (value === null || value === undefined || value === '') return null

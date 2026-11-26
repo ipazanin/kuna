@@ -13,7 +13,7 @@ import { INVOICING_OPERATIONS } from '../src/apps/company/assistant/operations/i
 import { LABEL_OPERATIONS } from '../src/apps/company/assistant/operations/labelOperations'
 import { labelRows } from '../src/apps/company/labels/application/labelWrites'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
-import { KEPT_BY_KUNA, fieldsInLabel } from '../src/apps/company/assistant/operations/proposalLines'
+import { KEPT_BY_KUNA, fieldName, fieldsInLabel } from '../src/apps/company/assistant/operations/proposalLines'
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { settingName } from '../src/apps/company/assistant/operations/settingNames'
 import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
@@ -90,7 +90,7 @@ function namesSet(kind: RecordKind<unknown>, before: Readonly<Record<string, unk
   const labelled = before === null ? fieldsInLabel(kind) : new Set<string>()
   const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field) && !labelled.has(field))
   const altered = fields.filter((field) => JSON.stringify(said(before?.[field])) !== JSON.stringify(said(after[field])))
-  return altered.map((field) => (words.fields as Readonly<Record<string, string>>)[field] ?? field)
+  return altered.map((field) => fieldName(field))
 }
 
 /** Company's own ledger, import and settings operations. The invoicing and pack operations have specs of their own over books that hold what their examples name. */

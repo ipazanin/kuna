@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/rowRecords'
-import { proposalGroups } from '../src/shared/app/proposalGroups'
+import { fieldNameIn, proposalGroups } from '../src/shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../src/shared/app/proposalGroups'
 import { words } from '../src/shared/app/words'
 import type { CheckedWrite, RuledChange } from '../src/shared/storage/application/recordWrites'
@@ -62,5 +62,18 @@ describe('the lines of a proposal', () => {
     const groups = proposalGroups(checkedOf({ kind: KIND, verb: 'add', after: filed }, { kind: KIND, verb: 'remove', before: filed }), () => DESCRIBER)
 
     expect(groups.flatMap((group) => group.lines.map((line) => line.warning))).toEqual([null, null])
+  })
+})
+
+describe("a field's name on a card", () => {
+  const names: Readonly<Record<'payee' | 'category', string>> = { payee: 'Payee', category: 'Category' }
+
+  it('reads the name the table gives the field', () => {
+    expect(fieldNameIn(names, 'payee')).toBe('Payee')
+  })
+
+  it('keeps the field as it is held when no record type declares it, and never reads a name off the object itself', () => {
+    expect(fieldNameIn(names, 'pocket')).toBe('pocket')
+    expect(fieldNameIn(names, 'toString')).toBe('toString')
   })
 })

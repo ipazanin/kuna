@@ -8,12 +8,18 @@ import type { BillingItem } from '../../workbook/domain/billingPlan'
 import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { BILLING_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS } from '../../workbook/domain/coreKinds'
 import type { Invoice, Workbook } from '../../workbook/domain/workbook'
-import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
+import { fieldNameIn } from '../../../../shared/app/proposalGroups'
+import type { CardField, ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
-const FIELD_NAMES: Readonly<Record<string, string>> = {
+const KEPT_FIELDS = ['id'] as const
+
+/** The records the chat writes that the invoicing card reads, whose fields it names. */
+type CardRecord = Invoice | BillingItem | ClientRecord
+
+const FIELD_NAMES: Readonly<Record<CardField<CardRecord, (typeof KEPT_FIELDS)[number]>, string>> = {
   number: receivablesWords.dialog.number,
   client: receivablesWords.dialog.client,
   item: receivablesWords.dialog.item,
@@ -53,8 +59,8 @@ export function invoicingDescriber(workbook: Workbook): ProposalDescriber {
     return client === undefined ? (typeof slug === 'string' ? slug : null) : client.name || client.slug
   }
   return {
-    keptByKuna: new Set(['id']),
-    fieldName: (field) => FIELD_NAMES[field] ?? field,
+    keptByKuna: new Set(KEPT_FIELDS),
+    fieldName: (field) => fieldNameIn(FIELD_NAMES, field),
     shown(kind, field, record) {
       const value = record[field]
       if (value === null || value === undefined || value === '') return null
