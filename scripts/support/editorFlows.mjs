@@ -192,6 +192,7 @@ const SCREEN_WORDS = {
     ruleChanges: ruleChangesEnglish.changes,
     categoryName: companyBooksEnglish.unlabelled,
     editorFields: companyBooksEnglish.fields,
+    notAnIban: companyBooksEnglish.notAnIban,
     swatches: chartsEnglish.swatches,
     sortBy: uiEnglish.sortBy,
     splitEditor: uiEnglish.split,
@@ -289,6 +290,7 @@ const SCREEN_WORDS = {
     ruleChanges: ruleChangesCroatian.changes,
     categoryName: companyBooksCroatian.unlabelled,
     editorFields: companyBooksCroatian.fields,
+    notAnIban: companyBooksCroatian.notAnIban,
     swatches: chartsCroatian.swatches,
     sortBy: uiCroatian.sortBy,
     splitEditor: uiCroatian.split,
@@ -15024,7 +15026,7 @@ export function clientDialogFlowIn(language) {
     await elementSays(
       page,
       form,
-      [words.settingsReasons.notAnIban('XX00NOTANIBAN'), capitalised(domain.templateProblem({ kind: 'blank-text', line: 2 }))],
+      [words.notAnIban('XX00NOTANIBAN'), capitalised(domain.templateProblem({ kind: 'blank-text', line: 2 }))],
       'the client dialog does not say the refusals under their fields',
     )
     await lineMarkedOnlyWhen(page, `${form} [data-testid="client-line"]`, -1, true)

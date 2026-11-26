@@ -98,6 +98,9 @@ const CORE_PARTS: ReadonlyMap<string, keyof WorkbookRecordTypes> = new Map([
   [RECIPE_RECORDS.name, 'recipes'],
 ])
 
+/** The records of a kind, from a fresh read or from the records on screen. */
+export type RecordsOfKind = (kind: RecordKind<unknown>) => RecordsRead<unknown>
+
 /** What the records hold of a kind, core's or the installed pack's. */
 export function recordsOfKindIn<R>(records: WorkbookRecords, kind: RecordKind<R>): RecordsRead<R> {
   const part = CORE_PARTS.get(kind.name)

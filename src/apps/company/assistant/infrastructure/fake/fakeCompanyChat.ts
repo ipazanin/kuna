@@ -9,6 +9,8 @@ import { importOperations } from '../../operations/importOperations'
 import { LABEL_OPERATIONS } from '../../operations/labelOperations'
 import { LEDGER_OPERATIONS } from '../../operations/ledgerOperations'
 import { settingsOperations } from '../../operations/settingsOperations'
+import { categoryOperations } from '../../operations/categoryOperations'
+import { ACCOUNT_OPERATIONS } from '../../operations/accountOperations'
 
 const ANSWERS = {
   en: {
@@ -136,7 +138,14 @@ const SORT_JOB = /suggest categories|^sort|predloži kategorije|^razvrstaj/i
 
 /** Company's own operations as the chat lists them, read when a step is built, since the settings and categories follow the installed pack. Held statements play no part in an input. */
 function companyOperations(): readonly AssistantOperation[] {
-  return [...LEDGER_OPERATIONS.operations, ...LABEL_OPERATIONS.operations, ...importOperations(() => []).operations, ...settingsOperations().operations]
+  return [
+    ...LEDGER_OPERATIONS.operations,
+    ...LABEL_OPERATIONS.operations,
+    ...importOperations(() => []).operations,
+    ...settingsOperations().operations,
+    ...categoryOperations().operations,
+    ...ACCOUNT_OPERATIONS.operations,
+  ]
 }
 
 /** The counterparties the fake model is sure of: a shop for devices files under Equipment. Any other row waiting gets a new category. */

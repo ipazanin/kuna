@@ -1,4 +1,3 @@
-import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 import { CROATIAN_BUCKET_NAMES } from '../../workbook/domain/bucketNames'
@@ -61,14 +60,6 @@ export const en = {
       'after-earlier': 'Each source starts after the one above.',
       'same-as-earlier': 'A source follows another source, not itself.',
     },
-  },
-  /** Why a new IBAN on the accounts or the clients tab is refused. */
-  notAnIban: (iban: string) => `"${iban}" is not a valid IBAN.`,
-  /** Why a change to the clients tab is refused. */
-  clients: {
-    onAnotherClient: (iban: string, client: string) => `${iban} is already on the clients tab for ${client}.`,
-    ownAccount: (iban: string, account: string) => `${iban} is the IBAN of your ${account} account, so a transfer between your own accounts would read as a payment from a client.`,
-    badLines: (client: string, problems: readonly string[]) => `The invoice lines of ${client} cannot be saved. ${capitalised(problems.join(', '))}.`,
   },
   /** Why a billing or invoice term on the settings tab cannot be used. */
   terms: {
@@ -172,12 +163,6 @@ export const hr: Translation<typeof en> = {
       'after-earlier': 'Svaki izvor počinje nakon onoga iznad.',
       'same-as-earlier': 'Izvor slijedi drugi izvor, ne sebe.',
     },
-  },
-  notAnIban: (iban) => `„${iban}” nije ispravan IBAN.`,
-  clients: {
-    onAnotherClient: (iban, client) => `${iban} već je u popisu klijenata, kod klijenta „${client}”.`,
-    ownAccount: (iban, account) => `${iban} je IBAN vašeg računa u banci „${account}”, pa bi prijenos između vaših računa izgledao kao uplata klijenta.`,
-    badLines: (client, problems) => `Stavke računa klijenta „${client}” ne mogu se spremiti. ${capitalised(problems.join(', '))}.`,
   },
   terms: {
     amountAboveZero: 'upišite iznos veći od nule, na primjer 7200',

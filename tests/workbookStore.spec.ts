@@ -3,7 +3,7 @@ import { words as storageInfrastructureWords } from '../src/shared/storage/infra
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ACCOUNT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import { ACCOUNT_WRITES } from '../src/apps/company/settings/application/accountWrites'
 import { CATEGORY_WRITES } from '../src/apps/company/categories/application/categoryWrites'
 import { BooksAlreadyOnDrive } from '../src/shared/storage/application/booksAlreadyOnDrive'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'

@@ -4,6 +4,7 @@ import type { AssistantOperation, CardNote, ProposalStep } from '../../../../sha
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { OpenBooks } from '../../../../shared/app/proposedWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import type { MadeDraft } from '../../workbook/domain/recordDrafts'
 
 /** What one step of a Company card plans with: the books as read, the books as the card's earlier steps left them, and the write. */
 export interface CompanyCard {
@@ -59,4 +60,19 @@ export function fieldsOf(step: ProposalStep): Readonly<Record<string, never>> {
 /** "yes" or "no" as a flag, or null to leave it. */
 export function flagOf(text: string | null): boolean | null {
   return text === null ? null : text === 'yes'
+}
+
+/** A step's text field, or what the record keeps when the step leaves it null. */
+export function textOrKept(value: string | null, kept: string): string {
+  return value === null ? kept : value
+}
+
+/** The drafts as their tab editor would save them, each made into a record, or why the editor would refuse them. */
+export function madeOrRefused<R>(errors: ReadonlyMap<number, Partial<Record<string, string>>>, made: readonly MadeDraft<R>[]): readonly { readonly saved: number | null; readonly record: R }[] {
+  const refusals = [...errors.values()].flatMap((found) => Object.entries(found).map(([name, reason]) => `${name}: ${reason}`))
+  if (refusals.length > 0) throw new StepRefused(refusals.join(' '))
+  return made.map((draft) => {
+    if ('refused' in draft) throw new StepRefused(draft.refused)
+    return draft
+  })
 }

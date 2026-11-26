@@ -19,13 +19,10 @@ export const en = {
       `${count === 1 ? 'One row' : `${count} rows`} of the old source would stay on days the new source fills. Save from Settings, Accounts, which takes them out.`,
     undoAfterHandover: 'The new source has brought rows on those days since, so Undo would keep both. Move the day back in Settings, Accounts instead.',
   },
-  /** What names a category, an account or a client outside its tab, as a refusal and the editor's lock say it. */
+  /** What names a category or an account outside its tab, as a refusal and the editor's lock say it. */
   uses: {
     ledgerRows: (count: number): EnglishForms => ({ one: `${count} ledger row`, other: `${count} ledger rows` }),
     splitParts: (count: number): EnglishForms => ({ one: `${count} split part`, other: `${count} split parts` }),
-    invoices: (count: number): EnglishForms => ({ one: `${count} invoice`, other: `${count} invoices` }),
-    billingPlanRows: (count: number): EnglishForms => ({ one: `${count} billing plan row`, other: `${count} billing plan rows` }),
-    billingClient: 'the billing_client setting',
     rule: (id: string) => `the rule ${id}`,
     rules: (ids: string) => `the rules ${ids}`,
     ruleWithoutId: 'one without an id',
@@ -46,9 +43,6 @@ export const hr: Translation<typeof en> = {
   uses: {
     ledgerRows: (count) => ({ one: `${count} stavka evidencije`, few: `${count} stavke evidencije`, other: `${count} stavki evidencije` }),
     splitParts: (count) => ({ one: `${count} dio podjele`, few: `${count} dijela podjele`, other: `${count} dijelova podjele` }),
-    invoices: (count) => ({ one: `${count} račun`, few: `${count} računa`, other: `${count} računa` }),
-    billingPlanRows: (count) => ({ one: `${count} stavka plana naplate`, few: `${count} stavke plana naplate`, other: `${count} stavki plana naplate` }),
-    billingClient: 'postavka billing_client',
     rule: (id) => `pravilo „${id}”`,
     rules: (ids) => `pravila ${ids}`,
     ruleWithoutId: 'jedno bez oznake',

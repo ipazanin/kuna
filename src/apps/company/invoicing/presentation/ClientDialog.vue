@@ -13,14 +13,15 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { planItemsOf } from '../../billingPlan/domain/planItems'
-import { CLIENT_WRITES, clientCellsOf, clientChecksOf } from '../../settings/application/namedRecordWrites'
-import { clientChangeRefusals } from '../../settings/domain/clientGuards'
 import IbanTagsField from '../../../../shared/ui/IbanTagsField.vue'
 import { words as settingsWords } from '../../settings/presentation/words'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { clientFieldsWith, clientOfFields } from '../../workbook/domain/clientsReading'
 import type { ClientTextField } from '../../workbook/domain/clientsReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
+import { CLIENT_WRITES, clientCellsOf, clientChecksOf } from '../application/clientWrites'
+import { words as writeWords } from '../application/words'
+import { clientChangeRefusals } from '../domain/clientGuards'
 import { openRowsFor, templatedLines } from '../domain/invoiceLines'
 import { monthInLanguage } from '../domain/invoiceMail'
 import { templateOfText, templateProblems } from '../domain/invoiceTemplate'
@@ -99,7 +100,7 @@ const refusals = computed(() => {
 })
 
 function refusalOf(field: 'client' | 'iban'): string | null {
-  const found = refusals.value.filter((refusal) => refusal.field === field).map((refusal) => refusal.reason)
+  const found = refusals.value.filter((refusal) => refusal.field === field).map(writeWords.clientRefusal)
   return found.length === 0 ? null : found.join(' ')
 }
 

@@ -215,6 +215,12 @@ const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shar
 /** The one file that holds the write rules of Company's categories. */
 const COMPANY_CATEGORY_WRITES = 'src/apps/company/categories/application/categoryWrites.ts'
 
+/** The one file that holds the write rules of Company's clients. */
+const COMPANY_CLIENT_WRITES = 'src/apps/company/invoicing/application/clientWrites.ts'
+
+/** The one file of Company's chat operations that plans a step through the category writes. */
+const COMPANY_CATEGORY_OPERATIONS = 'src/apps/company/assistant/operations/categoryOperations.ts'
+
 /**
  * Each function or const a folder of `src` exports, as `file#name`, with the files in `src` that call it: those that import it
  * by name outside `import type`, and its own file when that file calls it too. An export only the tests use has none.
@@ -451,8 +457,17 @@ describe('import boundaries', () => {
     expect(oneApp.map(([name, files]) => `${name} is called only by ${appOf(files[0]!)}`)).toEqual([])
   })
 
-  it("keeps Company's settings off its categories, which read the settings", () => {
+  it("keeps Company's settings off its categories, which read the settings, and off invoicing but for its domain, since invoicing writes the clients", () => {
     expect(broken((entry) => !entry.from.startsWith('src/apps/company/settings/') || entry.target === null || !entry.target.startsWith('src/apps/company/categories/'))).toEqual([])
+    expect(
+      broken(
+        (entry) =>
+          !entry.from.startsWith('src/apps/company/settings/') ||
+          entry.target === null ||
+          !entry.target.startsWith('src/apps/company/invoicing/') ||
+          entry.target.startsWith('src/apps/company/invoicing/domain/'),
+      ),
+    ).toEqual([])
   })
 
   it("keeps Company's categories off the Settings domain, since their words, the bucket names and the tab-editor parts live elsewhere", () => {
@@ -463,6 +478,24 @@ describe('import boundaries', () => {
     const writes = /WriteRules<\s*CategoryRecord\s*>/
     expect(linesHolding(writes, () => false).map((line) => line.split(':')[0])).toContain(COMPANY_CATEGORY_WRITES)
     expect(linesHolding(writes, (file) => file === COMPANY_CATEGORY_WRITES)).toEqual([])
+  })
+
+  it("writes Company's clients in one file under invoicing", () => {
+    const writes = /WriteRules<\s*ClientRecord\s*>/
+    expect(linesHolding(writes, () => false).map((line) => line.split(':')[0])).toContain(COMPANY_CLIENT_WRITES)
+    expect(linesHolding(writes, (file) => file === COMPANY_CLIENT_WRITES)).toEqual([])
+  })
+
+  it("plans the chat's Company category steps in one operations file", () => {
+    expect(
+      broken(
+        (entry) =>
+          !entry.from.startsWith('src/apps/company/assistant/') ||
+          entry.target === null ||
+          !entry.target.startsWith('src/apps/company/categories/application/') ||
+          entry.from === COMPANY_CATEGORY_OPERATIONS,
+      ),
+    ).toEqual([])
   })
 
   it('leaves the names of the secrets, in this browser and on Drive, to the secrets module alone', () => {

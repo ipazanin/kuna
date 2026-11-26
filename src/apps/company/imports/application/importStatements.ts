@@ -1,7 +1,7 @@
 import type { TwinAnswer } from '../../../../shared/money/lookAlikeBookings'
 import type { Money } from '../../../../shared/money/money'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
-import { ACCOUNT_WRITES } from '../../settings/application/namedRecordWrites'
+import { ACCOUNT_WRITES } from '../../settings/application/accountWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { accountOfFields } from '../../workbook/domain/accountsReading'
 import { slugProblem } from '../../workbook/domain/slug'

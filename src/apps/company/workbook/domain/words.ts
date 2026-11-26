@@ -225,6 +225,8 @@ export const en = {
     inUse: (slug: string, deleted: boolean, users: string) => `"${slug}" cannot be ${deleted ? 'deleted' : 'renamed'}, since it is used by ${users}.`,
   },
   /** What a tab editor says beside a field it cannot save. */
+  /** Why a new IBAN on the accounts or the clients tab is refused. */
+  notAnIban: (iban: string) => `"${iban}" is not a valid IBAN.`,
   fields: {
     required: 'Required',
     usedAbove: 'Already used above',
@@ -347,6 +349,7 @@ export const hr: Translation<typeof en> = {
     already: (slug, noun) => `„${slug}” već postoji kao ${SLUG_NOUNS[noun].one}.`,
     inUse: (slug, deleted, users) => `„${slug}” ne može se ${deleted ? 'obrisati' : 'preimenovati'} jer je u upotrebi (${users}).`,
   },
+  notAnIban: (iban) => `„${iban}” nije ispravan IBAN.`,
   fields: {
     required: 'Obavezno',
     usedAbove: 'Već se koristi iznad',

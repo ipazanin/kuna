@@ -1,9 +1,8 @@
 import { isIban } from '../../../../shared/text/iban'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
-import { templateOfText, templateProblems } from '../../invoicing/domain/invoiceTemplate'
-import { templateProblemsInWords } from '../../invoicing/domain/words'
-import { words } from './words'
+import { templateOfText, templateProblems } from './invoiceTemplate'
+import type { TemplateProblem } from './invoiceTemplate'
 
 export interface ClientCells {
   readonly slug: string
@@ -19,11 +18,16 @@ export interface ClientEdit {
   readonly after: ClientCells | null
 }
 
-/** Why a change to a client is refused, with the field it is about, so a dialog can show it under that field. */
-export interface ClientRefusal {
-  readonly field: 'client' | 'iban' | 'invoice_lines'
-  readonly reason: string
-}
+/**
+ * Why a change to a client is refused, with the field it is about, so a dialog can show it under that field. A refused name
+ * carries the sentence the slug rules give it.
+ */
+export type ClientRefusal =
+  | { readonly field: 'client'; readonly kind: 'name'; readonly reason: string }
+  | { readonly field: 'iban'; readonly kind: 'not-an-iban'; readonly iban: string }
+  | { readonly field: 'iban'; readonly kind: 'on-another-client'; readonly iban: string; readonly client: string }
+  | { readonly field: 'iban'; readonly kind: 'own-account'; readonly iban: string; readonly account: string }
+  | { readonly field: 'invoice_lines'; readonly kind: 'bad-lines'; readonly client: string; readonly problems: readonly TemplateProblem[] }
 
 export interface ClientChecks {
   /** What names each client outside its tab: invoices, plan rows and the billing_client setting. */
@@ -45,7 +49,7 @@ export function clientChangeRefusals(edits: readonly ClientEdit[], untouched: re
     { edits: edits.map((edit) => ({ from: edit.before?.slug ?? null, to: edit.after?.slug ?? null })), untouched },
     checks.named,
     true,
-  ).map((reason) => ({ field: 'client', reason }))
+  ).map((reason) => ({ field: 'client', kind: 'name', reason }))
   for (const edit of edits) {
     const after = edit.after
     if (after === null) {
@@ -56,16 +60,16 @@ export function clientChangeRefusals(edits: readonly ClientEdit[], untouched: re
       const holder = others.find((client) => client.ibans.includes(iban))
       const account = checks.accountIbans.get(iban)
       if (!isIban(iban)) {
-        refusals.push({ field: 'iban', reason: words.notAnIban(iban) })
+        refusals.push({ field: 'iban', kind: 'not-an-iban', iban })
       } else if (holder !== undefined) {
-        refusals.push({ field: 'iban', reason: words.clients.onAnotherClient(iban, holder.slug) })
+        refusals.push({ field: 'iban', kind: 'on-another-client', iban, client: holder.slug })
       } else if (account !== undefined) {
-        refusals.push({ field: 'iban', reason: words.clients.ownAccount(iban, account) })
+        refusals.push({ field: 'iban', kind: 'own-account', iban, account })
       }
     }
     const problems = after.lines === edit.before?.lines ? [] : templateProblems(templateOfText(after.lines))
     if (problems.length > 0) {
-      refusals.push({ field: 'invoice_lines', reason: words.clients.badLines(after.slug, templateProblemsInWords(problems)) })
+      refusals.push({ field: 'invoice_lines', kind: 'bad-lines', client: after.slug, problems })
     }
   }
   return refusals

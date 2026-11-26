@@ -54,7 +54,7 @@ import { withoutDismissed } from '../src/apps/company/rules/domain/dismissedSugg
 import { categorise } from '../src/apps/company/rules/domain/categorise.ts'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage.ts'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext.ts'
-import { accountUses } from '../src/apps/company/settings/application/namedRecordWrites.ts'
+import { accountUses } from '../src/apps/company/settings/application/accountWrites.ts'
 import { categoryUses } from '../src/apps/company/categories/application/categoryWrites.ts'
 import { amountLocaleOf, unreadSettingKeys } from '../src/apps/company/settings/domain/settings.ts'
 import { categoryTotals } from '../src/apps/company/spending/domain/categoryTotals.ts'

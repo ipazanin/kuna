@@ -113,14 +113,14 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/billingPlan/application/billingWrites.ts#BILLING_WRITES.change', operations: ['change-billing-item'] },
   { path: 'src/apps/company/settings/application/settingWrites.ts#setSettings', from: ['values'], operations: ['set-setting'] },
   {
-    path: 'src/apps/company/settings/application/namedRecordWrites.ts#CLIENT_WRITES',
+    path: 'src/apps/company/invoicing/application/clientWrites.ts#CLIENT_WRITES',
     operations: [
       { name: 'add-client', renames: { slug: 'client', ...INVOICING_RENAMES } },
       { name: 'change-client', renames: { slug: 'shortName', ...INVOICING_RENAMES } },
     ],
   },
   {
-    path: 'src/apps/company/settings/application/namedRecordWrites.ts#CLIENT_WRITES.change',
+    path: 'src/apps/company/invoicing/application/clientWrites.ts#CLIENT_WRITES.change',
     operations: [{ name: 'change-client', renames: { slug: 'shortName', ...INVOICING_RENAMES } }],
   },
   { path: 'src/apps/company/invoicing/infrastructure/mailDraftSwitch.ts#switchMailDrafts', from: ['on'], operations: [{ name: 'switch-mail-drafts', renames: { on: 'drafts' } }] },
@@ -160,14 +160,14 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     ],
   },
   {
-    path: 'src/apps/company/settings/application/namedRecordWrites.ts#writeAccounts',
+    path: 'src/apps/company/settings/application/accountWrites.ts#writeAccounts',
     operations: [
       { name: 'add-account', renames: { slug: 'account' } },
       { name: 'change-account', renames: { slug: 'name' } },
     ],
   },
   {
-    path: 'src/apps/company/settings/application/namedRecordWrites.ts#ACCOUNT_WRITES.change',
+    path: 'src/apps/company/settings/application/accountWrites.ts#ACCOUNT_WRITES.change',
     operations: [{ name: 'change-account', renames: { slug: 'name' } }],
   },
   {

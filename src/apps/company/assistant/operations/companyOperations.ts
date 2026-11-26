@@ -15,6 +15,8 @@ import { proposalGroupsOf } from './proposalLines'
 import { SET_UP_ANSWER, setUpAnswerCheck, setUpAnswerAccept } from './setUpAnswers'
 import type { SetUpAnswers } from './setUpAnswers'
 import { settingsOperations } from './settingsOperations'
+import { categoryOperations } from './categoryOperations'
+import { ACCOUNT_OPERATIONS } from './accountOperations'
 import type { PackOperations } from '../companyAssistant'
 import { installedPack } from '../../packs/packContribution'
 import { readWorkbook } from '../../workbook/domain/readWorkbook'
@@ -56,6 +58,8 @@ function operationSets(ports: CompanyOperationPorts): readonly CompanyOperationS
     LABEL_OPERATIONS,
     importOperations(ports.heldStatements),
     settingsOperations(),
+    categoryOperations(),
+    ACCOUNT_OPERATIONS,
     INVOICING_OPERATIONS,
     ...(ports.pack === null ? [] : [packSet(ports.pack)]),
   ]

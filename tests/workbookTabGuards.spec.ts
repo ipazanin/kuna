@@ -5,7 +5,8 @@ import { en as receivablesEn } from '../src/apps/company/receivables/application
 import { newInvoiceDates } from '../src/apps/company/invoicing/domain/invoiceDates'
 import { accountChangeRefusals } from '../src/apps/company/settings/domain/accountGuards'
 import { categoryChangeRefusals, categoryRoleRefusals, knownRoles } from '../src/apps/company/categories/domain/categoryGuards'
-import { clientChangeRefusals } from '../src/apps/company/settings/domain/clientGuards'
+import { clientChangeRefusals } from '../src/apps/company/invoicing/domain/clientGuards'
+import { en as clientWriteWords } from '../src/apps/company/invoicing/application/words'
 import { writeDrafts } from '../src/apps/company/workbook/application/draftWrites'
 import type { Repository } from '../src/shared/storage/application/repository'
 import type { ReadRecord, RefusedRecord } from '../src/shared/storage/domain/recordsRead'
@@ -18,7 +19,7 @@ const OTHER_IBAN = 'XX93FAKE0000000098'
 
 /** Why a change to the clients is refused, each reason as the write gives it. */
 function clientReasons(...args: Parameters<typeof clientChangeRefusals>): string[] {
-  return clientChangeRefusals(...args).map((refusal) => refusal.reason)
+  return clientChangeRefusals(...args).map(clientWriteWords.clientRefusal)
 }
 
 describe('a slug', () => {

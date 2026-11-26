@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { firstVatOpenDay, vatReturnDue } from '../src/apps/company/packs/hr-doo/domain/vatFiledDays'
-import { ACCOUNT_WRITES, writeAccounts } from '../src/apps/company/settings/application/namedRecordWrites'
+import { ACCOUNT_WRITES, writeAccounts } from '../src/apps/company/settings/application/accountWrites'
 import { derivedSources, folderFiledOnSync, statementMailReach } from '../src/apps/company/workbook/domain/accountSources'
 import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import { storedOf } from '../src/shared/storage/domain/recordsRead'

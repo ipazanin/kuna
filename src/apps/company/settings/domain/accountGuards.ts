@@ -1,6 +1,7 @@
 import { isIban } from '../../../../shared/text/iban'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
+import { words as bookWords } from '../../workbook/domain/words'
 import { words } from './words'
 
 interface AccountCells {
@@ -43,7 +44,7 @@ export function accountChangeRefusals(edits: readonly AccountEdit[], untouched: 
     const holder = others(edit).find((row) => row.iban === after.iban)
     const client = checks.clientIbans.get(after.iban)
     if (!isIban(after.iban)) {
-      refusals.push(words.notAnIban(after.iban))
+      refusals.push(bookWords.notAnIban(after.iban))
     } else if (holder !== undefined) {
       refusals.push(words.accounts.onAnotherAccount(after.iban, holder.slug))
     } else if (client !== undefined) {
