@@ -7,8 +7,10 @@ import { lotIsTaxFree, taxFreeUnits } from '../src/apps/investments/holdings/dom
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import { openingWindow, priceHistory, priceSpan, yearRange } from '../src/apps/investments/holdings/domain/priceHistory'
+import type { SplitNote } from '../src/apps/investments/prices/domain/pricesFile'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
+import type { Split } from '../src/apps/investments/workbook/domain/split'
 import { addDays, weekdaysBetween } from '../src/shared/calendar/civilDate'
 import { monthOf } from '../src/shared/calendar/monthKey'
 import { decimalText } from '../src/shared/money/decimal'
@@ -149,7 +151,7 @@ describe("a holding's price history", () => {
 
   it('gives each month end from the first close and the day, in the units held today', () => {
     // 31 Jan has no close yet. 104 before the split is 52 a unit today.
-    expect(priceHistory(holding, sources, null).points.map((point) => [point.date, decimalText(point.price)])).toEqual([
+    expect(priceHistory(holding, sources, [], null).points.map((point) => [point.date, decimalText(point.price)])).toEqual([
       ['2025-02-28', '52'],
       ['2025-03-31', '54'],
       ['2025-04-15', '55'],
@@ -157,7 +159,7 @@ describe("a holding's price history", () => {
   })
 
   it('leaves out the January buy, before the first close, and dots the sale after the split as it was', () => {
-    expect(priceHistory(holding, sources, null).dots.map((dot) => [dot.side, monthOf(dot.date), decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
+    expect(priceHistory(holding, sources, [], null).dots.map((dot) => [dot.side, monthOf(dot.date), decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
       ['sell', '2025-04', '4', '53', euros(212)],
     ])
   })
@@ -201,8 +203,8 @@ describe("a holding's price chart over every close", () => {
 
   it('draws the closes before the first buy, month end by month end on All, and day by day over the last year', () => {
     const sources = sourcesOf('2023-01-09')
-    const all = priceHistory(heldOf(sources), sources, null)
-    const lastYear = priceHistory(heldOf(sources), sources, { from: civil('2025-11-25'), to: today })
+    const all = priceHistory(heldOf(sources), sources, [], null)
+    const lastYear = priceHistory(heldOf(sources), sources, [], { from: civil('2025-11-25'), to: today })
 
     expect([all.daily, all.points[0]?.date]).toEqual([false, '2015-01-31'])
     expect([lastYear.daily, lastYear.points[0]?.date]).toEqual([true, '2025-11-25'])
@@ -212,10 +214,10 @@ describe("a holding's price chart over every close", () => {
     const sources = sourcesOf('2023-01-09')
     const held = heldOf(sources)
 
-    expect(priceHistory(held, sources, null).firstBuy).toBe('2023-01-31')
+    expect(priceHistory(held, sources, [], null).firstBuy).toBe('2023-01-31')
     // From June 2022 the daily closes fall on most weekdays, so the rule stands on the day itself.
-    expect(priceHistory(held, sources, { from: civil('2022-06-01'), to: today }).firstBuy).toBe('2023-01-09')
-    const lastYear = priceHistory(held, sources, { from: civil('2025-11-25'), to: today })
+    expect(priceHistory(held, sources, [], { from: civil('2022-06-01'), to: today }).firstBuy).toBe('2023-01-09')
+    const lastYear = priceHistory(held, sources, [], { from: civil('2025-11-25'), to: today })
     expect([lastYear.firstBuy, lastYear.dots]).toEqual([null, []])
   })
 
@@ -231,14 +233,14 @@ describe("a holding's price chart over every close", () => {
     expect(openingWindow(heldOf(young), priceSpan(heldOf(young), young), young)).toBeNull()
   })
 
-  it('opens a holding sold years ago a month either side of its held days, though the series it shares runs on to today', () => {
+  it('opens a holding sold years ago a month either side of its held days, and ends its span there though the series it shares runs on to today', () => {
     const sold = sourcesOf('2023-01-09', [...monthEnds, ...dailies], '2024-03-15')
     const soldThisYear = sourcesOf('2026-02-02', [...monthEnds, ...dailies], '2026-06-15')
 
-    expect(priceSpan(heldOf(sold), sold)?.to).toBe('2026-11-25')
+    expect(priceSpan(heldOf(sold), sold)?.to).toBe('2024-04-15')
     // 9 Jan 2023 to 15 Apr 2024 is 462 days, and 3% of them rounds up to 14, so the month before the first buy is the longer lead-in.
     expect(openingWindow(heldOf(sold), priceSpan(heldOf(sold), sold), sold)).toEqual({ from: civil('2022-12-09'), to: civil('2024-04-15') })
-    expect(openingWindow(heldOf(soldThisYear), priceSpan(heldOf(soldThisYear), soldThisYear), soldThisYear)).toEqual({ from: civil('2025-11-25'), to: today })
+    expect(openingWindow(heldOf(soldThisYear), priceSpan(heldOf(soldThisYear), soldThisYear), soldThisYear)).toEqual({ from: civil('2025-11-25'), to: civil('2026-07-15') })
     // A series fetched only to the sale has no close in the month after it, so the window ends on its last close.
     const soldSeriesEnds = sourcesOf('2023-01-09', [...monthEnds, ...dailies.filter(([day]) => day <= '2024-03-15')], '2024-03-15')
     expect(openingWindow(heldOf(soldSeriesEnds), priceSpan(heldOf(soldSeriesEnds), soldSeriesEnds), soldSeriesEnds)).toEqual({ from: civil('2022-12-09'), to: civil('2024-03-15') })
@@ -248,7 +250,107 @@ describe("a holding's price chart over every close", () => {
     const sources = sourcesOf('2023-01-09', [['2018-06-29', '40', 'by hand'], ...dailies])
 
     expect(priceSpan(heldOf(sources), sources)).toEqual({ from: civil('2018-06-29'), to: today })
-    expect(priceHistory(heldOf(sources), sources, null).points[0]?.date).toBe('2018-06-30')
+    expect(priceHistory(heldOf(sources), sources, [], null).points[0]?.date).toBe('2018-06-30')
+  })
+})
+
+describe('two holdings that share a series', () => {
+  // Two holdings of one listing, both bought on 10 Jan 2024, one sold on 11 Mar and one held, with the shared series
+  // running on to today. A two for one split halves the closes from its day. Every figure made up.
+  const sold = instrument('shared-sold', { name: 'Shared Co, sold', sourceSymbol: 'SHARED' })
+  const held = instrument('shared-held', { name: 'Shared Co, held', sourceSymbol: 'SHARED' })
+  const unsplit: readonly (readonly [string, number])[] = [
+    ['2024-01-10', 100],
+    ['2024-01-31', 102],
+    ['2024-02-29', 106],
+    ['2024-03-11', 110],
+    ['2024-03-28', 112],
+    ['2024-04-01', 114],
+    ['2024-04-30', 116],
+    ['2024-06-28', 120],
+    ['2025-06-30', 140],
+  ]
+  const today = civil('2025-06-30')
+  const sourcesOf = (splitDay: string, splits: readonly Split[]) => {
+    const rows = unsplit.map(([day, price]): CloseRow => [day, String(day >= splitDay ? price / 2 : price)])
+    return {
+      book: book({
+        accounts: [BROKER],
+        instruments: [sold, held],
+        cashMovements: [cashMovement('deposit', BROKER, '2024-01-10', '2000')],
+        trades: [trade('buy', BROKER, sold, '2024-01-10', '10', '100', '0'), trade('sell', BROKER, sold, '2024-03-11', '10', '110', '0'), trade('buy', BROKER, held, '2024-01-10', '5', '100', '0')],
+        splits,
+      }),
+      prices: priceBookOf(
+        new Map([
+          [sold, rows],
+          [held, rows],
+        ]),
+      ),
+      rates: WORKED_RATES,
+      today,
+    }
+  }
+  const notesOn = (day: string): SplitNote[] => [{ series: 'twelvedata:SHARED', date: day, newUnits: '2', oldUnits: '1' }]
+  const of = (sources: ReturnType<typeof sourcesOf>, what: Instrument) => holdingOf(portfolioFigures(sources), what)
+  const pricesOf = (history: ReturnType<typeof priceHistory>) => history.points.map((point) => [point.date, decimalText(point.price)])
+  const dotsOf = (history: ReturnType<typeof priceHistory>) => history.dots.map((dot) => [dot.side, dot.date, decimalText(dot.units), decimalText(dot.price)])
+  const splitBeforeEnd = sourcesOf('2024-04-01', [split(held, '2024-04-01', 2, 1)])
+
+  it("ends a sold holding's span a month after the sale, where the series runs on to today", () => {
+    expect(priceSpan(of(splitBeforeEnd, sold), splitBeforeEnd)).toEqual({ from: civil('2024-01-10'), to: civil('2024-04-11') })
+  })
+
+  it("stops a sold holding's line a month after the sale, on All and on a window that runs to today", () => {
+    expect(priceHistory(of(splitBeforeEnd, sold), splitBeforeEnd, [], null).points.at(-1)?.date).toBe('2024-04-11')
+    expect(priceHistory(of(splitBeforeEnd, sold), splitBeforeEnd, [], { from: civil('2024-01-01'), to: today }).points.at(-1)?.date).toBe('2024-04-11')
+  })
+
+  it("takes into a sold holding's line a split the other holding records before its line ends", () => {
+    // 102, 106 and the 112 of 28 Mar are before the 1 Apr split, so half that a unit after it, as the 57 of 1 Apr is.
+    const history = priceHistory(of(splitBeforeEnd, sold), splitBeforeEnd, [], null)
+    expect(pricesOf(history)).toEqual([
+      ['2024-01-31', '51'],
+      ['2024-02-29', '53'],
+      ['2024-03-31', '56'],
+      ['2024-04-11', '57'],
+    ])
+    expect(dotsOf(history)).toEqual([
+      ['buy', '2024-01-31', '20', '50'],
+      ['sell', '2024-03-31', '20', '55'],
+    ])
+  })
+
+  it("keeps a sold holding's line in the units it was held in when the split comes after its line ends", () => {
+    const splitAfterEnd = sourcesOf('2024-06-03', [split(held, '2024-06-03', 2, 1)])
+    const history = priceHistory(of(splitAfterEnd, sold), splitAfterEnd, notesOn('2024-06-03'), null)
+    expect(pricesOf(history)).toEqual([
+      ['2024-01-31', '102'],
+      ['2024-02-29', '106'],
+      ['2024-03-31', '112'],
+      ['2024-04-11', '114'],
+    ])
+    expect(dotsOf(history)).toEqual([
+      ['buy', '2024-01-31', '10', '100'],
+      ['sell', '2024-03-31', '10', '110'],
+    ])
+  })
+
+  it("takes into a sold holding's line the split the prices file notes for the series when no holding records one", () => {
+    const unrecorded = sourcesOf('2024-04-01', [])
+    expect(pricesOf(priceHistory(of(unrecorded, sold), unrecorded, notesOn('2024-04-01'), null)).map(([, price]) => price)).toEqual(['51', '53', '56', '57'])
+  })
+
+  it("counts a held holding's line after its own split records alone, leaving out the other holding's and the prices file's", () => {
+    const splitOnSold = sourcesOf('2024-04-01', [split(sold, '2024-04-01', 2, 1)])
+    const history = priceHistory(of(splitOnSold, held), splitOnSold, notesOn('2024-04-01'), { from: civil('2024-01-01'), to: civil('2024-04-30') })
+    expect(pricesOf(history)).toEqual([
+      ['2024-01-31', '102'],
+      ['2024-02-29', '106'],
+      ['2024-03-31', '112'],
+      ['2024-04-30', '58'],
+    ])
+    expect(dotsOf(history)).toEqual([['buy', '2024-01-31', '5', '100']])
   })
 })
 

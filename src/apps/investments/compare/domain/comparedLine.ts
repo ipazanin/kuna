@@ -1,6 +1,6 @@
 import { priceInTodaysUnits } from '../../holdings/domain/holding'
 import type { PortfolioSources } from '../../holdings/domain/holding'
-import { notedSplits } from '../../performance/domain/benchmark'
+import { seriesSplits } from '../../holdings/domain/seriesSplits'
 import { priceLine } from '../../performance/domain/portfolioPerformance'
 import type { ComparedListing, ListedSource } from '../../prices/domain/priceDemand'
 import { seriesKey } from '../../prices/domain/pricesFile'
@@ -74,19 +74,9 @@ export function comparedInstrument(ticker: ComparedTicker, currency: CurrencyCod
   }
 }
 
-/**
- * The sources with the compared instrument's splits as the only splits, so its closes count in today's units. Those are
- * the split records of the first instrument priced by the same series that has any, as a benchmark's records win, and
- * otherwise the splits its vendor reported, which the prices file notes.
- */
+/** The sources with the compared instrument's series splits as the only splits, so its closes count in today's units. */
 export function comparedSources(sources: PortfolioSources, compared: Instrument, notes: readonly SplitNote[]): PortfolioSources {
-  const key = compared.prices === 'manual' ? null : seriesKey(compared.prices, compared.sourceSymbol)
-  const recorded = sources.book.instruments
-    .filter((named) => named.prices !== 'manual' && seriesKey(named.prices, named.sourceSymbol) === key)
-    .map((named) => sources.book.splits.filter((split) => split.instrument === named.id))
-    .find((splits) => splits.length > 0)
-  const splits = recorded === undefined ? notedSplits(compared, notes) : recorded.map((split) => ({ ...split, instrument: compared.id }))
-  return { ...sources, book: { ...sources.book, splits } }
+  return { ...sources, book: { ...sources.book, splits: seriesSplits(compared, sources.book, notes) } }
 }
 
 /** A point over a first point above zero, less one, so lines that start at 100 and at 50 read alike. */

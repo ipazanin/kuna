@@ -1,7 +1,9 @@
 import { priceInTodaysUnits, quantityInTodaysUnits } from './holding'
 import type { HoldingFigures, PortfolioSources } from './holding'
 import { closePerUnit, priceOfWorth, tradeWorth } from './quoting'
+import { seriesSplits } from './seriesSplits'
 import type { Close } from '../../prices/domain/priceBook'
+import type { SplitNote } from '../../prices/domain/pricesFile'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { Trade, TradeSide } from '../../workbook/domain/trade'
 import { addDays, daysBetween, weekdaysBetween } from '../../../../shared/calendar/civilDate'
@@ -54,12 +56,23 @@ export interface PriceHistory {
 /** A line runs day by day once its closes fall on at least this share of the weekdays it spans, so month-end closes, or a vendor's monthly history, keep the monthly line. */
 const DAILY_SHARE = 0.5
 
-/** The days of a holding's line: from its first close, fetched or by hand, to the figures' day, or to the last close of a holding sold. Null for one with no close. */
+/**
+ * The days of a holding's line: from its first close, fetched or by hand, to the figures' day, or for a holding sold to
+ * its last close no later than a month after its last trade. Null for one with no close.
+ */
 export function priceSpan(holding: Pick<HoldingFigures, 'instrument' | 'quantity'>, sources: PortfolioSources): DateRange | null {
   const first = sources.prices.firstClose(holding.instrument)
   const last = sources.prices.closeOnOrBefore(holding.instrument, sources.today)
   if (first === null || last === null) return null
-  return { from: first.date, to: holding.quantity > DECIMAL_ZERO ? sources.today : last.date }
+  const end = lineEnd(holding, sources)
+  return { from: first.date, to: holding.quantity > DECIMAL_ZERO || end < last.date ? end : last.date }
+}
+
+/** The last day a holding's line may reach: the figures' day while units are held, and a month after the last trade of one sold, as a series another holding shares runs on past its sale. */
+function lineEnd(holding: Pick<HoldingFigures, 'instrument' | 'quantity'>, sources: PortfolioSources): CivilDate {
+  const lastTrade = holding.quantity > DECIMAL_ZERO ? null : lastTradeOf(holding.instrument, sources.book.trades)
+  const monthAfterSale = lastTrade === null ? sources.today : dayMonthsLater(lastTrade, 1)
+  return monthAfterSale < sources.today ? monthAfterSale : sources.today
 }
 
 /** Before its first buy a held period's chart shows at least this share of the days from that buy to the window's end, so the first-buy rule stands clear of the axis on a long window too. */
@@ -67,18 +80,16 @@ const LEAD_IN_SHARE = 0.03
 
 /**
  * A holding's chart opens on the days it was held, with a lead-in before its first units of a month or 3% of the held
- * days, whichever is longer, and a month after its last trade once sold. It never opens on less than the last year,
- * nor beyond the first or last close. Null means its whole line.
+ * days, whichever is longer, to the end of its span, which ends a month after its last trade once sold. It never opens
+ * on less than the last year, nor before the first close. Null means its whole line.
  */
-export function openingWindow(holding: Pick<HoldingFigures, 'instrument' | 'quantity' | 'firstAcquired'>, span: DateRange | null, sources: PortfolioSources): DateRange | null {
+export function openingWindow(holding: Pick<HoldingFigures, 'firstAcquired'>, span: DateRange | null, sources: PortfolioSources): DateRange | null {
   if (span === null) return null
   const yearAgo = dayMonthsLater(sources.today, -12)
   const firstDay = holding.firstAcquired?.date ?? yearAgo
   // A holding opening on the last year keeps its whole year, sold in it or not.
   if (firstDay >= yearAgo) return yearAgo <= span.from ? null : { from: yearAgo, to: span.to }
-  const lastTrade = holding.quantity > DECIMAL_ZERO ? null : lastTradeOf(holding.instrument, sources.book.trades)
-  const monthAfterSale = lastTrade === null ? span.to : dayMonthsLater(lastTrade, 1)
-  const to = monthAfterSale > span.to ? span.to : monthAfterSale
+  const { to } = span
   const monthBefore = dayMonthsLater(firstDay, -1)
   const shareBefore = addDays(firstDay, -Math.ceil(LEAD_IN_SHARE * daysBetween(firstDay, to)))
   const leadIn = shareBefore < monthBefore ? shareBefore : monthBefore
@@ -93,17 +104,26 @@ function lastTradeOf(instrument: Instrument, trades: readonly Trade[]): CivilDat
 
 /**
  * A holding's closes over the window, null for every close the prices file has, before its first units came too, up to
- * the figures' day: each close once the closes fall on most weekdays of the window, otherwise the close at each month
- * end and on the window's last day. Each point's trades in the window merge into one dot per side, the trades of a day
- * on a daily line and of a month on a monthly one, those before the first close left out. A close per troy ounce of
- * gold becomes a price per gram, as its trades are.
+ * the figures' day, or a month after the last trade of a holding sold: each close once the closes fall on most weekdays
+ * of the window, otherwise the close at each month end and on the window's last day. Each point's trades in the window
+ * merge into one dot per side, the trades of a day on a daily line and of a month on a monthly one, those before the
+ * first close left out. Closes and trades count after the splits of a held holding's own records, as its figures do,
+ * and after the splits of a sold holding's series up to the line's end, so it reads in the units it was held in. A
+ * close per troy ounce of gold becomes a price per gram, as its trades are.
  */
-export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'quantity' | 'firstAcquired'>, sources: PortfolioSources, window: DateRange | null): PriceHistory {
+export function priceHistory(
+  holding: Pick<HoldingFigures, 'instrument' | 'quantity' | 'firstAcquired'>,
+  sources: PortfolioSources,
+  notes: readonly SplitNote[],
+  window: DateRange | null,
+): PriceHistory {
   const { instrument } = holding
-  const { book, prices, today } = sources
+  const { prices } = sources
+  const end = lineEnd(holding, sources)
+  const book = holding.quantity > DECIMAL_ZERO ? sources.book : { ...sources.book, splits: seriesSplits(instrument, sources.book, notes).filter((split) => split.date <= end) }
   const firstClose = prices.firstClose(instrument)?.date ?? null
   const from = firstClose === null ? null : window === null || window.from < firstClose ? firstClose : window.from
-  const to = window === null || window.to > today ? today : window.to
+  const to = window === null || window.to > end ? end : window.to
   const inTodaysUnits = (close: Close): PricePoint => ({ date: close.date, price: closePerUnit(instrument.quoted, priceInTodaysUnits(book, instrument, close.date, close.price)) })
   const trades = book.trades
     .filter((trade) => trade.instrument === instrument.id && trade.date <= to && (window === null || trade.date >= window.from))

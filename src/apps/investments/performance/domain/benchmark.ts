@@ -1,14 +1,11 @@
 import type { PortfolioSources } from '../../holdings/domain/holding'
+import { seriesSplits } from '../../holdings/domain/seriesSplits'
 import { closeIsLate } from '../../prices/domain/priceBook'
 import type { Close } from '../../prices/domain/priceBook'
-import { seriesKey } from '../../prices/domain/pricesFile'
 import type { SplitNote } from '../../prices/domain/pricesFile'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { SPLIT_RECORDS } from '../../workbook/domain/investmentKinds'
 import type { Split } from '../../workbook/domain/split'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** The instrument Performance compares the portfolio with: the first one marked, so two marks that a merge left still name one. */
@@ -50,35 +47,11 @@ export function benchmarkState(sources: PortfolioSources): BenchmarkState {
 /** The instrument the figures compare with, and the splits its closes are counted after. */
 export interface Benchmark {
   readonly instrument: Instrument
-  /** The book's splits of it, or when the book has none, the prices file's notes of its listing, as for an index nobody holds. */
+  /** The splits of its series, so the prices file's notes count for an index nobody holds. */
   readonly splits: readonly Split[]
 }
 
 /** The benchmark once it has a close, since a comparison needs one. */
 export function comparedBenchmark(state: BenchmarkState, book: InvestmentBook, notes: readonly SplitNote[]): Benchmark | null {
-  if (state.kind !== 'priced') {
-    return null
-  }
-  const { instrument } = state
-  const recorded = book.splits.filter((split) => split.instrument === instrument.id)
-  if (recorded.length > 0 || instrument.prices === 'manual') {
-    return { instrument, splits: recorded }
-  }
-  return { instrument, splits: notedSplits(instrument, notes) }
-}
-
-/** The splits the prices file notes for an instrument's listing, as records of it, for a listing whose splits no record holds. */
-export function notedSplits(instrument: Instrument, notes: readonly SplitNote[]): Split[] {
-  const series = instrument.prices === 'manual' ? null : seriesKey(instrument.prices, instrument.sourceSymbol)
-  return notes
-    .filter((note) => note.series === series)
-    .map((note): Split => ({
-      id: recordIdOf(SPLIT_RECORDS, `${note.series} ${note.date}`),
-      instrument: instrument.id,
-      date: parseCivilDate(note.date)!,
-      newUnits: Number(note.newUnits),
-      oldUnits: Number(note.oldUnits),
-      importKeys: [],
-      note: '',
-    }))
+  return state.kind === 'priced' ? { instrument: state.instrument, splits: seriesSplits(state.instrument, book, notes) } : null
 }

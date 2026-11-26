@@ -196,7 +196,9 @@ export function priceChart(
               ) + (averageText === null ? '' : words.chart.averageCostLine(averageText))) +
           (firstBuyDay === null ? '' : words.chart.firstBuyLine(dayLabel(firstBuyDay))) +
           dotsLine,
-    subtitle: comparing ? compareWords.sinceAsQuoted(dayLabel(first.date)) : (daily ? words.chart.dailySubtitle : words.chart.subtitle)(currency),
+    subtitle: comparing
+      ? compareWords.sinceAsQuoted(dayLabel(first.date))
+      : (daily ? words.chart.dailySubtitle : words.chart.subtitle)(currency) + (averageText === null ? '' : words.chart.dashedAverageCost),
     legend: [
       { label: lineName, colour: 'var(--invest-portfolio)', mark: 'line' },
       ...(comparing ? [comparedLegend(compared)] : []),

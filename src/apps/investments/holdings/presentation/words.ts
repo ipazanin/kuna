@@ -203,8 +203,9 @@ export const en = {
   },
   chart: {
     title: 'Price',
-    subtitle: (currency: string) => `Month-end closes in ${currency}, as quoted. Dashed is your average cost.`,
-    dailySubtitle: (currency: string) => `Daily closes in ${currency}, as quoted. Dashed is your average cost.`,
+    subtitle: (currency: string) => `Month-end closes in ${currency}, as quoted.`,
+    dailySubtitle: (currency: string) => `Daily closes in ${currency}, as quoted.`,
+    dashedAverageCost: ' Dashed is your average cost.',
     pricesFrom: (day: string, vendor: string) => `Prices from ${day}, the earliest ${vendor} gives.`,
     price: 'Price',
     averageCost: (price: string) => `Average cost ${price}`,
@@ -665,8 +666,9 @@ export const hr: Translation<typeof en> = {
   },
   chart: {
     title: 'Cijena',
-    subtitle: (currency) => `Zaključne cijene na kraju mjeseca u ${currency}, kako kotira. Isprekidano je vaša prosječna nabavna cijena.`,
-    dailySubtitle: (currency) => `Dnevne zaključne cijene u ${currency}, kako kotira. Isprekidano je vaša prosječna nabavna cijena.`,
+    subtitle: (currency) => `Zaključne cijene na kraju mjeseca u ${currency}, kako kotira.`,
+    dailySubtitle: (currency) => `Dnevne zaključne cijene u ${currency}, kako kotira.`,
+    dashedAverageCost: ' Isprekidano je vaša prosječna nabavna cijena.',
     pricesFrom: (day, vendor) => `${vendor}: cijene od ${day}, najranije koje daje.`,
     price: 'Cijena',
     averageCost: (price) => `Prosječna nabavna cijena ${price}`,

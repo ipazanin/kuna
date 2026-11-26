@@ -66,11 +66,11 @@ const priceRange = useChartRange(
   shownToday,
   () => rangeOfWindow(holding.value === null || sources.value === null ? null : openingWindow(holding.value, span.value, sources.value), shownToday()),
 )
-const history = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value, priceRange.window.value)))
+const prices = usePrices()
+const history = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value, prices.state.copy?.file.splits ?? [], priceRange.window.value)))
 const comparison = useComparison(() => history.value?.points.map((point) => point.date) ?? [], 'as-quoted')
 const chart = computed(() => (history.value === null || holding.value === null ? null : priceChart(history.value, holding.value, chartTokens(), phone.value, comparison.line.value)))
 
-const prices = usePrices()
 /** Where the holding's closes begin after its first buy, because its vendor has none earlier, said once on its chart. */
 const pricesFrom = computed(() => {
   const current = holding.value
