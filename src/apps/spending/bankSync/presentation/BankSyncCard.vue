@@ -33,6 +33,7 @@ import { currentToken } from '../../../../shared/google/googleAuth'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /**
@@ -136,14 +137,16 @@ onMounted(() => {
         <UAlert v-if="sync.failure.value !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="sync.failure.value" data-testid="spending-bank-sync-failed" />
         <template v-if="builtIn && saved">
           <ul v-if="linkRows.length > 0" class="divide-y divide-default rounded-control border border-default">
-            <li v-for="{ link, line, listed } in linkRows" :key="link.id" class="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="spending-bank-link">
-              <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span class="type-row-title">{{ link.bank }}</span>
-                <span class="type-caption" data-testid="spending-bank-link-state">{{ line }}</span>
-                <NoteLine v-if="!listed" tone="warning" data-testid="spending-bank-link-not-listed">{{ words.notListed }}</NoteLine>
-              </span>
+            <ListRow v-for="{ link, line, listed } in linkRows" :key="link.id" :title="link.bank" data-testid="spending-bank-link">
+              <template #caption>
+                <span data-testid="spending-bank-link-state">{{ line }}</span>
+              </template>
+              <template v-if="!listed" #details>
+                <NoteLine tone="warning" data-testid="spending-bank-link-not-listed">{{ words.notListed }}</NoteLine>
+              </template>
               <UButton
                 v-if="listed"
+                class="self-start"
                 :label="words.linkAgain"
                 :aria-label="words.linkAgainOf(link.bank)"
                 color="neutral"
@@ -155,6 +158,7 @@ onMounted(() => {
               />
               <UButton
                 v-else
+                class="self-start"
                 :label="words.removeLink"
                 :aria-label="words.removeLinkOf(link.bank)"
                 icon="i-lucide-unlink"
@@ -164,7 +168,7 @@ onMounted(() => {
                 data-testid="spending-bank-link-remove"
                 @click="confirmingRemoval = link.bank"
               />
-            </li>
+            </ListRow>
           </ul>
           <p v-else class="type-aside" data-testid="spending-bank-link-none">{{ words.noLinkYet }}</p>
           <div class="flex flex-wrap gap-3">
