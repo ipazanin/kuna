@@ -14553,12 +14553,12 @@ export function companyLabelsFlowIn(language) {
 
 /**
  * On the fake Company books' Transactions: three rows picked, the first on a desktop by a click on its row rather than its tick,
- * then labelled in one write, which one Undo takes back. In English they take Office 2027 of the books, and in Croatian a new label
+ * then labelled in one write, which one Undo takes back. In English they take New office 2027 of the books, and in Croatian a new label
  * typed into the picker, since the books name their labels in English.
  */
 export function companySelectLabelFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const office = language === 'en' ? 'Office 2027' : 'Uređenje ureda'
+  const office = language === 'en' ? 'New office 2027' : 'Uređenje ureda'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const carrying = () => page.$$eval('[data-testid="company-row-labels"]', (lines, wanted) => lines.filter((line) => line.textContent?.includes(wanted)).length, office)

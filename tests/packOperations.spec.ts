@@ -67,7 +67,7 @@ function exampleRecords(desk: PackDesk): Readonly<Record<string, string>> {
   const labelCalled = (name: string) => books.workbook.labels.find((label) => label.name === name)!.id
   return {
     category: 'ai-services',
-    label: labelCalled('Office 2027'),
+    label: labelCalled('New office 2027'),
     'label-on-advance': labelCalled('Berlin conference'),
     advance: first(
       OWNER_ADVANCE_RECORDS,

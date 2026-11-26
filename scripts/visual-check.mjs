@@ -1181,8 +1181,8 @@ const SCREENS = [
     shows: ['Predujam vlasnika', 'Vidljivo u Potrošnji'],
     cards: false,
   },
-  { name: 'company-labels', hash: '#/company/sorting#labels', title: 'Sorting', charts: 0, shows: ['Berlin conference', 'Office 2027', 'No rows yet', 'Operating cost'] },
-  { name: 'company-labels-croatian', query: 'lang=hr', hash: '#/company/sorting#labels', title: 'Razvrstavanje', charts: 0, shows: ['Berlin conference', 'Office 2027', 'Još nema stavki'] },
+  { name: 'company-labels', hash: '#/company/sorting#labels', title: 'Sorting', charts: 0, shows: ['Berlin conference', 'New office 2027', 'No rows yet', 'Operating cost'] },
+  { name: 'company-labels-croatian', query: 'lang=hr', hash: '#/company/sorting#labels', title: 'Razvrstavanje', charts: 0, shows: ['Berlin conference', 'New office 2027', 'Još nema stavki'] },
   {
     name: 'company-labels-before-items',
     query: 'fake=no-row-ids',

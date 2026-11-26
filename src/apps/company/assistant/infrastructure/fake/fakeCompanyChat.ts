@@ -26,7 +26,7 @@ const ANSWERS = {
     currencyTitle: 'Show the figures in US dollars',
     currency: 'The card changes the currency of the books. Every figure then reads in dollars, so check the warned line before you accept.',
     ruleTitle: 'A rule for Laptop Store',
-    rule: 'The card adds the rule and files the Laptop Store rows you confirmed under Equipment under Office supplies instead. Each of their lines is warned, since you filed them yourself.',
+    rule: 'The card adds the rule, which puts New office 2027 on the rows it files, and files the Laptop Store rows you confirmed under Equipment under Office supplies instead. Each of their lines is warned, since you filed them yourself.',
     noCategory: 'I found no category for office supplies. Add one on Sorting, Categories first.',
     moveTitle: 'Try the second rule first',
     moved: 'The card moves the second rule to the top, so it is tried before every other rule.',
@@ -72,7 +72,7 @@ const ANSWERS = {
     currencyTitle: 'Prikaži iznose u američkim dolarima',
     currency: 'Kartica mijenja valutu knjiga. Svaki iznos tada se čita u dolarima, pa provjerite označeni redak prije nego što prihvatite.',
     ruleTitle: 'Pravilo za Laptop Store',
-    rule: 'Kartica dodaje pravilo i stavke Laptop Store koje ste potvrdili pod Opremom razvrstava pod Uredski materijal. Svaki njihov redak je označen jer ste ih sami razvrstali.',
+    rule: 'Kartica dodaje pravilo koje stavlja oznaku New office 2027 na stavke koje razvrstava. Stavke Laptop Store koje ste potvrdili pod Opremom razvrstava pod Uredski materijal. Svaki njihov redak je označen jer ste ih sami razvrstali.',
     moveTitle: 'Neka se drugo pravilo isprobava prvo',
     moved: 'Kartica premješta drugo pravilo na vrh, pa se isprobava prije svih ostalih.',
     fewRules: 'U knjigama su manje od dva pravila, pa nema što premjestiti.',
@@ -228,20 +228,25 @@ function currencyReply({ request, tokens }: FakeChatTurn, says: Says): ModelRepl
   return answered(request, says.currency, tokens)
 }
 
+/** The label of the fake books that the Laptop Store rule puts on the rows it files. */
+const OFFICE_LABEL = 'New office 2027'
+
 /**
- * Reads the categories and the first rule, and proposes a rule tried before every other that files Laptop Store under office
- * supplies, which re-files the row the owner confirmed under Equipment.
+ * Reads the categories, the first rule and the labels, and proposes a rule tried before every other that files Laptop Store under office
+ * supplies with the New office 2027 label where the books keep it, which re-files the row the owner confirmed under Equipment.
  */
 function ruleReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'category', { limit: 50 }), tokens)
   if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('company', 'rule', { limit: 1 }), tokens)
-  if (answers.length === 2) {
+  if (answers.length === 2) return lookup(2, 'find_records', findRecordsArgs('company', 'label', { limit: 50 }), tokens)
+  if (answers.length === 3) {
     const office = recordsOf(answers[0]!.text).find((category) => /office supplies|uredski materijal/i.test(category.label ?? ''))
     if (office === undefined) return answered(request, says.noCategory, tokens)
     const [first] = recordsOf(answers[1]!.text)
-    const step = proposedStep(companyOperations(), 'add-rule', { category: office.ref, before: first?.ref ?? null, payeeWords: 'Laptop Store', direction: 'out', confidence: 'rule' })
-    return lookup(2, 'propose_changes', { app: 'company', title: says.ruleTitle, steps: [step], next: false }, tokens)
+    const labels = recordsOf(answers[2]!.text).flatMap((label) => (label.name === OFFICE_LABEL ? [label.ref] : []))
+    const step = proposedStep(companyOperations(), 'add-rule', { category: office.ref, before: first?.ref ?? null, labels, payeeWords: 'Laptop Store', direction: 'out', confidence: 'rule' })
+    return lookup(3, 'propose_changes', { app: 'company', title: says.ruleTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.rule, tokens)
 }

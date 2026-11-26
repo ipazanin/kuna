@@ -42,7 +42,7 @@ describe('Company labels as the books read them', () => {
   it('reads the labels tab and the labels each counted item carries, and books from before items carry none', async () => {
     const { store, conference } = await itemsBooks()
     const { labels, itemLabels } = store.state.workbook!
-    expect(labels.map((label) => label.name)).toEqual(['Berlin conference', 'Office 2027'])
+    expect(labels.map((label) => label.name)).toEqual(['Berlin conference', 'New office 2027'])
     expect([...itemLabels.values()]).toEqual([[conference.id], [conference.id], [conference.id], [conference.id]])
 
     const before = await browserHarness(used, fakeWorkbookDocumentBeforeItems(SAVED, 'browser'))
@@ -62,7 +62,7 @@ describe('Company labels as the books read them', () => {
     const cash = countedLedger(workbook, DEFAULT_FILTERS, installedPack().vatOnPrivateShare)!.workbook
     const [office, conference] = labelTotals(cash.transactions, cash.ownerAdvances, workbook.itemLabels, workbook.labels)
 
-    expect(office).toMatchObject({ label: { name: 'Office 2027' }, parts: 0, latest: null })
+    expect(office).toMatchObject({ label: { name: 'New office 2027' }, parts: 0, latest: null })
     // The lunch 62.28, the flight 355.81, the gadget 38.90 and the train tickets the owner paid privately 212.50 are operating cost.
     // The owner's repayment part is financing, listed but counted nowhere.
     expect(conference).toMatchObject({ label: { name: 'Berlin conference' }, parts: 5, latest: '2026-10-05' })
@@ -145,17 +145,17 @@ describe('writing labels', () => {
     await expect(store.write('Added', (unit) => addLabel(unit, newLabel('berlin CONFERENCE')))).rejects.toThrow(WorkbookWriteRefused)
     await expect(store.write('Renamed', (unit) => renameLabel(unit, conference, '  '))).rejects.toThrow(WorkbookWriteRefused)
     await store.write('Renamed', (unit) => renameLabel(unit, conference, 'Berlin 2027 '))
-    expect(store.state.workbook!.labels.map((label) => label.name)).toEqual(['Berlin 2027', 'Office 2027'])
+    expect(store.state.workbook!.labels.map((label) => label.name)).toEqual(['Berlin 2027', 'New office 2027'])
   })
 
   it('deletes a label with every part it is on in one write, and one Undo puts both back', async () => {
     const { store, conference } = await itemsBooks()
     const written = await store.write('Deleted', (unit) => deleteLabel(unit, store.state.records!, conference))
-    expect(store.state.workbook!.labels.map((label) => label.name)).toEqual(['Office 2027'])
+    expect(store.state.workbook!.labels.map((label) => label.name)).toEqual(['New office 2027'])
     expect(store.state.workbook!.itemLabels.size).toBe(0)
 
     await store.undo(store.state.writes.find((write) => write.receipt === written)!)
-    expect(store.state.workbook!.labels.map((label) => label.name).sort()).toEqual(['Berlin conference', 'Office 2027'])
+    expect(store.state.workbook!.labels.map((label) => label.name).sort()).toEqual(['Berlin conference', 'New office 2027'])
     expect(store.state.workbook!.itemLabels.size).toBe(4)
   })
 
@@ -240,7 +240,7 @@ describe('labels on the costs the owner paid', () => {
 
   it('reads the labels a cost carries, and puts one on or takes it off in one write', async () => {
     const { store, conference } = await itemsBooks()
-    const office = store.state.workbook!.labels.find((label) => label.name === 'Office 2027')!
+    const office = store.state.workbook!.labels.find((label) => label.name === 'New office 2027')!
     const [train, design] = store.state.workbook!.ownerAdvances
     expect(train!.labels).toEqual([conference.id])
 

@@ -123,6 +123,7 @@ const CARDS = {
   },
   refile: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal-line-warning"]', [SHARED_WORDS[language].confirmedRowMoves], 'the rule card does not warn on the confirmed row it re-files')
+    await elementSays(page, '[data-testid="chat-proposal"]', ['New office 2027'], 'the rule card does not name the label the rule puts on its rows')
   },
   category: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal"]', [CLASS_WORDS[language].classes.deductibleCost], 'the category card does not name its tax class as the categories editor does')
@@ -144,7 +145,7 @@ const CARDS = {
 
 /**
  * A chat on Company's Overview with a made-up key kept: an invoice is a link to the Invoices tab with the client picked, not a
- * card, dollars are a set-setting card with its line warned, a rule for Laptop Store re-files the rows the owner confirmed, each on a warned
+ * card, dollars are a set-setting card with its line warned, a rule for Laptop Store that labels its rows New office 2027 re-files the rows the owner confirmed, each on a warned
  * line, a category for training and one for donations are add-category cards that name their tax class as the categories editor does, and trying the second
  * rule first is a change-rule card that says where the rule is tried, and merging AI services
  * into software subscriptions is a delete-category card that says its plan row joins the one already there, which Accept writes and Undo puts back.

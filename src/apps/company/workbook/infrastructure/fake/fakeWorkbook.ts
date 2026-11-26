@@ -478,7 +478,7 @@ const LABEL_PLACE = 9
 /** The labels books on the items tab keep: a conference, and a label nothing carries yet. */
 const FAKE_LABELS: readonly RecordFields[] = [
   { name: 'Berlin conference', [ID_FIELD]: fixedIdOf(LABEL_PLACE, 0) },
-  { name: 'Office 2027', [ID_FIELD]: fixedIdOf(LABEL_PLACE, 1) },
+  { name: 'New office 2027', [ID_FIELD]: fixedIdOf(LABEL_PLACE, 1) },
 ]
 
 /**
