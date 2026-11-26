@@ -14766,8 +14766,8 @@ export function spendingAccountBankNameFlowIn(language) {
 
 /**
  * Settings, General on the statements set lists its saved recipe by name, bank and format. Its row opens the editor, whose
- * Delete leaves the card with Add recipe and Undo brings the recipe back. Add recipe opens a blank recipe, whose Save shows
- * each problem under its field.
+ * Delete leaves the card with Add recipe and Undo brings the recipe back. Add recipe opens a blank recipe that shows no
+ * problem until Save shows each one under its field. A second Save keeps them, and typing a name clears the name's.
  */
 export function spendingSettingsRecipesFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -14801,6 +14801,8 @@ export function spendingSettingsRecipesFlowIn(language) {
     await page.waitForSelector('[data-testid="recipe-dialog"]', { visible: true, timeout: 10_000 })
     await delay(400)
     if ((await page.$('[data-testid="recipe-dialog"] [data-slot="error"], [data-testid="recipe-problem"]')) !== null) throw new Error('a new recipe shows a problem before Save')
+    await inspect?.('a blank recipe before Save')
+    await shoot('spending-settings-recipe-blank')
     await pressSelector(page, press, '[data-testid="recipe-save"]')
     await page
       .waitForFunction(() => document.querySelectorAll('[data-testid="recipe-dialog"] [data-slot="error"]').length >= 3, { timeout: 5_000 })
@@ -14810,6 +14812,17 @@ export function spendingSettingsRecipesFlowIn(language) {
     await delay(300)
     await inspect?.('a blank recipe after Save')
     await shoot('spending-settings-recipe-new')
+    const problemCount = () => page.$$eval('[data-testid="recipe-dialog"] [data-slot="error"]', (problems) => problems.length)
+    const shown = await problemCount()
+    await pressSelector(page, press, '[data-testid="recipe-save"]')
+    await delay(300)
+    if ((await problemCount()) !== shown) throw new Error('a second Save of a blank recipe changed the problems it shows')
+    await fill(page, 'recipe-name', 'Example bank statement')
+    await page
+      .waitForFunction((before) => document.querySelectorAll('[data-testid="recipe-dialog"] [data-slot="error"]').length === before - 1, { timeout: 5_000 }, shown)
+      .catch(() => {
+        throw new Error('typing a name left its problem under the name')
+      })
   }
 }
 
