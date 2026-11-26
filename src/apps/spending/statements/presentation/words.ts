@@ -1,4 +1,4 @@
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayInTextLabel, dayLabel, dayRunInText } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import { formatPlainAmount } from '../../../../shared/money/moneyFormat'
@@ -274,7 +274,7 @@ export const hr: Translation<typeof en> = {
       title: 'Što datoteka sadrži',
       product: (savings, currency) => (savings ? `Štednja u valuti ${currency}` : `Tekući račun u valuti ${currency}`),
       rows: (count, from, to): CroatianForms => {
-        const days = from === to ? `, ${dayLabel(from)}` : ` od ${dayLabel(from)} do ${dayLabel(to)}`
+        const days = from === to ? `, ${dayInTextLabel(from)}` : ` ${dayRunInText({ from, to })}`
         return { one: `${count} redak${days}`, few: `${count} retka${days}`, other: `${count} redaka${days}` }
       },
       goesTo: (account) => `Ide na račun ${account}`,

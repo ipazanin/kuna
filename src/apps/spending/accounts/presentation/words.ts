@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRunInText } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -124,8 +124,6 @@ export const en = {
         one: 'Giving these days to another source deletes 1 bank row on hold',
         other: `Giving these days to another source deletes ${count} bank rows on hold`,
       }),
-      days: (days: string, from: string, to: string) => `${days}: “${from}” gives way to “${to}”.`,
-      onwards: (day: string) => `From ${day} on`,
       more: (count: number) => `And ${count} more.`,
       receipts: (count: number): EnglishForms => ({
         one: "1 receipt on them waits again for the new source's row.",
@@ -199,7 +197,7 @@ export const hr: Translation<typeof en> = {
   startDay: {
     label: 'Prati se od',
     help: 'Retci prije ovog dana ostaju izvan Kune.',
-    between: (earliest, latest) => `Odaberi dan od ${dayLabel(earliest)} do ${dayLabel(latest)}`,
+    between: (earliest, latest) => `Odaberi dan ${dayRunInText({ from: earliest, to: latest })}`,
   },
   dialog: {
     addTitle: 'Dodaj račun',
@@ -259,8 +257,6 @@ export const hr: Translation<typeof en> = {
         few: `Davanjem ovih dana drugom izvoru brišu se ${count} bankovna retka na čekanju`,
         other: `Davanjem ovih dana drugom izvoru briše se ${count} bankovnih redaka na čekanju`,
       }),
-      days: (days, from, to) => `${days}: izvor „${from}” ustupa mjesto izvoru „${to}” kad spremite.`,
-      onwards: (day) => `Od ${day} nadalje`,
       more: (count) => `I još ${count}.`,
       receipts: (count): CroatianForms => ({
         one: `${count} fiskalni račun na njima ponovno čeka redak novog izvora.`,

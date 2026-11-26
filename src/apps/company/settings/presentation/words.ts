@@ -78,10 +78,6 @@ export const en = {
     },
     handover: {
       title: (count: number): EnglishForms => ({ one: `Saving takes out ${count} row`, other: `Saving takes out ${count} rows` }),
-      days: (span: string, before: string, after: string) => `${span}: “${before}” gives way to “${after}”.`,
-      given: (span: string, after: string) => `${span}: “${after}” brings its rows.`,
-      onwards: (from: string) => `From ${from} on`,
-      before: (to: string) => `Up to ${to}`,
       more: (count: number) => `And ${count} more.`,
       paying: (row: string) => `${row}, pays an invoice`,
       paysInvoice: (count: number): EnglishForms => ({
@@ -207,10 +203,6 @@ export const hr: Translation<typeof en> = {
     },
     handover: {
       title: (count) => ({ one: `Spremanje uklanja ${count} stavku`, few: `Spremanje uklanja ${count} stavke`, other: `Spremanje uklanja ${count} stavki` }),
-      days: (span, before, after) => `${span}: izvor „${before}” ustupa mjesto izvoru „${after}”.`,
-      given: (span, after) => `${span}: izvor „${after}” donosi svoje stavke.`,
-      onwards: (from) => `Od ${from} nadalje`,
-      before: (to) => `Do ${to}`,
       more: (count) => `I još ${count}.`,
       paying: (row) => `${row}, plaća račun`,
       paysInvoice: (count) => ({

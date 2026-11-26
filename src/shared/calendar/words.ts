@@ -19,6 +19,11 @@ export const en = {
     inPart: (month: MonthKey) => `${shortMonthName(month)} in part`,
     soFar: (month: MonthKey) => `${shortMonthName(month)} so far`,
   },
+  /** A run of days inside a sentence, by its two ends. */
+  dayRun: {
+    inOneMonth: (from: string, to: string) => `${from}–${to}`,
+    acrossMonths: (from: string, to: string) => `${from} – ${to}`,
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -32,6 +37,10 @@ export const hr: Translation<typeof en> = {
   period: {
     inPart: (month) => `${monthName(month)} djelomično`,
     soFar: (month) => `${monthName(month)} do danas`,
+  },
+  dayRun: {
+    inOneMonth: (from, to) => `od ${from} do ${to}`,
+    acrossMonths: (from, to) => `od ${from} do ${to}`,
   },
 }
 

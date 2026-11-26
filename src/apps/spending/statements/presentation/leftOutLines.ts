@@ -1,7 +1,7 @@
 import { words } from './readingWords'
 import type { LeftOut } from '../domain/leftOut'
 import type { Account } from '../../workbook/domain/account'
-import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRunInText } from '../../../../shared/calendar/dayLabel'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { plural } from '../../../../shared/text/translation'
 
@@ -12,8 +12,8 @@ export function leftOutLine(leftOut: LeftOut, accounts: readonly Pick<Account, '
     case 'before-opening':
       return plural(words.leftOut.beforeOpening(leftOut.count, name(leftOut.account), dayLabel(leftOut.openedOn)), leftOut.count)
     case 'not-taken':
-      return plural(words.leftOut.notTaken(leftOut.count, name(leftOut.account), dayRangeLabel(leftOut.days), words.leftOut.sourceOfDays[leftOut.source]), leftOut.count)
+      return plural(words.leftOut.notTaken(leftOut.count, name(leftOut.account), dayRunInText(leftOut.days), words.leftOut.sourceOfDays[leftOut.source]), leftOut.count)
     case 'outside-days':
-      return plural(words.leftOut.outsideDays(leftOut.count, dayLabel(leftOut.days.from), dayLabel(leftOut.days.to)), leftOut.count)
+      return plural(words.leftOut.outsideDays(leftOut.count, leftOut.days.from, leftOut.days.to), leftOut.count)
   }
 }

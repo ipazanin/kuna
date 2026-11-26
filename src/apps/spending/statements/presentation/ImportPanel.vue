@@ -27,7 +27,7 @@ import { ruleAssets } from '../../links/application/assetTargets'
 import { words as linkWords } from '../../links/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { today } from '../../../../shared/calendar/civilDate'
-import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
+import { dayRunInText } from '../../../../shared/calendar/dayLabel'
 import type { Account } from '../../workbook/domain/account'
 import type { LeftOut } from '../domain/leftOut'
 import type { TableCells } from '../../../../shared/recipes/domain/tableRows'
@@ -156,14 +156,14 @@ function leftOutNote(left: LeftOut): DryRunNote {
   if (left.kind !== 'not-taken' || left.offer === null || account === null) return { line: leftOutLine(left, accounts.value), action: null }
   return {
     line: leftOutLine(left, accounts.value),
-    action: { label: words.import.giveToFile(dayRangeLabel(left.days)), icon: 'i-lucide-file-down', run: () => giveDays(left.account, true), test: 'spending-dry-run-give-days' },
+    action: { label: words.import.giveToFile(dayRunInText(left.days)), icon: 'i-lucide-file-down', run: () => giveDays(left.account, true), test: 'spending-dry-run-give-days' },
   }
 }
 
 /** The days given, each with the way back, in place of the left-out line it answered. */
 function givenNote(one: GivenDays): DryRunNote {
   const left = firstRun.value?.leftOut.find((each) => each.kind === 'not-taken' && each.account === one.account.id)
-  const days = left?.kind === 'not-taken' ? dayRangeLabel(left.days) : ''
+  const days = left?.kind === 'not-taken' ? dayRunInText(left.days) : ''
   return {
     line: words.import.givenToFile(one.account.name, days),
     action: { label: words.import.keepSource, icon: 'i-lucide-undo-2', run: () => giveDays(one.account.id, false), test: 'spending-dry-run-keep-days' },
@@ -235,7 +235,16 @@ async function confirm(): Promise<void> {
         <ul v-if="notes.length > 0 || loansUnread !== null" class="flex flex-col gap-1 type-aside" data-testid="spending-dry-run-notes">
           <li v-for="note in notes" :key="note.line" class="flex flex-col items-start gap-1">
             {{ note.line }}
-            <UButton v-if="note.action !== null" :label="note.action.label" variant="link" :icon="note.action.icon" class="p-0" :data-testid="note.action.test" @click="note.action.run()" />
+            <UButton
+              v-if="note.action !== null"
+              :label="note.action.label"
+              variant="link"
+              :icon="note.action.icon"
+              class="p-0"
+              :ui="{ label: 'whitespace-normal text-start' }"
+              :data-testid="note.action.test"
+              @click="note.action.run()"
+            />
           </li>
           <li v-if="loansUnread !== null" data-testid="spending-dry-run-loans-unread">{{ loansUnread }}</li>
         </ul>

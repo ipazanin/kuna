@@ -1,3 +1,4 @@
+import { capitalised } from '../text/capitalised'
 import { language } from '../text/language'
 import type { Translation } from '../text/translation'
 
@@ -22,6 +23,14 @@ export const en = {
   fileNotRemoved: 'Kuna could not remove the file, so it stays.',
   fileThereAlready: (app: string) => `${app} has a file on this device already, so nothing was made.`,
   fileNotOpen: (app: string) => `The ${app} file is not open on this device.`,
+  /** The line for a run of days that changes source, by the days and the names of the sources. */
+  sourceDays: {
+    always: 'Every day',
+    onwards: (from: string) => `From ${from} on`,
+    upTo: (to: string) => `Up to ${to}`,
+    handed: (days: string, before: string, after: string) => `${days}: “${before}” gives way to “${after}”.`,
+    given: (days: string, after: string) => `${days}: “${after}” brings its rows.`,
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -42,6 +51,13 @@ export const hr: Translation<typeof en> = {
   fileNotRemoved: 'Kuna nije mogla ukloniti datoteku, pa ostaje.',
   fileThereAlready: (app) => `${app} već ima datoteku na ovom uređaju, pa ništa nije izrađeno.`,
   fileNotOpen: (app) => `Datoteka aplikacije ${app} nije otvorena na ovom uređaju.`,
+  sourceDays: {
+    always: 'svih dana',
+    onwards: (from) => `od ${from} nadalje`,
+    upTo: (to) => `do ${to}`,
+    handed: (days, before, after) => `${capitalised(days)} izvor „${before}” ustupa mjesto izvoru „${after}”.`,
+    given: (days, after) => `${capitalised(days)} dane puni izvor „${after}”.`,
+  },
 }
 
 /** The maker's name and contact read the same in both languages. */

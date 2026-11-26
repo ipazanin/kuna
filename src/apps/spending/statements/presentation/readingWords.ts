@@ -1,3 +1,5 @@
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { dayLabel, dayRunInText } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -51,9 +53,9 @@ export const en = {
     }),
     /** Where an account's rows of a day come from, as the end of a sentence. */
     sourceOfDays: { 'bank-link': 'from the bank link', 'provider-file': 'from its statement file', 'by-hand': 'by hand' },
-    outsideDays: (count: number, from: string, to: string): EnglishForms => ({
-      one: `1 row left out, since the file brings only the days from ${from} to ${to}.`,
-      other: `${count} rows left out, since the file brings only the days from ${from} to ${to}.`,
+    outsideDays: (count: number, from: CivilDate, to: CivilDate): EnglishForms => ({
+      one: `1 row left out, since the file brings only the days from ${dayLabel(from)} to ${dayLabel(to)}.`,
+      other: `${count} rows left out, since the file brings only the days from ${dayLabel(from)} to ${dayLabel(to)}.`,
     }),
   },
 }
@@ -125,16 +127,15 @@ export const hr: Translation<typeof en> = {
       other: `Izostavljeno redaka računa ${account}: ${count}, jer su prije otvaranja računa ${day}`,
     }),
     notTaken: (count, account, days, source): CroatianForms => ({
-      one: `Izostavljeno redaka računa ${account} od ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
-      few: `Izostavljeno redaka računa ${account} od ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
-      other: `Izostavljeno redaka računa ${account} od ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
+      one: `Izostavljeno redaka računa ${account} ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
+      few: `Izostavljeno redaka računa ${account} ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
+      other: `Izostavljeno redaka računa ${account} ${days}: ${count}, jer retke tih dana dobiva ${source}.`,
     }),
     sourceOfDays: { 'bank-link': 'iz veze s bankom', 'provider-file': 'iz datoteke izvoda', 'by-hand': 'ručnim unosom' },
-    outsideDays: (count, from, to): CroatianForms => ({
-      one: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
-      few: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
-      other: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
-    }),
+    outsideDays: (count, from, to): CroatianForms => {
+      const line = `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane ${dayRunInText({ from, to })}`
+      return { one: line, few: line, other: line }
+    },
   },
 }
 
