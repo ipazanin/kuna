@@ -169,8 +169,16 @@ const ROWS: readonly StoredRow[] = [
   row('transaction-gift', '2026-10-22', -15, 'Toy shop', { account: SAVINGS.id, source: 'typed', category: IN_SHARED_COST.id, categorisedBy: 'person' }),
 ]
 
-/** The bakery's details, kept under two spellings, which the payee operations change. */
-const BAKERY: Payee = { id: recordIdOf(PAYEE_RECORDS, 'payee-bakery'), names: ['Bakery', 'BAKERY D.O.O.'], ibans: [], party: 'business', taxId: '', website: 'example.com', note: '' }
+/** The bakery's details, kept under two spellings and one made-up IBAN, which the payee operations change. */
+const BAKERY: Payee = {
+  id: recordIdOf(PAYEE_RECORDS, 'payee-bakery'),
+  names: ['Bakery', 'BAKERY D.O.O.'],
+  ibans: ['HR3512345670000000002'],
+  party: 'business',
+  taxId: '',
+  website: 'example.com',
+  note: '',
+}
 
 /** A label the hand split's rent part carries. */
 const RENOVATION: Label = { id: recordIdOf(LABEL_RECORDS, 'label-renovation'), name: 'Renovation' }

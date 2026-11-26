@@ -36,6 +36,7 @@ const RECORDS: Readonly<Record<string, readonly object[]>> = {
     { ref: 'item-1', transaction: 'transaction-1', category: 'category-1', amount: { ref: 'amount-1' } },
     { ref: 'item-2', transaction: 'transaction-2', amount: { ref: 'amount-2' } },
   ],
+  'spending/payee': [{ ref: 'payee-1', name: 'Corner market', otherNames: ['CORNER MARKET D.O.O.'] }],
   'spending/transaction/waiting': [{ ref: 'transaction-3', payee: 'City pharmacy' }],
   'spending/category': [
     { ref: 'category-1', name: 'Groceries', kind: 'spending' },
@@ -166,6 +167,7 @@ const FLOWS: readonly Flow[] = [
   { name: 'spending split', said: ['Split the latest spend'], proposes: ['split-entry'] },
   { name: 'spending label', said: ["Label last month's three largest payments"], proposes: ['add-label', 'label-entries'] },
   { name: 'spending label cost', said: ['What did the Boston trip cost?'], proposes: [] },
+  { name: 'spending payee spelling', said: ['Take CORNER MARKET D.O.O. off Corner market'], proposes: ['take-spelling-off-payee'] },
   { name: 'spending rules guide', said: ['How do rules work?'], proposes: [] },
   { name: 'company sorting', said: [COMPANY_SORT], context: IN_COMPANY, proposes: ['file-row'] },
   {

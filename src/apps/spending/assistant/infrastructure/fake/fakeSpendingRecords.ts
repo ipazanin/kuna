@@ -13,6 +13,8 @@ export interface FoundRecord {
   readonly bank?: string
   readonly sources?: string
   readonly counterpartyIban?: string
+  /** A payee's spellings after the name they show under. */
+  readonly otherNames?: readonly string[]
   /** The entry a part is of. */
   readonly transaction?: string
 }

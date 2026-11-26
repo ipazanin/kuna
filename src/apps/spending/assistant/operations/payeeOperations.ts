@@ -1,8 +1,9 @@
 import { TEXT, TEXT_OR_NULL, choiceOf, inputOf } from '../../../../shared/app/operationInput'
 import { clearPayee, mergePayees, savePayee } from '../../payees/application/payeeWrites'
-import { editedPayee, keyOfPayee, mergedPayees, newPayee, payeeEditProblem } from '../../payees/domain/payeeDetails'
+import { editedPayee, holdsName, keyOfPayee, mergedPayees, newPayee, payeeEditProblem, withoutIban, withoutSpelling } from '../../payees/domain/payeeDetails'
 import type { PayeeEdit } from '../../payees/domain/payeeDetails'
 import { payeeNamed } from '../../payees/domain/payeeDirectory'
+import { payeeKey } from '../../payees/domain/payeeKey'
 import { PAYEE_PARTIES } from '../../workbook/domain/payee'
 import type { Payee } from '../../workbook/domain/payee'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
@@ -11,7 +12,8 @@ import { en as bookWords, payeeReason } from '../../workbook/domain/words'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { ibanListOf } from '../../../../shared/text/iban'
+import { groupedIban, ibanListOf } from '../../../../shared/text/iban'
+import { normaliseIban } from '../../../../shared/text/fold'
 
 /** What a step says of the party: a person, a business, not said, or null to keep it. */
 const NOT_SAID = 'not-said'
@@ -19,7 +21,7 @@ const PARTY_OR_NULL = { type: ['string', 'null'], enum: [...PAYEE_PARTIES, NOT_S
 
 const PAYEE_REF = { payee: PAYEE_RECORDS.name }
 
-/** What a payee's page does in its details dialog: set the details, rename, join another payee in and clear the details. No entry changes. */
+/** What a payee's page does in its details dialog: set the details, rename, join another payee in, take one spelling or IBAN off and clear the details. No entry changes. */
 export const PAYEE_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'set-payee-details',
@@ -49,6 +51,26 @@ export const PAYEE_OPERATIONS: readonly AssistantOperation[] = [
     creates: null,
     alone: false,
     example: { payee: 'payee', other: 'payee-other' },
+  },
+  {
+    name: 'take-spelling-off-payee',
+    about:
+      "Takes one of a payee's other spellings off, so entries spelt that way stop counting under the payee unless an IBAN it holds still finds them. No entry changes. The name the payee shows under stays, so rename the payee first to take that one off.",
+    input: inputOf({ payee: TEXT, spelling: TEXT }),
+    refs: PAYEE_REF,
+    creates: null,
+    alone: false,
+    example: { payee: 'payee', spelling: 'BAKERY D.O.O.' },
+  },
+  {
+    name: 'take-iban-off-payee',
+    about:
+      'Takes one IBAN you added off a payee, so entries from it stop counting under the payee unless one of its names still finds them. No entry changes. An IBAN only their bank rows carry was never added, so it cannot be taken off.',
+    input: inputOf({ payee: TEXT, iban: TEXT }),
+    refs: PAYEE_REF,
+    creates: null,
+    alone: false,
+    example: { payee: 'payee', iban: 'HR3512345670000000002' },
   },
   {
     name: 'clear-payee-details',
@@ -105,6 +127,20 @@ function detailsEdit(kept: PayeeEdit, field: Readonly<Record<string, never>>): P
   }
 }
 
+/** The payee without one of its other spellings, refusing the name it shows under and a spelling it does not hold. */
+function spellingTakenOff(payee: Payee, spelling: string): Payee {
+  const name = payee.names[0] ?? ''
+  if (payeeKey(spelling) === keyOfPayee(payee)) throw new StepRefused(`${name} is the name the payee shows under, so it stays. Rename the payee first to take it off.`)
+  if (!holdsName(payee, spelling)) throw new StepRefused(`${spelling.trim()} is not one of ${name}'s spellings.`)
+  return withoutSpelling(payee, spelling)
+}
+
+/** The payee without one IBAN you added, refusing one it does not hold. */
+function ibanTakenOff(payee: Payee, iban: string): Payee {
+  if (!payee.ibans.includes(normaliseIban(iban))) throw new StepRefused(`${groupedIban(normaliseIban(iban))} is not an IBAN you added to ${payee.names[0] ?? ''}.`)
+  return withoutIban(payee, iban)
+}
+
 /** Writes a payee step through the writes the payee's details dialog uses. */
 export function writePayeeStep(
   unit: UnitOfWork,
@@ -126,6 +162,12 @@ export function writePayeeStep(
     if (other.id === payee.id || keyOfPayee(other) === keyOfPayee(payee)) throw new StepRefused('A payee cannot be joined into themselves.')
     refuseProblem(book, mergedPayees(payee, other), payee.names[0] ?? '', other, wasPerson || other.party === 'person')
     mergePayees(unit, records, payee, other)
+    return
+  }
+  if (operation === 'take-spelling-off-payee' || operation === 'take-iban-off-payee') {
+    const without = operation === 'take-spelling-off-payee' ? spellingTakenOff(payee, field['spelling']) : ibanTakenOff(payee, field['iban'])
+    refuseProblem(book, without, payee.names[0] ?? '', null, wasPerson)
+    savePayee(unit, records, without)
     return
   }
   const kept = editOf(payee)

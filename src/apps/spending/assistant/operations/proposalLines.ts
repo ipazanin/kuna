@@ -42,6 +42,11 @@ import { recipeInWords } from '../../statements/presentation/recipeWords'
 import { words } from '../words'
 import { words as payeeWords } from '../../payees/presentation/words'
 import { groupedIban } from '../../../../shared/text/iban'
+import { holdsName, withoutIban, withoutSpelling } from '../../payees/domain/payeeDetails'
+import { entriesLeaving } from '../../payees/domain/payeeSpellings'
+import { countedRows } from '../../analytics/domain/countedRow'
+import type { Payee } from '../../workbook/domain/payee'
+import { NO_RATES } from '../../../../shared/money/rateBook'
 import type { CardStatement, CopiedRows } from './statementImport'
 import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
 import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
@@ -278,6 +283,33 @@ function membersNote(sharedCost: SharedCost, book: SpendingBook): ProposalNote |
   return { label: [sharedCost.payee, dayLabel(sharedCost.day)].filter((words) => words !== '').join(' · '), text: plural(words.proposals.membersBackToReview(members), members), tone: 'warning' }
 }
 
+/**
+ * Each spelling and IBAN that leaves a payee the card changes or removes, held by no payee after it, with the entries that stop
+ * counting under the payee once that one alone goes, as the payee's page counts a spelling. A count reads no amount, so no rate.
+ */
+function leavingNotes(checked: CheckedWrite, book: SpendingBook): readonly ProposalNote[] {
+  const payeeChanges = checked.changes.map(({ change }) => change).filter((change) => change.kind.name === PAYEE_RECORDS.name)
+  const touched = payeeChanges.flatMap((change) => (change.verb === 'change' || change.verb === 'remove' ? [change.before as Payee] : []))
+  if (touched.length === 0) return []
+  const after = payeeChanges.reduce<readonly Payee[]>((payees, change) => {
+    if (change.verb !== 'add' && change.verb !== 'change' && change.verb !== 'remove') return payees
+    const others = change.verb === 'add' ? payees : payees.filter((payee) => payee.id !== (change.before as Payee).id)
+    return change.verb === 'remove' ? others : [...others, change.after as Payee]
+  }, book.payees)
+  const rows = countedRows(book, NO_RATES)
+  return touched.flatMap((payee) => {
+    const spellings = payee.names
+      .slice(1)
+      .filter((spelling) => !after.some((held) => holdsName(held, spelling)))
+      .map((spelling) => ({ label: spelling, without: withoutSpelling(payee, spelling) }))
+    const ibans = payee.ibans.filter((iban) => !after.some((held) => held.ibans.includes(iban))).map((iban) => ({ label: groupedIban(iban), without: withoutIban(payee, iban) }))
+    return [...spellings, ...ibans].map(({ label, without }): ProposalNote => {
+      const leaving = entriesLeaving(rows, book.payees, payee, without)
+      return { label, text: plural(words.proposals.leavePayee(leaving, payee.names[0] ?? ''), leaving), tone: 'neutral' }
+    })
+  })
+}
+
 /** How many rows already in the book the card's rules would change, which Only new rows leaves as they are. */
 function refiledNote(rows: number): ProposalNote {
   const { apply } = statementWords.rules
@@ -349,6 +381,7 @@ export function proposalGroupsOf(
       return note === null ? [] : [{ noun: ACCOUNT_RECORDS.noun, note }]
     }),
     ...(refiled === 0 ? [] : [{ noun: RULE_RECORDS.noun, note: refiledNote(refiled) }]),
+    ...leavingNotes(checked, before).map((note) => ({ noun: PAYEE_RECORDS.noun, note })),
     ...checked.changes.flatMap(({ change }) => {
       if (change.verb !== 'remove' || change.kind.name !== SHARED_COST_RECORDS.name) return []
       const note = membersNote(change.before as SharedCost, before)

@@ -985,6 +985,45 @@ describe("a payee's details", () => {
     expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.', 'Corner market'], party: 'business' }])
   })
 
+  it('takes a spelling joined in by mistake back off, says on the card how many entries leave with it, and one Undo puts it back', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'merge-payees', { payee: payee(desk), other: payee(desk, EXAMPLE_RECORDS['payee-other']!) })])
+    expect((await desk.accept()).kind).toBe('done')
+    const rows = bookOf(desk).transactions
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'take-spelling-off-payee', { payee: payee(desk), spelling: 'corner market' })])
+    expect(desk.cards.at(-1)!.groups.flatMap((group) => group.notes)).toEqual([{ label: 'Corner market', text: '1 entry stops counting under Bakery.', tone: 'neutral' }])
+    const result = await desk.accept()
+
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.'], website: 'example.com' }])
+    expect(bookOf(desk).transactions).toEqual(rows)
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.', 'Corner market'] }])
+  })
+
+  it('takes one IBAN you added off a payee and keeps the others, saying on the card how many entries leave with it', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'set-payee-details', { payee: payee(desk), ibans: 'HR6212345670000000001, HR3512345670000000002' })])
+    expect((await desk.accept()).kind).toBe('done')
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'take-iban-off-payee', { payee: payee(desk), iban: 'hr62 1234 5670 0000 0000 1' })])
+    expect(desk.cards.at(-1)!.groups.flatMap((group) => group.notes)).toEqual([{ label: 'HR62 1234 5670 0000 0000 1', text: '0 entries stop counting under Bakery.', tone: 'neutral' }])
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.'], ibans: ['HR3512345670000000002'] }])
+  })
+
+  it('refuses to take off a spelling or an IBAN the payee does not hold, and the name the payee shows under', async () => {
+    const desk = await spendingDesk(used)
+    const takeOff = (input: Readonly<Record<string, string>>) =>
+      desk.propose([stepOf(SPENDING_OPERATIONS, 'spelling' in input ? 'take-spelling-off-payee' : 'take-iban-off-payee', { payee: payee(desk), ...input })])
+
+    expect((await takeOff({ spelling: 'Night market' })).text).toContain("Night market is not one of Bakery's spellings.")
+    expect((await takeOff({ spelling: 'BAKERY' })).text).toContain('Bakery is the name the payee shows under, so it stays.')
+    expect((await takeOff({ iban: 'HR6212345670000000001' })).text).toContain('is not an IBAN you added to Bakery.')
+    expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.'], ibans: ['HR3512345670000000002'] }])
+  })
+
   it('sets the details of a payee who has none yet, and refuses an IBAN that is not one', async () => {
     const desk = await spendingDesk(used)
     const market = payee(desk, EXAMPLE_RECORDS['payee-other']!)

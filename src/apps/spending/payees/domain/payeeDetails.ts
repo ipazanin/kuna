@@ -96,6 +96,16 @@ export function payeeEditProblem(edited: Payee, name: string, payees: readonly P
   return payeeKey(name) === '' ? { kind: 'no-name' } : payeeProblem(edited, payees)
 }
 
+/** The payee without the spelling, once folded. Its first name stays, since that is the name it shows under. */
+export function withoutSpelling(payee: Payee, name: string): Payee {
+  return { ...payee, names: payee.names.filter((held, place) => place === 0 || payeeKey(held) !== payeeKey(name)) }
+}
+
+/** The payee without the IBAN, once normalised. */
+export function withoutIban(payee: Payee, iban: string): Payee {
+  return { ...payee, ibans: payee.ibans.filter((held) => held !== normaliseIban(iban)) }
+}
+
 export function withParty(payee: Payee, party: PayeeParty | null): Payee {
   return { ...payee, party }
 }

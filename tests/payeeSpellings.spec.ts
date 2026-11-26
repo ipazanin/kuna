@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
-import { payeeSpellings } from '../src/apps/spending/payees/domain/payeeSpellings'
+import { entriesLeaving, payeeSpellings } from '../src/apps/spending/payees/domain/payeeSpellings'
+import { withoutIban } from '../src/apps/spending/payees/domain/payeeDetails'
 import type { Payee } from '../src/apps/spending/workbook/domain/payee'
 import { PAYEE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -42,5 +43,11 @@ describe("a payee's other spellings", () => {
     const unused = { ...MARKET, names: ['Corner market', 'Corner shop'] }
 
     expect(payeeSpellings(rows, [unused], unused)).toEqual([{ name: 'Corner shop', leaving: 0 }])
+  })
+
+  it('count the entries only the IBAN finds once the IBAN is taken off', () => {
+    const fromIban = spendingBook([...ROWS, row(OTP, '2026-11-16', -8, 'Food/Groceries', { payee: 'CARD PAYMENT 0042', counterpartyIban: MARKET_IBAN })], { payees: [MARKET] })
+
+    expect(entriesLeaving(countedRows(fromIban, RATES), fromIban.payees, MARKET, withoutIban(MARKET, MARKET_IBAN))).toBe(1)
   })
 })

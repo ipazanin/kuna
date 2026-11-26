@@ -40,6 +40,10 @@ export const en = {
       one: '1 part of an entry goes back to To review and counts nowhere until it is filed again.',
       other: `${count} parts of entries go back to To review and count nowhere until each is filed again.`,
     }),
+    leavePayee: (count: number, payee: string): EnglishForms => ({
+      one: `1 entry stops counting under ${payee}.`,
+      other: `${count} entries stop counting under ${payee}.`,
+    }),
     fields: {
       name: 'Name',
       kind: 'Type',
@@ -292,6 +296,11 @@ export const hr: Translation<typeof en> = {
       one: `${count} dio unosa vraća se pod Za pregled i ne broji se nigdje dok se ponovno ne razvrsta.`,
       few: `${count} dijela unosa vraćaju se pod Za pregled i ne broje se nigdje dok se svaki ponovno ne razvrsta.`,
       other: `${count} dijelova unosa vraća se pod Za pregled i ne broji se nigdje dok se svaki ponovno ne razvrsta.`,
+    }),
+    leavePayee: (count, payee): CroatianForms => ({
+      one: `${count} unos više se ne vodi pod ${payee}.`,
+      few: `${count} unosa više se ne vode pod ${payee}.`,
+      other: `${count} unosa više se ne vodi pod ${payee}.`,
     }),
     fields: {
       name: 'Naziv',
