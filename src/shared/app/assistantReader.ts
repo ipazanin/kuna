@@ -1,4 +1,4 @@
-import type { AmountSign, Exposure, FieldDoc, FieldDocs, StoredValue } from '../privacy/domain/exposure'
+import type { AmountSign, Exposure, FieldDoc, FieldDocs, LinesFieldDoc, StoredValue, TextExposure } from '../privacy/domain/exposure'
 import type { FigureTrace } from '../ai/domain/chatElement'
 import type { CivilDate } from '../calendar/civilDate'
 import type { AccountMoney } from '../money/accountMoney'
@@ -9,14 +9,21 @@ import type { Money } from '../money/money'
 import type { Booking } from '../money/lookAlikeBookings'
 import type { RecordKind, RecordNoun } from '../storage/domain/recordKind'
 
+/** A part of one line of a lines field: a text by its exposure, or an amount of the app's currency. */
+export type ReadableLinePart =
+  | { readonly name: string; readonly exposure: TextExposure; readonly value: string }
+  | { readonly name: string; readonly exposure: 'plain'; readonly of: 'app'; readonly cents: number; readonly currency: string }
+
 /** One field of a record, handed to the chat as its exposure says. A field that never leaves is not among them. */
 export type ReadableField =
-  | { readonly name: string; readonly exposure: 'plain' | 'identifier' | 'party' | 'free-text'; readonly value: StoredValue }
+  | { readonly name: string; readonly exposure: TextExposure; readonly value: StoredValue }
   /** The ids a ref field holds, none for an empty field, and whether it is a list or a field of one record. */
   | { readonly name: string; readonly exposure: 'ref'; readonly to: string; readonly ids: readonly string[]; readonly list: boolean }
   | { readonly name: string; readonly exposure: 'plain'; readonly of: 'account' | 'app'; readonly cents: number; readonly currency: string }
   /** A decimal amount, which leaves as its text, such as `12.5 USD`, and compares as the decimal. */
   | { readonly name: string; readonly exposure: 'plain'; readonly value: string; readonly decimal: Decimal }
+  /** A list of small records, each the parts it holds, such as an invoice line's text and amount. */
+  | { readonly name: string; readonly exposure: 'lines'; readonly lines: readonly (readonly ReadableLinePart[])[] }
 
 export interface ReadableRow {
   readonly id: string
@@ -33,9 +40,18 @@ export interface ReadableSet {
   ids(): ReadonlySet<string>
 }
 
-/** A field of a kind as its page lists it, with the sign of an amount and null for any other field, and the kind a ref field points at. */
+/** A part of a line as a kind's page lists it, with the sign of an amount and null for a text. */
+export interface ReadableLinePartDoc {
+  readonly name: string
+  readonly meaning: string
+  readonly exposure: TextExposure
+  readonly amount: AmountSign | null
+}
+
+/** A field of a kind as its page lists it, with the sign of an amount and null for any other field, the kind a ref field points at, and the parts of a line. */
 export type ReadableFieldDoc =
-  | { readonly name: string; readonly meaning: string; readonly exposure: Exclude<Exposure, 'ref'>; readonly amount: AmountSign | null }
+  | { readonly name: string; readonly meaning: string; readonly exposure: Exclude<Exposure, 'ref' | 'lines'>; readonly amount: AmountSign | null }
+  | { readonly name: string; readonly meaning: string; readonly exposure: 'lines'; readonly amount: null; readonly parts: readonly ReadableLinePartDoc[] }
   | { readonly name: string; readonly meaning: string; readonly exposure: 'ref'; readonly amount: null; readonly to: string; readonly list: boolean }
 
 /** A kind of record the chat can read: what its fields mean, which needs no books, and its rows, which do. */
@@ -66,10 +82,28 @@ export interface ReadableKindOf<R extends { readonly id: string }> {
   payCheck?(): (record: R) => boolean
 }
 
+/** A kind's field docs, each as one of the shapes a field takes, since `FieldDocs` only narrows which shape fits which field. */
+function fieldDocsOf<R extends { readonly id: string }>(kind: ReadableKindOf<R>): readonly [keyof R & string, FieldDoc<R>][] {
+  return Object.entries(kind.fields) as [keyof R & string, FieldDoc<R>][]
+}
+
+/** The parts of one line as they leave, each amount in the record's own currency. */
+function lineParts(doc: LinesFieldDoc, line: Readonly<Record<string, unknown>>, currency: string): readonly ReadableLinePart[] {
+  return Object.entries(doc.parts).flatMap(([name, part]): ReadableLinePart[] => {
+    const held = line[name]
+    if ('amount' in part) return typeof held === 'number' ? [{ name, exposure: 'plain', of: 'app', cents: held, currency }] : []
+    return [{ name, exposure: part.exposure, value: typeof held === 'string' ? held : '' }]
+  })
+}
+
 function readableFields<R extends { readonly id: string }>(kind: ReadableKindOf<R>, record: R): readonly ReadableField[] {
-  return (Object.entries(kind.fields) as [keyof R & string, FieldDoc<R>][]).flatMap(([name, doc]): ReadableField[] => {
+  return fieldDocsOf(kind).flatMap(([name, doc]): ReadableField[] => {
     if (doc.exposure === 'never') {
       return []
+    }
+    if (doc.exposure === 'lines') {
+      const lines = (record[name] as readonly Readonly<Record<string, unknown>>[] | undefined) ?? []
+      return [{ name, exposure: 'lines', lines: lines.map((line) => lineParts(doc, line, kind.currencyOf(record))) }]
     }
     if (doc.exposure === 'ref') {
       const held = record[name] as readonly string[] | string | null | undefined
@@ -94,11 +128,14 @@ export function readableKind<R extends { readonly id: string }>(kind: ReadableKi
     name: kind.kind.name,
     noun: kind.kind.noun,
     about: kind.about,
-    fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]): ReadableFieldDoc =>
-      doc.exposure === 'ref'
-        ? { name, meaning: doc.meaning, exposure: 'ref', amount: null, to: doc.to, list: doc.list === true }
-        : { name, meaning: doc.meaning, exposure: doc.exposure, amount: 'sign' in doc ? doc.sign : null },
-    ),
+    fields: fieldDocsOf(kind).map(([name, doc]): ReadableFieldDoc => {
+      if (doc.exposure === 'ref') return { name, meaning: doc.meaning, exposure: 'ref', amount: null, to: doc.to, list: doc.list === true }
+      if (doc.exposure === 'lines') {
+        const parts = Object.entries(doc.parts).map(([part, partDoc]) => ({ name: part, meaning: partDoc.meaning, exposure: partDoc.exposure, amount: 'sign' in partDoc ? partDoc.sign : null }))
+        return { name, meaning: doc.meaning, exposure: 'lines', amount: null, parts }
+      }
+      return { name, meaning: doc.meaning, exposure: doc.exposure, amount: 'sign' in doc ? doc.sign : null }
+    }),
     dated: kind.dated,
     rows: () => {
       const { payCheck } = kind

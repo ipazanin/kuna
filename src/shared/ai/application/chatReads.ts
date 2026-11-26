@@ -95,9 +95,16 @@ export function fileNotReadable(appName: string, status: 'opening' | 'none'): Ch
 }
 
 type ValueOfRow = Extract<ReadableField, { readonly value: unknown }>
+type AmountOfRow = Extract<ReadableField, { readonly cents: number }>
 
 function hasValue(field: ReadableField): field is ValueOfRow {
   return 'value' in field
+}
+
+/** The fields of a record that hold text, with each text part of a lines field's lines on its own. */
+function textFieldsOf(field: ReadableField): readonly ValueOfRow[] {
+  if (field.exposure === 'lines') return field.lines.flatMap((parts) => parts.flatMap((part) => ('value' in part ? [part] : [])))
+  return hasValue(field) ? [field] : []
 }
 
 /** Gives the people the apps know an alias each, before anything leaves, so an alias reads the same however a read went. */
@@ -154,17 +161,15 @@ function keptHome(row: ReadableRow, rule: HomeRule): boolean {
 
 /** Whether a record names an employee in any of its text, or goes to an IBAN an employee is paid into that is not one of the app's own accounts. */
 function aboutAnEmployee(row: ReadableRow, employees: readonly KnownPerson[], own: ReadonlySet<string>): boolean {
-  return row.fields.some(
-    (field) =>
-      hasValue(field) &&
-      textsOf(field.value).some((text) => {
-        if (text === '') return false
-        if (field.exposure === 'identifier') {
-          const iban = normaliseIban(text)
-          return !own.has(iban) && employees.some((employee) => employee.ibans.includes(iban))
-        }
-        return employees.some((employee) => nameIn(text, employee.name))
-      }),
+  return row.fields.flatMap(textFieldsOf).some((field) =>
+    textsOf(field.value).some((text) => {
+      if (text === '') return false
+      if (field.exposure === 'identifier') {
+        const iban = normaliseIban(text)
+        return !own.has(iban) && employees.some((employee) => employee.ibans.includes(iban))
+      }
+      return employees.some((employee) => nameIn(text, employee.name))
+    }),
   )
 }
 
@@ -186,15 +191,30 @@ function leaving(field: ValueOfRow, reads: ChatReads): StoredValue {
 }
 
 /** A record's amount as a figure the answer can cite, in an account's currency or the app's, or null for a currency Kuna does not know. */
-function amountOf(field: Extract<ReadableField, { readonly cents: number }>): FigureAmount | null {
+function amountOf(field: AmountOfRow): FigureAmount | null {
   const currency = currencyCodeOf(field.currency)
   if (currency === null) return null
   return field.of === 'account' ? { of: 'account', cents: accountMoneyFromCents(field.cents), currency } : { of: 'app', cents: moneyFromCents(field.cents), currency }
 }
 
+/** An amount as the model reads it, with a figure ref under the key when Kuna knows its currency, and noted, so an answer may quote it. */
+function shownAmount(field: AmountOfRow, key: string, reads: ChatReads): unknown {
+  const amount = amountOf(field)
+  reads.refs.noteAmount(field.cents)
+  const text = `${plainAmount(field.cents)} ${field.currency}`
+  return amount === null ? text : { amount: text, ref: reads.refs.figureRef(key, amount) }
+}
+
+/** A text field as it leaves, or undefined for a blank or a false flag. Figures in a plain one, such as a rate Kuna writes as text, are noted. */
+function shownValue(field: ValueOfRow, reads: ChatReads): StoredValue | undefined {
+  const value = leaving(field, reads)
+  if (field.exposure === 'plain') textsOf(value).forEach((text) => reads.refs.noteFiguresIn(text))
+  return value === '' || value === null || value === false || (Array.isArray(value) && value.length === 0) ? undefined : value
+}
+
 /**
  * One record as the model reads it: a ref for itself and each it points at, each amount with a figure ref the answer can
- * cite, blanks and false flags left out. Figures in a plain field, such as a rate Kuna writes as text, are noted too.
+ * cite, blanks and false flags left out. Each line of a lines field is a record of its parts, its amounts cited the same way.
  */
 function shownRow(app: string, kind: ReadableKind, row: ReadableRow, reads: ChatReads, only: ReadonlySet<string> | null = null): Readonly<Record<string, unknown>> {
   const shown: Record<string, unknown> = { ref: reads.refs.recordRef({ app, kind: kind.name, id: row.id }) }
@@ -203,17 +223,21 @@ function shownRow(app: string, kind: ReadableKind, row: ReadableRow, reads: Chat
     if (field.exposure === 'ref') {
       const refs = field.ids.map((id) => reads.refs.recordRef({ app, kind: field.to, id }))
       if (refs.length > 0) shown[field.name] = field.list ? refs : refs[0]
+    } else if (field.exposure === 'lines') {
+      const lines = field.lines.map((parts, index) =>
+        Object.fromEntries(
+          parts.flatMap((part) => {
+            const shownPart = 'cents' in part ? shownAmount(part, `${app}/${kind.name}/${row.id}/${field.name}/${index}/${part.name}`, reads) : shownValue(part, reads)
+            return shownPart === undefined ? [] : [[part.name, shownPart]]
+          }),
+        ),
+      )
+      if (lines.length > 0) shown[field.name] = lines
     } else if ('cents' in field) {
-      const amount = amountOf(field)
-      shown[field.name] =
-        amount === null
-          ? `${plainAmount(field.cents)} ${field.currency}`
-          : { amount: `${plainAmount(field.cents)} ${field.currency}`, ref: reads.refs.figureRef(`${app}/${kind.name}/${row.id}/${field.name}`, amount) }
-      reads.refs.noteAmount(field.cents)
+      shown[field.name] = shownAmount(field, `${app}/${kind.name}/${row.id}/${field.name}`, reads)
     } else {
-      const value = leaving(field, reads)
-      if (field.exposure === 'plain') textsOf(value).forEach((text) => reads.refs.noteFiguresIn(text))
-      if (value !== '' && value !== null && value !== false && !(Array.isArray(value) && value.length === 0)) shown[field.name] = value
+      const value = shownValue(field, reads)
+      if (value !== undefined) shown[field.name] = value
     }
   }
   return shown
@@ -224,10 +248,7 @@ function shownRow(app: string, kind: ReadableKind, row: ReadableRow, reads: Chat
  * so a search cannot spell out a name letter by letter. An identifier never matches, so it cannot be guessed digit by digit.
  */
 function holdsQuery(row: ReadableRow, holdsWords: (text: string) => boolean, reads: ChatReads): boolean {
-  return row.fields.some((field) => {
-    if (!hasValue(field) || field.exposure === 'identifier') return false
-    return textsOf(leaving(field, reads)).some(holdsWords)
-  })
+  return row.fields.flatMap(textFieldsOf).some((field) => field.exposure !== 'identifier' && textsOf(leaving(field, reads)).some(holdsWords))
 }
 
 /** Whether the words are an alias Kuna handed out, which matches only whole while Anonymise is on. */
@@ -271,8 +292,14 @@ function comparedField(fieldClass: FieldClass, field: ReadableField | undefined,
     case 'identifier':
       return { class: 'identifier', identifiers: field !== undefined && hasValue(field) ? textsOf(field.value).map(normaliseIban) : [] }
     default:
-      return { class: fieldClass, value: field !== undefined && hasValue(field) ? leaving(field, reads) : null }
+      return { class: fieldClass, value: field === undefined ? null : wordsOf(field, reads) }
   }
+}
+
+/** A field's words as they leave, a lines field's as every text of its lines but the identifiers, which never match words. */
+function wordsOf(field: ReadableField, reads: ChatReads): StoredValue {
+  if (field.exposure === 'lines') return textFieldsOf(field).flatMap((part) => (part.exposure === 'identifier' ? [] : textsOf(leaving(part, reads))))
+  return hasValue(field) ? leaving(field, reads) : null
 }
 
 /**

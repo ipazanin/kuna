@@ -22,7 +22,7 @@ import { findRecords, getRecord, readFigures } from '../src/shared/ai/applicatio
 import type { FindRecordsInput } from '../src/shared/ai/application/chatReads'
 import type { ReportFigure } from '../src/shared/app/assistantReader'
 import { addMonths, monthOf } from '../src/shared/calendar/monthKey'
-import { addMoney } from '../src/shared/money/money'
+import { addMoney, moneyFromAmount } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { companyReaderOf, companyReadsOf, fakeCompanyBooks, readingOf, withSettings } from './fixtures/companyChatBooks'
 import { civil } from './fixtures/ledger'
@@ -123,6 +123,25 @@ describe("what the chat reads of the company's books", () => {
         .map((row) => row.id)
         .sort(),
     )
+  })
+
+  it("reads an invoice's lines as one field, each line its text with the plan items it summed beside its own amount", async () => {
+    const issued = BOOKS.workbook.invoices[0]!
+    const lines = [
+      { description: 'Monthly fee', amount: moneyFromAmount(800), items: ['fee'] },
+      { description: 'Extra hours', amount: moneyFromAmount(250.5), items: [] },
+    ]
+    const books = { ...BOOKS, workbook: { ...BOOKS.workbook, invoices: [{ ...issued, lines, amount: moneyFromAmount(1050.5) }] } }
+    const reads = companyReadsOf(books)
+    const answer = await findRecords({ ...ALL, kind: coreKinds.INVOICE_RECORDS.name }, reads)
+    const [record] = (JSON.parse(answer.text) as { records: Record<string, unknown>[] }).records
+    const read = record!['lines'] as readonly { text: string; amount: { amount: string; ref: string } }[]
+    expect(read.map((line) => [line.text, line.amount.amount])).toEqual([
+      ['Monthly fee (fee)', '800.00 EUR'],
+      ['Extra hours', '250.50 EUR'],
+    ])
+    expect(reads.refs.figureOf(read[1]!.amount.ref)).toMatchObject({ of: 'app', cents: 25050, currency: 'EUR' })
+    expect(record).not.toHaveProperty('lineAmounts')
   })
 
   it('reads a closed list of settings, never the payees kept under an alias, a folder, mail, the invoice IBAN or the review label', () => {

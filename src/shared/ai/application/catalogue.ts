@@ -1,6 +1,6 @@
 import type { AppAssistant, AssistantPlace } from '../../app/appContribution'
 import type { AppProposer, AssistantOperation } from '../../app/assistantOperations'
-import type { AppReader, AssistantReport, ReadableFieldDoc, ReadableKind } from '../../app/assistantReader'
+import type { AppReader, AssistantReport, ReadableFieldDoc, ReadableKind, ReadableLinePartDoc } from '../../app/assistantReader'
 import type { KnownPerson } from '../../privacy/domain/pseudonyms'
 import { lawFileOf } from '../../law/domain/lawSections'
 import type { LawFile, LawSection, LawSource } from '../../law/domain/lawSections'
@@ -200,20 +200,26 @@ export function recordPageParam(placeParams: ReadonlyMap<string, PlaceParams>, a
 const CLASS_RULES: Readonly<Record<FieldClass, string>> = {
   amount: "decimal text in the record's own currency, such as -12.50",
   plain: 'at-least and at-most take a number, or a day or month such as 2026-10',
-  words: 'on the text as it arrives, so a person by their alias',
+  words: 'on the text as it arrives, so a person by their alias, and a lines field on the texts of its lines',
   identifier: 'with a token a read gave you, such as HR•• ••••0160',
   ref: 'with refs Kuna handed out, and a list of refs matches when any of its refs does',
 }
 
 function classLine(fieldClass: FieldClass): string {
-  const name = fieldClass === 'words' ? 'party and free-text' : fieldClass
+  const name = fieldClass === 'words' ? 'party, free-text and lines' : fieldClass
   return `- ${name}: ${OPS_OF[fieldClass].join(', ')}, ${CLASS_RULES[fieldClass]}. ${sorts(fieldClass) ? 'Sorts either way.' : 'Never sorts.'}`
 }
 
-/** How a field arrives, as its line on a kind's page says it: an amount with its sign, and a ref with the kind it points at. */
-function fieldClassText(field: ReadableFieldDoc): string {
+/** How a field or a part of a line arrives, as its line on a kind's page says it: an amount with its sign, and a ref with the kind it points at. */
+function fieldClassText(field: ReadableFieldDoc | ReadableLinePartDoc): string {
   if (field.exposure === 'ref') return field.list ? `list of refs to ${field.to}` : `ref to ${field.to}`
   return field.amount === null ? field.exposure : `amount, ${field.amount === 'either' ? 'either sign' : 'zero or more'}`
+}
+
+/** A field's line on a kind's page, and for a lines field a line below it for each part every line holds. */
+function fieldLines(field: ReadableFieldDoc): readonly string[] {
+  const line = `- ${field.name} (${fieldClassText(field)}): ${field.meaning}`
+  return field.exposure === 'lines' ? [`${line} Each line is a record of these parts:`, ...field.parts.map((part) => `  - ${part.name} (${fieldClassText(part)}): ${part.meaning}`)] : [line]
 }
 
 /** What each field of a kind means and how it arrives, with the sign of each amount, what never arrives, and what filters each field takes. */
@@ -224,10 +230,7 @@ function kindPage(kind: ReadableKind, linksToPage: boolean): string {
   return [
     `# ${kind.name}`,
     kind.about,
-    ...section(
-      'Fields',
-      read.map((field) => `- ${field.name} (${fieldClassText(field)}): ${field.meaning}`),
-    ),
+    ...section('Fields', read.flatMap(fieldLines)),
     ...section('Never read', [...kept.map((field) => `- ${field.name}`)]),
     ...section('Filters by the class in brackets', classes.map(classLine)),
     ...section(

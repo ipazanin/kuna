@@ -248,6 +248,11 @@ describe('the catalogue', () => {
     expect(catalogue.pages.get('company/kind/hr-doo.owner-advance')).toContain('- repaidBy (list of refs to item):')
     expect(catalogue.pages.get('company/kind/hr-doo.trip')).toContain('- advanceItems (list of refs to item):')
     expect(catalogue.pages.get('loans/kind/movement')).toContain('- amount (amount, zero or more):')
+    const invoice = catalogue.pages.get('company/kind/invoice')!
+    expect(invoice).toContain('- lines (lines):')
+    expect(invoice).toContain('  - text (free-text):')
+    expect(invoice).toContain('  - amount (amount, either sign):')
+    expect(invoice).not.toContain('lineAmounts')
     // An operation's example is written in the code, and may share a made-up payee with the books of this test.
     const whole = [catalogue.system, ...[...catalogue.pages].flatMap(([path, page]) => (path.includes('/op/') ? [] : [page]))].join('\n')
     expect(whole).not.toMatch(/Horvat|Corner market|Made-up/i)

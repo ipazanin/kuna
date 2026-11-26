@@ -44,6 +44,7 @@ export function fieldClassOf(exposure: Exposure, amount: boolean): FieldClass | 
       return exposure
     case 'party':
     case 'free-text':
+    case 'lines':
       return 'words'
     default:
       return amount ? 'amount' : 'plain'

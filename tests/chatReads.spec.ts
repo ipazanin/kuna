@@ -20,6 +20,7 @@ import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, HOSTILE_TEXT, IBAN_OF_ANA } from './fixtures/chatBook'
 import type { AppTargets, CompanyMoney, LinkTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { moneyFromAmount } from '../src/shared/money/money'
+import type { Money } from '../src/shared/money/money'
 import { civilDate } from '../src/shared/calendar/civilDate'
 import { words } from '../src/apps/spending/assistant/words'
 
@@ -539,6 +540,74 @@ describe('a field that holds a list', () => {
   it('sends names as stored with Anonymise off, and each IBAN of the list under its token', async () => {
     const { records } = await found({ kind: 'holder' }, listReads({ anonymising: () => false }))
     expect(records[0]).toMatchObject({ ibans: ['HR•• ••••0160', 'HR•• ••••0001'], names: ['Ana Horvat', 'Corner market'] })
+  })
+})
+
+interface Bill {
+  readonly id: string
+  readonly lines: readonly { readonly text: string; readonly amount: Money }[]
+}
+
+describe('a field that holds lines', () => {
+  const bill: Bill = {
+    id: 'bill:1',
+    lines: [
+      { text: 'Design for Ana Horvat', amount: moneyFromAmount(120) },
+      { text: 'Hosting', amount: moneyFromAmount(-30.5) },
+    ],
+  }
+  const kind = readableKind<Bill>({
+    kind: { name: 'bill', noun: spendingKinds.TRANSACTION_RECORDS.noun },
+    about: 'Bills.',
+    fields: {
+      id: { exposure: 'ref', to: 'bill', meaning: 'The bill.' },
+      lines: {
+        exposure: 'lines',
+        meaning: 'Its lines.',
+        parts: { text: { exposure: 'free-text', meaning: 'What it bills.' }, amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'Its amount.' } },
+      },
+    },
+    dated: null,
+    rows: () => [bill, { id: 'bill:2', lines: [] }],
+    currencyOf: () => 'EUR',
+  })
+  const reader: AppReader = { status: () => 'open', kinds: [kind], reports: [] }
+  const billReads = (overrides: Partial<ChatReads> = {}) => readsOf({ readers: new Map([['spending', { name: 'Spending', reader }]]), ...overrides })
+  const linesOf = (record: Record<string, string>) => record['lines'] as unknown as readonly { text: string; amount: { amount: string; ref: string } }[]
+
+  it('sends each line as one record of its text and its amount, with a figure ref for the amount, under either setting', async () => {
+    for (const anonymising of [true, false]) {
+      const reads = billReads({ anonymising: () => anonymising })
+      const { records } = await found({ kind: 'bill' }, reads)
+      const lines = linesOf(records.find((record) => record['lines'] !== undefined)!)
+      expect(lines.map((line) => line.amount.amount)).toEqual(['120.00 EUR', '-30.50 EUR'])
+      expect(lines.map((line) => reads.refs.figureOf(line.amount.ref))).toMatchObject([
+        { of: 'app', cents: 12000, currency: 'EUR' },
+        { of: 'app', cents: -3050, currency: 'EUR' },
+      ])
+      expect(lines.map((line) => line.text)).toEqual([anonymising ? 'Design for Person 1' : 'Design for Ana Horvat', 'Hosting'])
+    }
+  })
+
+  it('sends a record with no lines without the field', async () => {
+    const { records } = await found({ kind: 'bill' }, billReads())
+    expect(records.filter((record) => record['lines'] === undefined)).toHaveLength(1)
+  })
+
+  it('finds a record by a line text as it leaves, never by the real name of a person under an alias', async () => {
+    const reads = billReads()
+    expect((await found({ kind: 'bill', query: 'Hosting' }, reads)).total).toBe(1)
+    expect((await found({ kind: 'bill', query: 'Horvat' }, reads)).total).toBe(0)
+    expect((await found({ kind: 'bill', filters: [{ field: 'lines', op: 'contains', values: ['Hosting'] }] }, reads)).total).toBe(1)
+    expect((await found({ kind: 'bill', filters: [{ field: 'lines', op: 'empty', values: [] }] }, reads)).total).toBe(1)
+  })
+
+  it('keeps the record home while Anonymise is on when a line names an employee', async () => {
+    const employee = [{ name: 'Ana Horvat', employee: true, ibans: [] }]
+    const { answer, total } = await found({ kind: 'bill' }, billReads({ persons: () => employee }))
+    expect(total).toBe(1)
+    expect(answer.text).not.toMatch(/Horvat|120\.00/)
+    expect((await found({ kind: 'bill' }, billReads({ persons: () => employee, anonymising: () => false }))).total).toBe(2)
   })
 })
 
