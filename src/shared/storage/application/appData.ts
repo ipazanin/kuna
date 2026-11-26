@@ -30,8 +30,11 @@ export function withPlace(chosen: readonly DataPlace[], place: DataPlace, on: bo
   return on ? ['browser-copy'] : []
 }
 
-/** The steps of a removal, in the order they can run. `backups` goes first, since forgetting the file also forgets the id that finds them. `browser-file` is a file kept only here, and `browser-copy` the copy of a file that stays on Drive. */
-export type RemovalStep = 'backups' | 'beside-file' | 'drive-file' | 'browser-file' | 'browser-copy' | 'beside-copy'
+/**
+ * The steps of a removal, in the order they can run. `backups` goes first, since forgetting the file also forgets the id that finds them. `browser-file` is a
+ * file kept only here, `browser-copy` the copy of a file that stays on Drive, and `kept-here` what this browser keeps for the file beside it.
+ */
+export type RemovalStep = 'backups' | 'beside-file' | 'drive-file' | 'browser-file' | 'browser-copy' | 'kept-here'
 
 export type RemovalOutcome =
   | { readonly kind: 'done' }
@@ -46,14 +49,12 @@ export interface RemovalReport {
   readonly removed: boolean
 }
 
-/** What an app keeps beside its file, which goes when the file goes. */
+/** What an app keeps beside its file on Drive, which goes when the file goes. */
 export interface DataBeside {
   /** The name of the file beside it on Drive. */
   readonly fileName: string
   /** Moves every such file beside the app's file to the bin. */
   trashFiles(fileId: string): Promise<void>
-  /** Deletes what this browser keeps of them. */
-  forgetCopy(fileId: string): Promise<void>
   /** Runs `work` while nothing starts that would read or make them, once what is under way is over. */
   whileStopped<Result>(work: () => Promise<Result>): Promise<Result>
 }
@@ -70,6 +71,8 @@ export interface DataRemovalPorts {
   readonly beside: DataBeside | null
   /** Forgets what this device kept about the app and its file apart from the file, such as answers and switches. */
   forgetOnThisDevice(fileId: string): void
+  /** Deletes the databases this browser keeps for the file beside it, such as a copy of the file beside it on Drive, or null for an app that keeps none. */
+  readonly forgetKeptHere: ((fileId: string) => Promise<void>) | null
 }
 
 function failedWith(failure: unknown): RemovalOutcome {
@@ -88,12 +91,12 @@ export async function removeAppData(ports: DataRemovalPorts, choice: WorkbookCho
   if (!dropping && !binningBackups) return { steps: [], removed: false }
   const trashing = places.includes('drive-file')
   const fileStep: RemovalStep = choice.source === 'browser' ? 'browser-file' : trashing ? 'drive-file' : 'browser-copy'
-  const { beside } = ports
+  const { beside, forgetKeptHere } = ports
   const order: readonly RemovalStep[] = [
     ...(binningBackups ? (['backups'] as const) : []),
     ...(beside !== null && trashing ? (['beside-file'] as const) : []),
     ...(dropping ? [fileStep] : []),
-    ...(beside !== null && dropping ? (['beside-copy'] as const) : []),
+    ...(forgetKeptHere !== null && dropping ? (['kept-here'] as const) : []),
   ]
   const outcomes = new Map<RemovalStep, RemovalOutcome>(order.map((step) => [step, { kind: 'not-run' }]))
   const report = (removed: boolean): RemovalReport => ({ steps: order.map((step) => ({ step, outcome: outcomes.get(step)! })), removed })
@@ -136,9 +139,9 @@ export async function removeAppData(ports: DataRemovalPorts, choice: WorkbookCho
     }
     outcomes.set(fileStep, { kind: 'done' })
     ports.forgetOnThisDevice(choice.id)
-    if (beside !== null) {
+    if (forgetKeptHere !== null) {
       try {
-        await run('beside-copy', () => beside.forgetCopy(choice.id))
+        await run('kept-here', () => forgetKeptHere(choice.id))
       } catch {
         // The report names it, and the file is forgotten all the same.
       }

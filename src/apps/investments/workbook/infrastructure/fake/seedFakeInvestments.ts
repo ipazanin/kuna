@@ -1,5 +1,3 @@
-import Dexie from 'dexie'
-
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
 import { encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
@@ -14,8 +12,8 @@ import { pricesDay } from '../../../prices/application/pricesUpdate'
 import { PRICES_FILE_NAME, encodePricesFile } from '../../../prices/domain/pricesFile'
 import { fakePricesFile } from '../../../prices/infrastructure/fake/fakePrices'
 import type { FakePricesVariant } from '../../../prices/infrastructure/fake/fakePrices'
-import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrastructure/pricesCache'
-import { MAIL_READING_DATABASE_PREFIX } from '../../../mail/infrastructure/mailReadingCache'
+import { openPricesCache } from '../../../prices/infrastructure/pricesCache'
+import { forgetKeptForEveryFile } from '../keptPerFile'
 import { forgetSetUpAnswer, keepSetUpAnswer } from '../../../../../shared/app/setUpAnswer'
 import { HISTORY_COMPLETE } from '../../../tax/domain/historyAnswer'
 import { seedFakeSecrets } from '../../../../../shared/secrets/infrastructure/fake/seedFakeSecrets'
@@ -37,7 +35,8 @@ import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/au
  * comparison.
  */
 export async function seedFakeInvestments(variant: string | null, pricesVariant: string | null, keysVariant: string | null): Promise<void> {
-  await forgetFakeBesideBooks()
+  // Each load starts a new fake Drive whose ids repeat, so no copy of an earlier load's prices or mail reading may stay to name another file.
+  await forgetKeptForEveryFile()
   if (variant === 'browser') {
     await seedInBrowser(pricesVariant)
     return
@@ -123,12 +122,6 @@ async function seedInBrowser(pricesVariant: string | null): Promise<void> {
     revision: stored.revision,
     document,
   })
-}
-
-/** Each load starts a new fake Drive whose ids repeat, so no copy of an earlier load's prices or mail reading may stay to name another file. */
-async function forgetFakeBesideBooks(): Promise<void> {
-  const names = await Dexie.getDatabaseNames()
-  await Promise.all(names.filter((name) => name.startsWith(PRICES_DATABASE_PREFIX) || name.startsWith(MAIL_READING_DATABASE_PREFIX)).map((name) => Dexie.delete(name)))
 }
 
 /** The fake prices file beside the sample, and the same revision in this browser, so a sync finds it unchanged. Gives the file's id. */

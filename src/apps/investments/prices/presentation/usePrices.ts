@@ -111,7 +111,7 @@ export function usePrices(): PricesUpdate {
 export const PRICES_STEP = pricesStep(prices, () => store.state.workbook?.book ?? null)
 
 /** Forgets the copy of the prices of an Investments file this browser no longer shows, which would otherwise keep the list of its holdings. */
-export async function forgetPricesCopy(investmentsFileId: string): Promise<void> {
+async function forgetPricesCopy(investmentsFileId: string): Promise<void> {
   const cache = cacheOf(investmentsFileId)
   caches.delete(investmentsFileId)
   await cache.delete()

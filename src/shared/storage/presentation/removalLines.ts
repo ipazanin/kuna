@@ -17,7 +17,7 @@ export function backupsLabel(count: number | null): string {
 type NamedFiles = Pick<HeldData, 'fileName' | 'besideFileName'>
 
 function failedText(step: RemovalStep, reason: string, { fileName, besideFileName }: NamedFiles): string {
-  const { backups, driveFile, browserFile, browserCopy, besideCopy } = words.deleteData.lineFailed
+  const { backups, driveFile, browserFile, browserCopy, keptHere } = words.deleteData.lineFailed
   switch (step) {
     case 'backups':
       return backups(reason)
@@ -29,13 +29,13 @@ function failedText(step: RemovalStep, reason: string, { fileName, besideFileNam
       return browserFile(reason)
     case 'browser-copy':
       return browserCopy(reason)
-    case 'beside-copy':
-      return besideCopy(reason)
+    case 'kept-here':
+      return keptHere(reason)
   }
 }
 
 function goneText(step: RemovalStep, { fileName, besideFileName }: NamedFiles): string {
-  const { backups, driveFile, besideFile, browserFile, browserCopy, besideCopy } = words.deleteData.lineGone
+  const { backups, driveFile, besideFile, browserFile, browserCopy, keptHere } = words.deleteData.lineGone
   switch (step) {
     case 'backups':
       return backups
@@ -47,8 +47,8 @@ function goneText(step: RemovalStep, { fileName, besideFileName }: NamedFiles): 
       return browserFile
     case 'browser-copy':
       return browserCopy
-    case 'beside-copy':
-      return besideCopy
+    case 'kept-here':
+      return keptHere
   }
 }
 

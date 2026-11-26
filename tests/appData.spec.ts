@@ -18,7 +18,8 @@ function portsOf({
   syncOver = Promise.resolve(),
   syncing = () => false,
   withBeside = true,
-}: { failing?: readonly RemovalStep[]; refused?: string | null; syncOver?: Promise<void>; syncing?: () => boolean; withBeside?: boolean } = {}) {
+  withKept = true,
+}: { failing?: readonly RemovalStep[]; refused?: string | null; syncOver?: Promise<void>; syncing?: () => boolean; withBeside?: boolean; withKept?: boolean } = {}) {
   const calls: string[] = []
   const fail = (step: RemovalStep): void => {
     if (failing.includes(step)) throw new Error(`Drive refused ${step}.`)
@@ -28,10 +29,6 @@ function portsOf({
     async trashFiles(id) {
       calls.push(`trash beside ${id}`)
       fail('beside-file')
-    },
-    async forgetCopy(id) {
-      calls.push(`forget beside copy of ${id}`)
-      fail('beside-copy')
     },
     async whileStopped(work) {
       calls.push('stopped')
@@ -63,6 +60,12 @@ function portsOf({
     forgetOnThisDevice(id) {
       calls.push(`forget device state of ${id}`)
     },
+    forgetKeptHere: withKept
+      ? async (id) => {
+          calls.push(`forget what is kept here of ${id}`)
+          fail('kept-here')
+        }
+      : null,
   }
   return { ports, calls }
 }
@@ -130,12 +133,12 @@ describe('removing an app’s data', () => {
 
     const report = await removeAppData(ports, ON_DRIVE, BOTH)
 
-    expect(calls).toEqual(['stopped', 'syncs over', 'drop file-1 starts', 'trash beside file-1', 'drop file-1', 'forget device state of file-1', 'forget beside copy of file-1', 'go on'])
+    expect(calls).toEqual(['stopped', 'syncs over', 'drop file-1 starts', 'trash beside file-1', 'drop file-1', 'forget device state of file-1', 'forget what is kept here of file-1', 'go on'])
     expect(report.removed).toBe(true)
     expect(report.steps.map(({ step, outcome }) => [step, outcome.kind])).toEqual([
       ['beside-file', 'done'],
       ['drive-file', 'done'],
-      ['beside-copy', 'done'],
+      ['kept-here', 'done'],
     ])
   })
 
@@ -146,7 +149,7 @@ describe('removing an app’s data', () => {
 
     expect(calls).not.toContain('trash beside file-1')
     expect(calls).toContain('forget file-1 here')
-    expect(report.steps.map(({ step }) => step)).toEqual(['browser-copy', 'beside-copy'])
+    expect(report.steps.map(({ step }) => step)).toEqual(['browser-copy', 'kept-here'])
   })
 
   it('in this browser drops the file and what is kept beside it, and no Drive step runs', async () => {
@@ -155,16 +158,25 @@ describe('removing an app’s data', () => {
     const report = await removeAppData(ports, IN_BROWSER, COPY)
 
     expect(calls).not.toContain('trash beside local-1')
-    expect(report.steps.map(({ step }) => step)).toEqual(['browser-file', 'beside-copy'])
+    expect(report.steps.map(({ step }) => step)).toEqual(['browser-file', 'kept-here'])
     expect(report.removed).toBe(true)
   })
 
-  it('runs an app with nothing beside its file with only the file step', async () => {
-    const { ports } = portsOf({ withBeside: false })
+  it('runs an app with nothing beside its file and nothing kept here with only the file step', async () => {
+    const { ports } = portsOf({ withBeside: false, withKept: false })
 
     const report = await removeAppData(ports, ON_DRIVE, BOTH)
 
     expect(report.steps.map(({ step }) => step)).toEqual(['drive-file'])
+  })
+
+  it('forgets what this browser keeps for a file with nothing beside it on Drive', async () => {
+    const { ports, calls } = portsOf({ withBeside: false })
+
+    const report = await removeAppData(ports, ON_DRIVE, BOTH)
+
+    expect(calls).toEqual(['syncs over', 'drop file-1 starts', 'drop file-1', 'forget device state of file-1', 'forget what is kept here of file-1'])
+    expect(report.steps.map(({ step }) => step)).toEqual(['drive-file', 'kept-here'])
   })
 
   it('removes nothing when nothing was chosen', async () => {
@@ -181,9 +193,9 @@ describe('removing an app’s data', () => {
 
     expect(report.removed).toBe(false)
     expect(report.steps.find(({ step }) => step === 'drive-file')?.outcome).toEqual({ kind: 'failed', message: 'Drive would not bin it.' })
-    expect(report.steps.find(({ step }) => step === 'beside-copy')?.outcome).toEqual({ kind: 'not-run' })
+    expect(report.steps.find(({ step }) => step === 'kept-here')?.outcome).toEqual({ kind: 'not-run' })
     expect(calls).not.toContain('forget device state of file-1')
-    expect(calls).not.toContain('forget beside copy of file-1')
+    expect(calls).not.toContain('forget what is kept here of file-1')
   })
 
   it('stops when what is beside the file fails, leaving the file chosen', async () => {
@@ -196,17 +208,17 @@ describe('removing an app’s data', () => {
     expect(report.steps.map(({ step, outcome }) => [step, outcome.kind])).toEqual([
       ['beside-file', 'failed'],
       ['drive-file', 'not-run'],
-      ['beside-copy', 'not-run'],
+      ['kept-here', 'not-run'],
     ])
   })
 
   it('counts the file as removed when only what is kept beside it stays, and says so', async () => {
-    const { ports } = portsOf({ failing: ['beside-copy'] })
+    const { ports } = portsOf({ failing: ['kept-here'] })
 
     const report = await removeAppData(ports, ON_DRIVE, BOTH)
 
     expect(report.removed).toBe(true)
-    expect(report.steps.at(-1)?.outcome).toEqual({ kind: 'failed', message: 'Drive refused beside-copy.' })
+    expect(report.steps.at(-1)?.outcome).toEqual({ kind: 'failed', message: 'Drive refused kept-here.' })
   })
 
   it('bins the backups before anything else, since forgetting the file forgets the id that finds them', async () => {
@@ -215,7 +227,7 @@ describe('removing an app’s data', () => {
     const report = await removeAppData(ports, ON_DRIVE, BOTH, true)
 
     expect(calls.indexOf('trash backups of file-1')).toBeLessThan(calls.indexOf('trash beside file-1'))
-    expect(report.steps.map(({ step }) => step)).toEqual(['backups', 'beside-file', 'drive-file', 'beside-copy'])
+    expect(report.steps.map(({ step }) => step)).toEqual(['backups', 'beside-file', 'drive-file', 'kept-here'])
     expect(report.removed).toBe(true)
   })
 
@@ -250,7 +262,7 @@ describe('removing an app’s data', () => {
       ['backups', 'failed'],
       ['beside-file', 'not-run'],
       ['drive-file', 'not-run'],
-      ['beside-copy', 'not-run'],
+      ['kept-here', 'not-run'],
     ])
   })
 
@@ -260,7 +272,7 @@ describe('removing an app’s data', () => {
     const report = await removeAppData(ports, IN_BROWSER, COPY, true)
 
     expect(calls).not.toContain('trash backups of local-1')
-    expect(report.steps.map(({ step }) => step)).toEqual(['browser-file', 'beside-copy'])
+    expect(report.steps.map(({ step }) => step)).toEqual(['browser-file', 'kept-here'])
   })
 
   it('refuses the backups too while a sync started meanwhile', async () => {

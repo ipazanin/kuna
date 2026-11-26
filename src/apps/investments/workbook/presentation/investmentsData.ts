@@ -2,15 +2,16 @@ import { pageAppData } from '../../../../shared/storage/presentation/pageAppData
 import { exportAppFile } from '../../../../shared/storage/presentation/exportAppFile'
 import { trashPricesFilesBeside } from '../../prices/application/pricesUpdate'
 import { PRICES_FILE_NAME } from '../../prices/domain/pricesFile'
-import { forgetPricesCopy, pagePricesDrive, usePrices } from '../../prices/presentation/usePrices'
+import { pagePricesDrive, usePrices } from '../../prices/presentation/usePrices'
 import { words as appWords } from '../../words'
 import { useInvestmentsBooks } from '../application/investmentsStore'
 import { INVESTMENTS_APP } from '../domain/investmentsApp'
+import { forgetKeptForEveryFile } from '../infrastructure/keptPerFile'
 import { words as fileWords } from './words'
 
 const store = useInvestmentsBooks()
 
-/** The Investments file as the delete dialogs reach it, with its prices file on Drive and its prices in this browser. */
+/** The Investments file as the delete dialogs reach it, with its prices file on Drive, and its prices and mail reading in this browser. */
 export const investmentsData = pageAppData({
   id: INVESTMENTS_APP,
   name: appWords.name,
@@ -21,7 +22,7 @@ export const investmentsData = pageAppData({
     async trashFiles(fileId) {
       await trashPricesFilesBeside(await pagePricesDrive(), fileId)
     },
-    forgetCopy: forgetPricesCopy,
     whileStopped: (work) => usePrices().whileStopped(work),
   },
+  forgetKeptHere: () => forgetKeptForEveryFile(),
 })

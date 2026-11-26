@@ -115,7 +115,7 @@ export const en = {
       driveFile: (fileName: string, reason: string) => `Moving ${fileName} to the bin failed. ${reason}`,
       browserFile: (reason: string) => `Deleting the file in this browser failed. ${reason}`,
       browserCopy: (reason: string) => `Deleting this browser's copy failed. ${reason}`,
-      besideCopy: (reason: string) => `Deleting what this browser kept with it failed. ${reason}`,
+      keptHere: (reason: string) => `Deleting what this browser kept with it failed. ${reason}`,
     },
     lineGone: {
       backups: 'The backups are in the Drive bin. You can restore them for 30 days.',
@@ -123,7 +123,7 @@ export const en = {
       besideFile: (fileName: string) => `${fileName} is in the Drive bin. You can restore it for 30 days.`,
       browserFile: 'The file in this browser is deleted.',
       browserCopy: "This browser's copy is deleted.",
-      besideCopy: 'What this browser kept with it is deleted.',
+      keptHere: 'What this browser kept with it is deleted.',
     },
   },
   newerFile: {
@@ -278,7 +278,7 @@ export const hr: Translation<typeof en> = {
       driveFile: (fileName, reason) => `Premještanje „${fileName}” u otpad nije uspjelo. ${reason}`,
       browserFile: (reason) => `Brisanje datoteke u ovom pregledniku nije uspjelo. ${reason}`,
       browserCopy: (reason) => `Brisanje kopije u ovom pregledniku nije uspjelo. ${reason}`,
-      besideCopy: (reason) => `Brisanje onoga što je ovaj preglednik uz nju čuvao nije uspjelo. ${reason}`,
+      keptHere: (reason) => `Brisanje onoga što je ovaj preglednik uz nju čuvao nije uspjelo. ${reason}`,
     },
     lineGone: {
       backups: 'Sigurnosne kopije su u otpadu na Driveu. Možete ih vratiti u roku od 30 dana.',
@@ -286,7 +286,7 @@ export const hr: Translation<typeof en> = {
       besideFile: (fileName) => `„${fileName}” je u otpadu na Driveu. Možete je vratiti u roku od 30 dana.`,
       browserFile: 'Datoteka u ovom pregledniku je obrisana.',
       browserCopy: 'Kopija u ovom pregledniku je obrisana.',
-      besideCopy: 'Ono što je ovaj preglednik uz nju čuvao je obrisano.',
+      keptHere: 'Ono što je ovaj preglednik uz nju čuvao je obrisano.',
     },
   },
   newerFile: {

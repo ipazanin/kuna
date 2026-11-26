@@ -15,6 +15,8 @@ export function pageAppData(app: {
   readonly beside?: DataBeside
   /** What this device keeps of the app outside its file, beyond the answers and the assistant's switches every app has. */
   forgetOnThisDevice?(): void
+  /** As `DataRemovalPorts.forgetKeptHere` says. */
+  forgetKeptHere?(fileId: string): Promise<void>
 }): AppData {
   const { state } = app.store
   return {
@@ -49,6 +51,7 @@ export function pageAppData(app: {
             forgetSetUpAnswersOf(fileId)
             app.forgetOnThisDevice?.()
           },
+          forgetKeptHere: app.forgetKeptHere ?? null,
         },
         choice,
         places,

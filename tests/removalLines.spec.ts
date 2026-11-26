@@ -13,7 +13,7 @@ describe('what a failed delete says', () => {
       steps: [
         { step: 'beside-file', outcome: { kind: 'done' } },
         { step: 'drive-file', outcome: { kind: 'failed', message: 'Only its owner can.', final: true } },
-        { step: 'beside-copy', outcome: { kind: 'not-run' } },
+        { step: 'kept-here', outcome: { kind: 'not-run' } },
       ],
     }
 

@@ -746,3 +746,43 @@ describe('import boundaries', () => {
     expect(found).toEqual([])
   })
 })
+
+const KEPT_PER_FILE = 'src/apps/investments/workbook/infrastructure/keptPerFile.ts'
+
+/** The prefixes a removal deletes, as the constants `keptPerFile.ts` lists them. */
+function prefixesRemovalDeletes(): readonly string[] {
+  const listed = /DATABASE_PREFIXES[^=]*=\s*\[([^\]]*)\]/.exec(readFileSync(join(ROOT, KEPT_PER_FILE), 'utf8'))?.[1] ?? ''
+  return listed.split(',').map((name) => name.trim())
+}
+
+/** Each database named per file, with `${` in its name, whose name does not start with a listed prefix, as `file:line`. */
+function perFileDatabasesUnlisted(sources: readonly { readonly file: string; readonly code: string }[], listed: readonly string[]): string[] {
+  return sources.flatMap(({ file, code }) =>
+    code.split('\n').flatMap((line, index) => {
+      const name = /new Dexie\(\s*`([^`]*)`/.exec(line)?.[1]
+      if (name === undefined || !name.includes('${')) return []
+      return listed.some((prefix) => name.startsWith(`\${${prefix}}`)) ? [] : [`${file}:${index + 1}`]
+    }),
+  )
+}
+
+describe('what an app keeps per file in this browser', () => {
+  it('names each per-file database of an app with a prefix keptPerFile.ts lists, so removing the books deletes it', () => {
+    const sources = SOURCE_FILES.filter((file) => file.startsWith('src/apps/')).map((file) => ({ file, code: readFileSync(join(ROOT, file), 'utf8') }))
+    const listed = prefixesRemovalDeletes()
+
+    expect(listed).toEqual(['PRICES_DATABASE_PREFIX', 'MAIL_READING_DATABASE_PREFIX'])
+    expect(perFileDatabasesUnlisted(sources, listed)).toEqual([])
+  })
+
+  it('catches a per-file database whose prefix is not listed, or that has none', () => {
+    const sources = [
+      { file: 'listed.ts', code: 'new Dexie(`${PRICES_DATABASE_PREFIX}${fileId}`)' },
+      { file: 'unlisted.ts', code: 'new Dexie(`${NOTES_DATABASE_PREFIX}${fileId}`)' },
+      { file: 'inline.ts', code: 'const a = 1\nnew Dexie(`kuna-notes-${fileId}`)' },
+      { file: 'shared.ts', code: "new Dexie('kuna-rates')" },
+    ]
+
+    expect(perFileDatabasesUnlisted(sources, ['PRICES_DATABASE_PREFIX'])).toEqual(['unlisted.ts:1', 'inline.ts:2'])
+  })
+})
