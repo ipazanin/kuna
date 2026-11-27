@@ -7,6 +7,7 @@ import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure
 import { LOANS_APP } from '../../domain/loansApp'
 import { emptyLoansDocument } from '../loansDocument'
 import { fakeLoansDocument, fakeTwinNamedLoansDocument } from './fakeLoans'
+import type { FakeLoansSet } from './fakeLoans'
 
 /**
  * The id of the Loans file the fake build keeps in this browser, apart from the company's so the two
@@ -16,13 +17,17 @@ const FAKE_LOANS_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP-LOANS'
 
 const DAY = 86_400_000
 
+const SETS: readonly FakeLoansSet[] = ['sample', 'one-loan', 'house-and-car', 'equal-principal', 'lending', 'co-owned', 'four-loans']
+
+function isSet(variant: string | null): variant is FakeLoansSet {
+  return (SETS as readonly (string | null)[]).includes(variant)
+}
+
 /**
  * Sets up the fake build's Loans file as `?loans=` names it: `drive` an empty file on the fake Drive
  * and `browser` one kept in this browser with changes nine days past their last export, each chosen
- * on this device, `sample` a chosen file on the fake Drive holding made-up loans of both kinds,
- * `one-loan` the same with the bank loan alone, `house-and-car` the home loan beside a car loan that
- * ends earlier and an informal loan you owe on an expected plan, `twin-names` the same with the car loan named as the home loan, `equal-principal` one equal principal bank loan alone, `lending` informal loans alone
- * that leave you owed more than you owe, `other-device` an empty file on the fake Drive that
+ * on this device, a set of `fakeLoans.ts` chosen on the fake Drive, `twin-names` `house-and-car` with the car loan
+ * named as the home loan, `other-device` an empty file on the fake Drive that
  * another device made, which this device has not chosen, `opening` the sample chosen on the fake
  * Drive with nothing in this browser and every read of it held, so the Loans screens stay opening, and
  * `failed` the sample chosen on the fake Drive with nothing in this browser and the file in the bin, so
@@ -34,27 +39,15 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
   const now = Date.now()
   const savedAt = new Date(now).toISOString()
   const document =
-    variant === 'sample' || variant === 'opening' || variant === 'failed'
+    variant === 'opening' || variant === 'failed'
       ? fakeLoansDocument(savedAt)
-      : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal' || variant === 'lending' || variant === 'co-owned'
+      : isSet(variant)
         ? fakeLoansDocument(savedAt, variant)
         : variant === 'twin-names'
           ? fakeTwinNamedLoansDocument(savedAt)
           : emptyLoansDocument(savedAt)
   const text = encodeDocument(document)
-  if (
-    variant === 'drive' ||
-    variant === 'sample' ||
-    variant === 'one-loan' ||
-    variant === 'house-and-car' ||
-    variant === 'twin-names' ||
-    variant === 'equal-principal' ||
-    variant === 'lending' ||
-    variant === 'co-owned' ||
-    variant === 'other-device' ||
-    variant === 'opening' ||
-    variant === 'failed'
-  ) {
+  if (variant === 'drive' || isSet(variant) || variant === 'twin-names' || variant === 'other-device' || variant === 'opening' || variant === 'failed') {
     const created = await createDriveDocument(fakeDriveSession(), await fakeBooksFolder(), LOANS_APP, text)
     if (variant === 'opening' || variant === 'failed') {
       saveWorkbookChoice(LOANS_APP, { source: 'drive', id: created.fileId, name: documentName(LOANS_APP) })

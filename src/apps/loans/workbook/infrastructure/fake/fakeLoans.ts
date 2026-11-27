@@ -279,6 +279,23 @@ const FLAT_LOAN: BankLoan = {
 
 const FLAT_RATE_PERIODS: readonly RatePeriod[] = [{ id: fixedId(RATE_PERIOD_RECORDS, 71), loan: FLAT_LOAN.id, from: day('2025-03-05'), rate: rate('4'), rateType: 'fixed', note: '' }]
 
+/** A made-up renovation loan of 15,000.00 at a fixed 6.2% over seven years. */
+const RENOVATION_LOAN: BankLoan = {
+  id: fixedId(BANK_LOAN_RECORDS, 80),
+  name: 'Renovation loan',
+  lender: 'Example Bank',
+  principal: euros(15_000),
+  drawdown: day('2025-09-01'),
+  firstInstalment: day('2025-10-01'),
+  instalments: 84,
+  interimInterest: null,
+  subsidy: null,
+  repayment: 'annuity',
+  note: 'Made up for the fake build.',
+}
+
+const RENOVATION_RATE_PERIODS: readonly RatePeriod[] = [{ id: fixedId(RATE_PERIOD_RECORDS, 81), loan: RENOVATION_LOAN.id, from: day('2025-10-01'), rate: rate('6.2'), rateType: 'fixed', note: '' }]
+
 /** A made-up loan from a friend you mean to repay 250.00 a month from August, two instalments repaid and the third missed. */
 const FROM_DORA: InformalLoan = {
   id: fixedId(INFORMAL_LOAN_RECORDS, 60),
@@ -303,13 +320,25 @@ const DORA_MOVEMENTS: readonly Movement[] = movementsOf(FROM_DORA, 61, [
  * with the same scenarios and offers, `equal-principal` with one equal principal bank loan and nothing else, and `lending`
  * with no bank loan and the informal loans to Petra, to Luka and from Dora, so you are owed more than you owe.
  * `co-owned` is `one-loan` with the home loan taken out with someone else, half of it yours from its drawdown.
+ * `four-loans` holds the home, car, flat and renovation loans and nothing else, so the Overview stacks a fourth band.
  */
-export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car' | 'equal-principal' | 'lending' | 'co-owned'
+export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car' | 'equal-principal' | 'lending' | 'co-owned' | 'four-loans'
 
 /** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up, and its scenarios and offers are never counted as loans. */
 export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample'): WorkbookDocument {
   if (set === 'equal-principal') {
     return { ...emptyLoansDocument(savedAt), records: { ...stored(BANK_LOAN_RECORDS, [FLAT_LOAN]), ...stored(RATE_PERIOD_RECORDS, FLAT_RATE_PERIODS) } }
+  }
+  if (set === 'four-loans') {
+    return {
+      ...emptyLoansDocument(savedAt),
+      records: {
+        ...stored(BANK_LOAN_RECORDS, [HOME_LOAN, CAR_LOAN, FLAT_LOAN, RENOVATION_LOAN]),
+        ...stored(RATE_PERIOD_RECORDS, [...RATE_PERIODS, ...CAR_RATE_PERIODS, ...FLAT_RATE_PERIODS, ...RENOVATION_RATE_PERIODS]),
+        ...stored(EXTRA_PAYMENT_RECORDS, EXTRA_PAYMENTS),
+        ...stored(LATE_INSTALMENT_RECORDS, LATE_INSTALMENTS),
+      },
+    }
   }
   if (set === 'co-owned') {
     const alone = fakeLoansDocument(savedAt, 'one-loan')
