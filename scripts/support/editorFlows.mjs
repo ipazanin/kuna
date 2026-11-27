@@ -2163,11 +2163,12 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
   await delay(400)
   const detail = await page.$eval('[data-testid="figure-detail"]', (element) => element.textContent ?? '')
+  const profitOf2026 = packEnglish.ownerNet.profitBeforeTax('Jan – Sep 2026')
   for (const line of [
     'Pay without loans and dividends, 10 months',
     'Rent tax the owner pays the tax office',
     'Pay after the rent tax',
-    'Profit before tax, Jan – Sep 2026',
+    profitOf2026,
     'Corporate tax at',
     'Dividend tax at',
     'Profit after both taxes, 9 months',
@@ -2178,7 +2179,7 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
   await inspect?.('owner net build-up')
   await shoot('owner-net-build-up')
 
-  await pressSelector(page, press, '[data-testid="figure-detail"] a[aria-label^="Profit before tax, Jan 2026"]')
+  await pressSelector(page, press, `[data-testid="figure-detail"] a[aria-label^="${profitOf2026}"]`)
   await screenTitled(page, 'Year')
   if (!(await page.evaluate(() => window.location.hash)).includes('year=2026')) throw new Error('the profit of 2026 did not open Year on 2026')
 }
@@ -7815,7 +7816,7 @@ async function rowMarksReceipt(page, title, cents, held) {
     .waitForFunction(
       (selector, wanted, amount, expected) =>
         [...document.querySelectorAll(selector)].some(
-          (row) => row.dataset.amount === String(amount) && row.textContent?.includes(wanted) && (row.parentElement?.querySelector('[data-testid="spending-row-receipt-held"]') !== null) === expected,
+          (row) => row.dataset.amount === String(amount) && row.textContent?.includes(wanted) && (row.querySelector('[data-testid="spending-row-receipt-held"]') !== null) === expected,
         ),
       { timeout: 10_000 },
       SPENDING_ROW,
@@ -8276,8 +8277,9 @@ export function spendingBankSyncRowsFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const days = '\u0000'
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingFileReading.leftOut.notTaken(1, 'OTP current', '', '').one.split(' from ')[0].split(' od ')[0])
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingFileReading.leftOut.notTaken(1, 'OTP current', days, '').one.split(days)[0])
     await page.waitForSelector('[data-testid="spending-bank-account"][data-kind="missing"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('the bank sync with rows a file brought')
