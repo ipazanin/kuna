@@ -106,6 +106,34 @@ function pick(key: string): void {
           </li>
         </ul>
       </AppCard>
+      <AppCard title="Rows that open with a control at their end">
+        <ul class="divide-y divide-default">
+          <ListRow title="Harbour bistro" caption="Eating out · Current account" opens>
+            <template #lead><span class="size-2.5 rounded-full bg-primary" /></template>
+            <template #amount><MoneyText :cents="moneyFromCents(-3_300)" tone="flow" /></template>
+            <template #trailing><UButton icon="i-lucide-camera" aria-label="Add a photo" color="neutral" variant="ghost" size="sm" /></template>
+          </ListRow>
+          <li class="flex flex-col">
+            <ListRow as="div" title="Gift for Ana" opens>
+              <template #lead><span class="size-2.5 rounded-full bg-primary" /></template>
+              <template #amount><MoneyText :cents="moneyFromCents(-9_000)" tone="flow" /></template>
+              <template #details><NoteLine as="span" tone="muted" icon="i-lucide-users">Gifts · 2 entries</NoteLine></template>
+              <template #trailing><UButton icon="i-lucide-camera" aria-hidden="true" tabindex="-1" class="invisible" color="neutral" variant="ghost" size="sm" /></template>
+            </ListRow>
+            <ul class="pb-1.5">
+              <ListRow title="3 Mar 2026 · Toy shop" nested opens>
+                <template #amount><MoneyText :cents="moneyFromCents(-12_000)" tone="flow" /></template>
+                <template #trailing><UButton icon="i-lucide-camera" aria-hidden="true" tabindex="-1" class="invisible" color="neutral" variant="ghost" size="sm" /></template>
+              </ListRow>
+              <ListRow title="5 Mar 2026 · Petra" nested opens>
+                <template #amount><MoneyText :cents="moneyFromCents(3_000)" tone="flow" /></template>
+                <template #trailing><UButton icon="i-lucide-camera" aria-hidden="true" tabindex="-1" class="invisible" color="neutral" variant="ghost" size="sm" /></template>
+              </ListRow>
+            </ul>
+          </li>
+        </ul>
+        <p class="px-4 pb-4 type-aside sm:px-5">A tap on the words opens the row, the camera stays its own control, and every amount ends at one edge.</p>
+      </AppCard>
       <AppCard title="Rows being picked">
         <ul class="divide-y divide-default">
           <ListRow title="City pharmacy" caption="3 Mar 2026 · Current account" :picked="picked.has('pharmacy')" @pick="pick('pharmacy')">
@@ -118,6 +146,22 @@ function pick(key: string): void {
           <ListRow title="Hardware store" caption="Split into parts, so each part is filed on its own" :picked="false" unpickable>
             <template #amount><MoneyText :cents="moneyFromCents(-12_000)" tone="flow" /></template>
           </ListRow>
+          <ListRow title="Harbour bistro" caption="Opens when not picking, and its camera hides while picking" opens :picked="picked.has('bistro')" @pick="pick('bistro')">
+            <template #lead><span class="size-2.5 rounded-full bg-primary" /></template>
+            <template #amount><MoneyText :cents="moneyFromCents(-3_300)" tone="flow" /></template>
+            <template #trailing><UButton icon="i-lucide-camera" aria-label="Add a photo" color="neutral" variant="ghost" size="sm" /></template>
+          </ListRow>
+          <li class="flex flex-col">
+            <ListRow as="div" title="Gift for Ana" opens :picked="false" unpickable>
+              <template #lead><span class="size-2.5 rounded-full bg-primary" /></template>
+              <template #amount><MoneyText :cents="moneyFromCents(-9_000)" tone="flow" /></template>
+            </ListRow>
+            <ul class="pb-1.5">
+              <ListRow title="3 Mar 2026 · Toy shop, a line under a row that cannot be picked, with no box" nested opens :picked="false" unpickable>
+                <template #amount><MoneyText :cents="moneyFromCents(-12_000)" tone="flow" /></template>
+              </ListRow>
+            </ul>
+          </li>
         </ul>
       </AppCard>
       <AppCard title="Rows that open a page">
@@ -179,7 +223,7 @@ function pick(key: string): void {
   <GallerySection
     id="pick-box"
     title="PickBox"
-    description="The box before a row while rows are being picked, which ListRow draws itself. A row of its own, such as a phone card or a Spending entry, puts it first. Ticked in the accent when picked, dashed when the row cannot be picked."
+    description="The box before a row while rows are being picked, which ListRow draws itself. A row of its own, such as a phone card, puts it first. Ticked in the accent when picked, dashed when the row cannot be picked."
   >
     <AppCard as="div" class="flex flex-wrap items-center gap-6 p-5">
       <span class="flex items-center gap-2 type-body"><PickBox :picked="false" />Not picked</span>

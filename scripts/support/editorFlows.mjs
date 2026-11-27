@@ -6925,7 +6925,8 @@ export function spendingSharedCostFlowIn(language) {
       await press(picked)
       await delay(150)
     }
-    if (!(await page.$eval('[data-testid="spending-shared-cost-open"]', (element) => element.disabled))) throw new Error('the shared cost still opens while entries are being picked')
+    if (!(await page.$eval('[data-testid="spending-shared-cost-open"] [data-testid="list-row-pick"]', (element) => element.disabled)))
+      throw new Error('the shared cost still opens while entries are being picked')
     await shootAt(page, shoot, '[data-testid="spending-shared-cost-open"]', 'spending-shared-cost-picking', { inspected: () => inspect?.('a shared cost on Entries while entries are being picked') })
     await shootAt(page, shoot, '[data-testid="selection-bar"]', 'spending-shared-cost-selection-bar')
     await pressSelector(page, press, '[data-testid="spending-selection-shared-cost"]')
@@ -13674,7 +13675,7 @@ export function spendingSelectLabelFlowIn(language) {
     const rows = await page.$$('[data-testid="spending-row"]')
     for (const row of rows.slice(0, 3)) await press(row)
     await page
-      .waitForFunction(() => document.querySelectorAll('[data-testid="spending-row"][aria-checked="true"]').length === 3, { timeout: 5_000 })
+      .waitForFunction(() => document.querySelectorAll('[data-testid="spending-row"] [data-testid="list-row-pick"][aria-checked="true"]').length === 3, { timeout: 5_000 })
       .catch(() => {
         throw new Error('three taps did not pick three rows')
       })
@@ -13736,7 +13737,7 @@ export function spendingSelectEventFlowIn(language) {
     const rows = await page.$$('[data-testid="spending-row"]')
     for (const row of rows.slice(0, 2)) await press(row)
     await page
-      .waitForFunction(() => document.querySelectorAll('[data-testid="spending-row"][aria-checked="true"]').length === 2, { timeout: 5_000 })
+      .waitForFunction(() => document.querySelectorAll('[data-testid="spending-row"] [data-testid="list-row-pick"][aria-checked="true"]').length === 2, { timeout: 5_000 })
       .catch(() => {
         throw new Error('two taps did not pick two rows')
       })
@@ -14063,7 +14064,9 @@ export function spendingReceiptRefileFlowIn(language) {
     })
     if (oneLine.lines !== 0) throw new Error(`the receipt of one line shows ${oneLine.lines} lines under its row, not none`)
     if (!oneLine.text.includes(starter['Eating out']) || !oneLine.text.includes('Two espressos')) throw new Error(`the receipt of one line reads "${oneLine.text.trim()}", not its category and words`)
-    const amountEdges = await page.$$eval(SPENDING_ROW, (rows) => [...new Set(rows.map((row) => Math.round(row.lastElementChild?.getBoundingClientRect().right ?? -1)))])
+    const amountEdges = await page.$$eval(SPENDING_ROW, (rows) => [
+      ...new Set(rows.map((row) => Math.round(row.querySelector('.list-row-amount > :first-child')?.getBoundingClientRect().right ?? -1))),
+    ])
     if (amountEdges.length !== 1) throw new Error(`the amounts on Entries end at ${amountEdges.join(', ')} px, not in one column beside the receipt marks`)
     await inspect?.('a receipt of one line on Entries, read as a typed entry with the receipt mark')
     await shoot('spending-receipt-one-line')

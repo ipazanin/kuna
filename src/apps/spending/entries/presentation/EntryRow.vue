@@ -16,10 +16,10 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
-import PickBox from '../../../../shared/ui/PickBox.vue'
 
-/** One entry: a button that opens it, or ticks it while rows are being selected, and beside it the camera for its receipt, or a mark that a receipt is attached. The row tints as one unit while either button is hovered, unless it holds the highlight of the chat being about it. */
+/** One entry: a row that opens it, or ticks it while rows are being selected, and at its end the camera for its receipt, or a mark that a receipt is attached. */
 const props = defineProps<{
   row: EuroRow
   categories: readonly Category[]
@@ -40,48 +40,37 @@ const props = defineProps<{
   homes: ReadonlyMap<RecordId, string>
 }>()
 
-const emit = defineEmits<{ open: [entry: Transaction]; receipt: [entry: AskedElement] }>()
+const emit = defineEmits<{ open: [entry: Transaction]; pick: [entry: Transaction]; receipt: [entry: AskedElement] }>()
 
 const asked = computed(() => entryAsked(props.row.transaction, props.row.account))
 const { marked } = useChatElement(asked, 'row')
 </script>
 
 <template>
-  <li class="flex items-center border-t border-default transition-colors first:border-t-0 not-data-chat-tagged:has-[>button:hover]:bg-elevated/40" v-bind="marked">
-    <button
-      type="button"
-      class="flex min-w-0 flex-1 items-center gap-3 px-4 py-2.5 text-start sm:px-5"
-      data-testid="spending-row"
-      :data-amount="row.transaction.amount"
-      v-bind="picked === null ? {} : { role: 'checkbox', 'aria-checked': picked }"
-      @click="emit('open', row.transaction)"
-    >
-      <PickBox v-if="picked !== null" :picked="picked" />
-      <span class="size-2.5 shrink-0 rounded-full" :style="{ background: colour }" aria-hidden="true" />
-      <span class="entry-row-line flex min-w-0 flex-1 items-center gap-3">
-        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span class="break-words type-row-title" data-entry-title>{{ title }}</span>
-          <span v-if="details !== ''" class="break-words type-caption">{{ details }}</span>
-          <NoteLine v-if="row.transaction.pending" as="span" tone="muted" icon="i-lucide-clock" data-testid="spending-row-pending">{{ words.notBookedYet }}</NoteLine>
-          <NoteLine v-if="link !== null" as="span" :tone="LINK_TONE[link.look]" :icon="link.icon" data-testid="spending-row-link">{{ link.text }}</NoteLine>
-          <NoteLine v-if="labels !== ''" as="span" tone="muted" icon="i-lucide-tag" data-testid="spending-row-labels">{{ labels }}</NoteLine>
-          <RowLines v-if="hasParts(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" :homes="homes" />
-        </span>
-        <span data-entry-amount class="flex shrink-0 flex-col items-end gap-0.5 type-body">
-          <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" :tone="rowTone(row.items, categories)" />
-          <span v-if="euros !== ''" class="figure type-caption">{{ euros }}</span>
-        </span>
-      </span>
-    </button>
-    <ReceiptCameraButton
-      v-if="picked === null"
-      :label="asked.label"
-      :available="takesReceipt"
-      :held="holdsReceipt(row.items)"
-      :boxed="receiptBoxes"
-      testid="spending-row-receipt"
-      class="me-2 shrink-0 sm:me-3"
-      @take="emit('receipt', asked)"
-    />
-  </li>
+  <ListRow
+    :title="title"
+    :caption="details"
+    :picked="picked"
+    opens
+    v-bind="marked"
+    data-testid="spending-row"
+    :data-amount="row.transaction.amount"
+    @open="emit('open', row.transaction)"
+    @pick="emit('pick', row.transaction)"
+  >
+    <template #lead><span class="size-2.5 rounded-full" :style="{ background: colour }" /></template>
+    <template #amount>
+      <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" :tone="rowTone(row.items, categories)" />
+      <span v-if="euros !== ''" class="figure type-caption">{{ euros }}</span>
+    </template>
+    <template v-if="row.transaction.pending || link !== null || labels !== '' || hasParts(row.items)" #details>
+      <NoteLine v-if="row.transaction.pending" as="span" tone="muted" icon="i-lucide-clock" data-testid="spending-row-pending">{{ words.notBookedYet }}</NoteLine>
+      <NoteLine v-if="link !== null" as="span" :tone="LINK_TONE[link.look]" :icon="link.icon" data-testid="spending-row-link">{{ link.text }}</NoteLine>
+      <NoteLine v-if="labels !== ''" as="span" tone="muted" icon="i-lucide-tag" data-testid="spending-row-labels">{{ labels }}</NoteLine>
+      <RowLines v-if="hasParts(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" :homes="homes" />
+    </template>
+    <template #trailing>
+      <ReceiptCameraButton :label="asked.label" :available="takesReceipt" :held="holdsReceipt(row.items)" :boxed="receiptBoxes" testid="spending-row-receipt" @take="emit('receipt', asked)" />
+    </template>
+  </ListRow>
 </template>

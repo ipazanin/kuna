@@ -264,7 +264,7 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
 </script>
 
 <template>
-  <div v-if="queue !== null" class="flex flex-col gap-6">
+  <div v-if="queue !== null" class="near-figures flex flex-col gap-6">
     <p v-if="queue.wantingSavings > 0" class="type-aside" data-testid="spending-wants-savings">{{ plural(words.review.pocketsWaiting(queue.wantingSavings), queue.wantingSavings) }}</p>
     <AppCard v-if="held.items.value.length > 0" :title="words.review.held" data-testid="spending-review-held">
       <div class="px-4 pt-3 pb-4 sm:px-5">

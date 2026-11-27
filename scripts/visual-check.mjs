@@ -19,7 +19,7 @@
  * a DrillLink wears the colour of the text class it is given, a row that opens a page has its arrow on its title's first line, and
  * a list where only some rows open a page ends every amount at one edge.
  * A table row that opens its record shows the pointer, and a press on any of its cells without a control of its own reaches the row.
- * On Company's, Spending's and Investments' Overview and Spending's Accounts up to 1440 px, every list row's figure starts within 40rem of its name,
+ * On Company's, Spending's and Investments' Overview, Spending's Accounts, an account's page, Entries, its To review tab and a payee's page up to 1440 px, every list row's figure starts within 40rem of its name,
  * and a row of a table under a column heading passes. At 1024, 1440 and 1920 px no row of a dashboard grid leaves more than 16 px empty.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
  * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
@@ -4346,6 +4346,26 @@ const SOURCE_SCREENS = [
     shows: ['Transfer to Revolut'],
   },
   {
+    name: 'spending-account-receipts',
+    query: 'spending=receipts',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    charts: 0,
+    ready: '[data-testid="spending-row-receipt-held"]',
+    stored: { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY },
+    shows: ['Corner market', 'Espresso bar'],
+  },
+  {
+    name: 'spending-account-receipts-croatian',
+    query: 'spending=receipts&lang=hr',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    charts: 0,
+    ready: '[data-testid="spending-row-receipt-held"]',
+    stored: { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY },
+    shows: ['Corner market', 'Espresso bar'],
+  },
+  {
     name: 'spending-account-usd',
     query: 'spending=sample',
     hash: `#/spending/account?account=${SAMPLE_USD_ACCOUNT}`,
@@ -5919,6 +5939,24 @@ const NEAR_FIGURE_SCREENS = [
   'spending-payee-page-long-name-croatian',
   'company-labels',
   'company-labels-croatian',
+  'spending-transactions',
+  'spending-transactions-croatian',
+  'spending-transaction-lines',
+  'spending-transaction-lines-croatian',
+  'spending-entries',
+  'spending-entries-croatian',
+  'spending-review',
+  'spending-review-croatian',
+  'spending-account-transfers',
+  'spending-account-transfers-croatian',
+  'spending-account-receipts',
+  'spending-account-receipts-croatian',
+  'spending-account-usd',
+  'spending-account-usd-croatian',
+  'spending-account-usd-by-hand',
+  'spending-account-usd-by-hand-croatian',
+  'spending-account-cash',
+  'spending-account-cash-croatian',
 ]
 const NEAR_FIGURE_WIDEST = 1440
 
@@ -6165,10 +6203,7 @@ function readPage(page) {
     function farRowFigures() {
       const most = 40 * parseFloat(getComputedStyle(document.documentElement).fontSize)
       const found = []
-      const rows = [
-        ...[...document.querySelectorAll('.list-row-lines')].map((lines) => [lines.querySelector('.list-row-title'), lines.querySelector(':scope > .list-row-amount > :first-child')]),
-        ...[...document.querySelectorAll('.entry-row-line')].map((line) => [line.querySelector('[data-entry-title]'), line.querySelector(':scope > [data-entry-amount] > :first-child')]),
-      ]
+      const rows = [...document.querySelectorAll('.list-row-lines')].map((lines) => [lines.querySelector('.list-row-title'), lines.querySelector(':scope > .list-row-amount > :first-child')])
       for (const [title, amount] of rows) {
         if (title === null || amount === null || amount.getClientRects().length === 0) continue
         const apart = amount.getBoundingClientRect().left - title.getBoundingClientRect().left

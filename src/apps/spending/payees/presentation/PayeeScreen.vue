@@ -247,7 +247,6 @@ function openSharedCost(picked: SharedCost): void {
       />
       <AppCard v-else :title="words.page.entries" :subtitle="words.page.entriesSubtitle" data-testid="spending-payee-entries">
         <EntryList
-          class="near-figures"
           :lines="listed"
           :categories="state.workbook.categories"
           :labels="state.workbook.labels"

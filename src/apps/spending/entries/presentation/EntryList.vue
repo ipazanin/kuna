@@ -113,10 +113,10 @@ const days = computed(() => {
 </script>
 
 <template>
-  <div class="pb-2">
+  <div class="near-figures pb-2">
     <section v-for="group in days" :key="group.day">
       <component :is="heading" class="group-row px-4 py-2.5 type-body sm:px-5" data-testid="spending-day">{{ dayLabel(group.day) }}</component>
-      <ul>
+      <ul class="divide-y divide-default">
         <template v-for="line in group.lines" :key="line.kind === 'entry' ? line.row.transaction.id : line.entry.sharedCost.id">
           <SharedCostRow
             v-if="line.kind === 'shared-cost'"
@@ -144,7 +144,8 @@ const days = computed(() => {
             :takes-receipt="takesReceipt(line.row.transaction)"
             :receipt-boxes="receiptBoxes"
             :homes="homes"
-            @open="picked === null ? emit('open', $event) : emit('pick', $event)"
+            @open="emit('open', $event)"
+            @pick="emit('pick', $event)"
             @receipt="emit('receipt', $event)"
           />
         </template>
