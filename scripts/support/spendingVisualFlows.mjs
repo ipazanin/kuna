@@ -224,7 +224,7 @@ export function spendingVisualFlows({ SPENDING_IMPORT_SAMPLES, SPENDING_RECEIPT_
       queries: { drive: '&spending=people&lang=hr' },
     },
     {
-      name: 'spending-payee-new',
+      name: 'spending-entry-new-payee',
       hash: '#/spending/transactions',
       title: 'Entries',
       run: spendingPayeeNewFlowIn('en'),
@@ -233,7 +233,7 @@ export function spendingVisualFlows({ SPENDING_IMPORT_SAMPLES, SPENDING_RECEIPT_
       queries: { drive: '&spending=sample' },
     },
     {
-      name: 'spending-payee-new-croatian',
+      name: 'spending-entry-new-payee-croatian',
       hash: '#/spending/transactions',
       title: 'Unosi',
       run: spendingPayeeNewFlowIn('hr'),
@@ -242,7 +242,7 @@ export function spendingVisualFlows({ SPENDING_IMPORT_SAMPLES, SPENDING_RECEIPT_
       queries: { drive: '&spending=sample&lang=hr' },
     },
     {
-      name: 'spending-payee-memory',
+      name: 'spending-entry-payee-memory',
       hash: '#/spending/transactions',
       title: 'Entries',
       run: spendingPayeeMemoryFlowIn('en'),
@@ -251,7 +251,7 @@ export function spendingVisualFlows({ SPENDING_IMPORT_SAMPLES, SPENDING_RECEIPT_
       queries: { drive: '&spending=sample' },
     },
     {
-      name: 'spending-payee-memory-croatian',
+      name: 'spending-entry-payee-memory-croatian',
       hash: '#/spending/transactions',
       title: 'Unosi',
       run: spendingPayeeMemoryFlowIn('hr'),

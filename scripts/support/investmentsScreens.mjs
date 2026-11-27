@@ -38,6 +38,7 @@ import { dayLabel, shortDayLabel, weekdayDayLabel } from '../../src/shared/calen
 import { formatMoney, formatPercent, formatPercentChange } from '../../src/shared/money/moneyFormat.ts'
 import { MADE_UP_ANTHROPIC_KEY } from './chatFlows.mjs'
 import { CROATIAN_MONEY, INVESTMENTS_DAY } from './visualCommon.mjs'
+import { SAMPLE_INDEX_FUND, SAMPLE_MONEY_FUND, SAMPLE_SHARE_A, SAMPLE_SHARE_B, SAMPLE_SPIN_CO, SAMPLE_WORLD_ETF } from './investmentsSamples.mjs'
 
 /**
  * The made-up portfolio's figures on the Overview and the home card, worked out with the same domain functions the
@@ -104,18 +105,6 @@ function fakeHoldingsShows() {
   }
 }
 
-/** Example Tech of the sample, in US dollars with its first lot partly sold, and Example Spinco, received in a spin-off, split two for one and priced by hand. */
-export const SAMPLE_SHARE_A = 'fa4e1000-0000-4000-8000-000000000010'
-const SAMPLE_SPIN_CO = 'fa4e1000-0000-4000-8000-000000000014'
-/** The sample's World ETF, accumulating, with its own mix by sector and by country, and its Index Fund, never bought, with no mix. */
-export const SAMPLE_WORLD_ETF = 'fa4e1000-0000-4000-8000-000000000012'
-const SAMPLE_INDEX_FUND = 'fa4e1000-0000-4000-8000-000000000015'
-/** The sample's Example Dividend Co, whose company profile Finnhub refused, and its Money Fund, with a whole fund profile from Alpha Vantage and no TER typed. */
-const SAMPLE_SHARE_B = 'fa4e1000-0000-4000-8000-000000000011'
-const SAMPLE_MONEY_FUND = 'fa4e1000-0000-4000-8000-000000000013'
-/** The sample's Example Retired Co, sold in full, with prices from a year before its first buy. */
-export const SAMPLE_RETIRED_CO = 'fa4e1000-0000-4000-8000-000000000016'
-
 /** A sample holding's page: its name, its value, its total return and its average cost, in English and in Croatian. */
 function fakeHoldingShows(key) {
   const { figures } = fakePortfolio('sample', 'sample')
@@ -173,7 +162,7 @@ const HOLDINGS_PAST_DAY = '2025-12-31'
 
 /** The close of the first late holding when the fake prices stop four weekdays back, as Holdings marks it. */
 const LATE_HOLDING_CLOSE = dayLabel(fakePortfolio('sample', 'late-prices').figures.holdings.find((holding) => holding.late).valuation.close.date)
-export const SAMPLE_SHARE_A_PAGE = fakeHoldingShows(SAMPLE_SHARE_A)
+const SAMPLE_SHARE_A_PAGE = fakeHoldingShows(SAMPLE_SHARE_A)
 const SAMPLE_SPIN_CO_PAGE = fakeHoldingShows(SAMPLE_SPIN_CO)
 
 /**

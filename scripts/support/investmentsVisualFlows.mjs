@@ -29,7 +29,7 @@ import { appChatCardFlowIn } from './appsChatFlows.mjs'
 import { screenMenusFlow } from './menuFlows.mjs'
 import { fetchTodayFlowIn, EVENING_CLOCK, SATURDAY_CLOCK } from './fetchTodayFlows.mjs'
 import { holdingCustomOpeningFlowIn } from './chartRangeFlows.mjs'
-import { SAMPLE_RETIRED_CO, SAMPLE_SHARE_A, SAMPLE_SHARE_A_PAGE, SAMPLE_WORLD_ETF } from './investmentsScreens.mjs'
+import { SAMPLE_RETIRED_CO, SAMPLE_SHARE_A, SAMPLE_SHARE_A_NAME, SAMPLE_WORLD_ETF } from './investmentsSamples.mjs'
 import { DESIGN_REVIEW_VIEWPORTS, EVERY_VIEWPORT, MENU_VIEWPORTS } from './visualCommon.mjs'
 
 export function investmentsVisualFlows({ CHAT_ATTACHMENT_SAMPLES, WORKBOOK_SAMPLES, FLEX_REPORT_SAMPLES, CLOSES_SAMPLES }) {
@@ -452,7 +452,7 @@ export function investmentsVisualFlows({ CHAT_ATTACHMENT_SAMPLES, WORKBOOK_SAMPL
     {
       name: 'investments-holding-dot-hover',
       hash: `#/investments/holding?instrument=${SAMPLE_SHARE_A}`,
-      title: SAMPLE_SHARE_A_PAGE.name,
+      title: SAMPLE_SHARE_A_NAME,
       run: investmentsHoldingDotHoverFlow,
       viewports: ['desktop'],
       modes: ['drive'],
