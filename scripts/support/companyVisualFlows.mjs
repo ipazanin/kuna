@@ -81,7 +81,6 @@ import {
   placedRefileFlowIn,
   placedSplitFlowIn,
   placePaymentFlowIn,
-  profileMoveFlowIn,
   refusedSplitFlowIn,
   reviewFlagPersonFlowIn,
   reviewSplitFlow,
@@ -825,15 +824,6 @@ export function companyVisualFlows({ IMPORT_FILE, IMPORT_SAMPLES }) {
       run: importTableFlow(IMPORT_SAMPLES.table),
       viewports: ['phone', 'phone-large', 'small-tablet', 'tablet-wide', 'desktop'],
     },
-    ...['en', 'hr'].map((language) => ({
-      name: language === 'en' ? 'import-profile-move' : 'import-profile-move-croatian',
-      hash: '#/company/transactions?tab=import',
-      title: language === 'en' ? 'Transactions' : 'Transakcije',
-      run: profileMoveFlowIn(language),
-      viewports: DESIGN_REVIEW_VIEWPORTS,
-      modes: ['drive'],
-      queries: { drive: language === 'en' ? '&fake=import-profiles' : '&fake=import-profiles&lang=hr' },
-    })),
     ...[
       { name: 'import-camt-croatian', run: importCamtFlowIn('hr', IMPORT_SAMPLES.camt) },
       { name: 'import-table-croatian', run: importTableFlowIn('hr', IMPORT_SAMPLES.table) },

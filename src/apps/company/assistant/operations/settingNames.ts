@@ -1,7 +1,6 @@
-import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { words as invoicingWords } from '../../invoicing/presentation/words'
 import { words as mailWords } from '../../mail/presentation/words'
-import { DEFAULT_BUCKET_LABELS, bucketLabelKey, settingLabel } from '../../settings/domain/settings'
+import { DEFAULT_BUCKET_LABELS, bucketLabelKey } from '../../settings/domain/settings'
 import type { InvoicingField } from '../../settings/domain/settings'
 import { words as settingsWords } from '../../settings/presentation/words'
 import { BUCKETS } from '../../workbook/domain/bucket'
@@ -57,10 +56,8 @@ function coreSettingNames(): Readonly<Record<string, string>> {
 }
 
 /**
- * A setting by the name its screen shows, core's or the pack's. An import profile reads as Settings, General names it. A key no
- * screen names, such as one nothing in Kuna reads, stays as the settings tab writes it, as Settings, General lists it.
+ * A setting by the name its screen shows, core's or the pack's. A key no screen names, such as one nothing in Kuna reads, stays as the settings tab writes it, as Settings, General lists it.
  */
 export function settingName(key: string, packNames: Readonly<Record<string, string>>): string {
-  if (key.startsWith(IMPORT_PROFILE_PREFIX)) return settingLabel(key, null)
   return coreSettingNames()[key] ?? packNames[key] ?? key
 }

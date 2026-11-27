@@ -84,14 +84,13 @@ describe('parseSettings', () => {
     expect(problems.slice(0, 2).map((problem) => problem.reason)).toEqual(['set on more than one row, so the default is used', 'set on more than one row, so the default is used'])
   })
 
-  it('offers no import profile whose key is set on more than one row', () => {
-    const { settings, problems } = parseSettings(rows(['import_profile_bank', 'account=main; date=1; amount=2'], ['import_profile_bank', 'account=main; date=1; amount=3']))
+  it('reads the import profiles older books still hold as retired keys, which report nothing and are not offered for removal', () => {
+    const profiles = rows(['import_profile_bank', 'account=main; date=1; amount=2'], ['import_profile_bank', 'nonsense'], ['import_profile_other', ''])
+    const { settings, problems } = parseSettings(profiles)
 
-    expect(settings.importProfiles).toEqual([])
-    expect(problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      ['import_profile_bank', 'set on more than one row, so the profile is not offered'],
-      ['import_profile_bank', 'set on more than one row, so the profile is not offered'],
-    ])
+    expect(settings).toEqual(DEFAULT_SETTINGS)
+    expect(problems).toEqual([])
+    expect(unreadSettingKeys(profiles, null)).toEqual(new Map())
   })
 
   it('refuses a currency the cents arithmetic cannot hold', () => {

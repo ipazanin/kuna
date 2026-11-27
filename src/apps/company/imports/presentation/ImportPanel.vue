@@ -15,9 +15,9 @@ import { plural } from '../../../../shared/text/translation'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
-import { importRecipes, importTitle, statementReadings, writeImport } from '../application/importStatements'
+import { importTitle, statementReadings, writeImport } from '../application/importStatements'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
-import { fittingRecipes } from '../domain/tableRecipes'
+import { fittingRecipes, tableRecipesOf } from '../domain/tableRecipes'
 import { accountNamedIn, fileShapeOf } from '../domain/recipeGuess'
 import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import type { TableRecipeDraft } from '../../../../shared/recipes/domain/tableRecipeDraft'
@@ -25,7 +25,6 @@ import { loadImportFile } from '../infrastructure/importFiles'
 import type { LoadedImportFile } from '../application/importStatements'
 import DryRunStatementCard from './DryRunStatementCard.vue'
 import MailedStatementsCard from './MailedStatementsCard.vue'
-import ProfileMoveNotice from './ProfileMoveNotice.vue'
 import TableRecipeDialog from './TableRecipeDialog.vue'
 import { useDryRun } from './useDryRun'
 import { words } from './words'
@@ -71,7 +70,7 @@ async function loadSample(kind: 'camt' | 'table'): Promise<void> {
 }
 
 const workbook = computed(() => store.state.workbook)
-const recipes = computed(() => (workbook.value === null ? [] : importRecipes(workbook.value)))
+const recipes = computed(() => (workbook.value === null ? [] : tableRecipesOf(workbook.value.recipes)))
 const kept = computed(() => new Set((workbook.value?.recipes ?? []).map((recipe) => String(recipe.id))))
 
 /** The chosen recipe's id, or blank for none. */
@@ -179,8 +178,6 @@ const summary = computed(() => {
       <p class="max-w-prose type-aside">{{ words.panel.intro }}</p>
 
       <MailedStatementsCard />
-
-      <ProfileMoveNotice />
 
       <AppCard :title="words.panel.file" :subtitle="words.panel.fileSubtitle">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="import-file">

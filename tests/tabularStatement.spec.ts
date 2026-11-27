@@ -1,19 +1,17 @@
 import * as XLSX from 'xlsx'
 import { describe, expect, it } from 'vitest'
 
-import { readProfile, profileValue } from '../src/apps/company/imports/domain/importProfile'
-import type { ImportProfile } from '../src/apps/company/imports/domain/importProfile'
 import type { ImportedStatement, StatementReading } from '../src/apps/company/imports/domain/importedStatement'
 import { fileShapeOf } from '../src/apps/company/imports/domain/recipeGuess'
-import { recipeOfProfile } from '../src/apps/company/imports/domain/profileRecipe'
 import { tableRecipesOf } from '../src/apps/company/imports/domain/tableRecipes'
 import { readTabularStatement } from '../src/apps/company/imports/domain/tabularStatement'
 import type { TableCells } from '../src/shared/recipes/domain/tableRows'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
-import { parseSettings, settingsTabEntries } from '../src/apps/company/settings/domain/settings'
-import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { moneyFromCents } from '../src/shared/money/money'
-import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecipeField } from '../src/shared/recipes/domain/recipe'
+import type { SavedRecipe } from '../src/shared/recipes/domain/savedRecipe'
+import type { TableRecipeDraft } from '../src/shared/recipes/domain/tableRecipeDraft'
+import { tableRecipe } from './fixtures/companyRecipes'
 
 /** The shape of a Croatian bank's xlsx export, every value invented: a title, the header, rows newest first, a total. */
 const HEADER = ['Datum valute', 'Datum knjiženja', 'Naziv primatelja / platitelja', 'IBAN primatelja / platitelja', 'Opis plaćanja', 'Isplata', 'Uplata', 'Stanje']
@@ -29,19 +27,16 @@ const CROATIAN: (string | XLSX.CellObject)[][] = [
   ['Ukupno', '', '', '', '1.267,90', '6.500,00', ''],
 ]
 
-const PROFILE: ImportProfile = {
+const DRAFT: TableRecipeDraft = {
   name: 'primjer-banka',
-  account: 'main',
-  date: 'Datum knjiženja',
-  dateFormat: 'dd.mm.yyyy',
-  decimal: 'comma',
+  date: { column: 'Datum knjiženja', format: 'dd.MM.yyyy' },
   amount: { debit: 'Isplata', credit: 'Uplata' },
-  balance: 'Stanje',
-  counterparty: 'Naziv primatelja / platitelja',
-  counterpartyIban: 'IBAN primatelja / platitelja',
-  description: 'Opis plaćanja',
-  reference: '',
+  mark: 'comma',
+  columns: { balance: 'Stanje', counterpartyIban: 'IBAN primatelja / platitelja', description: 'Opis plaćanja', counterparty: 'Naziv primatelja / platitelja' },
+  kinds: [{ kind: 'entry', test: null }],
 }
+
+const NO_BALANCE: TableRecipeDraft = { ...DRAFT, columns: { counterpartyIban: DRAFT.columns.counterpartyIban, description: DRAFT.columns.description, counterparty: DRAFT.columns.counterparty } }
 
 async function gridOfXlsx(grid: readonly (readonly (string | number | XLSX.CellObject)[])[]): Promise<TableCells> {
   const book = XLSX.utils.book_new()
@@ -52,12 +47,26 @@ async function gridOfXlsx(grid: readonly (readonly (string | number | XLSX.CellO
   return loaded.cells
 }
 
-/** A file read by the recipe a profile moves to, into the profile's account. */
-function readByProfile(cells: TableCells, profile: ImportProfile, fileName: string, fileHash: string): StatementReading {
-  const saved = recipeOfProfile(profile, [{ slug: profile.account, bank: '', currency: '' }], 'EUR')
-  const [table] = saved === null ? [] : tableRecipesOf([saved])
-  if (table === undefined) throw new Error('the profile moves to no recipe')
-  return readTabularStatement(cells, table.recipe, profile.account, fileName, fileHash)
+/** The day formats the export writes: text with and without a closing dot, and a sheet's own day cells, which read as ISO days. */
+const DAY_FORMATS = ['dd.MM.yyyy', 'dd.MM.yyyy.', 'yyyy-MM-dd']
+
+/** The recipe with every day field reading each of the export's day formats. */
+function readingEveryDayFormat(saved: SavedRecipe): SavedRecipe {
+  const sections = saved.recipe.sections.map((section) => ({
+    ...section,
+    kinds: section.kinds.map((kind) => ({
+      ...kind,
+      fields: Object.fromEntries(Object.entries(kind.fields).map(([name, field]): [string, RecipeField] => [name, field.as === 'date' ? { ...field, formats: DAY_FORMATS } : field])),
+    })),
+  }))
+  return { ...saved, recipe: { ...saved.recipe, sections } }
+}
+
+/** A file read by the recipe a draft makes, into the main account. */
+function readByRecipe(cells: TableCells, draft: TableRecipeDraft, fileName: string, fileHash: string): StatementReading {
+  const [table] = tableRecipesOf([readingEveryDayFormat(tableRecipe(draft, 'Primjer banka'))])
+  if (table === undefined) throw new Error('the draft makes no table recipe')
+  return readTabularStatement(cells, table.recipe, 'main', fileName, fileHash)
 }
 
 function statementOf(reading: StatementReading): ImportedStatement {
@@ -72,9 +81,9 @@ function refusalOf(reading: StatementReading): string {
 
 const HASH = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9'
 
-describe('reading a bank’s spreadsheet export by the recipe its profile moves to', () => {
+describe('reading a bank’s spreadsheet export by a table recipe', () => {
   it('reads a Croatian xlsx with a decimal comma, text and serial dates, split columns and a total row', async () => {
-    const statement = statementOf(readByProfile(await gridOfXlsx(CROATIAN), PROFILE, 'promet-2031-03.xlsx', HASH))
+    const statement = statementOf(readByRecipe(await gridOfXlsx(CROATIAN), DRAFT, 'promet-2031-03.xlsx', HASH))
 
     expect(statement.rows.map((row) => [row.date, row.amount, row.balance, row.counterparty])).toEqual([
       ['2031-03-01', moneyFromCents(-1_450), moneyFromCents(18_550), 'Primjer banka d.d.'],
@@ -99,7 +108,7 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
       ['01.03.2031', '01.03.2031', 'Primjer banka d.d.', '', 'Naknada za vođenje računa', 14.5, '', 1234.5],
       ['02.03.2031', '02.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', 3.4, '', 1231.1],
     ]
-    const statement = statementOf(readByProfile(await gridOfXlsx(numbers), PROFILE, 'numbers.xlsx', HASH))
+    const statement = statementOf(readByRecipe(await gridOfXlsx(numbers), DRAFT, 'numbers.xlsx', HASH))
 
     expect(statement.rows.map((row) => [row.amount, row.balance])).toEqual([
       [moneyFromCents(-1_450), moneyFromCents(123_450)],
@@ -108,22 +117,21 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
   })
 
   it('gives the same row the same key in a later export that overlaps it', async () => {
-    const first = statementOf(readByProfile(await gridOfXlsx(CROATIAN), PROFILE, 'march.xlsx', HASH))
+    const first = statementOf(readByRecipe(await gridOfXlsx(CROATIAN), DRAFT, 'march.xlsx', HASH))
     const later = [...CROATIAN.slice(0, 4), ['06.03.2031', '06.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', '', '5.428,70'], ...CROATIAN.slice(4, 6)]
-    const second = statementOf(readByProfile(await gridOfXlsx(later), PROFILE, 'later.xlsx', HASH.replace('a1', 'ff')))
+    const second = statementOf(readByRecipe(await gridOfXlsx(later), DRAFT, 'later.xlsx', HASH.replace('a1', 'ff')))
 
     expect(second.rows.slice(0, 2).map((row) => row.reference)).toEqual(first.rows.slice(2).map((row) => row.reference))
     expect(second.rows[2]?.reference).not.toBe(first.rows[2]?.reference)
   })
 
   it('counts equal rows of a file without balances, so two equal payments keep two keys', async () => {
-    const noBalance: ImportProfile = { ...PROFILE, balance: '' }
     const twice = [
       HEADER.slice(0, 7),
       ['04.03.2031', '04.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', ''],
       ['04.03.2031', '04.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', '3,40', ''],
     ]
-    const statement = statementOf(readByProfile(await gridOfXlsx(twice), noBalance, 'twice.csv', HASH))
+    const statement = statementOf(readByRecipe(await gridOfXlsx(twice), NO_BALANCE, 'twice.csv', HASH))
 
     expect(statement.rows.map((row) => row.reference.slice(-2))).toEqual(['-1', '-2'])
     expect(statement.rows[0]?.reference.slice(0, -2)).toBe(statement.rows[1]?.reference.slice(0, -2))
@@ -134,15 +142,14 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
   it('reads a negative debit as money out and refuses a negative credit', async () => {
     const signedDebit = [HEADER.slice(0, 7), ['04.03.2031', '04.03.2031', 'KAVANA PRIMJER', '', 'Kartično plaćanje', '-3,40', '']]
     const negativeCredit = [HEADER.slice(0, 7), ['04.03.2031', '04.03.2031', 'Northwind Analytics Ltd', '', 'Povrat', '', '-50,00']]
-    const noBalance: ImportProfile = { ...PROFILE, balance: '' }
 
-    expect(statementOf(readByProfile(await gridOfXlsx(signedDebit), noBalance, 'debit.xlsx', HASH)).rows[0]?.amount).toBe(moneyFromCents(-340))
-    expect(refusalOf(readByProfile(await gridOfXlsx(negativeCredit), noBalance, 'credit.xlsx', HASH))).toContain('row 2: the credit "-50,00" is negative')
+    expect(statementOf(readByRecipe(await gridOfXlsx(signedDebit), NO_BALANCE, 'debit.xlsx', HASH)).rows[0]?.amount).toBe(moneyFromCents(-340))
+    expect(refusalOf(readByRecipe(await gridOfXlsx(negativeCredit), NO_BALANCE, 'credit.xlsx', HASH))).toContain('row 2: the credit "-50,00" is negative')
   })
 
   it('keeps a reference column the bank gives', async () => {
     const withReference = [[...HEADER, 'Referenca'], ...CROATIAN.slice(4, 5).map((row) => [...row, 'R-2031-77'])]
-    const statement = statementOf(readByProfile(await gridOfXlsx(withReference), { ...PROFILE, reference: 'Referenca' }, 'ref.xlsx', HASH))
+    const statement = statementOf(readByRecipe(await gridOfXlsx(withReference), { ...DRAFT, columns: { ...DRAFT.columns, reference: 'Referenca' } }, 'ref.xlsx', HASH))
 
     expect(statement.rows[0]?.reference).toBe('R-2031-77')
   })
@@ -166,19 +173,17 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
     ],
     ['dates in no order', [HEADER, CROATIAN[4]!, CROATIAN[7]!, CROATIAN[6]!], /run neither oldest first nor newest first/],
   ])('refuses %s', async (_case, grid, reason) => {
-    expect(refusalOf(readByProfile(await gridOfXlsx(grid), PROFILE, 'bad.xlsx', HASH))).toMatch(reason)
+    expect(refusalOf(readByRecipe(await gridOfXlsx(grid), DRAFT, 'bad.xlsx', HASH))).toMatch(reason)
   })
 
   it('refuses a file no row of which carries the recipe’s columns', async () => {
-    expect(refusalOf(readByProfile(await gridOfXlsx([['Date', 'Amount']]), PROFILE, 'other.xlsx', HASH))).toMatch(
-      /No row in the first 40 of other\.xlsx carries every column of the recipe primjer-banka/,
-    )
+    expect(refusalOf(readByRecipe(await gridOfXlsx([['Date', 'Amount']]), DRAFT, 'other.xlsx', HASH))).toMatch(/No row in the first 40 of other\.xlsx carries every column of the recipe primjer-banka/)
   })
 
   it('reads a csv’s amounts as written, with a semicolon between fields', async () => {
     const csv = [HEADER.join(';'), '01.03.2031;01.03.2031;Primjer banka d.d.;;Naknada;14,50;;185,50'].join('\n')
     const loaded = await loadImportFile('promet.csv', new TextEncoder().encode(csv).buffer as ArrayBuffer)
-    const statement = statementOf(readByProfile(loaded.kind === 'table' ? loaded.cells : { texts: [], numbers: [] }, PROFILE, 'promet.csv', HASH))
+    const statement = statementOf(readByRecipe(loaded.kind === 'table' ? loaded.cells : { texts: [], numbers: [] }, DRAFT, 'promet.csv', HASH))
 
     expect(statement.rows[0]).toMatchObject({ amount: moneyFromCents(-1_450), balance: moneyFromCents(18_550) })
   })
@@ -195,49 +200,11 @@ describe('reading a bank’s spreadsheet export by the recipe its profile moves 
   })
 })
 
-describe('import profiles', () => {
-  it('saves a profile as word=column pairs and reads it back', () => {
-    const value = profileValue(PROFILE)
-
-    expect(value).toBe(
-      'account=main; date=Datum knjiženja; date_format=dd.mm.yyyy; decimal=comma; debit=Isplata; credit=Uplata; balance=Stanje; counterparty=Naziv primatelja / platitelja; counterparty_iban=IBAN primatelja / platitelja; description=Opis plaćanja',
-    )
-    expect(readProfile('primjer-banka', value)).toEqual(PROFILE)
-  })
-
-  it.each([
-    ['Bad Name', 'account=main; date=D; amount=A', /lower-case letters and digits/],
-    ['bank', 'account=main; amount=A', /names no date/],
-    ['bank', 'account=main; date=D; amount=A; debit=B', /either amount, or both debit and credit/],
-    ['bank', 'account=main; date=D; amount=A; colour=red', /"colour=red" is not a word=column pair/],
-    ['bank', 'account=main; date=D; amount=A; date_format=d.m.y', /date_format "d\.m\.y" is not one of/],
-  ])('refuses %s with %s', (name, value, reason) => {
-    expect(readProfile(name, value)).toMatch(reason)
-  })
-
-  it('follows the workbook on its settings tab, and an export writes it back', () => {
-    const rows = [
-      { key: 'import_profile_primjer-banka', value: profileValue(PROFILE) },
-      { key: 'import_profile_broken', value: 'date=D' },
-    ]
-    const { settings, problems } = parseSettings(rows)
-
-    expect(settings.importProfiles).toEqual([PROFILE])
-    expect(problems).toEqual([{ id: recordIdOf(SETTING_RECORDS, 'import_profile_broken'), label: 'import_profile_broken', reason: 'the profile names no account, so the profile is not offered' }])
-    expect(settingsTabEntries(settings, null).at(-1)).toEqual({ key: 'import_profile_primjer-banka', value: profileValue(PROFILE) })
-  })
-
+describe('guessing a table recipe', () => {
   it('guesses the header row, the columns, the day format and the decimal mark of an export it has not seen', async () => {
     const shape = fileShapeOf(await gridOfXlsx(CROATIAN))
 
     expect(shape?.headerRow).toBe(3)
-    expect(shape?.guess).toEqual({
-      name: '',
-      date: { column: 'Datum knjiženja', format: 'dd.MM.yyyy' },
-      amount: { debit: 'Isplata', credit: 'Uplata' },
-      mark: 'comma',
-      columns: { balance: 'Stanje', counterpartyIban: 'IBAN primatelja / platitelja', description: 'Opis plaćanja', counterparty: 'Naziv primatelja / platitelja' },
-      kinds: [{ kind: 'entry', test: null }],
-    })
+    expect(shape?.guess).toEqual({ ...DRAFT, name: '' })
   })
 })

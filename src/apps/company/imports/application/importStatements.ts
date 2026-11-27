@@ -21,8 +21,6 @@ import { importDryRun } from '../domain/importDryRun'
 import type { DryRunInputs, ImportDryRun } from '../domain/importDryRun'
 import { replaceLedgerRows } from '../../transactions/application/itemWrites'
 import { recipeAccount, tableRecipesOf } from '../domain/tableRecipes'
-import type { TableRecipe } from '../domain/tableRecipes'
-import { recipeOfProfile } from '../domain/profileRecipe'
 import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
 import type { StatementReading } from '../domain/importedStatement'
 import { readTabularStatement } from '../domain/tabularStatement'
@@ -37,15 +35,6 @@ export type LoadedImportFile =
 /** The workbook's account for each IBAN on the accounts tab, normalised. */
 export function accountsByIban(workbook: Pick<Workbook, 'accounts'>): ReadonlyMap<string, string> {
   return new Map(workbook.accounts.filter((account) => account.iban !== '').map((account) => [account.iban, account.slug]))
-}
-
-/**
- * The recipes Import reads a bank's table files with: the ones the books keep, then each import profile the settings still hold,
- * read as the recipe the move to recipes would keep, so a profile is read the one way a recipe is.
- */
-export function importRecipes(workbook: Pick<Workbook, 'recipes' | 'accounts' | 'settings'>): TableRecipe[] {
-  const profiles = workbook.settings.importProfiles.flatMap((profile) => recipeOfProfile(profile, workbook.accounts, workbook.settings.currency) ?? [])
-  return tableRecipesOf([...workbook.recipes, ...profiles])
 }
 
 /**

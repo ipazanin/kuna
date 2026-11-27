@@ -65,14 +65,6 @@ function withOpenAdvance(document: WorkbookDocument): WorkbookDocument {
   return { ...document, records: { ...records, 'hr-doo.owner-advance': [...(records['hr-doo.owner-advance'] ?? []), advance], rule: [rule, ...(records.rule ?? [])] } }
 }
 
-/** The books as they were before Import kept recipes: an import profile of the sample bank export for main, and no bank on main, which the profile then gives it. */
-function withImportProfile(document: WorkbookDocument): WorkbookDocument {
-  const value =
-    'account=main; date=Datum knjiženja; date_format=dd.mm.yyyy; decimal=comma; debit=Isplata; credit=Uplata; balance=Stanje; counterparty=Naziv primatelja / platitelja; counterparty_iban=IBAN; description=Opis plaćanja'
-  const accounts = (document.records.account ?? []).map((account) => (account.account === 'main' ? Object.fromEntries(Object.entries(account).filter(([field]) => field !== 'bank')) : account))
-  return { ...document, records: { ...document.records, account: accounts, setting: [...(document.records.setting ?? []), { key: 'import_profile_example-banka', value }] } }
-}
-
 /** The books with the main account's rows from the bank's statement mail on every day from its first, so a sync files the mailed sample statement. */
 function withMailOnly(document: WorkbookDocument): WorkbookDocument {
   const accounts = (document.records.account ?? []).map((account) => (account.account === 'main' ? { ...account, sources: String(account.sources).split(',')[0]!.trim() } : account))
@@ -111,7 +103,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * ends in `category-move` adds plan rows a category's move joins or cannot change. One that ends in `donations` adds a donation above its cap and a
  * sponsorship to a listed club, each in a category of its class. The books keep every row's money on the items tab, but for a variant
  * that ends in `no-row-ids`, which holds books from before items and from before every ledger row had an id, and one that ends in
- * `refused-splits`, which holds books from before items with two splits the guards refuse. `?fake=import-profiles` holds an import profile, as books did before Import kept recipes.
+ * `refused-splits`, which holds books from before items with two splits the guards refuse.
  */
 export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
   seedFakeStart(new URLSearchParams(window.location.search).get('start'))
@@ -140,8 +132,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const kept = missing === null ? unlinked : { ...unlinked, records: { ...unlinked.records, [missing]: [] } }
   const mailOnly = bankStillMails(variant) ? withMailOnly(kept) : kept
   const mailed = source === 'drive' && variant !== 'mail-off' ? { ...mailOnly, records: { ...mailOnly.records, setting: [...(mailOnly.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : mailOnly
-  const profiled = variant === 'import-profiles' ? withImportProfile(mailed) : mailed
-  const document = variant === 'newer-file' ? { ...profiled, schema: { ...profiled.schema, core: (profiled.schema.core ?? 0) + 1 } } : profiled
+  const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {
     raceTheNextSave(otherDeviceSave)
   }

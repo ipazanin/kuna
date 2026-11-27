@@ -81,15 +81,6 @@ export const en = {
     balanceBreak: (row: number, balance: Money, previousRow: number, previous: Money, amount: Money, expected: Money) =>
       `Row ${row} says the balance is ${formatMoney(balance)}, but row ${previousRow}'s ${formatMoney(previous)} plus ${formatMoney(amount)} is ${formatMoney(expected)}. The rows may be out of order or one may be missing.`,
   },
-  profile: {
-    badName: 'a profile name is lower-case letters and digits with single hyphens, such as otp-business',
-    notAPair: (part: string) => `"${part}" is not a word=column pair the profile knows`,
-    givenTwice: (word: string) => `${word} is given twice`,
-    namesNo: (missing: readonly string[]) => `the profile names no ${missing.join(' and no ')}`,
-    badDateFormat: (format: string, formats: readonly string[]) => `date_format "${format}" is not one of ${formats.join(', ')}`,
-    badDecimal: (decimal: string) => `decimal "${decimal}" is neither comma nor point`,
-    amountColumns: 'the profile needs either amount, or both debit and credit',
-  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -144,15 +135,6 @@ export const hr: Translation<typeof en> = {
     unordered: (fileName) => `Datumi u datoteci „${fileName}” nisu poredani ni od najstarijeg ni od najnovijeg, pa se retci ne mogu poredati po redu knjiženja.`,
     balanceBreak: (row, balance, previousRow, previous, amount, expected) =>
       `Redak ${row} navodi saldo ${formatMoney(balance)}, ali ${formatMoney(previous)} iz retka ${previousRow} plus ${formatMoney(amount)} iznosi ${formatMoney(expected)}. Retci možda nisu po redu ili neki nedostaje.`,
-  },
-  profile: {
-    badName: 'naziv profila piše se malim slovima i znamenkama s pojedinačnim crticama, na primjer otp-business',
-    notAPair: (part) => `„${part}” nije par riječ=stupac koji profil poznaje`,
-    givenTwice: (word) => `${word} je naveden dvaput`,
-    namesNo: (missing) => `profil ne navodi ${missing.join(' ni ')}`,
-    badDateFormat: (format, formats) => `date_format „${format}” nije nijedan od ovih: ${formats.join(', ')}`,
-    badDecimal: (decimal) => `polje decimal „${decimal}” nije ni „comma” ni „point”`,
-    amountColumns: 'profil treba ili polje amount, ili polja debit i credit',
   },
 }
 

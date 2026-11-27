@@ -16,8 +16,7 @@ import { words } from './words'
 
 /**
  * An import recipe the Company file keeps, or a new one started from `start`, in the recipe editor, with the header row of the
- * file Import holds. Save keeps it in one write with one Undo. A recipe the books do not keep yet, such as an import profile
- * before the move, has no Delete.
+ * file Import holds. Save keeps it in one write with one Undo. A recipe the books do not keep yet has no Delete.
  */
 const props = defineProps<{
   recipe: SavedRecipe | null

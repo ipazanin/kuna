@@ -28,8 +28,6 @@ export const en = {
     defaultUsed: (reason: string) => `${reason}, so the default is used`,
     noKey: 'a value without a key',
     unknownKey: 'not a setting this app knows, so it is kept but not used',
-    profileTwice: 'set on more than one row, so the profile is not offered',
-    profileNotOffered: (reason: string) => `${reason}, so the profile is not offered`,
     labelsReset: (clash: string) => `${clash}, so every bucket label is back to its default`,
     labelsClash: (taken: string, bucket: string, label: string) => `${taken} and ${bucket} are both labelled "${label}"`,
     nameTheSubject: 'name the words before the statement number in the subject, so other mail from the bank is left alone',
@@ -86,7 +84,6 @@ export const en = {
     statementsMailSubject: 'Subject words',
     statementsMailReadTo: 'Statement mail read up to',
     personPayees: 'Counterparties who are people',
-    importProfile: (name: string) => `Import profile ${name}`,
     billing: { monthlyAmount: 'Monthly fee', subscriptionAmount: 'Monthly subscriptions', bonusAmount: 'Yearly bonus', client: 'Client the rows are for' },
     billingItem: (term: string) => `${term}, item`,
     invoicing: {
@@ -133,8 +130,6 @@ export const hr: Translation<typeof en> = {
     defaultUsed: (reason) => `${reason}, pa vrijedi zadana vrijednost`,
     noKey: 'vrijednost bez ključa',
     unknownKey: 'aplikacija ne poznaje tu postavku, pa se čuva, ali ne koristi',
-    profileTwice: 'postavljeno je u više redaka, pa se profil ne nudi',
-    profileNotOffered: (reason) => `${reason}, pa se profil ne nudi`,
     labelsReset: (clash) => `${clash}, pa su svi nazivi skupina vraćeni na zadane`,
     labelsClash: (taken, bucket, label) => `${taken} i ${bucket} imaju isti naziv „${label}”`,
     nameTheSubject: 'upišite riječi ispred broja izvoda u predmetu, da ostala pošta banke ostane netaknuta',
@@ -187,7 +182,6 @@ export const hr: Translation<typeof en> = {
     statementsMailSubject: 'Riječi u predmetu',
     statementsMailReadTo: 'Pošta s izvodima pročitana do',
     personPayees: 'Druge strane koje su osobe',
-    importProfile: (name) => `Profil učitavanja ${name}`,
     billing: { monthlyAmount: 'Mjesečna naknada', subscriptionAmount: 'Mjesečne pretplate', bonusAmount: 'Godišnji bonus', client: 'Klijent za kojeg su stavke' },
     billingItem: (term) => `${term}, stavka`,
     invoicing: {

@@ -165,8 +165,7 @@
  * then deletes the rule from its editor and brings it back with Undo. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, writes a recipe for the export, reads each dry run, confirms the statement, reads how many
  * new rows wait for review and undoes it, sees the export refused, since the bank's statements fill main, then deletes the recipe, at 360, 430 and 1440 px.
- * In books that still hold an import profile it moves the profile to a recipe with the Move notice and undoes it. With the
- * file on Drive, from Overview, Sync files the sample statement of the fake bank's mail with no
+ * With the file on Drive, from Overview, Sync files the sample statement of the fake bank's mail with no
  * toast, its step on Kuna settings says so with Undo, which takes it out, Import lists it,
  * and a last sync finds nothing new. With a held statement in the mail, the sync control says 1
  * problem and opens its steps, a popover at 1440 and a bottom sheet at 360, whose link opens Import,

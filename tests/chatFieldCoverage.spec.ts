@@ -324,7 +324,6 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     operations: ['save-recipe', 'change-recipe'].map((name) => ({ name, renames: { 'recipe.name': 'name', 'recipe.sections': 'kinds' } })),
   },
   { path: 'src/apps/spending/accounts/application/accountWrites.ts#ACCOUNT_WRITES.change', operations: ['change-account'] },
-  { path: 'src/apps/company/imports/application/recipeWrites.ts#moveProfilesToRecipes', operations: ['move-import-profiles'] },
   { path: 'src/apps/company/imports/application/recipeWrites.ts#saveRecipe', from: ['after'], operations: [{ name: 'save-recipe', renames: { 'recipe.name': 'name', 'recipe.sections': 'kinds' } }] },
   { path: 'src/apps/spending/accounts/application/accountWrites.ts#changeAccount', from: ['after'], operations: ['change-account'] },
   { path: 'src/apps/spending/bankSync/application/bankSetupWrites.ts#fixOpening', from: ['opening'], operations: ['fix-opening'] },

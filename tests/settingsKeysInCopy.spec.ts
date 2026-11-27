@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
 import { en, hr } from '../src/apps/company/packs/hr-doo/domain/words'
 import { en as presentationEn, hr as presentationHr } from '../src/apps/company/packs/hr-doo/presentation/words'
-import { IMPORT_PROFILE_PREFIX } from '../src/apps/company/imports/domain/importProfile'
 import { SETTING_DEFINITIONS, companySettingCodec } from '../src/apps/company/settings/domain/settings'
 import type { PackSettings } from '../src/apps/company/settings/domain/settings'
 import { en as companyEn, hr as companyHr } from '../src/apps/company/settings/domain/words'
@@ -120,7 +119,6 @@ describe('settings keys in copy', () => {
     const company = companySettingCodec(() => COMPANY_FACT_SETTINGS as PackSettings<unknown>)
     const labels = [
       ...[...SETTING_DEFINITIONS, ...COMPANY_FACT_SETTINGS.definitions].map(({ key }) => labelOfKey(company, key)),
-      labelOfKey(company, `${IMPORT_PROFILE_PREFIX}otp`),
       ...[...SPENDING_SETTING_CHECKS.keys()].map((key) => labelOfKey(codecOfSpendingKind(SPENDING_SETTINGS), key)),
       ...[...INVESTMENT_SETTING_CHECKS.keys()].map((key) => labelOfKey(codecOfInvestmentsKind(INVESTMENT_SETTINGS), key)),
     ]

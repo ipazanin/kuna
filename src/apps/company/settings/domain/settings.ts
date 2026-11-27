@@ -18,8 +18,6 @@ import type { StoredField } from '../../../../shared/storage/domain/storedFields
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { ANY_VALUE, settingCodec } from '../../../../shared/storage/domain/settingRows'
 import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
-import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
-import type { ImportProfile } from '../../imports/domain/importProfile'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
@@ -61,8 +59,6 @@ export interface Settings {
   readonly cardSettlementIbans: readonly string[]
   readonly billing: BillingTerms
   readonly invoicing: InvoicingTerms
-  /** How each bank's spreadsheet export reads, from the `import_profile_<name>` keys, in tab order. */
-  readonly importProfiles: readonly ImportProfile[]
   /** Whether each sync reads the bank's statement mail, while a sender and a subject are named. Kuna settings can turn it off for every app's mail at once. */
   readonly statementsMail: boolean
   /** The addresses the bank mails statements from, in lower case. None leaves the bank's mail unread. */
@@ -197,7 +193,6 @@ export const DEFAULT_SETTINGS: Settings = {
     mailBody: DEFAULT_MAIL_BODY,
     reverseChargeNote: DEFAULT_REVERSE_CHARGE_NOTE,
   },
-  importProfiles: [],
   statementsMail: true,
   statementsMailFrom: [],
   statementsMailSubject: '',
@@ -431,6 +426,14 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 /** Keys core no longer reads that older books may still hold. They read silently, and a save leaves their rows alone. */
 export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id', 'statements_sync', 'mail_since', 'statements_folder'])
 
+/** How the key of an import profile starts, `import_profile_<name>`, which told how one bank's export read before Import kept recipes. */
+const RETIRED_IMPORT_PROFILE_PREFIX = 'import_profile_'
+
+/** Whether core once read the key and no longer does, so it reads silently and a save leaves its row alone. */
+function isRetiredSettingKey(key: string): boolean {
+  return COMPANY_RETIRED_SETTING_KEYS.has(key) || key.startsWith(RETIRED_IMPORT_PROFILE_PREFIX)
+}
+
 /** The key that says the books store which invoice each client payment pays. Only Kuna sets it. */
 export const CLIENT_PAYMENTS_PLACED_KEY = 'client_payments_placed'
 
@@ -620,16 +623,14 @@ function keyOfRow(row: SettingEntry): string {
   return row.key.trim().toLowerCase()
 }
 
-/** The type of a key's value, core's or the pack's. Any other key, such as an import profile, holds text. */
+/** The type of a key's value, core's or the pack's. Any other key holds text. */
 export function settingTypeOf(key: string, pack: PackSettings<unknown> | null): SettingType {
   return (DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key))?.type ?? 'text'
 }
 
-/** What a key's screen calls it, core's or the pack's, an import profile by its name, and any other key, such as a retired one, as it is stored. */
+/** What a key's screen calls it, core's or the pack's, and any other key, such as a retired one, as it is stored. */
 export function settingLabel(key: string, pack: PackSettings<unknown> | null): string {
-  const defined = DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key)
-  if (defined !== undefined) return defined.label
-  return key.startsWith(IMPORT_PROFILE_PREFIX) ? words.settingLabels.importProfile(key.slice(IMPORT_PROFILE_PREFIX.length)) : key
+  return (DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key))?.label ?? key
 }
 
 /** A stored value as text of its key's type: a date cell as its day and a checkbox as TRUE or FALSE. */
@@ -706,7 +707,7 @@ function readCoreKeys(rows: readonly SettingEntry[], packKeys: ReadonlySet<strin
       problems.push({ id: null, label: recordWords.unnamed, reason: words.settings.noKey })
       continue
     }
-    if (packKeys.has(key) || COMPANY_RETIRED_SETTING_KEYS.has(key)) {
+    if (packKeys.has(key) || isRetiredSettingKey(key)) {
       continue
     }
     const definition = DEFINITION_BY_KEY.get(key)
@@ -716,40 +717,19 @@ function readCoreKeys(rows: readonly SettingEntry[], packKeys: ReadonlySet<strin
       if (applied.problem !== null) problems.push(applied.problem)
       continue
     }
-    const named = { id: recordIdOf(SETTING_RECORDS, key), label: key }
-    if (isUnknownSettingKey(key, packKeys)) {
-      problems.push({ ...named, reason: words.settings.unknownKey })
-      continue
-    }
-    if (shared.has(key)) {
-      problems.push({ ...named, reason: words.settings.profileTwice })
-      continue
-    }
-    if (row.value.trim() === '') continue
-    const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), row.value)
-    if (typeof profile === 'string') {
-      problems.push({ ...named, reason: words.settings.profileNotOffered(profile) })
-    } else {
-      settings = { ...settings, importProfiles: [...settings.importProfiles, profile] }
-    }
+    problems.push({ id: recordIdOf(SETTING_RECORDS, key), label: key, reason: words.settings.unknownKey })
   }
   return { settings, problems }
 }
 
-/** A key neither core, the pack nor an import profile reads, which the tab keeps and the app reports. */
-function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolean {
-  return key !== '' && !packKeys.has(key) && !COMPANY_RETIRED_SETTING_KEYS.has(key) && !DEFINITION_BY_KEY.has(key) && !key.startsWith(IMPORT_PROFILE_PREFIX)
-}
-
 /**
- * The keys of the settings that no setting of core or the pack reads and neither retired, unknown keys
- * and import profiles, each with how many rows hold it. A person may take one off the tab while one row holds it,
- * since a write refuses a key on two rows.
+ * The keys of the settings that no setting of core or the pack reads and that are not retired, each with how many rows hold it.
+ * A person may take one off the tab while one row holds it, since a write refuses a key on two rows.
  */
 export function unreadSettingKeys(rows: readonly SettingEntry[], pack: PackSettings<unknown> | null): ReadonlyMap<string, number> {
   const packKeys = packSettingKeys(pack)
   const holding = new Map<string, number>()
-  for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !COMPANY_RETIRED_SETTING_KEYS.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
+  for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !isRetiredSettingKey(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
     holding.set(key, (holding.get(key) ?? 0) + 1)
   }
   return holding
@@ -782,9 +762,8 @@ export function readSettingsTab<Values>(
 }
 
 /**
- * The check the value of each of these keys must pass for a write to keep its row: core's and the pack's keys as they read,
- * and an import profile by the columns it names. A retired key, and one nothing reads, which the settings keep
- * unused, take any value.
+ * The check the value of each of these keys must pass for a write to keep its row: core's and the pack's keys as they read.
+ * A retired key, and one nothing reads, which the settings keep unused, take any value.
  */
 export function companySettingChecks(keys: readonly string[], pack: PackSettings<unknown> | null): SettingChecks {
   return new Map(keys.map((key) => [key, settingCheckOf(key.trim().toLowerCase(), pack)]))
@@ -795,12 +774,6 @@ function settingCheckOf(key: string, pack: PackSettings<unknown> | null): Settin
   if (core !== undefined) return definitionCheck(core, DEFAULT_SETTINGS)
   const packDefinition = pack?.definitions.find((definition) => definition.key === key)
   if (pack !== null && packDefinition !== undefined) return definitionCheck(packDefinition, pack.defaults)
-  if (key.startsWith(IMPORT_PROFILE_PREFIX)) {
-    return (value) => {
-      const profile = value.trim() === '' ? null : readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), value)
-      return typeof profile === 'string' ? [words.settings.profileNotOffered(profile)] : []
-    }
-  }
   return ANY_VALUE
 }
 
@@ -824,25 +797,17 @@ export interface PackSettingValues<Values> {
   readonly values: Values
 }
 
-/** The key and value of every setting in template order, as a `settings` tab holds them: core's keys, then a pack's, then the import profiles. */
+/** The key and value of every setting in template order, as a `settings` tab holds them: core's keys, then a pack's. */
 export function settingsTabEntries<Values>(settings: Settings, pack: PackSettingValues<Values> | null): SettingEntry[] {
-  return [
-    ...SETTING_DEFINITIONS.map((definition) => ({ key: definition.key, value: definition.valueOf(settings) })),
-    ...(pack === null ? [] : packSettingEntries(pack)),
-    ...settings.importProfiles.map((profile) => ({ key: profileKey(profile.name), value: profileValue(profile) })),
-  ]
+  return [...SETTING_DEFINITIONS.map((definition) => ({ key: definition.key, value: definition.valueOf(settings) })), ...(pack === null ? [] : packSettingEntries(pack))]
 }
 
 function packSettingEntries<Values>(pack: PackSettingValues<Values>): SettingEntry[] {
   return pack.settings.definitions.map((definition) => ({ key: definition.key, value: definition.valueOf(pack.values) }))
 }
 
-const IMPORT_PROFILE_NOTE =
-  "How one bank's spreadsheet export imports, as word=column pairs: account, date, date_format, decimal, amount or debit and credit, and the optional balance, counterparty, counterparty_iban, description and reference. Import saves it."
-
 /** The template's note on a key, core's or the pack's, or null for a key neither reads. */
 export function settingNote(key: string, pack: PackSettings<unknown> | null): string | null {
-  if (key.startsWith(IMPORT_PROFILE_PREFIX)) return IMPORT_PROFILE_NOTE
   return (DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key))?.note ?? null
 }
 

@@ -1,23 +1,5 @@
 import { sameBank } from '../../../../shared/recipes/domain/savedRecipe'
-import { capitalised } from '../../../../shared/text/capitalised'
 import type { Account } from './workbook'
-
-/** What an import profile's name says of its bank: its words with the first letter capital, so `erste-business` reads as "Erste business". */
-export function bankOfProfileName(name: string): string {
-  return capitalised(name.replaceAll('-', ' '))
-}
-
-/**
- * Each account with its bank, and an account that names none with the bank of the first import profile, by the profile's name,
- * that is for it. So an account a profile read into keeps its bank before the profiles move to recipes, which writes it down.
- */
-export function accountsWithBanks<Read extends Pick<Account, 'slug' | 'bank'>>(accounts: readonly Read[], profiles: readonly { readonly name: string; readonly account: string }[]): Read[] {
-  const byName = [...profiles].sort((one, other) => one.name.localeCompare(other.name))
-  return accounts.map((account) => {
-    const profile = account.bank === '' ? byName.find((candidate) => candidate.account === account.slug) : undefined
-    return profile === undefined ? account : { ...account, bank: bankOfProfileName(profile.name) }
-  })
-}
 
 /** The banks the accounts name, each once in the order of the accounts, for a bank field to suggest. Two spellings of one bank, by `sameBank`, count once as the first. */
 export function accountBankNames(accounts: readonly Pick<Account, 'bank'>[]): string[] {

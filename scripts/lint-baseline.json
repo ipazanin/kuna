@@ -112,7 +112,6 @@
     "src/apps/company/categories/domain/categoryDrafts.ts",
     "src/apps/company/categories/domain/categoryGuards.ts",
     "src/apps/company/imports/domain/camtStatement.ts",
-    "src/apps/company/imports/domain/importProfile.ts",
     "src/apps/company/imports/domain/tabularStatement.ts",
     "src/apps/company/overview/domain/headline.ts",
     "src/apps/company/owner-share/domain/ownerParts.ts",

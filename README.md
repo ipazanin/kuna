@@ -701,7 +701,6 @@ as before.
 | `hr_vat_principle`                                                                                                                                                                      | `invoice`                                                         | `invoice` when VAT falls due on the invoice date, `cash` when it falls due on payment.                                                                                                                                                                                                                                                                                                                                               |
 | `hr_depreciation_doubled`                                                                                                                                                               | `FALSE`                                                           | Whether the accountant doubles depreciation rates by default. An asset's `doubled` still applies to it.                                                                                                                                                                                                                                                                                                                              |
 | `hr_owner_loan_interest`                                                                                                                                                                | `0%`                                                              | The yearly interest rate the owner's loans from the company carry, as a percentage cell such as `2%`, or text such as `2%` or `0.02`. A number above 1, such as `2`, is refused, since it reads as 200%. Below the income tax law's rate the difference is a benefit in kind, as _Taxes and Owner_ describes.                                                                                                                        |
-| `import_profile_<name>`                                                                                                                                                                 | none                                                              | How one bank's spreadsheet export imported before recipes, as `word=column` pairs split by `; `. Import reads each as the recipe it moves to, and its Move notice turns them into recipes. A profile that cannot be read is reported and not offered, and "Remove the key" beside it on Settings, General takes its row off the tab.                                                                                                 |
 
 The `hr_` keys are the company's own facts for the Croatian d.o.o. pack, which the pack reads and
 checks itself, as _Core and the pack_ describes. Settings, General shows them while `owner_pay_module`
@@ -1771,23 +1770,22 @@ in a later, overlapping export gets the same key. The statement column holds the
 first eight hex digits of its SHA-256. Import offers the first saved recipe whose columns head a row
 of the file. "Write a recipe" opens the recipe editor with the columns, day format and decimal mark
 guessed from the file and the bank of the account whose IBAN the title lines name. Save keeps it in
-one write with one Undo, and "Edit recipe" changes or deletes it. Books that still hold
-`import_profile_*` settings read each profile as the recipe it moves to, and a card on Import moves
-them all in one write with one Undo: a recipe per profile, the bank each profile's account takes from
-the profile's name, and the profile rows off the settings tab.
+one write with one Undo, and "Edit recipe" changes or deletes it. Books from before recipes may
+still hold `import_profile_*` settings. Kuna no longer reads them, so they read without a problem
+line, and a save leaves their rows alone.
 
 **The dry run** lists each statement's entries with the category the rules give them, and checks
 them against the ledger as it is on screen:
 
-| Check                 | What happens                                                                                                                                                                                                                                                                                                    |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| On the ledger already | An entry whose account holds its reference is listed as such and never written, so importing a statement twice, or one a sync filed, writes nothing.                                                                                                                                                            |
-| Follows the ledger    | New entries must come after every entry the ledger holds, carry a reference, and not predate the account's newest row.                                                                                                                                                                                          |
-| Opening balance       | The balance before the first new entry must be where the ledger leaves the account, or a statement in between is missing, and the statement is refused.                                                                                                                                                         |
-| A new account         | An account with no rows waits until "Start <account> at <opening>" is ticked, or for a file without balances until its opening balance is typed.                                                                                                                                                                |
-| Statement numbers     | A camt statement whose LglSeqNb is not one past the newest on the ledger for the account is noted, as the balances still decide.                                                                                                                                                                                |
-| Partly new            | A statement whose first entries are on the ledger adds the rest and says so.                                                                                                                                                                                                                                    |
-| Imported before       | A bank export whose statement label, its file name and hash, is on the ledger already, and that still has entries the ledger lacks, is refused. Its rows' keys changed since, such as after an edit to its profile, so they cannot be told from the rows it wrote. Imported again as it was, it writes nothing. |
+| Check                 | What happens                                                                                                                                                                                                                                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| On the ledger already | An entry whose account holds its reference is listed as such and never written, so importing a statement twice, or one a sync filed, writes nothing.                                                                                                                                                           |
+| Follows the ledger    | New entries must come after every entry the ledger holds, carry a reference, and not predate the account's newest row.                                                                                                                                                                                         |
+| Opening balance       | The balance before the first new entry must be where the ledger leaves the account, or a statement in between is missing, and the statement is refused.                                                                                                                                                        |
+| A new account         | An account with no rows waits until "Start <account> at <opening>" is ticked, or for a file without balances until its opening balance is typed.                                                                                                                                                               |
+| Statement numbers     | A camt statement whose LglSeqNb is not one past the newest on the ledger for the account is noted, as the balances still decide.                                                                                                                                                                               |
+| Partly new            | A statement whose first entries are on the ledger adds the rest and says so.                                                                                                                                                                                                                                   |
+| Imported before       | A bank export whose statement label, its file name and hash, is on the ledger already, and that still has entries the ledger lacks, is refused. Its rows' keys changed since, such as after an edit to its recipe, so they cannot be told from the rows it wrote. Imported again as it was, it writes nothing. |
 
 Statements of one account are taken oldest first, each against where the one before left the
 account. A refused one leaves the account where it was, so the next one is refused for the gap, and
@@ -2057,7 +2055,7 @@ costs" carrying the `owner-benefit` role, so its AI services rows hold 50, the l
 30 of its own, and the office order's office part and the design tool advance hold one each. It holds no dismissed suggestions yet. On the Import tab the fake build offers two sample files that carry the main account on from its newest row: a
 camt.053 statement with a client payment, a card purchase in dollars, a bank fee and a reversal,
 and a Croatian bank's xlsx export with a title above the header, text dates, a decimal comma, split
-debit and credit columns and a total below, which no saved profile fits yet. Both start from the
+debit and credit columns and a total below, which no saved recipe fits yet. Both start from the
 same balance, so once one is imported the other is refused. The variant kept in this browser sets the billing settings and has its director, Alex, on the `employees` tab, so the Drive variant shows Salaries without one.
 `?fake=one-employee` and `?fake=five-employees` are the file on Drive with a made-up staff in place of
 the owner's flat salary, from `src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff.ts`: the owner alone at
@@ -3344,8 +3342,7 @@ session list is held in memory, so a reload clears it.
   rule swaps its order with its neighbour's, so orders stay in steps of 100, and renumbers every
   rule in steps of 100 only when the two share an order. Every rules write has Undo.
 - **Settings.** Each changed key's value is set, or a `key`, `value` row is added when the tab lacks
-  the key. A removed key, an import profile deleted on Import, or an unknown key or a profile it cannot
-  read removed on Settings, General, has its row taken out. A key on two rows, or a value the settings reader would not use, is
+  the key. A removed key, or an unknown key removed on Settings, General, has its row taken out. A key on two rows, or a value the settings reader would not use, is
   refused.
 - **Records of the other kinds.** Categories, accounts, clients, invoices, owner advances, assets,
   grants, year-end lines, billing plan rows, plan lines, pay scenario rows, split parts and

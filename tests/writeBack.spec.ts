@@ -337,43 +337,30 @@ describe.each([
     expect(store.state.records!.settings.records.map((stored) => stored.record.key)).toEqual(expect.arrayContaining(['hr_payroll_folder', 'hr_accountant_mail_from', 'hr_vat_mail_sync']))
   })
 
-  it('takes import profiles, one it cannot read among them, and a key the app does not know off the settings, so none is offered or reported again', async () => {
+  it('takes a key the app does not know off the settings and keeps the import profiles older books hold, which read as retired keys', async () => {
     const grids = workbookGrids()
     const { store } = await harnessOf(used, {
       ...grids,
       settings: [...grids.settings!, ['import_profile_old-bank', 'date=Datum; amount=Iznos; account=main'], ['import_profile_broken', 'nonsense'], ['old_switch', 'TRUE']],
     })
     const unread = unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)
-    expect(unread).toEqual(
-      new Map([
-        ['import_profile_old-bank', 1],
-        ['import_profile_broken', 1],
-        ['old_switch', 1],
-      ]),
-    )
-    expect(settings(store).importProfiles.map((profile) => profile.name)).toEqual(['old-bank'])
-    expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings').map((problem) => problem.label)).toEqual(['import_profile_broken', 'old_switch'])
+    expect(unread).toEqual(new Map([['old_switch', 1]]))
+    expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings').map((problem) => problem.label)).toEqual(['old_switch'])
 
     await store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, [...unread.keys()]))
 
-    expect(settings(store).importProfiles).toEqual([])
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
-    expect(store.state.records!.settings.records.map((stored) => stored.record.key)).toEqual(['card_settlement_ibans', 'review_label'])
+    expect(store.state.records!.settings.records.map((stored) => stored.record.key)).toEqual(['card_settlement_ibans', 'review_label', 'import_profile_old-bank', 'import_profile_broken'])
   })
 
-  it('counts an unknown key or a profile on two rows, which a write refuses to remove until one row holds it', async () => {
+  it('counts an unknown key on two rows, which a write refuses to remove until one row holds it', async () => {
     const grids = workbookGrids()
     const { store } = await harnessOf(used, {
       ...grids,
-      settings: [...grids.settings!, ['old_switch', 'TRUE'], ['old_switch', 'FALSE'], ['import_profile_twice', 'nonsense'], ['import_profile_twice', 'nonsense']],
+      settings: [...grids.settings!, ['old_switch', 'TRUE'], ['old_switch', 'FALSE']],
     })
 
-    expect(unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)).toEqual(
-      new Map([
-        ['old_switch', 2],
-        ['import_profile_twice', 2],
-      ]),
-    )
+    expect(unreadSettingKeys(recordsOf(store.state.records!.settings), installedPack().workbook?.settings ?? null)).toEqual(new Map([['old_switch', 2]]))
     await expect(store.write('Removed', (unit) => removeSettings(unit, store.state.records!.settings, ['old_switch']))).rejects.toThrow(
       'The settings tab sets "old_switch" on 2 rows. Keep one of them in an export and open that file again.',
     )

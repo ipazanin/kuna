@@ -27,7 +27,7 @@ const booked = useBookedWorkbook()
 const problems = computed(() => booked.value?.problems ?? [])
 
 const settingRecords = computed(() => state.records?.settings ?? NO_RECORDS)
-/** The keys the settings tab holds that no setting reads, unknown keys and import profiles, with how many rows hold each. */
+/** The keys the settings tab holds that no setting reads and that are not retired, with how many rows hold each. */
 const unreadKeys = computed(() => unreadSettingKeys(recordsOf(settingRecords.value), installedPack().workbook?.settings ?? null))
 
 function removeKey(key: string): void {

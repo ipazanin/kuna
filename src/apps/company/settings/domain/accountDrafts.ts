@@ -40,7 +40,7 @@ export function sourcesOfDraft(draft: Pick<AccountDraft, 'periods'>): { readonly
 
 /**
  * The drafts of the stored accounts, as the workbook holds their text, each with where its rows come from and its bank as the
- * workbook reads them by its name, so a bank an import profile gives shows until the profiles move to recipes.
+ * workbook reads them by its name.
  */
 export function accountDraftsOf(stored: readonly StoredRecord<unknown>[], accounts: readonly Pick<Account, 'slug' | 'sources' | 'bank'>[]): AccountDraft[] {
   const read = new Map(accounts.map((account) => [account.slug, account]))

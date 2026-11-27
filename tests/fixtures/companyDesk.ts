@@ -73,7 +73,6 @@ function deskGrids(): Record<string, CellValue[][]> {
       ['review_label', 'ivan'],
       ['owner_pay_module', 'TRUE'],
       ['old_key', 'left over'],
-      ['import_profile_saved-profile', 'account=main; date=Datum; date_format=dd.mm.yyyy; decimal=comma; amount=Iznos'],
     ],
     rules: [[...RULE_COLUMNS], ruleRow({ rule: 'merchant-model', order: 100, enabled: true, counterparty_contains: 'MODEL', category: 'ai-services', confidence: 'rule' })],
     splits: [

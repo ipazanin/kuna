@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { recipeAccount } from '../src/apps/company/imports/domain/tableRecipes'
 import { currencyCodeOf } from '../src/shared/money/currencyCode'
-import { profileValue } from '../src/apps/company/imports/domain/importProfile'
-import type { ImportProfile } from '../src/apps/company/imports/domain/importProfile'
-import { accountBankNames, accountsWithBanks, sharedBanks } from '../src/apps/company/workbook/domain/accountBanks'
+import { accountBankNames, sharedBanks } from '../src/apps/company/workbook/domain/accountBanks'
 import { ACCOUNT_CODEC } from '../src/apps/company/workbook/domain/accountsReading'
 import { ACCOUNT_RECORDS, SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { readWorkbook, workbookRecordsOf } from '../src/apps/company/workbook/domain/readWorkbook'
@@ -13,20 +11,6 @@ import { recordsOfRows, spreadsheetTabOfKind } from '../src/apps/company/workboo
 import type { Cells } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { BY_HAND_SOURCES } from '../src/apps/company/workbook/domain/workbook'
-
-const PROFILE: ImportProfile = {
-  name: 'erste-business',
-  account: 'main',
-  date: 'Datum',
-  dateFormat: 'dd.mm.yyyy',
-  decimal: 'comma',
-  amount: { signed: 'Iznos' },
-  balance: '',
-  counterparty: '',
-  counterpartyIban: '',
-  description: '',
-  reference: '',
-}
 
 describe("an account's bank", () => {
   it('reads and writes the bank field, trimmed, a blank one as no bank', () => {
@@ -39,30 +23,16 @@ describe("an account's bank", () => {
     expect(ACCOUNT_CODEC.fieldsOf(ACCOUNT_CODEC.make(storedFieldsOfValues({ account: 'main' }), id))).not.toHaveProperty('bank')
   })
 
-  it('takes, on an account that names none, the bank of the first import profile by name that is for it, its words with the first letter capital', () => {
-    const accounts = [
-      { slug: 'main', bank: '' },
-      { slug: 'savings', bank: 'Own banka' },
-      { slug: 'cash', bank: '' },
-    ]
-    const profiles = [
-      { name: 'zaba-export', account: 'main' },
-      { name: 'erste-business', account: 'main' },
-      { name: 'other', account: 'savings' },
-    ]
-
-    expect(accountsWithBanks(accounts, profiles).map((account) => account.bank)).toEqual(['Erste business', 'Own banka', ''])
-  })
-
-  it('shows the bank a profile gives on the books, before the profiles move to recipes', () => {
+  it('reads an import profile older books still hold as a retired key, which gives its account no bank and reports nothing', () => {
     const rows: Readonly<Record<string, Cells>> = {
       [ACCOUNT_RECORDS.name]: { account: 'main', sources: 'by-hand' },
-      [SETTING_RECORDS.name]: { key: 'import_profile_erste-business', value: profileValue(PROFILE) },
+      [SETTING_RECORDS.name]: { key: 'import_profile_erste-business', value: 'account=main; date=Datum; amount=Iznos' },
     }
     const records = workbookRecordsOf((kind) => recordsOfRows(spreadsheetTabOfKind(kind), rows[kind.name] === undefined ? [] : [{ sheetRow: 2, cells: rows[kind.name]! }]), null)
     const workbook = readWorkbook({ id: 'books', source: 'browser', title: 'Books', syncedAt: '2026-11-23T00:00:00.000Z' }, records, null)
 
-    expect(workbook.accounts).toEqual([{ slug: 'main', label: '', iban: '', currency: '', bank: 'Erste business', sources: BY_HAND_SOURCES }])
+    expect(workbook.accounts).toEqual([{ slug: 'main', label: '', iban: '', currency: '', bank: '', sources: BY_HAND_SOURCES }])
+    expect(workbook.problems).toEqual([])
   })
 
   it('suggests each bank the accounts name once, in their order, two spellings of one bank as the first', () => {

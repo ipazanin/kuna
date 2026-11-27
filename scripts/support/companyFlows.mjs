@@ -1033,31 +1033,6 @@ export function importTableFlowIn(language, path) {
 
 export const importTableFlow = (path) => importTableFlowIn('en', path)
 
-/** Import in books that still hold an import profile: the Move notice, pressed, gone once the profile is a recipe, and back with Undo. */
-export function profileMoveFlowIn(language) {
-  const words = SCREEN_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await page.waitForSelector('[data-testid="profile-move"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('no Move notice on Import for books that hold an import profile')
-    })
-    await delay(300)
-    await inspect?.('the Move notice')
-    await shoot('import-profile-move')
-    await pressSelector(page, press, '[data-testid="profile-move-confirm"]')
-    await toast(page, words.imports.move.moved)
-    await page
-      .waitForFunction(() => !document.querySelector('[data-testid="profile-move"]'), { timeout: 10_000 })
-      .catch(() => {
-        throw new Error('the Move notice stayed once the profiles moved')
-      })
-    await undoIn(page, press, words)
-    await page.waitForSelector('[data-testid="profile-move"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Undo did not bring the import profile back')
-    })
-  }
-}
-
 /**
  * The Import tab in a language: the sample camt.053 statement's dry run, confirmed with the rows
  * that wait for review said and undone, then the sample bank export with a recipe guessed from it

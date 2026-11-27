@@ -119,16 +119,6 @@ export const en = {
       unreadable: 'Kuna cannot keep the recipe as written. Check its columns and kinds.',
     } satisfies Record<TableRecipeProblem['kind'], string>,
   },
-  move: {
-    title: 'Import profiles are recipes now',
-    body: (count: number): EnglishForms => ({
-      one: 'Kuna keeps how a bank export reads as a recipe, which finds its account by bank and currency. Move the saved profile to a recipe, and each account it named takes its bank.',
-      other: `Kuna keeps how a bank export reads as a recipe, which finds its account by bank and currency. Move the ${count} saved profiles to recipes, and each account they named takes its bank.`,
-    }),
-    move: 'Move to recipes',
-    moved: 'Profiles moved to recipes',
-    notMoved: 'Not moved',
-  },
   mailed: {
     title: "From the bank's mail",
     subtitle: "Each sync reads the bank's statement mail and files the statements the ledger lacks.",
@@ -281,17 +271,6 @@ export const hr: Translation<typeof en> = {
       'no-currency': 'Odaberite valutu računa koji prima retke.',
       unreadable: 'Kuna ne može spremiti recept ovako napisan. Provjerite njegove stupce i vrste.',
     },
-  },
-  move: {
-    title: 'Profili za uvoz sada su recepti',
-    body: (count) => ({
-      one: `Kuna pamti kako se čita izvoz banke kao recept, koji svoj račun nalazi po banci i valuti. Premjestite ${count} spremljeni profil u recept, a svaki račun koji je navodio dobiva svoju banku.`,
-      few: `Kuna pamti kako se čita izvoz banke kao recept, koji svoj račun nalazi po banci i valuti. Premjestite ${count} spremljena profila u recepte, a svaki račun koji su navodili dobiva svoju banku.`,
-      other: `Kuna pamti kako se čita izvoz banke kao recept, koji svoj račun nalazi po banci i valuti. Premjestite ${count} spremljenih profila u recepte, a svaki račun koji su navodili dobiva svoju banku.`,
-    }),
-    move: 'Premjesti u recepte',
-    moved: 'Profili su premješteni u recepte',
-    notMoved: 'Nije premješteno',
   },
   mailed: {
     title: 'Iz pošte banke',

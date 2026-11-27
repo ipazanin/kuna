@@ -16,7 +16,6 @@ import {
   settingsErrors,
   unreadSettingKeys,
 } from '../../settings/domain/settings'
-import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { SETTING_RECORDS } from '../../workbook/domain/coreKinds'
 import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -74,7 +73,7 @@ function operationsOf(keys: readonly string[]): readonly AssistantOperation[] {
     },
     {
       name: 'remove-setting',
-      about: 'Takes a key off the settings that nothing in Kuna reads, as Settings, General lists them. An import profile moves to a recipe on Import, Transactions, with Move to recipes.',
+      about: 'Takes a key off the settings that nothing in Kuna reads, as Settings, General lists them.',
       input: inputOf({ key: TEXT }),
       refs: {},
       creates: null,
@@ -129,7 +128,6 @@ function removeSetting(card: CompanyCard, step: ProposalStep): void {
   const key = String(fieldsOf(step)['key']).trim().toLowerCase()
   const settings = card.records().settings
   const unread = unreadSettingKeys(recordsOf(settings), installedPack().workbook?.settings ?? null)
-  if (key.startsWith(IMPORT_PROFILE_PREFIX)) throw new StepRefused('An import profile moves to a recipe with Move to recipes on Import. Link /company/transactions?tab=import for it.')
   if (unread.get(key) !== 1) throw new StepRefused('Only a key nothing in Kuna reads, held by one row, is taken off.')
   removeSettings(card.unit, settings, [key])
 }

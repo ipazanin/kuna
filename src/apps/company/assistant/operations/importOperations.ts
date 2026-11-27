@@ -4,7 +4,7 @@ import { words } from './words'
 import { dryRunFor, writeImport } from '../../imports/application/importStatements'
 import { companyTableRecipeOf, TABLE_RECIPE_FIELDS } from '../../imports/domain/tableRecipes'
 import type { TableRecipeProblem } from '../../imports/domain/tableRecipes'
-import { deleteRecipe, moveProfilesToRecipes, newRecipeId, saveRecipe } from '../../imports/application/recipeWrites'
+import { deleteRecipe, newRecipeId, saveRecipe } from '../../imports/application/recipeWrites'
 import { tableRecipeInput } from '../../../../shared/app/recipeInput'
 import { draftOfInput } from '../../../../shared/recipes/domain/draftInput'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
@@ -135,15 +135,6 @@ const OPERATIONS: readonly AssistantOperation[] = [
     creates: null,
     alone: false,
     example: { recipe: 'recipe' },
-  },
-  {
-    name: 'move-import-profiles',
-    about: "Moves the import profiles the settings still hold to recipes, as Move to recipes on Import does: a recipe for each, and the bank each profile's account takes from it.",
-    input: inputOf({}),
-    refs: {},
-    creates: null,
-    alone: false,
-    example: {},
   },
 ]
 
@@ -357,11 +348,6 @@ function deleteRecipeStep(card: CompanyCard, step: ProposalStep): void {
   deleteRecipe(card.unit, saved)
 }
 
-function moveImportProfiles(card: CompanyCard): void {
-  if (card.workbook.settings.importProfiles.length === 0) throw new StepRefused('The settings hold no import profile to move.')
-  moveProfilesToRecipes(card.unit, { records: card.records(), workbook: card.workbook })
-}
-
 /** What the chat can import into the ledger and the recipes Import reads a bank's sheet with, through Import's own dry run and writes. */
 export function importOperations(held: HeldStatements): CompanyOperationSet {
   const plans: Readonly<Record<string, (card: CompanyCard, step: ProposalStep) => void>> = {
@@ -370,7 +356,6 @@ export function importOperations(held: HeldStatements): CompanyOperationSet {
     'pass-over-held-statement': passOverHeldStatementOf,
     'save-recipe': saveRecipeStep,
     'delete-recipe': deleteRecipeStep,
-    'move-import-profiles': moveImportProfiles,
   }
   return { operations: OPERATIONS, planStep: (card, step) => plans[step.operation]!(card, step) }
 }
