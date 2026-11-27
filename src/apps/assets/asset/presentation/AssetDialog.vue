@@ -28,6 +28,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Something you own: what it is, when it was bought and for how much, a flat's region or a car's first registration, your part of it, and the bank loan on it, picked from Loans. */
 const open = defineModel<boolean>('open', { required: true })
@@ -57,7 +58,7 @@ const firstRegistration = ref('')
 const loan = ref('')
 const share = ref('')
 const note = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -71,7 +72,6 @@ watch(open, (opened) => {
   loan.value = asset?.loan ?? ''
   share.value = partShown(asset?.share)
   note.value = asset?.note ?? ''
-  tried.value = false
 })
 
 const typed = computed(() =>
@@ -80,7 +80,7 @@ const typed = computed(() =>
 const errors = computed(() => typed.value.errors)
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const { terms } = typed.value
   if (terms === null) return
   const asset = newAsset({ ...terms, loan: loan.value === '' ? null : loan.value, note: note.value })

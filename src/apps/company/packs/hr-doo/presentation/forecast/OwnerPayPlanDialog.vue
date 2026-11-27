@@ -16,6 +16,7 @@ import type { KeyedLine } from '../../application/planWrites'
 import { usePlanWrites } from './usePlanWrites'
 import { words } from './words'
 import DayField from '../../../../../../shared/ui/DayField.vue'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 type OwnerPayLine = Extract<PlanLine, { readonly kind: 'owner-pay-scenario' }>
 
@@ -37,7 +38,7 @@ const first = ref('')
 const switching = ref(false)
 const second = ref('')
 const switchOn = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const choices = computed(() => props.scenarios.map((scenario) => ({ label: scenarioName(scenario), value: scenario.slug })))
 
@@ -51,7 +52,6 @@ watch(
     switching.value = switched !== undefined
     second.value = switched?.scenario ?? props.scenarios.find((scenario) => scenario.slug !== first.value)?.slug ?? ''
     switchOn.value = switched?.from ?? props.suggestedSwitch ?? ''
-    tried.value = false
   },
   { immediate: true },
 )
@@ -72,7 +72,7 @@ function held(): KeyedLine<PlanLine>[] {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (!valid.value) return
   const wanted = [
     { key: 'opening', line: ownerPayPlanLine(props.year, first.value, null) },

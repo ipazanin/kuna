@@ -50,6 +50,7 @@ import { words } from './words'
 import LabelsSelect from '../../../../../shared/ui/LabelsSelect.vue'
 import { useTypedLabels } from '../../../labels/presentation/useTypedLabels'
 import { storesItems } from '../../../workbook/domain/rowItems'
+import { useTried } from '../../../../../shared/ui/useTried'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -80,7 +81,7 @@ const amount = ref('')
 const description = ref('')
 const category = ref('')
 const paidBackBy = ref<string[]>([])
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 const labels = ref<readonly RecordId[]>([])
 const typed = useTypedLabels()
 /** Whether the books keep labels, which books from before items do not. */
@@ -96,7 +97,6 @@ watch(open, (opened) => {
     paidBackBy.value = props.editing === null ? (props.prefill === null ? [] : [props.prefill.paidBackBy]) : [...(props.editing.repaidBy ?? [])]
     labels.value = props.editing?.labels ?? []
     typed.forget()
-    tried.value = false
   }
 })
 
@@ -156,7 +156,7 @@ const errors = computed(() => ({
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const day = parseCivilDate(date.value)
   if (!valid.value || day === null || parsedAmount.value === null) {
     return

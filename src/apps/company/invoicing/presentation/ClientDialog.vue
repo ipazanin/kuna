@@ -29,6 +29,7 @@ import type { InvoiceTemplateLine } from '../domain/invoiceTemplate'
 import { words as domainWords } from '../domain/words'
 import ClientLinesField from './ClientLinesField.vue'
 import { words } from './words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * Every field of one client, its invoice lines among them, saved in one write with Undo. It starts from
@@ -53,13 +54,12 @@ const ibans = ref<string[]>([])
 const reverseCharge = ref(false)
 const lines = ref<InvoiceTemplateLine[]>([])
 const openedLines = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const stored = computed(() => store.state.records?.clients.records.find((candidate) => candidate.record.slug === props.slug) ?? null)
 
 watch(open, (opening) => {
   if (!opening) return
-  tried.value = false
   const fields = stored.value?.fields ?? {}
   const client = stored.value?.record
   texts.value = {
@@ -126,7 +126,7 @@ const previewMonth = computed(() => monthInLanguage(previewDay, texts.value.mail
 const planItems = computed(() => planItemsOf(store.state.workbook?.billingPlan ?? [], props.slug))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const before = stored.value
   if (!valid.value || before === null) return
   if (await writes.write(words.clientDialog.saved, (unit) => unit.of(CLIENT_WRITES).change(before.record, clientOfFields(afterFields.value)), { failedTitle: words.clientDialog.notSaved }))

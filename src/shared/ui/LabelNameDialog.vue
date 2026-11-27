@@ -9,6 +9,7 @@ import type { Label } from '../categorising/domain/labels'
 import AppDialog from './AppDialog.vue'
 import FormGrid from './FormGrid.vue'
 import { words } from './words'
+import { useTried } from './useTried'
 
 /** A label's name, or a new label's, with Delete for one the books hold. The screen does the write and closes it. */
 const open = defineModel<boolean>('open', { required: true })
@@ -30,19 +31,18 @@ const props = defineProps<{
 const emit = defineEmits<{ save: [name: string]; remove: [] }>()
 
 const name = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
   name.value = props.label?.name ?? ''
-  tried.value = false
 })
 
 const problem = computed(() => labelNameProblem(name.value, props.labels, props.label?.id ?? null))
 const error = computed(() => (problem.value === null ? null : words.labelName[problem.value]))
 
 function save(): void {
-  tried.value = true
+  markTried()
   if (error.value === null) emit('save', name.value)
 }
 </script>

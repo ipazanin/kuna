@@ -31,6 +31,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import SplitEditor from '../../../../shared/ui/SplitEditor.vue'
 import { givenParts, splitField } from '../../../../shared/ui/splitFields'
 import type { SplitField } from '../../../../shared/ui/splitFields'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** The parts you split an entry into, each with an amount, a category, who it counts under, an optional note, labels and an event, and one part that takes the rest. */
 const open = defineModel<boolean>('open', { required: true })
@@ -47,7 +48,7 @@ const writes = useRecordWrites(store)
 
 /** Each part holds the id of the entry's part it opened, which it keeps. */
 const parts = ref<SplitField<RecordId>[]>([])
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 /** Who each part counts under by the field's id, blank for the entry's payee, and the parts whose picker is open. */
 const payees = ref<Record<number, string>>({})
 const payeesOpen = ref<Record<number, boolean>>({})
@@ -61,7 +62,6 @@ const labelsOf = (part: SplitField<RecordId>) => partLabels.value[part.id] ?? []
 
 watch(open, (opened) => {
   if (!opened) return
-  tried.value = false
   const held = heldItems.value
   const [whole] = held
   parts.value =
@@ -139,7 +139,7 @@ const outcome = computed(() => {
 const refusal = computed(() => (outcome.value !== null && 'refused' in outcome.value ? words.split.refusals[outcome.value.refused] : null))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const records = store.state.records
   const split = outcome.value
   if (records === null || split === null || 'refused' in split) return

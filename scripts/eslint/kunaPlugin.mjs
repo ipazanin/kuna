@@ -487,6 +487,14 @@ export const kunaPlugin = {
       ["Identifier[name='localStorage']"],
       'A choice kept on this device goes through src/shared/device/deviceChoice.ts, which gives the default where a private window denies the storage.',
     ),
+    'tried-flags': refusedSyntax(
+      [
+        "VariableDeclarator > Identifier.id[name='tried']",
+        ":function > Identifier.params[name='tried']",
+        "VariableDeclarator:not([init.callee.name='useTried']) > ObjectPattern.id > Property > Identifier.value[name='tried']",
+      ],
+      "Whether Save was pressed comes from useTried in src/shared/ui/useTried.ts, which clears it as the dialog opens, so no dialog opens on its last opening's red fields.",
+    ),
     'note-lines': noteLines,
     'all-links': allLinks,
     'move-buttons': refusedSyntax(

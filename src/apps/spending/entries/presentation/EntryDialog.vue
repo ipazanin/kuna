@@ -65,6 +65,7 @@ import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import { words as uiWords } from '../../../../shared/ui/words'
 import { EURO } from '../../../../shared/money/currencyCode'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Money out of an account, money into one, or a move between two of your accounts, typed as a positive amount. */
 const open = defineModel<boolean>('open', { required: true })
@@ -109,7 +110,7 @@ const lineFilings = ref<Record<string, LineFiling>>({})
 const lineRefiles = computed(() => lineRefilesOf(partFiling.filing.value.categories, entryLines.value, lineFilings.value, partFiling.joining.value))
 /** Why Save cannot file a changed receipt line under its category, by the line's id. */
 const lineRefusals = computed(() => new Map([...lineRefiles.value.refused].map(([line, refusal]) => [line, words.split.refusals[refusal]])))
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 /** The form's fields apart from Category as one text, to tell whether the person changed any since the dialog opened. The link field compares Category itself. */
 const formNow = computed(() =>
@@ -224,7 +225,6 @@ watch(open, (opened) => {
   event.value = wholeItem.value?.event ?? BY_DAYS
   start(entryLines.value.map((line) => ({ part: line.id, labels: line.labels, event: line.event })))
   lineFilings.value = Object.fromEntries(entryLines.value.flatMap((line) => (line.receipt === null ? [] : [[line.id, lineFilingOf(line)]])))
-  tried.value = false
   adding.value = null
   memory.start()
   openedAs.value = formNow.value
@@ -292,7 +292,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const typed = positiveAmount(amount.value)
   const fromAccount = from.value
   const on = day.value

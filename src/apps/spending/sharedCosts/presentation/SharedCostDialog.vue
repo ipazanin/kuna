@@ -43,6 +43,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * A shared cost made from the entries picked on Entries, or one to change: its day, who it counts under, its category, labels,
@@ -76,7 +77,7 @@ const note = ref('')
 const settled = ref(false)
 const labels = ref<readonly RecordId[]>([])
 const event = ref<EventChoice>(BY_DAYS)
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 const day = computed(() => parseCivilDate(date.value))
 const kit = useLabelsAndEvents(() => day.value)
 
@@ -128,7 +129,6 @@ watch(open, (opened) => {
   labels.value = held?.labels ?? []
   event.value = held?.event ?? BY_DAYS
   kit.start([])
-  tried.value = false
 })
 
 const errors = computed(() => ({
@@ -144,7 +144,7 @@ const refusal = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const records = store.state.records
   const on = day.value
   const held = props.sharedCost

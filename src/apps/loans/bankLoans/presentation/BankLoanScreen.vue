@@ -203,14 +203,14 @@ function changeExtra(key: string): void {
 }
 
 const tries = computed(() => (book.value === null || state.workbook === null ? [] : savedTries(book.value, state.workbook.scenarios, day)))
-const triedLines = computed((): ChangeLine[] => tries.value.map((tried) => ({ ...tried, removable: true })))
+const triedLines = computed((): ChangeLine[] => tries.value.map((saved) => ({ ...saved, removable: true })))
 
 async function removeTry(key: string): Promise<void> {
   const records = state.records
-  const tried = tries.value.find((entry) => entry.key === key) ?? null
-  if (records !== null && tried !== null) {
-    await writes.write(loanWords.value.savedTries.deleted, (unit) => removeScenario(unit, records, tried.kept.scenario), {
-      description: loanWords.value.savedTries.named(tried.title),
+  const saved = tries.value.find((entry) => entry.key === key) ?? null
+  if (records !== null && saved !== null) {
+    await writes.write(loanWords.value.savedTries.deleted, (unit) => removeScenario(unit, records, saved.kept.scenario), {
+      description: loanWords.value.savedTries.named(saved.title),
       failedTitle: loansWords.form.notDeleted,
       key: `delete-${key}`,
     })

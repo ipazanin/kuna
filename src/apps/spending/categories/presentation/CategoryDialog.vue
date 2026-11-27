@@ -31,6 +31,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ColourSwatchPicker from '../../../../shared/ui/ColourSwatchPicker.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** A category's name, group, colour and whether it is hidden, or its deletion into another category. A fixed category takes only a name. */
 const open = defineModel<boolean>('open', { required: true })
@@ -52,7 +53,7 @@ const name = ref('')
 const parent = ref<RecordId | null>(null)
 const colour = ref('')
 const hidden = ref(NEW_CATEGORY_DEFAULTS.hidden)
-const tried = ref(false)
+const { tried, markTried, clearTried } = useTried(open)
 const deleting = ref(false)
 /** The category picked to take the entries, or blank while none is, which shows the placeholder. */
 const target = ref('')
@@ -75,7 +76,6 @@ watch(open, (opened) => {
   parent.value = start.value.parent
   colour.value = start.value.colour
   hidden.value = start.value.hidden
-  tried.value = false
   deleting.value = false
   target.value = categories.value.find((group) => group.id === start.value.parent && !group.hidden)?.id ?? ''
 })
@@ -159,7 +159,7 @@ const title = computed(() => (props.editing.mode === 'add-group' ? words.dialog.
 const description = computed(() => (before.value !== null && isFixedKind(before.value.kind) ? words.dialog.fixedNote(words.fixedKinds[before.value.kind]) : undefined))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (errors.value.name !== null) return
   const category = typed.value
   const changed = before.value
@@ -171,7 +171,7 @@ async function save(): Promise<void> {
 }
 
 async function remove(): Promise<void> {
-  tried.value = true
+  markTried()
   const category = before.value
   const records = store.state.records
   const into = categories.value.find((other) => other.id === target.value)
@@ -180,7 +180,7 @@ async function remove(): Promise<void> {
 }
 
 function startDeleting(): void {
-  tried.value = false
+  clearTried()
   deleting.value = true
 }
 </script>

@@ -15,6 +15,7 @@ import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import { usePlanWrites } from './usePlanWrites'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 type AmountLine = Extract<PlanLine, { readonly kind: 'amount' }>
 
@@ -36,7 +37,7 @@ const writes = usePlanWrites()
 
 const every = ref('')
 const months = ref<string[]>(Array.from({ length: 12 }, () => ''))
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const calendar = computed(() => monthsOf(props.year))
 
@@ -50,7 +51,6 @@ watch(
       const row = props.lines.find((line) => line.month === month.number)
       return row === undefined ? '' : fieldAmount(row.amount)
     })
-    tried.value = false
   },
   { immediate: true },
 )
@@ -68,7 +68,7 @@ function held(): KeyedLine<PlanLine>[] {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (!valid.value) return
   const noteOf = (month: number | null) => props.lines.find((line) => line.month === month)?.note ?? ''
   const everyMonth = typedAmount(every.value)

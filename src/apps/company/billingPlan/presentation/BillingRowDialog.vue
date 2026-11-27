@@ -20,6 +20,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingRowLine } from './billingView'
 import { words } from './words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -43,7 +44,7 @@ const amount = ref('')
 const client = ref('')
 const description = ref('')
 const created = ref<string[]>([])
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -54,7 +55,6 @@ watch(open, (opened) => {
   client.value = row?.client ?? (props.clients.some((entry) => entry.slug === props.defaultClient) ? props.defaultClient : (props.clients[0]?.slug ?? ''))
   description.value = row?.description ?? ''
   created.value = []
-  tried.value = false
 })
 
 const itemChoices = computed(() => [...new Set([...props.items, ...created.value])])
@@ -93,7 +93,7 @@ function named(row: BillingRowLine): string {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const day = parseCivilDate(date.value)
   if (!valid.value || day === null || parsedAmount.value === null) {
     return

@@ -37,6 +37,7 @@ import { invoiceDatesProblems } from '../../receivables/domain/invoiceGuards'
 import { words as receivablesWords } from '../../receivables/application/words'
 import { words as receivablesScreenWords } from '../../receivables/presentation/words'
 import { words } from './words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** A new invoice, or the PDF and draft of one on the register made again. */
 export type InvoiceRunMode = { readonly kind: 'new'; readonly client: string | null } | { readonly kind: 'reexport'; readonly id: RecordId }
@@ -75,7 +76,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   const mailDraft = computed({ get: () => mailDraftsOn.value, set: switchMailDrafts })
   const stage = ref<RunStage>({ kind: 'edit', message: null })
   /** Whether Check was pressed since the form started, so each field's problem shows under it. */
-  const tried = ref(false)
+  const { tried, markTried, clearTried } = useTried()
   const steps = ref<RunStep[]>([])
   const creatable = ref(new Set<string>())
   let plan: RunPlan | null = null
@@ -95,7 +96,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     creatable.value = new Set()
     plan = null
     numberTyped.value = false
-    tried.value = false
+    clearTried()
     if (current === null) return
     const invoice = reexported.value
     if (invoice !== null) {
@@ -295,7 +296,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
    * since a Google token may need a popup.
    */
   async function check(): Promise<void> {
-    tried.value = true
+    markTried()
     if (!fieldsValid.value) return
     stage.value = { kind: 'checking' }
     try {

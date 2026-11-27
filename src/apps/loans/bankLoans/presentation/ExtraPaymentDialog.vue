@@ -25,6 +25,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { useLoanWords } from './useLoanWords'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Principal paid back early, and whether the bank shortens the term or lowers the instalment for it. */
 const open = defineModel<boolean>('open', { required: true })
@@ -43,14 +44,13 @@ const effectItems = computed(() => EXTRA_PAYMENT_EFFECTS.map((effect) => ({ valu
 const date = ref('')
 const amount = ref('')
 const effect = ref<ExtraPayment['effect']>('shorter-term')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
   date.value = props.start?.date ?? ''
   amount.value = props.start === null ? '' : plainAmount(props.start.amount)
   effect.value = props.start?.effect ?? 'shorter-term'
-  tried.value = false
 })
 
 const editing = computed(() => props.start?.editing ?? null)
@@ -69,7 +69,7 @@ const errors = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const day = parseCivilDate(date.value)
   if (errors.value.date !== null || day === null || parsedAmount.value === null) return
   const typed = newExtraPayment({ loan: props.book.loan.id, date: day, amount: parsedAmount.value, effect: effect.value })

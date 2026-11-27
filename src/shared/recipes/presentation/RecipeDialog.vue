@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { NO_RECIPE_ERRORS } from './recipeErrors'
@@ -8,6 +8,7 @@ import TableRecipeEditor from './TableRecipeEditor.vue'
 import type { TableRecipeDraft, TableRecipeFields } from '../domain/tableRecipeDraft'
 import AppDialog from '../../ui/AppDialog.vue'
 import NoteLine from '../../ui/NoteLine.vue'
+import { useTried } from '../../ui/useTried'
 
 /**
  * A table recipe in its editor, with Save, and Delete for one the app keeps. The app holds the draft, words what it still
@@ -44,16 +45,13 @@ const currency = defineModel<string>('currency', { required: true })
 
 const emit = defineEmits<{ save: []; delete: [] }>()
 
-const tried = ref(false)
-watch(open, (opening) => {
-  if (opening) tried.value = false
-})
+const { tried, markTried } = useTried(open)
 
 const shown = computed(() => (tried.value ? props.errors : NO_RECIPE_ERRORS))
 const fine = computed(() => props.errors.across === null && Object.keys(props.errors.fields).length === 0 && Object.keys(props.errors.kinds).length === 0)
 
 function save(): void {
-  tried.value = true
+  markTried()
   if (fine.value) emit('save')
 }
 </script>

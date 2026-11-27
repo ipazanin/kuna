@@ -18,6 +18,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** What the asset was worth on a day, as you typed it. */
 const open = defineModel<boolean>('open', { required: true })
@@ -35,7 +36,7 @@ const writes = useRecordWrites(useAssetsBooks())
 const date = ref('')
 const value = ref('')
 const note = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -43,7 +44,6 @@ watch(open, (opened) => {
   date.value = valuation?.date ?? props.today
   value.value = valuation === null ? '' : plainAmount(valuation.value)
   note.value = valuation?.note ?? ''
-  tried.value = false
 })
 
 const typed = computed(() =>
@@ -52,7 +52,7 @@ const typed = computed(() =>
 const errors = computed(() => typed.value.errors)
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const { terms } = typed.value
   if (terms === null) return
   const valuation = newValuation({ asset: props.entry.asset.id, date: terms.date, value: terms.value, note: note.value })

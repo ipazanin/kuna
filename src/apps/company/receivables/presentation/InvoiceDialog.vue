@@ -50,6 +50,7 @@ import InvoiceLinesEditor from '../../invoicing/presentation/InvoiceLinesEditor.
 import { blankLine, draftOf, linesOf } from '../../invoicing/presentation/lineDrafts'
 import type { LineDraft } from '../../invoicing/presentation/lineDrafts'
 import { words } from './words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -81,7 +82,7 @@ const writes = useRecordWrites(store)
 
 const fields = ref<Record<Field, string>>(blankFields())
 const opened = ref<Record<Field, string>>(blankFields())
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 /** The lines as typed, and as the dialog opened on them. */
 const lines = ref<LineDraft[]>([])
 const openedLines = ref<LineDraft[]>([])
@@ -172,7 +173,6 @@ watch(
     openedLines.value = lines.value.map((line) => ({ ...line }))
     openedPaidBy.value = choices.value.filter((choice) => choice.named).map((choice) => choice.key)
     paidBy.value = [...openedPaidBy.value, ...(props.prefill === null ? [] : [props.prefill.payment])]
-    tried.value = false
   },
   { immediate: true },
 )
@@ -204,7 +204,7 @@ const placement = computed(() => {
 const valid = computed(() => Object.values(errors.value).every((error) => error === null) && linesProblems.value.length === 0)
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const issued = parseCivilDate(fields.value.issued.trim())
   if (!valid.value || issued === null || parsedAmount.value === null) return
   const from = optionalDate(fields.value.period_from) ?? null

@@ -20,6 +20,7 @@ import type { Trip } from '../../domain/trips/trip'
 import { ruleValue } from '../../ruleset/ruleset'
 import { dayProblem, fieldsValid, momentForInput, momentProblem, wholeProblem } from './tripsView'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 /** The settlement of a travel order: the times, the odometer of a private car, the meals per line of the per-diem table and the report. */
 const open = defineModel<boolean>('open', { required: true })
@@ -34,11 +35,10 @@ type Fields = { -readonly [Field in Exclude<keyof TripSettlementDraft, 'meals'>]
 
 const fields = reactive<Fields>({ left: '', returned: '', borderOut: '', borderIn: '', odometerStart: '', odometerEnd: '', report: '', settledOn: '' })
 const meals = ref<number[]>([])
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
-  tried.value = false
   const draft = settlementDraftOf(props.trip)
   Object.assign(fields, {
     ...draft,
@@ -96,7 +96,7 @@ const refusal = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (!fieldsValid(errors.value) || refusal.value !== null) return
   const before = props.trip
   const written = await writes.write(words.settlementDialog.saved, (unit) => settleTrip(unit, before, draft.value), { failedTitle: words.settlementDialog.notSaved })

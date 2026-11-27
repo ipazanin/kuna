@@ -14,6 +14,7 @@ import { subsidyTexts, typedSubsidy } from '../domain/subsidyTexts'
 import type { SubsidyTexts } from '../domain/subsidyTexts'
 import { words as loansWords } from '../../words'
 import { useLoanWords } from './useLoanWords'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** The loan's subsidy, which the loan record holds, so adding, changing and deleting it each change the loan. */
 const open = defineModel<boolean>('open', { required: true })
@@ -26,12 +27,11 @@ const props = defineProps<{
 const writes = useRecordWrites(useLoansBooks())
 
 const texts = ref<SubsidyTexts>(subsidyTexts(null))
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
   texts.value = subsidyTexts(props.book.loan.subsidy)
-  tried.value = false
 })
 
 const typed = computed(() => typedSubsidy(texts.value, props.book.loan.instalments).subsidy)
@@ -42,7 +42,7 @@ async function write(title: string, subsidy: LoanSubsidy | null, failedTitle: st
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (typed.value === null) return
   await write(props.book.loan.subsidy === null ? loanWords.value.subsidyDialog.added : loanWords.value.subsidyDialog.saved, typed.value, loansWords.form.notSaved)
 }

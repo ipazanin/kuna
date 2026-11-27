@@ -34,6 +34,7 @@ import { transactionCount } from '../../transactions/domain/listedTransactions'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * The portfolio workbook imported in steps: the file, its accounts, its holdings, the questions its rows leave, and the
@@ -51,16 +52,14 @@ const prices = usePrices()
 const workbookImport = useWorkbookImport()
 const { settled, ready, splitsLookup, closesLookup, splitVendor } = workbookImport
 const step = ref<ImportStep>('file')
-const triedQuestions = ref(false)
-const triedAccounts = ref(false)
+const { tried: triedQuestions, markTried: markQuestionsTried } = useTried(open)
+const { tried: triedAccounts, markTried: markAccountsTried } = useTried(open)
 
 watch(open, (opened) => {
   if (opened) {
     if (props.report) void workbookImport.loadRows(props.report.fileName, props.report.reading)
     else workbookImport.forget()
     step.value = 'file'
-    triedQuestions.value = false
-    triedAccounts.value = false
   }
 })
 
@@ -87,11 +86,11 @@ const top = ref<HTMLElement | null>(null)
 /** Each step starts at its top, however far down the step before it was read. The first Next past a new account's start day Kuna cannot keep, or past a spin-off with no parent, stays and shows what is missing, and the second goes on and leaves it waiting. */
 async function move(by: number): Promise<void> {
   if (by > 0 && shown.value === 'accounts' && startFaulted.value && !triedAccounts.value) {
-    triedAccounts.value = true
+    markAccountsTried()
     return
   }
   if (by > 0 && shown.value === 'questions' && parentUnpicked.value && !triedQuestions.value) {
-    triedQuestions.value = true
+    markQuestionsTried()
     return
   }
   step.value = steps.value[place.value + by] ?? shown.value

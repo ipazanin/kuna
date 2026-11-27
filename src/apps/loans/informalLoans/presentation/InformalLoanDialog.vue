@@ -24,6 +24,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { words } from './words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Money owed between people, with no interest: who owes whom, from when, how much at the start, and what the borrower means to repay each month. */
 const open = defineModel<boolean>('open', { required: true })
@@ -52,7 +53,7 @@ const planned = ref(false)
 const planMonthly = ref('')
 const planFrom = ref('')
 const planDay = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -68,7 +69,6 @@ watch(open, (opened) => {
   planMonthly.value = expected === null ? '' : plainAmount(expected.monthly)
   planFrom.value = expected?.from ?? ''
   planDay.value = expected === null ? '' : String(expected.day)
-  tried.value = false
 })
 
 watch(planFrom, (from) => {
@@ -97,7 +97,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const day = startDay.value
   if (Object.values(errors.value).some((error) => error !== null) || day === null || openingBalance.value === null) return
   const typed = newInformalLoan({

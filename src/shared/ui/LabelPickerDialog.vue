@@ -10,6 +10,7 @@ import AppDialog from './AppDialog.vue'
 import FormGrid from './FormGrid.vue'
 import ListRow from './ListRow.vue'
 import { words } from './words'
+import { useTried } from './useTried'
 
 /** Each label of the books with Put on, or Take off for one every picked row carries, and a new label to add and put on. The screen does the write and closes it. */
 const open = defineModel<boolean>('open', { required: true })
@@ -29,12 +30,11 @@ const props = defineProps<{
 const emit = defineEmits<{ apply: [label: Label, on: boolean]; add: [name: string] }>()
 
 const name = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
   name.value = ''
-  tried.value = false
 })
 
 const problem = computed(() =>
@@ -47,7 +47,7 @@ const problem = computed(() =>
 const error = computed(() => (problem.value === null ? null : words.labelName[problem.value]))
 
 function add(): void {
-  tried.value = true
+  markTried()
   if (error.value === null) emit('add', name.value)
 }
 </script>

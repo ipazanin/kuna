@@ -23,6 +23,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * Records a row of a euro account as an extra payment of the loan whose instalment the offer names, with one Undo for both
@@ -45,7 +46,7 @@ const toast = useToast()
 const effect = ref<ExtraPaymentEffect>('shorter-term')
 const date = ref<string>(props.offer.row.date)
 const amount = ref(amountForTyping(props.offer.extra))
-const tried = ref(false)
+const { tried, markTried } = useTried()
 
 const effectOptions = computed(() => (['shorter-term', 'lower-instalment'] as const).map((value) => ({ value, label: words.extra.effects[value] })))
 const day = computed(() => parseCivilDate(date.value))
@@ -59,7 +60,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const on = day.value
   const euros = typed.value
   const book = store.state.workbook

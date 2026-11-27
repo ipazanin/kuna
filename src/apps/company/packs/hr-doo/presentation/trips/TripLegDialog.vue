@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
@@ -15,6 +15,7 @@ import type { TripLegDraft } from '../../application/tripWrites'
 import type { Trip, TripLeg } from '../../domain/trips/trip'
 import { dayProblem, fieldsValid, wholeProblem } from './tripsView'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 /** One drive or ride of a trip, added or changed. */
 const open = defineModel<boolean>('open', { required: true })
@@ -28,11 +29,10 @@ const props = defineProps<{
 const writes = useRecordWrites(useWorkbook())
 
 const fields = reactive<{ -readonly [Field in keyof TripLegDraft]: string }>({ date: '', from: '', to: '', km: '' })
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
-  tried.value = false
   Object.assign(fields, props.editing === null ? { date: props.trip.left?.day ?? props.trip.departs, from: '', to: '', km: '' } : legDraftOf(props.editing))
 })
 
@@ -44,7 +44,7 @@ const refusal = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (!fieldsValid(errors.value) || refusal.value !== null) return
   const before = props.editing
   const written = await writes.write(before === null ? words.legDialog.added : words.legDialog.changed, (unit) => saveTripLeg(unit, props.trip, { ...fields }, before), {

@@ -30,6 +30,7 @@ import { ruleValue } from '../../ruleset/ruleset'
 import { employeeName } from '../salaries/salariesView'
 import { draftAmount, fieldsValid, typingAmount } from './tripsView'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 /** A new travel order, which starts from the traveller's last order, or a change to one. */
 const open = defineModel<boolean>('open', { required: true })
@@ -70,7 +71,7 @@ const BLANK: TripOrderDraft = {
 }
 
 const fields = reactive<{ -readonly [Field in keyof TripOrderDraft]: string }>({ ...BLANK })
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 /** Whether the person typed a number of their own, which a new issue day then leaves alone. */
 const numberTyped = ref(false)
 
@@ -88,7 +89,6 @@ function startFrom(traveller: string): void {
 
 watch(open, (opened) => {
   if (!opened) return
-  tried.value = false
   numberTyped.value = props.editing !== null
   if (props.editing !== null) {
     const draft = orderDraftOf(props.editing.trip)
@@ -177,7 +177,7 @@ const refusal = computed(() => {
 const valid = computed(() => fieldsValid(errors.value) && refusal.value === null)
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (!valid.value) return
   const before = props.editing?.trip ?? null
   const saved: { trip: Trip | null } = { trip: null }

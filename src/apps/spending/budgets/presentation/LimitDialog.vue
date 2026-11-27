@@ -29,6 +29,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Sets a monthly limit or a yearly cost on a spending group or category from a month on, or ends the one it has. */
 const open = defineModel<boolean>('open', { required: true })
@@ -55,7 +56,7 @@ const amount = ref('')
 const from = ref<MonthKey>(props.month)
 const every = ref<'month' | 'year'>('month')
 const due = ref<MonthKey>(props.month)
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 const yearly = computed(() => every.value === 'year')
 
 const budgets = computed(() => store.state.workbook?.budgets ?? [])
@@ -95,7 +96,6 @@ watch(open, (opened) => {
   if (!opened) return
   picked.value = props.category?.id ?? ''
   from.value = props.month
-  tried.value = false
 })
 
 // How often follows the picked category's budget when the dialog opens or the category changes, and a later change of month keeps what the person chose.
@@ -160,7 +160,7 @@ async function write(title: string, limit: Money, key: string, dueIn: MonthKey |
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (errors.value.category !== null || typed.value === null) return
   await write(words.dialog.set, typed.value, 'save', yearly.value ? due.value : null)
 }

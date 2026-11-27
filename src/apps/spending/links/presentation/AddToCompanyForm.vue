@@ -24,6 +24,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { language } from '../../../../shared/text/language'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * Adds a cost you paid for your company to Company as an owner advance from a saved entry of money out, then files the entry
@@ -54,7 +55,7 @@ const costCategory = computed(() => props.costCategories.find((candidate) => can
 const date = ref<string>(props.entry.date)
 const amount = ref(amountForTyping(absAccountMoney(props.entry.amount)))
 const description = ref(props.entry.payee)
-const tried = ref(false)
+const { tried, markTried } = useTried()
 
 const categoryItems = computed(() => props.costCategories.map((candidate) => ({ label: candidate.name, value: candidate.slug })))
 const day = computed(() => parseCivilDate(date.value))
@@ -69,7 +70,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const category = costCategory.value
   const on = day.value
   const euros = typed.value

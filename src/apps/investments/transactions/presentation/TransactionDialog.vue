@@ -33,6 +33,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * Adds a record of what happened, or changes or deletes one: the kind first, then the fields it takes, with the rate at
@@ -61,7 +62,7 @@ const rates = computed(() => sources.value?.rates ?? null)
 
 const texts = reactive<TransactionTexts>(textsOf(null, { happened: 'buy', instrument: null, today: today() }, props.book))
 const key = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 /** Whether the rate is the user's own rather than the ECB's, so a new date or currency leaves it alone. */
 const rateTyped = ref(false)
 
@@ -83,7 +84,6 @@ watch(open, (opened) => {
     ),
   )
   key.value = editing === null ? newRecordId() : keyOf(editing)
-  tried.value = false
   rateTyped.value = editing !== null
   if (!rateTyped.value) texts.rate = ecbRate.value
 })
@@ -123,7 +123,7 @@ const preview = computed(() => {
 const kindName = computed(() => words.dialog.happenings[texts.happened])
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const record = draft.value.record
   if (record === null) return
   const before = props.editing

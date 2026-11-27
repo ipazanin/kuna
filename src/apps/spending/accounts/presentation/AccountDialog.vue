@@ -39,6 +39,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import SourceHandoverAlert from '../../../../shared/ui/SourceHandoverAlert.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** One of your accounts in one currency: its name, kind, bank, where its rows come from on which days, what it held on the day you start counting from, its IBAN and the cards that pay from it. One with entries is closed rather than deleted. */
 const open = defineModel<boolean>('open', { required: true })
@@ -75,7 +76,7 @@ const openedOn = ref('')
 const iban = ref('')
 const cards = ref('')
 const periods = ref<readonly PeriodDraft[]>([{ source: 'by-hand', from: '' }])
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 /** The banks the book's accounts and saved recipes name, which the bank field suggests. */
 const banks = computed(() => bankNamesOf([...(store.state.workbook?.accounts ?? []), ...(store.state.workbook?.recipes ?? [])]))
@@ -106,7 +107,6 @@ watch(open, (opened) => {
   iban.value = account?.iban ?? ''
   cards.value = cardsText(account?.cards ?? NEW_ACCOUNT_DEFAULTS.cards)
   periods.value = account === null ? [{ source: props.startingSource ?? 'by-hand', from: '' }] : draftsOf(account.sources)
-  tried.value = false
 })
 
 const openingAmount = computed(() => {
@@ -187,7 +187,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const amount = openingAmount.value
   const day = openedDay.value
   const code = pickedCurrency.value

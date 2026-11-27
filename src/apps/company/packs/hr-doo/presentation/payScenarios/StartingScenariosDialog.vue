@@ -15,6 +15,7 @@ import { scenarioRowsOf } from '../../application/scenarioWrites'
 import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
 import { scenarioName, startingScenarios } from '../../domain/scenarios/startingScenarios'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 /** Writes the four starting scenarios for a year. */
 const open = defineModel<boolean>('open', { required: true })
@@ -29,12 +30,11 @@ const props = defineProps<{
 const writes = useRecordWrites(useWorkbook())
 
 const rent = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (opened) {
     rent.value = ''
-    tried.value = false
   }
 })
 
@@ -49,7 +49,7 @@ const seeded = computed(() => startingScenarios(props.year, props.grants, parsed
 const clash = computed(() => seeded.value.drafts.filter((draft) => props.taken.includes(draft.slug)).map((draft) => draft.slug))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (parsedRent.value === 'bad' || clash.value.length > 0) return
   const rows = scenarioRowsOf(seeded.value.drafts)
   const written = await writes.write(words.startingDialog.added, (unit) => rows.forEach((row) => unit.of(SCENARIO_WRITES).add(row)), {

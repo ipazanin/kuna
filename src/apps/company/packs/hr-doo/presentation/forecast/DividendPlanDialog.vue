@@ -13,6 +13,7 @@ import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { usePlanWrites } from './usePlanWrites'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 type AmountLine = Extract<PlanLine, { readonly kind: 'amount' }>
 
@@ -30,7 +31,7 @@ const writes = usePlanWrites()
 const amount = ref('')
 const month = ref(6)
 const note = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const months = computed(() => monthsOf(props.year).map((entry) => ({ label: entry.name, value: entry.number })))
 
@@ -41,7 +42,6 @@ watch(
     amount.value = props.dividend === null ? '' : fieldAmount(props.dividend.amount)
     month.value = props.dividend?.month ?? 6
     note.value = props.dividend?.note ?? ''
-    tried.value = false
   },
   { immediate: true },
 )
@@ -50,7 +50,7 @@ const gross = computed(() => typedAmount(amount.value))
 const invalid = computed(() => gross.value === null || gross.value <= 0)
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (invalid.value || gross.value === null) return
   const line = dividendPlanLine(props.year, month.value, gross.value, note.value)
   const before = props.dividend === null ? null : writes.stored(props.dividend)

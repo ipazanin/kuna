@@ -20,6 +20,7 @@ import RateFields, { rateError } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
 import { words as loansWords } from '../../words'
 import { useLoanWords } from './useLoanWords'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** A rate the loan pays from one of its due dates on. The first period always starts at the first instalment. */
 const open = defineModel<boolean>('open', { required: true })
@@ -35,7 +36,7 @@ const writes = useRecordWrites(useLoansBooks())
 
 const from = ref('')
 const rate = ref<RateTexts>({ rate: '', rateType: 'variable', note: '' })
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const isFirst = computed(() => props.editing?.from === props.book.loan.firstInstalment)
 
@@ -53,7 +54,6 @@ watch(open, (opened) => {
   const period = props.editing
   from.value = period?.from ?? ''
   rate.value = period === null ? { rate: '', rateType: 'variable', note: '' } : { rate: rateText(period.rate), rateType: period.rateType, note: period.note }
-  tried.value = false
 })
 
 const errors = computed(() => ({
@@ -62,7 +62,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const yearly = typedRate(rate.value.rate)
   const day = parseCivilDate(from.value)
   if (errors.value.from !== null || yearly === null || day === null) return

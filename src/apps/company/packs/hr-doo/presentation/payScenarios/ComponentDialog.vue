@@ -29,6 +29,7 @@ import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import type { ComponentDraft } from '../../domain/scenarios/startingScenarios'
 import { BASIS_WORDS, yearlyItems } from './scenarioWording'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 type Kind = ScenarioComponent['component']
 
@@ -56,7 +57,7 @@ const item = ref('')
 const basis = ref<DirectorBasis>('employee')
 const from = ref('')
 const to = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const items = computed(() => yearlyItems(props.scenario.year))
 const itemChoices = computed(() => items.value.map((entry) => ({ label: words.componentDialog.itemChoice(entry.label, formatMoney(entry.cap)), value: entry.item })))
@@ -75,7 +76,6 @@ watch(
     basis.value = component?.component === 'director_basis' ? component.basis : 'employee'
     from.value = component?.from ?? ''
     to.value = component?.to ?? ''
-    tried.value = false
   },
   { immediate: true },
 )
@@ -158,7 +158,7 @@ function storedRow(component: ScenarioComponent): ScenarioRow | null {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const typed = draft()
   if (typed === null) return
   const component = props.component

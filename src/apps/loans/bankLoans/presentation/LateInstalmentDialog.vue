@@ -19,6 +19,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { words as loansWords } from '../../words'
 import { useLoanWords } from './useLoanWords'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** An instalment that went out after its due date. Every other instalment counts as paid on its due date. */
 const open = defineModel<boolean>('open', { required: true })
@@ -36,7 +37,7 @@ const writes = useRecordWrites(useLoansBooks())
 
 const due = ref('')
 const paid = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const dueItems = computed(() =>
   lateDues(props.book, props.today, props.editing).map((row): { label: string; value: string } => ({ label: `${dayLabel(row.date)}, ${formatMoney(row.payment)}`, value: row.date })),
@@ -46,7 +47,6 @@ watch(open, (opened) => {
   if (!opened) return
   due.value = props.editing?.due ?? dueItems.value[0]?.value ?? ''
   paid.value = props.editing?.paid ?? ''
-  tried.value = false
 })
 
 const errors = computed(() => {
@@ -59,7 +59,7 @@ const errors = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const day = parseCivilDate(paid.value)
   const dueDay = parseCivilDate(due.value)
   if (Object.values(errors.value).some((error) => error !== null) || day === null || dueDay === null) return

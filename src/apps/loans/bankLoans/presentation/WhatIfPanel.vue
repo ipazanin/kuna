@@ -70,8 +70,8 @@ const typed = computed(() => {
 })
 
 const result = computed(() => {
-  const tried = typed.value
-  return tried === null ? null : whatIfExtraPayment(props.book, tried.date, tried.amount)
+  const payment = typed.value
+  return payment === null ? null : whatIfExtraPayment(props.book, payment.date, payment.amount)
 })
 
 const shorter = computed(() => result.value?.outcomes.find((outcome) => outcome.effect === 'shorter-term') ?? null)
@@ -100,7 +100,7 @@ const triedChange = computed((): TriedChange | null => {
   }
   return termInstalments.value === null ? null : { kind: 'term-change', from, instalments: termInstalments.value }
 })
-const tried = computed(() => (triedChange.value === null ? null : whatIfChange(props.book, triedChange.value)))
+const triedOutcome = computed(() => (triedChange.value === null ? null : whatIfChange(props.book, triedChange.value)))
 
 function monthsText(count: number): string {
   return plural(loanWords.value.whatIf.months(count), count)
@@ -116,7 +116,7 @@ const interestFact = (saved: Money): Fact =>
 const shorterFacts = computed((): Fact[] => (shorter.value === null ? [] : [payoffFact(shorter.value.payoff), soonerFact(shorter.value.monthsSaved), interestFact(shorter.value.interestSaved)]))
 const lowerFacts = computed((): Fact[] => (lower.value === null ? [] : [instalmentFact(lower.value.nextInstalment), payoffFact(lower.value.payoff), interestFact(lower.value.interestSaved)]))
 const triedFacts = computed((): Fact[] => {
-  const outcome = tried.value
+  const outcome = triedOutcome.value
   if (outcome === null) return []
   return [instalmentFact(outcome.nextInstalment), payoffFact(outcome.payoff), ...(kind.value === 'term' ? [soonerFact(outcome.monthsSaved)] : []), interestFact(outcome.interestSaved)]
 })
@@ -234,7 +234,7 @@ function saveTried(): void {
             </UFormField>
           </template>
         </FormGrid>
-        <TryOutcome v-if="tried" :label="loanWords.whatIf.kinds[kind]" :facts="triedFacts" data-testid="what-if-tried">
+        <TryOutcome v-if="triedOutcome" :label="loanWords.whatIf.kinds[kind]" :facts="triedFacts" data-testid="what-if-tried">
           <template #actions>
             <UButton
               :label="loanWords.whatIf.save"

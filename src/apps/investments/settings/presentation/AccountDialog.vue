@@ -27,6 +27,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import SourceHandoverAlert from '../../../../shared/ui/SourceHandoverAlert.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** An account at a broker, added or changed, with where its rows come from on which days. Saving says which account it wrote. */
 const open = defineModel<boolean>('open', { required: true })
@@ -54,7 +55,7 @@ const accountId = ref(recordIdOf(INVESTMENT_ACCOUNT_RECORDS, newRecordId()))
 const name = ref('')
 const note = ref('')
 const periods = ref<readonly PeriodDraft<InvestmentSource>[]>(draftsOfPeriods(BY_HAND_SOURCES))
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -62,7 +63,6 @@ watch(open, (opened) => {
   note.value = props.account?.note ?? ''
   accountId.value = props.account?.id ?? recordIdOf(INVESTMENT_ACCOUNT_RECORDS, newRecordId())
   periods.value = draftsOfPeriods(sourcesBefore.value ?? BY_HAND_SOURCES)
-  tried.value = false
 })
 
 const nameError = computed(() => (name.value.trim() === '' ? text.nameError : null))
@@ -110,7 +110,7 @@ function removePeriod(place: number): void {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const after = record.value
   if (nameError.value !== null || sourcesError.value !== null || after === null) return
   const before = props.account

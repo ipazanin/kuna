@@ -27,6 +27,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { fold } from '../../../../shared/text/fold'
 import { language } from '../../../../shared/text/language'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * Adds a movement to an informal loan in Loans from a saved entry and links the entry to it, with one Undo for both. The form's
@@ -68,7 +69,7 @@ watch(
 const date = ref<string>(props.entry.date)
 const amount = ref(props.currency === EURO ? amountForTyping(absAccountMoney(props.entry.amount)) : '')
 const note = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried()
 
 const loanItems = computed(() => props.loans.map((candidate) => ({ label: candidate.name, value: candidate.link.key, description: candidate.counterparty })))
 const kindOptions = computed(() => kinds.value.map((value) => ({ value, label: words.add.kinds[value] })))
@@ -84,7 +85,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const picked = loan.value
   const on = day.value
   const euros = typed.value

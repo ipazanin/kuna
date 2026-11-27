@@ -16,6 +16,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Your part of the asset from a day on, such as all of it once you buy out the other owner. */
 const open = defineModel<boolean>('open', { required: true })
@@ -33,7 +34,7 @@ const writes = useRecordWrites(useAssetsBooks())
 const from = ref('')
 const share = ref('')
 const note = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -41,14 +42,13 @@ watch(open, (opened) => {
   from.value = change?.from ?? props.today
   share.value = partShown(change?.share)
   note.value = change?.note ?? ''
-  tried.value = false
 })
 
 const typed = computed(() => typedPartChange({ from: from.value, share: share.value }, props.entry.asset.bought, props.entry.shares, props.editing?.id ?? null))
 const errors = computed(() => shareChangeErrors(typed.value.faults))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const typedChange = typed.value.change
   if (typedChange === null) return
   const change = newAssetShare({ asset: props.entry.asset.id, ...typedChange, note: note.value })

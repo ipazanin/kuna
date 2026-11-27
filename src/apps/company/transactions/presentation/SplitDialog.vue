@@ -33,6 +33,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
 import { useTypedLabels } from '../../labels/presentation/useTypedLabels'
 import { storedItemsOfRow, storesItems } from '../../workbook/domain/rowItems'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Settings, General, where the problem list names each record Kuna cannot read. */
 const PROBLEMS_LINK = { path: '/company/settings', query: { tab: 'general' } }
@@ -60,7 +61,7 @@ const stored = computed(() => {
 
 /** Each part holds the stored part it opened, whose share it keeps while it keeps its category. */
 const parts = ref<SplitField<SplitPart>[]>([])
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 /** Whether the books keep labels, which books from before items do not. */
 const labelled = computed(() => store.state.records !== null && storesItems(store.state.records))
@@ -85,7 +86,6 @@ watch(
   open,
   (opened) => {
     if (!opened) return
-    tried.value = false
     const held = split.value?.parts ?? []
     parts.value =
       held.length === 0
@@ -155,7 +155,7 @@ const unreadable = computed(() => keptWhole.value === null && stored.value.unrea
 const refusedParts = computed(() => (stored.value.refused ? stored.value.parts.length : 0))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const given = drafts.value
   const records = store.state.records
   const workbook = store.state.workbook

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
@@ -20,6 +20,7 @@ import type { Trip, TripCost } from '../../domain/trips/trip'
 import { amountProblem, dayProblem, draftAmount, fieldsValid, typingAmount } from './tripsView'
 import { decimalOfText } from '../../../../../../shared/money/decimal'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 /** A ticket, a night or another cost of a trip, with who paid it, added or changed. */
 const open = defineModel<boolean>('open', { required: true })
@@ -33,11 +34,10 @@ const props = defineProps<{
 const writes = useRecordWrites(useWorkbook())
 
 const fields = reactive<{ -readonly [Field in keyof TripCostDraft]: string }>({ date: '', kind: 'ticket', description: '', amount: '', foreignAmount: '', currency: '', paidBy: 'traveller' })
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
-  tried.value = false
   if (props.editing === null) {
     Object.assign(fields, { date: props.trip.left?.day ?? props.trip.departs, kind: 'ticket', description: '', amount: '', foreignAmount: '', currency: '', paidBy: 'traveller' })
     return
@@ -69,7 +69,7 @@ const refusal = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (!fieldsValid(errors.value) || refusal.value !== null) return
   const before = props.editing
   const written = await writes.write(before === null ? words.costDialog.added : words.costDialog.changed, (unit) => saveTripCost(unit, props.trip, draft.value, before), {

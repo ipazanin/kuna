@@ -22,6 +22,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** A percent per group of one mix, saved together as the targets in place of those held. */
 const open = defineModel<boolean>('open', { required: true })
@@ -43,7 +44,7 @@ const MIX_OPTIONS = (['class', ...MIXES.filter((mix) => mix !== 'class')] as con
 
 const mix = ref<Mix>('class')
 const percents = ref<Record<string, string>>({})
-const tried = ref(false)
+const { tried, markTried, clearTried } = useTried(open)
 
 function heldPercents(of: Mix): Record<string, string> {
   return Object.fromEntries(props.book.targets.filter((target) => target.slice.mix === of).map((target) => [target.slice.group, decimalShown(target.percent)]))
@@ -53,12 +54,11 @@ watch(open, (opened) => {
   if (!opened) return
   mix.value = targetedMix(props.book.targets)?.mix ?? 'class'
   percents.value = heldPercents(mix.value)
-  tried.value = false
 })
 
 watch(mix, (picked) => {
   percents.value = heldPercents(picked)
-  tried.value = false
+  clearTried()
 })
 
 /**
@@ -94,7 +94,7 @@ const unreadable = computed(() => groups.value.some((group) => percentOf(group) 
 const whole = computed(() => sum.value === HUNDRED_PERCENT)
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (unreadable.value || !whole.value) return
   const wanted = groups.value.flatMap((group): Omit<Target, 'id'>[] => {
     const percent = percentOf(group)

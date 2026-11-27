@@ -30,6 +30,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import IbanTagsField from '../../../../shared/ui/IbanTagsField.vue'
 import OptionalSelect from '../../../../shared/ui/OptionalSelect.vue'
 import RemovableChip from '../../../../shared/ui/RemovableChip.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * A payee's name, the other spellings their entries count under and every detail you keep of them, with another payee to join
@@ -61,7 +62,7 @@ const taxId = ref('')
 const website = ref('')
 const note = ref('')
 const sameAs = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -74,7 +75,6 @@ watch(open, (opened) => {
   website.value = held.website
   note.value = held.note
   sameAs.value = ''
-  tried.value = false
 })
 
 const partyOptions = [...PAYEE_PARTIES.map((value) => ({ value, label: value === 'person' ? words.person : words.page.business })), { value: NOT_SAID, label: words.dialog.notSaid }]
@@ -152,7 +152,7 @@ const unchanged = computed(() => {
 const hasDetails = computed(() => record.value !== null && !saysOnlyItsName({ ...record.value, names: record.value.names.slice(0, 1) }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const records = store.state.records
   if (records === null || problem.value !== null) return
   if (unchanged.value) {

@@ -25,6 +25,7 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** A holding's facts and the source of its daily closes, added or changed. Saving says which instrument it wrote. */
 const open = defineModel<boolean>('open', { required: true })
@@ -51,7 +52,7 @@ const text = words.instrumentDialog
 
 const texts = ref<InstrumentTexts>(instrumentTexts(null))
 const mixTexts = ref<FundMixTexts>(fundMixTexts([]))
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 /** The instrument's own mix as the file holds it. */
 const heldLines = computed(() => props.book.fundMixes.filter((line) => line.instrument === props.instrument?.id))
@@ -60,7 +61,6 @@ watch(open, (opened) => {
   if (!opened) return
   texts.value = instrumentTexts(props.instrument)
   mixTexts.value = fundMixTexts(heldLines.value)
-  tried.value = false
 })
 
 const others = computed(() => props.book.instruments.filter((other) => other.id !== props.instrument?.id))
@@ -68,7 +68,7 @@ const errors = computed(() => instrumentErrors(instrumentFaults(texts.value, oth
 const mixFaults = computed(() => fundMixFaults(mixTexts.value))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const before = props.instrument
   const id = before?.id ?? recordIdOf(INSTRUMENT_RECORDS, newRecordId())
   const record = instrumentOfTexts(texts.value, others.value, id, before ?? { benchmark: props.asBenchmark })

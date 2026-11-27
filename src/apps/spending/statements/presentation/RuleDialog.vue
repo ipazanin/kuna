@@ -36,6 +36,7 @@ import { words as spendingWords } from '../../words'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * Adds a rule or changes one: its conditions, every one of which must hold, the category it files under or none, the labels it
@@ -60,7 +61,7 @@ const conditions = ref<ConditionField[]>([])
 const labels = ref<readonly RecordId[]>([])
 const created = ref<readonly Label[]>([])
 const stop = ref(false)
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 /** Edits waiting for the person to say whether the rows already in the book follow them. */
 const asking = ref<RuleAsk | null>(null)
 
@@ -136,7 +137,6 @@ watch(open, (opened) => {
   stop.value = rule?.stop ?? false
   goesTo.value = rule?.withdrawal == null ? ANOTHER_ACCOUNT : (rule.withdrawal.cashAccount ?? CASH_BY_CURRENCY)
   pays.value = rule?.link == null ? '' : rowLinkText(rule.link)
-  tried.value = false
   asking.value = null
 })
 
@@ -181,7 +181,7 @@ const failed = computed(() => errors.value.category !== null || errors.value.con
 
 /** Saves at once when no row already in the book would change, and otherwise asks whether they follow the rule. */
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const current = book.value
   const ruled = draft.value
   if (current === null || ruled === null || failed.value) return

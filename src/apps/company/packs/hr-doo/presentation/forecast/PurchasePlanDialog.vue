@@ -17,6 +17,7 @@ import DayField from '../../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { usePlanWrites } from './usePlanWrites'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 type PurchaseLine = Extract<PlanLine, { readonly kind: 'purchase' }>
 
@@ -35,7 +36,7 @@ const name = ref('')
 const date = ref('')
 const amount = ref('')
 const group = ref<AssetGroup>('computers')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const groups = ASSET_GROUPS.map((value) => ({ label: GROUP_WORDS[value], value }))
 
@@ -47,7 +48,6 @@ watch(
     date.value = props.purchase?.date ?? ''
     amount.value = props.purchase === null ? '' : fieldAmount(props.purchase.amount)
     group.value = props.purchase?.group ?? 'computers'
-    tried.value = false
   },
   { immediate: true },
 )
@@ -62,7 +62,7 @@ const errors = computed(() => ({
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (!valid.value || day.value === null || cost.value === null) return
   const line = purchasePlanLine(props.year, day.value, cost.value, group.value, name.value)
   const before = props.purchase === null ? null : writes.stored(props.purchase)

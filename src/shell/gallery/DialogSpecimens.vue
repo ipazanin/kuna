@@ -83,7 +83,7 @@ provide(
 )
 const tableOpen = ref(false)
 const confirmOpen = ref(false)
-const tried = ref(false)
+const errorsShown = ref(false)
 const boxTicked = ref(false)
 const radioPicked = ref('A radio picked')
 const gridInterest = ref('')
@@ -142,7 +142,7 @@ const ROWS = [
   >
     <AppCard as="div" class="p-5">
       <FormGrid data-testid="gallery-form-grid">
-        <UFormField label="Name" :error="(tried && 'A name, such as Home loan') || false">
+        <UFormField label="Name" :error="(errorsShown && 'A name, such as Home loan') || false">
           <UInput placeholder="Home loan" class="w-full" />
         </UFormField>
         <UFormField label="Interest the bank charged before the first instalment, if it did" help="What the bank charged from the payout.">
@@ -169,7 +169,7 @@ const ROWS = [
         </UFormField>
       </FormGrid>
       <div class="mt-4 flex flex-wrap items-start gap-6">
-        <USwitch v-model="tried" label="Show the errors" />
+        <USwitch v-model="errorsShown" label="Show the errors" />
         <UCheckbox v-model="boxTicked" label="A checkbox, unticked" />
         <URadioGroup v-model="radioPicked" :items="['A radio picked', 'One not picked']" />
       </div>

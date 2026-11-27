@@ -52,6 +52,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * An offer's terms on one side and what they come to on the other, worked out as you type. Its extra
@@ -82,7 +83,7 @@ const offer = ref<OfferTexts>(offerTexts('', null, [], day).texts)
 const blocks = ref<ChangeTexts[]>([])
 const openBlock = ref<number | null>(null)
 const moreOpen = ref(false)
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 let nextId = 0
 
 const loanWords = provideLoanWords(() => offer.value.repayment)
@@ -95,7 +96,6 @@ watch(open, (opened) => {
   blocks.value = later.map((change) => changeTextsOf((nextId += 1), change))
   openBlock.value = null
   moreOpen.value = fillsMore(texts) || later.length > 0
-  tried.value = false
 })
 
 const typed = computed(() => typedOffer(offer.value))
@@ -190,7 +190,7 @@ const moreWrong = computed(
 const refusal = computed(() => (live.value !== null && 'refused' in live.value.plan ? refusalText(live.value.plan) : null))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const draft = props.draft
   const records = store.state.records
   const terms = typed.value.terms

@@ -50,7 +50,7 @@ const addable = computed(() => lines.value.flatMap((line) => (line.kind === 'mis
 /** The start day typed for each account to add, by its line's key. One not typed starts on the day of the fetch. */
 const typedStarts = ref<Readonly<Record<string, string>>>({})
 /** The lines whose Add was tapped with a day out of range, which show the range. */
-const tried = ref<ReadonlySet<string>>(new Set())
+const triedKeys = ref<ReadonlySet<string>>(new Set())
 
 function typedStart(proposal: AccountProposal, key: string): string {
   return typedStarts.value[key] ?? proposal.fetchedOn
@@ -78,7 +78,7 @@ const started = computed(
 )
 
 function startError(proposal: AccountProposal, key: string): string | false {
-  if (!tried.value.has(key) || startOf(proposal, key) !== null) return false
+  if (!triedKeys.value.has(key) || startOf(proposal, key) !== null) return false
   const { earliest, latest } = startDays(proposal)
   return accountWords.startDay.between(earliest, latest)
 }
@@ -139,7 +139,7 @@ function stateLine(line: SetupLine): string {
 async function add(adding: readonly { readonly key: string; readonly proposal: AccountProposal }[], key: string): Promise<void> {
   const open = book.value
   if (open === null) return
-  tried.value = new Set([...tried.value, ...adding.map((each) => each.key)])
+  triedKeys.value = new Set([...triedKeys.value, ...adding.map((each) => each.key)])
   const starts = adding.flatMap((each) => startOf(each.proposal, each.key) ?? [])
   if (starts.length < adding.length) {
     // Add all may refuse for a field below the fold on a phone, so the first refused day takes focus.

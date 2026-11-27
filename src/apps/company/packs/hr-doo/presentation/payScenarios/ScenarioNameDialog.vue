@@ -17,6 +17,7 @@ import { copyScenario, renameScenario } from '../../application/scenarioWrites'
 import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
 import type { ScenarioRow } from '../../domain/scenarios/scenariosReading'
 import { words } from './words'
+import { useTried } from '../../../../../../shared/ui/useTried'
 
 /** Renames a scenario, or copies it under a new name, every row of it in one write. */
 const open = defineModel<boolean>('open', { required: true })
@@ -33,7 +34,7 @@ const writes = useRecordWrites(store)
 
 const name = ref('')
 const label = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(
   open,
@@ -41,7 +42,6 @@ watch(
     if (!opened) return
     name.value = props.mode === 'copy' ? `${props.scenario.slug}-copy` : props.scenario.slug
     label.value = props.mode === 'copy' ? words.nameDialog.copyLabel(scenarioName(props.scenario)) : props.scenario.label === '' ? '' : scenarioName(props.scenario)
-    tried.value = false
   },
   { immediate: true },
 )
@@ -60,7 +60,7 @@ function storedRows(): ScenarioRow[] {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (nameError.value !== null) return
   const slug = name.value.trim()
   // A label left as the screen shows it keeps the stored one, so a label Kuna wrote still shows in either language.

@@ -52,6 +52,7 @@ import SplitEditor from '../../../../shared/ui/SplitEditor.vue'
 import { givenParts, splitField } from '../../../../shared/ui/splitFields'
 import type { SplitField } from '../../../../shared/ui/splitFields'
 import { EURO } from '../../../../shared/money/currencyCode'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** A receipt photo to the payment it splits: the QR code's date and total, or typed ones, with one category for the whole receipt or lines typed by hand, each with its category. Closing the dialog drops the photo. Reading its lines is asked of the chat from Entries. */
 const open = defineModel<boolean>('open', { required: true })
@@ -75,7 +76,7 @@ const lines = ref<SplitField[] | null>(null)
 const WHOLE = 'whole'
 const account = ref('')
 const keepPhoto = ref(false)
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 const failure = ref<string | null>(null)
 const keepAllowed = ref(true)
 
@@ -102,7 +103,6 @@ watch(open, (opened) => {
   partPayees.value = {}
   start([])
   keepPhoto.value = false
-  tried.value = false
   failure.value = null
 })
 
@@ -269,7 +269,7 @@ const errors = computed(() => ({
 }))
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   failure.value = null
   const file = photo.value
   const day = issuedOn.value

@@ -22,6 +22,7 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * The accounts a file needs that Kuna does not keep, drafted from the file, each starting on the day typed beside it and with its rows
@@ -41,7 +42,7 @@ const typedStarts = ref<Readonly<Record<string, string>>>({})
 /** How each draft's rows come in, and the IBAN typed for one linked to a bank, by its kind and currency. One not picked comes in as its draft says while a bank link is offered. */
 const pickedRowsFrom = ref<Readonly<Record<string, SpendingSource>>>({})
 const typedIbans = ref<Readonly<Record<string, string>>>({})
-const tried = ref(false)
+const { tried, markTried } = useTried()
 
 function keyOf({ account }: DraftedAccount): string {
   return `${account.kind} ${account.currency}`
@@ -123,7 +124,7 @@ function ibanError(drafted: DraftedAccount): string | false {
 }
 
 async function add(): Promise<void> {
-  tried.value = true
+  markTried()
   const drafts = props.missing.flatMap((drafted) => startedDraft(drafted) ?? [])
   if (drafts.length < props.missing.length) return
   const accounts = drafts.map((draft) => newAccount(draft))

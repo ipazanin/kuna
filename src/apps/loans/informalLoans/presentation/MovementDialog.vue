@@ -23,6 +23,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { words } from './words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** One dated change to what the loan owes: more borrowed, in money or in kind, or some repaid or forgiven. */
 const open = defineModel<boolean>('open', { required: true })
@@ -44,7 +45,7 @@ const date = ref('')
 const kind = ref<MovementKind>('repaid')
 const amount = ref('')
 const note = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -53,7 +54,6 @@ watch(open, (opened) => {
   kind.value = movement?.kind ?? 'repaid'
   amount.value = movement === null ? '' : plainAmount(movement.amount)
   note.value = movement?.note ?? ''
-  tried.value = false
 })
 
 const parsedAmount = computed(() => {
@@ -70,7 +70,7 @@ const errors = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const day = parseCivilDate(date.value)
   if (Object.values(errors.value).some((error) => error !== null) || day === null || parsedAmount.value === null) return
   const typed = newMovement({ loan: props.book.loan.id, date: day, kind: kind.value, amount: parsedAmount.value, note: note.value })

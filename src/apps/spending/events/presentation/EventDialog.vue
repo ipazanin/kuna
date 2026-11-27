@@ -17,6 +17,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** An event's name and days, or a new event, with Delete for one the file holds, which puts the parts put in it by hand back on their days. */
 const open = defineModel<boolean>('open', { required: true })
@@ -32,14 +33,13 @@ const writes = useRecordWrites(store)
 const name = ref('')
 const from = ref('')
 const to = ref('')
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 watch(open, (opened) => {
   if (!opened) return
   name.value = props.event?.name ?? ''
   from.value = props.event?.days.from ?? ''
   to.value = props.event?.days.to ?? ''
-  tried.value = false
 })
 
 const days = computed(() => {
@@ -64,7 +64,7 @@ const putIn = computed(() => {
 })
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const chosen = days.value
   if (chosen === null || Object.values(errors.value).some((error) => error !== null)) return
   const changed = props.event

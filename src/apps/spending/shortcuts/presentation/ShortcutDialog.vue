@@ -33,6 +33,7 @@ import { today } from '../../../../shared/calendar/civilDate'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as uiWords } from '../../../../shared/ui/words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /** Makes a quick add, or changes or deletes one: its button's name, its account and payee, which way the money goes, and its parts. */
 const open = defineModel<boolean>('open', { required: true })
@@ -63,7 +64,7 @@ const payee = ref('')
 const kind = ref<'out' | 'in'>('out')
 const parts = ref<PartField[]>([])
 const created = ref<readonly Label[]>([])
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 
 const book = computed(() => store.state.workbook)
 const categories = computed(() => book.value?.categories ?? [])
@@ -92,7 +93,6 @@ watch(open, (opened) => {
       ? [partField({ amount: '', category: '', note: '', labels: [] })]
       : held.parts.map((part) => partField({ amount: amountForTyping(absAccountMoney(part.amount)), category: part.category, note: part.note, labels: part.labels }))
   created.value = []
-  tried.value = false
 })
 
 /** The labels with the one a typed name names: a label already there, or a new one Save adds. A blank name adds none. */
@@ -164,7 +164,7 @@ function removePart(key: number): void {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   const typed = draft.value
   const held = props.held
   const records = store.state.records

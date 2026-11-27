@@ -29,6 +29,7 @@ import SubsidyFields from './SubsidyFields.vue'
 import { words as loansWords } from '../../words'
 import { provideLoanWords } from './useLoanWords'
 import { loanTermsErrors } from './words'
+import { useTried } from '../../../../shared/ui/useTried'
 
 /**
  * Adds a bank loan with its first rate period and its subsidy in one write, or changes its terms and your part from the payout.
@@ -53,7 +54,7 @@ const share = ref('')
 const rate = ref<RateTexts>({ rate: '', rateType: 'fixed', note: '' })
 const subsidised = ref(false)
 const subsidy = ref<SubsidyTexts>(subsidyTexts(null))
-const tried = ref(false)
+const { tried, markTried } = useTried(open)
 const moreOpen = ref(false)
 
 watch(open, (opened) => {
@@ -66,7 +67,6 @@ watch(open, (opened) => {
   rate.value = { rate: '', rateType: 'fixed', note: '' }
   subsidised.value = false
   subsidy.value = subsidyTexts(null)
-  tried.value = false
   moreOpen.value = loan !== null
 })
 
@@ -99,7 +99,7 @@ function typedTerms(): Omit<BankLoan, 'id'> | null {
 }
 
 async function save(): Promise<void> {
-  tried.value = true
+  markTried()
   if (moreWrong.value) moreOpen.value = true
   const terms = typedTerms()
   if (terms === null) return
