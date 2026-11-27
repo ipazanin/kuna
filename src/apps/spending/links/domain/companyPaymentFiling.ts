@@ -1,18 +1,18 @@
 import type { CompanyMoney, CompanyTarget } from './linkTarget'
 import type { LinkedEntry, LinkedOn, LinkFiling, LinkPlace } from './linkFiling'
+import { linkedParts } from './linkedParts'
+import type { LinkedPart } from './linkedParts'
 import { companyMoneyCategoryIn, fixedCategoryIn } from '../../categories/domain/starterCategories'
-import { carriedFields } from '../../workbook/domain/carriedChoices'
 import type { Category, CompanyMoneyRole } from '../../workbook/domain/category'
-import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import { filedAsTransfer, linkedItems, wholeRowItemId } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, linkedItems } from '../../workbook/domain/rowItems'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
-import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /**
@@ -119,21 +119,6 @@ export function companyLinkedEntry(entry: ItemizedRow, target: CompanyTarget, pl
   const filing = companyPaymentFiling(entry, target, place)
   if (filing.split !== 'payment') return { entry: { row: entry.row, items: linkedItems(entry.items, target.link) }, interest: null, added: [] }
   const { ids, added } = partCategories(filing, place, newKey)
-  const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
-  const carried = carriedFields(entry.items)
-  const several = filing.parts.length > 1
-  const items = filing.parts.map((part, at): TransactionItem => ({
-    id: at === 0 ? firstId : recordIdOf(ITEM_RECORDS, newKey()),
-    transaction: entry.row.id,
-    receipt: null,
-    printed: '',
-    note: part.home === 'difference' ? place.notes.difference : '',
-    amount: part.amount,
-    category: ids[at] ?? null,
-    link: target.link,
-    ...carried,
-    sharedCost: null,
-    splitByLink: several,
-  }))
-  return { entry: { row: { ...entry.row, categorisedBy: 'person' }, items }, interest: null, added }
+  const parts = filing.parts.map((part, at): LinkedPart => [part.amount, ids[at] ?? null, part.home === 'difference' ? place.notes.difference : '', target.link])
+  return { entry: linkedParts(entry, parts, { dropsEmpty: false, splitByLink: parts.length > 1 }, newKey), interest: null, added }
 }

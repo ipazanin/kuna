@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { retypedEntry, transferOver, unsplitItem } from '../src/apps/spending/entries/application/entryWrites'
 import { companyLinkedEntry } from '../src/apps/spending/links/domain/companyPaymentFiling'
-import { splitIntoParts } from '../src/apps/spending/links/domain/instalmentParts'
+import { INSTALMENT_SPLIT } from '../src/apps/spending/links/domain/instalmentParts'
+import { linkedParts } from '../src/apps/spending/links/domain/linkedParts'
 import { linkedEntry } from '../src/apps/spending/links/domain/linkFiling'
 import type { LinkTarget, OwnerPaymentTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { receiptSplit, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -57,12 +58,13 @@ describe('what parts rebuilt from other parts carry', () => {
   })
 
   it('carries them onto every part a link splits an entry into', () => {
-    const parts = splitIntoParts(
+    const parts = linkedParts(
       split,
       [
         [accountMoneyFromAmount(-60), EATING_OUT.id, '', LINK],
         [accountMoneyFromAmount(-40), GIFTS.id, '', LINK],
       ],
+      INSTALMENT_SPLIT,
       () => 'made-up-part',
     )
 

@@ -391,7 +391,7 @@ const itemFields = (
     meaning: 'by-days when this money joins the event its day falls in, out when it was taken out of every event by hand, or the event it was put in by hand, as its name and days.',
     read: (item) => eventRead(item.event, events()),
   },
-  splitByLink: { exposure: 'plain', meaning: "yes when linking the entry to a loan's instalment split this part off, no for a part split by hand, a receipt's line or a whole entry." },
+  splitByLink: { exposure: 'plain', meaning: "yes when linking the entry to a loan's instalment or to a payment from or to your company split this part off, no for a part split by hand, a receipt's line or a whole entry." },
 })
 
 /** An event as the chat reads it, by name and days, so two events of one name stay apart. */

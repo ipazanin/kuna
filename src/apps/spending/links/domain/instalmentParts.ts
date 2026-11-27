@@ -1,12 +1,11 @@
 import type { InstalmentTarget, LinkTarget } from './linkTarget'
+import { linkedParts } from './linkedParts'
+import type { LinkedSplit } from './linkedParts'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import type { DatedMoney } from '../../../../shared/app/moneyMatch'
-import { carriedFields } from '../../workbook/domain/carriedChoices'
 import { categoryWithRole } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
-import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import { wholeRowItemId } from '../../workbook/domain/rowItems'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
@@ -16,7 +15,7 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { Money } from '../../../../shared/money/money'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
-import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** An entry's money as an instalment splits it, each amount signed as the entry is, the interest and the difference under `category`. */
@@ -71,34 +70,8 @@ export interface PartNotes {
   readonly difference: string
 }
 
-/** One part a link splits an entry into: its amount signed as the entry is, its category, its note and the record it is linked to. */
-export type LinkedPart = readonly [AccountMoney, RecordId, string, RowLink]
-
-/**
- * The entry in the parts given, in place of the items it had, leaving out a part of nothing. The first part keeps the id of
- * the entry's first item, and the entry is filed by you. Every part carries every label of the entry and the payee all of it
- * counted under, and says a link split it off.
- */
-export function splitIntoParts(entry: ItemizedRow, parts: readonly LinkedPart[], newKey: () => string): ItemizedRow {
-  const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
-  const carried = carriedFields(entry.items)
-  const items = parts
-    .filter(([amount]) => amount !== 0)
-    .map(([amount, category, note, link], place): TransactionItem => ({
-      id: place === 0 ? firstId : recordIdOf(ITEM_RECORDS, newKey()),
-      transaction: entry.row.id,
-      receipt: null,
-      printed: '',
-      note,
-      amount,
-      category,
-      link,
-      ...carried,
-      sharedCost: null,
-      splitByLink: true,
-    }))
-  return { row: { ...entry.row, categorisedBy: 'person' }, items }
-}
+/** An instalment's split, which leaves out a part of nothing and always says the link split it. */
+export const INSTALMENT_SPLIT: LinkedSplit = { dropsEmpty: true, splitByLink: true }
 
 /** The entry in the instalment's parts, each linked to it: the interest, the principal under `principal`, then the difference. */
 export function splitByInstalment(
@@ -109,13 +82,14 @@ export function splitByInstalment(
   notes: PartNotes,
   newKey: () => string = newRecordId,
 ): ItemizedRow {
-  return splitIntoParts(
+  return linkedParts(
     entry,
     [
       [split.interest, split.category, notes.interest, link],
       [split.principal, principal, '', link],
       [split.difference, split.category, notes.difference, link],
     ],
+    INSTALMENT_SPLIT,
     newKey,
   )
 }

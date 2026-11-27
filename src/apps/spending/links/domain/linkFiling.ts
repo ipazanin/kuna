@@ -1,6 +1,8 @@
 import { loanLinkOf, sameRecord } from './linkTarget'
-import { expectedOf, interestCategoryOf, paidOut, planParts, splitByInstalment, splitIntoParts } from './instalmentParts'
-import type { InstalmentSplit, LinkedPart, PartNotes } from './instalmentParts'
+import { expectedOf, INSTALMENT_SPLIT, interestCategoryOf, paidOut, planParts, splitByInstalment } from './instalmentParts'
+import type { InstalmentSplit, PartNotes } from './instalmentParts'
+import { linkedParts } from './linkedParts'
+import type { LinkedPart } from './linkedParts'
 import type { AppTargets, AssetTarget, CompanyTarget, ExtraPaymentTarget, InstalmentTarget, LinkTarget } from './linkTarget'
 import { assetLinkedEntry } from './assetLinks'
 import { companyLinkedEntry, companyPaymentFiling } from './companyPaymentFiling'
@@ -162,7 +164,7 @@ export function linkedWithExtraPayment(entry: ItemizedRow, instalment: Instalmen
     [extraPaid, principal.category.id, '', extra.link],
     [restOfWhole(plan.difference, [extraPaid]), interest.category.id, place.notes.difference, instalment.link],
   ]
-  return { entry: splitIntoParts(entry, parts, newKey), interest: interest.category.id, added: [...(principal.added ? [principal.category] : []), ...interest.added] }
+  return { entry: linkedParts(entry, parts, INSTALMENT_SPLIT, newKey), interest: interest.category.id, added: [...(principal.added ? [principal.category] : []), ...interest.added] }
 }
 
 /** The apps that keep assets, which a rule's link may name, and the assets they publish, none while they cannot be read. */

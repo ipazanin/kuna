@@ -9,7 +9,8 @@ import { entrySplit, halfAndHalf } from '../src/apps/spending/entries/domain/ent
 import { payeeNamed } from '../src/apps/spending/payees/domain/payeeDirectory'
 import { payeeKey } from '../src/apps/spending/payees/domain/payeeKey'
 import { countsUnderPayee, payeeTotals } from '../src/apps/spending/payees/domain/payeeTotals'
-import { splitIntoParts } from '../src/apps/spending/links/domain/instalmentParts'
+import { INSTALMENT_SPLIT } from '../src/apps/spending/links/domain/instalmentParts'
+import { linkedParts } from '../src/apps/spending/links/domain/linkedParts'
 import { fileRows } from '../src/apps/spending/statements/application/statementWrites'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { Payee } from '../src/apps/spending/workbook/domain/payee'
@@ -122,12 +123,13 @@ describe('keeping a part payee through other writes', () => {
   it('keeps the payee all of an entry counted under on the parts a link splits it into', () => {
     const link = { app: 'investments', kind: 'loan', key: 'car', due: null }
     const [first] = typedFlowers('Ana').items
-    const linked = splitIntoParts(
+    const linked = linkedParts(
       { row: typedFlowers('Ana').row, items: [first!] },
       [
         [accountMoneyFromAmount(-20), GIFTS.id, '', link],
         [accountMoneyFromAmount(-10), EATING_OUT.id, '', link],
       ],
+      INSTALMENT_SPLIT,
       () => 'part-two',
     )
 
