@@ -220,9 +220,7 @@ export function createFakeDrive(): FakeDrive {
 
     async children(folderId) {
       requests.push('children')
-      return [...files.values()]
-        .filter((file) => !file.trashed && file.parents.includes(folderId))
-        .map(({ id, name, mimeType, appProperties, isAppAuthorized }) => ({ id, name, mimeType, appProperties, isAppAuthorized }))
+      return [...files.values()].filter((file) => !file.trashed && file.parents.includes(folderId)).map(({ id, name, mimeType, isAppAuthorized }) => ({ id, name, mimeType, isAppAuthorized }))
     },
 
     async createFolder(parentId, name, appProperties = {}) {

@@ -36,7 +36,7 @@ async function spendingFolder() {
   return { drive, folder, fileId, receipts, photo, backups, backup, otherBackup, mine }
 }
 
-const BESIDE: DriveFileBeside = { ...NOTHING, folders: [{ name: 'Receipts', mailSource: null }] }
+const BESIDE: DriveFileBeside = { ...NOTHING, folders: ['Receipts'] }
 
 describe('the Kuna folder', () => {
   it('is made once at the top of My Drive with a subfolder per app, and a second device finds it wherever it sits', async () => {
@@ -194,47 +194,6 @@ describe('moving a file into the Kuna folder', () => {
 })
 
 describe('moving only what Kuna made', () => {
-  /** A statements folder beside the books with one statement Kuna filed from mail, one a script filed, and a file another mail source filed there. */
-  async function mixedStatements() {
-    const drive = createFakeDrive()
-    const folder = await drive.createFolder('root', 'books')
-    const { id: fileId } = await drive.createFile(folder, 'kuna-company.json', '{}', { kuna: 'company' })
-    const statements = await drive.createFolder(folder, 'statements')
-    const year = await drive.createFolder(statements, '2026-statements')
-    const { id: filed } = await drive.createFile(year, '2026-09-01-statement-010-main.xml', 'camt', { 'kuna-mail': 'statements', 'kuna-mail-id': 'a', 'kuna-mail-date': '2026-09-01T08:00:00.000Z' })
-    const { id: scripted } = await drive.createFile(year, '2026-09-02-statement-011-main.xml', 'camt')
-    drive.file(scripted).isAppAuthorized = false
-    const { id: otherSource } = await drive.createFile(year, '2026-09-report.pdf', 'report', { 'kuna-mail': 'reports', 'kuna-mail-id': 'b', 'kuna-mail-date': '2026-09-03T08:00:00.000Z' })
-    const beside: DriveFileBeside = { ...NOTHING, folders: [{ name: 'statements', mailSource: 'statements' }] }
-    return { drive, fileId, statements, year, filed, scripted, otherSource, beside }
-  }
-
-  it('takes a statement Kuna filed from mail, with its id, and leaves the script’s file, another source’s and the folder itself', async () => {
-    const { drive, fileId, statements, year, filed, scripted, otherSource, beside } = await mixedStatements()
-
-    await moveDriveDocument(drive, fileId, 'company', beside, null)
-
-    expect(await pathOf(drive, filed)).toBe('Kuna/company/statements/2026-statements/2026-09-01-statement-010-main.xml')
-    expect(drive.file(scripted).parents).toEqual([year])
-    expect(drive.file(otherSource).parents).toEqual([year])
-    expect(drive.file(year).parents).toEqual([statements])
-  })
-
-  it('counts what goes and what stays, so the dialog can say it cannot tell who made the rest', async () => {
-    const { drive, fileId, beside } = await mixedStatements()
-
-    expect((await planDriveMove(drive, fileId, 'company', beside)).folders).toEqual([{ name: 'statements', kuna: 1, others: 2 }])
-  })
-
-  it('moves a file with no mark of its source as nothing Kuna made, which is what an older file looks like', async () => {
-    const { drive, fileId, year, beside } = await mixedStatements()
-    const { id: older } = await drive.createFile(year, '2026-08-01-statement-001-main.xml', 'camt', { 'ledgerboard-mail': 'statements' })
-
-    await moveDriveDocument(drive, fileId, 'company', beside, null)
-
-    expect(drive.file(older).parents).toEqual([year])
-  })
-
   it('leaves a photo in Receipts that Kuna did not make, and never moves the folder itself', async () => {
     const { drive, fileId, receipts, photo, folder } = await spendingFolder()
     const { id: mine } = await drive.createFile(receipts, 'my-photo.jpg', 'x')
@@ -245,6 +204,22 @@ describe('moving only what Kuna made', () => {
     expect(drive.file(mine).parents).toEqual([receipts])
     expect(drive.file(receipts).parents).toEqual([folder])
     expect(await pathOf(drive, photo)).toBe('Kuna/spending/Receipts/receipt-2026-10-01.jpg')
+  })
+
+  it('takes what Kuna made from a folder inside Receipts, and counts what stays so the dialog can say it cannot tell who made it', async () => {
+    const { drive, fileId, receipts } = await spendingFolder()
+    const october = await drive.createFolder(receipts, '2026-10')
+    const { id: filed } = await drive.createFile(october, 'receipt-2026-10-02.jpg', 'photo')
+    const { id: mine } = await drive.createFile(october, 'my-photo.jpg', 'x')
+    drive.file(mine).isAppAuthorized = false
+
+    expect((await planDriveMove(drive, fileId, 'spending', BESIDE)).folders).toEqual([{ name: 'Receipts', kuna: 2, others: 1 }])
+
+    await moveDriveDocument(drive, fileId, 'spending', BESIDE, null)
+
+    expect(await pathOf(drive, filed)).toBe('Kuna/spending/Receipts/2026-10/receipt-2026-10-02.jpg')
+    expect(drive.file(mine).parents).toEqual([october])
+    expect(drive.file(october).parents).toEqual([receipts])
   })
 })
 

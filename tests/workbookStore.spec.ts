@@ -718,7 +718,7 @@ describe('workbook store moving its file into the Kuna folder', () => {
     const seen: number[] = []
     const beside = () => {
       seen.push(store.state.workbook?.transactions.length ?? 0)
-      return { files: [], folders: [{ name: 'statements', mailSource: null }], stays: [] }
+      return { files: [], folders: ['statements'], stays: [] }
     }
     await store.moveIntoKuna(beside, null)
 

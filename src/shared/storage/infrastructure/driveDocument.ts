@@ -24,7 +24,7 @@ export interface DocumentDrive {
   deleteRevision(fileId: string, revisionId: string): Promise<void>
   parentOf(fileId: string): Promise<string>
   nameOf(fileId: string): Promise<string>
-  children(folderId: string): Promise<readonly Pick<DriveFile, 'id' | 'name' | 'mimeType' | 'appProperties' | 'isAppAuthorized'>[]>
+  children(folderId: string): Promise<readonly Pick<DriveFile, 'id' | 'name' | 'mimeType' | 'isAppAuthorized'>[]>
   /** Makes a folder in the parent, or at the top of My Drive for a null parent. */
   createFolder(parentId: string | null, name: string, appProperties?: Readonly<Record<string, string>>): Promise<string>
   /** Moves a file or a folder between folders in one request, its id unchanged, and sets these properties with it. */

@@ -59,18 +59,11 @@ export interface DriveFilePlace {
   readonly moveUnfinished: boolean
 }
 
-/** A folder whose files Kuna made may go along. The folder itself never moves, since it may hold what Kuna did not make. */
-export interface KunaFilesFolder {
-  /** The folder's name beside the file. */
-  readonly name: string
-  /** The mail source that files into it, whose files are the only ones that go, or null for every file the app made. */
-  readonly mailSource: string | null
-}
-
 /** What goes along when an app's file moves into the Kuna folder: only what Kuna made. */
 export interface DriveFileBeside {
   readonly files: readonly string[]
-  readonly folders: readonly KunaFilesFolder[]
+  /** Names of folders beside the file whose files Kuna made go along. The folder itself never moves, since it may hold what Kuna did not make. */
+  readonly folders: readonly string[]
   /** Words for what a setting reaches elsewhere and stays, by a path from My Drive or an id. */
   readonly stays: readonly string[]
 }

@@ -80,7 +80,7 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
     },
 
     async children(folderId) {
-      return listChildren(await accessToken(), `${queryLiteral(folderId)} in parents and trashed = false`, ['id', 'name', 'mimeType', 'appProperties', 'isAppAuthorized'])
+      return listChildren(await accessToken(), `${queryLiteral(folderId)} in parents and trashed = false`, ['id', 'name', 'mimeType', 'isAppAuthorized'])
     },
 
     async createFolder(parentId, name, appProperties) {
