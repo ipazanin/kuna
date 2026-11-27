@@ -32,6 +32,12 @@ const KONTO_CLASS_LINES: Readonly<Record<string, CategoryLine>> = {
   '78': 'other-operating-income',
 }
 
+/** The cost line a modifier puts a category on whatever its class names, where the chart of accounts keeps the cost apart from the class's usual account. */
+const LINE_MODIFIERS: Readonly<Partial<Record<string, CostLine>>> = {
+  [PACK_ROLES.otherCostsLine]: 'other-costs',
+  [PACK_ROLES.financialExpensesLine]: 'financial-expenses',
+}
+
 /**
  * The income line a category counts on: where the accountant's konto lines put it, else where
  * its tax class puts it, else on other operating income.
@@ -42,8 +48,8 @@ export function incomeLineOf(category: Category, year: number, yearEnd: readonly
 
 /**
  * The cost line a category counts on: where the accountant's konto lines put it, else on
- * personnel costs for a tax owed because someone was paid, else on other costs when the category
- * says so, else where its tax class puts it. A category with no class counts by its bucket.
+ * personnel costs for a tax owed because someone was paid, else on the line a modifier names, else
+ * where its tax class puts it. A category with no class counts by its bucket.
  */
 export function costLineOf(category: Category, year: number, yearEnd: readonly YearEndLine[]): CostLine {
   const named = kontoLineOf(category, year, yearEnd, COST_LINES)
@@ -53,8 +59,9 @@ export function costLineOf(category: Category, year: number, yearEnd: readonly Y
   if (category.roles.includes(PACK_ROLES.ownerPayTax)) {
     return 'personnel-costs'
   }
-  if (category.roles.includes(PACK_ROLES.otherCostsLine)) {
-    return 'other-costs'
+  const modified = category.roles.map((role) => LINE_MODIFIERS[role]).find((line) => line !== undefined)
+  if (modified !== undefined) {
+    return modified
   }
   return classLineOf(category, COST_LINES) ?? bucketDefault(category)
 }

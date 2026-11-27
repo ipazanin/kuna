@@ -13,7 +13,13 @@ export type AddBackRuleId = { readonly [Id in RuleId]: RuleValues[Id] extends { 
 
 /** The roles a category carries beside its class: when it is paid, what Kuna waits for, whose cost or balance it counts in, and a cost line the class does not name. */
 type ModifierRole =
-  typeof PACK_ROLES.arrears | typeof PACK_ROLES.prepaidAnnual | typeof PACK_ROLES.watched | typeof PACK_ROLES.ownerPayTax | typeof PACK_ROLES.reimbursement | typeof PACK_ROLES.otherCostsLine
+  | typeof PACK_ROLES.arrears
+  | typeof PACK_ROLES.prepaidAnnual
+  | typeof PACK_ROLES.watched
+  | typeof PACK_ROLES.ownerPayTax
+  | typeof PACK_ROLES.reimbursement
+  | typeof PACK_ROLES.otherCostsLine
+  | typeof PACK_ROLES.financialExpensesLine
 
 /** The tax-free payments' class, one role per payment of the caps table. */
 export const TAX_FREE_CLASS = 'tax-free:*'

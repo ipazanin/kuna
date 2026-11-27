@@ -86,7 +86,7 @@ describe('categoriesToSort', () => {
   })
 })
 
-describe('the cost line older books keep for travel, insurance, training and bank fees', () => {
+describe('the cost line older books keep for travel, insurance, training, bank fees and late payment interest', () => {
   const day = civil('2026-11-15')
   const older = (slug: string, roles: readonly string[]): Category => ({ ...representation, slug, family: 'operating', bucket: 'operating', roles, vat: 'none' })
   const lineOf = (category: Category, reason: string) => ({ id: categoryIdOf(category), label: displayName(category.slug, category.label), reason })
@@ -105,6 +105,7 @@ describe('the cost line older books keep for travel, insurance, training and ban
 
   it('suggests no class to the chat for a change of roles beside the same class', () => {
     expect(startingChange({ slug: 'training', roles: ['deductible-cost'] }, [])).toEqual({ kind: 'roles', added: ['other-costs-line'] })
+    expect(startingChange({ slug: 'late-payment-interest', roles: ['deductible-cost'] }, [])).toEqual({ kind: 'roles', added: ['financial-expenses-line'] })
   })
 })
 
@@ -118,6 +119,7 @@ const STARTING_ROLES_OF_OLDER_BOOKS: Readonly<Record<string, readonly string[]>>
   insurance: ['deductible-cost', 'prepaid-annual'],
   training: ['deductible-cost'],
   'bank-fees': ['deductible-cost'],
+  'late-payment-interest': ['deductible-cost'],
 }
 
 describe('the starting categories', () => {

@@ -29,6 +29,8 @@ export const PACK_ROLES = {
   prepaidAnnual: 'prepaid-annual',
   /** A cost the chart of accounts keeps with the other costs of the business, such as travel, insurance, bank services and training, whatever its class names. */
   otherCostsLine: 'other-costs-line',
+  /** A cost the chart of accounts keeps with the financial expenses, such as interest on a late payment, whatever its class names. */
+  financialExpensesLine: 'financial-expenses-line',
   /** A cost the corporate tax never allows, such as a fine or a private cost. */
   nonDeductible: 'non-deductible',
   /** A donation in Croatia for a public-benefit purpose, which the profit tax allows up to a share of revenue. */

@@ -240,12 +240,28 @@ describe('accrualYear, the line each category counts on', () => {
     expect(costLineOf(travel, 2025, [yearEndLine(2025, 'konto', '41020', 100, ['travel'])])).toBe('material-costs')
   })
 
+  it('counts interest on a late payment on financial expenses, where a deductible cost in the taxes bucket counts on other costs, unless a konto line names it', () => {
+    const interest: Category = {
+      ...STUDIO_CATEGORIES.find((category) => category.slug === 'software')!,
+      slug: 'late-payment-interest',
+      bucket: 'taxes',
+      roles: ['deductible-cost', 'financial-expenses-line'],
+    }
+
+    expect(costLineOf(interest, 2025, [])).toBe('financial-expenses')
+    expect(costLineOf({ ...interest, roles: ['deductible-cost'] }, 2025, [])).toBe('other-costs')
+    expect(costLineOf(interest, 2025, [yearEndLine(2025, 'konto', '46700', 100, ['late-payment-interest'])])).toBe('other-costs')
+  })
+
   it.each([
     // RRiF 460 travel, 464 insurance, 465 bank services and 4690 training sit in group 46.
     ['travel', 'other-costs'],
     ['insurance', 'other-costs'],
     ['bank-fees', 'other-costs'],
     ['training', 'other-costs'],
+    // 4741 interest on late taxes and contributions sits in group 47.
+    ['late-payment-interest', 'financial-expenses'],
+    ['local-fees', 'other-costs'],
     // 4100 telephone, 4140 rent and 4164 bookkeeping sit in group 41.
     ['telecom', 'material-costs'],
     ['office-rent', 'material-costs'],
