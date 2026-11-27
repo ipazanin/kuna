@@ -252,7 +252,7 @@ const shootAt = {
         if (statement.type !== 'ExpressionStatement' || !context.sourceCode.getText(statement).includes('scrollIntoView')) return
         const next = block.body.slice(at + 1).find((later) => !['delay', 'inspect'].includes(calledName(later)))
         if (next !== undefined && calledName(next) === 'shoot') {
-          context.report({ node: statement, message: 'Scroll to what a shot is taken for with shootAt from scripts/support/editorFlows.mjs, which fails when it is still off screen.' })
+          context.report({ node: statement, message: 'Scroll to what a shot is taken for with shootAt from scripts/support/flowHelpers.mjs, which fails when it is still off screen.' })
         }
       })
     }

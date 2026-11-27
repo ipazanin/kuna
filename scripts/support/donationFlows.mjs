@@ -7,7 +7,7 @@
 
 import { en as citEnglish, hr as citCroatian } from '../../src/apps/company/packs/hr-doo/domain/cit/words.ts'
 import { en as classEnglish, hr as classCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
-import { elementSays, shootAt } from './editorFlows.mjs'
+import { elementSays, shootAt } from './flowHelpers.mjs'
 import { pressSelector } from './pressing.mjs'
 
 const CIT_WORDS = { en: citEnglish, hr: citCroatian }

@@ -4,7 +4,7 @@ import { en as packEnglish, hr as packCroatian } from '../../src/apps/company/pa
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, panelSettled, sendInChat } from './chatFlows.mjs'
-import { ASSIST_WORDS, elementSays, goToRoute, openCompanies, pickCompany, queueRow } from './editorFlows.mjs'
+import { ASSIST_WORDS, elementSays, goToRoute, openCompanies, pickCompany, queueRow } from './flowHelpers.mjs'
 import { FIGURE_ASKS } from './figureAskFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 

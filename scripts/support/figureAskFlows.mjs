@@ -1,5 +1,5 @@
 import { forgetAssist, keepAiKey } from './chatFlows.mjs'
-import { shootAt } from './editorFlows.mjs'
+import { shootAt } from './flowHelpers.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
 /** Opens each card, unless it is open. */

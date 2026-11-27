@@ -8,7 +8,7 @@
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { PHONE_BELOW } from '../../src/shared/layout/viewport.ts'
 import { OPEN_DELAY } from '../../src/shared/ui/cutText.ts'
-import { shootAt } from './editorFlows.mjs'
+import { shootAt } from './flowHelpers.mjs'
 import { delay } from './pressing.mjs'
 
 /** A long name of the kind the owner's books hold, which the sidebar cuts at every width. */

@@ -3,7 +3,7 @@ import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/comp
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/assistant/words.ts'
 import { en as statementsEnglish, hr as statementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
 import { acceptLooksReady, allowIfAsked, forgetAssist, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
-import { ASSIST_WORDS, elementSays } from './editorFlows.mjs'
+import { ASSIST_WORDS, elementSays } from './flowHelpers.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
 const COMPANY_WORDS = { en: companyEnglish, hr: companyCroatian }

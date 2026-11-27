@@ -1,5 +1,5 @@
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/ui/words.ts'
-import { shootAt } from './editorFlows.mjs'
+import { shootAt } from './flowHelpers.mjs'
 import { delay, pressSelector, typeDay } from './pressing.mjs'
 
 const VISIBLE = { visible: true, timeout: 10_000 }

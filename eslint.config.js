@@ -311,6 +311,8 @@ export function kunaConfig(exempt) {
     { name: 'kuna/type-roles', files: ['src/**/*.vue'], ignores: ['src/shared/ui/**'], rules: { 'kuna/type-roles': ['error', { sizes: true }] } },
     { name: 'kuna/type-roles-shared-ui', files: ['src/shared/ui/**/*.vue'], rules: { 'kuna/type-roles': 'error' } },
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },
+    // A support file holds one part of one app's checks, so parallel work lands in different files.
+    { name: 'kuna/support-length', files: ['scripts/support/*.mjs'], rules: { 'max-lines': ['error', { max: 3000, skipBlankLines: false, skipComments: false }] } },
     { name: 'kuna/book-casts', files: ['tests/**/*.ts'], rules: { 'kuna/book-casts': 'error' } },
     { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },
     {
