@@ -88,6 +88,19 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ['an error toast with the warning icon', TOASTS, "toast.add({ title: 'Not saved', icon: 'i-lucide-triangle-alert', color: 'error' as const })", 'kuna/tone-icons'],
     ['a warning toast with the error icon', TOASTS, "toast.add({ title: 'Late', icon: TONE_ICONS.error, color: 'warning' })", 'kuna/tone-icons'],
     ['a toast in a template with the warning icon', SCREEN, '<template><UButton @click="toast.add({ icon: TONE_ICONS.warning, color: \'error\' })" /></template>', 'kuna/tone-icons'],
+    [
+      'a KPI tile in the error tone with the warning icon',
+      SCREEN,
+      '<template><KpiTile label="Late" value="2" :to="null" :icon="TONE_ICONS.warning" icon-tone="error" /></template>',
+      'kuna/tone-icons',
+    ],
+    [
+      'a KPI tile with the warning icon spelt by name',
+      SCREEN,
+      '<template><KpiTile label="Late" value="2" :to="null" icon="i-lucide-triangle-alert" icon-tone="warning" /></template>',
+      'kuna/tone-icons',
+    ],
+    ['a warning note line with the error icon', SCREEN, '<template><NoteLine tone="warning" :icon="TONE_ICONS.error">Late</NoteLine></template>', 'kuna/tone-icons'],
   ])('refuses %s', async (_name, file, code, rule) => {
     expect(await rulesBroken(file, code)).toContain(rule)
   })
@@ -139,6 +152,9 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ],
     ['an error toast with the error icon', TOASTS, "toast.add({ title: 'Not saved', icon: TONE_ICONS.error, color: 'error' as const })"],
     ['a neutral action on an error toast', TOASTS, "toast.add({ icon: TONE_ICONS.error, color: 'error', actions: [{ label: 'Try again', icon: 'i-lucide-rotate-cw', color: 'neutral' }] })"],
+    ['a KPI tile in the warning tone with the warning icon', SCREEN, '<template><KpiTile label="Late" value="2" :to="null" :icon="TONE_ICONS.warning" icon-tone="warning" /></template>'],
+    ['a KPI tile with its own icon in the error tone', SCREEN, '<template><KpiTile label="Failed" value="2" :to="null" icon="i-lucide-circle-x" icon-tone="error" /></template>'],
+    ['a warning note line with a clock icon', SCREEN, '<template><NoteLine tone="warning" icon="i-lucide-clock-alert">Late</NoteLine></template>'],
   ])('allows %s', async (_name, file, code) => {
     expect(await rulesBroken(file, code)).toEqual([])
   })

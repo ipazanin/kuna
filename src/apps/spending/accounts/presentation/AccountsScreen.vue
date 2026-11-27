@@ -35,6 +35,7 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * Every account with what it holds today in its currency, and in euros beside a foreign one, under what the open ones hold and owe in all.
@@ -114,7 +115,7 @@ const adding = ref(false)
           :label="homeWords.overdrawn"
           :value="formatMoney(negateMoney(owed.cents))"
           :to="null"
-          icon="i-lucide-triangle-alert"
+          :icon="TONE_ICONS.warning"
           icon-tone="warning"
           data-testid="spending-overdrawn"
         >

@@ -354,10 +354,13 @@ const spellsAlertIcon = (node) => partsOf(node, (part) => part.type === 'Literal
 
 const toneIconsMessage = 'An error shows TONE_ICONS.error, the circle, and a warning TONE_ICONS.warning, the triangle, so the icon always matches the colour.'
 
+/** The props that colour an icon beside them: Nuxt UI's `color`, NoteLine's `tone` and KpiTile's `icon-tone`. */
+const colourProps = ['color', 'tone', 'icon-tone', 'iconTone']
+
 /**
  * An error or warning colour beside the other tone's icon, or beside the triangle or the circle spelt by name rather than taken
- * from TONE_ICONS. It reads a template element's `color` and a UIcon's text colour against its `icon` or `name`, and any object
- * with a `color` and an `icon`, such as a toast's. A colour a condition picks between the two is not judged.
+ * from TONE_ICONS. It reads a template element's `color`, `tone` or `icon-tone` and a UIcon's text colour against its `icon` or
+ * `name`, and any object with an `icon` and one of those colours, such as a toast's. A colour a condition picks between the two is not judged.
  */
 const toneIconPairs = {
   meta: { type: 'problem', schema: [] },
@@ -370,15 +373,14 @@ const toneIconPairs = {
     // A plain attribute's value is a VLiteral, which the expression helpers read as a string like any literal.
     const valueOf = (attribute) => (attribute === undefined ? null : attribute.directive ? (attribute.value?.expression ?? null) : { type: 'Literal', value: attribute.value?.value })
     const elementColours = (element) => {
-      if (element.rawName !== 'UIcon') return coloursOf(valueOf(attributeNamed(element, 'color')))
+      if (element.rawName !== 'UIcon') return [...new Set(colourProps.flatMap((name) => coloursOf(valueOf(attributeNamed(element, name)))))]
       const classes = attributeNamed(element, 'class')
       return classes === undefined || classes.directive ? [] : alertTones.filter((tone) => new RegExp(String.raw`(?:^|\s)text-${tone}(?:\s|$)`).test(classes.value?.value ?? ''))
     }
     const objectVisitor = (object) => {
       const property = (name) => object.properties.find((part) => part.type === 'Property' && !part.computed && (part.key.name ?? part.key.value) === name)
-      const colour = property('color')
       const icon = property('icon')
-      if (colour !== undefined && icon !== undefined) judge(icon, coloursOf(colour.value), icon.value)
+      if (icon !== undefined) judge(icon, [...new Set(colourProps.flatMap((name) => coloursOf(property(name)?.value ?? null)))], icon.value)
     }
     const templateVisitors = {
       VElement(element) {
