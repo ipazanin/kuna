@@ -1,3 +1,4 @@
+import { TimeoutError } from 'puppeteer-core'
 import { describe, expect, it } from 'vitest'
 
 import { BROWSER_CONNECTION_CLOSED, withBrowser } from '../scripts/support/browsers.mjs'
@@ -21,9 +22,12 @@ interface FakeSession {
 
 type Launcher = NonNullable<Parameters<typeof withBrowser>[2]>
 
-function fakeChrome() {
+/** A fake Chrome whose first launches fail with `failures`, in order, before the launches that start a browser. */
+function fakeChrome(failures: Error[] = []) {
   const launched: FakeBrowser[] = []
   const launchBrowser = () => {
+    const failure = failures.shift()
+    if (failure !== undefined) return Promise.reject(failure)
     const browser: FakeBrowser = {
       name: `chrome ${launched.length + 1}`,
       connected: true,
@@ -45,6 +49,21 @@ const closing: FakeContext = { close: () => Promise.resolve() }
 const droppedConnection: FakeContext = { close: () => Promise.reject(new Error('Protocol error: Connection closed.')) }
 
 describe('the browser session of a check', () => {
+  it('launches once more when Chrome does not start in time', async () => {
+    const chrome = fakeChrome([new TimeoutError('Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!')])
+
+    const used = await chrome.run((session) => Promise.resolve(session.browser.name))
+
+    expect(used).toBe('chrome 1')
+  })
+
+  it('fails when Chrome does not start in time twice, or fails to start for another reason', async () => {
+    const timedOut = () => new TimeoutError('Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!')
+
+    await expect(fakeChrome([timedOut(), timedOut()]).run(() => Promise.resolve(null))).rejects.toThrow('Timed out')
+    await expect(fakeChrome([new Error('Failed to launch the browser process')]).run(() => Promise.resolve(null))).rejects.toThrow('Failed to launch')
+  })
+
   it('closes a context and keeps the browser when Chrome stays connected', async () => {
     const chrome = fakeChrome()
 

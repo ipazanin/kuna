@@ -3604,8 +3604,14 @@ async function checkWidth(session, width) {
       `#/spending/transactions?month=${addMonths(monthOf(today()), -1)}`,
       'Entries',
     ],
-    // The same saves and Undo once the page's Google token has lapsed, as on a phone after an hour: each asks Google and goes again.
-    ['spending-review-lapsed', 'drive&spending=statements&google=expired', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    // The same saves and Undo once the page's Google token has lapsed, as on a phone after an hour: each asks Google and goes again. The screens are spending-review's, so it takes no shots.
+    [
+      'spending-review-lapsed',
+      'drive&spending=statements&google=expired',
+      (page, tools) => spendingReviewFlowIn('en')(page, { ...tools, shoot: () => {} }),
+      '#/spending/transactions?tab=review',
+      'Entries',
+    ],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-review-select', 'drive&spending=statements', spendingReviewSelectFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-review-pick-all', 'drive&spending=statements', spendingReviewPickAllFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],

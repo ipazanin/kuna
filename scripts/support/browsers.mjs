@@ -3,7 +3,7 @@ import { existsSync, lstatSync, mkdtempSync, readdirSync, rmSync } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launch } from 'puppeteer-core'
+import { launch, TimeoutError } from 'puppeteer-core'
 
 import { whenRunEnds } from './runEnd.mjs'
 
@@ -82,12 +82,15 @@ export function checkoutProfilePrefix(checkout = CHECKOUT) {
   return `${PROFILE_PREFIX}${createHash('sha256').update(checkout).digest('hex').slice(0, 8)}-`
 }
 
+/** How many times a launch goes again after Chrome printed no address before puppeteer's timeout, as Chrome on a cold CI runner sometimes does. */
+const LAUNCH_RETRIES = 1
+
 /** What a check records against the screen or flow whose context could not close because Chrome dropped its connection. */
 export const BROWSER_CONNECTION_CLOSED = 'browser connection closed'
 
 /**
  * Launches the browser `options` name with a profile folder of its own and hands `run` a session whose `browser` is the one in use.
- * Every browser is closed and every profile removed when `run` ends, fails or the run is stopped. Every check launches its browser
+ * A launch that times out goes once more in a new profile. Every browser is closed and every profile removed when `run` ends, fails or the run is stopped. Every check launches its browser
  * through this, and closes a context through the session's `closeContext`.
  */
 export async function withBrowser(options, run, launchBrowser = launch) {
@@ -98,10 +101,17 @@ export async function withBrowser(options, run, launchBrowser = launch) {
     browser?.process()?.kill('SIGKILL')
     for (const profile of profiles) rmSync(profile, { recursive: true, force: true })
   })
-  const launchInProfile = () => {
-    const profile = mkdtempSync(join(tmpdir(), checkoutProfilePrefix()))
-    profiles.push(profile)
-    return launchBrowser({ ...options, userDataDir: profile })
+  const launchInProfile = async () => {
+    for (let retry = 0; ; retry += 1) {
+      const profile = mkdtempSync(join(tmpdir(), checkoutProfilePrefix()))
+      profiles.push(profile)
+      try {
+        return await launchBrowser({ ...options, userDataDir: profile })
+      } catch (failure) {
+        if (retry === LAUNCH_RETRIES || !(failure instanceof TimeoutError)) throw failure
+        console.warn(`The browser did not start in time, so it starts once more: ${failure.message}`)
+      }
+    }
   }
   let relaunching = null
   const relaunch = async (lost) => {
