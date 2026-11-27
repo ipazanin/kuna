@@ -24,12 +24,19 @@ export const FAKE_SERIES = {
   indexFund: seriesKey('twelvedata', 'SPY'),
 } as const
 
-/** A fall in a straight line over the weekdays from `from` to `bottom`, by `steps`, and back up by `to`. */
+/** A fall in a straight line over the weekdays from place `from` to place `bottom`, by `steps`, and back up by place `to`. */
 interface Dip {
-  readonly from: CivilDate
-  readonly bottom: CivilDate
-  readonly to: CivilDate
+  readonly from: number
+  readonly bottom: number
+  readonly to: number
   readonly steps: number
+}
+
+const FIRST_DAY = civilDate(2023, 1, 2)
+
+/** A dip from the weekday `from` to `bottom` and back up by `to`, by the places of those days in the made-up series. */
+function dipOver(from: CivilDate, bottom: CivilDate, to: CivilDate, steps: number): Dip {
+  return { from: placeOf(from), bottom: placeOf(bottom), to: placeOf(to), steps }
 }
 
 /** How each made-up series walks: its currency, its first close in steps of its last decimal place, its drift a weekday in steps, how far it wobbles, its places and a dip. */
@@ -51,7 +58,7 @@ const WALKS: Readonly<Record<string, Walk>> = {
     drift: 2,
     swing: 1,
     places: 2,
-    dip: { from: civilDate(2024, 9, 2), bottom: civilDate(2024, 10, 31), to: civilDate(2024, 12, 31), steps: 1_300 },
+    dip: dipOver(civilDate(2024, 9, 2), civilDate(2024, 10, 31), civilDate(2024, 12, 31), 1_300),
   },
   [FAKE_SERIES.benchmark]: { currency: 'USD', start: 38_240, drift: 7, swing: 40, places: 2 },
   [FAKE_SERIES.compared]: { currency: 'USD', start: 26_410, drift: 9, swing: 6, places: 2 },
@@ -60,8 +67,6 @@ const WALKS: Readonly<Record<string, Walk>> = {
   [rateSeriesKey('GBP')]: { currency: 'GBP', start: 8_520, drift: 0, swing: 1, places: 4 },
   [rateSeriesKey('CHF')]: { currency: 'CHF', start: 9_410, drift: 0, swing: 1, places: 4 },
 }
-
-const FIRST_DAY = civilDate(2023, 1, 2)
 
 export function isWeekday(day: CivilDate): boolean {
   return weekdaysBetween(day, day) === 1
@@ -101,11 +106,11 @@ function dipOn(dip: Dip | undefined, place: number): number {
   if (dip === undefined) {
     return 0
   }
-  const [from, bottom, to] = [placeOf(dip.from), placeOf(dip.bottom), placeOf(dip.to)]
+  const { from, bottom, to, steps } = dip
   if (place <= from || place >= to) {
     return 0
   }
-  return Math.round(dip.steps * (place <= bottom ? (place - from) / (bottom - from) : (to - place) / (to - bottom)))
+  return Math.round(steps * (place <= bottom ? (place - from) / (bottom - from) : (to - place) / (to - bottom)))
 }
 
 /** A made-up close in whole steps of the last decimal place, which drifts by `drift` steps a weekday, wobbles and dips. */

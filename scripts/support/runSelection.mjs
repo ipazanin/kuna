@@ -81,10 +81,17 @@ export function runSelection(widths, args = process.argv.slice(2)) {
       const dealt = [...new Set(names)]
       return new Set(shard === null ? dealt : dealt.filter((name, index) => index % shard[1] === shard[0] - 1))
     },
-    /** The `--only` names nothing was called, each with the names there are, as a sentence. */
+    /** The `--only` names nothing was called, each with the names close to it, one sentence a line. */
     unmatched() {
       const missing = (only ?? []).filter((entry) => !matched.has(entry))
-      return missing.length === 0 ? null : `--only named ${missing.join(', ')}, which nothing of this run is called. The names are ${[...seen].join(', ')}.`
+      if (missing.length === 0) return null
+      return missing
+        .map((entry) => {
+          const unknown = entry.endsWith('*') ? `no name of this run starts with ${entry.slice(0, -1)}` : 'nothing of this run is called'
+          const close = closeNames(entry, [...seen])
+          return `--only named ${entry}, which ${unknown}.${close.length === 0 ? '' : ` The names close to it are ${close.join(', ')}.`}`
+        })
+        .join('\n')
     },
     /** What the run was limited to, for its last line. */
     summary: () =>
@@ -98,4 +105,49 @@ export function runSelection(widths, args = process.argv.slice(2)) {
         .filter((part) => part !== '')
         .join(' '),
   }
+}
+
+/** How many names `closeNames` gives at most. */
+const MOST_CLOSE_NAMES = 10
+
+/**
+ * The names closest to an `--only` entry nothing matched: those within a third of the entry's length in edits, and those sharing
+ * its longest prefix when that prefix is at least half the entry, the fewest edits first. For an entry ending in *,
+ * the edits are counted against as much of each name as the entry is long.
+ */
+export function closeNames(entry, names) {
+  const prefixOnly = entry.endsWith('*')
+  const stem = prefixOnly ? entry.slice(0, -1) : entry
+  const ranked = [...new Set(names)].map((name) => ({
+    name,
+    edits: editDistance(stem, prefixOnly ? name.slice(0, stem.length) : name),
+    prefix: sharedPrefixLength(stem, name),
+  }))
+  const longestPrefix = Math.max(0, ...ranked.map((candidate) => candidate.prefix))
+  return ranked
+    .filter((candidate) => candidate.edits <= stem.length / 3 || (candidate.prefix === longestPrefix && longestPrefix >= stem.length / 2))
+    .sort((left, right) => left.edits - right.edits || right.prefix - left.prefix || left.name.localeCompare(right.name))
+    .slice(0, MOST_CLOSE_NAMES)
+    .map((candidate) => candidate.name)
+}
+
+/** The fewest letters to insert, delete or change to turn one text into the other. */
+function editDistance(from, to) {
+  let previous = Array.from({ length: to.length + 1 }, (_, index) => index)
+  for (let row = 1; row <= from.length; row += 1) {
+    const current = [row]
+    for (let column = 1; column <= to.length; column += 1) {
+      const changed = from[row - 1] === to[column - 1] ? 0 : 1
+      current.push(Math.min(previous[column] + 1, current[column - 1] + 1, previous[column - 1] + changed))
+    }
+    previous = current
+  }
+  return previous[to.length]
+}
+
+/** How many letters the two texts share at their start. */
+function sharedPrefixLength(left, right) {
+  let length = 0
+  while (length < left.length && length < right.length && left[length] === right[length]) length += 1
+  return length
 }

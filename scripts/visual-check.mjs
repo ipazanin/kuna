@@ -252,8 +252,6 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SCREENSHOT_DIR = process.env.VISUAL_OUTPUT_DIR ?? join(ROOT, 'visual-check')
 
 const selection = runSelection(VIEWPORTS.map((viewport) => viewport.width))
-const served = selection.serve === null ? null : await servePreview(selection.serve)
-const BASE = served?.base ?? selection.base
 
 /** A card is a raised surface. One nested inside another card is part of that card. */
 const CARD_SELECTOR = '.rounded-card'
@@ -989,6 +987,8 @@ if (unmatched !== null) {
   console.error(unmatched)
   process.exit(2)
 }
+const served = selection.serve === null ? null : await servePreview(selection.serve)
+const BASE = served?.base ?? selection.base
 /** How many times a screen opens again after Chrome says the frame navigating to it was detached. */
 const DETACHED_RETRIES = 2
 
