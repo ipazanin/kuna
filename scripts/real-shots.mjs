@@ -12,7 +12,7 @@
  *   --route <name>=<hash>       one more screen, such as `--route rules=#/company/settings?tab=rules`. Without --only, only the routes
  *   --press <name>=<selector>   after the screen settles, clicks the element and shoots the frames of what opens
  *
- * --route and --press may each come more than once.
+ * --route and --press may each come more than once. The run fails when the server answered 404 for every book the screens asked for.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -66,6 +66,9 @@ const SCREENS = [
   { name: 'spending-sorting', hash: '#/spending/sorting' },
   { name: 'spending-settings', hash: '#/spending/settings' },
 ]
+
+/** An app's book as the page asks the dev server for it, which leaves out the rates and the Investments prices. */
+const REAL_BOOK_REQUEST = /\/__real-books\/kuna-(?!rates\.json)[a-z]+\.json$/
 
 const CHART_CANVASES = '.chart-body canvas, .donut-ring canvas'
 const FRAMES = 8
@@ -149,6 +152,10 @@ async function shoot(session, { screen, viewport, language, theme, stem }) {
     if (message.type() === 'error') errors.push(`${message.text()} ${message.location().url?.split('?')[0] ?? ''}`.trim())
   })
   page.on('pageerror', (error) => errors.push(String(error)))
+  page.on('response', (response) => {
+    const url = response.url().split('?')[0]
+    if (REAL_BOOK_REQUEST.test(url)) bookAnswers.push(response.status())
+  })
   try {
     await page.setViewport(viewport)
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
@@ -180,6 +187,7 @@ async function shoot(session, { screen, viewport, language, theme, stem }) {
 
 mkdirSync(named.out, { recursive: true })
 const results = []
+const bookAnswers = []
 const queue = [...visits]
 await withBrowser(chromeLaunch(false), (session) =>
   Promise.all(
@@ -195,3 +203,9 @@ writeFileSync(join(named.out, 'problems.txt'), report.join('\n'))
 console.log(
   `${results.length} shots of ${screens.length} screens in ${named.out}. ${troubled.length === 0 ? 'Every screen opened without a console error.' : `${troubled.length} had a problem, listed in problems.txt.`}`,
 )
+if (bookAnswers.length > 0 && bookAnswers.every((status) => status === 404)) {
+  console.error(
+    'The dev server had none of the books the screens asked for, so every shot shows an app on its first run. Check the books KUNA_REAL_BOOKS_DIR names, which npm run dev:real lists at startup.',
+  )
+  process.exit(1)
+}

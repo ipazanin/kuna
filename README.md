@@ -2159,7 +2159,9 @@ empty months and large figures. `npm run dev:real` starts the dev server with ea
 this browser from the folder `KUNA_REAL_BOOKS_DIR` names: `kuna-company.json`, `kuna-loans.json`,
 `kuna-investments.json` with `kuna-investments-prices.json`, `kuna-assets.json`, `kuna-spending.json` and
 `kuna-rates.json`, each kept in this browser, so the sidebar shows export controls where the owner's
-device shows Drive's sync. The server only reads those names and never writes. Point
+device shows Drive's sync. A file may sit at the top of the folder or, as the Drive keeps it, in its app's
+folder, such as `company/kuna-company.json` and `investments/kuna-investments-prices.json`. At startup the
+server lists which files it found and where. It only reads those names and never writes. Point
 it at a scratch copy, never at the Drive folder. A file the folder lacks leaves its app on its first run.
 `KUNA_REAL_SYNC=spending`, or another app's id, puts that app's books on the fake build's Drive instead,
 so the sync control runs and lists its steps. The whole page then uses the fake build's Google, Drive,
@@ -2181,7 +2183,9 @@ npm run shots:real -- http://localhost:4420/kuna/ --out /scratch/shots --only ho
 npm run shots:real -- http://localhost:4420/kuna/ --out /scratch/shots --route rules='#/company/settings?tab=rules'
 ```
 
-The screen names are in `SCREENS` at the top of `scripts/real-shots.mjs`. The shots show real money, so
+The screen names are in `SCREENS` at the top of `scripts/real-shots.mjs`. The run fails when the server
+answered 404 for every book the screens asked for, since every shot would then show an app on its first run.
+The shots show real money, so
 `--out` is always a scratch folder outside the repo, and they never go into a commit, an issue or a PR.
 Neither the seeds nor the plugin reach a production build, and `assert-no-fake-bytes` checks that.
 
