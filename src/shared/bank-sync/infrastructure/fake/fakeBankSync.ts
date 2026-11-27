@@ -4,8 +4,9 @@ import type { BankSyncPort } from '../../application/bankSyncPort'
 import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../../domain/bankAnswer'
 import type { ListedBank } from '../../domain/bankLink'
 import { words } from '../words'
-import { addDays, parseCivilDate, today } from '../../../calendar/civilDate'
+import { addDays } from '../../../calendar/civilDate'
 import type { CivilDate } from '../../../calendar/civilDate'
+import { fakeDayHere } from '../../../calendar/infrastructure/fake/fakeDay'
 
 const OTP_UID = 'fake-otp-account'
 const REVOLUT_UID = 'fake-revolut-account'
@@ -230,9 +231,7 @@ export function fakeBankSync(variant: string | null, day: CivilDate): BankSyncPo
   }
 }
 
-/** The fake sync this address names with `?banksync=`, dating its rows from the day `?day=` names, as the fake books do, so a check that runs past midnight still sees them line up. */
+/** The fake sync this address names with `?banksync=`, dating its rows from the fake day, as the fake books do. */
 export function fakeBankSyncHere(): BankSyncPort {
-  const query = new URLSearchParams(window.location.search)
-  const day = query.get('day')
-  return fakeBankSync(query.get('banksync'), (day === null ? null : parseCivilDate(day)) ?? today())
+  return fakeBankSync(new URLSearchParams(window.location.search).get('banksync'), fakeDayHere())
 }

@@ -75,13 +75,13 @@ export const spendingApp: AppContribution = {
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
-      const { fakeSpendingDayHere } = await import('./workbook/infrastructure/fake/fakeSpending')
+      const { fakeDayHere } = await import('../../shared/calendar/infrastructure/fake/fakeDay')
       const { saveLastFetch } = await import('./bankSync/infrastructure/lastFetch')
       const { registerFakeSpendingChat } = await import('./assistant/infrastructure/fake/fakeSpendingChat')
       saveLastFetch(null)
       registerFakeSpendingChat()
       const query = new URLSearchParams(window.location.search)
-      await seedFakeSpending(query.get('spending'), query.get('banksync'), fakeSpendingDayHere())
+      await seedFakeSpending(query.get('spending'), query.get('banksync'), fakeDayHere())
     }
     // The real books of `npm run dev:real`, inline for the same reason.
     if (import.meta.env.DEV && import.meta.env.VITE_REAL_BOOKS === 'true') {

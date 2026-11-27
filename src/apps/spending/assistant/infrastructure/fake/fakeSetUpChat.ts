@@ -4,7 +4,7 @@ import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
 import { SPENDING_OPERATIONS } from '../../operations/spendingOperations'
-import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
+import { fakeDayHere } from '../../../../../shared/calendar/infrastructure/fake/fakeDay'
 import { findAccounts, recordsIn } from './fakeSpendingRecords'
 
 const ANSWERS = {
@@ -135,6 +135,6 @@ export function closeAccountReply({ request, tokens }: FakeChatTurn): ModelReply
 /** Proposes a second cash account in euros, so a cash receipt has two to go on. */
 export function purseReply({ request, tokens, lookups }: FakeChatTurn): ModelReply {
   if (lookups > 0) return answered(request, says.purseProposed, tokens)
-  const step = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.purse, kind: 'cash', currency: 'EUR', opening: 0, openedOn: addDays(fakeSpendingDayHere(), -30), sources: null })
+  const step = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.purse, kind: 'cash', currency: 'EUR', opening: 0, openedOn: addDays(fakeDayHere(), -30), sources: null })
   return lookup(0, 'propose_changes', { app: 'spending', title: says.purseTitle, steps: [step], next: false }, tokens)
 }

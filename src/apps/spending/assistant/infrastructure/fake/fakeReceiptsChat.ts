@@ -5,7 +5,7 @@ import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { language } from '../../../../../shared/text/language'
 import { SPENDING_OPERATIONS } from '../../operations/spendingOperations'
-import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
+import { fakeDayHere } from '../../../../../shared/calendar/infrastructure/fake/fakeDay'
 import { GROCERIES, HOUSEHOLD, personTexts, recordsIn } from './fakeSpendingRecords'
 
 export const ANSWERS = {
@@ -133,7 +133,7 @@ export function receiptReply(turn: FakeChatTurn): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
   if (answers.length === 1) {
-    const receipts = [{ date: fakeSpendingDayHere(), total: 23.49, merchant: 'Corner market', merchantOib: MADE_UP_MERCHANT_OIB, photo }]
+    const receipts = [{ date: fakeDayHere(), total: 23.49, merchant: 'Corner market', merchantOib: MADE_UP_MERCHANT_OIB, photo }]
     return lookup(1, 'match_records', { app: 'spending', kind: 'receipt', account: null, rows: [], receipts }, tokens)
   }
   const matched = receiptMatchedIn(answers[1]!.text)
@@ -157,7 +157,7 @@ export function receiptReply(turn: FakeChatTurn): ModelReply {
       entry: matched.payments[0]!.ref,
       merchant: 'Corner market',
       merchantOib: MADE_UP_MERCHANT_OIB,
-      issuedOn: fakeSpendingDayHere(),
+      issuedOn: fakeDayHere(),
       issuedAt: '18:42',
       lines: [
         receiptLine('MLIJ.TR.2,8%1L', 'mlijeko trajno 2,8% 1 l', 12.3, groceries),
@@ -199,7 +199,7 @@ export function pickAnsweredReply({ request, tokens, typed }: FakeChatTurn): Mod
     ...place,
     merchant: 'Corner market',
     merchantOib: MADE_UP_MERCHANT_OIB,
-    issuedOn: fakeSpendingDayHere(),
+    issuedOn: fakeDayHere(),
     issuedAt: '18:42',
     lines: [receiptLine('KAVA ZRNO', 'kava u zrnu', 30, refOf(GROCERIES)), receiptLine('DET.TEK.', 'deterdžent tekući', 11.2, refOf(HOUSEHOLD))],
     vat: [],
@@ -225,7 +225,7 @@ function receiptOf17(
     markedR1: buyerOib !== null,
     merchant: 'Harbour bistro',
     merchantOib: MADE_UP_MERCHANT_OIB,
-    issuedOn: fakeSpendingDayHere(),
+    issuedOn: fakeDayHere(),
     issuedAt: '18:42',
     lines: [receiptLine('PIZZA MARG.', 'pizza margherita', 12, category), receiptLine('SOK NARANČA', 'sok od naranče', 5, category)],
     vat: [],
@@ -298,7 +298,7 @@ export function cashReceiptReply({ request, tokens, typed }: FakeChatTurn): Mode
   if (answers.length > 3) return answered(request, cash.length === 0 ? says.cashAccountFirst : says.cashProposed, tokens)
   const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
   const receipt = (account: string | null) => receiptOf17(photo, 'cash', groceries, { entry: null, account })
-  const account = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.cashName, kind: 'cash', currency: 'EUR', opening, openedOn: fakeSpendingDayHere(), sources: null }, '$cash')
+  const account = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.cashName, kind: 'cash', currency: 'EUR', opening, openedOn: fakeDayHere(), sources: null }, '$cash')
   const steps = cash.length === 0 ? [account, receipt('$cash')] : [receipt(null)]
   return lookup(3, 'propose_changes', { app: 'spending', title: says.cashTitle, steps, next: false }, tokens)
 }

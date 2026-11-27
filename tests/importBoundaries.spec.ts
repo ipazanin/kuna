@@ -419,7 +419,8 @@ describe('import boundaries', () => {
       broken(
         (entry) =>
           !isDomain(entry.from) ||
-          (entry.target !== null && ((isDomain(entry.target) && appOf(entry.target) === appOf(entry.from)) || DOMAIN_SHARED.some((folder) => entry.target!.startsWith(folder)))),
+          (entry.target !== null &&
+            ((isDomain(entry.target) && appOf(entry.target) === appOf(entry.from)) || DOMAIN_SHARED.some((folder) => entry.target!.startsWith(folder) && !entry.target!.includes('/infrastructure/')))),
       ),
     ).toEqual([])
   })

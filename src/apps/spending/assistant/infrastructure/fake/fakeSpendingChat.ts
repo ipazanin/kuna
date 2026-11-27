@@ -3,7 +3,7 @@ import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addMonths, monthOf } from '../../../../../shared/calendar/monthKey'
 import { language } from '../../../../../shared/text/language'
-import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
+import { fakeDayHere } from '../../../../../shared/calendar/infrastructure/fake/fakeDay'
 import { copyReply, matchReply, revolutCopyReply, statementReply } from './fakeImportsChat'
 import { cardReceiptReply, cashReceiptReply, pickAnsweredReply, pickedReceiptReply, r1ReceiptReply, receiptReply } from './fakeReceiptsChat'
 import { CITY_PHARMACY_RULE, SORT_JOB, cityPharmacyRuleReply, closeAccountReply, purseReply, sortGoOnReply, sortJobReply, sortReply } from './fakeSetUpChat'
@@ -56,7 +56,7 @@ function spendingReply({ request, tokens, invents }: FakeChatTurn): ModelReply {
 function biggestReply({ request, tokens }: FakeChatTurn): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
-    const month = addMonths(monthOf(fakeSpendingDayHere()), -1)
+    const month = addMonths(monthOf(fakeDayHere()), -1)
     const spends = findRecordsArgs('spending', 'transaction', {
       from: month,
       to: month,

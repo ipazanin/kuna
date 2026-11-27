@@ -4,7 +4,7 @@ import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
 import { SPENDING_OPERATIONS } from '../../operations/spendingOperations'
-import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
+import { fakeDayHere } from '../../../../../shared/calendar/infrastructure/fake/fakeDay'
 import { findAccounts, personTexts, recordsIn } from './fakeSpendingRecords'
 
 const ANSWERS = {
@@ -53,7 +53,7 @@ interface CopiedRow {
 
 /** Rows as a model would read them off a pasted statement, all made up, dated in the last week so every account is open by then. */
 function statementRows(misread: boolean): readonly CopiedRow[] {
-  const day = fakeSpendingDayHere()
+  const day = fakeDayHere()
   return [
     { date: addDays(day, -6), amount: -12.5, payee: 'Corner market' },
     { date: addDays(day, -5), amount: misread ? -40.01 : -40, payee: 'Harbour bistro' },
@@ -85,7 +85,7 @@ export function statementReply({ request, tokens }: FakeChatTurn): ModelReply {
  * file has it, the one of four days back a day later and spelled longer, and a new kiosk row.
  */
 function otpStatementRows(): readonly { readonly date: string; readonly amount: string; readonly payee: string }[] {
-  const day = fakeSpendingDayHere()
+  const day = fakeDayHere()
   return [
     { date: addDays(day, -9), amount: '-12.00', payee: 'City pharmacy' },
     { date: addDays(day, -3), amount: '-18.90', payee: 'CITY PHARMACY 22 ZAGREB' },

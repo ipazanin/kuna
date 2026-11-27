@@ -3,7 +3,7 @@ import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addMonths, monthOf } from '../../../../../shared/calendar/monthKey'
 import { language } from '../../../../../shared/text/language'
-import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
+import { fakeDayHere } from '../../../../../shared/calendar/infrastructure/fake/fakeDay'
 import { SPENDING_OPERATIONS } from '../../operations/spendingOperations'
 import { recordsIn } from './fakeSpendingRecords'
 
@@ -33,7 +33,7 @@ export function labelReply({ request, tokens }: FakeChatTurn): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('spending', 'label', { limit: 50 }), tokens)
   if (answers.length === 1) {
-    const month = addMonths(monthOf(fakeSpendingDayHere()), -1)
+    const month = addMonths(monthOf(fakeDayHere()), -1)
     const spends = findRecordsArgs('spending', 'transaction', {
       from: month,
       to: month,

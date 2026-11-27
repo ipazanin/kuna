@@ -5,6 +5,7 @@ import type { RatesCache, RatesDrive, RatesUpdatePorts } from './ratesPorts'
 import { updateRates } from './ratesUpdate'
 import type { RatesUpdate } from './ratesUpdate'
 import { today } from '../../calendar/civilDate'
+import type { CivilDate } from '../../calendar/civilDate'
 import { holdsRatesFor, mergedDemand } from '../domain/ratesDemand'
 import type { RatesDemand } from '../domain/ratesDemand'
 import { emptyRatesFile } from '../domain/ratesFile'
@@ -24,11 +25,11 @@ interface PageRatesPorts {
   readonly drive: RatesDrive
 }
 
-function updatePorts(cache: RatesCache, fetch: RatesFetch): RatesUpdatePorts {
+function updatePorts(cache: RatesCache, fetch: RatesFetch, day: () => CivilDate): RatesUpdatePorts {
   return {
     cache,
     ecbRates: ecbAnswers(fetch),
-    today,
+    today: day,
     now: () => new Date().toISOString(),
   }
 }
@@ -40,12 +41,16 @@ function pagePorts(): Promise<PageRatesPorts> {
   held ??= (async () => {
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-      const [{ fakeRatesFetch }, { fakeRatesDrive }, { memoryRatesCache }] = await Promise.all([
+      const [{ fakeRatesFetch }, { fakeRatesDrive }, { memoryRatesCache }, { fakeDayHere }] = await Promise.all([
         import('../infrastructure/fake/fakeEcbRates'),
         import('../infrastructure/fake/fakeRatesDrive'),
         import('../infrastructure/fake/fakeRatesState'),
+        import('../../calendar/infrastructure/fake/fakeDay'),
       ])
-      return { update: updatePorts(memoryRatesCache(), fakeRatesFetch(new URLSearchParams(window.location.search).get('rates'), today)), drive: fakeRatesDrive() }
+      return {
+        update: updatePorts(memoryRatesCache(), fakeRatesFetch(new URLSearchParams(window.location.search).get('rates'), fakeDayHere), fakeDayHere),
+        drive: fakeRatesDrive(),
+      }
     }
     const cache = browserRatesCache()
     // The real books of `npm run dev:real`, inline for the same reason.
@@ -53,7 +58,7 @@ function pagePorts(): Promise<PageRatesPorts> {
       const { seedRealRates } = await import('../infrastructure/real/seedRealRates')
       await seedRealRates(cache)
     }
-    return { update: updatePorts(cache, browserRatesFetch), drive: googleRatesDrive() }
+    return { update: updatePorts(cache, browserRatesFetch, today), drive: googleRatesDrive() }
   })()
   return held
 }

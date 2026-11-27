@@ -804,16 +804,6 @@ function fakeBankLinks(variant: string | null, day: CivilDate): readonly BankLin
   return [link('OTP banka', variant === 'ending' ? 13 : 120), link('Revolut', 120)]
 }
 
-/** The day `?day=` names, so a check that builds files for a day gets rows seeded for the same day, and today where it names none. */
-export function fakeSpendingDay(requested: string | null): CivilDate {
-  return (requested === null ? null : parseCivilDate(requested)) ?? today()
-}
-
-/** The day this address names. The fake file, bank sync and chat all date their rows from it, so a check that runs past midnight still sees them line up. */
-export function fakeSpendingDayHere(): CivilDate {
-  return fakeSpendingDay(new URLSearchParams(window.location.search).get('day'))
-}
-
 /** What a fake set holds, each row with what it is filed as and the receipts' lines. */
 interface FakeEntries {
   readonly records: WorkbookDocument['records']
