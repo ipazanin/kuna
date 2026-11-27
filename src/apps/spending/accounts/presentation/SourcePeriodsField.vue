@@ -2,6 +2,7 @@
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 
+import { periodFieldId } from './periodFieldId'
 import { words } from './words'
 import type { PeriodDraft } from '../domain/periodDrafts'
 import type { SpendingSource } from '../../workbook/domain/account'
@@ -15,8 +16,6 @@ const props = defineProps<{
   options: readonly SpendingSource[]
   /** Why each period cannot be kept, null for one that can, in the order of the periods. */
   errors: readonly (string | null)[]
-  /** The place of the period whose first day takes focus as the field appears. */
-  focused?: number
 }>()
 
 const choices = (): readonly { readonly value: SpendingSource; readonly label: string }[] => props.options.map((source) => ({ value: source, label: words.rowsFrom[source] }))
@@ -48,15 +47,9 @@ function remove(place: number): void {
       />
       <p v-if="place === 0 && periods.length > 1" class="type-caption">{{ words.rowsFromChoice.fromStart }}</p>
       <p v-if="place === 0 && errors[0]" class="type-caption text-error">{{ errors[0] }}</p>
-      <UFormField v-if="place > 0" :label="words.rowsFromChoice.from" :error="errors[place] ?? false">
+      <UFormField v-if="place > 0" :id="periodFieldId(place)" :label="words.rowsFromChoice.from" :error="errors[place] ?? false">
         <div class="flex items-center gap-2">
-          <DayField
-            :model-value="period.from"
-            :autofocus="place === focused"
-            class="min-w-0 flex-1"
-            data-testid="spending-account-source-from"
-            @update:model-value="changed(place, { from: $event })"
-          />
+          <DayField :model-value="period.from" class="min-w-0 flex-1" data-testid="spending-account-source-from" @update:model-value="changed(place, { from: $event })" />
           <UButton
             icon="i-lucide-x"
             color="neutral"

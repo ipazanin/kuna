@@ -12,6 +12,7 @@ import InstrumentFields from './InstrumentFields.vue'
 import InstrumentMixRows from './InstrumentMixRows.vue'
 import InstrumentSearch from './InstrumentSearch.vue'
 import { withListing } from './instrumentForm'
+import type { InstrumentFocus } from './instrumentForm'
 import { fundMixChanges, fundMixFaults, fundMixTexts } from '../domain/fundMixDraft'
 import type { FundMixTexts } from '../domain/fundMixDraft'
 import { instrumentFaults, instrumentOfTexts, instrumentTexts } from '../domain/instrumentDraft'
@@ -37,6 +38,8 @@ const props = withDefaults(
     book: InvestmentBook
     /** Adds the new instrument as the benchmark, in place of the one before it. */
     asBenchmark?: boolean
+    /** The field the dialog opens at, for a Change about that field. Otherwise it opens at the top. */
+    focus?: InstrumentFocus | undefined
   }>(),
   { asBenchmark: false },
 )
@@ -118,7 +121,14 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" changes :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle" :description="text.description" width="2xl">
+  <AppDialog
+    v-model:open="open"
+    changes
+    :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle"
+    :description="text.description"
+    width="2xl"
+    :focus="focus === undefined ? undefined : `instrument-${focus}`"
+  >
     <FormGrid id="instrument" as="form" data-testid="instrument-form" @submit.prevent="save">
       <InstrumentSearch @pick="texts = withListing(texts, $event)" />
       <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" :instrument="instrument" />

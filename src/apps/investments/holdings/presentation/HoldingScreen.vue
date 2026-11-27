@@ -18,6 +18,7 @@ import HoldingHero from './HoldingHero.vue'
 import HoldingIncomeCard from './HoldingIncomeCard.vue'
 import HoldingRecordsCard from './HoldingRecordsCard.vue'
 import InstrumentDialog from './InstrumentDialog.vue'
+import type { InstrumentFocus } from './instrumentForm'
 import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
 import { mixDonut } from './mixDonut'
 import OpenLotsCard from './OpenLotsCard.vue'
@@ -92,6 +93,12 @@ const rings = computed(() => {
 
 const adding = ref(false)
 const changing = ref(false)
+const changingAt = ref<InstrumentFocus>()
+
+function change(focus?: InstrumentFocus): void {
+  changingAt.value = focus
+  changing.value = true
+}
 
 /** Asks the vendors again for this holding's facts, and says whether it could. A run that fails leaves the warning as it was, and the next press asks again. */
 const asking = ref(false)
@@ -130,7 +137,7 @@ const description = computed(() => {
     <template v-else-if="holding !== null && sources !== null">
       <PageHeader :title="holding.instrument.name" :description="description">
         <template #actions>
-          <UButton :label="words.actions.change" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="holding-change" @click="changing = true" />
+          <UButton :label="words.actions.change" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="holding-change" @click="change()" />
           <UButton :label="words.actions.add" icon="i-lucide-plus" data-testid="holding-add-transaction" @click="adding = true" />
         </template>
       </PageHeader>
@@ -191,15 +198,7 @@ const description = computed(() => {
         </template>
       </ChartCard>
       <DashboardGrid data-testid="holding-cards">
-        <HoldingDetailsCard
-          v-if="details !== null"
-          :details="details"
-          :asking="asking"
-          :asked-again="askedAgain"
-          :keyless="keyless"
-          @change="changing = true"
-          @ask-again="askAgain(holding.instrument.id)"
-        />
+        <HoldingDetailsCard v-if="details !== null" :details="details" :asking="asking" :asked-again="askedAgain" :keyless="keyless" @change="change" @ask-again="askAgain(holding.instrument.id)" />
         <DonutCard
           v-for="{ mix, donut } in rings"
           :key="mix"
@@ -214,7 +213,7 @@ const description = computed(() => {
         <HoldingRecordsCard :holding="holding" :records="records" />
         <HoldingIncomeCard v-if="hasIncome" :records="records" />
       </DashboardGrid>
-      <InstrumentDialog v-model:open="changing" :instrument="holding.instrument" :book="sources.book" />
+      <InstrumentDialog v-model:open="changing" :instrument="holding.instrument" :book="sources.book" :focus="changingAt" />
       <TransactionDialog v-model:open="adding" :book="sources.book" :editing="null" :start="{ happened: 'buy', instrument: holding.instrument.id }" />
     </template>
     <template v-else-if="state.workbook !== null">

@@ -24,6 +24,8 @@ const props = withDefaults(
     dismissible?: boolean
     /** True for a dialog that saves changes. While the app takes none, it opens with the reason at the top of its body, and its own Save stays off. */
     changes?: boolean
+    /** The id of the field a Change about that field opens at, which takes focus in the middle of the body. Otherwise the dialog opens at the top. */
+    focus?: string | undefined
   }>(),
   { dismissible: true, changes: false },
 )
@@ -35,10 +37,31 @@ const reason = inject(CHANGES_REFUSED, ref(null))
 const refusal = computed(() => (props.changes ? reason.value : null))
 // A long body must not squeeze the header and footer, which keep their padding while the body scrolls.
 const ui = computed(() => ({ content: props.width === undefined ? '@container' : `@container ${WIDTHS[props.width]}`, header: 'shrink-0', footer: 'shrink-0' }))
+
+const FOCUSABLE = ':is(input, button, select, textarea, [tabindex]):not([disabled], [tabindex="-1"])'
+
+/** Focuses the field named by `focus`, or the first control inside it, in place of the dialog's first control. */
+function focusField(event: Event): void {
+  if (props.focus === undefined) return
+  const field = document.getElementById(props.focus)
+  const control = field === null ? null : field.matches(FOCUSABLE) ? field : field.querySelector<HTMLElement>(FOCUSABLE)
+  if (control === null) return
+  event.preventDefault()
+  control.focus({ preventScroll: true })
+  control.scrollIntoView({ block: 'center' })
+}
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="title" v-bind="description === undefined ? {} : { description }" :fullscreen="phone" :dismissible="dismissible" :ui="ui">
+  <UModal
+    v-model:open="open"
+    :title="title"
+    v-bind="description === undefined ? {} : { description }"
+    :fullscreen="phone"
+    :dismissible="dismissible"
+    :content="{ onOpenAutoFocus: focusField }"
+    :ui="ui"
+  >
     <template #body>
       <UAlert
         v-if="refusal !== null"

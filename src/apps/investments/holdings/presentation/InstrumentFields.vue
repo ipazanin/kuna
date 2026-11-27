@@ -161,6 +161,7 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
     />
   </UFormField>
   <USwitch
+    :id="`${testId}-typed-facts-only`"
     :model-value="texts.typedFactsOnly"
     :label="text.typedFactsOnly"
     :description="text.typedFactsOnlyHelp"

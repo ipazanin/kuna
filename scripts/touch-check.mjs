@@ -191,7 +191,7 @@ import {
   rulesEditorFlow,
   rulesEditorFlowIn,
 } from './support/companySortingFlows.mjs'
-import { shootAt } from './support/flowHelpers.mjs'
+import { focusIsIn, shootAt } from './support/flowHelpers.mjs'
 import {
   advanceFlow,
   advanceFlowIn,
@@ -2895,16 +2895,16 @@ async function checkWidth(session, width) {
     }
   })
 
-  // Don't fetch facts, tapped on in the Change dialog the fund's fetched-facts warning opens and saved, takes the warning of its empty fund profile off its Details card, and the card's typed-only line opens Change again.
+  // Don't fetch facts, focused and on the screen as the fund's fetched-facts warning opens the Change dialog, tapped on and saved, takes the warning of its empty fund profile off its Details card, and the card's typed-only line opens Change at the switch again.
   await step('investments-typed-facts', async () => {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Example World ETF')
     await waitForText(page, '[data-testid="holding-fact-problem"]', 'Alpha Vantage sent no fund profile for XYZ.DEX')
     await (await page.waitForSelector('[data-testid="holding-fact-problem-change"]', { visible: true })).tap()
     await page.waitForSelector('[data-testid="instrument-form"]', { visible: true })
-    const toggle = await page.waitForSelector(':is([data-testid="instrument-typed-facts-only"][role="switch"], [data-testid="instrument-typed-facts-only"] [role="switch"])', { visible: true })
-    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
+    const switchSelector = ':is([data-testid="instrument-typed-facts-only"][role="switch"], [data-testid="instrument-typed-facts-only"] [role="switch"])'
+    await focusIsIn(page, switchSelector, `${width}px the warning’s Change does not open the dialog at Don’t fetch facts, focused and on the screen`)
+    const toggle = await page.waitForSelector(switchSelector, { visible: true })
     await toggle.tap()
     await page.waitForFunction((element) => element.getAttribute('aria-checked') === 'true', { timeout: 5_000 }, toggle)
     await inspect(page, `${width}px the holding dialog with Don’t fetch facts on`)
@@ -2916,6 +2916,7 @@ async function checkWidth(session, width) {
     await delay(200)
     await change.tap()
     await page.waitForSelector('[data-testid="instrument-form"]', { visible: true, timeout: 5_000 })
+    await focusIsIn(page, switchSelector, `${width}px the typed-only line’s Change does not open the dialog at Don’t fetch facts`)
     await page.keyboard.press('Escape')
     await page.waitForFunction(() => !document.querySelector('[data-testid="instrument-form"]'), { timeout: 5_000 })
   })

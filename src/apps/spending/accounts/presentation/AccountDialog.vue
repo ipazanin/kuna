@@ -12,6 +12,7 @@ import { ACCOUNT_WRITES, changeAccount, newAccount } from '../application/accoun
 import { cutoverWords } from './startDayMoveWords'
 import { handoverWords } from './sourceHandoverWords'
 import SourcePeriodsField from './SourcePeriodsField.vue'
+import { periodFieldId } from './periodFieldId'
 import { draftsOf, periodsOfDrafts } from '../domain/periodDrafts'
 import type { PeriodDraft, PeriodDraftProblem } from '../domain/periodDrafts'
 import { sourceHandover } from '../domain/sourceHandover'
@@ -235,7 +236,13 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" changes :title="account === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
+  <AppDialog
+    v-model:open="open"
+    changes
+    :title="account === null ? words.dialog.addTitle : words.dialog.changeTitle"
+    :description="words.dialog.description"
+    :focus="period === undefined ? undefined : periodFieldId(period)"
+  >
     <FormGrid id="spending-account" as="form" data-testid="spending-account-dialog" @submit.prevent="save">
       <UFormField :label="words.dialog.name" :error="(tried && errors.name) || false" class="sm:col-span-2">
         <UInput v-model="name" :placeholder="words.dialog.namePlaceholder" class="w-full" data-testid="spending-account-name" />
@@ -244,7 +251,7 @@ async function remove(): Promise<void> {
         <ChoiceButtons v-model="kind" :options="KIND_OPTIONS" :label="words.dialog.kind" data-testid="spending-account-kind" />
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.rowsFromChoice.label" :help="sourcesHelp" class="sm:col-span-2">
-        <SourcePeriodsField v-model="periods" :options="sourceOptions" :errors="periodErrors" v-bind="period === undefined ? {} : { focused: period }" />
+        <SourcePeriodsField v-model="periods" :options="sourceOptions" :errors="periodErrors" />
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" :error="(tried && errors.iban) || false" class="sm:col-span-2">
         <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />
@@ -264,8 +271,8 @@ async function remove(): Promise<void> {
         </UFormField>
         <USwitch v-model="overdrawn" :label="words.dialog.overdrawn" class="min-h-11" data-testid="spending-account-overdrawn" />
       </div>
-      <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false" v-bind="earlierFromBank ? { help: words.dialog.earlierStart } : {}">
-        <DayField v-model="openedOn" :autofocus="period === 0" class="w-full" data-testid="spending-account-opened-on" />
+      <UFormField :id="periodFieldId(0)" :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false" v-bind="earlierFromBank ? { help: words.dialog.earlierStart } : {}">
+        <DayField v-model="openedOn" class="w-full" data-testid="spending-account-opened-on" />
       </UFormField>
       <UAlert v-if="shownCutover !== null" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="shownCutover.title" data-testid="spending-account-cutover">
         <template #description>

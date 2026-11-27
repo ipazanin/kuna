@@ -16,6 +16,9 @@ export function typeItems(quoted: Quoting['kind']): { readonly value: Instrument
   return allowed.map((value) => ({ value, label: words.types[value] }))
 }
 
+/** A field of the holding dialog that a Change about it opens at. */
+export type InstrumentFocus = 'typed-facts-only'
+
 export const DISTRIBUTION_ITEMS: { readonly value: FundDistribution; readonly label: string }[] = FUND_DISTRIBUTIONS.map((value) => ({ value, label: words.distributions[value] }))
 
 export const SECTOR_ITEMS: { readonly value: Sector; readonly label: string }[] = SECTORS.map((value) => ({ value, label: words.sectors[value] }))

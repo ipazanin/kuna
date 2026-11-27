@@ -4,6 +4,7 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { HoldingDetails } from './holdingDetails'
+import type { InstrumentFocus } from './instrumentForm'
 import { words } from './words'
 import { INVESTMENTS_PRICES_ROUTE } from '../../overview/presentation/investmentLinks'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -30,7 +31,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  change: []
+  /** Asks to change the holding, at the field the action is about if it names one. */
+  change: [focus?: InstrumentFocus]
   askAgain: []
 }>()
 
@@ -68,7 +70,7 @@ const actions = computed(() => [
     variant: 'outline' as const,
     size: 'sm' as const,
     'data-testid': 'holding-fact-problem-change',
-    onClick: () => emit('change'),
+    onClick: () => emit('change', 'typed-facts-only'),
   },
 ])
 </script>
@@ -80,7 +82,15 @@ const actions = computed(() => [
       <NoteLine v-if="details.typedFactsOnly" tone="muted" icon="i-lucide-pencil-line" as="div" data-testid="holding-typed-facts-only">
         <span class="flex flex-wrap items-center gap-x-1">
           {{ words.details.typedFactsOnly }}
-          <UButton :label="words.actions.change" color="neutral" variant="link" size="sm" class="inline-target quiet-link px-0" data-testid="holding-typed-facts-change" @click="emit('change')" />
+          <UButton
+            :label="words.actions.change"
+            color="neutral"
+            variant="link"
+            size="sm"
+            class="inline-target quiet-link px-0"
+            data-testid="holding-typed-facts-change"
+            @click="emit('change', 'typed-facts-only')"
+          />
         </span>
       </NoteLine>
       <UAlert

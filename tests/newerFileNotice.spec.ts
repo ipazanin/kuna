@@ -79,7 +79,7 @@ describe('the notice that a newer Kuna saved the file', () => {
     expect(shell).toContain('CHANGES_REFUSED')
     expect(frame).toContain('inject(CHANGES_REFUSED')
     expect(frame).toContain('data-testid="dialog-changes-refused"')
-    expect(frame).toContain('<UModal v-model:open="open"')
+    expect(frame).toMatch(/<UModal\s+v-model:open="open"/)
   })
 
   it('marks every dialog with changes unless it is named as one that saves nothing', () => {

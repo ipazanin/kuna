@@ -31,6 +31,7 @@ import {
   toast,
   undoIn,
   waitForTextIn,
+  focusIsIn,
 } from './flowHelpers.mjs'
 
 /** The labels the Entries row of this payee and amount names in its caption, or blank. */
@@ -1830,15 +1831,6 @@ export function spendingAssetLinkFlowIn(language) {
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
   }
-}
-
-/** Waits for the focus to sit inside the element the selector finds. */
-async function focusIsIn(page, selector, problem) {
-  await page
-    .waitForFunction((within) => document.activeElement?.closest(within) != null, { timeout: 5_000 }, selector)
-    .catch(() => {
-      throw new Error(problem)
-    })
 }
 
 /**

@@ -988,6 +988,24 @@ export async function pressLabelled(page, press, container, label) {
   await delay(300)
 }
 
+/** Waits for the focus to sit inside the element the selector finds, on the screen without scrolling, as a dialog opened at a field leaves it. */
+export async function focusIsIn(page, selector, problem) {
+  await page
+    .waitForFunction(
+      (within) => {
+        const focused = document.activeElement
+        if (focused?.closest(within) == null) return false
+        const box = focused.getBoundingClientRect()
+        return box.top >= 0 && box.bottom <= innerHeight
+      },
+      { timeout: 5_000 },
+      selector,
+    )
+    .catch(() => {
+      throw new Error(problem)
+    })
+}
+
 /** A phone shows a dialog's end only once scrolled to, and a shot takes what is on the screen. */
 export async function scrollIntoDialogView(page, selector) {
   await page.$eval(selector, (element) => element.scrollIntoView({ block: 'end' }))
