@@ -1100,8 +1100,14 @@ export function spendingSettingsRecipesFlowIn(language) {
       .catch(() => {
         throw new Error('typing a name left its problem under the name')
       })
+    await countOf(page, '[data-testid="recipe-kind"]', 1, 'the kinds of a new recipe')
+    await page.waitForSelector('[data-testid="recipe-kind"] [data-testid="recipe-one-kind"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the only kind of a recipe says nowhere on screen why it cannot be removed')
+    })
+    await shootAt(page, shoot, '[data-testid="recipe-kinds"]', 'spending-settings-recipe-one-kind', { block: 'start' })
     await pressSelector(page, press, '[data-testid="recipe-add-kind"]')
     await countOf(page, '[data-testid="recipe-kind"]', 2, 'the kinds after Add a kind')
+    if ((await page.$('[data-testid="recipe-one-kind"]')) !== null) throw new Error('a recipe with two kinds still says a recipe keeps at least one kind')
     const tests = await page.$$('[data-testid="recipe-kind"] [data-testid="recipe-kind-test"]')
     await choose(page, press, tests[1], words.recipeEditor.isFilled)
     const testsInOrder = () => page.$$eval('[data-testid="recipe-kind"] [data-testid="recipe-kind-test"]', (fields) => fields.map((field) => field.textContent?.trim() ?? ''))

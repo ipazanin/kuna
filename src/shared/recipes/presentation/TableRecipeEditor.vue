@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
-import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { dayExample } from './dayExample'
 import RecipeColumnField from './RecipeColumnField.vue'
@@ -58,6 +57,7 @@ const markItems = [
   { label: words.marks.comma, value: 'comma' },
   { label: words.marks.point, value: 'point' },
 ]
+const oneKindId = useId()
 const kindItems = computed(() => props.fields.kinds.map(({ kind }) => ({ label: props.kindLabels[kind] ?? kind, value: kind })))
 const testItems = [
   { label: words.everyRow, value: 'every' },
@@ -209,21 +209,19 @@ const kindKeys = useRowKeys(() => draft.value.kinds)
             @up="draft = kindMoved(draft, at, -1)"
             @down="draft = kindMoved(draft, at, 1)"
           />
-          <UTooltip :text="draft.kinds.length <= 1 ? words.oneKind : words.removeKind">
-            <span class="inline-flex">
-              <UButton
-                :label="words.removeKind"
-                icon="i-lucide-x"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                :disabled="draft.kinds.length <= 1"
-                data-testid="recipe-remove-kind"
-                @click="draft = kindRemoved(draft, at)"
-              />
-            </span>
-          </UTooltip>
+          <UButton
+            :label="words.removeKind"
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            :disabled="draft.kinds.length <= 1"
+            :aria-describedby="draft.kinds.length <= 1 ? oneKindId : undefined"
+            data-testid="recipe-remove-kind"
+            @click="draft = kindRemoved(draft, at)"
+          />
         </div>
+        <p v-if="draft.kinds.length <= 1" :id="oneKindId" class="type-caption text-end" data-testid="recipe-one-kind">{{ words.oneKind }}</p>
       </fieldset>
       <NoteLine v-if="errors.fields.kinds !== undefined" tone="error" data-testid="recipe-kinds-error">{{ errors.fields.kinds }}</NoteLine>
       <UButton :label="words.addKind" icon="i-lucide-plus" color="neutral" variant="outline" class="self-start" data-testid="recipe-add-kind" @click="draft = kindAdded(draft, fields)" />

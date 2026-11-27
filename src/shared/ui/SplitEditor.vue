@@ -42,6 +42,7 @@ defineSlots<{
 }>()
 
 const restLabel = `${useId()}-rest`
+const twoPartsId = useId()
 const rest = computed(() => restOfFields(props.whole, parts.value, props.typed))
 const shownRefusal = computed(() => (rest.value <= 0 ? words.split.refusals.over : props.tried ? (props.refusal ?? null) : null))
 
@@ -96,19 +97,16 @@ function takeRest(id: number): void {
       >
         <div class="col-span-full flex items-center justify-between gap-3">
           <h3 class="type-card-title" data-testid="split-part-heading">{{ words.split.part(index + 1) }}</h3>
-          <UTooltip :text="parts.length <= 2 ? words.split.twoParts : words.split.removePart(index + 1)">
-            <span class="inline-flex">
-              <UButton
-                icon="i-lucide-x"
-                color="neutral"
-                variant="ghost"
-                :disabled="parts.length <= 2"
-                :aria-label="words.split.removePart(index + 1)"
-                data-testid="split-part-remove"
-                @click="removePart(field.id)"
-              />
-            </span>
-          </UTooltip>
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            :disabled="parts.length <= 2"
+            :aria-label="words.split.removePart(index + 1)"
+            :aria-describedby="parts.length <= 2 ? twoPartsId : undefined"
+            data-testid="split-part-remove"
+            @click="removePart(field.id)"
+          />
         </div>
         <div v-if="field.rest" class="flex flex-col gap-1">
           <span :id="restLabel" class="font-medium type-body">{{ words.split.rest }}</span>
@@ -145,6 +143,7 @@ function takeRest(id: number): void {
         </div>
       </li>
     </ol>
+    <p v-if="parts.length <= 2" :id="twoPartsId" class="type-caption" data-testid="split-two-parts">{{ words.split.twoParts }}</p>
     <UButton :label="words.split.addPart" icon="i-lucide-plus" color="neutral" variant="outline" class="self-start" data-testid="split-add-part" @click="addPart" />
     <UAlert v-if="shownRefusal !== null" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="shownRefusal" data-testid="split-refusal" />
   </div>

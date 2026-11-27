@@ -257,6 +257,7 @@ export function spendingSplitFlowIn(language) {
     await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 10_000 })
     await pressSelector(page, press, '[data-testid="spending-entry-split"]')
     await page.waitForSelector(SPENDING_SPLIT_DIALOG, { visible: true, timeout: 10_000 })
+    if ((await page.$(`${SPENDING_SPLIT_DIALOG} [data-testid="split-two-parts"]`)) === null) throw new Error('a split of two parts says nowhere on screen why a part cannot be removed')
     await typePartAmount(page, press, 0, '20')
     await choosePartCategory(page, press, 1, starter['Eating out'])
     const labels = await (await splitPart(page, 1)).$('[data-testid="split-part-labels"]')
@@ -266,6 +267,7 @@ export function spendingSplitFlowIn(language) {
       throw new Error('Escape on the labels list closed the Split dialog')
     })
     await pressSelector(page, press, '[data-testid="split-add-part"]')
+    if ((await page.$(`${SPENDING_SPLIT_DIALOG} [data-testid="split-two-parts"]`)) !== null) throw new Error('a split of three parts still says a split keeps at least two parts')
     await typePartAmount(page, press, 2, '15.3')
     await choosePartCategory(page, press, 2, starter['For the company'])
     await page
