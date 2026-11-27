@@ -10,6 +10,7 @@ paths:
 - A figure on a screen comes from `domain`. `presentation` formats it and holds no rule. `tests/importBoundaries.spec.ts` keeps `figure-digest.mjs` off `presentation`, and its list of exceptions only shrinks.
 - `Math.round` stays out of domain code (`kuna/domain-rounding`). Use `src/shared/money`.
 - Domain code builds no screen sentences. It returns facts and presentation words them (`kuna/domain-words`, whose list of exceptions only shrinks).
+- A function that picks from a list returns null for an empty one, and its type says so. `reduce` always takes a starting value (`kuna/seeded-reduce`, in all of `src/`). `earliestOf` and `latestOf` in `src/shared/calendar/civilDate.ts` pick a day or month.
 - An invariant has one function, called from the reader and from the write. The file is the transaction.
 - A domain `.ts` file stays under 600 lines. Split it by concern. `longFiles` in `scripts/lint-baseline.json` lists those over it today and only shrinks.
 - Name it in the business's language. A published type is not the internal type.
