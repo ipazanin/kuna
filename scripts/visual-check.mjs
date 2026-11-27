@@ -1012,19 +1012,20 @@ const visits = chosenVisits.filter((visit) => shared.has(visit.name))
 const flows = chosenFlows.filter((flow) => shared.has(flow.name))
 let checked = 0
 
-await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => {
+await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => {
   /**
    * The gutter this browser keeps beside the shell from the phone step up, in px. A docked viewport names the shell's width,
    * so its window is wider by this much, as a person's with a classic scrollbar is. Linux Chrome keeps one even for a hidden scrollbar.
    */
   async function shellGutter() {
-    const context = await browser.createBrowserContext()
+    const context = await session.browser.createBrowserContext()
     const page = await context.newPage()
     if (selection.classicScrollbars) await floatPhoneScrollbars(page)
     await page.setViewport({ width: 1024, height: 768 })
     await openScreen(page, BASE, { waitUntil: 'load' })
     const kept = await page.evaluate(() => window.innerWidth - document.body.clientWidth)
-    await context.close()
+    const lost = await session.closeContext(context)
+    if (lost) fail('shell gutter', lost)
     return kept
   }
   const gutter = VIEWPORTS.some((viewport) => viewport.chatDocked && selection.takesWidth(viewport.width)) ? await shellGutter() : 0
@@ -1036,178 +1037,184 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
       if (viewport.chatDocked && visit.keyless) continue
       const scope = `${viewport.name} ${visit.name}`
       shots.begin(visit.name)
-      const context = await browser.createBrowserContext()
+      const context = await session.browser.createBrowserContext()
       const page = await context.newPage()
       if (selection.classicScrollbars) await floatPhoneScrollbars(page)
       const errors = watchForErrors(page)
       const foreignRequests = watchForForeignRequests(page)
 
-      if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
-      // A docked chat needs a key. A visit that keeps a key of its own keeps it alone, so its company stays the one in use.
-      const aiKeyKept = PROVIDER_PRESETS.some((preset) => `kuna.secret.${preset.id}` in (visit.stored ?? {}))
-      const stored = viewport.chatDocked && !aiKeyKept ? { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY, ...visit.stored } : visit.stored
-      if (stored) {
-        await page.evaluateOnNewDocument((entries) => {
-          for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value)
-        }, stored)
-      }
-      if (visit.collapsedBefore || visit.expandedBefore) {
-        await page.evaluateOnNewDocument(
-          (collapsed, expanded) => {
-            for (const card of collapsed) localStorage.setItem(`kuna.card.${card}`, 'collapsed')
-            for (const card of expanded) localStorage.setItem(`kuna.card.${card}`, 'expanded')
-          },
-          visit.collapsedBefore ?? [],
-          visit.expandedBefore ?? [],
-        )
-      }
-      await page.setViewport({ width: viewport.chatDocked ? viewport.width + gutter : viewport.width, height: viewport.height })
-      // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
-      await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
-      await openScreen(page, `${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
-
-      const drawsCharts = visit.gallery || visit.charts > 0
-      const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
-      let rendered = await page
-        .waitForSelector(ready, { timeout: 10_000 })
-        .then(() => true)
-        .catch(() => false)
-
-      if (visit.upload && rendered) {
-        const input = await page.$('input[data-testid="onboarding-file"]')
-        await input?.uploadFile(IMPORT_FILE)
-        rendered = await page
-          .waitForSelector('[data-testid="import-summary"] dl', { timeout: 10_000 })
-          .then(() => true)
-          .catch(() => false)
-        await new Promise((resolve) => setTimeout(resolve, 600))
-      }
-
-      if (visit.clickThen && rendered) {
-        await page.click(visit.clickThen.click)
-        rendered = await page
-          .waitForFunction((gone) => document.querySelector(gone) === null, { timeout: 10_000 }, visit.clickThen.gone)
-          .then(() => true)
-          .catch(() => false)
-        await new Promise((resolve) => setTimeout(resolve, 600))
-      }
-
-      if (visit.linkedRule && rendered) {
-        await page.evaluate(() => document.fonts.ready.then(() => undefined))
-        const shown = await page
-          .waitForFunction(linkedRuleInView, { timeout: 5_000 }, visit.linkedRule)
-          .then(() => true)
-          .catch(() => false)
-        if (!shown) fail(scope, `the deep link did not open ${visit.linkedRule} in the side panel and bring its line to just below the search bar, marked, once the fonts loaded`)
-      }
-
-      // The screenshot and the hole of a donut should show where the bars and rings land.
-      if (rendered && (drawsCharts || (await page.$('.donut-ring canvas')) !== null)) {
-        await settleCharts(page).catch(() => fail(scope, 'the charts were still moving 10 s after the screen opened'))
-      }
-
-      if (visit.linkedPart && rendered) {
-        await page.evaluate(() => document.fonts.ready.then(() => undefined))
-        const landed = await page
-          .waitForFunction(linkedPartLanded, { timeout: 5_000 }, visit.linkedPart)
-          .then(() => true)
-          .catch(() => false)
-        if (!landed) fail(scope, `the deep link to #${visit.linkedPart} did not open its card and bring the part to just below the top`)
-      }
-      if (visit.linkedCard && rendered) {
-        const opened = await page.evaluate((card) => document.querySelector(`[data-card="${card}"]`)?.getAttribute('data-collapsed') === 'false', visit.linkedCard)
-        if (!opened) fail(scope, `the link to the tab did not open ${visit.linkedCard}, which this device keeps collapsed`)
-      }
-      if (visit.linkedRow && rendered) {
-        const shown = await page
-          .waitForFunction(linkedRowShown, { timeout: 5_000 }, visit.linkedRow)
-          .then(() => true)
-          .catch(() => false)
-        if (!shown) fail(scope, `the deep link did not open the collapsed card and bring ${visit.linkedRow} into view`)
-      }
-
-      const report = await readPage(page)
-      // A first run draws without the shell, so it has no chat to dock.
-      const framed = (await page.$('[data-testid="app-shell"]')) !== null
-      if (viewport.chatDocked && rendered && framed && (await page.$('[data-testid="chat-dock"]')) === null) fail(scope, 'the chat did not dock beside the page')
-      if (inCroatian(visit.query)) for (const english of await englishLeftOn(page)) fail(scope, english)
-      for (const overlap of await textOverlapsOn(page)) fail(scope, overlap)
-      if (!rendered) fail(scope, `nothing matched ${ready} within 10 s`)
-      if (report.title !== visit.title) fail(scope, `title was ${JSON.stringify(report.title)}, expected "${visit.title}"`)
-      if (report.themeClass !== visit.theme) fail(scope, `rendered ${report.themeClass}, expected the ${visit.theme} theme`)
-      for (const text of [visit.shows ?? []].flat()) {
-        if (!report.text.includes(text)) fail(scope, `"${text}" is missing, so the fake workbook did not reach the screen`)
-      }
-      for (const text of [visit.lacks ?? []].flat()) {
-        if (report.text.includes(text)) fail(scope, `"${text}" shows, though the screen should no longer say it`)
-      }
-      const expectedCharts = visit.gallery ? GALLERY_CHARTS : visit.charts
-      // With the chat open, the charts are the screen's own and those under a pane do not draw, and its cards are the screen's visit's to check.
-      if (!visit.chatOpen && report.chartHeights.length !== expectedCharts) fail(scope, `drew ${report.chartHeights.length} charts, expected ${expectedCharts}`)
-      const collapsed = report.chartHeights.filter((height) => height < 100)
-      if (collapsed.length) fail(scope, `${collapsed.length} chart(s) drew under 100px tall: ${collapsed.join(', ')}`)
-      if (visit.gallery && report.iconCount < 10) fail(scope, `only ${report.iconCount} icons rendered as SVG`)
-      if (visit.gallery && (report.donutHeights.length !== GALLERY_DONUTS || report.donutHeights.some((height) => height < 150))) {
-        fail(scope, `drew donuts ${report.donutHeights.map(Math.round).join(', ')} px tall, expected ${GALLERY_DONUTS} of at least 150 px`)
-      }
-      if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
-      for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
-      for (const donut of report.crowdedDonuts) fail(scope, donut)
-      for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
-        fail(scope, problem)
-      for (const problem of report.recordRowsMissed) fail(scope, problem)
-      for (const problem of report.raggedRowDetails) fail(scope, problem)
-      if (NEAR_FIGURE_SCREENS.includes(visit.name) && viewport.width <= NEAR_FIGURE_WIDEST) for (const far of report.farRowFigures) fail(scope, far)
-      if (GRID_ROW_WIDTHS.includes(viewport.width)) for (const row of report.emptyGridRows) fail(scope, row)
-      if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
-      if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
-        for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
-      }
-      for (const wide of report.cardOverflow) {
-        const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && report.contentRoom <= entry.roomUpTo)
-        overflowSeen.push({ viewport: viewport.width, room: report.contentRoom, screen: visit.name, theme: visit.theme, ...wide, allowed: allowed !== undefined })
-        if (!allowed) fail(scope, `"${wide.title}" is ${wide.content} px wide inside a ${wide.width} px card, by ${wide.by}`)
-      }
-      if (report.unrenderedIcons) fail(scope, `${report.unrenderedIcons} icon(s) did not render`)
-      if (report.scrollWidth > report.clientWidth + 1) {
-        fail(scope, `horizontal overflow: scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
-        if (report.overflowing.length) fail(scope, `overflowing: ${report.overflowing.join(', ')}`)
-      }
-      if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
-      if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
-
-      await screenshotWholePage(page, shots.path(`${viewport.name}-${visit.file}.png`))
-      if (visit.gallery && viewport.name === 'desktop') {
-        const firstChart = await page.$('[data-testid="chart-card"]')
-        await firstChart?.screenshot({ path: shots.path(`${viewport.name}-${visit.file}-chart.png`) })
-      }
-
-      // A linked rule opens its side panel over the screen, so the plain visit of that tab collapses its card instead.
-      if (viewport.cardFlow && rendered && !visit.linkedRule && !visit.chatOpen) {
-        const collapsible = (await page.$('[data-card]')) !== null
-        if (visit.cards === false) {
-          if (collapsible) fail(scope, 'has a collapsible card, so it should not say cards: false')
-        } else if (!collapsible) {
-          fail(scope, 'has no collapsible card. Say cards: false if none of its cards holds a long list or table')
-        } else {
-          await collapseAndExpand(
-            page,
-            (handle) => handle.click(),
-            (card) => card.screenshot({ path: shots.path(`${viewport.name}-${visit.file}-collapsed.png`) }),
-          ).catch((error) => fail(scope, error.message))
-          const after = await readPage(page)
-          if (after.scrollWidth > after.clientWidth + 1) fail(scope, `horizontal overflow after collapsing a card: scrollWidth ${after.scrollWidth}`)
+      try {
+        if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
+        // A docked chat needs a key. A visit that keeps a key of its own keeps it alone, so its company stays the one in use.
+        const aiKeyKept = PROVIDER_PRESETS.some((preset) => `kuna.secret.${preset.id}` in (visit.stored ?? {}))
+        const stored = viewport.chatDocked && !aiKeyKept ? { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY, ...visit.stored } : visit.stored
+        if (stored) {
+          await page.evaluateOnNewDocument((entries) => {
+            for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value)
+          }, stored)
         }
+        if (visit.collapsedBefore || visit.expandedBefore) {
+          await page.evaluateOnNewDocument(
+            (collapsed, expanded) => {
+              for (const card of collapsed) localStorage.setItem(`kuna.card.${card}`, 'collapsed')
+              for (const card of expanded) localStorage.setItem(`kuna.card.${card}`, 'expanded')
+            },
+            visit.collapsedBefore ?? [],
+            visit.expandedBefore ?? [],
+          )
+        }
+        await page.setViewport({ width: viewport.chatDocked ? viewport.width + gutter : viewport.width, height: viewport.height })
+        // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
+        await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
+        await openScreen(page, `${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
+
+        const drawsCharts = visit.gallery || visit.charts > 0
+        const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
+        let rendered = await page
+          .waitForSelector(ready, { timeout: 10_000 })
+          .then(() => true)
+          .catch(() => false)
+
+        if (visit.upload && rendered) {
+          const input = await page.$('input[data-testid="onboarding-file"]')
+          await input?.uploadFile(IMPORT_FILE)
+          rendered = await page
+            .waitForSelector('[data-testid="import-summary"] dl', { timeout: 10_000 })
+            .then(() => true)
+            .catch(() => false)
+          await new Promise((resolve) => setTimeout(resolve, 600))
+        }
+
+        if (visit.clickThen && rendered) {
+          await page.click(visit.clickThen.click)
+          rendered = await page
+            .waitForFunction((gone) => document.querySelector(gone) === null, { timeout: 10_000 }, visit.clickThen.gone)
+            .then(() => true)
+            .catch(() => false)
+          await new Promise((resolve) => setTimeout(resolve, 600))
+        }
+
+        if (visit.linkedRule && rendered) {
+          await page.evaluate(() => document.fonts.ready.then(() => undefined))
+          const shown = await page
+            .waitForFunction(linkedRuleInView, { timeout: 5_000 }, visit.linkedRule)
+            .then(() => true)
+            .catch(() => false)
+          if (!shown) fail(scope, `the deep link did not open ${visit.linkedRule} in the side panel and bring its line to just below the search bar, marked, once the fonts loaded`)
+        }
+
+        // The screenshot and the hole of a donut should show where the bars and rings land.
+        if (rendered && (drawsCharts || (await page.$('.donut-ring canvas')) !== null)) {
+          await settleCharts(page).catch(() => fail(scope, 'the charts were still moving 10 s after the screen opened'))
+        }
+
+        if (visit.linkedPart && rendered) {
+          await page.evaluate(() => document.fonts.ready.then(() => undefined))
+          const landed = await page
+            .waitForFunction(linkedPartLanded, { timeout: 5_000 }, visit.linkedPart)
+            .then(() => true)
+            .catch(() => false)
+          if (!landed) fail(scope, `the deep link to #${visit.linkedPart} did not open its card and bring the part to just below the top`)
+        }
+        if (visit.linkedCard && rendered) {
+          const opened = await page.evaluate((card) => document.querySelector(`[data-card="${card}"]`)?.getAttribute('data-collapsed') === 'false', visit.linkedCard)
+          if (!opened) fail(scope, `the link to the tab did not open ${visit.linkedCard}, which this device keeps collapsed`)
+        }
+        if (visit.linkedRow && rendered) {
+          const shown = await page
+            .waitForFunction(linkedRowShown, { timeout: 5_000 }, visit.linkedRow)
+            .then(() => true)
+            .catch(() => false)
+          if (!shown) fail(scope, `the deep link did not open the collapsed card and bring ${visit.linkedRow} into view`)
+        }
+
+        const report = await readPage(page)
+        // A first run draws without the shell, so it has no chat to dock.
+        const framed = (await page.$('[data-testid="app-shell"]')) !== null
+        if (viewport.chatDocked && rendered && framed && (await page.$('[data-testid="chat-dock"]')) === null) fail(scope, 'the chat did not dock beside the page')
+        if (inCroatian(visit.query)) for (const english of await englishLeftOn(page)) fail(scope, english)
+        for (const overlap of await textOverlapsOn(page)) fail(scope, overlap)
+        if (!rendered) fail(scope, `nothing matched ${ready} within 10 s`)
+        if (report.title !== visit.title) fail(scope, `title was ${JSON.stringify(report.title)}, expected "${visit.title}"`)
+        if (report.themeClass !== visit.theme) fail(scope, `rendered ${report.themeClass}, expected the ${visit.theme} theme`)
+        for (const text of [visit.shows ?? []].flat()) {
+          if (!report.text.includes(text)) fail(scope, `"${text}" is missing, so the fake workbook did not reach the screen`)
+        }
+        for (const text of [visit.lacks ?? []].flat()) {
+          if (report.text.includes(text)) fail(scope, `"${text}" shows, though the screen should no longer say it`)
+        }
+        const expectedCharts = visit.gallery ? GALLERY_CHARTS : visit.charts
+        // With the chat open, the charts are the screen's own and those under a pane do not draw, and its cards are the screen's visit's to check.
+        if (!visit.chatOpen && report.chartHeights.length !== expectedCharts) fail(scope, `drew ${report.chartHeights.length} charts, expected ${expectedCharts}`)
+        const collapsed = report.chartHeights.filter((height) => height < 100)
+        if (collapsed.length) fail(scope, `${collapsed.length} chart(s) drew under 100px tall: ${collapsed.join(', ')}`)
+        if (visit.gallery && report.iconCount < 10) fail(scope, `only ${report.iconCount} icons rendered as SVG`)
+        if (visit.gallery && (report.donutHeights.length !== GALLERY_DONUTS || report.donutHeights.some((height) => height < 150))) {
+          fail(scope, `drew donuts ${report.donutHeights.map(Math.round).join(', ')} px tall, expected ${GALLERY_DONUTS} of at least 150 px`)
+        }
+        if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
+        for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
+        for (const donut of report.crowdedDonuts) fail(scope, donut)
+        for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
+          fail(scope, problem)
+        for (const problem of report.recordRowsMissed) fail(scope, problem)
+        for (const problem of report.raggedRowDetails) fail(scope, problem)
+        if (NEAR_FIGURE_SCREENS.includes(visit.name) && viewport.width <= NEAR_FIGURE_WIDEST) for (const far of report.farRowFigures) fail(scope, far)
+        if (GRID_ROW_WIDTHS.includes(viewport.width)) for (const row of report.emptyGridRows) fail(scope, row)
+        if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
+        if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
+          for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
+        }
+        for (const wide of report.cardOverflow) {
+          const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && report.contentRoom <= entry.roomUpTo)
+          overflowSeen.push({ viewport: viewport.width, room: report.contentRoom, screen: visit.name, theme: visit.theme, ...wide, allowed: allowed !== undefined })
+          if (!allowed) fail(scope, `"${wide.title}" is ${wide.content} px wide inside a ${wide.width} px card, by ${wide.by}`)
+        }
+        if (report.unrenderedIcons) fail(scope, `${report.unrenderedIcons} icon(s) did not render`)
+        if (report.scrollWidth > report.clientWidth + 1) {
+          fail(scope, `horizontal overflow: scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
+          if (report.overflowing.length) fail(scope, `overflowing: ${report.overflowing.join(', ')}`)
+        }
+        if (errors.length) fail(scope, `console errors: ${errors.slice(0, 3).join(' | ')}`)
+        if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
+
+        await screenshotWholePage(page, shots.path(`${viewport.name}-${visit.file}.png`))
+        if (visit.gallery && viewport.name === 'desktop') {
+          const firstChart = await page.$('[data-testid="chart-card"]')
+          await firstChart?.screenshot({ path: shots.path(`${viewport.name}-${visit.file}-chart.png`) })
+        }
+
+        // A linked rule opens its side panel over the screen, so the plain visit of that tab collapses its card instead.
+        if (viewport.cardFlow && rendered && !visit.linkedRule && !visit.chatOpen) {
+          const collapsible = (await page.$('[data-card]')) !== null
+          if (visit.cards === false) {
+            if (collapsible) fail(scope, 'has a collapsible card, so it should not say cards: false')
+          } else if (!collapsible) {
+            fail(scope, 'has no collapsible card. Say cards: false if none of its cards holds a long list or table')
+          } else {
+            await collapseAndExpand(
+              page,
+              (handle) => handle.click(),
+              (card) => card.screenshot({ path: shots.path(`${viewport.name}-${visit.file}-collapsed.png`) }),
+            ).catch((error) => fail(scope, error.message))
+            const after = await readPage(page)
+            if (after.scrollWidth > after.clientWidth + 1) fail(scope, `horizontal overflow after collapsing a card: scrollWidth ${after.scrollWidth}`)
+          }
+        }
+
+        console.log(
+          `${`${scope} ${visit.theme}`.padEnd(34)} ${String(viewport.width).padStart(4)}px  ` +
+            `scroll=${report.scrollWidth} client=${report.clientWidth}  errors=${errors.length}  ` +
+            `foreign=${foreignRequests.length}  icons=${report.iconCount}`,
+        )
+      } catch (error) {
+        fail(scope, error.message)
+        await page.screenshot({ path: shots.path(`${viewport.name}-${visit.file}-failed.png`) }).catch(() => {})
       }
-
       checked += 1
-      console.log(
-        `${`${scope} ${visit.theme}`.padEnd(34)} ${String(viewport.width).padStart(4)}px  ` +
-          `scroll=${report.scrollWidth} client=${report.clientWidth}  errors=${errors.length}  ` +
-          `foreign=${foreignRequests.length}  icons=${report.iconCount}`,
-      )
 
-      await context.close()
+      const lost = await session.closeContext(context)
+      if (lost) fail(scope, lost)
     }
   }
 
@@ -1240,7 +1247,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
         for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['drive', 'browser']).includes(mode.name))) {
           const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
           shots.begin(flow.name)
-          const context = await browser.createBrowserContext()
+          const context = await session.browser.createBrowserContext()
           const page = await context.newPage()
           if (selection.classicScrollbars) await floatPhoneScrollbars(page)
           const errors = watchForErrors(page)
@@ -1305,7 +1312,8 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => 
           if (foreignRequests.length) fail(scope, `requests to other origins: ${foreignRequests.slice(0, 3).join(' | ')}`)
           checked += 1
           console.log(`${scope.padEnd(44)} ${String(viewport.width).padStart(4)}px  errors=${errors.length}  foreign=${foreignRequests.length}`)
-          await context.close()
+          const lost = await session.closeContext(context)
+          if (lost) fail(scope, lost)
         }
       }
     }

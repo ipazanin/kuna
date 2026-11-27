@@ -16,7 +16,7 @@ const ICONS = [
   { mark: 'kuna-maskable.svg', file: 'kuna-maskable-512.png', size: 512 },
 ]
 
-await withBrowser({ executablePath: chromePath(), headless: true, args: ['--no-sandbox'] }, async (browser) => {
+await withBrowser({ executablePath: chromePath(), headless: true, args: ['--no-sandbox'] }, async ({ browser }) => {
   const page = await browser.newPage()
   for (const icon of ICONS) {
     const svg = await readFile(new URL(`../public/icons/${icon.mark}`, import.meta.url), 'utf8')

@@ -82,24 +82,59 @@ export function checkoutProfilePrefix(checkout = CHECKOUT) {
   return `${PROFILE_PREFIX}${createHash('sha256').update(checkout).digest('hex').slice(0, 8)}-`
 }
 
+/** What a check records against the screen or flow whose context could not close because Chrome dropped its connection. */
+export const BROWSER_CONNECTION_CLOSED = 'browser connection closed'
+
 /**
- * Launches the browser `options` name with a profile folder of its own and hands it to `run`. The browser is closed and
- * the profile removed when `run` ends, fails or the run is stopped. Every check launches its browser through this.
+ * Launches the browser `options` name with a profile folder of its own and hands `run` a session whose `browser` is the one in use.
+ * Every browser is closed and every profile removed when `run` ends, fails or the run is stopped. Every check launches its browser
+ * through this, and closes a context through the session's `closeContext`.
  */
-export async function withBrowser(options, run) {
+export async function withBrowser(options, run, launchBrowser = launch) {
   sweepStaleProfiles()
-  const profile = mkdtempSync(join(tmpdir(), checkoutProfilePrefix()))
+  const profiles = []
   let browser = null
-  const removeProfile = whenRunEnds(() => {
+  const removeProfiles = whenRunEnds(() => {
     browser?.process()?.kill('SIGKILL')
-    rmSync(profile, { recursive: true, force: true })
+    for (const profile of profiles) rmSync(profile, { recursive: true, force: true })
   })
+  const launchInProfile = () => {
+    const profile = mkdtempSync(join(tmpdir(), checkoutProfilePrefix()))
+    profiles.push(profile)
+    return launchBrowser({ ...options, userDataDir: profile })
+  }
+  let relaunching = null
+  const relaunch = async (lost) => {
+    await lost.close().catch(() => {})
+    lost.process()?.kill('SIGKILL')
+    browser = await launchInProfile()
+  }
+  const session = {
+    get browser() {
+      return browser
+    },
+    /**
+     * Closes the context and returns null, or BROWSER_CONNECTION_CLOSED once a new browser is in use when Chrome dropped its
+     * connection, so the run records it against what was running and goes on. Contexts that fail together share one relaunch.
+     */
+    async closeContext(context) {
+      const used = browser
+      const closed = await context.close().then(
+        () => true,
+        () => false,
+      )
+      if (closed && used.connected) return null
+      if (browser === used) relaunching ??= relaunch(used).finally(() => (relaunching = null))
+      await relaunching
+      return BROWSER_CONNECTION_CLOSED
+    },
+  }
   try {
-    browser = await launch({ ...options, userDataDir: profile })
-    return await run(browser)
+    browser = await launchInProfile()
+    return await run(session)
   } finally {
     await browser?.close().catch(() => {})
-    removeProfile()
+    removeProfiles()
   }
 }
 

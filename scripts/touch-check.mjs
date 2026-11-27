@@ -459,9 +459,9 @@ function fail(failure) {
 }
 let checked = 0
 
-await withBrowser(chromeLaunch(selection.classicScrollbars), async (browser) => {
+await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => {
   for (const width of WIDTHS.filter(selection.takesWidth)) {
-    await checkWidth(browser, width)
+    await checkWidth(session, width)
   }
 }).finally(() => served?.stop())
 const unmatched = selection.unmatched()
@@ -475,8 +475,8 @@ if (failures.length) {
 }
 console.log(selection.limited ? `\nevery step of this limited run clean (${selection.summary()}). The full run without options is the check` : '\nall touch checks clean')
 
-async function checkWidth(browser, width) {
-  const context = await browser.createBrowserContext()
+async function checkWidth(session, width) {
+  const context = await session.browser.createBrowserContext()
   const page = await context.newPage()
   if (selection.classicScrollbars) await floatPhoneScrollbars(page)
   const errors = []
@@ -3746,7 +3746,8 @@ async function checkWidth(browser, width) {
 
   if (errors.length) fail(`[${width}px] console errors: ${errors.slice(0, 3).join(' | ')}`)
   if (foreign.length) fail(`[${width}px] requests to other origins: ${foreign.slice(0, 3).join(' | ')}`)
-  await context.close()
+  const lost = await session.closeContext(context)
+  if (lost) fail(`[${width}px] ${lost}`)
 }
 
 async function open(page, hash, title) {

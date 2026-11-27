@@ -31,10 +31,10 @@ const launchOptions =
     : { executablePath: chromePath(), headless: true, args: [ENGLISH_CHROME_ARG] }
 
 try {
-  await withBrowser(launchOptions, async (browser) => {
-    console.log(`Checking ${await browser.version()} against ${appUrl}`)
+  await withBrowser(launchOptions, async (session) => {
+    console.log(`Checking ${await session.browser.version()} against ${appUrl}`)
     for (const foreignFile of foreignFiles) {
-      const { errors, outcome } = await importFile(browser, foreignFile.path)
+      const { errors, outcome } = await importFile(session, foreignFile.path)
       assert.deepEqual(errors, [], `${foreignFile.name} must import without browser errors.`)
       if ('refusal' in foreignFile.expected) {
         assert.equal(outcome.refusal, foreignFile.expected.refusal, `${foreignFile.name} must be refused for its missing ledger, not fail to read.`)
@@ -47,7 +47,7 @@ try {
       console.log(`PASS: ${foreignFile.name}`)
     }
 
-    const broken = await importFile(browser, brokenFile)
+    const broken = await importFile(session, brokenFile)
     assert.match(broken.outcome.failure ?? '', /could not be read as an Excel workbook/)
     assert.ok(broken.outcome.failureDetail, 'A file that cannot be read must show the underlying error.')
     assert.ok(
@@ -62,8 +62,8 @@ try {
 }
 
 /** Drops one file on onboarding's file step and reads what its summary says about it. */
-async function importFile(browser, path) {
-  const context = await browser.createBrowserContext()
+async function importFile(session, path) {
+  const context = await session.browser.createBrowserContext()
   const page = await context.newPage()
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -91,6 +91,6 @@ async function importFile(browser, path) {
       { timeout: 15_000 },
     )
     .then((handle) => handle.jsonValue())
-  await context.close()
+  assert.equal(await session.closeContext(context), null)
   return { errors, outcome }
 }

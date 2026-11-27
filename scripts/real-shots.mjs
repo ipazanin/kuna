@@ -138,10 +138,10 @@ async function settle(page) {
   await pause(300)
 }
 
-async function shoot(browser, { screen, viewport, language, theme, stem }) {
+async function shoot(session, { screen, viewport, language, theme, stem }) {
   const folder = join(named.out, screen.name)
   mkdirSync(folder, { recursive: true })
-  const context = await browser.createBrowserContext()
+  const context = await session.browser.createBrowserContext()
   const page = await context.newPage()
   const errors = []
   page.on('console', (message) => {
@@ -173,17 +173,18 @@ async function shoot(browser, { screen, viewport, language, theme, stem }) {
     }
     return { name: `${screen.name} ${stem}`, ready, errors }
   } finally {
-    await context.close()
+    const lost = await session.closeContext(context)
+    if (lost) errors.push(lost)
   }
 }
 
 mkdirSync(named.out, { recursive: true })
 const results = []
 const queue = [...visits]
-await withBrowser(chromeLaunch(false), (browser) =>
+await withBrowser(chromeLaunch(false), (session) =>
   Promise.all(
     Array.from({ length: 4 }, async () => {
-      for (let visit = queue.shift(); visit !== undefined; visit = queue.shift()) results.push(await shoot(browser, visit))
+      for (let visit = queue.shift(); visit !== undefined; visit = queue.shift()) results.push(await shoot(session, visit))
     }),
   ),
 )

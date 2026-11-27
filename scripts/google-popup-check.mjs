@@ -69,7 +69,7 @@ async function acceptOpensGoogle(page) {
 
 const failures = []
 for (const [name, launchOptions] of Object.entries(BROWSERS)) {
-  await withBrowser(launchOptions(), async (browser) => {
+  await withBrowser(launchOptions(), async ({ browser }) => {
     const page = await browser.newPage()
     const started = Date.now()
     try {

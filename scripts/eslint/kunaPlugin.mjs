@@ -494,6 +494,10 @@ export const kunaPlugin = {
   rules: {
     'type-roles': typeRoles,
     'shoot-at': shootAt,
+    'context-closes': refusedSyntax(
+      ["CallExpression[callee.property.name='close'][callee.object.name=/(?:^c|C)ontext$|^browser$/]", "CallExpression[callee.property.name='close'][callee.object.property.name='browser']"],
+      "Close a context through the session's closeContext from withBrowser in scripts/support/browsers.mjs, so a run whose Chrome dropped its connection records it and goes on with a new browser.",
+    ),
     'date-parameters': dateParameters,
     'money-tone-colours': moneyToneColours,
     'picker-min-widths': pickerMinWidths,

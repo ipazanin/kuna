@@ -46,7 +46,7 @@ const launchFirefox = {
   extraPrefsFirefox: { ...ENGLISH_FIREFOX_PREFS, 'ui.useOverlayScrollbars': 0 },
 }
 
-await withBrowser(launchFirefox, async (browser) => {
+await withBrowser(launchFirefox, async ({ browser }) => {
   async function step(name, run) {
     const page = await browser.newPage()
     const started = Date.now()

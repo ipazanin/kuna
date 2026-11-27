@@ -114,9 +114,9 @@ try {
           },
         }
       : { executablePath: chromePath(), headless: true, args: ['--no-sandbox', `--proxy-server=http://${DEAD_PROXY}`, ENGLISH_CHROME_ARG] }
-  await withBrowser(launchOptions, async (browser) => {
-    console.log(`Checking ${await browser.version()}`)
-    const context = await browser.createBrowserContext()
+  await withBrowser(launchOptions, async (session) => {
+    console.log(`Checking ${await session.browser.version()}`)
+    const context = await session.browser.createBrowserContext()
     const probe = await context.newPage()
     await probe.goto(`${origin}/probe`)
     await probe.evaluate(async () => {
@@ -285,13 +285,13 @@ try {
     await reopened.goto(`${appUrl}?offline-check=updated#/company/analysis?tab=over-time`)
     await waitForTitle(reopened, 'Analysis')
     await reopened.waitForSelector('.chart-body canvas')
-    await context.close()
+    assert.equal(await session.closeContext(context), null)
     assert.deepEqual(errors, [], 'The update must not produce browser errors.')
     console.log('PASS: an update waits for the prompt, reloads on request, tells other windows, and keeps unrelated caches')
 
     release = 'broken'
     serverUnavailable = false
-    const failedContext = await browser.createBrowserContext()
+    const failedContext = await session.browser.createBrowserContext()
     const failedPage = await failedContext.newPage()
     await failedPage.goto(`${origin}/probe`)
     const failedInstallation = await failedPage.evaluate(async (scope) => {
@@ -314,7 +314,7 @@ try {
     assert.equal(failedInstallation.active, false, 'An incomplete shell must not become available offline.')
     assert.ok(['redundant', 'rejected'].includes(failedInstallation.state))
     assert.deepEqual(failedInstallation.caches, [], 'An unsuccessful first install must not leave a partial app cache.')
-    await failedContext.close()
+    assert.equal(await session.closeContext(failedContext), null)
     console.log('PASS: a missing precache asset rejects installation and removes the incomplete cache')
 
     const unexpected = foreignRequests.filter((url) => !url.startsWith('https://accounts.google.com/gsi/client'))
