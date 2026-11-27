@@ -20,6 +20,7 @@ import {
   LINE_RECORDS,
   RECEIPT_RECORDS,
   DROPPED_ROW_RECORDS,
+  HELD_ROW_RECORDS,
   RECIPE_RECORDS,
   PAYEE_RECORDS,
   BANK_LINK_RECORDS,
@@ -41,6 +42,7 @@ import { bankLinkId, oldLinkEndKey } from '../../domain/bankLinkReading'
 import type { BankLink } from '../../../../../shared/bank-sync/domain/bankLink'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../domain/transaction'
 import type { DroppedRow } from '../../domain/droppedRow'
+import type { HeldBankRow } from '../../domain/heldBankRow'
 import type { Payee } from '../../domain/payee'
 import type { SharedCost } from '../../domain/sharedCost'
 import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../../../shared/bank-sync/infrastructure/fake/fakeBankSync'
@@ -643,6 +645,21 @@ function droppedHotel(day: CivilDate): DroppedRow {
   }
 }
 
+/** OTP's transfer to Revolut that the bank sync left on hold today in `held`, since it looks like the file's transfer two days back. */
+function heldTransfer(day: CivilDate): HeldBankRow {
+  return {
+    id: fixedId(HELD_ROW_RECORDS, 1719),
+    account: OTP,
+    date: day,
+    amount: accountMoneyFromAmount(-75),
+    payee: 'Transfer to Revolut',
+    description: 'Transfer to Revolut',
+    counterpartyIban: REVOLUT_IBAN,
+    importKey: `${BANK_SYNC_KEY_PREFIX}fake-held-transfer`,
+    like: fixedId(TRANSACTION_RECORDS, 1712),
+  }
+}
+
 const SPLIT_ROW_PLACE = 1906
 /** The row a receipt of one line split, which reads as a typed entry with the receipt's mark. */
 const ONE_LINE_ROW_PLACE = 1907
@@ -758,6 +775,7 @@ const LINKED_VARIANTS: readonly string[] = [
   'opening-off',
   'unlisted-pending',
   'pending-books',
+  'held',
   'exchange',
   'pocket',
   'withdrawal',
@@ -991,6 +1009,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
       ...stored(RECEIPT_RECORDS, receipts.receipts),
       ...stored(DROPPED_ROW_RECORDS, bankSync === 'pending-books' ? [droppedHotel(day)] : []),
+      ...stored(HELD_ROW_RECORDS, bankSync === 'held' && set === 'statements' ? [heldTransfer(day)] : []),
       ...stored(RECIPE_RECORDS, set === 'statements' ? fakeRecipes() : []),
       ...stored(PAYEE_RECORDS, set === 'people' ? fakePayees() : []),
       ...stored(SHARED_COST_RECORDS, sharedGift.sharedCosts),

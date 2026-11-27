@@ -1846,9 +1846,10 @@ async function focusIsIn(page, selector, problem) {
 }
 
 /**
- * On OTP's page in the statements set with the bank sync linked: the card of where its rows come from lists the statement file
- * and then the bank. Each Change opens the account dialog with that period's first day focused, the start day for the first,
- * and giving every day to the bank link warns which file rows go first.
+ * On OTP's page in the statements set with the bank sync linked and a transfer on hold: the card of where its rows come from lists
+ * the statement file and then the bank. Each Change opens the account dialog with that period's first day focused, the start day
+ * for the first, and giving every day to the bank link warns which file rows go first. Keeping the bank's days by hand deletes
+ * only the row on hold, so the warning says so in its title and lists no rows.
  */
 export function spendingAccountHandoverFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -1876,6 +1877,19 @@ export function spendingAccountHandoverFlowIn(language) {
     await delay(300)
     await inspect?.('the account dialog warning which rows go when the bank link takes the statement file days')
     await shoot('spending-account-handover')
+    await page.keyboard.press('Escape')
+    await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { hidden: true, timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="spending-account-sources-card"] [data-testid="change-line"]:nth-child(2) [data-testid="change-edit"]')
+    await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-account-source"] [data-value="by-hand"]')
+    await waitForTextIn(page, '[data-testid="spending-account-handover"]', words.spendingAccounts.dialog.handover.heldTitle(1).one).catch(() => {
+      throw new Error('keeping the bank days by hand does not warn that the row on hold goes')
+    })
+    if ((await page.$('[data-testid="spending-account-handover"] ul')) !== null) throw new Error('the warning of a row on hold alone draws a list of rows')
+    await scrollIntoDialogView(page, '[data-testid="spending-account-handover"]')
+    await delay(300)
+    await inspect?.('the account dialog warning that only a bank row on hold goes when the bank days are kept by hand')
+    await shoot('spending-account-handover-held')
   }
 }
 

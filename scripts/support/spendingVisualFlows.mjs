@@ -140,7 +140,7 @@ export function spendingVisualFlows({ SPENDING_IMPORT_SAMPLES, SPENDING_RECEIPT_
       run: spendingAccountHandoverFlowIn('en'),
       modes: ['drive'],
       viewports: DESIGN_REVIEW_VIEWPORTS,
-      queries: { drive: '&spending=statements&banksync=linked' },
+      queries: { drive: '&spending=statements&banksync=held' },
     },
     {
       name: 'spending-import-give-days',
@@ -158,7 +158,7 @@ export function spendingVisualFlows({ SPENDING_IMPORT_SAMPLES, SPENDING_RECEIPT_
       run: spendingAccountHandoverFlowIn('hr'),
       modes: ['drive'],
       viewports: DESIGN_REVIEW_VIEWPORTS,
-      queries: { drive: '&spending=statements&banksync=linked&lang=hr' },
+      queries: { drive: '&spending=statements&banksync=held&lang=hr' },
     },
     {
       name: 'spending-import-give-days-croatian',
