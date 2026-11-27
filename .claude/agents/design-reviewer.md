@@ -19,12 +19,12 @@ For a plan, name the components it should use, the components it must build in t
 
 For a diff, when the caller gives a port, a real books folder and a scratch folder:
 
-1. Start `KUNA_REAL_BOOKS_DIR=<books folder> npm run dev:real -- --port <port> --strictPort` in the background, on that port only. Never point it at the Drive folder.
+1. Start `KUNA_REAL_BOOKS_DIR=<books folder> npm run dev:real -- --port <port> --strictPort` in the background, on that port only. Never point it at the Drive folder. When the diff changes the sync control or its steps, add `KUNA_REAL_SYNC=<app>`, such as `spending`, so that app's books sit on the fake build's Drive and the sync control can run and list its steps.
 2. Run `npm run shots:real -- http://localhost:<port>/kuna/ --out <scratch folder>/shots --only <screens>` for the screens the diff changes, named as in `SCREENS` in `scripts/real-shots.mjs`. Add `--route name=#/hash` for a screen the list lacks, and `--press name=<selector>` for a dialog, toast or menu the diff changes.
 3. Stop the server.
 4. Open every shot and every frame with Read, and read `problems.txt`. A failed DZS fetch on localhost is expected.
 
-The shots hold real money, names and IBANs. They stay in the scratch folder. Never quote a figure, name or IBAN from them in your report. Describe what you see by screen, width, language and theme. The books are kept in the browser, so export controls in the sidebar are expected.
+The shots hold real money, names and IBANs. They stay in the scratch folder. Never quote a figure, name or IBAN from them in your report. Describe what you see by screen, width, language and theme. The books are kept in the browser, so export controls in the sidebar are expected, except for the app `KUNA_REAL_SYNC` names.
 
 ## What to check
 

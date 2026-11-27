@@ -3,7 +3,8 @@ import { replaceBrowserDocument } from '../browserDocument'
 import { keepChosenCopy } from '../chosenCopy'
 import { decodeDocument } from '../documentFormat'
 import type { DocumentCopy } from '../documentRecordStorage'
-import { documentName } from '../driveDocument'
+import { createDriveDocument, documentName } from '../driveDocument'
+import { fakeBooksFolder, fakeDriveSession } from '../fake/fakeDriveSession'
 import { saveWorkbookChoice } from '../workbookChoice'
 
 /**
@@ -22,9 +23,9 @@ export async function realBooksFile(name: string): Promise<string | null> {
 
 /**
  * Keeps the app's file from the real books folder in this browser and chooses it, as the fake seeds do with made-up books, and
- * answers the home welcome with the app kept in this browser. Gives the copy, or null when the folder has no file for the app,
- * which leaves the app on its first run. Only an app's install imports this, behind inline `import.meta.env.DEV` and
- * VITE_REAL_BOOKS comparisons.
+ * answers the home welcome with where it is kept. The app KUNA_REAL_SYNC names goes on the fake build's Drive instead, so the
+ * page's sync runs over it. Gives the copy, or null when the folder has no file for the app, which leaves the app on its first
+ * run. Only an app's install imports this, behind inline `import.meta.env.DEV` and VITE_REAL_BOOKS comparisons.
  */
 export async function seedRealBook(app: string): Promise<DocumentCopy | null> {
   const text = await realBooksFile(documentName(app))
@@ -32,12 +33,25 @@ export async function seedRealBook(app: string): Promise<DocumentCopy | null> {
     saveWorkbookChoice(app, null)
     return null
   }
+  const syncedAt = new Date().toISOString()
+  const document = decodeDocument(text)
+  if (import.meta.env.VITE_REAL_SYNC === app) {
+    const created = await createDriveDocument(fakeDriveSession(), await fakeBooksFolder(), app, text)
+    const copy: DocumentCopy = {
+      meta: { id: created.fileId, source: 'drive', title: documentName(app), syncedAt, lastExportedAt: null, unexportedSince: null },
+      revision: created.document.revision,
+      document,
+    }
+    await keepChosenCopy(app, copy)
+    answerFromFirstRun('drive', app, false)
+    return copy
+  }
   const id = `${REAL_BOOKS_ID}-${app}`
   const stored = await replaceBrowserDocument(id, text)
   const copy: DocumentCopy = {
-    meta: { id, source: 'browser', title: documentName(app), syncedAt: new Date().toISOString(), lastExportedAt: null, unexportedSince: null },
+    meta: { id, source: 'browser', title: documentName(app), syncedAt, lastExportedAt: null, unexportedSince: null },
     revision: stored.revision,
-    document: decodeDocument(text),
+    document,
   }
   await keepChosenCopy(app, copy)
   answerFromFirstRun('browser', app, false)

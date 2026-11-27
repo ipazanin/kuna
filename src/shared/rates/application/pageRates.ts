@@ -36,29 +36,34 @@ function updatePorts(cache: RatesCache, fetch: RatesFetch, day: () => CivilDate)
 
 let held: Promise<PageRatesPorts> | null = null
 
-/** The page's adapters, the fake ones in the fake build, made once. The dev server's real books start this browser's copy from the owner's rates. */
+/** The page's adapters, the fake ones in the fake build. */
+async function chosenPorts(): Promise<PageRatesPorts> {
+  // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
+  if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
+    const [{ fakeRatesFetch }, { fakeRatesDrive }, { memoryRatesCache }, { fakeDayHere }] = await Promise.all([
+      import('../infrastructure/fake/fakeEcbRates'),
+      import('../infrastructure/fake/fakeRatesDrive'),
+      import('../infrastructure/fake/fakeRatesState'),
+      import('../../calendar/infrastructure/fake/fakeDay'),
+    ])
+    return {
+      update: updatePorts(memoryRatesCache(), fakeRatesFetch(new URLSearchParams(window.location.search).get('rates'), fakeDayHere), fakeDayHere),
+      drive: fakeRatesDrive(),
+    }
+  }
+  return { update: updatePorts(browserRatesCache(), browserRatesFetch, today), drive: googleRatesDrive() }
+}
+
+/** The page's adapters, made once. The dev server's real books start the page's copy from the owner's rates. */
 function pagePorts(): Promise<PageRatesPorts> {
   held ??= (async () => {
-    // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
-    if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-      const [{ fakeRatesFetch }, { fakeRatesDrive }, { memoryRatesCache }, { fakeDayHere }] = await Promise.all([
-        import('../infrastructure/fake/fakeEcbRates'),
-        import('../infrastructure/fake/fakeRatesDrive'),
-        import('../infrastructure/fake/fakeRatesState'),
-        import('../../calendar/infrastructure/fake/fakeDay'),
-      ])
-      return {
-        update: updatePorts(memoryRatesCache(), fakeRatesFetch(new URLSearchParams(window.location.search).get('rates'), fakeDayHere), fakeDayHere),
-        drive: fakeRatesDrive(),
-      }
-    }
-    const cache = browserRatesCache()
+    const ports = await chosenPorts()
     // The real books of `npm run dev:real`, inline for the same reason.
     if (import.meta.env.DEV && import.meta.env.VITE_REAL_BOOKS === 'true') {
       const { seedRealRates } = await import('../infrastructure/real/seedRealRates')
-      await seedRealRates(cache)
+      await seedRealRates(ports.update.cache)
     }
-    return { update: updatePorts(cache, browserRatesFetch, today), drive: googleRatesDrive() }
+    return ports
   })()
   return held
 }

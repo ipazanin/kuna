@@ -17,4 +17,6 @@ interface ImportMetaEnv {
   readonly VITE_FAKE_WORKBOOK?: 'true'
   /** Set only by `.env.real`, which `npm run dev:real` reads, so the dev server starts each app from a copy of real books. */
   readonly VITE_REAL_BOOKS?: 'true'
+  /** The app whose real books `npm run dev:real` puts on the fake build's Drive, set by KUNA_REAL_SYNC alongside VITE_FAKE_WORKBOOK. */
+  readonly VITE_REAL_SYNC?: string
 }

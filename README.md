@@ -2161,6 +2161,15 @@ this browser from the folder `KUNA_REAL_BOOKS_DIR` names: `kuna-company.json`, `
 `kuna-rates.json`, each kept in this browser, so the sidebar shows export controls where the owner's
 device shows Drive's sync. The server only reads those names and never writes. Point
 it at a scratch copy, never at the Drive folder. A file the folder lacks leaves its app on its first run.
+`KUNA_REAL_SYNC=spending`, or another app's id, puts that app's books on the fake build's Drive instead,
+so the sync control runs and lists its steps. The whole page then uses the fake build's Google, Drive,
+banks and mail, as `npm run dev:fake` does, so a sync reaches nothing outside the page and its bank
+step answers with the fake banks' accounts. The rates still start from `kuna-rates.json`:
+
+```sh
+KUNA_REAL_BOOKS_DIR=/scratch/copy KUNA_REAL_SYNC=spending npm run dev:real -- --port 4420
+```
+
 The DZS refuses the house price index to a page on localhost, so the dev server asks for it under `/dzs`
 in the page's place. A preview and the deployed site ask the DZS themselves.
 `npm run shots:real` then shoots screens of that server at 360, 640, 1024 and 1440 px, in English and
