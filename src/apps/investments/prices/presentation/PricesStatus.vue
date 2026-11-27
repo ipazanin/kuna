@@ -15,6 +15,7 @@ import { runProblem } from './runProblem'
 import { useSecretsChanged } from '../../../../shared/secrets/presentation/pageSecrets'
 import { usePrices } from './usePrices'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * How the prices stand on the Overview: a warning once the closes are behind or the last fetch failed. The fetch under
@@ -60,7 +61,7 @@ const behindNote = computed(() => {
   <p class="sr-only" role="status" data-testid="investments-prices-fetching">{{ fetchingAnnouncement(prices.state.fetching) }}</p>
   <UAlert
     v-if="prices.state.fetching === null && problem !== null"
-    icon="i-lucide-triangle-alert"
+    :icon="TONE_ICONS.warning"
     color="warning"
     variant="subtle"
     :title="words.status.fetchProblem"

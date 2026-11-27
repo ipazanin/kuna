@@ -16,6 +16,7 @@ import type { DriveFirstRun } from './fileFirstRun'
 import { useKunaFolderHome } from './useKunaFolderHome'
 import type { FirstRunMoves } from './useFirstRun'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /**
  * The app's file goes in its subfolder of the one Kuna folder. Nothing is made until the person taps Create the file here, which makes the
@@ -137,7 +138,7 @@ async function create(withChat = false): Promise<void> {
         @click="chooseElsewhere"
       />
     </div>
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.firstRun.folder.failed" :description="failure" :data-testid="`${firstRun.testId}-failure`" />
+    <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="words.firstRun.folder.failed" :description="failure" :data-testid="`${firstRun.testId}-failure`" />
     <UAlert
       v-if="alreadyOnDrive"
       icon="i-lucide-hard-drive"

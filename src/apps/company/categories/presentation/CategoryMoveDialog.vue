@@ -16,6 +16,7 @@ import { categoryMoveOf, deleteCategoryInto, joinedInWords, keptInWords } from '
 import type { KeptByMove } from '../domain/categoryMove'
 import { useSettings } from '../../settings/application/useSettings'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** Deletes a category in use, its ledger rows, split parts, rules and the pack's records that name it moved to another in the same write, with one Undo. */
 const props = defineProps<{
@@ -86,7 +87,7 @@ async function confirm(): Promise<void> {
     :title="words.categories.moveAndDelete.title(category === null ? '' : names.category(category.slug))"
     :description="keptBy ? undefined : words.categories.moveAndDelete.savesAtOnce"
   >
-    <UAlert v-if="keptBy" icon="i-lucide-triangle-alert" color="warning" variant="subtle" data-testid="category-move-kept">
+    <UAlert v-if="keptBy" :icon="TONE_ICONS.warning" color="warning" variant="subtle" data-testid="category-move-kept">
       <template #description>{{ words.categories.moveAndDelete.kept(keptBy) }}</template>
       <template #actions>
         <UButton
@@ -106,7 +107,7 @@ async function confirm(): Promise<void> {
         <CategoryPicker v-model="into" :categories="targets" :placeholder="words.categories.moveAndDelete.pick" class="w-full" data-testid="category-move-into" />
       </UFormField>
       <UAlert v-for="sentence in joined" :key="sentence" icon="i-lucide-info" color="neutral" variant="subtle" :description="sentence" data-testid="category-move-joined" />
-      <UAlert v-if="bucketsMove" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="bucketsMove" data-testid="category-move-buckets" />
+      <UAlert v-if="bucketsMove" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :description="bucketsMove" data-testid="category-move-buckets" />
     </form>
     <template #end>
       <template v-if="keptBy">

@@ -9,6 +9,7 @@ import { isBeforeItems, moveBlockers } from '../domain/beforeItems'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** Offers, while the file stores entries the way older versions of Kuna did, to update it in one write with Undo, or says what to fix first. */
 const store = useSpendingBooks()
@@ -36,7 +37,7 @@ function move(): void {
 <template>
   <UAlert
     v-if="offered && blocking > 0"
-    icon="i-lucide-triangle-alert"
+    :icon="TONE_ICONS.warning"
     color="warning"
     variant="subtle"
     :title="plural(words.move.blocked(blocking), blocking)"

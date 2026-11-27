@@ -12,6 +12,7 @@ import DeleteFailure from './DeleteFailure.vue'
 import { removalLines } from './removalLines'
 import type { RemovalLine } from './removalLines'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /** Asks before deleting an app's data, offering what it really has and an export, and says first what failed when something does. */
 const open = defineModel<boolean>('open', { required: true })
@@ -53,7 +54,7 @@ function sayDeleted(report: RemovalReport, was: HeldData, trashed: boolean): voi
     toast.add({
       title: text.besideLeft(props.data.name),
       description: removalLines(report, was).find((line) => line.kind === 'failed')?.text ?? '',
-      icon: 'i-lucide-triangle-alert',
+      icon: TONE_ICONS.warning,
       color: 'warning',
       duration: 10_000,
     })

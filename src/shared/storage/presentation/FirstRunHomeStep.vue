@@ -11,6 +11,7 @@ import StepCard from '../../ui/StepCard.vue'
 import type { FileFirstRun } from './fileFirstRun'
 import type { FirstRunMoves } from './useFirstRun'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 type FileHome = 'drive' | 'browser' | 'open'
 
@@ -71,8 +72,8 @@ async function proceed(withChat = false): Promise<void> {
       <p class="type-body">{{ words.firstRun.home.browserNote }}</p>
     </div>
     <URadioGroup v-else v-model="chosen" :items="CHOICES" :legend="appWords.title" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" :data-testid="`${firstRun.testId}-home`" />
-    <UAlert v-if="dropsBrowserFile" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="appWords.dropsTitle" :description="words.firstRun.home.drops" />
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="appWords.notMade" :description="failure" />
+    <UAlert v-if="dropsBrowserFile" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="appWords.dropsTitle" :description="words.firstRun.home.drops" />
+    <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="appWords.notMade" :description="failure" />
     <template #actions>
       <AskChatButton v-if="intoChat" :text="chatWords.ask.setUp" size="md" :loading="starting && startingWithChat" :disabled="starting" :data-testid="`${firstRun.testId}-chat`" @ask="proceed(true)" />
       <UButton

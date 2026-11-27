@@ -26,6 +26,7 @@ import TripOrderPanel from './TripOrderPanel.vue'
 import TripSettlementPanel from './TripSettlementPanel.vue'
 import { destinationText, travellerName, tripDates, tripWarningTexts } from './tripsView'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** The travel orders by issue year, and one order's page with its order and its settlement. */
 const settings = useSettings()
@@ -95,7 +96,7 @@ function allOrders(): void {
       </div>
 
       <template v-if="file">
-        <UAlert v-for="(warning, index) in warnings" :key="index" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="warning" data-testid="trip-warning" />
+        <UAlert v-for="(warning, index) in warnings" :key="index" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :description="warning" data-testid="trip-warning" />
         <PageTabs :tabs="tabs" :label="words.trip.tabsLabel" data-testid="trip-tabs">
           <template #order>
             <TripOrderPanel :file="file" :employees="employees" :company="workbook.settings.invoicing" @change="changeOrder" />

@@ -40,7 +40,6 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
     />
     <EmptyState
       v-else-if="forecast.state === 'failed'"
-      icon="i-lucide-triangle-alert"
       :title="words.panel.failedTitle"
       :description="forecast.failure"
       :actions="[{ label: words.panel.openSettings, to: '/company/settings', color: 'neutral', variant: 'outline' }]"

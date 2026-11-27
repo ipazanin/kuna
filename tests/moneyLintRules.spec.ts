@@ -18,6 +18,7 @@ const SCREEN = 'src/apps/loans/planted/presentation/Planted.vue'
 const WORDS = 'src/apps/loans/planted/presentation/words.ts'
 const FLOWS = 'scripts/support/plantedFlows.mjs'
 const SPEC = 'tests/planted.spec.ts'
+const TOASTS = 'src/apps/loans/planted/presentation/plantedToasts.ts'
 
 describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => {
   it.each([
@@ -71,6 +72,19 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ['a part of a book cast through unknown in a test', SPEC, "export const a = {} as unknown as Pick<SpendingBook, 'accounts'>", 'kuna/book-casts'],
     ["a book's readings cast through unknown in a test", SPEC, "export const a = {} as unknown as SpendingBook['readings']", 'kuna/book-casts'],
     ['a literal cast to a book in a test', SPEC, 'export const a = { accounts: [] } as SpendingBook', 'kuna/book-casts'],
+    ['an error alert with the warning icon', SCREEN, '<template><UAlert :icon="TONE_ICONS.warning" color="error" title="Not saved" /></template>', 'kuna/tone-icons'],
+    ['a warning alert with the error icon', SCREEN, '<template><UAlert :icon="TONE_ICONS.error" color="warning" title="Late" /></template>', 'kuna/tone-icons'],
+    ['an alert icon spelt by name beside an error colour', SCREEN, '<template><UAlert icon="i-lucide-circle-alert" color="error" title="Not saved" /></template>', 'kuna/tone-icons'],
+    [
+      'a warning colour picked by a condition beside the error icon',
+      SCREEN,
+      '<template><UAlert :icon="TONE_ICONS.error" :color="a ? \'warning\' : \'neutral\'" title="Late" /></template>',
+      'kuna/tone-icons',
+    ],
+    ['an amber mark with the error icon', SCREEN, '<template><li><UIcon :name="TONE_ICONS.error" class="size-4 text-warning" /><div>Late</div></li></template>', 'kuna/tone-icons'],
+    ['an error toast with the warning icon', TOASTS, "toast.add({ title: 'Not saved', icon: 'i-lucide-triangle-alert', color: 'error' as const })", 'kuna/tone-icons'],
+    ['a warning toast with the error icon', TOASTS, "toast.add({ title: 'Late', icon: TONE_ICONS.error, color: 'warning' })", 'kuna/tone-icons'],
+    ['a toast in a template with the warning icon', SCREEN, '<template><UButton @click="toast.add({ icon: TONE_ICONS.warning, color: \'error\' })" /></template>', 'kuna/tone-icons'],
   ])('refuses %s', async (_name, file, code, rule) => {
     expect(await rulesBroken(file, code)).toContain(rule)
   })
@@ -112,6 +126,14 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ['a null placeholder for a book in a test', SPEC, 'export const a = { state: null as unknown as { workbook: Workbook | null } }'],
     ["a store's state read as a book in a test", SPEC, 'export const a = store.state as CompanyBooks'],
     ['a book checked with satisfies in a test', SPEC, 'export const a = { accounts: [] } satisfies Partial<SpendingBook>'],
+    ['an error alert with the error icon', SCREEN, '<template><UAlert :icon="TONE_ICONS.error" color="error" title="Not saved" /></template>'],
+    [
+      'an icon and a colour that one condition picks together',
+      SCREEN,
+      '<template><UAlert :icon="a ? TONE_ICONS.warning : \'i-lucide-hand\'" :color="a ? \'warning\' : \'neutral\'" title="Late" /></template>',
+    ],
+    ['an error toast with the error icon', TOASTS, "toast.add({ title: 'Not saved', icon: TONE_ICONS.error, color: 'error' as const })"],
+    ['a neutral action on an error toast', TOASTS, "toast.add({ icon: TONE_ICONS.error, color: 'error', actions: [{ label: 'Try again', icon: 'i-lucide-rotate-cw', color: 'neutral' }] })"],
   ])('allows %s', async (_name, file, code) => {
     expect(await rulesBroken(file, code)).toEqual([])
   })

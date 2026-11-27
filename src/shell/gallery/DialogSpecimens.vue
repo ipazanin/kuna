@@ -29,6 +29,7 @@ import { moneyFromCents, plainAmount } from '../../shared/money/money'
 import { typedAmount } from '../../shared/money/typedAmount'
 import GallerySection from './GallerySection.vue'
 import LabelsSelectEmptySpecimen from './LabelsSelectEmptySpecimen.vue'
+import { TONE_ICONS } from '../../shared/ui/toneText'
 
 const formOpen = ref(false)
 /** Made-up labels of a kind only the gallery has. */
@@ -156,7 +157,7 @@ const ROWS = [
         </UFormField>
         <USwitch v-model="subsidised" label="A subsidy pays part of each instalment" description="A switch takes the whole row." />
         <UAlert
-          icon="i-lucide-triangle-alert"
+          :icon="TONE_ICONS.warning"
           color="warning"
           variant="subtle"
           title="Moving the first instalment later deletes what came before it"

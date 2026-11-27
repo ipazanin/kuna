@@ -57,6 +57,7 @@ import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import { provideLoanWords } from './useLoanWords'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** One bank loan: what is owed and paid back with your part of it, its balance over time, where its payments go, what a change would do and the tries saved, its plan, and what changes it. */
 const store = useLoansBooks()
@@ -246,14 +247,7 @@ function openLate(key: string | null): void {
           <UButton :label="loanWords.changeLoan" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="bank-loan-edit" @click="editingLoan = true" />
         </template>
       </PageHeader>
-      <UAlert
-        v-if="figures === null"
-        icon="i-lucide-triangle-alert"
-        color="warning"
-        variant="subtle"
-        :title="loanWords.noPlanTitle"
-        :description="loanWords.noPlan(dayLabel(book.loan.firstInstalment))"
-      />
+      <UAlert v-if="figures === null" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="loanWords.noPlanTitle" :description="loanWords.noPlan(dayLabel(book.loan.firstInstalment))" />
       <template v-else>
         <BalanceHero :loan="book.loan" :figures="figures" :part="part" />
         <BankLoanTiles :figures="figures" :payer="payer" />

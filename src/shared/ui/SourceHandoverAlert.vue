@@ -2,6 +2,7 @@
 import UAlert from '@nuxt/ui/components/Alert.vue'
 
 import type { HandoverWords } from './sourceHandover'
+import { TONE_ICONS } from './toneText'
 
 /** The warning shown before an account's new source periods are saved, with the rows the save takes out for the new source to bring again. */
 defineProps<{
@@ -10,7 +11,7 @@ defineProps<{
 </script>
 
 <template>
-  <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="handover.title" class="whitespace-normal">
+  <UAlert color="warning" variant="subtle" :icon="TONE_ICONS.warning" :title="handover.title" class="whitespace-normal">
     <template #description>
       <p v-for="line in handover.days" :key="line">{{ line }}</p>
       <ul v-if="handover.rows.length > 0" class="mt-2 list-disc ps-5">

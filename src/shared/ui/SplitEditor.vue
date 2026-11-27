@@ -9,6 +9,7 @@ import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 import { amountForTyping } from '../money/typedAmount'
 import MoneyInput from './MoneyInput.vue'
 import { restOfFields, splitField } from './splitFields'
+import { TONE_ICONS } from './toneText'
 import type { SplitField, TypedCents } from './splitFields'
 import { words } from './words'
 
@@ -145,6 +146,6 @@ function takeRest(id: number): void {
       </li>
     </ol>
     <UButton :label="words.split.addPart" icon="i-lucide-plus" color="neutral" variant="outline" class="self-start" data-testid="split-add-part" @click="addPart" />
-    <UAlert v-if="shownRefusal !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="shownRefusal" data-testid="split-refusal" />
+    <UAlert v-if="shownRefusal !== null" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="shownRefusal" data-testid="split-refusal" />
   </div>
 </template>

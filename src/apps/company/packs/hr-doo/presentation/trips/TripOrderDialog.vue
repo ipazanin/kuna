@@ -31,6 +31,7 @@ import { employeeName } from '../salaries/salariesView'
 import { draftAmount, fieldsValid, typingAmount } from './tripsView'
 import { words } from './words'
 import { useTried } from '../../../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** A new travel order, which starts from the traveller's last order, or a change to one. */
 const open = defineModel<boolean>('open', { required: true })
@@ -263,15 +264,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.orderDialog.note" class="sm:col-span-2">
         <UTextarea v-model="fields.note" :rows="2" autoresize class="w-full" />
       </UFormField>
-      <UAlert
-        v-if="tried && fieldsValid(errors) && refusal"
-        icon="i-lucide-circle-alert"
-        color="error"
-        variant="subtle"
-        :description="refusal"
-        class="sm:col-span-2"
-        data-testid="trip-order-refusal"
-      />
+      <UAlert v-if="tried && fieldsValid(errors) && refusal" :icon="TONE_ICONS.error" color="error" variant="subtle" :description="refusal" class="sm:col-span-2" data-testid="trip-order-refusal" />
     </FormGrid>
     <template #start>
       <UButton v-if="editing" :label="words.dialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :loading="writes.saving('delete')" data-testid="trip-order-delete" @click="remove" />

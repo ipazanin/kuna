@@ -35,6 +35,7 @@ import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
 import RemovableChip from '../../../../shared/ui/RemovableChip.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * Spending's rules in the order they are tried, each with its conditions, what it files and labels, Stop here, where a
@@ -237,7 +238,7 @@ async function remove(rule: SpendingRule, name: string): Promise<void> {
         v-if="warnings.length > 0"
         color="warning"
         variant="subtle"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         :title="words.rules.overlapTitle"
         class="mx-4 mt-3 w-auto sm:mx-5"
         data-testid="spending-rule-overlap"

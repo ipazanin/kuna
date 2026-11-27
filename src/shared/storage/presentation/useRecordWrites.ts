@@ -11,6 +11,7 @@ import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
 import { recordsChangeInWords } from './recordsChangeInWords'
 import { words } from './words'
 import { failedOnDrive, writeFailureInWords } from './writeFailureInWords'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
 export const UNDO_TOAST_DURATION = 10_000
@@ -84,7 +85,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
    * title alone, since its title says what it would have done. A write that may not have finished and an undo name the write.
    */
   function refused(title: string, failure: unknown, writeTitle: string, naming: 'drive-only' | 'always', again: () => Promise<unknown>): void {
-    const shared = { title, icon: 'i-lucide-triangle-alert', color: 'error' as const, duration: UNDO_TOAST_DURATION }
+    const shared = { title, icon: TONE_ICONS.error, color: 'error' as const, duration: UNDO_TOAST_DURATION }
     if (failedOnDrive(failure)) {
       const failed = { title: writeTitle, again }
       failedOnDriveSoFar = toast.toasts.value.some((shown) => shown.id === DRIVE_FAILED_TOAST) ? [...failedOnDriveSoFar, failed] : [failed]

@@ -4,6 +4,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { exportAppFile } from './exportAppFile'
 import type { ExportableStore } from './exportAppFile'
+import { TONE_ICONS } from '../../ui/toneText'
 
 export interface FileExport {
   readonly exporting: Readonly<Ref<boolean>>
@@ -24,7 +25,7 @@ export function useFileExport(store: ExportableStore, app: string, words: { read
         const fileName = await exportAppFile(store, app, words.nothingToExport)
         toast.add({ title: words.exported, description: fileName, icon: 'i-lucide-download', color: 'success' })
       } catch (failure) {
-        toast.add({ title: words.exportFailed, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
+        toast.add({ title: words.exportFailed, description: failure instanceof Error ? failure.message : String(failure), icon: TONE_ICONS.error, color: 'error' })
       } finally {
         exporting.value = false
       }

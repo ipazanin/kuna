@@ -53,6 +53,7 @@ import { givenParts, splitField } from '../../../../shared/ui/splitFields'
 import type { SplitField } from '../../../../shared/ui/splitFields'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { useTried } from '../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** A receipt photo to the payment it splits: the QR code's date and total, or typed ones, with one category for the whole receipt or lines typed by hand, each with its category. Closing the dialog drops the photo. Reading its lines is asked of the chat from Entries. */
 const open = defineModel<boolean>('open', { required: true })
@@ -436,7 +437,7 @@ function closeAsked(wanted: boolean): void {
       <UFormField class="sm:col-span-2">
         <USwitch v-model="keepPhoto" :label="words.keep" :description="keepReason ?? words.keepHelp" :disabled="keepReason !== null" data-testid="spending-receipt-keep" />
       </UFormField>
-      <UAlert v-if="failure !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="failure" data-testid="spending-receipt-failure" />
+      <UAlert v-if="failure !== null" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="failure" data-testid="spending-receipt-failure" />
     </FormGrid>
     <template #end>
       <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" :disabled="saves.saving.value" @click="closeAsked(false)" />

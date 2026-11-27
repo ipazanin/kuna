@@ -7,6 +7,7 @@ import RemovableChip from '../../ui/RemovableChip.vue'
 import { chatPromptFiles, promptFileNotes, promptFilesCost, removePromptFile } from './chatSession'
 import type { FileRefusal, PromptFile } from './chatSession'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /**
  * The files on the prompt as chips, with a line for each refused one saying why, and warnings of what goes to which AI
@@ -41,7 +42,7 @@ function refusalWords(refusal: FileRefusal): string {
 }
 
 function iconOf(file: PromptFile): string {
-  if (file.state === 'refused') return 'i-lucide-circle-alert'
+  if (file.state === 'refused') return TONE_ICONS.error
   if (file.state === 'reading') return 'i-lucide-file'
   if (file.attachment.kind === 'photo') return 'i-lucide-image'
   return file.attachment.kind === 'pdf' ? 'i-lucide-file-text' : 'i-lucide-file-spreadsheet'

@@ -15,7 +15,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - An empty list in a card, such as no loan changes or no invoices in the period, shows one quiet sentence through `EmptyState` with `line`, which sits at the card's body padding in the `type-aside` role. The same goes for a list in a card that its filter or search leaves empty. A hint that is not about an empty list, such as a search prompt over a table, stays its own line. Nothing hand-draws an empty line.
 - Cards that fold, such as a chart or a table, remember their state per device through `cardCollapse.ts`.
 - A card's All … link, such as All transactions or All holdings, sits at its foot as a neutral link button with a trailing arrow (`trailing-icon="i-lucide-arrow-right" color="neutral" variant="link"`), in every app.
-- A notice in a card is a subtle `UAlert` with an icon: `neutral` with `i-lucide-info` for something with nothing to do, `info` for something waiting on the person, and `warning` for something that may be wrong.
+- A notice in a card is a subtle `UAlert` with an icon: `neutral` with `i-lucide-info` for something with nothing to do, `info` for something waiting on the person, and `warning` for something that may be wrong, and `error` for something that failed. A notice or a toast of a tone takes its icon from `TONE_ICONS`, so a warning shows the triangle and an error the circle. The gallery's Notices show each.
 
 ## Tiles and rows of figures
 

@@ -34,6 +34,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * A change tried out against the plan without saving anything: an extra payment both ways the bank
@@ -164,7 +165,7 @@ function saveTried(): void {
         </FormGrid>
         <UAlert
           v-if="result?.subsidyRepaidUntil"
-          icon="i-lucide-triangle-alert"
+          :icon="TONE_ICONS.warning"
           color="warning"
           variant="subtle"
           :title="loanWords.whatIf.subsidyTitle"

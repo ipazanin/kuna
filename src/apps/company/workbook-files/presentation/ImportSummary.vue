@@ -10,6 +10,7 @@ import CutText from '../../../../shared/ui/CutText.vue'
 import ProblemList from './ProblemList.vue'
 import { words } from './words'
 import { words as toSortWords } from '../../categories/presentation/words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** What a file opened as books holds, its record counts by tab and the rows the app could not use, or why it was refused. */
 const props = defineProps<{
@@ -42,7 +43,7 @@ const facts = computed(() => {
     <UAlert
       v-if="failure"
       data-testid="import-failure"
-      icon="i-lucide-triangle-alert"
+      :icon="TONE_ICONS.error"
       color="error"
       variant="subtle"
       :title="failure"

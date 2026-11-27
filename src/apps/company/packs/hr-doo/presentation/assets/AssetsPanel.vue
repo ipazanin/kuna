@@ -330,7 +330,7 @@ function employmentState(until: CivilDate | null): string | null {
 <template>
   <div class="flex flex-col gap-6">
     <EmptyState v-if="workbook.assets.length === 0" icon="i-lucide-package" :title="words.panel.emptyTitle" :description="words.panel.emptyDescription" data-testid="assets-empty" />
-    <EmptyState v-else-if="view && view.failure !== null" icon="i-lucide-triangle-alert" :title="words.panel.failed" :description="view.failure" tone="error" />
+    <EmptyState v-else-if="view && view.failure !== null" :title="words.panel.failed" :description="view.failure" tone="error" />
     <template v-else-if="view && view.failure === null">
       <div class="flex flex-col gap-3 @2xl:flex-row @2xl:items-start @2xl:justify-between @2xl:gap-8" data-testid="doubled-rates">
         <USwitch

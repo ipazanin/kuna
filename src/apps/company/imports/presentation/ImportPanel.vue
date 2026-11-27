@@ -29,6 +29,7 @@ import ProfileMoveNotice from './ProfileMoveNotice.vue'
 import TableRecipeDialog from './TableRecipeDialog.vue'
 import { useDryRun } from './useDryRun'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 const store = useWorkbook()
 const writes = useRecordWrites(store)
@@ -193,7 +194,7 @@ const summary = computed(() => {
             <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
             {{ words.panel.reading }}
           </p>
-          <UAlert v-if="loadFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="loadFailure" data-testid="import-failure" />
+          <UAlert v-if="loadFailure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="loadFailure" data-testid="import-failure" />
           <p v-if="loaded" class="flex items-center gap-2 type-body" data-testid="import-loaded">
             <UIcon :name="loaded.kind === 'camt' ? 'i-lucide-file-code' : 'i-lucide-file-spreadsheet'" class="size-4 shrink-0" aria-hidden="true" />
             <span class="min-w-0 break-words">{{ words.panel.loaded(loaded.fileName, loaded.kind === 'camt') }}</span>
@@ -203,7 +204,7 @@ const summary = computed(() => {
 
       <AppCard v-if="loaded?.kind === 'table'" :title="words.panel.recipe" :subtitle="fitting.length ? words.panel.recipeFits : words.panel.recipeMissing">
         <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5" data-testid="import-recipe">
-          <UAlert v-if="shape === null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="words.panel.noHeader" />
+          <UAlert v-if="shape === null" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="words.panel.noHeader" />
           <div class="flex flex-wrap items-end gap-2">
             <UFormField v-if="recipes.length" :label="words.panel.savedRecipe" class="w-full sm:w-auto sm:min-w-56 sm:flex-1">
               <USelect v-model="recipeChoice" :items="recipeItems" :placeholder="words.panel.pickRecipe" class="w-full" data-testid="recipe-choice" />

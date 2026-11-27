@@ -313,6 +313,68 @@ const emptyLines = {
   },
 }
 
+/** The warning triangle and the error circle, which an alert, a toast or a mark of either tone takes from TONE_ICONS instead. */
+const alertIcons = new Set(['i-lucide-triangle-alert', 'i-lucide-circle-alert'])
+const alertTones = ['error', 'warning']
+
+/** The parts of an expression that pass a test, through every branch of a condition, an array or an object. */
+function partsOf(node, test) {
+  if (node === null || typeof node !== 'object') return []
+  if (test(node)) return [node]
+  return Object.entries(node).flatMap(([key, child]) => (key === 'parent' ? [] : Array.isArray(child) ? child.flatMap((part) => partsOf(part, test)) : partsOf(child, test)))
+}
+
+/** The error and warning colours an expression names as strings. */
+const coloursOf = (node) => [...new Set(partsOf(node, (part) => part.type === 'Literal' && alertTones.includes(part.value)).map((literal) => literal.value))]
+
+/** The tones whose icon an expression takes from TONE_ICONS. */
+const iconTonesOf = (node) =>
+  partsOf(node, (part) => part.type === 'MemberExpression' && part.object.type === 'Identifier' && part.object.name === 'TONE_ICONS').map((member) =>
+    member.computed ? member.property.value : member.property.name,
+  )
+
+/** Whether an expression spells the triangle or the circle by name. */
+const spellsAlertIcon = (node) => partsOf(node, (part) => part.type === 'Literal' && alertIcons.has(part.value)).length > 0
+
+const toneIconsMessage = 'An error shows TONE_ICONS.error, the circle, and a warning TONE_ICONS.warning, the triangle, so the icon always matches the colour.'
+
+/**
+ * An error or warning colour beside the other tone's icon, or beside the triangle or the circle spelt by name rather than taken
+ * from TONE_ICONS. It reads a template element's `color` and a UIcon's text colour against its `icon` or `name`, and any object
+ * with a `color` and an `icon`, such as a toast's. A colour a condition picks between the two is not judged.
+ */
+const toneIconPairs = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const judge = (node, colours, icon) => {
+      if (colours.length !== 1) return
+      if (spellsAlertIcon(icon) || iconTonesOf(icon).some((tone) => alertTones.includes(tone) && tone !== colours[0])) context.report({ node, message: toneIconsMessage })
+    }
+    const attributeNamed = (element, name) => element.startTag.attributes.find((attribute) => (attribute.directive ? attribute.key.argument?.name : attribute.key.name) === name)
+    // A plain attribute's value is a VLiteral, which the expression helpers read as a string like any literal.
+    const valueOf = (attribute) => (attribute === undefined ? null : attribute.directive ? (attribute.value?.expression ?? null) : { type: 'Literal', value: attribute.value?.value })
+    const elementColours = (element) => {
+      if (element.rawName !== 'UIcon') return coloursOf(valueOf(attributeNamed(element, 'color')))
+      const classes = attributeNamed(element, 'class')
+      return classes === undefined || classes.directive ? [] : alertTones.filter((tone) => new RegExp(String.raw`(?:^|\s)text-${tone}(?:\s|$)`).test(classes.value?.value ?? ''))
+    }
+    const objectVisitor = (object) => {
+      const property = (name) => object.properties.find((part) => part.type === 'Property' && !part.computed && (part.key.name ?? part.key.value) === name)
+      const colour = property('color')
+      const icon = property('icon')
+      if (colour !== undefined && icon !== undefined) judge(icon, coloursOf(colour.value), icon.value)
+    }
+    const templateVisitors = {
+      VElement(element) {
+        const icon = attributeNamed(element, element.rawName === 'UIcon' ? 'name' : 'icon')
+        if (icon !== undefined) judge(icon, elementColours(element), valueOf(icon))
+      },
+      ObjectExpression: objectVisitor,
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(templateVisitors, { ObjectExpression: objectVisitor }) ?? { ObjectExpression: objectVisitor }
+  },
+}
+
 const noteLines = {
   meta: { type: 'problem', schema: [] },
   create(context) {
@@ -496,6 +558,7 @@ export const kunaPlugin = {
       "Whether Save was pressed comes from useTried in src/shared/ui/useTried.ts, which clears it as the dialog opens, so no dialog opens on its last opening's red fields.",
     ),
     'note-lines': noteLines,
+    'tone-icons': toneIconPairs,
     'all-links': allLinks,
     'move-buttons': refusedSyntax(
       [

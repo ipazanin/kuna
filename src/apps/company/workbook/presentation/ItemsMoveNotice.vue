@@ -10,6 +10,7 @@ import { useWorkbook } from '../application/workbookStore'
 import { storesItems } from '../domain/rowItems'
 import { itemsMoveBlockerLines } from './itemsMoveBlockers'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** Offers, while the books keep categories the way older versions of Kuna did, to move them to items in one write with Undo, or names what to fix first. */
 const store = useWorkbook()
@@ -32,7 +33,7 @@ function move(): void {
 <template>
   <UAlert
     v-if="offered && blockers.length > 0"
-    icon="i-lucide-triangle-alert"
+    :icon="TONE_ICONS.warning"
     color="warning"
     variant="subtle"
     :title="plural(words.itemsMove.blocked(blockers.length), blockers.length)"

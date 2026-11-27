@@ -4,6 +4,7 @@ import { useWorkbook } from '../application/workbookStore'
 import type { DriveFileLookup } from '../../../../shared/storage/application/workbookPorts'
 import { WorkbookWriteRefused } from '../../../../shared/storage/application/workbookWriteRefused'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 export interface FindDriveFile {
   /**
@@ -24,12 +25,12 @@ export function useFindDriveFile(): FindDriveFile {
       await store.chooseDriveFile(lookup)
     } catch (failure) {
       if (!(failure instanceof WorkbookWriteRefused)) throw failure
-      toast.add({ title: words.find.notOpened, description: failure.message, icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+      toast.add({ title: words.find.notOpened, description: failure.message, icon: TONE_ICONS.error, color: 'error', duration: 10_000 })
       return false
     }
     const chosen = store.state.choice
     if (store.state.status === 'error') {
-      toast.add({ title: words.find.notOpened, description: store.state.error ?? '', icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+      toast.add({ title: words.find.notOpened, description: store.state.error ?? '', icon: TONE_ICONS.error, color: 'error', duration: 10_000 })
       return false
     }
     if (chosen?.source !== 'drive' || chosen === before) {

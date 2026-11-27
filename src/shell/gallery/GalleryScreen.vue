@@ -10,14 +10,12 @@ import MenuButton from '../../shared/ui/MenuButton.vue'
 import ColourSwatchPicker from '../../shared/ui/ColourSwatchPicker.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
-import GettingSetUpCard from '../../shared/ui/GettingSetUpCard.vue'
 import FactGrid from '../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FileDrop from '../../shared/ui/FileDrop.vue'
 import FilterChipRow from '../../shared/ui/FilterChipRow.vue'
 import FiltersSheet from '../../shared/ui/FiltersSheet.vue'
-import AskChatButton from '../../shared/ai/presentation/AskChatButton.vue'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
@@ -44,6 +42,8 @@ import ChatElementSpecimens from './ChatElementSpecimens.vue'
 import CutTextSpecimens from './CutTextSpecimens.vue'
 import DialogSpecimens from './DialogSpecimens.vue'
 import EmptyStateSpecimens from './EmptyStateSpecimens.vue'
+import GettingSetUpCardSpecimen from './GettingSetUpCardSpecimen.vue'
+import NoticeSpecimens from './NoticeSpecimens.vue'
 import FormattingGallery from './FormattingGallery.vue'
 import FoundationsGallery from './FoundationsGallery.vue'
 import GallerySection from './GallerySection.vue'
@@ -84,6 +84,7 @@ const CONTENTS = [
   ['donut-card', 'DonutCard'],
   ['page-tabs', 'PageTabs'],
   ['empty-state', 'EmptyState'],
+  ['notices', 'Notices'],
   ['getting-set-up-card', 'GettingSetUpCard'],
   ['screen-skeleton', 'ScreenSkeleton'],
   ['form-grid', 'FormGrid'],
@@ -340,25 +341,11 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
       </PageTabs>
     </GallerySection>
 
-    <GallerySection
-      id="getting-set-up-card"
-      title="GettingSetUpCard"
-      description="What an app still lacks, with the screen that does each line. An action can settle a line where it stands, and the header's actions what settles several, such as Set up with the chat."
-    >
-      <GettingSetUpCard
-        :lines="[
-          { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: '/gallery' } },
-          { key: 'first-rules', text: 'Kuna filed 31 of 48 rows. Teach it your biggest payees: Alpha Hosting, Beta Telecom and Gamma Rent.', link: { label: 'To review', to: '/gallery' } },
-        ]"
-      >
-        <template #action="{ line }">
-          <UButton v-if="line.key === 'first-statement'" label="Not now" color="neutral" variant="outline" size="sm" class="shrink-0" />
-        </template>
-        <template #actions><AskChatButton text="Set up with the chat" /></template>
-      </GettingSetUpCard>
-    </GallerySection>
+    <GettingSetUpCardSpecimen />
 
     <EmptyStateSpecimens />
+
+    <NoticeSpecimens />
 
     <GallerySection id="screen-skeleton" title="ScreenSkeleton" description="Stands in for a screen while its code or its books load, with its heading or below a header that already shows.">
       <ScreenSkeleton :heading="false" :cards="2" />

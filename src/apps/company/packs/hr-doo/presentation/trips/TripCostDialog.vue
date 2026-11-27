@@ -21,6 +21,7 @@ import { amountProblem, dayProblem, draftAmount, fieldsValid, typingAmount } fro
 import { decimalOfText } from '../../../../../../shared/money/decimal'
 import { words } from './words'
 import { useTried } from '../../../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** A ticket, a night or another cost of a trip, with who paid it, added or changed. */
 const open = defineModel<boolean>('open', { required: true })
@@ -110,7 +111,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.costDialog.currency" :error="(tried && errors.currency) || false">
         <CurrencySelect v-model="fields.currency" :search="words.costDialog.findCurrency" :first="[]" :none="words.costDialog.noCurrency" class="w-full" data-testid="trip-cost-currency" />
       </UFormField>
-      <UAlert v-if="tried && fieldsValid(errors) && refusal" icon="i-lucide-circle-alert" color="error" variant="subtle" :description="refusal" data-testid="trip-cost-refusal" />
+      <UAlert v-if="tried && fieldsValid(errors) && refusal" :icon="TONE_ICONS.error" color="error" variant="subtle" :description="refusal" data-testid="trip-cost-refusal" />
     </FormGrid>
     <template #start>
       <UButton v-if="editing" :label="words.dialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :loading="writes.saving('delete')" data-testid="trip-cost-delete" @click="remove" />

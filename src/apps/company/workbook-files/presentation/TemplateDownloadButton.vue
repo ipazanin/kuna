@@ -5,6 +5,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { downloadTemplate } from '../../workbook/presentation/workbookFiles'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** Downloads empty books in the template format, for someone who fills in a workbook before opening it here. */
 const toast = useToast()
@@ -16,7 +17,7 @@ async function download(): Promise<void> {
   try {
     await downloadTemplate()
   } catch (failure) {
-    toast.add({ title: words.templateFailed, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
+    toast.add({ title: words.templateFailed, description: failure instanceof Error ? failure.message : String(failure), icon: TONE_ICONS.error, color: 'error' })
   } finally {
     downloading.value = false
   }

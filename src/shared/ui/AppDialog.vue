@@ -5,6 +5,7 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { usePhoneLayout } from '../layout/viewport'
 import { CHANGES_REFUSED } from './changesRefused'
+import { TONE_ICONS } from './toneText'
 
 /**
  * The frame of every dialog: full screen on a phone and a centred panel from 640 px. Its footer puts
@@ -41,7 +42,7 @@ const ui = computed(() => ({ content: props.width === undefined ? '@container' :
     <template #body>
       <UAlert
         v-if="refusal !== null"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         color="warning"
         variant="subtle"
         role="alert"

@@ -8,6 +8,7 @@ import type { AppData, DataPlace } from '../application/appData'
 import DeleteRow from './DeleteRow.vue'
 import { backupsLabel } from './removalLines'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /** One app's part of a delete: its export, a tick for each place it really has data, and on Drive its backups, whose row keeps its place whatever the count. */
 const chosen = defineModel<readonly DataPlace[]>('chosen', { required: true })
@@ -55,7 +56,7 @@ async function exportFile(): Promise<void> {
     await props.data.backUp()
     exported.value = true
   } catch (failure) {
-    toast.add({ title: text.exportFailed, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
+    toast.add({ title: text.exportFailed, description: failure instanceof Error ? failure.message : String(failure), icon: TONE_ICONS.error, color: 'error' })
   } finally {
     exporting.value = false
   }

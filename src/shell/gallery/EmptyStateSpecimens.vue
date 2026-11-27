@@ -22,7 +22,6 @@ import GallerySection from './GallerySection.vue'
         :actions="[{ label: 'Clear filters', color: 'neutral', variant: 'outline' }]"
       />
       <EmptyState
-        icon="i-lucide-triangle-alert"
         title="The file on Drive could not be read"
         description="Drive answered 404: File not found. Find the file again or open another."
         :actions="[{ label: 'Try again', color: 'neutral', variant: 'outline' }]"

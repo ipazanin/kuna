@@ -20,6 +20,7 @@ import { words } from './words'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import StepCard from '../../../../shared/ui/StepCard.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 /**
  * The company: its name, its money, and the pack's one question, whose Yes switches on the owner-pay
  * module. For books brought along it confirms what the file says. Continue writes a row for each
@@ -91,7 +92,7 @@ async function proceed(): Promise<void> {
       <template v-if="pack">
         <URadioGroup v-model="packOn" :items="answers" :legend="pack.question" :ui="{ legend: 'type-card-title mb-2', fieldset: 'gap-3' }" data-testid="onboarding-pack" />
       </template>
-      <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.failed" :description="failure" />
+      <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="words.failed" :description="failure" />
     </template>
 
     <template #actions>

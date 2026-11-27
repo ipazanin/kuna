@@ -16,6 +16,7 @@ import type { Trip, TripLeg } from '../../domain/trips/trip'
 import { dayProblem, fieldsValid, wholeProblem } from './tripsView'
 import { words } from './words'
 import { useTried } from '../../../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** One drive or ride of a trip, added or changed. */
 const open = defineModel<boolean>('open', { required: true })
@@ -76,7 +77,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.legDialog.km" :error="(tried && errors.km) || false">
         <UInput v-model="fields.km" inputmode="numeric" class="w-full" data-testid="trip-leg-km" />
       </UFormField>
-      <UAlert v-if="tried && fieldsValid(errors) && refusal" icon="i-lucide-circle-alert" color="error" variant="subtle" :description="refusal" data-testid="trip-leg-refusal" />
+      <UAlert v-if="tried && fieldsValid(errors) && refusal" :icon="TONE_ICONS.error" color="error" variant="subtle" :description="refusal" data-testid="trip-leg-refusal" />
     </FormGrid>
     <template #start>
       <UButton v-if="editing" :label="words.dialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :loading="writes.saving('delete')" data-testid="trip-leg-delete" @click="remove" />

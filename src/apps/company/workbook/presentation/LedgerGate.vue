@@ -35,7 +35,6 @@ const gate = computed(() => {
   <slot v-if="gate === 'open'" />
   <EmptyState
     v-else-if="gate === 'error'"
-    icon="i-lucide-triangle-alert"
     :title="inBrowser ? words.gate.browserUnread : words.gate.driveUnread"
     :description="state.error ?? ''"
     :actions="inBrowser ? [] : [{ label: words.gate.tryAgain, color: 'neutral', variant: 'outline', onClick: () => sync() }]"

@@ -16,6 +16,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { scopesOfChoices } from '../application/onboardingScopes'
 import { useOnboarding } from './useOnboarding'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * What the app may do in the person's Google account, asked in one consent before any file is
@@ -115,7 +116,7 @@ async function ask(): Promise<void> {
       </div>
     </template>
 
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.access.noAnswer" :description="failure" />
+    <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="words.access.noAnswer" :description="failure" />
     <div class="flex flex-col gap-1 type-caption">
       <p v-if="restricted && !answered">{{ words.access.unverified }}</p>
       <p v-if="signInByRedirect" data-testid="redirect-sign-in-note">{{ words.access.cookies }}</p>

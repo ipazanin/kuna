@@ -16,6 +16,7 @@ import { useClosesImport } from './useClosesImport'
 import type { ClosesFileRow } from './useClosesImport'
 import { usePrices } from './usePrices'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * The Prices tab's import of daily closes from CSV files, such as a vendor's free key never reaches back to: each file
@@ -58,7 +59,7 @@ async function importCloses(): Promise<void> {
       clearFiles()
       fetchAddedInBackground(prices)
     } else {
-      toast.add({ title: text.notImported, description: runProblem(run) ?? '', icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+      toast.add({ title: text.notImported, description: runProblem(run) ?? '', icon: TONE_ICONS.error, color: 'error', duration: 10_000 })
     }
   } finally {
     importing.value = false

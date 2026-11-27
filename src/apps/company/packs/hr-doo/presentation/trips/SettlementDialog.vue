@@ -21,6 +21,7 @@ import { ruleValue } from '../../ruleset/ruleset'
 import { dayProblem, fieldsValid, momentForInput, momentProblem, wholeProblem } from './tripsView'
 import { words } from './words'
 import { useTried } from '../../../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** The settlement of a travel order: the times, the odometer of a private car, the meals per line of the per-diem table and the report. */
 const open = defineModel<boolean>('open', { required: true })
@@ -141,7 +142,7 @@ async function save(): Promise<void> {
       </UFormField>
       <UAlert
         v-if="tried && fieldsValid(errors) && refusal"
-        icon="i-lucide-circle-alert"
+        :icon="TONE_ICONS.error"
         color="error"
         variant="subtle"
         :description="refusal"

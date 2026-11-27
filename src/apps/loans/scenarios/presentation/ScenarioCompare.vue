@@ -34,6 +34,7 @@ import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import ScenarioComparison from '../../../../shared/ui/ScenarioComparison.vue'
 import ScenarioPicker from '../../../../shared/ui/ScenarioPicker.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * The offers you are weighing: the picker, the figures side by side with what your savings earn, what
@@ -192,11 +193,11 @@ async function remove(row: ScenarioRow): Promise<void> {
           </template>
         </ScenarioComparison>
         <p v-if="termsDiffer" class="type-caption">{{ words.table.termsDiffer }}</p>
-        <UAlert v-if="payback" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="payback.title" :description="payback.description" data-testid="scenario-subsidy-back" />
+        <UAlert v-if="payback" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="payback.title" :description="payback.description" data-testid="scenario-subsidy-back" />
         <UAlert
           v-for="entry in refused"
           :key="entry.key"
-          icon="i-lucide-triangle-alert"
+          :icon="TONE_ICONS.warning"
           color="warning"
           variant="subtle"
           :title="words.table.refusedTitle(entry.letter, entry.name)"

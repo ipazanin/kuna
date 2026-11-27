@@ -44,6 +44,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { useTried } from '../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * A shared cost made from the entries picked on Entries, or one to change: its day, who it counts under, its category, labels,
@@ -244,7 +245,7 @@ async function remove(): Promise<void> {
           </li>
         </ul>
       </div>
-      <UAlert v-if="refusal !== null" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="refusal" class="sm:col-span-2" data-testid="spending-shared-cost-refused" />
+      <UAlert v-if="refusal !== null" color="warning" variant="subtle" :icon="TONE_ICONS.warning" :title="refusal" class="sm:col-span-2" data-testid="spending-shared-cost-refused" />
     </FormGrid>
     <template #start>
       <UButton

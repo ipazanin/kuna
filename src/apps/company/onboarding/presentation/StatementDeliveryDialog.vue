@@ -21,6 +21,7 @@ import { accountsTheStatementsFill, firstMailDay, mailDeliveryRows, OTHER_BANK, 
 import type { StatementMail, StatementMailProblem } from '../domain/statementsChoice'
 import { words as mailWords } from '../../../../shared/mail/domain/words'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * How later statements reach the books once the first one is in: from the bank's mail, which each sync reads into the ledger.
@@ -110,7 +111,7 @@ async function save(): Promise<void> {
           </UFormField>
         </template>
       </FormGrid>
-      <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="statement-delivery-failed" />
+      <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="statement-delivery-failed" />
     </div>
     <template #end>
       <UButton :label="text.cancel" color="neutral" variant="ghost" :disabled="saving" @click="open = false" />

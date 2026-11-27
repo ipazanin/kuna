@@ -5,6 +5,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { exportWorkbook } from '../../workbook/presentation/workbookFiles'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 export interface ExportAction {
   readonly exporting: Readonly<Ref<boolean>>
@@ -26,7 +27,7 @@ export function useExport(): ExportAction {
         const fileName = await exportWorkbook(store)
         toast.add({ title: words.exported, description: fileName, icon: 'i-lucide-download', color: 'success' })
       } catch (failure) {
-        toast.add({ title: words.exportFailed, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
+        toast.add({ title: words.exportFailed, description: failure instanceof Error ? failure.message : String(failure), icon: TONE_ICONS.error, color: 'error' })
       } finally {
         exporting.value = false
       }

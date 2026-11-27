@@ -17,6 +17,7 @@ import { useOnboarding } from './useOnboarding'
 import { words } from './words'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import StepCard from '../../../../shared/ui/StepCard.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 /**
  * The first statement: a camt.053 file, whose IBAN, currency and opening balance make the account
  * the person names, as Import's dry run offers. A bank export needs its columns named, which Import
@@ -98,7 +99,7 @@ async function importNow(): Promise<void> {
       data-testid="onboarding-statement-file"
     />
     <UButton v-if="offersSample" :label="words.statement.sample" icon="i-lucide-file-code" color="neutral" variant="link" size="sm" class="self-start" data-testid="sample-camt" @click="loadSample" />
-    <UAlert v-if="loadFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="loadFailure" />
+    <UAlert v-if="loadFailure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="loadFailure" />
     <p v-if="loaded" class="flex items-center gap-2 type-body">
       <UIcon :name="loaded.kind === 'camt' ? 'i-lucide-file-code' : 'i-lucide-file-spreadsheet'" class="size-4 shrink-0" aria-hidden="true" />
       <span class="min-w-0 break-words">{{ loaded.fileName }}</span>

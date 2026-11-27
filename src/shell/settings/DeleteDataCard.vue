@@ -10,6 +10,7 @@ import AppCard from '../../shared/ui/AppCard.vue'
 import AppDialog from '../../shared/ui/AppDialog.vue'
 import DeleteKunaDialog from './DeleteKunaDialog.vue'
 import { words } from './words'
+import { TONE_ICONS } from '../../shared/ui/toneText'
 
 /** Kuna settings: deletes all of Kuna, or only the files that hold keys in the Google account after asking first, also with no file on Drive, where no sync can reach them. */
 const sync = usePageSync()
@@ -54,7 +55,7 @@ async function deleteKeys(): Promise<void> {
           <li>{{ text.stayHere }}</li>
           <li>{{ text.syncsAgain }}</li>
         </ul>
-        <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="delete-keys-failed" />
+        <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="delete-keys-failed" />
       </div>
       <template #end>
         <UButton :label="text.cancel" color="neutral" variant="ghost" :disabled="deleting" @click="open = false" />

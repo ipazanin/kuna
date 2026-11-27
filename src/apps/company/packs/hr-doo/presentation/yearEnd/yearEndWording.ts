@@ -2,6 +2,7 @@ import type { AdjustmentId } from '../../domain/accrual/accrualAdjustment'
 import type { LineStatus } from '../../domain/yearEnd/yearEndComparison'
 import type { OpenItemGroup } from '../../domain/yearEnd/yearEndOpenItems'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** What each year-end line is called on screen. The accountant's printed label shows beside it. */
 export const LINE_LABELS: Readonly<Record<string, string>> = words.lines
@@ -24,7 +25,7 @@ export const STATUS_WORDING: Readonly<Record<LineStatus, StatusWording>> = {
   matched: { ...words.statuses.matched, icon: 'i-lucide-circle-check', color: 'success' },
   explained: { ...words.statuses.explained, icon: 'i-lucide-route', color: 'info' },
   judgement: { ...words.statuses.judgement, icon: 'i-lucide-scale', color: 'warning' },
-  open: { ...words.statuses.open, icon: 'i-lucide-circle-alert', color: 'error' },
+  open: { ...words.statuses.open, icon: TONE_ICONS.error, color: 'error' },
 }
 
 export const STATUSES: readonly LineStatus[] = ['matched', 'explained', 'judgement', 'open']

@@ -15,6 +15,7 @@ import PricesProgress from './PricesProgress.vue'
 import { runProblem } from './runProblem'
 import { usePrices } from './usePrices'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** The Prices tab's last fetch: when it ran, what it asked for and left, what it got nothing for and what to do, and Fetch now. */
 const prices = usePrices()
@@ -43,7 +44,7 @@ function announce(run: PricesFetchRun | 'running' | 'no-books'): void {
     toast.add({
       title: words.run.written,
       description: missed === 0 ? words.run.allFetched : plural(words.failures.title(missed), missed),
-      icon: missed === 0 ? 'i-lucide-check' : 'i-lucide-triangle-alert',
+      icon: missed === 0 ? 'i-lucide-check' : TONE_ICONS.warning,
       color: missed === 0 ? 'success' : 'warning',
     })
   } else if (run.kind === 'busy') {
@@ -51,7 +52,7 @@ function announce(run: PricesFetchRun | 'running' | 'no-books'): void {
   } else if (run.kind === 'current') {
     toast.add({ title: words.run.current, description: words.run.currentNote, icon: 'i-lucide-info', color: 'info' })
   } else {
-    toast.add({ title: words.run.failed, description: runProblem(run) ?? '', icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+    toast.add({ title: words.run.failed, description: runProblem(run) ?? '', icon: TONE_ICONS.error, color: 'error', duration: 10_000 })
   }
 }
 
@@ -65,7 +66,7 @@ async function fetchNow(): Promise<void> {
     <div class="flex flex-col gap-6 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <div class="flex flex-col gap-3" data-testid="prices-last-fetch">
         <PricesProgress v-if="prices.state.fetching !== null" :fetching="prices.state.fetching" />
-        <UAlert v-if="problem !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="words.run.failed" :description="problem" data-testid="prices-run-problem" />
+        <UAlert v-if="problem !== null" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="words.run.failed" :description="problem" data-testid="prices-run-problem" />
         <div class="flex flex-col gap-0.5">
           <dl class="flex flex-wrap gap-x-2 type-caption">
             <dt>{{ words.lastFetched }}</dt>

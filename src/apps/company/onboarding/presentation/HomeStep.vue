@@ -14,6 +14,7 @@ import { nextStep } from '../domain/onboardingSteps'
 import type { BooksHome } from '../domain/onboardingSteps'
 import { useOnboarding } from './useOnboarding'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** Where the books live, unless the person already said this browser. New books kept in this browser are made here, since they need nothing from Google. An answer here is the one answer every app reads. */
 const onboarding = useOnboarding()
@@ -61,7 +62,7 @@ async function proceed(withChat = false): Promise<void> {
       <p class="type-body">{{ words.home.browserNote }}</p>
     </div>
     <URadioGroup v-else v-model="chosen" :items="CHOICES" :legend="words.home.title" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" data-testid="onboarding-home" />
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.home.notMade" :description="failure" />
+    <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="words.home.notMade" :description="failure" />
     <template #actions>
       <AskChatButton v-if="intoChat" :text="chatWords.ask.setUp" size="md" :loading="starting && startingWithChat" :disabled="starting" data-testid="onboarding-chat" @ask="proceed(true)" />
       <UButton :label="words.continue" trailing-icon="i-lucide-arrow-right" :loading="starting && !startingWithChat" :disabled="starting" data-testid="onboarding-continue" @click="proceed()" />

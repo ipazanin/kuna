@@ -53,6 +53,7 @@ import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
 import { useTried } from '../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * An offer's terms on one side and what they come to on the other, worked out as you type. Its extra
@@ -258,11 +259,11 @@ async function save(): Promise<void> {
       </form>
       <AppCard as="aside" :title="words.editor.outcome" :subtitle="words.editor.asYouType" heading="h3" data-testid="scenario-outcome">
         <div class="flex flex-col gap-3 px-4 pb-4 sm:px-5">
-          <UAlert v-if="refusal" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="words.editor.refused" :description="refusal" />
+          <UAlert v-if="refusal" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="words.editor.refused" :description="refusal" />
           <template v-else-if="facts.length > 0">
             <SparkLine :points="owed" :colour="`var(${mark?.colour ?? '--scenario-1'})`" fill :height="56" />
             <FactGrid :facts="facts" />
-            <UAlert v-if="eksWarning" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="eksWarning" data-testid="scenario-eks-differs" />
+            <UAlert v-if="eksWarning" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :description="eksWarning" data-testid="scenario-eks-differs" />
           </template>
           <p v-else class="type-caption">{{ words.editor.noPlan }}</p>
         </div>

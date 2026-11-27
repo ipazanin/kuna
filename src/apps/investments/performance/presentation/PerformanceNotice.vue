@@ -8,6 +8,7 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { listed } from '../../../../shared/text/translation'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * What the period's figures could not use as they are: a benchmark with no close, a late one or none for the period's
@@ -46,7 +47,7 @@ const lateCloses = computed(() => {
 <template>
   <UAlert
     v-if="problems.length + lateCloses.length > 0"
-    :icon="problems.length > 0 ? 'i-lucide-triangle-alert' : 'i-lucide-info'"
+    :icon="problems.length > 0 ? TONE_ICONS.warning : 'i-lucide-info'"
     :color="problems.length > 0 ? 'warning' : 'neutral'"
     variant="subtle"
     :title="problems.length > 0 ? words.notice.title : words.notice.aboutTitle"

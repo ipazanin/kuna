@@ -8,6 +8,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { words as fileWords } from '../../workbook-files/presentation/words'
 import DataSourceChoices from './DataSourceChoices.vue'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -22,7 +23,7 @@ const current = computed(() => state.choice?.source ?? null)
     <div class="flex flex-col gap-4">
       <UAlert
         v-if="current === 'browser'"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         color="warning"
         variant="subtle"
         :title="words.deletedOnSwitch"

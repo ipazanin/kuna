@@ -14,6 +14,7 @@ import { XLSX_MIME_TYPE } from '../../../../shared/xlsx/sheetGrids'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { plural } from '../../../../shared/text/translation'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** The workbook picked or dropped, read at once, with what was read or why it cannot be imported, and the ECB rates its rows need fetched before the next step. */
 const props = defineProps<{
@@ -42,7 +43,7 @@ async function downloadTemplate(): Promise<void> {
   try {
     downloadFile(await portfolioTemplateFile(words.template), PORTFOLIO_TEMPLATE_FILE_NAME, XLSX_MIME_TYPE)
   } catch (failure) {
-    toast.add({ title: words.file.templateFailed, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
+    toast.add({ title: words.file.templateFailed, description: failure instanceof Error ? failure.message : String(failure), icon: TONE_ICONS.error, color: 'error' })
   } finally {
     downloading.value = false
   }
@@ -83,7 +84,7 @@ async function loadSample(): Promise<void> {
       <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
       {{ words.file.reading }}
     </p>
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="failure" data-testid="import-failure" />
+    <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="failure" data-testid="import-failure" />
     <p v-if="reading" class="flex items-center gap-2 type-body" data-testid="import-loaded">
       <UIcon name="i-lucide-file-check" class="size-4 shrink-0 text-success" aria-hidden="true" />
       <span class="min-w-0 break-words">{{ plural(words.file.read(reading.rows.length + reading.skipped.length, fileName), reading.rows.length + reading.skipped.length) }}</span>

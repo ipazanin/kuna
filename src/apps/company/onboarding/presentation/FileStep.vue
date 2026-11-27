@@ -12,6 +12,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 import { useOnboarding } from './useOnboarding'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * The file brought along as books: what it holds and what the app could not use, as Open a file shows
@@ -60,7 +61,7 @@ async function proceed(): Promise<void> {
   <StepCard :title="words.file.title" :subtitle="words.file.subtitle">
     <template v-if="held || picked">
       <ImportSummary :preview="held" :failure="failure" :failure-detail="failureDetail" />
-      <UAlert v-if="keepFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.file.notKept" :description="keepFailure" />
+      <UAlert v-if="keepFailure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="words.file.notKept" :description="keepFailure" />
     </template>
     <div v-else class="flex flex-col gap-2">
       <UFileUpload

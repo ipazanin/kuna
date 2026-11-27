@@ -2,6 +2,7 @@
 import UAlert from '@nuxt/ui/components/Alert.vue'
 
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /** Says that a newer version of Kuna saved the file on screen, which this version reads and never writes, and offers the reload that updates it. */
 const emit = defineEmits<{
@@ -11,7 +12,7 @@ const emit = defineEmits<{
 
 <template>
   <UAlert
-    icon="i-lucide-triangle-alert"
+    :icon="TONE_ICONS.warning"
     color="warning"
     variant="subtle"
     role="alert"

@@ -235,7 +235,7 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
 
         <PageTabs :tabs="tabs" :label="words.tabs.label" data-testid="year-tabs">
           <template #accountant>
-            <EmptyState v-if="closed?.view === null" icon="i-lucide-triangle-alert" :title="words.notWorkedOut" :description="closed.failure ?? ''" tone="error" />
+            <EmptyState v-if="closed?.view === null" :title="words.notWorkedOut" :description="closed.failure ?? ''" tone="error" />
             <AccountantPanel v-else-if="closed?.view" :view="closed.view" :year="shown.year" />
           </template>
           <template #statements>

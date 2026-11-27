@@ -38,6 +38,7 @@ import ScenarioEditor from './ScenarioEditor.vue'
 import { plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
 import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** Which owner pay mix leaves the owner the most, at what cost to the company and with what risk, and what the year can pay out. */
 const props = defineProps<{
@@ -161,7 +162,7 @@ function openDetail(opened: AskableDetail): void {
       :actions="[{ label: pay.action.label, to: pay.action.to, color: 'neutral', variant: 'outline' }]"
       data-testid="scenarios-needs-setting"
     />
-    <EmptyState v-else-if="pay.state === 'failed'" icon="i-lucide-triangle-alert" :title="words.panel.failed" :description="pay.failure" tone="error" />
+    <EmptyState v-else-if="pay.state === 'failed'" :title="words.panel.failed" :description="pay.failure" tone="error" />
     <div v-else-if="ready" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
       <ScenarioPicker
         v-if="workedOut.length > 1"
@@ -211,7 +212,7 @@ function openDetail(opened: AskableDetail): void {
                 <UPopover v-if="badge" :content="{ side: 'top', align: 'end', collisionPadding: 12 }">
                   <UButton
                     :label="badge.label"
-                    :icon="badge.warns ? 'i-lucide-triangle-alert' : 'i-lucide-info'"
+                    :icon="badge.warns ? TONE_ICONS.warning : 'i-lucide-info'"
                     :color="badge.warns ? 'warning' : 'neutral'"
                     variant="soft"
                     size="xs"

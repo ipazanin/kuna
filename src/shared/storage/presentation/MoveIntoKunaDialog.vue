@@ -15,6 +15,7 @@ import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
 import { useKunaFolderHome } from './useKunaFolderHome'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /**
  * Moves the app's Drive file into its subfolder of the Kuna folder, after listing what goes and what stays. Only this press moves anything.
@@ -105,7 +106,7 @@ async function move(): Promise<void> {
       </div>
       <p class="type-aside">{{ text.keepsWorking }}</p>
       <p class="type-aside">{{ text.partWay }}</p>
-      <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="move-into-kuna-failed" />
+      <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="move-into-kuna-failed" />
     </div>
     <template #end>
       <UButton :label="text.cancel" color="neutral" variant="ghost" :disabled="moving" @click="open = false" />

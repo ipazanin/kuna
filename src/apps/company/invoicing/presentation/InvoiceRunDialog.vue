@@ -22,6 +22,7 @@ import type { InvoiceRunMode } from './useInvoiceRun'
 import { words } from './words'
 import { words as writeWords } from '../../../../shared/storage/presentation/words'
 import { plural } from '../../../../shared/text/translation'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -97,7 +98,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
     <div class="flex flex-col gap-5" data-testid="invoice-run">
       <UAlert
         v-if="stage.kind === 'edit' && stage.message"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.error"
         color="error"
         variant="subtle"
         :title="writeWords.nothingWritten"

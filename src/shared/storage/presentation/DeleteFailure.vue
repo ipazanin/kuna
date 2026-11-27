@@ -5,6 +5,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { RemovalLine } from './removalLines'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /** What a failed delete did, first in the dialog's body and scrolled into view: what failed, then a short group of what already went. */
 const props = defineProps<{
@@ -22,7 +23,7 @@ onMounted(() => root.value?.scrollIntoView({ block: 'start' }))
 
 <template>
   <div ref="root" role="alert" class="flex scroll-mt-4 flex-col gap-3">
-    <UAlert icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="title" :description="note" />
+    <UAlert :icon="TONE_ICONS.error" color="error" variant="subtle" :title="title" :description="note" />
     <ul v-if="failed.length > 0" class="flex flex-col gap-2 type-body">
       <li v-for="line in failed" :key="line.text" class="flex items-start gap-2">
         <UIcon name="i-lucide-circle-x" class="mt-0.5 shrink-0 text-error" />

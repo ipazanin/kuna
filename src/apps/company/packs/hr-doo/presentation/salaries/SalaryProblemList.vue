@@ -9,6 +9,7 @@ import type { AskableDetail } from '../tracedFigureView'
 import type { ProblemView } from './salariesView'
 import { words } from './words'
 import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
+import { TONE_ICONS } from '../../../../../../shared/ui/toneText'
 
 /** What the app and the bank do not agree on, or what is missing, each with what to open to resolve it. */
 defineProps<{
@@ -30,7 +31,7 @@ const FACT = { hash: '#employee-rows' }
     <ul v-else class="flex flex-col px-4 pb-3 sm:px-5">
       <FigureAsk v-for="problem in problems" :key="problem.key" v-slot="{ ask, askLabel, marked }" :detail="problem.detail">
         <li class="problem-row" data-testid="salaries-problem" v-bind="marked">
-          <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+          <UIcon :name="TONE_ICONS.warning" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <div class="flex min-w-0 flex-1 flex-col gap-1">
             <p class="type-body">{{ problem.text }}</p>
             <div v-if="problem.detail || problem.rows || problem.fact" class="flex flex-wrap items-center gap-x-4 gap-y-1 type-caption">

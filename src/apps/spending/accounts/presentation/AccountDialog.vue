@@ -40,6 +40,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import SourceHandoverAlert from '../../../../shared/ui/SourceHandoverAlert.vue'
 import { useTried } from '../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** One of your accounts in one currency: its name, kind, bank, where its rows come from on which days, what it held on the day you start counting from, its IBAN and the cards that pay from it. One with entries is closed rather than deleted. */
 const open = defineModel<boolean>('open', { required: true })
@@ -266,7 +267,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false" v-bind="earlierFromBank ? { help: words.dialog.earlierStart } : {}">
         <DayField v-model="openedOn" :autofocus="period === 0" class="w-full" data-testid="spending-account-opened-on" />
       </UFormField>
-      <UAlert v-if="shownCutover !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="shownCutover.title" data-testid="spending-account-cutover">
+      <UAlert v-if="shownCutover !== null" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="shownCutover.title" data-testid="spending-account-cutover">
         <template #description>
           <ul v-if="shownCutover.goes.length > 1" class="list-disc ps-5">
             <li v-for="line in shownCutover.goes" :key="line">{{ line }}</li>

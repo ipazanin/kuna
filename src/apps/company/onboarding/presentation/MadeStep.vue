@@ -14,6 +14,7 @@ import { words as settingsWords } from '../../settings/presentation/words'
 import { words as storageWords } from '../../../../shared/storage/presentation/words'
 import { useOnboarding } from './useOnboarding'
 import { words } from './words'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * The step that made the books of this run, gone back to once they exist: where they are, Continue
@@ -81,7 +82,7 @@ async function startOver(): Promise<void> {
       </a>
     </div>
     <p class="type-body">{{ onDrive ? words.made.startOverDrive : words.made.startOverBrowser }}</p>
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.made.startOverFailed" :description="failure" />
+    <UAlert v-if="failure" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="words.made.startOverFailed" :description="failure" />
 
     <template #actions>
       <UButton :label="words.made.startOver" icon="i-lucide-rotate-ccw" color="neutral" variant="outline" :loading="dropping" data-testid="onboarding-start-over" @click="confirming = true" />
@@ -90,7 +91,7 @@ async function startOver(): Promise<void> {
   </StepCard>
 
   <AppDialog v-model:open="confirming" :title="onDrive ? words.made.trash(books?.name ?? null) : words.made.deleteHere" :description="onDrive ? words.made.trashNote : words.made.deleteNote">
-    <UAlert icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="held" data-testid="onboarding-start-over-holds" />
+    <UAlert :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="held" data-testid="onboarding-start-over-holds" />
     <template #end>
       <UButton :label="words.made.keep" color="neutral" variant="ghost" :disabled="dropping" data-testid="onboarding-keep-books" @click="confirming = false" />
       <UButton

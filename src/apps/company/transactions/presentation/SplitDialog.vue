@@ -34,6 +34,7 @@ import LabelsSelect from '../../../../shared/ui/LabelsSelect.vue'
 import { useTypedLabels } from '../../labels/presentation/useTypedLabels'
 import { storedItemsOfRow, storesItems } from '../../workbook/domain/rowItems'
 import { useTried } from '../../../../shared/ui/useTried'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** Settings, General, where the problem list names each record Kuna cannot read. */
 const PROBLEMS_LINK = { path: '/company/settings', query: { tab: 'general' } }
@@ -199,7 +200,7 @@ async function remove(): Promise<void> {
       <UAlert v-if="keptWhole !== null" icon="i-lucide-info" color="neutral" variant="subtle" :title="words.splitDialog.keptWhole(keptWhole)" data-testid="split-claimed" />
       <UAlert
         v-else-if="unreadable"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         color="warning"
         variant="subtle"
         :title="plural(words.splitDialog.unreadableParts(stored.unreadable), stored.unreadable)"
@@ -208,7 +209,7 @@ async function remove(): Promise<void> {
       />
       <UAlert
         v-else-if="refusedParts > 0"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         color="warning"
         variant="subtle"
         :title="plural(words.splitDialog.replacesRefused(refusedParts), refusedParts)"

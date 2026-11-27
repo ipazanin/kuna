@@ -16,6 +16,7 @@ import { seriesKey } from '../../prices/domain/pricesFile'
 import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount } from '../../../../shared/money/moneyFormat'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * The holdings valued at a late price or one entered by hand, those with no price, and cash below zero, one line each.
@@ -74,7 +75,7 @@ const shownEmpty = computed(() => problems.value.length === 0 && byHand.value.le
 <template>
   <UAlert
     v-if="!noticeIsEmpty(notice) && !shownEmpty"
-    :icon="problems.length > 0 ? 'i-lucide-triangle-alert' : 'i-lucide-hand'"
+    :icon="problems.length > 0 ? TONE_ICONS.warning : 'i-lucide-hand'"
     :color="problems.length > 0 ? 'warning' : 'neutral'"
     variant="subtle"
     :title="problems.length > 0 ? words.notice.toCheck : words.notice.byHandOnly"

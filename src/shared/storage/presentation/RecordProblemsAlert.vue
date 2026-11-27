@@ -5,6 +5,7 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import type { RecordNoun } from '../domain/recordKind'
 import type { RecordProblem } from '../domain/recordsRead'
 import { words } from './words'
+import { TONE_ICONS } from '../../ui/toneText'
 
 /** The records an app's file holds that its reading leaves out or doubts, one line each, so the person can fix them in the file. */
 const props = defineProps<{
@@ -16,7 +17,7 @@ const lines = computed(() => props.problems.map((problem) => words.recordProblem
 </script>
 
 <template>
-  <UAlert icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="title">
+  <UAlert :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="title">
     <template #description>
       <ul class="flex flex-col gap-0.5">
         <li v-for="line in lines" :key="line">{{ line }}</li>

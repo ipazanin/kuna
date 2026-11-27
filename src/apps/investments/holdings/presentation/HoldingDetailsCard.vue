@@ -12,6 +12,7 @@ import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { withFullStop } from '../../../../shared/text/withFullStop'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * What the holding is and where each fact came from, a warning for each fact a vendor sent nothing usable for with a
@@ -75,16 +76,7 @@ const actions = computed(() => [
 <template>
   <AppCard :title="words.details.title" data-testid="holding-details">
     <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
-      <UAlert
-        v-if="details.problems !== null"
-        icon="i-lucide-triangle-alert"
-        color="warning"
-        variant="subtle"
-        :title="problem"
-        :description="note"
-        :actions="actions"
-        data-testid="holding-fact-problem"
-      />
+      <UAlert v-if="details.problems !== null" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="problem" :description="note" :actions="actions" data-testid="holding-fact-problem" />
       <NoteLine v-if="details.typedFactsOnly" tone="muted" icon="i-lucide-pencil-line" as="div" data-testid="holding-typed-facts-only">
         <span class="flex flex-wrap items-center gap-x-1">
           {{ words.details.typedFactsOnly }}
@@ -93,7 +85,7 @@ const actions = computed(() => [
       </NoteLine>
       <UAlert
         v-if="details.leveraged !== null"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         color="warning"
         variant="subtle"
         :title="words.details.leveragedTitle"

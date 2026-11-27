@@ -28,6 +28,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /** The Bank sync tab's list of every account the linked banks give, each kept, offered to add, offered to update, or left out of Kuna, and the fixes the last fetch's balances suggest. */
 const props = defineProps<{ outcome: BankSetup }>()
@@ -279,7 +280,7 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
       <UAlert
         v-for="difference in differences"
         :key="difference.account.id"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         color="warning"
         variant="subtle"
         :title="differenceLine(difference)"
@@ -302,7 +303,7 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
       <UAlert
         v-for="older in outcome.olderRows"
         :key="older.account.id"
-        icon="i-lucide-triangle-alert"
+        :icon="TONE_ICONS.warning"
         color="warning"
         variant="subtle"
         :title="olderRowsLine(older)"

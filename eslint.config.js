@@ -305,6 +305,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/all-links', files: ['src/**/*.vue'], rules: { 'kuna/all-links': 'error' } },
     { name: 'kuna/tried-flags', files: ['src/**/*.vue'], rules: { 'kuna/tried-flags': 'error' } },
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
+    { name: 'kuna/tone-icons', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/tone-icons': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
     { name: 'kuna/picker-min-widths', files: ['src/**/*.vue'], rules: { 'kuna/picker-min-widths': 'error' } },
     { name: 'kuna/type-roles', files: ['src/**/*.vue'], ignores: ['src/shared/ui/**'], rules: { 'kuna/type-roles': ['error', { sizes: true }] } },

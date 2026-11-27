@@ -35,6 +35,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
 /**
  * Settings' Bank sync tab: the person's own Enable Banking application, each bank linked with a personal login, and what the last fetch did. A
@@ -133,8 +134,8 @@ onMounted(() => {
       <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
         <NoteLine v-if="!builtIn" tone="info" size="body" data-testid="spending-bank-sync-no-script">{{ bankScriptWords.noScript }}</NoteLine>
         <BankApplicationPanel v-else :application-id="settings?.bankSyncApplication ?? ''" />
-        <UAlert v-if="returnLine !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="returnLine" data-testid="spending-bank-sync-return" />
-        <UAlert v-if="sync.failure.value !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="sync.failure.value" data-testid="spending-bank-sync-failed" />
+        <UAlert v-if="returnLine !== null" :icon="TONE_ICONS.warning" color="warning" variant="subtle" :title="returnLine" data-testid="spending-bank-sync-return" />
+        <UAlert v-if="sync.failure.value !== null" :icon="TONE_ICONS.error" color="error" variant="subtle" :title="sync.failure.value" data-testid="spending-bank-sync-failed" />
         <template v-if="builtIn && saved">
           <ul v-if="linkRows.length > 0" class="divide-y divide-default rounded-control border border-default">
             <ListRow v-for="{ link, line, listed } in linkRows" :key="link.id" :title="link.bank" data-testid="spending-bank-link">
@@ -213,7 +214,7 @@ onMounted(() => {
         <UAlert
           v-for="problem in sync.lastOutcome.value.problems"
           :key="problem"
-          icon="i-lucide-triangle-alert"
+          :icon="TONE_ICONS.warning"
           color="warning"
           variant="subtle"
           :title="problem"
