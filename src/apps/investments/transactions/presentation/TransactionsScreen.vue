@@ -25,6 +25,7 @@ import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /** Every record of the Investments file, newest first by month, found by kind, account, holding and words, each opening its dialog. */
@@ -176,9 +177,11 @@ function change(entry: ListedTransaction): void {
             <span class="type-caption font-normal">{{ plural(words.inMonth(month.rows.length), month.rows.length) }}</span>
           </h2>
           <ul>
-            <li
+            <RecordRow
               v-for="row in month.rows"
               :key="row.entry.record.id"
+              as="li"
+              :open="() => change(row.entry)"
               class="flex items-center gap-1 border-t border-default ps-4 pe-2 first:border-t-0"
               data-testid="transaction-row"
               :data-kind="row.entry.kind"
@@ -199,7 +202,7 @@ function change(entry: ListedTransaction): void {
                 </span>
               </span>
               <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" :aria-label="words.change(row.kind, row.date)" data-testid="transaction-edit" @click="change(row.entry)" />
-            </li>
+            </RecordRow>
           </ul>
         </section>
       </div>

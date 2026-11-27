@@ -38,6 +38,7 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
 import type { Money } from '../../../../shared/money/money'
 import CutText from '../../../../shared/ui/CutText.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /** Each invoice, newest first, with the payments the matching gave it. */
 defineProps<{
@@ -59,7 +60,7 @@ const STATUS = {
 
 <template>
   <ul class="flex flex-col @container" data-testid="invoice-list">
-    <li v-for="invoice in invoices" :key="invoice.id" class="invoice-row">
+    <RecordRow v-for="invoice in invoices" :key="invoice.id" as="li" :open="() => emit('edit', invoice.id)" class="invoice-row">
       <div class="invoice-head">
         <div class="invoice-id min-w-0">
           <p class="flex min-w-0 items-baseline gap-2">
@@ -103,7 +104,7 @@ const STATUS = {
           </DrillLink>
         </li>
       </ol>
-    </li>
+    </RecordRow>
   </ul>
 </template>
 

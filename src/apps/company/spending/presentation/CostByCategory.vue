@@ -40,6 +40,7 @@ import { words } from './words'
 import type { Money } from '../../../../shared/money/money'
 import CutText from '../../../../shared/ui/CutText.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /**
  * Cost by category as a list of bars under their buckets, each against a mark for the period
@@ -91,7 +92,7 @@ function changeText(change: CostChange | null): string {
           <span v-if="compared" class="cost-change figure">{{ changeText(section.change) }}</span>
         </h3>
         <ul>
-          <li v-for="line in section.lines" :key="line.key" class="cost-row" data-testid="cost-line">
+          <RecordRow v-for="line in section.lines" :key="line.key" as="li" :to="line.to" class="cost-row" data-testid="cost-line">
             <DrillLink :to="line.to" class="cost-name min-w-0 text-toned">
               <CutText class="block">{{ line.name }}</CutText>
             </DrillLink>
@@ -104,7 +105,7 @@ function changeText(change: CostChange | null): string {
               <span v-if="compared && line.prior !== null" class="sr-only">{{ words.costs.before(formatMoney(line.prior)) }}</span>
             </span>
             <span v-if="compared" class="cost-change figure">{{ changeText(line.change) }}</span>
-          </li>
+          </RecordRow>
         </ul>
       </section>
     </div>

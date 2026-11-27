@@ -45,6 +45,7 @@ import { words } from './words'
 import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 import CutText from '../../../../../../shared/ui/CutText.vue'
 import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
+import RecordRow from '../../../../../../shared/ui/RecordRow.vue'
 
 /** What the state took in a year, by type, and whether every payroll month and corporate tax payment landed. */
 const props = defineProps<{
@@ -247,12 +248,12 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <p>{{ words.corporate.unmatched }}</p>
               <ul class="flex flex-col">
-                <li v-for="payment in corporateTax.unmatched" :key="payment.key" class="flex items-baseline justify-between gap-3">
+                <RecordRow v-for="payment in corporateTax.unmatched" :key="payment.key" as="li" :to="payment.to" class="flex items-baseline justify-between gap-3">
                   <DrillLink :to="payment.to" :label="words.corporate.openRow(payment.label)" class="min-w-0"
                     ><CutText class="block">{{ payment.label }}</CutText></DrillLink
                   >
                   <MoneyText :cents="payment.cents" tone="flow" />
-                </li>
+                </RecordRow>
               </ul>
             </div>
           </div>

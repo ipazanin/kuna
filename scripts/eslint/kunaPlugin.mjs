@@ -127,6 +127,76 @@ const pickerMinWidths = {
   },
 }
 
+const drillLink = /^(?:DrillLink|drill-link)$/
+const openIcons = new Set(['i-lucide-pencil', 'i-lucide-square-pen'])
+
+/** The elements inside a list item that belong to it once each, leaving out the items of a list nested in it and what a v-for repeats. */
+const ownElements = (node) =>
+  node.children
+    .filter((child) => child.type === 'VElement')
+    .flatMap((child) => (child.name === 'li' || child.startTag.attributes.some((attribute) => attribute.directive && attribute.key.name.name === 'for') ? [] : [child, ...ownElements(child)]))
+
+const isFigure = (element) => /^(?:Account)?MoneyText$/.test(element.rawName) || /(?:^|\s)figure(?:\s|$)/.test(attributeValue(element, 'class') ?? '')
+
+/** A DrillLink whose spoken label opens a figure's rows, such as a step of a build-up, rather than one record. */
+function drillsIntoRows(element) {
+  const label = attributeOf(element, 'label')?.value?.expression
+  const callee = label?.type === 'CallExpression' ? label.callee : null
+  const name = callee?.type === 'MemberExpression' ? callee.property.name : callee?.name
+  return typeof name === 'string' && name.endsWith('Rows')
+}
+
+/** A DrillLink on a row's name, leaving out one inside a sentence, one on a figure and one into a figure's rows, which stay their own links as in a table's cell. */
+const namesRecord = (element) => drillLink.test(element.rawName) && attributeOf(element, 'in-prose') === undefined && !ownElements(element).some(isFigure) && !drillsIntoRows(element)
+
+/** A UButton that shows only a pencil, which opens the row's record to edit. */
+const opensByIcon = (element) =>
+  /^(?:UButton|u-button)$/.test(element.rawName) &&
+  openIcons.has(attributeValue(element, 'icon')) &&
+  attributeOf(element, 'label') === undefined &&
+  !element.children.some((child) => child.type === 'VElement' || child.type === 'VExpressionContainer' || (child.type === 'VText' && child.value.trim() !== ''))
+
+/** A ListRow that opens as a whole, as a link, a button or a row whose words open it, which covers the row but for its own controls. */
+const opensAsWhole = (element) =>
+  /^(?:ListRow|list-row)$/.test(element.rawName) && (attributeOf(element, 'to') !== undefined || attributeOf(element, 'opens') !== undefined || attributeValue(element, 'as') === 'button')
+
+/**
+ * A row that stands for a record and opens it only from one part of it: a link in a plain table row's heading cell, or a
+ * list item with one DrillLink on its name or, with no such link, one pencil button. A row with both opens the link's
+ * page from anywhere on it while the pencil keeps its dialog. A list item that is itself pressed, whose link is its whole
+ * content or that holds a ListRow opening as a whole already opens from anywhere on it.
+ */
+const recordRows = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const visitors = {
+      "VElement[name='tr'] VElement[name='th']:has(VAttribute[directive=false][key.name='scope'][value.value='row']) VElement[rawName=/^(?:DrillLink|drill-link|RouterLink|router-link)$/]"(node) {
+        context.report({
+          node,
+          message: "A table row that stands for a record is a RecordRow, which opens the record from anywhere on the row. A link in a row's heading cell names the row's record.",
+        })
+      },
+      "VElement[name='li']"(item) {
+        if (item.startTag.attributes.some((attribute) => attribute.directive && attribute.key.name.name === 'on')) return
+        const children = item.children.filter((child) => child.type === 'VElement')
+        if (children.length === 1 && drillLink.test(children[0].rawName)) return
+        const elements = ownElements(item)
+        if (elements.some(opensAsWhole)) return
+        const names = elements.filter(namesRecord)
+        const pencils = elements.filter(opensByIcon)
+        const way = names.length === 1 ? names[0] : names.length === 0 && pencils.length === 1 ? pencils[0] : null
+        if (way === null) return
+        context.report({
+          node: way,
+          message:
+            'A list item that stands for a record opens it from anywhere on the row: a RecordRow as="li" with to or open, whose name stays its link, or a ListRow as="button" for a record that opens in a dialog.',
+        })
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, {}) ?? {}
+  },
+}
+
 const plainSelect = /^(?:USelect|USelectMenu|u-select|u-select-menu)$/
 const notSetKey = /^(?:notSet|none|no[A-Z]\w*)$/
 
@@ -606,10 +676,7 @@ export const kunaPlugin = {
     ),
     'empty-lines': emptyLines,
     'optional-selects': optionalSelects,
-    'record-rows': refusedSyntax(
-      ["VElement[name='tr'] VElement[name='th']:has(VAttribute[directive=false][key.name='scope'][value.value='row']) VElement[rawName=/^(?:DrillLink|drill-link|RouterLink|router-link)$/]"],
-      "A table row that stands for a record is a RecordRow, which opens the record from anywhere on the row. A link in a row's heading cell names the row's record.",
-    ),
+    'record-rows': recordRows,
     'card-reasons': refusedSyntax(
       ["Property[key.name='reason'] > Literal.value[value=/[A-Za-z]/]", "Property[key.name='reason'] > TemplateLiteral.value > TemplateElement[value.raw=/[A-Za-z]/]"],
       "A card's reason is read by the person, so it comes from the app's words in both languages, never a sentence typed beside the operation.",

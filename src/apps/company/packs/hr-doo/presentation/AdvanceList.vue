@@ -48,6 +48,7 @@ import { words } from './words'
 import type { Money } from '../../../../../shared/money/money'
 import CutText from '../../../../../shared/ui/CutText.vue'
 import EmptyState from '../../../../../shared/ui/EmptyState.vue'
+import RecordRow from '../../../../../shared/ui/RecordRow.vue'
 
 /** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
 defineProps<{
@@ -65,7 +66,7 @@ const emit = defineEmits<{
 <template>
   <EmptyState v-if="advances.length === 0" line :title="empty" data-testid="advance-list-empty" />
   <ul v-else class="flex flex-col px-4 pt-1 pb-2 sm:px-5" data-testid="advance-list">
-    <li v-for="advance in advances" :key="advance.id" class="advance-row">
+    <RecordRow v-for="advance in advances" :key="advance.id" as="li" :open="() => emit('edit', advance.id)" class="advance-row">
       <div class="advance-head">
         <div class="min-w-0">
           <CutText as="p" class="type-row-title">{{ advance.description || advance.category }}</CutText>
@@ -110,7 +111,7 @@ const emit = defineEmits<{
           </DrillLink>
         </li>
       </ol>
-    </li>
+    </RecordRow>
   </ul>
 </template>
 

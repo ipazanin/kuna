@@ -43,6 +43,30 @@ describe('the lint rules that keep a row that opens a page on ListRow and a link
     expect(await rulesBroken('<table><tbody><tr><th scope="rowgroup"><DrillLink to="/a">A</DrillLink></th></tr></tbody></table>')).not.toContain('kuna/record-rows')
   })
 
+  it('refuses a list item that opens its record only from a link on its name or a pencil button', async () => {
+    expect(await rulesBroken('<ul><li><DrillLink to="/a">A</DrillLink><MoneyText :cents="1" /></li></ul>')).toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><span>A</span><UButton icon="i-lucide-pencil" aria-label="Edit A" /><UButton icon="i-lucide-trash-2" aria-label="Remove A" /></li></ul>')).toContain(
+      'kuna/record-rows',
+    )
+    expect(await rulesBroken('<ul><li><span>A</span><UButton :icon="\'i-lucide-square-pen\'" aria-label="Edit A" /></li></ul>')).toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><DrillLink to="/a">A</DrillLink><UButton icon="i-lucide-pencil" aria-label="Edit A" /></li></ul>')).toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><DrillLink :to="row.to" :label="words.openRow(row.label)">A</DrillLink><span>1</span></li></ul>')).toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><span>A</span><ul><li><DrillLink to="/a">B</DrillLink><span>1</span></li></ul></li></ul>')).toContain('kuna/record-rows')
+  })
+
+  it("leaves a list item that opens as a whole, a figure's, a sentence's or a figure's rows' own link, repeated links and a labelled button alone", async () => {
+    expect(await rulesBroken('<ul><RecordRow as="li" to="/a"><DrillLink to="/a">A</DrillLink></RecordRow></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><ListRow to="/a" title="A" /><UButton icon="i-lucide-pencil" aria-label="Edit A" /></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li @click="open"><DrillLink to="/a">A</DrillLink><span>1</span></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><DrillLink to="/a"><span>A</span><span>1</span></DrillLink></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><span>A</span><DrillLink to="/a"><MoneyText :cents="1" /></DrillLink></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><span>A</span><DrillLink to="/a"><span class="figure">3</span></DrillLink></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><p>See <DrillLink to="/a" in-prose>the rows</DrillLink>.</p><span>1</span></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><span v-for="row in rows" :key="row"><DrillLink :to="row">A</DrillLink></span></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><DrillLink :to="step.to" :label="words.figure.openRows(step.label)">A</DrillLink><span>1</span></li></ul>')).not.toContain('kuna/record-rows')
+    expect(await rulesBroken('<ul><li><span>A</span><UButton icon="i-lucide-pencil" label="Edit" /></li></ul>')).not.toContain('kuna/record-rows')
+  })
+
   it('leaves a disclosure chevron in a button and a ListRow that opens a page alone', async () => {
     expect(await rulesBroken('<button type="button"><UIcon name="i-lucide-chevron-right" /></button>')).not.toContain('kuna/link-rows')
     expect(await rulesBroken('<ListRow to="/a" title="A" />')).not.toContain('kuna/link-rows')

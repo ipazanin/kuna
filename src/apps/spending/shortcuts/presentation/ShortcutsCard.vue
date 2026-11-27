@@ -18,6 +18,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /** Settings' quick adds in the order their buttons show on Entries, each opening its dialog and moving up or down, with Add. */
 const store = useSpendingBooks()
@@ -77,9 +78,11 @@ async function move(shortcut: Shortcut, step: -1 | 1): Promise<void> {
       <UButton :label="words.card.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="spending-shortcuts-add" @click="openDialog(null)" />
     </template>
     <ol class="flex flex-col pt-3 pb-2">
-      <li
+      <RecordRow
         v-for="({ held, name, caption, amount, currency, hidden }, index) in rows"
         :key="held.shortcut.id"
+        as="li"
+        :open="() => openDialog(held)"
         class="flex items-start gap-2 border-b border-default px-4 last:border-b-0 sm:px-5"
         data-testid="spending-shortcut"
       >
@@ -113,7 +116,7 @@ async function move(shortcut: Shortcut, step: -1 | 1): Promise<void> {
             @click="openDialog(held)"
           />
         </div>
-      </li>
+      </RecordRow>
     </ol>
   </AppCard>
   <ShortcutDialog v-model:open="dialogOpen" :held="editing" />

@@ -38,6 +38,7 @@ import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.
 import { absMoney } from '../../../../shared/money/money'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /** One informal loan: who owes how much and what made it so, how repayments stand against its expected plan, the balance over time, and its movements newest first. */
 const { state } = useLoansBooks()
@@ -179,7 +180,14 @@ function openMovement(movement: Movement | null): void {
         >
           <EmptyState v-if="lines.length === 0" line :title="words.movements.none(formatMoney(book.loan.openingBalance))" />
           <ul v-else class="flex flex-col pb-2">
-            <li v-for="line in shown" :key="line.movement.id" class="flex items-center gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5" data-testid="movement-line">
+            <RecordRow
+              v-for="line in shown"
+              :key="line.movement.id"
+              as="li"
+              :open="() => openMovement(line.movement)"
+              class="flex items-center gap-3 border-t border-default px-4 py-2 first:border-t-0 sm:px-5"
+              data-testid="movement-line"
+            >
               <div class="min-w-0 flex-1">
                 <p class="flex flex-wrap items-baseline gap-x-2">
                   <span class="text-highlighted">{{ line.kind }}</span>
@@ -200,7 +208,7 @@ function openMovement(movement: Movement | null): void {
                 data-testid="movement-edit"
                 @click="openMovement(line.movement)"
               />
-            </li>
+            </RecordRow>
           </ul>
           <div v-if="lines.length > FIRST_SHOWN" class="px-4 pb-4 sm:px-5">
             <ShowAllButton v-model:expanded="showAll" :total="lines.length" />

@@ -31,6 +31,7 @@ import { words } from './words'
 import type { Money } from '../../../../../shared/money/money'
 import CutText from '../../../../../shared/ui/CutText.vue'
 import EmptyState from '../../../../../shared/ui/EmptyState.vue'
+import RecordRow from '../../../../../shared/ui/RecordRow.vue'
 
 /** Each loan to the owner, newest first, with the repayments the matching gave it. */
 defineProps<{
@@ -43,7 +44,7 @@ defineProps<{
 <template>
   <EmptyState v-if="loans.length === 0" line :title="empty" data-testid="loan-list-empty" />
   <ul v-else class="flex flex-col px-4 pt-1 pb-2 sm:px-5" data-testid="loan-list">
-    <li v-for="loan in loans" :key="loan.key" class="loan-row">
+    <RecordRow v-for="loan in loans" :key="loan.key" as="li" :to="loan.to" class="loan-row">
       <div class="loan-head">
         <DrillLink :to="loan.to" :label="words.loanList.openRow(loan.lentOn)" class="type-row-title">{{ loan.lentOn }}</DrillLink>
         <MoneyText :cents="loan.amount" class="type-card-title" />
@@ -63,7 +64,7 @@ defineProps<{
           </DrillLink>
         </li>
       </ol>
-    </li>
+    </RecordRow>
   </ul>
 </template>
 

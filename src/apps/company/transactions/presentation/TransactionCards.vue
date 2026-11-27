@@ -32,6 +32,7 @@ import { plural } from '../../../../shared/text/translation'
 import CutText from '../../../../shared/ui/CutText.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import PickBox from '../../../../shared/ui/PickBox.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /** The phone's form of the transaction table: one card per row, under the same group headings. */
 const props = defineProps<{
@@ -132,7 +133,13 @@ function ownerPartNote(row: ListedRow): string | null {
       </h2>
       <ul v-if="!section.group || !isCollapsed(section.key)">
         <template v-for="entry in section.entries" :key="entry.kind === 'row' ? entry.row.key : entry.key">
-          <li v-if="entry.kind === 'shared'" class="card split-heading" data-testid="shared-heading">
+          <RecordRow
+            v-if="entry.kind === 'shared'"
+            as="li"
+            :open="shareTargetOf(entry.whole) === null ? null : () => emit('ownerShare', entry.whole)"
+            class="card split-heading"
+            data-testid="shared-heading"
+          >
             <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
               <span class="flex items-baseline justify-between gap-3">
                 <CutText class="min-w-0 font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</CutText>
@@ -167,8 +174,8 @@ function ownerPartNote(row: ListedRow): string | null {
                 @click="entry.whole.kind === 'bank' && emit('split', entry.whole)"
               />
             </span>
-          </li>
-          <li v-else-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
+          </RecordRow>
+          <RecordRow v-else-if="entry.kind === 'split'" as="li" :open="() => emit('split', entry.whole)" class="card split-heading" data-testid="split-heading">
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="flex items-baseline justify-between gap-3">
                 <CutText class="min-w-0 font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</CutText>
@@ -183,7 +190,7 @@ function ownerPartNote(row: ListedRow): string | null {
               <SeenInSpending v-if="isLinkedElsewhere(seenRows, entry.whole)" as="span" />
             </span>
             <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" :aria-label="words.editSplit(entry.whole.counterparty)" data-testid="edit-split" @click="emit('split', entry.whole)" />
-          </li>
+          </RecordRow>
           <li v-else class="card" :class="{ part: partLabel(entry.row) !== null }" data-testid="transaction-card">
             <button
               type="button"

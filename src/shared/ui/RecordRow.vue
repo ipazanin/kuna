@@ -30,9 +30,12 @@ const CONTROLS =
 
 function openRecord(event: MouseEvent): void {
   if (!opens.value || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  // The path kept at dispatch still holds a control whose pressed part re-rendered away, such as a button's icon swapped for its spinner.
   const row = event.currentTarget
-  const control = event.target instanceof Element ? event.target.closest(CONTROLS) : null
-  if (control !== null && row instanceof Element && row.contains(control)) return
+  if (row === null) return
+  const path = event.composedPath()
+  const inside = path.slice(0, path.indexOf(row))
+  if (inside.some((node) => node instanceof Element && node.matches(CONTROLS))) return
   if ((window.getSelection()?.toString() ?? '') !== '') return
   if (props.open !== null) props.open()
   else if (props.to !== null) void router.push(props.to)

@@ -6,6 +6,7 @@ import type { ScenarioRow } from './scenariosView'
 import { words } from './words'
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 
 /** Every offer kept, compared or not, with its terms, and Edit, Copy and Delete. */
 defineProps<{
@@ -25,9 +26,11 @@ const emit = defineEmits<{
 <template>
   <AppCard :title="title" :subtitle="subtitle" data-testid="scenario-list">
     <ul class="flex flex-col px-4 pb-2 sm:px-5">
-      <li
+      <RecordRow
         v-for="row in rows"
         :key="row.key"
+        as="li"
+        :open="() => emit('edit', row)"
         class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-t border-default py-2.5 first:border-t-0"
         :data-scenario="row.key"
         data-testid="scenario-row"
@@ -60,7 +63,7 @@ const emit = defineEmits<{
             @click="emit('remove', row)"
           />
         </div>
-      </li>
+      </RecordRow>
     </ul>
   </AppCard>
 </template>

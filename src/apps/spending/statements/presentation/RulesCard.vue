@@ -34,6 +34,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import RemovableChip from '../../../../shared/ui/RemovableChip.vue'
 import { TONE_ICONS } from '../../../../shared/ui/toneText'
 
@@ -248,9 +249,11 @@ async function remove(rule: SpendingRule, name: string): Promise<void> {
         </template>
       </UAlert>
       <ol v-if="rules.length > 0" class="@container flex flex-col pt-1 pb-2" data-testid="spending-rule-list">
-        <li
+        <RecordRow
           v-for="{ rule, first, last, tests, name, files, labels, goesTo } in rules"
           :key="rule.id"
+          as="li"
+          :open="() => openDialog(rule)"
           class="flex items-start gap-2 border-b border-default ps-4 pe-2 last:border-b-0 sm:ps-5 sm:pe-3"
           data-testid="spending-rule"
         >
@@ -297,7 +300,7 @@ async function remove(rule: SpendingRule, name: string): Promise<void> {
               />
             </div>
           </div>
-        </li>
+        </RecordRow>
       </ol>
       <p v-else-if="shownFor !== null" class="px-4 pt-3 pb-4 type-aside sm:px-5" data-testid="spending-rules-none-for">{{ words.rules.noneFor(shownFor.name) }}</p>
     </AppCard>

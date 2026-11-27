@@ -23,6 +23,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import CountLink from '../../../../shared/ui/CountLink.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
+import RecordRow from '../../../../shared/ui/RecordRow.vue'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** The spending groups with their children, then Income, then the fixed categories apart, each to edit, move, hide or delete, with a link to the rules that file under it. */
@@ -118,7 +119,14 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
           </div>
         </div>
         <ul class="flex flex-col">
-          <li v-for="(child, place) in section.children" :key="child.id" class="flex items-center gap-2 border-b border-default ps-8 pe-4 sm:ps-9 sm:pe-5" data-testid="spending-category-row">
+          <RecordRow
+            v-for="(child, place) in section.children"
+            :key="child.id"
+            as="li"
+            :open="() => openDialog({ mode: 'edit', category: child })"
+            class="flex items-center gap-2 border-b border-default ps-8 pe-4 sm:ps-9 sm:pe-5"
+            data-testid="spending-category-row"
+          >
             <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(${colourOf(child)})` }" aria-hidden="true" />
             <span class="flex min-w-0 flex-1 flex-col items-start py-2">
               <span class="break-words" :class="child.hidden ? 'type-aside' : 'type-row-title'">{{ child.name }}</span>
@@ -146,7 +154,7 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
                 @click="openDialog({ mode: 'edit', category: child })"
               />
             </div>
-          </li>
+          </RecordRow>
         </ul>
         <div class="ps-6 pe-4 pt-1 pb-3 sm:ps-7 sm:pe-5">
           <UButton
@@ -164,7 +172,14 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
       <section v-if="fixed.length > 0" data-testid="spending-fixed-categories">
         <h3 class="group-row px-4 py-2 sm:px-5">{{ words.fixedHeading }}</h3>
         <ul class="flex flex-col">
-          <li v-for="{ category, kind } in fixed" :key="category.id" class="flex items-center gap-2 border-b border-default px-4 last:border-b-0 sm:px-5" data-testid="spending-category-row">
+          <RecordRow
+            v-for="{ category, kind } in fixed"
+            :key="category.id"
+            as="li"
+            :open="() => openDialog({ mode: 'edit', category })"
+            class="flex items-center gap-2 border-b border-default px-4 last:border-b-0 sm:px-5"
+            data-testid="spending-category-row"
+          >
             <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: `var(${colourOf(category)})` }" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col items-start py-2">
               <span class="break-words type-row-title">{{ category.name }}</span>
@@ -180,7 +195,7 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
               data-testid="spending-category-edit"
               @click="openDialog({ mode: 'edit', category })"
             />
-          </li>
+          </RecordRow>
         </ul>
       </section>
     </div>
