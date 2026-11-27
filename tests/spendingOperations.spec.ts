@@ -1001,13 +1001,13 @@ describe("a payee's details", () => {
     expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.', 'Corner market'] }])
   })
 
-  it('takes one IBAN you added off a payee and keeps the others, saying on the card how many entries leave with it', async () => {
+  it('takes one IBAN you added off a payee and keeps the others, saying on the card that every entry still counts under the payee when none leaves', async () => {
     const desk = await spendingDesk(used)
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'set-payee-details', { payee: payee(desk), ibans: 'HR6212345670000000001, HR3512345670000000002' })])
     expect((await desk.accept()).kind).toBe('done')
 
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'take-iban-off-payee', { payee: payee(desk), iban: 'hr62 1234 5670 0000 0000 1' })])
-    expect(desk.cards.at(-1)!.groups.flatMap((group) => group.notes)).toEqual([{ label: 'HR62 1234 5670 0000 0000 1', text: '0 entries stop counting under Bakery.', tone: 'neutral' }])
+    expect(desk.cards.at(-1)!.groups.flatMap((group) => group.notes)).toEqual([{ label: 'HR62 1234 5670 0000 0000 1', text: 'Every entry still counts under Bakery.', tone: 'neutral' }])
     expect((await desk.accept()).kind).toBe('done')
 
     expect(bookOf(desk).payees).toMatchObject([{ names: ['Bakery', 'BAKERY D.O.O.'], ibans: ['HR3512345670000000002'] }])

@@ -46,6 +46,7 @@ export const en = {
       one: `1 entry stops counting under ${payee}.`,
       other: `${count} entries stop counting under ${payee}.`,
     }),
+    keepPayee: (payee: string) => `Every entry still counts under ${payee}.`,
     fields: {
       name: 'Name',
       kind: 'Type',
@@ -310,6 +311,7 @@ export const hr: Translation<typeof en> = {
       few: `${count} unosa više se ne vode pod ${payee}.`,
       other: `${count} unosa više se ne vodi pod ${payee}.`,
     }),
+    keepPayee: (payee) => `Svi se unosi i dalje vode pod ${payee}.`,
     fields: {
       name: 'Naziv',
       kind: 'Vrsta',

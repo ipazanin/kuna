@@ -466,6 +466,42 @@ export function chatCloseAccountFlowIn(language) {
 }
 
 /**
+ * A chat proposes taking the bank's spelling CORNER MARKET D.O.O. off Corner market: the card's note under the spelling says how
+ * many entries stop counting under the payee, in English or Croatian. Not now leaves the payee as it was.
+ */
+export function chatPayeeSpellingFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  const proposals = (language === 'en' ? spendingAssistantEnglish : spendingAssistantCroatian).proposals
+  const request = language === 'en' ? 'Take CORNER MARKET D.O.O. off Corner market' : 'Ukloni CORNER MARKET D.O.O. s Corner marketa'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, request)
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-proposal-note"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the card that takes a spelling off a payee shows no note')
+      })
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await elementSays(
+        page,
+        '[data-testid="chat-proposal-note"]',
+        ['CORNER MARKET D.O.O.', proposals.leavePayee(1, 'Corner market').one],
+        'the card does not say the one entry under the spelling stops counting under Corner market',
+      )
+      await inspect?.('a proposal that takes a spelling off a payee')
+      await shoot('chat-proposal-payee-spelling')
+      await pressSelector(page, press, '[data-testid="chat-proposal-decline"]')
+      await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.declined], 'Not now did not say the card was left')
+      await newChat(page, press)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/**
  * On Spending's import tab, "import" makes the fake model transcribe a pasted statement: Kuna refuses the first try for an
  * amount that does not add up, and the second ties, with the card Accept writes and Undo takes back.
  */

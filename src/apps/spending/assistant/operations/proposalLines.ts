@@ -342,7 +342,8 @@ function leavingNotes(checked: CheckedWrite, book: SpendingBook): readonly Propo
     const ibans = payee.ibans.filter((iban) => !after.some((held) => held.ibans.includes(iban))).map((iban) => ({ label: groupedIban(iban), without: withoutIban(payee, iban) }))
     return [...spellings, ...ibans].map(({ label, without }): ProposalNote => {
       const leaving = entriesLeaving(rows, book.payees, payee, without)
-      return { label, text: plural(words.proposals.leavePayee(leaving, payee.names[0] ?? ''), leaving), tone: 'neutral' }
+      const name = payee.names[0] ?? ''
+      return { label, text: leaving === 0 ? words.proposals.keepPayee(name) : plural(words.proposals.leavePayee(leaving, name), leaving), tone: 'neutral' }
     })
   })
 }
