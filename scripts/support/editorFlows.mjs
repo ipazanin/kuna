@@ -9272,6 +9272,42 @@ export function spendingCategoryFlowIn(language) {
 export const spendingCategoryFlow = spendingCategoryFlowIn('en')
 
 /**
+ * In a list whose rows move with MoveButtons, the second row's up arrow moves it to the top, where that arrow goes disabled,
+ * and focus lands on the moved row's down arrow rather than dropping to the page. `rows` picks the rows in their order, each
+ * holding one pair of arrows whose test ids start with `testId`.
+ */
+export function moveToTopKeepsFocusFlow(rows, testId) {
+  return async (page, { press, inspect }) => {
+    await page.waitForSelector(`${rows} [data-testid="${testId}-up"]`, { visible: true, timeout: 10_000 })
+    const names = () => page.$$eval(rows, (found) => found.map((row) => row.textContent?.trim() ?? ''))
+    const [firstName, secondName] = await names()
+    if (secondName === undefined) throw new Error(`${rows} has fewer than two rows to move`)
+    const up = await (await page.$$(rows))[1].$(`[data-testid="${testId}-up"]`)
+    await up.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await press(up)
+    await page
+      .waitForFunction(
+        (selector, wanted) => {
+          const first = document.querySelector(selector)
+          return first?.textContent?.trim() === wanted && first.contains(document.activeElement)
+        },
+        { timeout: 10_000 },
+        rows,
+        secondName,
+      )
+      .catch(async () => {
+        const order = await names()
+        throw new Error(`after Move up the rows start ${order[0] === secondName ? 'with the moved row' : `with ${order[0]}, not ${secondName}`}, and focus is not in the moved row`)
+      })
+    const focused = await page.evaluate(() => document.activeElement?.getAttribute('data-testid'))
+    if (focused !== `${testId}-down`) throw new Error(`after Move up to the top focus is on ${focused}, not on the moved row's ${testId}-down`)
+    if ((await names())[1] !== firstName) throw new Error(`the row that was first is not second after the move`)
+    await inspect?.(`${testId} moved to the top with focus on its down arrow`)
+  }
+}
+
+/**
  * On the sample Spending file's Settings: Coffee's colour pop-up opens Other colour, refuses a code too pale for the light theme and offers a darker one,
  * takes it, warns on a code that looks like Home's orange, and the dialog shows the own colour on its swatch button. Nothing is saved.
  */
@@ -15088,7 +15124,7 @@ export function companyAccountSourcesFlowIn(language) {
  * On Invoicing, Clients the client's name on its row of the clients grid opens every field of the client, and so does a tap on the row
  * outside its cells' fields. A tag that is not an IBAN and an invoice line with no text are each said under their own field after Save,
  * the line's under it and tied to each of its controls, and the new line shows nothing wrong before Save. A
- * line moves down and back up. An address change is saved with Undo, and Undo puts the address back. A line added on Lumen, which the
+ * line moves down and back up, focus following it to its up arrow at the end. An address change is saved with Undo, and Undo puts the address back. A line added on Lumen, which the
  * billing plan names no item for, offers none of Northwind's plan items.
  */
 export function clientDialogFlowIn(language) {
@@ -15150,6 +15186,12 @@ export function clientDialogFlowIn(language) {
     await pressSelector(page, press, `${form} [data-testid="client-line-down"]`)
     const moved = await lineTexts(page)
     if (JSON.stringify(moved) !== JSON.stringify([...lines].reverse())) throw new Error(`moving the first line down shows ${JSON.stringify(moved)}`)
+    const focusedLine = await page.evaluate((selector) => {
+      const rows = [...document.querySelectorAll(selector)]
+      return { at: rows.findIndex((row) => row.contains(document.activeElement)), button: document.activeElement?.getAttribute('data-testid') }
+    }, `${form} [data-testid="client-line"]`)
+    if (focusedLine.at !== 1 || focusedLine.button !== 'client-line-up')
+      throw new Error(`after moving the first line down to the end focus is on ${focusedLine.button} of line ${focusedLine.at + 1}, not on the moved line's up arrow`)
     const ups = await page.$$(`${form} [data-testid="client-line-up"]`)
     await press(ups.at(-1))
     if (JSON.stringify(await lineTexts(page)) !== JSON.stringify(lines)) throw new Error('moving the line back up does not give the lines as they were')

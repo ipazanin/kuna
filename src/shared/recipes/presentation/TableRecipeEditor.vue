@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick } from 'vue'
-import type { ComponentPublicInstance } from 'vue'
+import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -20,6 +19,7 @@ import CurrencySelect from '../../ui/CurrencySelect.vue'
 import FormGrid from '../../ui/FormGrid.vue'
 import MoveButtons from '../../ui/MoveButtons.vue'
 import NoteLine from '../../ui/NoteLine.vue'
+import { useRowKeys } from '../../ui/useRowKeys'
 
 /**
  * Edits a table recipe column by column: its name, the bank and currency of its rows, the day and how it is written, the
@@ -121,23 +121,7 @@ function amountError(column: string): string | false {
   return column.trim() === '' ? (props.errors.fields.amount ?? false) : false
 }
 
-/** Each kind's row by its place, so a move can put focus back on the moved kind. */
-const kindRows: (Element | null)[] = []
-
-function holdKindRow(at: number, row: Element | ComponentPublicInstance | null): void {
-  kindRows[at] = row instanceof Element ? row : null
-}
-
-/** Rows are keyed by place, so focus goes after the moved kind to its button at its new place, or to the other one once it reaches an end. */
-async function moveKind(at: number, step: -1 | 1): Promise<void> {
-  draft.value = kindMoved(draft.value, at, step)
-  await nextTick()
-  const place = at + step + 1
-  const [pressed, other] = step === -1 ? [words.moveKindUp(place), words.moveKindDown(place)] : [words.moveKindDown(place), words.moveKindUp(place)]
-  const button = (label: string) => kindRows[at + step]?.querySelector<HTMLButtonElement>(`button[aria-label="${CSS.escape(label)}"]:not(:disabled)`)
-  const target = button(pressed) ?? button(other)
-  target?.focus()
-}
+const kindKeys = useRowKeys(() => draft.value.kinds)
 </script>
 
 <template>
@@ -196,7 +180,7 @@ async function moveKind(at: number, step: -1 | 1): Promise<void> {
         <h3 class="type-card-title">{{ words.kinds }}</h3>
         <p class="type-caption">{{ words.kindsHelp }}</p>
       </div>
-      <fieldset v-for="(held, at) in draft.kinds" :key="at" :ref="(row) => holdKindRow(at, row)" class="flex flex-col gap-2 border-t border-default pt-3" data-testid="recipe-kind">
+      <fieldset v-for="(held, at) in draft.kinds" :key="kindKeys[at]" class="flex flex-col gap-2 border-t border-default pt-3" data-testid="recipe-kind">
         <legend class="sr-only">{{ words.kindAt(at + 1) }}</legend>
         <FormGrid>
           <UFormField :label="words.kind" :error="errors.kinds[at]?.kind ?? false">
@@ -219,8 +203,8 @@ async function moveKind(at: number, step: -1 | 1): Promise<void> {
             :first="at === 0"
             :last="at === draft.kinds.length - 1"
             test-id="recipe-kind"
-            @up="moveKind(at, -1)"
-            @down="moveKind(at, 1)"
+            @up="draft = kindMoved(draft, at, -1)"
+            @down="draft = kindMoved(draft, at, 1)"
           />
           <UTooltip :text="draft.kinds.length <= 1 ? words.oneKind : words.removeKind">
             <span class="inline-flex">

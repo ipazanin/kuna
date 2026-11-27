@@ -6,6 +6,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import MoveButtons from '../../../../shared/ui/MoveButtons.vue'
+import { useRowKeys } from '../../../../shared/ui/useRowKeys'
 import type { InvoiceLine } from '../domain/invoiceLine'
 import type { InvoiceTemplateLine } from '../domain/invoiceTemplate'
 import PlanItemsSelect from './PlanItemsSelect.vue'
@@ -28,6 +29,7 @@ defineProps<{
 
 const titleId = useId()
 const lineId = useId()
+const lineKeys = useRowKeys(() => lines.value)
 const linesItems = computed(() => lines.value.flatMap((line) => line.items))
 
 function update(index: number, change: Partial<InvoiceTemplateLine>): void {
@@ -50,7 +52,7 @@ function move(index: number, by: -1 | 1): void {
     </div>
     <p v-if="lines.length === 0" class="type-aside">{{ words.clientLines.planNote }}</p>
     <ol v-else class="flex flex-col divide-y divide-default border-y border-default">
-      <li v-for="(line, index) in lines" :key="index" class="py-3" data-testid="client-line">
+      <li v-for="(line, index) in lines" :key="lineKeys[index]" class="py-3" data-testid="client-line">
         <UFormField :error="errors[index] ?? false">
           <div class="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <UInput
