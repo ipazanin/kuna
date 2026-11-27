@@ -64,6 +64,12 @@ export default defineConfig(({ command, isPreview }) => ({
           slots: { itemLabel: wholeOption, itemDescription: wholeOption },
           variants: { active: { false: { item: 'data-highlighted:before:bg-accented data-[state=open]:before:bg-accented' } } },
         },
+        button: {
+          // Nuxt's 75% leaves a disabled button close to an enabled one, most of all in the dark theme. Half keeps an ink label at 3:1 on a card in both themes.
+          slots: { base: 'disabled:opacity-50 aria-disabled:opacity-50' },
+          // A loading button is disabled too, but its spinner already says it is busy, so it keeps its full colour.
+          compoundVariants: [{ loading: true, class: { base: 'disabled:opacity-100 aria-disabled:opacity-100' } }],
+        },
         // An unchecked box or radio draws its edge in a colour that passes 3:1, where Nuxt's border-strong does not.
         checkbox: { slots: { base: 'ring-control-edge' } },
         radioGroup: { slots: { base: 'ring-control-edge' } },

@@ -101,7 +101,6 @@ function takeRest(id: number): void {
                 icon="i-lucide-x"
                 color="neutral"
                 variant="ghost"
-                class="disabled:opacity-40"
                 :disabled="parts.length <= 2"
                 :aria-label="words.split.removePart(index + 1)"
                 data-testid="split-part-remove"

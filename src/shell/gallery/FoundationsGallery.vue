@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import { tokenColour } from '../../shared/charts/chartTokens'
 import { formatPercent } from '../../shared/money/moneyFormat'
@@ -201,6 +202,14 @@ const TYPE_ROLES = [
   { role: 'type-label', use: 'A small heading over a group of figures or a column', sample: 'What can be paid out' },
   { role: 'type-caption', use: 'Subtitles, captions and the line under a figure', sample: 'Last 12 months against the 12 before' },
 ] as const
+
+/** The button looks screens use, each shown enabled, disabled and loading. */
+const BUTTON_LOOKS = [
+  { name: 'Solid', color: 'primary', variant: 'solid', icon: 'i-lucide-save' },
+  { name: 'Outline', color: 'neutral', variant: 'outline', icon: 'i-lucide-plus' },
+  { name: 'Ghost', color: 'neutral', variant: 'ghost', icon: 'i-lucide-x' },
+  { name: 'Link', color: 'primary', variant: 'link', icon: 'i-lucide-arrow-right' },
+] as const
 </script>
 
 <template>
@@ -250,6 +259,23 @@ const TYPE_ROLES = [
         <p class="figure type-body">€1,111.11 / €8,888.88 / −€404.04</p>
         <p class="identifier text-toned">HR00 0000 0000 0000 0000 0</p>
         <p class="type-caption"><span class="identifier">figure</span> and <span class="identifier">identifier</span>, figures in running text and codes such as an IBAN</p>
+      </div>
+    </AppCard>
+  </GallerySection>
+
+  <GallerySection
+    id="buttons"
+    title="Buttons"
+    description="Every disabled button fades by half, whatever its look. A loading button takes no taps either, but keeps its full colour, since its spinner says it is busy."
+  >
+    <AppCard as="div" class="gap-3 p-5">
+      <div v-for="look in BUTTON_LOOKS" :key="look.name" class="flex flex-wrap items-center gap-3 border-b border-default pb-3 last:border-b-0 last:pb-0" data-testid="gallery-button-look">
+        <span class="w-20 type-label">{{ look.name }}</span>
+        <UButton label="Enabled" :icon="look.icon" :color="look.color" :variant="look.variant" />
+        <UButton label="Disabled" :icon="look.icon" :color="look.color" :variant="look.variant" disabled />
+        <UButton label="Loading" :icon="look.icon" :color="look.color" :variant="look.variant" loading />
+        <UButton :icon="look.icon" :color="look.color" :variant="look.variant" :aria-label="`${look.name}, icon only`" />
+        <UButton :icon="look.icon" :color="look.color" :variant="look.variant" :aria-label="`${look.name}, icon only, disabled`" disabled />
       </div>
     </AppCard>
   </GallerySection>

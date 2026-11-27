@@ -73,6 +73,10 @@ const restrictedClasses = [
     pattern: utility(String.raw`(?:duration|animation-duration)-[\d\[(].*`),
     message: '"$0": use a named duration, not a number.',
   },
+  {
+    pattern: String.raw`^(?:\S*:)?(?:aria-|data-)?disabled:(?:\S*:)?opacity-.*$`,
+    message: '"$0": every disabled button fades the same way, through ui.button in vite.config.ts, so it takes no opacity of its own.',
+  },
 ]
 
 // A page's grid answers to the room the shell's content area has, which the chat's dock takes from, and not to the window.

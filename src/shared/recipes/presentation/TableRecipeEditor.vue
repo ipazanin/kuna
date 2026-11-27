@@ -230,7 +230,6 @@ async function moveKind(at: number, step: -1 | 1): Promise<void> {
                 color="neutral"
                 variant="ghost"
                 size="sm"
-                class="disabled:opacity-40"
                 :disabled="draft.kinds.length <= 1"
                 data-testid="recipe-remove-kind"
                 @click="draft = kindRemoved(draft, at)"
