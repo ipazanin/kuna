@@ -11,6 +11,8 @@ import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/domai
 import type { SplitsAnswer } from '../src/apps/investments/imports/domain/importChoices'
 import { words } from '../src/apps/investments/imports/presentation/words'
 import { tradeTotal } from '../src/apps/investments/holdings/domain/lots'
+import { MARKET_SUFFIXES } from '../src/apps/investments/prices/domain/marketSuffixes'
+import { alphaVantage } from '../src/apps/investments/prices/infrastructure/vendors/alphaVantage'
 import type { Trade } from '../src/apps/investments/workbook/domain/trade'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { decimalText, roundedDecimal } from '../src/shared/money/decimal'
@@ -270,6 +272,17 @@ describe('the price source guessed for a listing', () => {
       ['XAMS', 'alphavantage', 'FUND.AMS'],
       ['XETR', 'alphavantage', 'ETF.DEX'],
     ])
+  })
+
+  it('proposes for every market of the suffix table the symbol whose Alpha Vantage listing names the same market', async () => {
+    for (const market of MARKET_SUFFIXES) {
+      const rows = rowsOf(line('2025-01-06', { ...MAIN, yahooSymbol: `fund.${market.yahoo.toLowerCase()}`, brokerSymbol: 'FUND', type: 'BUY', quantity: 1, price: 10, currency: 'EUR', netCash: -10 }))
+      const [question] = workbookDryRun(rows, { book: book({}), rates: RATES, answers: NO_ANSWERS }).questions.instruments
+      const match = { '1. symbol': question!.proposal.sourceSymbol, '2. name': 'Example Fund', '3. type': 'ETF', '8. currency': 'EUR' }
+      const searched = await alphaVantage.search(async () => ({ status: 200, text: JSON.stringify({ bestMatches: [match] }) }), 'made-up-key', 'FUND')
+      expect([question!.proposal.exchange, question!.proposal.prices]).toEqual([market.mic, 'alphavantage'])
+      expect(searched.kind === 'found' ? searched.listings.map((listing) => listing.mic) : searched).toEqual([market.mic])
+    }
   })
 })
 

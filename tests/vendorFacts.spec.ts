@@ -200,11 +200,11 @@ describe("Alpha Vantage's fund profiles, dividends and search", () => {
     })
   })
 
-  it('reads SYMBOL_SEARCH best matches with their type, region and currency, and its notes as Alpha Vantage’s limits', async () => {
+  it('reads SYMBOL_SEARCH best matches with their type, region, currency and the market code of their suffix, and its notes as Alpha Vantage’s limits', async () => {
     const match = { '1. symbol': 'EXF.DEX', '2. name': 'Example World UCITS ETF', '3. type': 'ETF', '4. region': 'XETRA', '5. marketOpen': '08:00', '8. currency': 'EUR', '9. matchScore': '0.8' }
     expect(await alphaVantage.search(answering(json(200, { bestMatches: [match] })).fetch, 'made-up-key', 'EXF')).toEqual({
       kind: 'found',
-      listings: [{ symbol: 'EXF.DEX', name: 'Example World UCITS ETF', mic: null, market: 'XETRA', currency: 'EUR', type: 'ETF', freeCloses: true }],
+      listings: [{ symbol: 'EXF.DEX', name: 'Example World UCITS ETF', mic: 'XETR', market: 'XETRA', currency: 'EUR', type: 'ETF', freeCloses: true }],
     })
     const note = json(200, { Information: 'Our standard API rate limit is 25 requests per day.' })
     expect(await alphaVantage.search(answering(note).fetch, 'made-up-key', 'EXF')).toEqual({ kind: 'failed', reason: 'limit' })

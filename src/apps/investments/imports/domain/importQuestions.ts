@@ -7,6 +7,7 @@ import type { Instrument, InstrumentType, PriceSource } from '../../workbook/dom
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { proposedTypedFactsOnly } from '../../prices/domain/factsBook'
+import { alphaVantageSymbol, marketOfSuffix, symbolParts } from '../../prices/domain/marketSuffixes'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -198,21 +199,20 @@ export function instrumentQuestions(entries: readonly RowEntry[], book: Investme
 
 /**
  * A first guess the person corrects: stocks of the type the workbook shows, named by its symbol, quoting in the currency of
- * its trades, priced by Twelve Data for a US symbol and by Alpha Vantage for Xetra and Amsterdam, by hand otherwise,
+ * its trades, priced by Twelve Data for a US symbol and by Alpha Vantage for a market in its suffix table, by hand otherwise,
  * with Don't fetch facts on where no vendor would send its facts.
  */
 function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, type: InstrumentType | null): Omit<Instrument, 'id'> {
   const symbol = rows.find((row) => row.yahooSymbol !== '')?.yahooSymbol ?? rows.find((row) => row.brokerSymbol !== '')?.brokerSymbol ?? ''
   const traded = rows.find((row) => (row.type === 'BUY' || row.type === 'SELL') && row.currency !== null) ?? rows.find((row) => row.currency !== null)
-  const [base = '', suffix = ''] = symbol.toUpperCase().split('.')
+  const { base, suffix } = symbolParts(symbol)
+  const market = marketOfSuffix('yahoo', suffix)
   const listing: { readonly exchange: string | null; readonly prices: PriceSource; readonly sourceSymbol: string } =
     suffix === ''
       ? { exchange: null, prices: 'twelvedata', sourceSymbol: base }
-      : suffix === 'DE'
-        ? { exchange: 'XETR', prices: 'alphavantage', sourceSymbol: `${base}.DEX` }
-        : suffix === 'AS'
-          ? { exchange: 'XAMS', prices: 'alphavantage', sourceSymbol: `${base}.AMS` }
-          : { exchange: null, prices: 'manual', sourceSymbol: '' }
+      : market !== null
+        ? { exchange: market.mic, prices: 'alphavantage', sourceSymbol: alphaVantageSymbol(base, market) }
+        : { exchange: null, prices: 'manual', sourceSymbol: '' }
   return {
     name: rows.find((row) => row.name !== '')?.name ?? symbol,
     type,

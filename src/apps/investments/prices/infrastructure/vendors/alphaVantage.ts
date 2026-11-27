@@ -18,6 +18,7 @@ import type {
   VendorSplits,
 } from '../../application/priceVendor'
 import { splitRatioOf } from '../../domain/splitFactor'
+import { marketOfSuffix, symbolParts } from '../../domain/marketSuffixes'
 
 // The field names of ETF_PROFILE (`net_expense_ratio`, `net_assets`, `inception_date`, `leveraged`, `dividend_yield`,
 // `holdings` and `sectors` of `sector` and `weight`), DIVIDENDS (`data` of `ex_dividend_date`,
@@ -262,7 +263,10 @@ async function alphaVantageDividends(fetch: VendorFetch, key: string | null, sym
   return { kind: 'dividends', dividends: dividends.sort((earlier, later) => (earlier[1] < later[1] ? -1 : 1)) }
 }
 
-/** The listings whose symbol or name matches the text, as Alpha Vantage ranks them. Its free key gives the daily closes of every listing it has. */
+/**
+ * The listings whose symbol or name matches the text, as Alpha Vantage ranks them, with the market code its symbol's
+ * suffix names. Its free key gives the daily closes of every listing it has.
+ */
 async function alphaVantageSearch(fetch: VendorFetch, key: string | null, text: string): Promise<Fetched<VendorSearch>> {
   if (key === null) {
     return { kind: 'failed', reason: 'no-key' }
@@ -284,7 +288,7 @@ async function alphaVantageSearch(fetch: VendorFetch, key: string | null, text: 
       {
         symbol,
         name: textOrNull(found['2. name']) ?? symbol,
-        mic: null,
+        mic: marketOfSuffix('alphaVantage', symbolParts(symbol).suffix)?.mic ?? null,
         market: textOrNull(found['4. region']),
         currency: textOrNull(found['8. currency']),
         type: textOrNull(found['3. type']),

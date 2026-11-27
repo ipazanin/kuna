@@ -1,5 +1,6 @@
 import type { VendorAnswer, VendorFetch } from '../../application/priceVendor'
 import { FAKE_SERIES, fakeClose, isWeekday } from './fakePrices'
+import { MARKET_SUFFIXES, alphaVantageSymbol } from '../../domain/marketSuffixes'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { fakeEcbFetch } from '../../../../../shared/rates/infrastructure/fake/fakeEcbRates'
@@ -166,6 +167,12 @@ const FAKE_DIVIDENDS: Readonly<Record<string, readonly Readonly<Record<string, s
   ],
 }
 
+/** The symbol Alpha Vantage writes for a fake listing, with its market's suffix where the table has one. */
+function alphaVantageListingSymbol(listing: FakeListing & { readonly symbol: string }): string {
+  const market = MARKET_SUFFIXES.find((known) => known.mic === listing.mic)
+  return market === undefined ? listing.symbol : alphaVantageSymbol(listing.symbol, market)
+}
+
 function alphaVantage(query: URLSearchParams): VendorAnswer {
   const symbol = query.get('symbol') ?? ''
   if (query.get('function') === 'SPLITS') {
@@ -183,7 +190,7 @@ function alphaVantage(query: URLSearchParams): VendorAnswer {
   }
   if (query.get('function') === 'SYMBOL_SEARCH') {
     const bestMatches = fakeListings(query.get('keywords') ?? '').map((listing) => ({
-      '1. symbol': listing.mic === 'XETR' ? `${listing.symbol}.DEX` : listing.symbol,
+      '1. symbol': alphaVantageListingSymbol(listing),
       '2. name': listing.name,
       '3. type': listing.type === 'Common Stock' ? 'Equity' : listing.type,
       '4. region': listing.mic === 'XETR' ? 'XETRA' : 'United States',
