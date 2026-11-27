@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
+import { GOOGLE_SCOPES, scopeRequest } from '../src/shared/google/googleScopes'
+
 const page = readFileSync(fileURLToPath(new URL('../public/privacy.html', import.meta.url)), 'utf8')
 const appsFolder = fileURLToPath(new URL('../src/apps', import.meta.url))
 
@@ -23,7 +25,25 @@ const APPS_WITH_A_READER = readdirSync(appsFolder, { withFileTypes: true })
   .map((entry) => entry.name)
   .filter((app) => sourcesUnder(join(appsFolder, app)).some((source) => /\):\s*AppReader\b/.test(source)))
 
+/** The scopes a request for every Google permission names, by the short names the page uses. */
+const ASKED_SCOPES = scopeRequest(GOOGLE_SCOPES)
+  .split(' ')
+  .map((scope) => scope.replace('https://www.googleapis.com/auth/', ''))
+
+/** The scopes each item of the Google list opens with, before the first comma. */
+const PARAGRAPH_SCOPES = [...section('What the app asks Google for').matchAll(/<li>([\s\S]*?)<\/li>/g)].flatMap(([, item]) =>
+  [...item!.split(',')[0]!.matchAll(/<code>([^<]+)<\/code>/g)].map(([, scope]) => scope!),
+)
+
 describe('the privacy page', () => {
+  it.each(ASKED_SCOPES)('words %s, which Kuna asks Google for, in a paragraph of its own', (scope) => {
+    expect(PARAGRAPH_SCOPES).toContain(scope)
+  })
+
+  it('words no scope Kuna no longer asks Google for', () => {
+    expect(PARAGRAPH_SCOPES.filter((scope) => !ASKED_SCOPES.includes(scope))).toEqual([])
+  })
+
   it('says where bank rows go', () => {
     expect(section('Where your data goes')).toContain('api.enablebanking.com')
     expect(section('Where your data goes')).toContain('IBANs')

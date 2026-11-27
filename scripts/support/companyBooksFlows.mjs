@@ -12,7 +12,6 @@ import { saveSettingsButton, toastCounted } from './companyFlows.mjs'
 import {
   ALL_KINDS,
   SCREEN_WORDS,
-  STEP,
   SYNC_BUTTON,
   SYNC_CARD,
   SYNC_STEPS,
@@ -542,7 +541,7 @@ export async function mailFailedFlow(page, { press, shoot, inspect }) {
 
 /** A token without Gmail read shows Allow access for the mail step as the app opens, and that tap runs it. */
 export async function mailAccessFlow(page, { press, shoot, inspect }) {
-  await page.evaluate(() => localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose'])))
+  await page.evaluate(() => localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
   await page.reload({ waitUntil: 'networkidle0' })
   const control = await controlShows(page, 'allow-access')
   if (control.label !== 'Allow access') throw new Error(`the sync control says "${control.label}", not Allow access`)
@@ -584,7 +583,6 @@ export function mailSaveAsksFlowIn(language) {
     if (control.label === words.sync.allowAccess) throw new Error('the sync control asks for access after a save that asked for it')
     const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-granted') ?? '[]'))
     if (!granted.includes('gmail.readonly')) throw new Error(`the save asked Google for ${granted.join(', ')}, without Gmail read`)
-    if (granted.includes('drive.readonly')) throw new Error("the save asked Google for Drive read, which the bank's mail does not need")
     await scrollToTop(page, MAIL_CARD)
     await inspect?.('the mail card saved with Gmail read asked in the same tap')
     await shoot('mail-save-asks')
@@ -1232,7 +1230,6 @@ export function moveFromBrowserFlowIn(language) {
     await pageSays(page, words.writes.localFile.kept, true)
     await pressSelector(page, press, '[data-testid="keep-on-drive"]')
     await onboardingAt(page, 'access')
-    if (await page.$(`${STEP} [data-scope="drive.readonly"]`)) throw new Error('the access step of the move names Drive read, which the books no longer need')
     await allowGoogle(page, press, { shoot: (name) => shoot(`${name}-move`), inspect }, words)
     const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('kuna.google-needed') ?? '[]'))
     if (JSON.stringify(asked) !== JSON.stringify(['drive.file'])) throw new Error(`the move asked Google for ${asked.join(', ')}, not the books file alone`)

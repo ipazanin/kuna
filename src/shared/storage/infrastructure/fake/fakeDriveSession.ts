@@ -75,18 +75,9 @@ async function fakeBooksFile(app: string): Promise<string | null> {
   return (await fakeDriveSession().findByAppProperty(APP_PROPERTY, app))[0] ?? null
 }
 
-/** The names of the folders from My Drive down to this one on the fake Drive. */
-function fakePathOf(drive: FakeDrive, folderId: string): string[] {
-  const names: string[] = []
-  for (let current = folderId; current !== 'root'; current = drive.file(current).parents[0] ?? 'root') {
-    names.unshift(drive.file(current).name)
-  }
-  return names
-}
-
 /**
  * The fake build never goes to Google: it is always signed in, and its Picker picks the books folder
- * or the app's file. Its folder path, like Google's, needs a token that carries Drive read.
+ * or the app's file.
  */
 export function fakeDriveAccess(app: string): DriveAccess {
   const drive = fakeDriveSession()
@@ -123,9 +114,6 @@ export function fakeDriveAccess(app: string): DriveAccess {
     async pickFolder() {
       const id = await fakeBooksFolder()
       return { id, name: drive.file(id).name }
-    },
-    async folderPath(folderId) {
-      return currentToken('drive.readonly') === null ? null : fakePathOf(drive, folderId)
     },
     pickFile: () => fakeBooksFile(app),
   }

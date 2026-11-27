@@ -43,19 +43,19 @@ beforeEach(() => {
 
 describe('the scopes the page token carries', () => {
   it('joins what every app with its file on Drive needs, each scope once', async () => {
-    const company = appOf('company', 'drive', ['drive.readonly', 'gmail.readonly'])
-    const loans = appOf('loans', 'drive', ['gmail.compose', 'drive.readonly'])
+    const company = appOf('company', 'drive', ['drive.appdata', 'gmail.readonly'])
+    const loans = appOf('loans', 'drive', ['gmail.compose', 'drive.appdata'])
     company.state.workbook = {}
     loans.state.workbook = {}
 
     startPageSync([company.app, loans.app])
     await nextTick()
 
-    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose'])
+    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.appdata', 'gmail.readonly', 'gmail.compose'])
   })
 
   it('leaves out an app whose file is kept in this browser', async () => {
-    const company = appOf('company', 'drive', ['drive.readonly'])
+    const company = appOf('company', 'drive', ['drive.appdata'])
     const loans = appOf('loans', 'browser', ['gmail.compose'])
     company.state.workbook = {}
     loans.state.workbook = {}
@@ -63,12 +63,12 @@ describe('the scopes the page token carries', () => {
     startPageSync([company.app, loans.app])
     await nextTick()
 
-    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.readonly'])
+    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.appdata'])
   })
 
   it('waits until every app on Drive has its books on screen, so a file still opening leaves no scope out', async () => {
     const company = appOf('company', 'drive', ['gmail.readonly'])
-    const loans = appOf('loans', 'drive', ['drive.readonly'])
+    const loans = appOf('loans', 'drive', ['drive.appdata'])
     company.state.workbook = {}
 
     startPageSync([company.app, loans.app])
@@ -77,7 +77,7 @@ describe('the scopes the page token carries', () => {
 
     loans.state.workbook = {}
     await nextTick()
-    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.readonly', 'gmail.readonly'])
+    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.appdata', 'gmail.readonly'])
   })
 })
 

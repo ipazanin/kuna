@@ -33,19 +33,15 @@ const chooses = computed(() => onboarding.place.value.path === 'new' || onboardi
 const moving = computed(() => (onboarding.place.value.path === 'move' ? store.state.workbook : null))
 const asked = computed(() => (moving.value === null ? scopesOfChoices(onboarding.place.value, mailDraftsOn.value) : sync.scopesNeededBy(moving.value)))
 
-/** What each scope beyond the books file lets books that move here do, as Google words it. The company's books never need Drive read, the bank sync's script nor the app's hidden folder, which holds Investments' keys. */
-const MOVED_BOOKS_NEED: Readonly<
-  Record<Exclude<GoogleScope, 'drive.file' | 'drive.readonly' | 'drive.appdata' | 'script.external_request'>, { readonly label: string; readonly description: string }>
-> = {
+/** What each scope beyond the books file lets books that move here do, as Google words it. The company's books never need the bank sync's script nor the app's hidden folder, which holds Investments' keys. */
+const MOVED_BOOKS_NEED: Readonly<Record<Exclude<GoogleScope, 'drive.file' | 'drive.appdata' | 'script.external_request'>, { readonly label: string; readonly description: string }>> = {
   'gmail.readonly': { label: words.access.yourMail, description: words.access.yourMailNote },
   'gmail.compose': { label: words.access.drafts, description: words.access.draftsNote },
 }
 const movedNeeds = computed(() =>
   moving.value === null
     ? []
-    : asked.value.flatMap((scope) =>
-        scope === 'drive.file' || scope === 'drive.readonly' || scope === 'drive.appdata' || scope === 'script.external_request' ? [] : [{ scope, ...MOVED_BOOKS_NEED[scope] }],
-      ),
+    : asked.value.flatMap((scope) => (scope === 'drive.file' || scope === 'drive.appdata' || scope === 'script.external_request' ? [] : [{ scope, ...MOVED_BOOKS_NEED[scope] }])),
 )
 const restricted = computed(() => asked.value.some((scope) => scope !== 'drive.file'))
 /** Whether the page holds a token, so Google answered and each line can say what it allowed. */

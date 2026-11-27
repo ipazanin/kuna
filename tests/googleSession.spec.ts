@@ -25,10 +25,10 @@ describe('what this device keeps about Google', () => {
 
   it('keeps the scopes each once, in request order, and reads a damaged entry as none', () => {
     saveGrantedScopes(['gmail.compose', 'drive.file', 'drive.file'])
-    saveNeededScopes(['drive.readonly'])
+    saveNeededScopes(['drive.appdata'])
 
     expect(loadGrantedScopes()).toEqual(['drive.file', 'gmail.compose'])
-    expect(loadNeededScopes()).toEqual(['drive.readonly'])
+    expect(loadNeededScopes()).toEqual(['drive.appdata'])
 
     localStorage.setItem('kuna.google-granted', '{"drive.file":true}')
     localStorage.setItem('kuna.google-needed', 'not json')

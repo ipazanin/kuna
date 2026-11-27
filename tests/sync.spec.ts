@@ -29,7 +29,6 @@ function harness(options: {
 }) {
   const grants: Record<GoogleScope, boolean> = {
     'drive.file': true,
-    'drive.readonly': true,
     'drive.appdata': true,
     'gmail.readonly': true,
     'gmail.compose': true,
@@ -60,8 +59,8 @@ function harness(options: {
 describe('a sync', () => {
   it('reads the books, then runs every step that is on, in order', async () => {
     const order: string[] = []
-    const statements = step('statements', 'drive.readonly', async () => (order.push('statements'), DONE))
-    const accountant = step('accountant', 'drive.readonly', async () => (order.push('accountant'), DONE))
+    const statements = step('statements', 'drive.appdata', async () => (order.push('statements'), DONE))
+    const accountant = step('accountant', 'drive.appdata', async () => (order.push('accountant'), DONE))
     const { sync, states, control, books } = harness({ steps: [statements, accountant] })
 
     await sync.sync()
@@ -78,7 +77,7 @@ describe('a sync', () => {
   })
 
   it('hands each step whether the run waits for what is due or asks now', async () => {
-    const statements = step('statements', 'drive.readonly')
+    const statements = step('statements', 'drive.appdata')
     const { sync } = harness({ steps: [statements] })
 
     await sync.sync()
@@ -88,10 +87,10 @@ describe('a sync', () => {
   })
 
   it('lets the other steps finish when one fails, and counts it as a problem', async () => {
-    const statements = step('statements', 'drive.readonly', async () => {
+    const statements = step('statements', 'drive.appdata', async () => {
       throw new Error('The statements folder could not be read.')
     })
-    const accountant = step('accountant', 'drive.readonly')
+    const accountant = step('accountant', 'drive.appdata')
     const { sync, states, control } = harness({ steps: [statements, accountant] })
 
     await sync.sync()
@@ -108,7 +107,7 @@ describe('a sync', () => {
 
   it('skips every later step when the books cannot be read', async () => {
     const books = step('books', 'drive.file', async () => ({ kind: 'failed', line: 'Google did not answer.', link: null }))
-    const statements = step('statements', 'drive.readonly')
+    const statements = step('statements', 'drive.appdata')
     const { sync, states, control } = harness({ books, steps: [statements] })
 
     await sync.sync()
@@ -122,9 +121,9 @@ describe('a sync', () => {
   })
 
   it('runs no step whose scope the page lacks, offers Allow access, and syncs once Google gives it', async () => {
-    const statements = step('statements', 'drive.readonly')
-    const accountant = step('accountant', 'drive.readonly')
-    const { sync, states, control, ports } = harness({ steps: [statements, accountant], grants: { 'drive.readonly': false } })
+    const statements = step('statements', 'drive.appdata')
+    const accountant = step('accountant', 'drive.appdata')
+    const { sync, states, control, ports } = harness({ steps: [statements, accountant], grants: { 'drive.appdata': false } })
 
     await sync.sync()
 
@@ -134,38 +133,38 @@ describe('a sync', () => {
       ['statements', 'needs-access'],
       ['accountant', 'needs-access'],
     ])
-    expect(control()).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: null })
+    expect(control()).toEqual({ kind: 'allow-access', scopes: ['drive.appdata'], labels: ['Statements', 'Accountant'], failure: null })
 
     await sync.allowAccess()
 
-    expect(ports.askForAccess).toHaveBeenCalledWith(['drive.readonly'])
+    expect(ports.askForAccess).toHaveBeenCalledWith(['drive.appdata'])
     expect(statements.runs).toHaveBeenCalledOnce()
     expect(control()).toEqual({ kind: 'ready', syncedAt: AT })
   })
 
   it('keeps Allow access with why when Google gives no token, and syncs nothing', async () => {
-    const statements = step('statements', 'drive.readonly')
-    const { sync, ports, books, control } = harness({ steps: [statements], grants: { 'drive.readonly': false } })
+    const statements = step('statements', 'drive.appdata')
+    const { sync, ports, books, control } = harness({ steps: [statements], grants: { 'drive.appdata': false } })
     await sync.sync()
-    vi.mocked(ports.askForAccess).mockRejectedValueOnce(new Error('Drive read access was not granted.'))
+    vi.mocked(ports.askForAccess).mockRejectedValueOnce(new Error('Hidden folder access was not granted.'))
 
     await sync.allowAccess()
 
     expect(books.runs).toHaveBeenCalledOnce()
-    expect(stepsOf(sync.state.run)[1]?.state).toEqual({ kind: 'needs-access', scopes: ['drive.readonly'], line: 'Waits for your Drive read access' })
-    expect(control()).toMatchObject({ kind: 'allow-access', failure: 'Drive read access was not granted.' })
+    expect(stepsOf(sync.state.run)[1]?.state).toEqual({ kind: 'needs-access', scopes: ['drive.appdata'], line: "Waits for your access to the app's hidden folder on Drive" })
+    expect(control()).toMatchObject({ kind: 'allow-access', failure: 'Hidden folder access was not granted.' })
   })
 
   it('says why an Allow access before any sync gave no token, and forgets it once a tap gets one', async () => {
-    const lacking: PageAccess = { kind: 'lacking', needs: [{ scope: 'drive.readonly', label: 'Statements' }] }
-    const { sync, ports, books, control } = harness({ steps: [step('statements', 'drive.readonly')] })
+    const lacking: PageAccess = { kind: 'lacking', needs: [{ scope: 'drive.appdata', label: 'Statements' }] }
+    const { sync, ports, books, control } = harness({ steps: [step('statements', 'drive.appdata')] })
     vi.mocked(ports.askForAccess).mockRejectedValueOnce(new Error("Google's window was closed before access was allowed."))
 
     await sync.allowAccess()
 
     expect(books.runs).not.toHaveBeenCalled()
     expect(sync.state.run).toBeNull()
-    expect(control(lacking)).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements'], failure: "Google's window was closed before access was allowed." })
+    expect(control(lacking)).toEqual({ kind: 'allow-access', scopes: ['drive.appdata'], labels: ['Statements'], failure: "Google's window was closed before access was allowed." })
 
     await sync.allowAccess()
 
@@ -174,11 +173,11 @@ describe('a sync', () => {
   })
 
   it('turns a step Google refuses mid-way, and the later steps of its scope, into Allow access, and runs the rest', async () => {
-    const statements = step('statements', 'drive.readonly', async (report) => {
+    const statements = step('statements', 'drive.appdata', async (report) => {
       report('Filing 4 rows')
       throw new GoogleApiError('https://www.googleapis.com/drive/v3/files', 401, '{"error":{"code":401}}')
     })
-    const accountant = step('accountant', 'drive.readonly')
+    const accountant = step('accountant', 'drive.appdata')
     const mail = step('mail', 'drive.file')
     const { sync, states, control } = harness({ steps: [statements, accountant, mail] })
 
@@ -196,7 +195,7 @@ describe('a sync', () => {
   })
 
   it('syncs once for every tap while one runs', async () => {
-    const statements = step('statements', 'drive.readonly')
+    const statements = step('statements', 'drive.appdata')
     let read: () => void = () => {}
     const books = step(BOOKS_STEP.id, 'drive.file', () => new Promise<StepResult>((resolve) => (read = () => resolve(DONE))))
     const { sync } = harness({ books, steps: [statements] })
@@ -222,7 +221,7 @@ describe('a sync', () => {
         statementsOn = false
         return DONE
       }),
-      steps: [step('statements', 'drive.readonly', undefined, () => statementsOn), step('accountant', 'drive.readonly', undefined, () => false)],
+      steps: [step('statements', 'drive.appdata', undefined, () => statementsOn), step('accountant', 'drive.appdata', undefined, () => false)],
     })
 
     await harnessed.sync.sync()
@@ -237,14 +236,14 @@ describe('a sync', () => {
 
   it('asks for the scopes the books just read give a step, such as the books file’s alone for a folder the app made beside them', async () => {
     let booksRead = false
-    const statements = { ...step('statements', 'drive.readonly'), scopes: () => (booksRead ? (['drive.file'] as const) : (['drive.readonly'] as const)) }
+    const statements = { ...step('statements', 'drive.appdata'), scopes: () => (booksRead ? (['drive.file'] as const) : (['drive.appdata'] as const)) }
     const harnessed = harness({
       books: step('books', 'drive.file', async () => {
         booksRead = true
         return DONE
       }),
       steps: [statements],
-      grants: { 'drive.readonly': false },
+      grants: { 'drive.appdata': false },
     })
 
     await harnessed.sync.sync()
@@ -257,7 +256,7 @@ describe('a sync', () => {
     let seen: unknown = null
     const harnessed = harness({
       steps: [
-        step('statements', 'drive.readonly', async (report) => {
+        step('statements', 'drive.appdata', async (report) => {
           report('Filing 4 rows')
           seen = harnessed.control()
           return { kind: 'waits', line: '1 statement was not filed.', writeId: 3, link: { label: 'Import', to: '/company/transactions?tab=import' } }
@@ -284,9 +283,9 @@ describe('a sync over several apps', () => {
       (id: string, result: StepResult = DONE) =>
       async () => (order.push(id), result)
     const companyBooks = step('books', 'drive.file', noted('company books', { kind: 'failed', line: 'Google did not answer.', link: null }))
-    const statements = step('statements', 'drive.readonly', noted('statements'))
+    const statements = step('statements', 'drive.appdata', noted('statements'))
     const loansBooks = step('books', 'drive.file', noted('loans books'))
-    const rates = step('rates', 'drive.readonly', noted('rates'))
+    const rates = step('rates', 'drive.appdata', noted('rates'))
     const { sync, control } = harness({ groups: [group('company', companyBooks, [statements]), group('loans', loansBooks, [rates])] })
 
     await sync.sync()

@@ -58,8 +58,6 @@ interface DriveSide {
   before: (request: keyof DocumentDrive) => Promise<void>
   pickedFile: string | null
   pickedFolder: string | null
-  /** Whether the page's token can read the whole Drive, which the path of a picked folder needs. */
-  readsDrive: boolean
   /** What each sign-in would resume after a redirect, in order. */
   readonly signIns: (RedirectResume | null)[]
 }
@@ -71,7 +69,6 @@ function driveSide(): DriveSide {
     before: async () => {},
     pickedFile: null,
     pickedFolder: null,
-    readsDrive: false,
     signIns: [],
     access: {
       drive: new Proxy(drive, {
@@ -90,12 +87,6 @@ function driveSide(): DriveSide {
       },
       signedIn: () => true,
       pickFolder: async () => (side.pickedFolder === null ? null : { id: side.pickedFolder, name: drive.file(side.pickedFolder).name }),
-      async folderPath(folderId) {
-        if (!side.readsDrive) return null
-        const names: string[] = []
-        for (let current = folderId; current !== 'root'; current = drive.file(current).parents[0]!) names.unshift(drive.file(current).name)
-        return names
-      },
       pickFile: async () => side.pickedFile,
     },
   }
@@ -668,17 +659,14 @@ describe('workbook store with a workbook kept in this browser', () => {
     expect(used.has('local-1')).toBe(false)
   })
 
-  it('confirms a picked folder by its path from My Drive with Drive read access, and by its name alone without it, writing nothing', async () => {
+  it('confirms a picked folder by its name, writing nothing', async () => {
     const side = driveSide()
     const store = storeOf(harness(null, side).ports)
     await store.open()
-    const work = await side.drive.createFolder('root', 'work')
-    side.pickedFolder = await side.drive.createFolder(work, 'books')
+    side.pickedFolder = await side.drive.createFolder('root', 'books')
     const requests = side.drive.requests.length
 
-    expect(await store.pickDriveFolder('Choose')).toEqual({ id: side.pickedFolder, name: 'books', path: null })
-    side.readsDrive = true
-    expect(await store.pickDriveFolder('Choose the folder of your bank statements')).toEqual({ id: side.pickedFolder, name: 'books', path: ['work', 'books'] })
+    expect(await store.pickDriveFolder('Choose')).toEqual({ id: side.pickedFolder, name: 'books' })
     expect(side.drive.requests.slice(requests).filter((request) => !request.startsWith('find'))).toEqual([])
     expect(store.state.choice).toBeNull()
   })

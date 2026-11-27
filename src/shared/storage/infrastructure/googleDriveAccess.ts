@@ -1,4 +1,3 @@
-import { pathFromMyDrive } from '../../google/driveClient'
 import { currentToken, tokenFor } from '../../google/googleAuth'
 import { pickFromDrive } from '../../google/picker'
 import type { DriveAccess } from './documentStorePorts'
@@ -20,10 +19,6 @@ export function googleDriveAccess(pickFileTitle: string): DriveAccess {
     async pickFolder(title) {
       const [folder] = await pickFromDrive('folder', await driveToken(), { title, parentId: 'root' })
       return folder === undefined ? null : { id: folder.id, name: folder.name }
-    },
-    async folderPath(folderId) {
-      const token = currentToken('drive.readonly')
-      return token === null ? null : pathFromMyDrive(token, folderId)
     },
     async pickFile() {
       const [file] = await pickFromDrive('json', await driveToken(), { title: pickFileTitle })

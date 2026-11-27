@@ -35,9 +35,9 @@ function started(): SyncRun {
         ...COMPANY,
         steps: [
           { ...BOOKS_STEP, on: true, leftOutWhenOff: false },
-          { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], on: true, leftOutWhenOff: false },
-          { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: false, leftOutWhenOff: false },
-          { id: 'accountant', label: 'Accountant', scopes: ['drive.readonly'], on: true, leftOutWhenOff: false },
+          { id: 'statements', label: 'Statements', scopes: ['drive.appdata'], on: true, leftOutWhenOff: false },
+          { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.appdata'], on: false, leftOutWhenOff: false },
+          { id: 'accountant', label: 'Accountant', scopes: ['drive.appdata'], on: true, leftOutWhenOff: false },
         ],
       },
     ],
@@ -108,7 +108,7 @@ describe('a sync run', () => {
       ['mail', 'queued'],
       ['accountant', 'queued'],
     ])
-    expect(stepsOf(run).map((step) => step.scopes)).toEqual([['drive.file'], ['drive.file'], ['gmail.readonly', 'drive.file'], ['drive.readonly']])
+    expect(stepsOf(run).map((step) => step.scopes)).toEqual([['drive.file'], ['drive.file'], ['gmail.readonly', 'drive.file'], ['drive.appdata']])
   })
 
   it('skips every step still to run after the books failed, and leaves the off ones off', () => {
@@ -131,14 +131,18 @@ describe('a sync run', () => {
       ['mail', 'off'],
       ['accountant', 'needs-access'],
     ])
-    expect(stepsOf(run)[1]!.state).toEqual({ kind: 'needs-access', scopes: ['drive.readonly'], line: 'Waits for your Drive read access' })
+    expect(stepsOf(run)[1]!.state).toEqual({ kind: 'needs-access', scopes: ['drive.appdata'], line: "Waits for your access to the app's hidden folder on Drive" })
   })
 
   it('turns a later step that shares any scope with the one Google turned away into Allow access, and names every scope in its line', () => {
-    const mailOn = replanned(withStep(started(), 'company', 'books', DONE), 'company', [{ id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: true, leftOutWhenOff: false }])
+    const mailOn = replanned(withStep(started(), 'company', 'books', DONE), 'company', [{ id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.appdata'], on: true, leftOutWhenOff: false }])
     const run = accessLostFrom(withStep(mailOn, 'company', 'statements', { kind: 'running', line: 'Filing 4 rows' }), 'company', 'statements')
 
-    expect(stepsOf(run)[2]!.state).toEqual({ kind: 'needs-access', scopes: ['gmail.readonly', 'drive.readonly'], line: 'Waits for your Gmail read access and your Drive read access' })
+    expect(stepsOf(run)[2]!.state).toEqual({
+      kind: 'needs-access',
+      scopes: ['gmail.readonly', 'drive.appdata'],
+      line: "Waits for your Gmail read access and your access to the app's hidden folder on Drive",
+    })
   })
 })
 
@@ -153,7 +157,7 @@ describe('a run over two apps', () => {
           name: 'Loans',
           steps: [
             { ...BOOKS_STEP, on: true, leftOutWhenOff: false },
-            { id: 'rates', label: 'Rates', scopes: ['drive.readonly'], on: true, leftOutWhenOff: false },
+            { id: 'rates', label: 'Rates', scopes: ['drive.appdata'], on: true, leftOutWhenOff: false },
           ],
         },
       ],
@@ -216,7 +220,7 @@ describe('the sync control', () => {
   it('offers Allow access before the problems, with the steps that lack it', () => {
     const run = finishedRun(withStep(accessLostFrom(withStep(started(), 'company', 'books', DONE), 'company', 'statements'), 'company', 'books', { kind: 'failed', line: 'x', link: null }), FINISHED)
 
-    expect(syncControlOf(run, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'allow-access', scopes: ['drive.readonly'], labels: ['Statements', 'Accountant'], failure: null })
+    expect(syncControlOf(run, BOOKS_READ, ENOUGH, null)).toEqual({ kind: 'allow-access', scopes: ['drive.appdata'], labels: ['Statements', 'Accountant'], failure: null })
   })
 
   describe('after a run that left steps for you', () => {
@@ -254,17 +258,17 @@ describe('the sync control', () => {
 describe("what the page's Google token lacks", () => {
   const NEEDS: readonly AccessNeed[] = [
     { scope: 'drive.file', label: 'Books' },
-    { scope: 'drive.readonly', label: 'Statements' },
-    { scope: 'drive.readonly', label: 'Accountant' },
+    { scope: 'drive.appdata', label: 'Statements' },
+    { scope: 'drive.appdata', label: 'Accountant' },
     { scope: 'gmail.compose', label: 'Invoicing' },
   ]
 
   it('is enough while the token carries every need, or while the page asked nothing yet', () => {
-    expect(pageAccessOf(NEEDS, ['drive.file', 'drive.readonly', 'gmail.compose'], null)).toEqual(ENOUGH)
+    expect(pageAccessOf(NEEDS, ['drive.file', 'drive.appdata', 'gmail.compose'], null)).toEqual(ENOUGH)
     expect(pageAccessOf(NEEDS, null, null)).toEqual(ENOUGH)
   })
 
-  it('names the needs a partial grant left out, such as Drive read unticked', () => {
+  it('names the needs a partial grant left out, such as the hidden folder unticked', () => {
     expect(pageAccessOf(NEEDS, ['drive.file', 'gmail.compose'], null)).toEqual({ kind: 'lacking', needs: NEEDS.slice(1, 3) })
   })
 
@@ -280,7 +284,7 @@ describe("what the page's Google token lacks", () => {
     expect(syncControlOf(null, BOOKS_READ, { kind: 'sign-in' }, null)).toEqual({ kind: 'sign-in', failure: null })
     expect(syncControlOf(run, BOOKS_READ, pageAccessOf(NEEDS, ['drive.file'], null), null)).toEqual({
       kind: 'allow-access',
-      scopes: ['drive.readonly', 'gmail.compose'],
+      scopes: ['drive.appdata', 'gmail.compose'],
       labels: ['Statements', 'Accountant', 'Invoicing'],
       failure: null,
     })

@@ -11,11 +11,11 @@ import { scopeRequest } from '../src/shared/google/googleScopes'
 import { loadGrantedScopes, loadNeededScopes, loadSilentRefusal } from '../src/shared/google/googleSession'
 
 const DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file'
-const DRIVE_READONLY = 'https://www.googleapis.com/auth/drive.readonly'
+const DRIVE_APPDATA = 'https://www.googleapis.com/auth/drive.appdata'
 const GMAIL_COMPOSE = 'https://www.googleapis.com/auth/gmail.compose'
 /** The `scope` Google sends back for a grant of every scope the app asks for. */
-const EVERY_SCOPE = `${DRIVE_FILE} ${DRIVE_READONLY} ${GMAIL_COMPOSE} openid https://www.googleapis.com/auth/userinfo.email`
-const PENDING: PendingRedirect = { state: 'one-time-state', scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], resume: 'sync', route: '#/company/settings?tab=category-rules', ask: 'tap' }
+const EVERY_SCOPE = `${DRIVE_FILE} ${DRIVE_APPDATA} ${GMAIL_COMPOSE} openid https://www.googleapis.com/auth/userinfo.email`
+const PENDING: PendingRedirect = { state: 'one-time-state', scopes: ['drive.file', 'drive.appdata', 'gmail.compose'], resume: 'sync', route: '#/company/settings?tab=category-rules', ask: 'tap' }
 const BACK_AT = Date.parse('2026-10-21T09:00:00.000Z')
 
 beforeEach(() => {
@@ -74,7 +74,7 @@ describe('the address the tab goes to', () => {
       authorizationUrl({
         clientId: 'client.apps.googleusercontent.com',
         redirectUri: 'https://ipazanin.github.io/kuna/',
-        scopes: ['gmail.compose', 'drive.file', 'drive.readonly'],
+        scopes: ['gmail.compose', 'drive.file', 'drive.appdata'],
         state: 'one-time-state',
         loginHint: 'owner@example.com',
         silent: false,
@@ -86,7 +86,7 @@ describe('the address the tab goes to', () => {
       client_id: 'client.apps.googleusercontent.com',
       redirect_uri: 'https://ipazanin.github.io/kuna/',
       response_type: 'token',
-      scope: `openid email ${DRIVE_FILE} ${DRIVE_READONLY} ${GMAIL_COMPOSE}`,
+      scope: `openid email ${DRIVE_FILE} ${DRIVE_APPDATA} ${GMAIL_COMPOSE}`,
       state: 'one-time-state',
       include_granted_scopes: 'false',
       login_hint: 'owner@example.com',
@@ -145,7 +145,7 @@ describe('checking the answer against the request', () => {
   it('keeps one token for every scope asked, counting its lifetime from the return, and goes back to the route left', () => {
     expect(settleRedirect(token, PENDING, BACK_AT)).toEqual({
       kind: 'granted',
-      token: { value: 'ya29.one', scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], expiresAt: BACK_AT + 3_599_000 },
+      token: { value: 'ya29.one', scopes: ['drive.file', 'drive.appdata', 'gmail.compose'], expiresAt: BACK_AT + 3_599_000 },
       asked: PENDING.scopes,
       resume: 'sync',
       route: '#/company/settings?tab=category-rules',
@@ -153,7 +153,7 @@ describe('checking the answer against the request', () => {
     })
   })
 
-  it('keeps a token with Drive read unticked on the consent screen, with the scopes it does carry', () => {
+  it('keeps a token with the hidden folder unticked on the consent screen, with the scopes it does carry', () => {
     const partial = settleRedirect({ ...token, scope: `${DRIVE_FILE} ${GMAIL_COMPOSE} openid` }, PENDING, BACK_AT)
 
     expect(partial).toMatchObject({ kind: 'granted', token: { scopes: ['drive.file', 'gmail.compose'] }, asked: PENDING.scopes })
@@ -252,20 +252,20 @@ describe('coming back to the app', () => {
 
     expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', resume: 'sync', route: '#/company/settings?tab=category-rules' })
     expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/kuna/?theme=dark#/company/settings?tab=category-rules')
-    expect([currentToken('drive.file'), currentToken('drive.readonly'), currentToken('gmail.compose')]).toEqual(['ya29.one', 'ya29.one', 'ya29.one'])
-    expect(googleAccess()).toEqual({ scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], refusal: null })
-    expect(loadGrantedScopes()).toEqual(['drive.file', 'drive.readonly', 'gmail.compose'])
+    expect([currentToken('drive.file'), currentToken('drive.appdata'), currentToken('gmail.compose')]).toEqual(['ya29.one', 'ya29.one', 'ya29.one'])
+    expect(googleAccess()).toEqual({ scopes: ['drive.file', 'drive.appdata', 'gmail.compose'], refusal: null })
+    expect(loadGrantedScopes()).toEqual(['drive.file', 'drive.appdata', 'gmail.compose'])
     expect(JSON.stringify({ ...localStorage, ...sessionStorage })).not.toContain('ya29.one')
   })
 
-  it('holds a partial grant with Drive read unticked, and notes Drive read as not granted while keeping a grant it did not ask about', () => {
-    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
-    savePendingRedirect({ ...PENDING, scopes: ['drive.file', 'drive.readonly'] })
+  it('holds a partial grant with the hidden folder unticked, and notes the hidden folder as not granted while keeping a grant it did not ask about', () => {
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.appdata', 'gmail.compose']))
+    savePendingRedirect({ ...PENDING, scopes: ['drive.file', 'drive.appdata'] })
     comeBackWith(tokenFragment(`${DRIVE_FILE} openid`))
 
     expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', token: { scopes: ['drive.file'] } })
     expect(currentToken('drive.file')).toBe('ya29.one')
-    expect(currentToken('drive.readonly')).toBeNull()
+    expect(currentToken('drive.appdata')).toBeNull()
     expect(googleAccess().scopes).toEqual(['drive.file'])
     expect(loadGrantedScopes()).toEqual(['drive.file', 'gmail.compose'])
   })
@@ -315,21 +315,21 @@ describe('coming back to the app', () => {
 describe('the silent trip as the app opens', () => {
   it('asks only for the scopes Google granted that the books still need, and before any grant for the books file', () => {
     configureGoogle()
-    needScopes(['drive.file', 'drive.readonly'])
+    needScopes(['drive.file', 'drive.appdata'])
     expect(askSilentlyOnOpen()).toBe(true)
     expect(askLeftWith()).toMatchObject({ scopes: ['drive.file'], resume: 'none', ask: 'silent' })
     takePendingRedirect()
     localStorage.clear()
 
-    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']))
-    needScopes(['drive.file', 'drive.readonly'])
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.appdata', 'gmail.compose']))
+    needScopes(['drive.file', 'drive.appdata'])
     expect(askSilentlyOnOpen()).toBe(true)
-    expect(askLeftWith()).toMatchObject({ scopes: ['drive.file', 'drive.readonly'], ask: 'silent' })
+    expect(askLeftWith()).toMatchObject({ scopes: ['drive.file', 'drive.appdata'], ask: 'silent' })
   })
 
   it('always carries the books file, even when the needs were last worked out for books kept in this browser', () => {
     configureGoogle()
-    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly']))
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.appdata']))
     needScopes([])
     expect(askSilentlyOnOpen()).toBe(true)
     expect(askLeftWith()).toMatchObject({ scopes: ['drive.file'], ask: 'silent' })
@@ -337,8 +337,8 @@ describe('the silent trip as the app opens', () => {
 
   it('stays when Google never granted the books file, since that token could not sync', () => {
     configureGoogle()
-    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.readonly']))
-    needScopes(['drive.file', 'drive.readonly'])
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.appdata']))
+    needScopes(['drive.file', 'drive.appdata'])
 
     expect(askSilentlyOnOpen()).toBe(false)
     expect(takePendingRedirect()).toBeNull()
@@ -347,13 +347,13 @@ describe('the silent trip as the app opens', () => {
 
   it('comes back with one token for every scope asked', () => {
     configureGoogle()
-    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.readonly']))
-    needScopes(['drive.file', 'drive.readonly', 'gmail.compose'])
+    localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'drive.appdata']))
+    needScopes(['drive.file', 'drive.appdata', 'gmail.compose'])
     expect(askSilentlyOnOpen()).toBe(true)
-    comeBackWith(tokenFragment(`${DRIVE_FILE} ${DRIVE_READONLY} openid`, askLeftWith()!.state))
+    comeBackWith(tokenFragment(`${DRIVE_FILE} ${DRIVE_APPDATA} openid`, askLeftWith()!.state))
 
     expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', ask: 'silent' })
-    expect([currentToken('drive.file'), currentToken('drive.readonly')]).toEqual(['ya29.one', 'ya29.one'])
+    expect([currentToken('drive.file'), currentToken('drive.appdata')]).toEqual(['ya29.one', 'ya29.one'])
     expect(loadSilentRefusal()).toBeNull()
   })
 
@@ -416,14 +416,14 @@ describe('asking in a tap', () => {
     onPhone(true)
     needScopes(['drive.file', 'gmail.compose'])
 
-    void requestAccess(['drive.readonly'], { resume: 'sync' })
+    void requestAccess(['drive.appdata'], { resume: 'sync' })
     await Promise.resolve()
     const left = askLeftWith()!
 
-    expect(left).toMatchObject({ scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], resume: 'sync', ask: 'tap' })
+    expect(left).toMatchObject({ scopes: ['drive.file', 'drive.appdata', 'gmail.compose'], resume: 'sync', ask: 'tap' })
     comeBackWith(tokenFragment(EVERY_SCOPE, left.state))
     expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', resume: 'sync', ask: 'tap' })
-    expect(currentToken('drive.readonly')).toBe('ya29.one')
+    expect(currentToken('drive.appdata')).toBe('ya29.one')
   })
 
   it('on a phone, refuses an action that could not run again instead of leaving the page', async () => {
@@ -463,11 +463,11 @@ describe('asking in a tap', () => {
         },
       },
     })
-    needScopes(['drive.file', 'drive.readonly'])
+    needScopes(['drive.file', 'drive.appdata'])
 
     expect(await tokenFor('gmail.compose', null)).toBe('ya29.popup')
-    expect(asked).toEqual([scopeRequest(['drive.file', 'drive.readonly', 'gmail.compose'])])
-    expect(currentToken('drive.readonly')).toBe('ya29.popup')
+    expect(asked).toEqual([scopeRequest(['drive.file', 'drive.appdata', 'gmail.compose'])])
+    expect(currentToken('drive.appdata')).toBe('ya29.popup')
 
     forgetGoogleSignIn()
     granted = `${DRIVE_FILE} openid`

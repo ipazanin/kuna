@@ -11,7 +11,6 @@ export const en = {
   unfinished: (type: string, message: string) => `Google's window did not finish: ${type} ${message}`.trim(),
   notGranted: {
     'drive.file': 'Google Drive access was not allowed, so the app cannot read or save the books.',
-    'drive.readonly': 'Drive read access was not allowed, so the app cannot read your Drive folders.',
     'drive.appdata': "Access to the app's hidden folder on Drive was not allowed, so your keys stay in this browser alone.",
     'gmail.readonly': 'Gmail read access was not allowed, so the app cannot read the mail it looks for.',
     'gmail.compose': 'Gmail access was not allowed, so no draft can be saved. Leave "Create the mail draft" off to write the mail yourself.',
@@ -30,7 +29,6 @@ export const hr: Translation<typeof en> = {
   unfinished: (type, message) => `Googleov prozor nije završio: ${type} ${message}`.trim(),
   notGranted: {
     'drive.file': 'Pristup Google Driveu nije dopušten, pa aplikacija ne može čitati ni spremati datoteku.',
-    'drive.readonly': 'Čitanje Drivea nije dopušteno, pa aplikacija ne može čitati vaše mape na Driveu.',
     'drive.appdata': 'Pristup skrivenoj mapi aplikacije na Driveu nije dopušten, pa vaši ključevi ostaju samo u ovom pregledniku.',
     'gmail.readonly': 'Čitanje Gmaila nije dopušteno, pa aplikacija ne može čitati poštu koju traži.',
     'gmail.compose': 'Pristup Gmailu nije dopušten, pa se skica ne može spremiti. Ostavite izradu skice isključenom i napišite poruku sami.',

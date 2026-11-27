@@ -38,9 +38,7 @@ export interface DriveAccess {
   /** Whether the page holds a token, so a request to Drive needs no click. */
   signedIn(): boolean
   /** The folder the person picks in the Picker opened at My Drive, or null when cancelled. */
-  pickFolder(title: string): Promise<{ readonly id: string; readonly name: string } | null>
-  /** The names of the folders from My Drive down to this one, or null while the page cannot read the whole Drive. */
-  folderPath(folderId: string): Promise<readonly string[] | null>
+  pickFolder(title: string): Promise<PickedFolder | null>
   /** The file the person picks, or null when cancelled. */
   pickFile(): Promise<string | null>
 }
@@ -90,9 +88,7 @@ export function documentStorePorts<Books extends BooksRead>(
   }
 
   async function pickDriveFolder(title: string): Promise<PickedFolder | null> {
-    const access = await driveAccess()
-    const picked = await access.pickFolder(title)
-    return picked === null ? null : { ...picked, path: await access.folderPath(picked.id) }
+    return (await driveAccess()).pickFolder(title)
   }
 
   async function refuseSecondFile(drive: DocumentDrive): Promise<void> {

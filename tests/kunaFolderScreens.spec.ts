@@ -34,6 +34,13 @@ describe('where a move says the file goes', () => {
     expect(home.canChoose.value).toBe(false)
   })
 
+  it('names a picked folder by its own name, since the app cannot read the folders above it', async () => {
+    const home = useKunaFolderHome({ hasKunaFolder: async () => false, pickDriveFolder: async () => ({ id: 'books-folder', name: 'Books' }) })
+    await home.chooseElsewhere()
+
+    expect(home.trail('assets')).toBe('Books › Kuna › assets')
+  })
+
   it('reads a failed search as not knowing', async () => {
     const home = useKunaFolderHome(store(async () => Promise.reject(new Error('500'))))
     await home.read()

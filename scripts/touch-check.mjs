@@ -2380,9 +2380,9 @@ async function checkWidth(session, width) {
   await step('google-return', async () => {
     const scopeOf = (...names) => encodeURIComponent(['openid', ...names.map((name) => `https://www.googleapis.com/auth/${name}`)].join(' '))
     const tokenOf = (scope, state = 'touch-check') => `access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=${state}`
-    const everyScope = scopeOf('drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose')
-    const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose'], resume: 'sync', route: '#/company/transactions', ask: 'tap' }
-    const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/transactions?tab=review', ask: 'silent' }
+    const everyScope = scopeOf('drive.file', 'drive.appdata', 'gmail.readonly', 'gmail.compose')
+    const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.appdata', 'gmail.readonly', 'gmail.compose'], resume: 'sync', route: '#/company/transactions', ask: 'tap' }
+    const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.appdata'], resume: 'none', route: '#/company/transactions?tab=review', ask: 'silent' }
     /** Loads the app as Google sends the tab back, with what the tab remembered before it left, nothing kept from an earlier grant and invoice drafts off. */
     const comeBack = async (variant, pending, fragment) => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}#/`, { waitUntil: 'networkidle0' })
@@ -2435,7 +2435,7 @@ async function checkWidth(session, width) {
     await expect(tokenKept(), (kept) => !kept, 'the token was kept in site storage, not in page memory only')
     await expect(
       granted(),
-      (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'drive.appdata', 'gmail.readonly', 'gmail.compose', 'script.external_request']),
+      (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.appdata', 'gmail.readonly', 'gmail.compose', 'script.external_request']),
       'the full grant was not noted',
     )
     await expect(noMessage(), (none) => none, 'the full grant showed a message')
@@ -2525,7 +2525,7 @@ async function checkWidth(session, width) {
   await step('google-return-loans', async () => {
     // A find the Loans first run left the page for comes back to the Loans app alone: it opens the file another device made, found by its mark, and ends on the Loans Overview.
     // The tap asked for every scope the company books need beside the Loans file's, as a tap does.
-    const scopes = ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose']
+    const scopes = ['drive.file', 'drive.appdata', 'gmail.readonly', 'gmail.compose']
     const scope = encodeURIComponent(['openid', ...scopes.map((name) => `https://www.googleapis.com/auth/${name}`)].join(' '))
     const pending = { state: 'touch-check', scopes, resume: 'find', app: 'loans', route: '#/loans/start?step=find', ask: 'tap' }
     await page.goto(`${BASE}?theme=dark&loans=other-device#/`, { waitUntil: 'networkidle0' })
