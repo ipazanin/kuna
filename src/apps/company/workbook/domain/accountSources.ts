@@ -6,7 +6,7 @@ import { waitingStatements } from './heldStatements'
 import type { HeldStatement } from './heldStatements'
 import { periodTallies, runsOf, sourceOn } from '../../../../shared/app/accountSource'
 import type { DatedOrigin, PeriodTally, RowOrigin } from '../../../../shared/app/accountSource'
-import { addDays } from '../../../../shared/calendar/civilDate'
+import { addDays, earliestOf, latestOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
@@ -86,8 +86,8 @@ export function statementMailReach(
   const filled = (run: (typeof runs)[number]): DatedRow[] =>
     ledger.filter((row) => row.account === run.account && isBankStatementRow(row) && (run.from === null || row.date >= run.from) && (run.to === null || row.date <= run.to))
   const unfilled = runs.flatMap((run) => (run.from !== null && filled(run).length === 0 ? [run.from] : []))
-  const newest = runs.flatMap(filled).reduce<CivilDate | null>((last, row) => (last === null || row.date > last ? row.date : last), null)
+  const newest = latestOf(runs.flatMap(filled).map((row) => row.date))
   const last = readTo ?? newest
   const days = [...unfilled, ...(last === null ? [] : [last]), ...waitingStatements(held).map((statement) => statement.mailedOn)]
-  return days.length === 0 ? null : days.reduce((oldest, day) => (day < oldest ? day : oldest))
+  return earliestOf(days)
 }

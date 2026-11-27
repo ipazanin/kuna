@@ -191,8 +191,9 @@ function changeCategory(row: ListedBankRow): void {
     const whole = workbook?.transactions.find((transaction) => transaction.id === row.id)
     if (whole === undefined || workbook === undefined || workbook === null) return
     const parts = rowItemsOf(workbook.splits)(whole)
-    if (filedInOneCategory(parts)) {
-      changing.value = rowFiledAs(whole, parts)
+    const filed = filedInOneCategory(parts) ? rowFiledAs(whole, parts) : null
+    if (filed !== null) {
+      changing.value = filed
       changeOpen.value = true
     } else openSplit(whole)
   } else if (change === 'ledger') {

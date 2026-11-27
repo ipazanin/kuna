@@ -57,6 +57,16 @@ export function addDays(date: CivilDate, days: number): CivilDate {
   return fromUtc(toUtc(date) + days * MILLISECONDS_PER_DAY)
 }
 
+/** The earliest of ISO days or months, which sort as text, or null for none. */
+export function earliestOf<Day extends string>(days: readonly Day[]): Day | null {
+  return days.reduce<Day | null>((earliest, day) => (earliest === null || day < earliest ? day : earliest), null)
+}
+
+/** The latest of ISO days or months, which sort as text, or null for none. */
+export function latestOf<Day extends string>(days: readonly Day[]): Day | null {
+  return days.reduce<Day | null>((latest, day) => (latest === null || day > latest ? day : latest), null)
+}
+
 /** Whole days from `from` to `to`, negative when `to` is earlier. */
 export function daysBetween(from: CivilDate, to: CivilDate): number {
   return Math.round((toUtc(to) - toUtc(from)) / MILLISECONDS_PER_DAY)

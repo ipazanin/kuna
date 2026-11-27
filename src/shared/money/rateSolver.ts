@@ -1,4 +1,4 @@
-import { daysBetween } from '../calendar/civilDate'
+import { daysBetween, earliestOf } from '../calendar/civilDate'
 import type { CivilDate } from '../calendar/civilDate'
 import type { Money } from './money'
 import { shareFromRatio } from './percent'
@@ -33,10 +33,10 @@ const MOST_HALVINGS = 200
  * when every flow has the same sign.
  */
 export function solvedRate(flows: readonly DatedFlow[], yearsBetween: YearsBetween): Share | null {
-  if (flows.length === 0) {
+  const first = earliestOf(flows.map((flow) => flow.date))
+  if (first === null) {
     return null
   }
-  const first = flows.reduce((earliest, flow) => (flow.date < earliest ? flow.date : earliest), flows[0]!.date)
   const timed = flows.map((flow) => ({ amount: flow.amount, years: yearsBetween(first, flow.date) }))
   const presentValue = (rate: number): number => timed.reduce((total, flow) => total + flow.amount * (1 + rate) ** -flow.years, 0)
 

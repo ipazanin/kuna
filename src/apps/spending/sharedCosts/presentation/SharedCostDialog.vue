@@ -121,7 +121,7 @@ watch(open, (opened) => {
   const out = props.rows.filter((row) => row.amount < 0)
   const first = [...(out.length > 0 ? out : props.rows)].sort((left, right) => (left.date < right.date ? -1 : 1))[0]
   const outItems = out.flatMap((row) => itemsOf.value(row))
-  const usual = outItems.length === 0 ? null : mainCategoryOf(outItems)
+  const usual = mainCategoryOf(outItems)
   date.value = held?.day ?? first?.date ?? ''
   payee.value = held?.payee ?? ''
   category.value = held?.category ?? (usual !== null && pickable.value.has(usual) ? usual : '')

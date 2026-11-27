@@ -90,16 +90,14 @@ export function rowItemsOf(splits: readonly LedgerSplit[]): (row: Transaction) =
   return (row) => itemsOfRow(row, splitOf.get(row.id))
 }
 
-/** The item of the category most of the row's money is in, the first of them in item order. */
-export function mainItemOf(items: readonly SplitPart[]): SplitPart {
+/**
+ * The row as its items file it whole: as its one item, or for a row of several as the item of the category most of its money is in.
+ * Null for a row with no items, which they cannot file.
+ */
+export function rowFiledAs(row: Transaction, items: readonly SplitPart[]): Transaction | null {
   const category = mainCategoryOf(items)
-  return items.find((item) => item.category === category)!
-}
-
-/** The row as its items file it whole: as its one item, or for a row of several as the item of the category most of its money is in. */
-export function rowFiledAs(row: Transaction, items: readonly SplitPart[]): Transaction {
-  const main = mainItemOf(items)
-  return { ...row, category: main.category, family: main.family, bucket: main.bucket, ownerShare: main.ownerShare }
+  const main = items.find((item) => item.category === category)
+  return main === undefined ? null : { ...row, category: main.category, family: main.family, bucket: main.bucket, ownerShare: main.ownerShare }
 }
 
 /** The rows a rule may file: those of one item, since a row of several says by its split where each part of its money goes. */

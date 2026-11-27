@@ -4,6 +4,7 @@ import { yearStep } from '../../../../shared/charts/monthAxis'
 import { words as balanceWords } from '../../balances/presentation/words'
 import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
+import { earliestOf, latestOf } from '../../../../shared/calendar/civilDate'
 import { monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
@@ -46,13 +47,9 @@ function drawingOrder(scenarios: readonly ChartedScenario[], base: string): Char
 
 /** Every month any scenario covers, oldest first. */
 function monthsOfAll(scenarios: readonly ChartedScenario[]): MonthKey[] {
-  const firsts = scenarios.flatMap((scenario) => scenario.months.slice(0, 1).map((entry) => entry.month))
-  const lasts = scenarios.flatMap((scenario) => scenario.months.slice(-1).map((entry) => entry.month))
-  if (firsts.length === 0) return []
-  return monthsFrom(
-    firsts.reduce((earliest, month) => (month < earliest ? month : earliest)),
-    lasts.reduce((latest, month) => (month > latest ? month : latest)),
-  )
+  const first = earliestOf(scenarios.flatMap((scenario) => scenario.months.slice(0, 1).map((entry) => entry.month)))
+  const last = latestOf(scenarios.flatMap((scenario) => scenario.months.slice(-1).map((entry) => entry.month)))
+  return first === null || last === null ? [] : monthsFrom(first, last)
 }
 
 /** The span both charts can show, from the first month any scenario covers to the last, null with no scenario charted. */

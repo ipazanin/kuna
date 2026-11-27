@@ -179,7 +179,8 @@ function ledgerItemsOf(records: ItemRecords, ledger: readonly Transaction[], cat
   const items = (onItemsTab ? itemsOfItemsTab : itemsOfSplitsTab)(records, ledger, categories)
   const transactions = ledger.map((row): Transaction => {
     const held = items.itemsByRow.get(row.id)
-    if (held !== undefined && (held.length === 1 || onItemsTab)) return rowFiledAs(row, held)
+    const filed = held !== undefined && (held.length === 1 || onItemsTab) ? rowFiledAs(row, held) : null
+    if (filed !== null) return filed
     return onItemsTab ? { ...row, category: '', family: UNCLASSIFIED, bucket: UNCLASSIFIED, ownerShare: null } : row
   })
   return { ...items, transactions }

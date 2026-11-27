@@ -9,7 +9,7 @@ import type { LinkedAccount } from '../../../../shared/bank-sync/domain/bankAnsw
 import { sameLink } from '../../../../shared/bank-sync/domain/bankLink'
 import type { BankLink, BankUsage } from '../../../../shared/bank-sync/domain/bankLink'
 import { heldLinks, liveLinks } from '../../../../shared/bank-sync/domain/bankLinkDays'
-import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
+import { addDays, daysBetween, latestOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 
 /** Whose logins Spending links and reads. */
@@ -82,13 +82,8 @@ export function fetchFrom(account: Account, rows: readonly Pick<Transaction, 'ac
   const ofLink = rows.filter((row) => row.account === account.id && isBankSyncKey(row.importKey) && row.date >= linkStart)
   const brought = ofLink.filter((row) => !row.pending).map((row) => row.date)
   const pending = ofLink.filter((row) => row.pending).map((row) => row.date)
-  const back =
-    brought.length === 0
-      ? linkStart
-      : addDays(
-          brought.reduce((newest, date) => (date > newest ? date : newest)),
-          -OVERLAP_DAYS,
-        )
+  const newest = latestOf(brought)
+  const back = newest === null ? linkStart : addDays(newest, -OVERLAP_DAYS)
   const sinceBooked = back < linkStart ? linkStart : back
   const wanted = pending.reduce((oldest, date) => (date < oldest ? date : oldest), sinceBooked)
   const from = wanted < latest ? wanted : latest

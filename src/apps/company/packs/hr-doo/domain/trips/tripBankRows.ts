@@ -4,7 +4,8 @@ import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../../../sh
 import type { Money } from '../../../../../../shared/money/money'
 import { settleOpenRows } from '../../../../../../shared/money/settleOpenRows'
 import { normaliseIban } from '../../../../../../shared/text/fold'
-import { mainItemOf, rowItemsOf } from '../../../../workbook/domain/splits'
+import { mainCategoryOf } from '../../../../../../shared/categorising/domain/mainCategory'
+import { rowItemsOf } from '../../../../workbook/domain/splits'
 import type { SplitPart } from '../../../../workbook/domain/splits'
 import type { Category, Transaction, Workbook } from '../../../../workbook/domain/workbook'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
@@ -267,14 +268,14 @@ export function tripRowsSplit(file: TripFile, settlement: WorkedSettlement, book
   const restOf = (payment: LinkedPayment, owed: Money): TripRowPart | null | 'no-category' => {
     const rest = subtractMoney(paidBy(payment), owed)
     if (rest <= 0) return null
-    const { category } = mainItemOf(payment.items)
+    const category = mainCategoryOf(payment.items) ?? ''
     return category === '' ? 'no-category' : { category, payment: null, amount: negateMoney(rest) }
   }
   const itemsOf = rowItemsOf(books.splits)
   const othersOf = (payment: LinkedPayment) => itemsOf(payment.row).filter((item) => !payment.items.some((linked) => linked.id === item.id))
   const rows: TripRowSplit[] = []
   if (advancePayment !== null) {
-    const { category } = mainItemOf(advancePayment.items)
+    const category = mainCategoryOf(advancePayment.items) ?? ''
     const returned = subtractMoney(settlement.advance, sumMoney(toAdvance.map((part) => negateMoney(part.amount))))
     if (returned > 0 && category === '') return { refused: { kind: 'no-category-for-return' } }
     const parts = returned > 0 ? [...toAdvance, { category, payment: null, amount: negateMoney(returned) }] : toAdvance

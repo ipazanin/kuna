@@ -282,7 +282,7 @@ export function filedRows(book: Pick<SpendingBook, 'transactions' | 'items'>): S
   const itemsOf = rowItemsOf(book)
   return book.transactions.map((entry) => {
     const items = itemsOf(entry)
-    return storedRowOf(entry, { category: items.length === 0 ? null : mainCategoryOf(items), note: largestItem(items)?.note ?? '', link: linkOfItems(items) })
+    return storedRowOf(entry, { category: mainCategoryOf(items), note: largestItem(items)?.note ?? '', link: linkOfItems(items) })
   })
 }
 

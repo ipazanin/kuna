@@ -1,4 +1,4 @@
-import { addDays } from '../calendar/civilDate'
+import { addDays, earliestOf, latestOf } from '../calendar/civilDate'
 import type { CivilDate } from '../calendar/civilDate'
 
 /**
@@ -11,13 +11,8 @@ const ORIGINS: readonly RowOrigin[] = ['automation', 'provider-file', 'by-hand']
 
 /** The start day proposed when an account comes to take its rows from its automation: the day after its last row by hand, or today when it has none, and never before `firstOpen`. */
 export function proposedStartDay(handDays: readonly CivilDate[], today: CivilDate, firstOpen: CivilDate | null): CivilDate {
-  const after =
-    handDays.length === 0
-      ? today
-      : addDays(
-          handDays.reduce((last, day) => (day > last ? day : last)),
-          1,
-        )
+  const lastByHand = latestOf(handDays)
+  const after = lastByHand === null ? today : addDays(lastByHand, 1)
   return firstOpen !== null && after < firstOpen ? firstOpen : after
 }
 
@@ -262,8 +257,7 @@ export function runsOf<S extends PeriodSource>(periods: readonly SourcePeriod<S>
 
 /** The first day a period of the source starts on among the accounts, where its automation's search starts, or null while no period of it has a day. */
 export function earliestFrom<S extends PeriodSource>(accounts: Iterable<readonly SourcePeriod<S>[]>, source: S): CivilDate | null {
-  const days = [...accounts].flatMap((periods) => periods.flatMap((period) => (period.source === source && period.from !== null ? [period.from] : [])))
-  return days.length === 0 ? null : days.reduce((first, day) => (day < first ? day : first))
+  return earliestOf([...accounts].flatMap((periods) => periods.flatMap((period) => (period.source === source && period.from !== null ? [period.from] : []))))
 }
 
 /**

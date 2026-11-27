@@ -385,6 +385,10 @@ describe("a holding's 52-week range", () => {
     })
   })
 
+  it('has no range with no close in the year', () => {
+    expect(rangeOf([['2025-10-01', '50']])).toBeNull()
+  })
+
   it('says the closes do not cover the year when the first falls well inside it', () => {
     expect(rangeOf(weekdayCloses('2026-03-02', {}))).toMatchObject({ from: civil('2026-03-02'), wholeYear: false, daily: true })
     expect(rangeOf(weekdayCloses('2025-11-05', {}))).toMatchObject({ wholeYear: true })

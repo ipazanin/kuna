@@ -1,4 +1,4 @@
-import { civilDate } from '../../../../../shared/calendar/civilDate'
+import { civilDate, earliestOf } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { accountingOpenItems, accountingRules } from './rules/accounting'
 import type { AccountingValues } from './rules/accounting'
@@ -27,11 +27,13 @@ export const RULES: readonly RuleIn<RuleValues>[] = [...profitTaxRules, ...owner
 
 export const OPEN_ITEMS: readonly OpenItem[] = [...profitTaxOpenItems, ...ownerPayOpenItems, ...accountingOpenItems, ...vatOpenItems, ...companyLawOpenItems, ...statePaymentOpenItems]
 
-/** The oldest day a source of the rules was loaded on, so every rule's sources were checked on it or after it. Each source keeps its own day. */
-export function sourcesCheckedSince(rules: readonly GeneralRule[] = RULES): CivilDate {
-  const days = rules.flatMap((rule) => rule.versions.flatMap((version) => version.sources.map((source) => source.loadedOn)))
-  return days.reduce((oldest, loaded) => (loaded < oldest ? loaded : oldest))
+/** The oldest day a source of the rules was loaded on, so every rule's sources were checked on it or after it, or null for rules with no source. Each source keeps its own day. */
+export function sourcesCheckedSince(rules: readonly GeneralRule[]): CivilDate | null {
+  return earliestOf(rules.flatMap((rule) => rule.versions.flatMap((version) => version.sources.map((source) => source.loadedOn))))
 }
+
+/** The oldest day a source of the pack's rules was loaded on. Every version of them names a source, which the ruleset spec checks. */
+export const RULES_CHECKED_SINCE: CivilDate = sourcesCheckedSince(RULES)!
 
 export interface RuleLookup<Value> {
   readonly value: Value

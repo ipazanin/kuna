@@ -296,6 +296,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/plugin', plugins: { kuna: kunaPlugin } },
     { name: 'kuna/domain-classes', ...domainCode, rules: { 'kuna/domain-classes': 'error' } },
     { name: 'kuna/assistant-operations', files: ['src/apps/**/assistant/operations/**/*.ts'], rules: { 'kuna/proposal-work': 'error', 'kuna/card-reasons': 'error' } },
+    { name: 'kuna/seeded-reduce', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/seeded-reduce': 'error' } },
     { name: 'kuna/window-queries', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/window-queries': 'error' } },
     { name: 'kuna/device-storage', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/device/deviceChoice.ts'], rules: { 'kuna/device-storage': 'error' } },
     { name: 'kuna/worded-refusals', files: ['src/apps/spending/*/application/*Writes.ts'], rules: { 'kuna/worded-refusals': 'error' } },

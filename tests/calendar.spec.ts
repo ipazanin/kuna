@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { addDays, civilDate, civilDateFromSerial, daysBetween, parseCivilDate } from '../src/shared/calendar/civilDate'
+import { addDays, civilDate, civilDateFromSerial, daysBetween, earliestOf, latestOf, parseCivilDate } from '../src/shared/calendar/civilDate'
 import { monthRange, monthsOfRange, overlapOf, rangeContains } from '../src/shared/calendar/dateRange'
 import { allTime, anchorWindow, completeRange, isCompleteMonth, lastMonths, spanRange } from '../src/shared/calendar/ledgerWindow'
 import { addMonths, dayMonthsLater, firstDayOf, lastDayOf, monthCountBetween, monthKey, monthOf, monthsFrom, parseMonthKey, wholeMonthsBetween } from '../src/shared/calendar/monthKey'
-import { civil } from './fixtures/ledger'
+import { civil, month } from './fixtures/ledger'
 
 describe('civil dates', () => {
   it('reads Sheets serial numbers as calendar days, with no time zone', () => {
@@ -25,6 +25,15 @@ describe('civil dates', () => {
     expect(addDays(civil('2026-02-27'), 2)).toBe('2026-03-01')
     expect(addDays(civil('2026-01-01'), -1)).toBe('2025-12-31')
     expect(daysBetween(civil('2025-12-31'), civil('2026-01-02'))).toBe(2)
+  })
+
+  it('picks the earliest and latest of days or months, and none from an empty list', () => {
+    const days = [civil('2026-03-01'), civil('2025-12-31'), civil('2026-01-15')]
+    expect(earliestOf(days)).toBe('2025-12-31')
+    expect(latestOf(days)).toBe('2026-03-01')
+    expect(latestOf([month('2026-02'), month('2026-11')])).toBe('2026-11')
+    expect(earliestOf([])).toBeNull()
+    expect(latestOf([])).toBeNull()
   })
 })
 

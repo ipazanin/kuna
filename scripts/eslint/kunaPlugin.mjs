@@ -578,6 +578,9 @@ const typeRoles = {
   },
 }
 
+const reduceCall = 'CallExpression[callee.property.name=/^reduce(?:Right)?$/]'
+const firstElement = 'MemberExpression.expression[computed=true][property.value=0]'
+
 export const kunaPlugin = {
   rules: {
     'type-roles': typeRoles,
@@ -684,6 +687,14 @@ export const kunaPlugin = {
     'proposal-work': refusedSyntax(
       ['FunctionDeclaration[id.name=/Work$/] > BlockStatement > :not(ReturnStatement)'],
       "An app's proposal work only returns its work. Its plan hands the card what the card reads, so two checks at once never share a value kept beside them.",
+    ),
+    'seeded-reduce': refusedSyntax(
+      [
+        `${reduceCall}[arguments.length=1]`,
+        `${reduceCall} > TSNonNullExpression.arguments:nth-child(2) > ${firstElement}`,
+        `${reduceCall} > .arguments:nth-child(2) TSNonNullExpression > ${firstElement}`,
+      ],
+      'Give reduce a starting value that is there for an empty list. Without one, or with the first element as one, it throws on an empty list, so a function that picks from a list returns null for none and says so in its type.',
     ),
     'domain-classes': refusedSyntax(
       ['ClassDeclaration:not([superClass.name=/Error$/])', 'ClassExpression:not([superClass.name=/Error$/])'],

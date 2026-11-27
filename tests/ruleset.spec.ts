@@ -11,7 +11,18 @@ import { ownerPayOpenItems, ownerPayRules } from '../src/apps/company/packs/hr-d
 import { profitTaxOpenItems, profitTaxRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/profit-tax'
 import { statePaymentOpenItems, statePaymentRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/state-payments'
 import { vatOpenItems, vatRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/vat'
-import { OPEN_ITEMS, RULES, RULESET_FIRST_DAY, sourcesCheckedSince, citationOf, ruleValue, rulesFor, versionOn, watchItems } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import {
+  OPEN_ITEMS,
+  RULES,
+  RULESET_FIRST_DAY,
+  RULES_CHECKED_SINCE,
+  sourcesCheckedSince,
+  citationOf,
+  ruleValue,
+  rulesFor,
+  versionOn,
+  watchItems,
+} from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import type { RuleId } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import { ruleView, termFormat } from '../src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording'
 import { basisPoints, cents, count, day, flag, isWatchedConfidence, table, text } from '../src/apps/company/packs/hr-doo/ruleset/schema'
@@ -522,8 +533,12 @@ describe('the values derived from other values', () => {
 
   it('says every source was checked on or after the oldest day one was loaded on', () => {
     const days = rules.flatMap((rule) => rule.versions.flatMap((version) => version.sources.map((source) => source.loadedOn)))
-    expect(days.every((loaded) => loaded >= sourcesCheckedSince())).toBe(true)
-    expect(days).toContain(sourcesCheckedSince())
+    expect(days.every((loaded) => loaded >= RULES_CHECKED_SINCE)).toBe(true)
+    expect(days).toContain(RULES_CHECKED_SINCE)
+  })
+
+  it('has no day the sources were checked since for rules with no source', () => {
+    expect(sourcesCheckedSince([])).toBeNull()
   })
 
   it('gives the Naputak of 2026 revenue codes for VAT, profit tax and pillar I, with model HR68, until a later one exists', () => {

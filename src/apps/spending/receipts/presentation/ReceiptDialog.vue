@@ -188,7 +188,7 @@ const sharedCosts = computed(() => (newEntryPlaced.value && waits.value ? [] : p
 const chosenCategory = computed(() => {
   const items = chosenItems.value
   if (items.length === 1 && items[0]!.sharedCost !== null) return items[0]!.sharedCost
-  return items.length === 0 ? null : mainCategoryOf(items)
+  return mainCategoryOf(items)
 })
 const categoryItems = computed(() => entryCategoryChoices(categories.value, 'out', chosenCategory.value, { sharedCosts: sharedCosts.value }))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))

@@ -36,7 +36,7 @@ export function droppedRowOf(
 ): DroppedRow | null {
   const byHand = items.some((item) => item.note !== '' || item.link !== null || item.labels.some((label) => !item.ruleLabels.includes(label)))
   if (row.categorisedBy !== 'person' && !byHand && items.length < 2) return null
-  const category = items.length === 0 ? null : mainCategoryOf(items)
+  const category = mainCategoryOf(items)
   return {
     id,
     account: row.account,

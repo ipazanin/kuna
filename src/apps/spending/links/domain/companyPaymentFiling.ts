@@ -84,7 +84,7 @@ export function companyPaymentFiling({ row, items }: ItemizedRow, target: Compan
   return {
     split: 'payment',
     parts: difference === 0 ? parts : [...parts, { home: 'difference', amount: difference }],
-    rowCategory: filed.length === 0 ? null : mainCategoryOf(filed),
+    rowCategory: mainCategoryOf(filed),
   }
 }
 

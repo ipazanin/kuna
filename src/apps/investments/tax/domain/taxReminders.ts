@@ -2,7 +2,7 @@ import { foreignIncomeYear } from './foreignIncome'
 import { capitalGainsYear } from './taxYear'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { yearOf } from '../../../../shared/calendar/civilDate'
+import { earliestOf, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
 
@@ -30,8 +30,9 @@ export function taxReminder(book: InvestmentBook, rates: RateBook, today: CivilD
   const running = [...last.payments, ...foreignIncomeYear(book, rates, lastYear + 1).payments].flatMap((entry) =>
     entry.due !== null && entry.payment.gross > DECIMAL_ZERO && entry.payment.date <= today && today <= entry.due ? [entry.due] : [],
   )
-  if (running.length > 0) {
-    reminders.push({ kind: 'payments', count: running.length, due: running.reduce((first, due) => (due < first ? due : first)) })
+  const firstDue = earliestOf(running)
+  if (firstDue !== null) {
+    reminders.push({ kind: 'payments', count: running.length, due: firstDue })
   }
   return reminders.reduce<TaxReminder | null>((nearest, reminder) => (nearest === null || reminder.due < nearest.due ? reminder : nearest), null)
 }

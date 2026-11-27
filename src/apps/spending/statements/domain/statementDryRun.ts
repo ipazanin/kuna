@@ -277,7 +277,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const changed = [...filledRows, ...bookedRows, ...replacedRows, ...pairedOnFile]
   const linked = links === null ? null : ruleLinkedRows(book, { added: filed, changed, gone: booking.gone, receipts }, links, ruleOf, day, newKey)
   const added = filed.map((itemized) => linked?.rows.get(itemized.row.id)?.entry ?? itemized)
-  const categoryOf = (items: readonly TransactionItem[]): RecordId | null => (items.length === 0 ? null : mainCategoryOf(items))
+  const categoryOf = (items: readonly TransactionItem[]): RecordId | null => mainCategoryOf(items)
 
   const fileLines = statement.rows.map((row): DryRunLine => {
     if (beforeOpening(row)) return { row, outcome: 'before-opening', category: null }

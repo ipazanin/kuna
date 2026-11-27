@@ -130,7 +130,7 @@ export function removeSplit(unit: UnitOfWork, books: CompanyBooks, row: Transact
 
 /** The one item a row stands for once its split is taken off, as `removeSplit` files it. */
 function oneItemOf(records: WorkbookRecords, row: Transaction, stored: StoredSplit): ItemDraft {
-  const mainCategory = stored.refused || stored.parts.length === 0 ? null : mainCategoryOf(stored.parts)
+  const mainCategory = stored.refused ? null : mainCategoryOf(stored.parts)
   const main = stored.parts.find((part) => part.category === mainCategory) ?? { category: row.category, ownerShare: row.ownerShare }
   const id = wholeItemId(row)
   return { id, amount: row.amount, category: main.category, note: '', ownerShare: main.ownerShare, labels: heldLabels(records, row)(id) }

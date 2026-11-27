@@ -144,19 +144,19 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
 
 /** What Import would do, in a sentence or two. */
 export function dryRunSummary(added: InvestmentBook, records: number, matching: number, deleting: number): string {
-  const parts = [
+  const [firstPart, ...moreParts] = [
     added.accounts.length > 0 ? plural(words.dryRun.addsAccounts(added.accounts.length), added.accounts.length) : '',
     added.instruments.length > 0 ? plural(words.dryRun.addsHoldings(added.instruments.length), added.instruments.length) : '',
   ].filter((part) => part !== '')
   const adds =
-    records === 0 && parts.length === 0
-      ? words.dryRun.addsNothing
-      : parts.length === 0
-        ? words.dryRun.addsOnly(plural(words.dryRun.adds(records), records))
-        : words.dryRun.addsWith(
-            plural(words.dryRun.adds(records), records),
-            parts.reduce((joined, part) => words.dryRun.and(joined, part)),
-          )
+    firstPart === undefined
+      ? records === 0
+        ? words.dryRun.addsNothing
+        : words.dryRun.addsOnly(plural(words.dryRun.adds(records), records))
+      : words.dryRun.addsWith(
+          plural(words.dryRun.adds(records), records),
+          moreParts.reduce((joined, part) => words.dryRun.and(joined, part), firstPart),
+        )
   return [adds, ...(matching === 0 ? [] : [plural(words.dryRun.matches(matching), matching)]), ...(deleting === 0 ? [] : [plural(words.dryRun.deletes(deleting), deleting)])].join(' ')
 }
 

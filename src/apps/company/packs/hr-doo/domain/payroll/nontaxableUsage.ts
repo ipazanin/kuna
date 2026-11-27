@@ -44,7 +44,8 @@ type CapRow = RuleValues['hr.pit.nontaxable-caps']['caps']['rows'][number]
 interface PaymentsInPeriod {
   readonly payment: string
   readonly periodKey: string
-  readonly made: NontaxablePaymentMade[]
+  readonly made: readonly NontaxablePaymentMade[]
+  readonly lastPaidOn: CivilDate
 }
 
 const UNCAPPED_PERIODS = new Set(['actual-cost', 'foreign-per-diem-rule'])
@@ -71,17 +72,18 @@ export function nontaxableUsage(payments: readonly NontaxablePaymentMade[], year
     const periodKey = period === 'year' || UNCAPPED_PERIODS.has(period) ? String(year) : monthOf(made.paidOn)
     // Per diems a trip caps count apart from those no trip links, which abroad have no cap here.
     const groupKey = `${made.payment} ${periodKey}${made.perDiems === undefined ? '' : ' trip'}`
-    const group = groups.get(groupKey) ?? { payment: made.payment, periodKey, made: [] }
-    group.made.push(made)
-    groups.set(groupKey, group)
+    const held = groups.get(groupKey)
+    groups.set(groupKey, {
+      payment: made.payment,
+      periodKey,
+      made: [...(held?.made ?? []), made],
+      lastPaidOn: held === undefined || made.paidOn > held.lastPaidOn ? made.paidOn : held.lastPaidOn,
+    })
   }
-  return [...groups.values()]
-    .sort((left, right) => left.payment.localeCompare(right.payment) || left.periodKey.localeCompare(right.periodKey))
-    .map((group) => usageOf(group.payment, group.periodKey, group.made, basis, rules))
+  return [...groups.values()].sort((left, right) => left.payment.localeCompare(right.payment) || left.periodKey.localeCompare(right.periodKey)).map((group) => usageOf(group, basis, rules))
 }
 
-function usageOf(payment: string, periodKey: string, made: readonly NontaxablePaymentMade[], basis: FigureBasis, rules: RuleSource): NontaxableUsage {
-  const lastPaidOn = made.map((payment) => payment.paidOn).reduce((latest, paidOn) => (paidOn > latest ? paidOn : latest))
+function usageOf({ payment, periodKey, made, lastPaidOn }: PaymentsInPeriod, basis: FigureBasis, rules: RuleSource): NontaxableUsage {
   const capsRule = rules('hr.pit.nontaxable-caps', lastPaidOn)
   const rows = capRowsOf(payment, capsRule)
   const capRow = rows[0]

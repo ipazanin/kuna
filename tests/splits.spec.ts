@@ -6,7 +6,8 @@ import { countedSplits } from '../src/apps/company/transactions/domain/countedSp
 import { listedRows, withPartHeadings } from '../src/apps/company/transactions/domain/listedRows'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
-import { listedRowKey, splitLedger } from '../src/apps/company/workbook/domain/splits'
+import { itemsOfRow, listedRowKey, rowFiledAs, splitLedger } from '../src/apps/company/workbook/domain/splits'
+import type { SplitPart } from '../src/apps/company/workbook/domain/splits'
 import type { Category } from '../src/apps/company/workbook/domain/workbook'
 import { readSplits } from '../src/apps/company/workbook/domain/splitsReading'
 import { CORE_TABS, readSnapshot, recordsOfRows } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
@@ -470,5 +471,22 @@ describe('withPartHeadings', () => {
 
     expect(entries.map((entry) => entry.kind)).toEqual(['split', 'row'])
     expect(entries[0]?.kind === 'split' && entries[0].parts.map((part) => part.kind === 'bank' && part.split?.index)).toEqual([1])
+  })
+})
+
+describe('a company row filed as its items', () => {
+  const row = ledger([{ date: '2026-10-01', amount: -100, category: 'ai-services' }])[0]!
+
+  it('takes the item of the category most of its money is in', () => {
+    const whole = itemsOfRow(row, undefined)[0]!
+    const parts: SplitPart[] = [
+      { ...whole, amount: euros(-30), category: 'travel' },
+      { ...whole, amount: euros(-70), category: 'office' },
+    ]
+    expect(rowFiledAs(row, parts)).toMatchObject({ category: 'office' })
+  })
+
+  it('is not filed with no items', () => {
+    expect(rowFiledAs(row, [])).toBeNull()
   })
 })

@@ -1,6 +1,7 @@
 import type { HoldingFigures } from './holding'
 import type { PortfolioFigures } from './portfolioFigures'
 import type { Instrument } from '../../workbook/domain/instrument'
+import { latestOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
@@ -44,16 +45,18 @@ export interface ClosedSort {
 /** One row per instrument with nothing held and a sale, the latest sold first. */
 export function closedPositions(figures: PortfolioFigures): ClosedPosition[] {
   return figures.holdings
-    .flatMap((holding) => (holding.quantity === DECIMAL_ZERO && holding.sales.length > 0 && holding.firstAcquired !== null ? [closedPosition(holding, holding.firstAcquired.date)] : []))
+    .flatMap((holding) => {
+      const lastSold = latestOf(holding.sales.map((sale) => sale.trade.date))
+      return holding.quantity === DECIMAL_ZERO && lastSold !== null && holding.firstAcquired !== null ? [closedPosition(holding, holding.firstAcquired.date, lastSold)] : []
+    })
     .sort((first, second) => second.lastSold.localeCompare(first.lastSold) || naturalOrder(first.instrument.name, second.instrument.name))
 }
 
-function closedPosition(holding: HoldingFigures, firstBought: CivilDate): ClosedPosition {
+function closedPosition(holding: HoldingFigures, firstBought: CivilDate, lastSold: CivilDate): ClosedPosition {
   const lines = holding.sales.flatMap((sale) => sale.lines)
   const units = sumDecimal(lines.map((line) => line.quantity))
   const cost = sumMoney(lines.map((line) => line.cost))
   const realised = sumMoney(lines.map((line) => line.gain))
-  const lastSold = holding.sales.map((sale) => sale.trade.date).reduce((latest, date) => (date > latest ? date : latest))
   const weightedDays = lines.reduce((sum, line) => sum + line.quantity * BigInt(line.daysHeld), 0n)
   return {
     instrument: holding.instrument,

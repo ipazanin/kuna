@@ -62,7 +62,7 @@ export function beyondPlan(target: LinkTarget, row: Pick<Transaction, 'amount'>,
 export function interestCategoryOf(items: readonly TransactionItem[], categories: readonly Category[]): RecordId | null {
   const kinds = new Map(categories.map((category) => [category.id, category.kind]))
   const filed = items.filter((item): item is TransactionItem & { readonly category: RecordId } => item.category !== null && kinds.get(item.category) !== 'repayment')
-  return filed.length === 0 ? (categoryWithRole(categories, 'loan-interest')?.id ?? null) : mainCategoryOf(filed)
+  return mainCategoryOf(filed) ?? categoryWithRole(categories, 'loan-interest')?.id ?? null
 }
 
 /** The words a split gives its parts, in the language the person reads. */

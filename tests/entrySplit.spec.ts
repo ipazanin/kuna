@@ -201,6 +201,10 @@ describe('an entry split by hand', () => {
       ]),
     ).toBe(GROCERIES.id)
   })
+
+  it('has no main category for no parts', () => {
+    expect(mainCategoryOf([])).toBeNull()
+  })
 })
 
 describe('the Difference part', () => {

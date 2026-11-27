@@ -212,15 +212,15 @@ export function yearRange(instrument: Instrument, sources: PortfolioSources): Ye
   const { book, prices, today } = sources
   const yearAgo = dayMonthsLater(today, -12)
   const closes = prices.closesBetween(instrument, addDays(yearAgo, 1), today)
-  const first = closes[0]
-  const last = closes[closes.length - 1]
+  const points = closes.map((close): PricePoint => ({ date: close.date, price: closePerUnit(instrument.quoted, priceInTodaysUnits(book, instrument, close.date, close.price)) }))
+  const first = points[0]
+  const last = points[points.length - 1]
   if (first === undefined || last === undefined) {
     return null
   }
   const ended = last.date < addDays(today, -YEAR_SLACK_DAYS)
-  const points = closes.map((close): PricePoint => ({ date: close.date, price: closePerUnit(instrument.quoted, priceInTodaysUnits(book, instrument, close.date, close.price)) }))
-  const low = points.reduce((lowest, point) => (point.price < lowest.price ? point : lowest))
-  const high = points.reduce((highest, point) => (point.price > highest.price ? point : highest))
+  const low = points.reduce((lowest, point) => (point.price < lowest.price ? point : lowest), first)
+  const high = points.reduce((highest, point) => (point.price > highest.price ? point : highest), first)
   return {
     low,
     high,

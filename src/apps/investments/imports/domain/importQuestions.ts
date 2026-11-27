@@ -169,7 +169,7 @@ export function accountQuestions(
       proposedName: knownAccount?.name ?? freeName(row.broker),
       likely: knownAccount === undefined ? (likely.get(row.account) ?? null) : null,
       rows: rows.length,
-      firstDay: rows.map((each) => each.date).reduce((first, day) => (day < first ? day : first)),
+      firstDay: rows.reduce((first, each) => (each.date < first ? each.date : first), row.date),
     }
   })
 }

@@ -5,7 +5,7 @@ import { HR_DOO_TRACE_RULES, figureTraceOf } from '../src/apps/company/packs/hr-
 import { dividendCapacity } from '../src/apps/company/packs/hr-doo/domain/dividend/dividendCapacity'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
 import { payScenarios } from '../src/apps/company/packs/hr-doo/domain/scenarios/payScenarios'
-import { RULES, citedVersion, sourcesCheckedSince } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import { RULES, RULES_CHECKED_SINCE, citedVersion } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import { NAMES_A_PARTY } from '../src/apps/company/packs/hr-doo/ruleset/tracedFigure'
 import type { TracedFigure } from '../src/apps/company/packs/hr-doo/ruleset/tracedFigure'
 import type { FigureTrace } from '../src/shared/ai/domain/chatElement'
@@ -99,7 +99,7 @@ describe('the rules behind a build-up', () => {
   })
 
   it('says when the rules were last checked', () => {
-    expect(HR_DOO_TRACE_RULES.checkedSince).toBe(sourcesCheckedSince())
+    expect(HR_DOO_TRACE_RULES.checkedSince).toBe(RULES_CHECKED_SINCE)
   })
 })
 

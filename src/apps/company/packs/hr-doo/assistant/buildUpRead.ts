@@ -1,6 +1,6 @@
 import type { FigureTrace } from '../../../../../shared/ai/domain/chatElement'
 import type { TraceRules } from '../../../../../shared/app/assistantReader'
-import { citedVersion, sourcesCheckedSince } from '../ruleset/ruleset'
+import { RULES_CHECKED_SINCE, citedVersion } from '../ruleset/ruleset'
 import type { RuleTerms, Term } from '../ruleset/schema'
 import { NAMES_A_PARTY } from '../ruleset/tracedFigure'
 import type { TracedFigure } from '../ruleset/tracedFigure'
@@ -97,6 +97,6 @@ function versionsOf(trace: FigureTrace): readonly object[] {
 /** The Croatian d.o.o. ruleset behind the pack's build-ups. */
 export const HR_DOO_TRACE_RULES: TraceRules = {
   versionsOf,
-  checkedSince: sourcesCheckedSince(),
+  checkedSince: RULES_CHECKED_SINCE,
   ruleKind: TAX_RULE_KIND,
 }

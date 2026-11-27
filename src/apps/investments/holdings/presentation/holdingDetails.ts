@@ -11,7 +11,7 @@ import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { FUND_MIXES, countryOfIsin } from '../../workbook/domain/mixGroup'
-import { addDays } from '../../../../shared/calendar/civilDate'
+import { addDays, earliestOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { DECIMAL_ZERO, scaledDecimal } from '../../../../shared/money/decimal'
@@ -158,11 +158,11 @@ export function holdingDetails(holding: Pick<HoldingFigures, 'instrument' | 'qua
 
 /** The warning of a holding's fact problems, or null for none. A sold holding is asked about no more, so it gets none. */
 function factWarning(problems: readonly FactProblem[]): FactWarning | null {
-  if (problems.length === 0) {
+  const askedOn = earliestOf(problems.map((problem) => problem.askedOn))
+  const asksAgainOn = earliestOf(problems.map((problem) => addDays(problem.askedOn, daysBeforeAskedAgain(problem.failure))))
+  if (askedOn === null || asksAgainOn === null) {
     return null
   }
-  const askedOn = problems.map((problem) => problem.askedOn).reduce((earliest, day) => (day < earliest ? day : earliest))
-  const asksAgainOn = problems.map((problem) => addDays(problem.askedOn, daysBeforeAskedAgain(problem.failure))).reduce((soonest, day) => (day < soonest ? day : soonest))
   return {
     sentences: problems.map(problemSentence),
     vendors: [...new Set(problems.map((problem) => problem.vendor))].map((id) => ({ id, name: vendorName(id) })),

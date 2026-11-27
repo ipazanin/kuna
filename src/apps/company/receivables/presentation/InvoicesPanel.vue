@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
+import { latestOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -133,10 +134,12 @@ const view = computed(() => {
     return null
   }
   const { booked: workbook, window } = current
-  const transactions = workbook.transactions
+  const asOf = latestOf(workbook.transactions.map((transaction) => transaction.date))
+  if (asOf === null) {
+    return null
+  }
   const receivables = receivablesOf(workbook)
   const revenue = workbook.categories.filter((category) => category.roles.includes(RECEIVABLE_ROLES.revenue)).map((category) => category.slug)
-  const asOf = transactions.reduce((newest, transaction) => (transaction.date > newest ? transaction.date : newest), transactions[0]!.date)
   const range = periodRange(period.value, window)
   const inView = receivables.clients.filter((entry) => chosenClient.value === ALL_CLIENTS || entry.client.slug === chosenClient.value)
   const matched = inView.flatMap((entry) => entry.invoices.map((invoice) => ({ entry, invoice })))

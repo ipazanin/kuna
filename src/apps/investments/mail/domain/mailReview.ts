@@ -1,3 +1,4 @@
+import { latestOf } from '../../../../shared/calendar/civilDate'
 import { NO_ANSWERS, workbookDryRun } from '../../imports/domain/importDryRun'
 import { importableRecords } from '../../imports/domain/importedRecords'
 import type { DryRunEntry, WorkbookRows } from '../../imports/domain/importDryRun'
@@ -28,6 +29,5 @@ export function reportNews(reading: WorkbookRows, book: InvestmentBook, rates: R
 
 /** The newest day of a record a report made, in the file, or null while none has. A record booked from a question is not one the report made, so an old row booked does not move it. */
 export function newestReportDay(book: InvestmentBook): string | null {
-  const days = importableRecords(book).flatMap((imported) => (holdsReportKey(imported.record.importKeys.filter((key) => !isAskedKey(key))) ? [imported.record.date] : []))
-  return days.length === 0 ? null : days.reduce((newest, day) => (day > newest ? day : newest))
+  return latestOf(importableRecords(book).flatMap((imported) => (holdsReportKey(imported.record.importKeys.filter((key) => !isAskedKey(key))) ? [imported.record.date] : [])))
 }

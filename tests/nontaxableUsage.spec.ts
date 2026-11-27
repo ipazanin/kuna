@@ -20,6 +20,10 @@ function summary(usage: NontaxableUsage) {
 }
 
 describe('non-taxable payments against their caps', () => {
+  it('has no usage for a year with no payment', () => {
+    expect(usageIn([made('occasional-gift', '2025-12-10', 700)])).toEqual([])
+  })
+
   it('adds yearly payments up and taxes the part over the cap as salary', () => {
     // Occasional gifts 400.00 + 300.00 use the 700.00 cap exactly. A results bonus of 1,500.00 is 300.00 over 1,200.00.
     // The 2025 gift belongs to another year.
