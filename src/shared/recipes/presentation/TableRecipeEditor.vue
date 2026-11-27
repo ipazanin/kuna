@@ -139,7 +139,10 @@ const kindKeys = useRowKeys(() => draft.value.kinds)
       <UFormField :label="words.day" :error="errors.fields.day ?? false">
         <RecipeColumnField :model-value="draft.date.column" :columns="columns" data-testid="recipe-day" @update:model-value="update({ date: { ...draft.date, column: $event } })" />
       </UFormField>
-      <UFormField :label="words.dayFormat" :help="words.dayFormatHelp(dayExample('yyyy-MM-dd'))" :error="errors.fields.format ?? false">
+      <UFormField :label="words.dayFormat" :error="errors.fields.format ?? false">
+        <template #help>
+          {{ words.dayFormatHelp }} <span class="whitespace-nowrap">{{ dayExample('yyyy-MM-dd') }}.</span>
+        </template>
         <USelect
           :model-value="draft.date.format"
           :items="formatItems"
