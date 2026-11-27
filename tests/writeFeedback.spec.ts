@@ -1,7 +1,7 @@
 import { globSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
-import type { ElementNode, RootNode, TemplateChildNode } from '@vue/compiler-dom'
+import type { ElementNode } from '@vue/compiler-dom'
 import { ref, shallowReactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -12,6 +12,7 @@ import { trackWrite, writesInFlight } from '../src/shared/storage/application/wr
 import { GoogleApiError, GoogleTimedOut } from '../src/shared/google/googleApi'
 import { words } from '../src/shared/storage/presentation/words'
 import { useRecordWrites } from '../src/shared/storage/presentation/useRecordWrites'
+import { elementsOf } from './support/templateElements'
 
 interface ToastShown {
   readonly id?: string
@@ -54,13 +55,7 @@ function queueingStore() {
 }
 
 const root = join(import.meta.dirname, '..')
-const ELEMENT = 1
 const DIRECTIVE = 7
-
-function elementsOf(node: RootNode | TemplateChildNode): ElementNode[] {
-  const children = 'children' in node ? (node.children as TemplateChildNode[]) : []
-  return [...(node.type === ELEMENT ? [node as ElementNode] : []), ...children.flatMap((child) => (typeof child === 'object' ? elementsOf(child) : []))]
-}
 
 function boundProps(element: ElementNode): { readonly name: string; readonly expression: string }[] {
   return element.props.flatMap((prop) =>

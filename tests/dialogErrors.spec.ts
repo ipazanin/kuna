@@ -1,31 +1,11 @@
 import { globSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
-import type { ElementNode, RootNode, TemplateChildNode } from '@vue/compiler-dom'
 import { describe, expect, it } from 'vitest'
 
-const ELEMENT = 1
-const ATTRIBUTE = 6
-const DIRECTIVE = 7
+import { elementsOf, propText } from './support/templateElements'
 
 const root = join(import.meta.dirname, '..')
-
-function elementsOf(node: RootNode | TemplateChildNode): ElementNode[] {
-  const children = 'children' in node ? (node.children as TemplateChildNode[]) : []
-  return [...(node.type === ELEMENT ? [node as ElementNode] : []), ...children.flatMap((child) => (typeof child === 'object' ? elementsOf(child) : []))]
-}
-
-/** What an element says about a prop, written as it stands or bound, with `v-if` read as the prop `if`. */
-function propText(element: ElementNode, name: string): string | null {
-  for (const prop of element.props) {
-    if (prop.type === ATTRIBUTE && prop.name === name) return prop.value?.content ?? ''
-    if (prop.type !== DIRECTIVE) continue
-    const expression = prop.exp && 'content' in prop.exp ? prop.exp.content : ''
-    if (name === 'if' && prop.name === 'if') return expression
-    if (prop.name === 'bind' && prop.arg !== undefined && 'content' in prop.arg && prop.arg.content === name) return expression
-  }
-  return null
-}
 
 /**
  * The refusal alerts of a dialog that binds no field's `:error`. A refusal alert is an error alert shown after Save or

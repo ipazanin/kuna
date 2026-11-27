@@ -294,6 +294,18 @@ place on the home and in every app, and it syncs every app's file on Drive. Each
 with a quiet Kuna mark and name linking home, so a first run left half way goes back to the home. There is no app
 switcher, keyboard shortcut or bottom bar.
 
+Each app's menu, with Settings apart at its foot, and the tabs of its Settings, which `tests/readmeMenus.spec.ts` compares
+with the apps. While `owner_pay_module` is on, the d.o.o. pack's screens follow Analysis and its tab comes before Assistant.
+
+| App                  | Menu                                                                   | Settings tabs                                      |
+| -------------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| Spending             | Overview, Entries, Limits, Sorting, Events, Payees, Analysis, Accounts | General, Quick add, Bank sync, Receipts, Assistant |
+| Company              | Overview, Transactions, Sorting, Invoicing, Analysis                   | General, Accounts, Assistant, Books file           |
+| Investments          | Overview, Holdings, Transactions, Performance, Tax                     | General, Prices, Checks, Assistant                 |
+| Loans                | Overview, Scenarios                                                    | General, Assistant                                 |
+| Assets               | Overview                                                               | General, Assistant                                 |
+| Company, d.o.o. pack | Owner, Year, Salaries, Trips                                           | Tax rules                                          |
+
 The Net worth screen at `#/overview` leads with the figure itself: Bank and cash, the Investments value, the
 Assets value and what others owe you, less what you owe. Bank and cash is Spending's part, the open
 accounts at or above zero in euros at the ECB rate of the day, and an overdrawn account counts with
@@ -1882,8 +1894,13 @@ the billing and invoice terms are on Invoicing, Clients, and the assets,
 grants and year-end tabs on the Year screen. Each of those is `FactTabCard` in
 `src/apps/company/settings/presentation/`, a card that edits one tab as this screen does.
 
-The Loans Settings at `#/loans/settings` holds the Loans books card: where the Loans file is kept,
-with its export and "Switch storage".
+The Loans Settings at `#/loans/settings` and the Assets Settings at `#/assets/settings` have two tabs.
+General holds the app's file card: where the file is kept, with its export and "Switch storage". Assistant
+switches the chat's help on for the app.
+
+The Investments Settings at `#/investments/settings` has four tabs. General holds the file, the accounts, the
+IBKR report by mail, the benchmark and your history, Prices where the prices come from, Checks the portfolio checks' thresholds, and Assistant
+switches the chat's help on for Investments.
 
 Spending's Settings at `#/spending/settings` has five tabs. General holds the Spending file, with its
 export and "Switch storage", and the statement recipes Import reads a bank's file with. Quick add, Bank sync
@@ -2434,8 +2451,8 @@ found by its mark or else picked. Investments can be set up from its card on the
 Set up until the file exists and then says what the app keeps. The Overview at `#/investments` says
 which records the file leaves out or doubts, and an empty file shows an empty state that names where
 the file is kept. While the file opens it shows skeleton cards. Its Settings at
-`#/investments/settings` show where the file is, with Export, Switch storage and the delete of its
-data. Export downloads `kuna-investments-export-<yyyy-mm-dd>.json`. Its identity colour
+`#/investments/settings` show on General where the file is, with Export, Switch storage and the delete of its
+data, beside the Prices, Checks and Assistant tabs. Export downloads `kuna-investments-export-<yyyy-mm-dd>.json`. Its identity colour
 is `--app-investments`, a plum.
 
 Every app's Settings offers Delete this app's data on its file card. It asks first, offering what the

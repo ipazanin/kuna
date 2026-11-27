@@ -131,12 +131,6 @@ function setCustomEnd(end: 'from' | 'to', text: string): void {
   props.rangeChoice!.range.value = overlapOf(withRangeEnd(customRange.value, end, day), span) ?? span
 }
 
-/**
- * A DayField whose caller does not listen to `update:model-value` keeps a typed day as its own, so a day moved back to an
- * unchanged range would stay in the field. Listening here lets the field show the range's day again once it is left.
- */
-function keepRangeDays(): void {}
-
 const emit = defineEmits<{
   select: [selection: ChartPointSelection]
   zoom: [window: ChartZoomWindow]
@@ -225,7 +219,6 @@ function valueOf(point: unknown): number | null {
               v-bind="customLimits"
               class="w-full sm:w-40"
               data-testid="chart-range-from"
-              @update:model-value="keepRangeDays"
               @change="setCustomEnd('from', $event)"
             />
             <span class="type-caption sm:ms-1">{{ words.periodBar.to }}</span>
@@ -236,7 +229,6 @@ function valueOf(point: unknown): number | null {
               v-bind="customLimits"
               class="w-full sm:w-40"
               data-testid="chart-range-to"
-              @update:model-value="keepRangeDays"
               @change="setCustomEnd('to', $event)"
             />
           </div>

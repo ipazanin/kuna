@@ -67,7 +67,7 @@ export function paymentsChart(
           markLine: {
             silent: true,
             symbol: 'none',
-            lineStyle: { color: tokens.axis, type: 'dashed', width: 1 },
+            lineStyle: { color: tokens.inkMuted, type: 'dashed', width: 1 },
             label: { formatter: loanWords.payments.today, position: 'end', color: tokens.inkSecondary, fontSize: 11 },
             data: categories.includes(String(currentYear)) ? [{ xAxis: String(currentYear) }] : [],
           },

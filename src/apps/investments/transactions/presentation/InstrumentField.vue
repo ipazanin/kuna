@@ -40,6 +40,6 @@ const items = computed(() => props.book.instruments.map((candidate) => ({ label:
       />
       <UButton :label="words.fields.newHolding" icon="i-lucide-plus" color="neutral" variant="outline" class="shrink-0" :data-testid="`${testId}-new`" @click="adding = true" />
     </div>
-    <InstrumentDialog v-model:open="adding" :instrument="null" :book="book" @saved="instrument = $event.id" />
   </UFormField>
+  <InstrumentDialog v-model:open="adding" :instrument="null" :book="book" @saved="instrument = $event.id" />
 </template>

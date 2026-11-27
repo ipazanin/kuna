@@ -17,9 +17,11 @@ import { words } from './words'
  * and 12. 07. 2026. in Croatian. Its value is the day as YYYY-MM-DD, and blank while no whole day is typed. It follows each
  * keystroke, so a caller that writes on a day listens to `change`, which comes once the field is left or a day is picked.
  * A whole day typed outside `min` and `max` shows as an error and still reaches the caller, which says why or moves it.
+ * Once left, the field shows the caller's value again, so a caller that moves or refuses a day need not hand back a new one.
  */
 const props = withDefaults(
   defineProps<{
+    modelValue: string
     /** The earliest day it takes, as YYYY-MM-DD. */
     min?: string
     /** The latest day it takes, as YYYY-MM-DD. */
@@ -32,8 +34,7 @@ const props = withDefaults(
   { size: 'md', loading: false, disabled: false },
 )
 
-const text = defineModel<string>({ required: true })
-const emit = defineEmits<{ change: [day: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [day: string]; change: [day: string] }>()
 
 function dayOf(iso: string | undefined): CalendarDate | undefined {
   return iso !== undefined && parseCivilDate(iso) !== null ? parseDate(iso) : undefined
@@ -43,16 +44,19 @@ function dayOf(iso: string | undefined): CalendarDate | undefined {
  * The day the field holds while it is typed. A value handed back while a person types, such as today for a blank, would
  * start the typing over, so the field takes the value when it is not being typed in, and once it is left.
  */
-const day = shallowRef<CalendarDate | undefined>(dayOf(text.value))
+const day = shallowRef<CalendarDate | undefined>(dayOf(props.modelValue))
 const typing = ref(false)
 /** The day the field held when it was entered, so leaving it says a change only when the day moved. */
-let entered = text.value
+let entered = props.modelValue
 function takeValue(): void {
-  if (text.value !== typedDayText(day.value)) day.value = dayOf(text.value)
+  if (props.modelValue !== typedDayText(day.value)) day.value = dayOf(props.modelValue)
 }
-watch(text, () => {
-  if (!typing.value) takeValue()
-})
+watch(
+  () => props.modelValue,
+  () => {
+    if (!typing.value) takeValue()
+  },
+)
 
 function enter(): void {
   typing.value = true
@@ -69,7 +73,7 @@ function leave(): void {
 /** The field and the calendar also speak of ranges and of times, which a field of one day never asks for. */
 function type(typed: unknown): void {
   day.value = typed instanceof CalendarDate ? typed : undefined
-  text.value = typedDayText(day.value)
+  emit('update:modelValue', typedDayText(day.value))
 }
 
 /** The earliest and the latest day the calendar offers, left out when not given. */

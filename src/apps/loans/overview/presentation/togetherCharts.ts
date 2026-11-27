@@ -45,7 +45,7 @@ function bandsOf(loans: readonly PlannedLoan[], months: readonly LoansMonth[], c
             markLine: {
               silent: true,
               symbol: 'none',
-              lineStyle: { color: tokens.axis, type: 'dashed', width: 1 },
+              lineStyle: { color: tokens.inkMuted, type: 'dashed', width: 1 },
               label: { formatter: words.together.today, position: 'end', color: tokens.inkSecondary, fontSize: 11 },
               data: categories.includes(current) ? [{ xAxis: current }] : [],
             },

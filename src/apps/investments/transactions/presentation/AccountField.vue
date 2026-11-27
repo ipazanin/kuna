@@ -28,6 +28,6 @@ const items = computed(() => props.book.accounts.map((candidate) => ({ label: ca
       <USelect v-model="account" :items="items" class="min-w-0 flex-1" :data-testid="testId" />
       <UButton icon="i-lucide-plus" color="neutral" variant="outline" :aria-label="words.fields.newAccount" :data-testid="`${testId}-new`" @click="adding = true" />
     </div>
-    <AccountDialog v-model:open="adding" :account="null" @saved="account = $event.id" />
   </UFormField>
+  <AccountDialog v-model:open="adding" :account="null" @saved="account = $event.id" />
 </template>
