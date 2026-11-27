@@ -68,6 +68,12 @@ describe("a visual flow's name", () => {
     expect(APPS.map((app) => app.id)).toEqual([...APP_ORDER])
   })
 
+  it('is given to one flow only, since the shot index tells flows apart by name', () => {
+    const named = FLOWS.map((flow) => flow.name)
+
+    expect(named.filter((name, index) => named.indexOf(name) !== index)).toEqual([])
+  })
+
   it('opens the screen its name starts with, so company-sorting-* opens #/company/sorting', () => {
     const astray = FLOWS.flatMap((flow) => {
       const screen = namedScreen(flow.name)

@@ -1081,9 +1081,10 @@ export const appMenuFlow = appMenuFlowIn('en')
 
 /**
  * The menu adjusts to what is set up. From the first draw after a load it lists exactly `listed`, so nothing flickers in and out while files open or
- * wait to be looked up, with Net worth over the apps. Add an app leads to the home, whose cards still offer all five apps.
+ * wait to be looked up, with Net worth over the apps. Add an app leads to the home, whose cards still offer all five apps. A flow that
+ * lists the same apps in other books names its shot with its own `shots` prefix.
  */
-export function sidebarAdjustsFlowIn(language, listed) {
+export function sidebarAdjustsFlowIn(language, listed, shots = `sidebar-adjusts-${listed.join('-')}`) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot, inspect }) => {
     await openMenu(page, press)
@@ -1092,7 +1093,7 @@ export function sidebarAdjustsFlowIn(language, listed) {
     if (menu.netWorth !== words.netWorth) throw new Error(`the menu shows ${menu.netWorth} over the apps`)
     if (menu.addApp !== words.addApp) throw new Error(`the menu shows ${menu.addApp} for Add an app`)
     await inspect?.('the menu with some apps set up')
-    await shoot(`sidebar-adjusts-${listed.join('-')}${language === 'en' ? '' : `-${language}`}`)
+    await shoot(language === 'en' ? shots : `${shots}-${language}`)
 
     if (await page.evaluate(() => document.querySelector('aside') !== null)) {
       await page.evaluateOnNewDocument(() => {

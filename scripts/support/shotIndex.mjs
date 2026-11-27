@@ -8,7 +8,8 @@ const INDEX_FILE = 'shots.json'
 /**
  * The screenshots of a check, kept in `folder` with a list of which screen, flow or step wrote each. A full run starts
  * from an empty folder. A limited run removes the shots a screen wrote last time as it starts that screen, so a shot
- * the screen no longer takes never passes for this run's, and it keeps every other screen's shots.
+ * the screen no longer takes never passes for this run's, and it keeps every other screen's shots. A file one screen
+ * wrote is refused to every other, since the later shot would replace the earlier.
  */
 export function shotIndex(folder, limited) {
   mkdirSync(folder, { recursive: true })
@@ -18,6 +19,7 @@ export function shotIndex(folder, limited) {
     for (const stale of readdirSync(folder).filter((file) => file.endsWith('.png'))) rmSync(join(folder, stale))
   }
   const written = new Map()
+  const writers = new Map()
   let current = null
   whenRunEnds(() => {
     const kept = Object.entries(earlier).filter(([name]) => !written.has(name))
@@ -32,8 +34,11 @@ export function shotIndex(folder, limited) {
       written.set(name, new Set())
       for (const file of earlier[name] ?? []) rmSync(join(folder, file), { force: true })
     },
-    /** Where the shot called `file` goes, kept under the screen begun last. */
+    /** Where the shot called `file` goes, kept under the screen begun last. Throws when another screen wrote that file in this run. */
     path(file) {
+      const writer = writers.get(file)
+      if (writer !== undefined && writer !== current) throw new Error(`${file} is ${writer}'s shot already, so ${current} would replace it. Give ${current}'s shot a name of its own`)
+      writers.set(file, current)
       written.get(current)?.add(file)
       return join(folder, file)
     },

@@ -899,8 +899,11 @@ async function waitingOnReview(page, shown) {
     })
 }
 
-/** Import: drop the sample camt.053 statement, read the dry run, confirm, find every row on the ledger, and Undo. */
-export function importCamtFlowIn(language, path) {
+/**
+ * Import: drop the sample camt.053 statement, read the dry run, confirm, find every row on the ledger, and Undo. A flow that runs
+ * it on other books names its shots with its own `shots` prefix.
+ */
+export function importCamtFlowIn(language, path, shots = 'import-camt') {
   const words = SCREEN_WORDS[language]
   const panel = words.imports.panel
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -911,18 +914,18 @@ export function importCamtFlowIn(language, path) {
     if ((await page.$$('[data-testid="dry-run-row"]')).length !== 4) throw new Error('the dry run does not list the four entries')
     await elementSays(page, '[data-testid="dry-run-pays-invoice"]', ['10\u20111\u201126'], 'the dry run does not say which invoice the client payment pays')
     await inspect?.('the camt dry run')
-    await shoot('import-camt-dry-run')
-    await shootAt(page, shoot, '[data-testid="dry-run-pays-invoice"]', 'import-camt-pays-invoice')
+    await shoot(`${shots}-dry-run`)
+    await shootAt(page, shoot, '[data-testid="dry-run-pays-invoice"]', `${shots}-pays-invoice`)
     await pressSelector(page, press, '[data-testid="import-confirm"]')
     await toastCounted(page, (count) => words.importWrites.imported([], count))
     await dryRunSays(page, panel.writesNothing)
     await dryRunSays(page, countedIn(words, panel.inLedger(4), 4))
     await waitingOnReview(page, true)
-    await shoot('import-camt-confirmed')
+    await shoot(`${shots}-confirmed`)
     await undoIn(page, press, words)
     await dryRunSays(page, addsFour)
     await waitingOnReview(page, false)
-    await shoot('import-camt-undone')
+    await shoot(`${shots}-undone`)
     await dismissToasts(page)
   }
 }
@@ -1069,14 +1072,14 @@ export function importFlowIn(language, paths) {
     await dropFile(page, paths.camt)
     await dryRunSays(page, addsFour)
     await inspect?.('the camt dry run')
-    await shoot('import-camt-dry-run')
+    await shoot('import-files-camt-dry-run')
     await pressSelector(page, press, '[data-testid="import-confirm"]')
     await dryRunSays(page, panel.writesNothing)
     await page.waitForSelector('[data-testid="import-waiting"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('the confirmed import does not say how many new rows wait for review')
     })
     await delay(300)
-    await shoot('import-camt-confirmed')
+    await shoot('import-files-camt-confirmed')
     await undoIn(page, press, words)
     await dryRunSays(page, addsFour)
 
@@ -1084,7 +1087,7 @@ export function importFlowIn(language, paths) {
     await writeRecipe(page, press, RECIPE_NAMES[language])
     await elementSays(page, '[role="dialog"]', [words.imports.recipe.addTitle, words.imports.recipe.save], 'the recipe dialog is not in its language')
     await inspect?.('the guessed recipe')
-    await shoot('import-recipe')
+    await shoot('import-files-recipe')
   }
 }
 

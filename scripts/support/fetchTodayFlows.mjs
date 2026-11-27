@@ -49,7 +49,8 @@ export function fetchTodayFlowIn(language, clock = WEEKDAY_CLOCK) {
     const reason = await page.$eval('[data-testid="investments-fetch-today-note"]', (element) => element.textContent?.trim() ?? '')
     if (!reason.startsWith(words.prices.today.noKey)) throw new Error(`Fetch today says "${reason}" without a key`)
     if ((await page.$('[data-testid="investments-fetch-today-prices"]')) === null) throw new Error('Fetch today names no way to Prices without a key')
-    await shoot(`fetch-today-no-key-${language}`)
+    // The screen without a key is the same at every clock, so the weekday run alone shoots it.
+    if (clock === WEEKDAY_CLOCK) await shoot(`fetch-today-no-key-${language}`)
 
     await page.evaluate((key) => localStorage.setItem('kuna.secret.twelvedata', key), MADE_UP_KEY)
     if (clock.alphaVantageKey !== undefined) await page.evaluate((key) => localStorage.setItem('kuna.secret.alphavantage', key), clock.alphaVantageKey)
@@ -101,7 +102,8 @@ export function homeFetchTodayFlowIn(language, clock = WEEKDAY_CLOCK) {
     const button = `${card} [data-testid="home-card-action"]`
     await page.waitForSelector(`${card} dl`, VISIBLE)
     if ((await page.$(button)) !== null) throw new Error('the home card offers Fetch today without a key kept')
-    await shoot(`home-fetch-today-no-key-${language}`)
+    // The screen without a key is the same at every clock, so the weekday run alone shoots it.
+    if (clock === WEEKDAY_CLOCK) await shoot(`home-fetch-today-no-key-${language}`)
 
     await page.evaluate((key) => localStorage.setItem('kuna.secret.twelvedata', key), MADE_UP_KEY)
     await pinClock(page, clock)

@@ -333,11 +333,12 @@ async function openMailCard(page) {
  * after it, the steps it opens when it has something to say, the sync card on Kuna settings, and the
  * mail card with what the mail step found. `stored` is what this device keeps before the page loads
  * again, such as a token without Gmail read, and a null takes the key away. Each state is inspected,
- * so the visual check reads its words, and the fake variant decides what the sync meets.
+ * so the visual check reads its words, and the fake variant decides what the sync meets. It runs once for each variant, so
+ * each run names its shots with its own `shots` prefix.
  */
-export function syncStatesFlowIn(language, stored = {}) {
+export function syncStatesFlowIn(shots, stored = {}) {
   return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(`${name}-${language}`)
+    const shoot = (name) => shootAs(`${shots}-${name}`)
     if (Object.keys(stored).length > 0) {
       await page.evaluate((entries) => {
         for (const [key, value] of Object.entries(entries)) {
