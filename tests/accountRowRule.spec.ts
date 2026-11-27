@@ -104,26 +104,32 @@ function fieldsOf(graph: WriteGraph, file: string, name: string, seen: Set<strin
   return fields
 }
 
+const GRAPH = writeGraph()
+
+/** The write rules of each kind whose record names an account, or a from and a to, by their key in the write graph. */
+const ON_ACCOUNTS = [...GRAPH.modules.values()]
+  .filter((module) => APPS.test(module.file))
+  .flatMap((module) =>
+    [...module.declarations].flatMap(([name, found]) =>
+      found.flatMap(({ node }) => {
+        if (!ts.isVariableDeclaration(node) || node.type === undefined || !ts.isTypeReferenceNode(node.type) || node.type.typeName.getText() !== 'WriteRules') return []
+        const record = node.type.typeArguments?.[0]?.getText() ?? ''
+        const fields = fieldsOf(GRAPH, module.file, record)
+        return fields.has('account') || (fields.has('from') && fields.has('to')) ? [`${module.file}#${name}`] : []
+      }),
+    ),
+  )
+
 describe('the rule that an account takes rows only from where it says', () => {
   it('is checked for every kind whose record lands on an account', () => {
-    const graph = writeGraph()
-    const onAccounts = [...graph.modules.values()]
-      .filter((module) => APPS.test(module.file))
-      .flatMap((module) =>
-        [...module.declarations].flatMap(([name, found]) =>
-          found.flatMap(({ node }) => {
-            if (!ts.isVariableDeclaration(node) || node.type === undefined || !ts.isTypeReferenceNode(node.type) || node.type.typeName.getText() !== 'WriteRules') return []
-            const record = node.type.typeArguments?.[0]?.getText() ?? ''
-            const fields = fieldsOf(graph, module.file, record)
-            return fields.has('account') || (fields.has('from') && fields.has('to')) ? [`${module.file}#${name}`] : []
-          }),
-        ),
-      )
     expect(
-      onAccounts.filter((key) => !(key in ROW_WRITES) && !(key in NOT_ROWS)),
+      ON_ACCOUNTS.filter((key) => !(key in ROW_WRITES) && !(key in NOT_ROWS)),
       'Add the kind to ROW_WRITES with a check below, or to NOT_ROWS with why',
     ).toEqual([])
-    expect([...Object.keys(ROW_WRITES), ...Object.keys(NOT_ROWS)].filter((key) => !onAccounts.includes(key))).toEqual([])
+  })
+
+  it.each([...Object.keys(ROW_WRITES), ...Object.keys(NOT_ROWS)])('lists %s, whose record still names an account', (key) => {
+    expect(ON_ACCOUNTS).toContain(key)
   })
 })
 

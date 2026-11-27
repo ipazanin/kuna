@@ -151,6 +151,7 @@ function loadsModules(declaration: ts.VariableDeclaration): boolean {
 /** Each name bound from an `import()`, as `const { a } = await import('./x')` or `const [{ a }, { b }] = await Promise.all([import('./x'), import('./y')])` bind them. */
 function dynamicImports(source: ts.SourceFile): { readonly local: string; readonly specifier: string; readonly name: string }[] {
   const found: { local: string; specifier: string; name: string }[] = []
+  if (!/\bimport\s*\(/.test(source.text)) return found
   const specifierOf = (node: ts.Expression): string | null =>
     ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] !== undefined && ts.isStringLiteral(node.arguments[0]) ? node.arguments[0].text : null
   const bind = (pattern: ts.BindingName, specifier: string | null) => {
