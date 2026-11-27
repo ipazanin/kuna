@@ -11,8 +11,9 @@ const SAVE_NOTE = `${NOTES}#saveNote`
 const made: string[] = []
 
 /**
- * A small app whose notes module holds a write and a read beside each other and an object of both, which the app's index
- * re-exports through a renamed export and a star export. A screen saves notes, and the operation is the body given.
+ * A small app whose notes module holds a write and a read beside each other, an object of both, and functions that take the object as
+ * its interface or as a `Pick` of its read. The app's index re-exports the module through a renamed export and a star export. A screen
+ * saves notes, and the operation is the body given.
  */
 function notesApp(operation: string): string {
   const root = mkdtempSync(join(tmpdir(), 'kuna-write-paths-spec-'))
@@ -24,13 +25,16 @@ function notesApp(operation: string): string {
       'export function readNote(id) { return id }',
       "export function saveNote(unit) { unit.of(NOTE_WRITES).add({ id: '1' }) }",
       'export const NOTE_STORE = { read: readNote, save: saveNote }',
+      'export interface NoteStore { read(id: string): string; save(unit: unknown): void }',
+      "export function firstNote(store: Pick<NoteStore, 'read'>) { return store.read('1') }",
+      'export function keepNote(store: NoteStore, unit: unknown) { store.save(unit) }',
     ].join('\n'),
     'src/apps/notes/notes/index.ts': "export { readNote as noteOf, NOTE_STORE } from './application/notes'\n",
     'src/apps/notes/index.ts': "export * from './notes'\n",
     'src/apps/notes/notes/presentation/noteForm.ts': "import { saveNote } from '../application/notes'\nexport function submit(unit) { saveNote(unit) }\n",
     'src/apps/notes/assistant/operations/noteOperations.ts': [
       "import { noteOf, NOTE_STORE } from '../..'",
-      "import { saveNote } from '../../notes/application/notes'",
+      "import { firstNote, keepNote, saveNote } from '../../notes/application/notes'",
       `export function planned(unit, held) { ${operation} }`,
     ].join('\n'),
   }
@@ -109,6 +113,11 @@ describe('the write graph', () => {
 
   it('reaches every member of an object an operation hands on whole', () => {
     expect(chatSavesNotes('return held(NOTE_STORE)')).toBe(true)
+  })
+
+  it('reaches only the members of an object that the type of the parameter it is handed to names', () => {
+    expect(chatSavesNotes('return firstNote(NOTE_STORE)')).toBe(false)
+    expect(chatSavesNotes('keepNote(NOTE_STORE, unit)')).toBe(true)
   })
 
   it('does not take a parameter for the import it hides', () => {

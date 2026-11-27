@@ -101,7 +101,7 @@ function moduleOf(root: string, file: string): Module {
   const blocks = file.endsWith('.vue') ? parse(text, { filename: file }).descriptor : null
   const scripts: Script[] =
     blocks === null
-      ? [{ source: ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true), firstLine: 1 }]
+      ? [{ source: ts.createSourceFile(join(root, file), text, ts.ScriptTarget.Latest, true), firstLine: 1 }]
       : [blocks.script, blocks.scriptSetup].flatMap((block) =>
           block === null ? [] : [{ source: ts.createSourceFile(file, block.content, ts.ScriptTarget.Latest, true), firstLine: block.loc.start.line }],
         )
@@ -251,9 +251,9 @@ export function writeGraph(root: string = ROOT): WriteGraph {
     const at = (inner: ts.Node) => `${module.file}:${script.firstLine + script.source.getLineAndCharacterOfPosition(inner.getStart(script.source)).line}`
     const visit = (inner: ts.Node): void => {
       if (ts.isIdentifier(inner) && !isOnlyAName(inner) && !boundLocally(inner)) {
-        const whole = module.declarations.has(inner.text) ? `${module.file}#${inner.text}` : module.imports.has(inner.text) ? symbolOfImport(module, inner.text) : null
-        const key = whole === null ? null : memberRead(whole, inner)
-        if (key !== null && !isWriteRulesRead(inner, key)) into.symbols.push({ key, at: at(inner), verb: writeRulesKeys.has(key) ? verbOf(inner) : null })
+        const whole = symbolNamed(module, inner.text)
+        const keys = whole === null ? [] : memberRead(module, whole, inner)
+        keys.filter((key) => !isWriteRulesRead(inner, key)).forEach((key) => into.symbols.push({ key, at: at(inner), verb: writeRulesKeys.has(key) ? verbOf(inner) : null }))
       }
       if (ts.isPropertyAccessExpression(inner) && ts.isCallExpression(inner.parent) && inner.parent.expression === inner) {
         const name = inner.name.text
@@ -265,9 +265,11 @@ export function writeGraph(root: string = ROOT): WriteGraph {
     visit(node)
     return into
   }
-  const symbolOfImport = (module: Module, local: string): SymbolKey | null => {
-    const imported = module.imports.get(local)!
-    return imported.file === null ? null : declaredAt(imported.file, imported.name)
+  // The declaration a name of a file stands for, its own or the one it imports, or null for a package's.
+  const symbolNamed = (module: Module, name: string): SymbolKey | null => {
+    if (module.declarations.has(name)) return `${module.file}#${name}`
+    const imported = module.imports.get(name)
+    return imported === undefined || imported.file === null ? null : declaredAt(imported.file, imported.name)
   }
   // A kind's write rules write when a call takes them, as `unit.of(KIND_WRITES)` or `replaceRows(unit, KIND_WRITES, ...)` do, or when a field
   // hands them on, as `{ rules: KIND_WRITES }` does for code that calls `unit.of(kind.rules)`. Listed in a pack's kinds or read for their
@@ -286,11 +288,30 @@ export function writeGraph(root: string = ROOT): WriteGraph {
     }
     return objectCache.get(key)!
   }
-  // `PORTS.save` reaches the one member, while `PORTS` handed on, spread or destructured reaches the whole object.
-  const memberRead = (whole: SymbolKey, identifier: ts.Identifier): SymbolKey => {
+  // The type checker reads the type of a parameter. Its program is made only once an object is handed whole to a function that types one.
+  let checker: ts.TypeChecker | null = null
+  const parameterCache = new Map<string, ReadonlySet<string> | null>()
+  const parameterMembers = (callee: SymbolKey, index: number): ReadonlySet<string> | null => {
+    const asked = `${callee}@${index}`
+    if (!parameterCache.has(asked)) {
+      const parameter = typedParameter(modules, callee, index)
+      if (parameter !== null) checker ??= typeProgram(root, modules).getTypeChecker()
+      parameterCache.set(asked, parameter === null ? null : membersOfType(checker!, parameter))
+    }
+    return parameterCache.get(asked)!
+  }
+  // `PORTS.save` reaches the one member, and `keyOf(PORTS, id)` the members the type of `keyOf`'s parameter names, such as
+  // `Pick<Store, 'read'>`. `PORTS` handed on any other way, spread or destructured reaches the whole object.
+  const memberRead = (module: Module, whole: SymbolKey, identifier: ts.Identifier): readonly SymbolKey[] => {
+    const object = objectOf(whole)
+    if (object === null) return [whole]
     const access = identifier.parent
-    if (!ts.isPropertyAccessExpression(access) || access.expression !== identifier) return whole
-    return objectOf(whole)?.members.has(access.name.text) === true ? `${whole}.${access.name.text}` : whole
+    if (ts.isPropertyAccessExpression(access) && access.expression === identifier) return [object.members.has(access.name.text) ? `${whole}.${access.name.text}` : whole]
+    const handed = handedAt(identifier)
+    const callee = handed === null || boundLocally(handed.callee) ? null : symbolNamed(module, handed.callee.text)
+    const taken = callee === null ? null : parameterMembers(callee, handed!.index)
+    // A member the object does not list may come from a spread in it, which stays with the whole.
+    return taken === null || [...taken].some((member) => !object.members.has(member)) ? [whole] : [...taken].map((member) => `${whole}.${member}`)
   }
   const namedCache = new Map<SymbolKey, Named>()
   const named = (key: SymbolKey): Named => {
@@ -352,6 +373,67 @@ const DEVICE_CHOICE_FACTORIES: ReadonlySet<SymbolKey> = new Set(['deviceChoice',
 
 /** The shared function that hands the browser a file to save. */
 export const DOWNLOAD: SymbolKey = 'src/shared/files/downloadFile.ts#downloadFile'
+
+/**
+ * A program of the tree's TypeScript files for the type checker, over the files the graph has read already. It resolves only the tree's own
+ * imports and the base library, which is all a parameter's type needs to name its members, and keeps the program quick to make.
+ */
+function typeProgram(root: string, modules: ReadonlyMap<string, Module>): ts.Program {
+  const options: ts.CompilerOptions = {
+    strict: true,
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    lib: ['lib.es5.d.ts'],
+    types: [],
+    noEmit: true,
+  }
+  const read = new Map([...modules.values()].filter((module) => module.file.endsWith('.ts')).map((module) => [join(root, module.file), module.scripts[0]!.source]))
+  const host = ts.createCompilerHost(options)
+  const readFromDisk = host.getSourceFile.bind(host)
+  host.getSourceFile = (name, ...rest) => read.get(name) ?? readFromDisk(name, ...rest)
+  host.resolveModuleNameLiterals = (literals, containing) =>
+    literals.map((literal) => (literal.text.startsWith('.') ? ts.resolveModuleName(literal.text, containing, options, host) : { resolvedModule: undefined }))
+  return ts.createProgram([...read.keys()], options, host)
+}
+
+/** The function a name is handed to as an argument, as `keyOf(STORE, id)` hands `STORE` to `keyOf`, with the argument's position. */
+function handedAt(identifier: ts.Identifier): { readonly callee: ts.Identifier; readonly index: number } | null {
+  const call = identifier.parent
+  if (!ts.isCallExpression(call) || !ts.isIdentifier(call.expression)) return null
+  const index = call.arguments.indexOf(identifier)
+  if (index === -1 || call.arguments.slice(0, index).some(ts.isSpreadElement)) return null
+  return { callee: call.expression, index }
+}
+
+/** The parameter at a position of a function a TypeScript file declares, when a named type such as `Pick<Store, 'read'>` or `Store` types it. */
+function typedParameter(modules: ReadonlyMap<string, Module>, callee: SymbolKey, index: number): ts.ParameterDeclaration | null {
+  const [file, name] = callee.split('#') as [string, string]
+  if (!file.endsWith('.ts')) return null
+  const [only, ...others] = modules.get(file)?.declarations.get(name) ?? []
+  if (only === undefined || others.length > 0) return null
+  const declared = only.node
+  const callable = ts.isFunctionDeclaration(declared)
+    ? declared
+    : ts.isVariableDeclaration(declared) && declared.initializer !== undefined && (ts.isArrowFunction(declared.initializer) || ts.isFunctionExpression(declared.initializer))
+      ? declared.initializer
+      : null
+  const parameter = callable?.parameters[index]
+  return parameter === undefined || parameter.dotDotDotToken !== undefined || parameter.type === undefined || !ts.isTypeReferenceNode(parameter.type) ? null : parameter
+}
+
+/**
+ * The names of the members a parameter's type holds, when it is a `Pick` or an interface, or null for any other type, such as a union, a
+ * function, a map or a generic record whose keys only a call knows.
+ */
+function membersOfType(checker: ts.TypeChecker, parameter: ts.ParameterDeclaration): ReadonlySet<string> | null {
+  const typeNode = parameter.type as ts.TypeReferenceNode
+  const type = checker.getTypeFromTypeNode(typeNode)
+  const named = typeNode.typeName.getText() === 'Pick' || (type.getSymbol()?.declarations ?? []).some(ts.isInterfaceDeclaration)
+  if (!named || type.getCallSignatures().length > 0 || checker.getIndexInfosOfType(type).length > 0) return null
+  const members = checker.getPropertiesOfType(type).map((property) => property.name)
+  return members.length === 0 ? null : new Set(members)
+}
 
 /** A name that is a property, a member or the name a declaration gives, rather than a use of something in scope. */
 function isOnlyAName(identifier: ts.Identifier): boolean {
