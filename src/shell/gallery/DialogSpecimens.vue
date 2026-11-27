@@ -104,6 +104,7 @@ const pickedCurrency = ref('EUR')
 const namedCurrency = ref('USD')
 const optionalCurrency = ref('')
 const keptCurrency = ref('EUR')
+const wrongCurrency = ref('')
 const GALLERY_ROOMS = [
   { label: 'Kitchen', value: 'kitchen' },
   { label: 'Living room', value: 'living' },
@@ -189,7 +190,7 @@ const ROWS = [
           <MoneyInput v-model="givenMoney" class="w-full" />
         </UFormField>
         <UFormField label="With an error" error="An amount, such as 1,500.00">
-          <MoneyInput v-model="wrongMoney" placeholder="0.00" class="w-full" />
+          <MoneyInput v-model="wrongMoney" placeholder="0.00" class="w-full" data-testid="gallery-money-error" />
         </UFormField>
         <UFormField label="Disabled">
           <MoneyInput v-model="disabledMoney" disabled class="w-full" />
@@ -260,6 +261,9 @@ const ROWS = [
         </UFormField>
         <UFormField label="Disabled" help="An account with entries keeps its currency.">
           <CurrencySelect v-model="keptCurrency" search="Find a currency" disabled class="w-full" />
+        </UFormField>
+        <UFormField label="With an error" error="A currency, such as EUR">
+          <CurrencySelect v-model="wrongCurrency" search="Find a currency" class="w-full" data-testid="gallery-currency-error" />
         </UFormField>
       </FormGrid>
     </AppCard>

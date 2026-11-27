@@ -9347,6 +9347,45 @@ export async function colourPickerSpecimenFlow(page, { press, shoot, inspect }) 
   await page.keyboard.press('Escape')
 }
 
+/**
+ * On the gallery: the amount and the currency that show an error, each reached by Tab, keep their red border and show
+ * their focus ring in the same red as the error under them.
+ */
+export async function invalidFieldFocusFlow(page, { shoot }) {
+  for (const [testId, name] of [
+    ['gallery-money-error', 'invalid-field-focus-input'],
+    ['gallery-currency-error', 'invalid-field-focus-select'],
+  ]) {
+    const field = await page.waitForSelector(`[data-testid="${testId}"]`, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error(`the gallery has no ${testId} specimen`)
+    })
+    const control = await field.evaluateHandle((root) => (root.matches('input, button') ? root : root.querySelector('input, button')))
+    await control.evaluate((element) => element.focus())
+    await page.keyboard.down('Shift')
+    await page.keyboard.press('Tab')
+    await page.keyboard.up('Shift')
+    await page.keyboard.press('Tab')
+    // The field fades its colours in, so its ring is read once the fade is over.
+    await delay(300)
+    const look = await control.evaluate((element) => {
+      const error = document.getElementById((element.getAttribute('aria-describedby') ?? '').split(' ').find((id) => id.endsWith('-error')) ?? '')
+      const style = getComputedStyle(element)
+      return {
+        focused: document.activeElement === element && element.matches(':focus-visible'),
+        invalid: element.getAttribute('aria-invalid') === 'true',
+        outline: `${style.outlineStyle} ${style.outlineColor}`,
+        error: error ? `solid ${getComputedStyle(error).color}` : null,
+        border: style.boxShadow.includes(error ? getComputedStyle(error).color : 'no error'),
+      }
+    })
+    if (!look.focused) throw new Error(`${testId} did not take the keyboard's focus back by Tab`)
+    if (!look.invalid || look.error === null) throw new Error(`${testId} is not marked invalid with an error under it`)
+    if (look.outline !== look.error) throw new Error(`${testId} shows its focus as ${look.outline}, not in the red of its error, ${look.error}`)
+    if (!look.border) throw new Error(`${testId} loses its red border while focused`)
+    await shootAt(page, shoot, field, name)
+  }
+}
+
 /** The row of Spending's Limits whose category reads `name`, or null. */
 function spendingLimitRow(page, name) {
   return page.evaluateHandle(
