@@ -1133,12 +1133,8 @@ export async function rowLinesAre(page, title, cents, count) {
 
 /** Waits for the element under `selector` that says `text`, and scrolls it to the middle of the screen. */
 export async function centreOn(page, selector, text) {
-  await waitForTextIn(page, selector, text)
-  await page.evaluate(
-    (where, wanted) => [...document.querySelectorAll(where)].find((element) => element.textContent?.includes(wanted))?.scrollIntoView({ block: 'center' }),
-    selector,
-    text.trim().replace(/\s+\S*$/, ''),
-  )
+  const element = await waitForTextIn(page, selector, text)
+  await element.evaluate((found) => found.scrollIntoView({ block: 'center' }))
 }
 
 export async function reviewRowOf(page, payee) {

@@ -83,6 +83,7 @@ import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src
 import { en as spendingOverviewEnglish, hr as spendingOverviewCroatian } from '../../src/apps/spending/overview/presentation/words.ts'
 import { en as spendingFileEnglish, hr as spendingFileCroatian } from '../../src/apps/spending/workbook/presentation/words.ts'
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
+import { textHolds } from './flowText.mjs'
 import { openEachMenuIn } from './menuFlows.mjs'
 import { delay, pressSelector, typeDay } from './pressing.mjs'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
@@ -899,13 +900,15 @@ export const SPENDING_ENTRY_DIALOG = '[data-testid="spending-entry-dialog"]'
 /** The choice that lets a file's row take the place of the row the AI copied, third after Decide later and Keep both. */
 export const USE_FILE_ROW = 'button:nth-child(3)'
 
+/** Waits for the first element under `selector` whose text holds all of `text`, and returns it. */
 export async function waitForTextIn(page, selector, text) {
-  await page.waitForFunction(
-    (where, wanted) => [...document.querySelectorAll(where)].some((element) => element.textContent?.includes(wanted)),
-    { timeout: 10_000 },
-    selector,
-    text.trim().replace(/\s+\S*$/, ''),
-  )
+  if (text.trim() === '') throw new Error(`no text given to wait for under ${selector}`)
+  const found = await page
+    .waitForFunction(`[...document.querySelectorAll(${JSON.stringify(selector)})].find((element) => (${textHolds})(element.textContent ?? '', ${JSON.stringify(text)})) ?? null`, { timeout: 10_000 })
+    .catch(() => {
+      throw new Error(`nothing under ${selector} says "${text}" within 10 s`)
+    })
+  return found.asElement()
 }
 
 export async function countOf(page, selector, wanted, what) {
