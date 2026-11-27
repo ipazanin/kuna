@@ -62,7 +62,7 @@ export interface BalanceSheet {
   readonly placements: readonly AccrualAdjustment[]
   /** Before any placement moves part of another liability onto its line. */
   readonly grantDeferred: MoneyLine
-  /** What the other lines leave beyond the share capital the accountant filed, or null when they agree or no capital is filed. */
+  /** What the other lines leave beyond the share capital the accountant filed, or null when they agree, no capital is filed or the prior year's equity is unknown. */
   readonly unexplained: TracedFigure | null
 }
 
@@ -72,7 +72,8 @@ const RECEIVABLE_LINES = ['receivables-trade', 'receivables-members-employees', 
 /**
  * The balance sheet at 31 December. Share capital is the company's registered capital as the accountant's latest balance sheet
  * states it, and whatever the other lines leave beyond it is not explained, so a wrong line shows as a difference rather than
- * hiding in the capital. Before any year-end tab states the capital, it is what the other lines leave for it.
+ * hiding in the capital. Before any year-end tab states the capital, it is what the other lines leave for it. When the prior year
+ * has no equity lines, reserves and retained earnings are unknown, so the filed capital shows alone and nothing is held against it.
  */
 export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const { workbook, year, bookings, books, rules } = context
@@ -213,19 +214,20 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   put('profit-of-year', context.profitAfterTax, context.profitJudgements)
 
   const equity = broughtForward(context)
+  const filed = filedShareCapital(workbook.yearEndLines, year)
+  const capital = filed === null ? null : tracedFigure(words.balance.shareCapitalFiled(filed.year), filed.amount, 'accountant', [])
   let unexplained: TracedFigure | null = null
-  if (equity !== null) {
+  if (equity === null) {
+    if (capital !== null) put('share-capital', capital)
+  } else {
     put('reserves', equity.reserves)
     put('retained-earnings', equity.retained)
     const liabilities = totalOf(words.balance.liabilities, liabilityLines)
     const steps = [totalAssets, deducted(liabilities), deducted(context.profitAfterTax), deducted(equity.retained), deducted(equity.reserves)]
     const leftOver = tracedFigure(words.balance.shareCapital, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps)
-    const filed = filedShareCapital(workbook.yearEndLines, year)
-    const judgements = [...judgementsOf([...assetLines, ...liabilityLines]), ...context.profitJudgements]
-    if (filed === null) {
-      put('share-capital', leftOver, judgements)
+    if (capital === null) {
+      put('share-capital', leftOver, [...judgementsOf([...assetLines, ...liabilityLines]), ...context.profitJudgements])
     } else {
-      const capital = tracedFigure(words.balance.shareCapitalFiled(filed.year), filed.amount, 'accountant', [])
       put('share-capital', capital)
       if (leftOver.amount !== capital.amount) {
         unexplained = tracedFigure(words.balance.notBalanced, subtractMoney(leftOver.amount, capital.amount), 'ledger', leftOver.rules, [leftOver, deducted(capital)])

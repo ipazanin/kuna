@@ -440,6 +440,28 @@ describe('accrualYear share capital', () => {
     expect(later.balanceGap).toBeNull()
   })
 
+  it('shows a filed share capital alone while the prior year has no equity lines, and holds no difference against it', () => {
+    // 2026 follows a 2025 with only its share capital filed, so reserves and retained earnings are unknown.
+    // Assets of 16,776.00 less 3,850.00 of liabilities and 2,544.30 of profit leave 10,381.70.
+    // Of the 7,881.70 beyond the capital, 6,981.72 is 2025's profit less the 1,000.00 paid out, which no line carries yet.
+    const later = accrual(2026, exampleStudio({ yearEndLines: [yearEndLine(2025, 'balance', 'share-capital', 2500)] }))
+
+    expect(lineAmount(later, 'balance', 'total-assets')).toBe(euros(16776))
+    expect(lineAmount(later, 'balance', 'profit-of-year')).toBe(euros(2544.3))
+    expect(lineAmount(later, 'balance', 'share-capital')).toBe(euros(2500))
+    expect(accrualLine(later, 'balance', 'share-capital')?.judgements).toEqual([])
+    expect(accrualLine(later, 'balance', 'retained-earnings')).toBeNull()
+    expect(accrualLine(later, 'balance', 'reserves')).toBeNull()
+    expect(later.balanceGap).toBeNull()
+  })
+
+  it('shows no share capital while the prior year has no equity lines and none is filed', () => {
+    const later = accrual(2026)
+
+    expect(accrualLine(later, 'balance', 'share-capital')).toBeNull()
+    expect(later.balanceGap).toBeNull()
+  })
+
   it('works the share capital out from the other lines while no balance sheet states it', () => {
     expect(accrual(2025).balanceGap).toBeNull()
     expect(lineAmount(accrual(2025), 'balance', 'share-capital')).toBe(euros(2500))
