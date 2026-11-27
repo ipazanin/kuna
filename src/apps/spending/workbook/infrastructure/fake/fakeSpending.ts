@@ -92,7 +92,9 @@ import { language } from '../../../../../shared/text/language'
  * holds two events: a trip to Prague of five days that runs over the day, with its rows, a flight bought last month put in it and a
  * subscription on its days taken out, and longer autumn holidays over Prague's days and a fuel row before them. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people' | 'company' | 'company-before-roles' | 'broker' | 'assets' | 'years'
+export const FAKE_SPENDING_SETS = ['sample', 'foreign', 'over', 'statements', 'copied', 'synced', 'cash', 'receipts', 'people', 'company', 'company-before-roles', 'broker', 'assets', 'years'] as const
+
+export type FakeSpendingSet = (typeof FAKE_SPENDING_SETS)[number]
 
 const GBP = currencyCodeOf('GBP')!
 

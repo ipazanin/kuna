@@ -1,5 +1,5 @@
 import { SPENDING_APP } from '../../domain/spendingBooks'
-import { fakeBeforeItemsDocument, fakeSpendingDocument, fakeStarterDocument } from './fakeSpending'
+import { FAKE_SPENDING_SETS, fakeBeforeItemsDocument, fakeSpendingDocument, fakeStarterDocument } from './fakeSpending'
 import type { FakeSpendingSet } from './fakeSpending'
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
@@ -18,10 +18,8 @@ const FAKE_SPENDING_ID = 'FAKE-WORKBOOK-ONLY-DO-NOT-SHIP-SPENDING'
 
 const DAY = 86_400_000
 
-const SETS: readonly FakeSpendingSet[] = ['sample', 'foreign', 'over', 'statements', 'copied', 'synced', 'cash', 'receipts', 'people', 'company', 'company-before-roles', 'broker', 'assets', 'years']
-
 function isSet(variant: string | null): variant is FakeSpendingSet {
-  return (SETS as readonly (string | null)[]).includes(variant)
+  return (FAKE_SPENDING_SETS as readonly (string | null)[]).includes(variant)
 }
 
 /**
@@ -39,7 +37,7 @@ export async function seedFakeSpending(variant: string | null, bankSync: string 
   const savedAt = new Date(now).toISOString()
   const document =
     variant === 'newer-file'
-      ? savedByNewerSpending(fakeSpendingDocument(savedAt))
+      ? savedByNewerSpending(fakeSpendingDocument(savedAt, 'sample', day))
       : variant === 'before-items'
         ? fakeBeforeItemsDocument(savedAt, day)
         : variant === 'before-items-split-transfer'
@@ -47,7 +45,7 @@ export async function seedFakeSpending(variant: string | null, bankSync: string 
           : isSet(variant)
             ? fakeSpendingDocument(savedAt, variant, day, bankSync)
             : variant === 'opening' || variant === 'failed'
-              ? fakeSpendingDocument(savedAt)
+              ? fakeSpendingDocument(savedAt, 'sample', day)
               : fakeStarterDocument(savedAt, bankSync, day)
   const text = encodeDocument(document)
   if (

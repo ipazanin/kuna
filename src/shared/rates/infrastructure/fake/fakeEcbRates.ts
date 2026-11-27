@@ -1,4 +1,5 @@
-import { addDays, parseCivilDate, today, weekdaysBetween } from '../../../calendar/civilDate'
+import { addDays, parseCivilDate, weekdaysBetween } from '../../../calendar/civilDate'
+import type { CivilDate } from '../../../calendar/civilDate'
 import type { RatesFetch } from '../ecbRates'
 
 /** The fake build's rates start no earlier than this, however far back a request asks. */
@@ -11,25 +12,27 @@ function madeUpRate(currency: string, day: string): string {
   return `1.${Math.floor(cents / 100)}${String(cents % 100).padStart(2, '0')}`
 }
 
-/** The fake build's ECB: a made-up rate on every weekday from the day asked to today, so no request leaves the page. */
-export const fakeEcbFetch: RatesFetch = async (url) => {
-  if (!url.startsWith('https://data-api.ecb.europa.eu/service/data/EXR/D.')) {
-    return { status: 404, text: '' }
-  }
-  const currency = url.split('/EXR/D.')[1]?.split('.EUR.')[0] ?? ''
-  const asked = new URL(url).searchParams.get('startPeriod') ?? EARLIEST
-  const lines: string[] = []
-  for (let day = parseCivilDate(asked > EARLIEST ? asked : EARLIEST)!; day <= today(); day = addDays(day, 1)) {
-    if (weekdaysBetween(day, day) === 1) {
-      lines.push(`EXR.D.${currency}.EUR.SP00.A,${day},${madeUpRate(currency, day)}`)
+/** The fake build's ECB: a made-up rate on every weekday from the day asked to `today`, so no request leaves the page. */
+export function fakeEcbFetch(today: () => CivilDate): RatesFetch {
+  return async (url) => {
+    if (!url.startsWith('https://data-api.ecb.europa.eu/service/data/EXR/D.')) {
+      return { status: 404, text: '' }
     }
+    const currency = url.split('/EXR/D.')[1]?.split('.EUR.')[0] ?? ''
+    const asked = new URL(url).searchParams.get('startPeriod') ?? EARLIEST
+    const lines: string[] = []
+    for (let day = parseCivilDate(asked > EARLIEST ? asked : EARLIEST)!; day <= today(); day = addDays(day, 1)) {
+      if (weekdaysBetween(day, day) === 1) {
+        lines.push(`EXR.D.${currency}.EUR.SP00.A,${day},${madeUpRate(currency, day)}`)
+      }
+    }
+    return { status: 200, text: ['KEY,TIME_PERIOD,OBS_VALUE', ...lines].join('\r\n') }
   }
-  return { status: 200, text: ['KEY,TIME_PERIOD,OBS_VALUE', ...lines].join('\r\n') }
 }
 
-/** The fake build's ECB as `?rates=` names it: `opening` never answers, `failed` gets no answer, and anything else answers made-up rates. */
-export function fakeRatesFetch(variant: string | null): RatesFetch {
+/** The fake build's ECB as `?rates=` names it: `opening` never answers, `failed` gets no answer, and anything else answers made-up rates up to `today`. */
+export function fakeRatesFetch(variant: string | null, today: () => CivilDate): RatesFetch {
   if (variant === 'opening') return () => new Promise(() => {})
   if (variant === 'failed') return () => Promise.reject(new Error('The fake ECB is down.'))
-  return fakeEcbFetch
+  return fakeEcbFetch(today)
 }

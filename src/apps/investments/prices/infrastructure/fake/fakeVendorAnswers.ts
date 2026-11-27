@@ -256,7 +256,7 @@ export const fakeVendorFetch: VendorFetch = async (url) => {
     return alphaVantage(query)
   }
   if (url.startsWith('https://data-api.ecb.europa.eu/service/data/EXR/D.')) {
-    return fakeEcbFetch(url)
+    return fakeEcbFetch(today)(url)
   }
   return json(404, { message: 'The fake build knows no such vendor address.' })
 }

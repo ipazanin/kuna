@@ -45,7 +45,7 @@ function pagePorts(): Promise<PageRatesPorts> {
         import('../infrastructure/fake/fakeRatesDrive'),
         import('../infrastructure/fake/fakeRatesState'),
       ])
-      return { update: updatePorts(memoryRatesCache(), fakeRatesFetch(new URLSearchParams(window.location.search).get('rates'))), drive: fakeRatesDrive() }
+      return { update: updatePorts(memoryRatesCache(), fakeRatesFetch(new URLSearchParams(window.location.search).get('rates'), today)), drive: fakeRatesDrive() }
     }
     const cache = browserRatesCache()
     // The real books of `npm run dev:real`, inline for the same reason.
