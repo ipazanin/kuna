@@ -3,7 +3,7 @@ import type { CivilDate } from '../../calendar/civilDate'
 import { currencyCodeOf } from '../../money/currencyCode'
 import type { CurrencyCode } from '../../money/currencyCode'
 import { DECIMAL_ZERO, decimalOfMarkedText, decimalOfText } from '../../money/decimal'
-import type { Decimal } from '../../money/decimal'
+import type { Decimal, DecimalMark } from '../../money/decimal'
 import { factKey } from '../../text/factKey'
 import { sectionColumns } from './recipe'
 import type { NumberCells, Recipe, RecipeFields, RecipeMisfit, RecipeSection, RowKind, RowTest, SourceRow, SourceRows } from './recipe'
@@ -43,12 +43,23 @@ export type RecipeRun = { readonly kind: 'misfit'; readonly misfit: RecipeMisfit
 
 const NO_NUMBERS: ReadonlySet<string> = new Set()
 
-function passes(test: RowTest, row: SourceRow): boolean {
+/** A sheet's number cell is read as its number, and text by the mark its field names. */
+function decimalOf(text: string, mark: DecimalMark | undefined, numberCell: boolean): Decimal | null {
+  return mark === undefined || numberCell ? decimalOfText(text) : decimalOfMarkedText(text, mark)
+}
+
+/** The mark of the section's decimal field reading the column, its own or a kind's. */
+function markOf(section: RecipeSection, column: string): DecimalMark | undefined {
+  const field = [section.fields, ...section.kinds.map((kind) => kind.fields)].flatMap((fields) => Object.values(fields)).find((one) => one.as === 'decimal' && one.from === column)
+  return field?.as === 'decimal' ? field.mark : undefined
+}
+
+function passes(test: RowTest, section: RecipeSection, row: SourceRow, numbers: ReadonlySet<string>): boolean {
   const text = (row.get(test.column) ?? '').trim()
   if ('is' in test) return test.anyCase === true ? test.is.some((one) => one.toLowerCase() === text.toLowerCase()) : test.is.includes(text)
   if ('filled' in test) return text !== ''
   if ('partsWithin' in test) return text === '' || text.split(test.separator).every((part) => test.partsWithin.includes(part.trim()))
-  const number = decimalOfText(text)
+  const number = decimalOf(text, markOf(section, test.column), numbers.has(test.column))
   return number !== null && (test.sign === 'above-zero' ? number > DECIMAL_ZERO : number < DECIMAL_ZERO)
 }
 
@@ -105,7 +116,7 @@ function fieldsOf(
         break
       }
       case 'decimal': {
-        const decimal = blank ? null : field.mark === undefined || numbers.has(field.from) ? decimalOfText(text) : decimalOfMarkedText(text, field.mark)
+        const decimal = blank ? null : decimalOf(text, field.mark, numbers.has(field.from))
         if (!blank && decimal === null) return unreadable
         decimals[name] = decimal
         break
@@ -147,8 +158,8 @@ function askedRow(section: RecipeSection, row: SourceRow, place: number, why: As
   }
 }
 
-function firstKind(section: RecipeSection, row: SourceRow): RowKind | undefined {
-  return section.kinds.find((kind) => kind.when.every((test) => passes(test, row)))
+function firstKind(section: RecipeSection, row: SourceRow, numbers: ReadonlySet<string>): RowKind | undefined {
+  return section.kinds.find((kind) => kind.when.every((test) => passes(test, section, row, numbers)))
 }
 
 /**
@@ -167,14 +178,15 @@ export function runRecipe(recipe: Recipe, source: { readonly rows: SourceRows; r
     for (const [place, row] of sourceRows.entries()) {
       const lacking = columns.find((column) => !row.has(column))
       if (lacking !== undefined) return { kind: 'misfit', misfit: { kind: 'no-column', section: section.name, column: lacking } }
-      if (!section.keep.every((test) => passes(test, row))) continue
-      const kind = firstKind(section, row)
+      const rowNumbers = numbers[place] ?? NO_NUMBERS
+      if (!section.keep.every((test) => passes(test, section, row, rowNumbers))) continue
+      const kind = firstKind(section, row, rowNumbers)
       if (kind === undefined) {
         asked.push(askedRow(section, row, place, { kind: 'no-kind' }))
         continue
       }
       const fields = { ...section.fields, ...kind.fields }
-      const read = fieldsOf(fields, row, numbers[place] ?? NO_NUMBERS)
+      const read = fieldsOf(fields, row, rowNumbers)
       if ('unreadable' in read) {
         asked.push(askedRow(section, row, place, { kind: 'unreadable', field: read.unreadable, text: read.text }))
         continue

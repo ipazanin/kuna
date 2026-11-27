@@ -348,6 +348,37 @@ describe('a table recipe', () => {
     expect(run.asked).toEqual([])
     expect(run.rows.map((read) => [read.dates.day, read.decimals.amount])).toEqual([['2031-03-01', decimalOfText(decimal)]])
   })
+
+  it.each([
+    ['comma', { t: 's', v: '-12,50' }, 'out'],
+    ['comma', -12.5, 'out'],
+    ['comma', { t: 's', v: '12,50' }, null],
+    ['point', { t: 's', v: '-12.50' }, 'out'],
+    ['point', -12.5, 'out'],
+    ['point', { t: 's', v: '12.50' }, null],
+  ] as const)('with a decimal %s tests the sign of the xlsx amount cell %o as its amount reads it', async (mark: DecimalMark, cell, kind) => {
+    const section = TABLE_RECIPE.sections[0]!
+    const recipe: Recipe<TableFile> = {
+      ...TABLE_RECIPE,
+      sections: [
+        { ...section, fields: { ...section.fields, amount: { from: 'Amount', as: 'decimal', mark } }, kinds: [{ kind: 'out', when: [{ column: 'Amount', sign: 'below-zero' }], fields: {} }] },
+      ],
+    }
+    const reading = tableRows(
+      recipe,
+      await readFirstSheetCells(
+        xlsxBytes([
+          ['Booked', 'Amount'],
+          [dayCell(civil('2031-03-01')), cell],
+        ]),
+      ),
+    )
+    if (reading.kind !== 'read') throw new Error('It fits.')
+    const run = runRecipe(recipe, reading)
+    if (run.kind !== 'read') throw new Error('It fits.')
+    expect(run.rows.map((read) => read.kind)).toEqual(kind === null ? [] : [kind])
+    expect(run.asked.map((asked) => asked.why.kind)).toEqual(kind === null ? ['no-kind'] : [])
+  })
 })
 
 describe('a decimal written in a file', () => {
