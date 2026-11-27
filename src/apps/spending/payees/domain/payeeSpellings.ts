@@ -1,4 +1,4 @@
-import { keyOfPayee, withoutSpelling } from './payeeDetails'
+import { keyOfPayee, withoutIban, withoutSpelling } from './payeeDetails'
 import { countsUnderPayee } from './payeeTotals'
 import type { CountedRow } from '../../analytics/domain/countedRow'
 import type { Payee } from '../../workbook/domain/payee'
@@ -6,6 +6,12 @@ import type { Payee } from '../../workbook/domain/payee'
 /** Another spelling a payee holds, with how many entries stop counting under the payee when it is taken off. */
 export interface PayeeSpelling {
   readonly name: string
+  readonly leaving: number
+}
+
+/** An IBAN a payee holds, with how many entries stop counting under the payee when it is taken off. */
+export interface PayeeIban {
+  readonly iban: string
   readonly leaving: number
 }
 
@@ -33,4 +39,10 @@ export function entriesLeaving(rows: readonly CountedRow[], payees: readonly Pay
 export function payeeSpellings(rows: readonly CountedRow[], payees: readonly Payee[], payee: Payee): readonly PayeeSpelling[] {
   const counted = countedUnder(rows, payees, payee)
   return payee.names.slice(1).map((name) => ({ name, leaving: leavingOf(counted, payees, payee, withoutSpelling(payee, name)) }))
+}
+
+/** Each IBAN the payee holds, in its order, with the entries that leave the payee once that IBAN alone is taken off. */
+export function payeeIbans(rows: readonly CountedRow[], payees: readonly Payee[], payee: Payee): readonly PayeeIban[] {
+  const counted = countedUnder(rows, payees, payee)
+  return payee.ibans.map((iban) => ({ iban, leaving: leavingOf(counted, payees, payee, withoutIban(payee, iban)) }))
 }

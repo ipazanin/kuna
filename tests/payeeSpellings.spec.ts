@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { countedRows } from '../src/apps/spending/analytics/domain/countedRow'
-import { entriesLeaving, payeeSpellings } from '../src/apps/spending/payees/domain/payeeSpellings'
+import { entriesLeaving, payeeIbans, payeeSpellings } from '../src/apps/spending/payees/domain/payeeSpellings'
 import { withoutIban } from '../src/apps/spending/payees/domain/payeeDetails'
 import type { Payee } from '../src/apps/spending/workbook/domain/payee'
 import { PAYEE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -49,5 +49,17 @@ describe("a payee's other spellings", () => {
     const fromIban = spendingBook([...ROWS, row(OTP, '2026-11-16', -8, 'Food/Groceries', { payee: 'CARD PAYMENT 0042', counterpartyIban: MARKET_IBAN })], { payees: [MARKET] })
 
     expect(entriesLeaving(countedRows(fromIban, RATES), fromIban.payees, MARKET, withoutIban(MARKET, MARKET_IBAN))).toBe(1)
+  })
+
+  it('count the entries that leave the payee with each IBAN, keeping one a spelling still finds', () => {
+    const fromIban = spendingBook([...ROWS, row(OTP, '2026-11-16', -8, 'Food/Groceries', { payee: 'CARD PAYMENT 0042', counterpartyIban: MARKET_IBAN })], { payees: [MARKET] })
+
+    expect(payeeIbans(countedRows(fromIban, RATES), fromIban.payees, MARKET)).toEqual([{ iban: MARKET_IBAN, leaving: 1 }])
+  })
+
+  it('count none for an IBAN no entry comes from', () => {
+    const unused = { ...MARKET, ibans: ['HR3512345670000000002'] }
+
+    expect(payeeIbans(rows, [unused], unused)).toEqual([{ iban: 'HR3512345670000000002', leaving: 0 }])
   })
 })

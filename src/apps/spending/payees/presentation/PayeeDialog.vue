@@ -11,7 +11,7 @@ import { editedPayee, keyOfPayee, mergedPayees, newPayee, payeeEditProblem, says
 import type { PayeeProblem } from '../domain/payeeDetails'
 import { knownPayees } from '../domain/knownPayees'
 import { payeeKey } from '../domain/payeeKey'
-import { payeeSpellings } from '../domain/payeeSpellings'
+import { payeeIbans, payeeSpellings } from '../domain/payeeSpellings'
 import { countedRows } from '../../analytics/domain/countedRow'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { PAYEE_PARTIES } from '../../workbook/domain/payee'
@@ -79,13 +79,31 @@ watch(open, (opened) => {
 
 const partyOptions = [...PAYEE_PARTIES.map((value) => ({ value, label: value === 'person' ? words.person : words.page.business })), { value: NOT_SAID, label: words.dialog.notSaid }]
 
+const counted = computed(() => {
+  const book = store.state.workbook
+  return book === null ? [] : countedRows(book, everydayRates(rates.value))
+})
+
 /** Each other spelling still kept, with how many entries stop counting under the payee when it is taken off. */
 const spellings = computed(() => {
   const book = store.state.workbook
   const held = record.value
   if (book === null || held === null) return []
-  return payeeSpellings(countedRows(book, everydayRates(rates.value)), book.payees, held).filter((spelling) => otherNames.value.includes(spelling.name))
+  return payeeSpellings(counted.value, book.payees, held).filter((spelling) => otherNames.value.includes(spelling.name))
 })
+
+/** How many entries stop counting under the payee when each IBAN it holds is taken off, by the IBAN. */
+const ibansLeaving = computed(() => {
+  const book = store.state.workbook
+  const held = record.value
+  if (book === null || held === null) return new Map<string, number>()
+  return new Map(payeeIbans(counted.value, book.payees, held).map(({ iban, leaving }) => [iban, leaving]))
+})
+
+function entriesLeavingWith(iban: string): string | null {
+  const leaving = ibansLeaving.value.get(iban)
+  return leaving === undefined ? null : plural(words.entries(leaving), leaving)
+}
 
 function takeOff(spelling: string): void {
   otherNames.value = otherNames.value.filter((kept) => kept !== spelling)
@@ -200,7 +218,7 @@ async function clear(): Promise<void> {
         <ChoiceButtons v-model="party" :options="partyOptions" :label="words.dialog.party" data-testid="spending-payee-party" />
       </UFormField>
       <UFormField :label="words.page.ibans" :help="words.dialog.ibansHelp" :error="(tried && errors.ibans) || false" class="sm:col-span-2">
-        <IbanTagsField v-model="ibans" class="w-full" data-testid="spending-payee-ibans" />
+        <IbanTagsField v-model="ibans" :note="entriesLeavingWith" class="w-full" data-testid="spending-payee-ibans" />
       </UFormField>
       <UFormField :label="words.page.taxId" :error="(tried && errors.taxId) || false">
         <UInput v-model="taxId" class="w-full identifier" data-testid="spending-payee-tax-id" />

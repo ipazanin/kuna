@@ -11,6 +11,8 @@ import { words } from './words'
  */
 defineProps<{
   modelValue: readonly string[]
+  /** A few words after an IBAN's tag, such as how many entries come from it, or none. */
+  note?: (iban: string) => string | null
 }>()
 
 const emit = defineEmits<{
@@ -32,5 +34,9 @@ function update(tags: readonly unknown[]): void {
     class="tags-field"
     :ui="{ item: 'identifier', input: 'identifier min-w-28 basis-28' }"
     @update:model-value="update"
-  />
+  >
+    <template #item-text="{ item }">
+      {{ item }}<span v-if="note?.(String(item))" class="font-sans"> · {{ note(String(item)) }}</span>
+    </template>
+  </UInputTags>
 </template>
