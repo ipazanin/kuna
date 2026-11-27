@@ -8,6 +8,7 @@ import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/comp
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as invoicingDomainEnglish, hr as invoicingDomainCroatian } from '../../src/apps/company/invoicing/domain/words.ts'
 import { capitalised } from '../../src/shared/text/capitalised.ts'
+import { en as uiEnglish, hr as uiCroatian } from '../../src/shared/ui/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../../src/apps/company/invoicing/presentation/words.ts'
 import { allowIfAsked, forgetAssist, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
 import { delay, pressSelector, typeDay } from './pressing.mjs'
@@ -1647,6 +1648,43 @@ export function companyAccountSourcesFlowIn(language) {
     await inspect?.('the warning of the rows saving the periods takes out')
     await shootAt(page, shoot, '[data-testid="account-handover"]', 'company-account-handover')
     await pressLabelled(page, press, 'body', language === 'en' ? companySettingsEnglish.accounts.discard : companySettingsCroatian.accounts.discard)
+  }
+}
+
+/**
+ * Settings, Accounts: a new account given a Croatian IBAN offers the bank its bank code names first in the Bank field, marked as from the
+ * IBAN. Nothing is saved.
+ */
+export function companyAccountBankFromIbanFlowIn(language) {
+  const settingsWords = language === 'en' ? companySettingsEnglish : companySettingsCroatian
+  const ui = language === 'en' ? uiEnglish : uiCroatian
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.evaluate(() => {
+      window.location.hash = '#/company/settings?tab=accounts'
+    })
+    await page.waitForSelector('[data-testid="accounts-editor"]', { visible: true, timeout: 10_000 })
+    await pressLabelled(page, press, 'body', settingsWords.accounts.add)
+    const rows = await page.$$('[data-testid="account-row"]')
+    const added = rows[rows.length - 1]
+    const iban = await added.$(`input[aria-label="${settingsWords.accounts.columns.iban}"]`)
+    await iban.evaluate((input) => input.scrollIntoView({ block: 'center', inline: 'nearest' }))
+    await press(iban)
+    await page.keyboard.type('HR12 1001 0051 8630 0016 0')
+    const bank = await added.$('[data-testid="account-bank"] input, input[data-testid="account-bank"]')
+    await bank.evaluate((input) => input.scrollIntoView({ block: 'center', inline: 'nearest' }))
+    await press(bank)
+    const offered = await page
+      .waitForFunction(() => [...document.querySelectorAll('[role="listbox"] [role="option"]')].map((option) => option.textContent?.trim() ?? ''), { timeout: 5_000 })
+      .then((handle) => handle.jsonValue())
+    if (!(offered[0]?.includes('Hrvatska narodna banka') && offered[0].includes(ui.bankName.fromIban))) {
+      throw new Error(`the bank field offers ${offered.join(', ')} for an IBAN of Hrvatska narodna banka`)
+    }
+    await delay(250)
+    await inspect?.("the bank field offering the bank the IBAN's bank code names")
+    await shoot('company-account-bank-from-iban')
+    await page.keyboard.press('Escape')
+    await pressLabelled(page, press, 'body', settingsWords.accounts.discard)
   }
 }
 

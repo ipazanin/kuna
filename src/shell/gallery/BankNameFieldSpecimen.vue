@@ -11,13 +11,14 @@ const BANKS = ['OTP banka', 'Revolut', 'Privredna banka Zagreb']
 const blank = ref('')
 const known = ref('Revolut')
 const fresh = ref('Erste')
+const fromIban = ref('')
 </script>
 
 <template>
   <GallerySection
     id="bank-name-field"
     title="BankNameField"
-    description="A bank's name as typed, with the banks the book already names offered as it is typed. A name no account has is offered as a new bank, and a blank field names no bank."
+    description="A bank's name as typed, with the banks the book already names offered as it is typed. A name no account has is offered as a new bank, the bank a Croatian IBAN's bank code names leads the list, and a blank field names no bank."
   >
     <FormGrid>
       <UFormField label="Bank, blank">
@@ -28,6 +29,9 @@ const fresh = ref('Erste')
       </UFormField>
       <UFormField label="Bank, a new one">
         <BankNameField v-model="fresh" :banks="BANKS" />
+      </UFormField>
+      <UFormField label="Bank, with the account's IBAN">
+        <BankNameField v-model="fromIban" :banks="BANKS" iban="HR1210010051863000160" data-testid="gallery-bank-name-iban" />
       </UFormField>
     </FormGrid>
   </GallerySection>

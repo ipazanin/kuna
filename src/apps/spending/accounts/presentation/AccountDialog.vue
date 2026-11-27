@@ -253,7 +253,7 @@ async function remove(): Promise<void> {
         <UInput v-model="cards" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-cards" />
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.bank">
-        <BankNameField v-model="bank" :banks="banks" data-testid="spending-account-bank" />
+        <BankNameField v-model="bank" :banks="banks" :iban="iban" data-testid="spending-account-bank" />
       </UFormField>
       <UFormField :label="words.dialog.currency" v-bind="hasEntries ? { help: words.dialog.currencyKept } : {}">
         <CurrencySelect v-model="currency" :search="words.dialog.findCurrency" :disabled="hasEntries" class="w-full" data-testid="spending-account-currency" />

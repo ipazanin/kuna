@@ -206,6 +206,7 @@ function save(): void {
                 <BankNameField
                   :model-value="draft.bank"
                   :banks="banks"
+                  :iban="draft.iban"
                   :aria-label="words.accounts.columns.bank"
                   size="sm"
                   data-testid="account-bank"
