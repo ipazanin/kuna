@@ -85,7 +85,7 @@ function press(): void {
     :class="[
       to !== undefined ? 'items-start gap-3' : pressable ? '' : 'flex-col gap-2',
       pressable ? '' : [height, gutter],
-      { 'w-full text-start': as === 'button', 'transition-colors not-disabled:hover:bg-elevated disabled:cursor-not-allowed focus-visible:-outline-offset-2': as === 'button' || to !== undefined },
+      { 'w-full text-start': as === 'button', 'transition-colors not-disabled:hover:bg-elevated disabled:cursor-not-allowed': as === 'button' || to !== undefined },
       { 'transition-colors not-data-chat-tagged:hover:bg-elevated': opens && !picking },
     ]"
   >
@@ -103,7 +103,7 @@ function press(): void {
         "
         class="flex items-start gap-3"
         :class="[
-          pressable ? ['min-w-0 flex-1 text-start focus-visible:-outline-offset-2', height, gutter] : to === undefined ? '' : 'min-w-0 flex-1',
+          pressable ? ['min-w-0 flex-1 text-start', height, gutter] : to === undefined ? '' : 'min-w-0 flex-1',
           { 'transition-colors not-disabled:hover:bg-elevated disabled:cursor-not-allowed max-sm:min-h-11': picking },
         ]"
         @click="pressable && press()"

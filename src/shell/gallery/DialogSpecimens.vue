@@ -188,7 +188,7 @@ const ROWS = [
           <MoneyInput v-model="typedMoney" placeholder="0.00" class="w-full" />
         </UFormField>
         <UFormField label="Given an amount" help="Opened on an amount the screen already has.">
-          <MoneyInput v-model="givenMoney" class="w-full" />
+          <MoneyInput v-model="givenMoney" class="w-full" data-testid="gallery-money" />
         </UFormField>
         <UFormField label="With an error" error="An amount, such as 1,500.00">
           <MoneyInput v-model="wrongMoney" placeholder="0.00" class="w-full" data-testid="gallery-money-error" />

@@ -104,7 +104,7 @@ function takeOffered(): void {
             legend: 'mb-2 type-card-title',
             item: otherOpen ? 'hidden' : 'relative h-11',
             container: 'absolute inset-0 z-control h-auto',
-            base: 'size-full rounded-md ring-0 data-[state=checked]:ring-2 data-[state=checked]:ring-offset-2 data-[state=checked]:ring-inverted data-[state=checked]:ring-offset-bg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
+            base: 'size-full rounded-md ring-0 data-[state=checked]:ring-2 data-[state=checked]:ring-offset-2 data-[state=checked]:ring-inverted data-[state=checked]:ring-offset-bg',
             indicator: 'hidden',
             wrapper: 'ms-0 size-full',
             label: 'flex size-full items-center gap-2 font-normal type-body',

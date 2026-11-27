@@ -77,6 +77,11 @@ const restrictedClasses = [
     pattern: String.raw`^(?:\S*:)?(?:aria-|data-)?disabled:(?:\S*:)?opacity-.*$`,
     message: '"$0": every disabled button fades the same way, through ui.button in vite.config.ts, so it takes no opacity of its own.',
   },
+  {
+    pattern: String.raw`^(?:\S*:)?focus-visible:(?:\S*:)?!?-?(?:outline|ring)(?:-.*)?$`,
+    message:
+      '"$0": every control shows the one focus ring of :focus-visible in app.css, which an outline class cannot change and a ring class would only double. A control that needs another ring gets a rule in app.css.',
+  },
 ]
 
 // A page's grid answers to the room the shell's content area has, which the chat's dock takes from, and not to the window.

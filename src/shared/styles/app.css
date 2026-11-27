@@ -101,6 +101,11 @@ body {
   scroll-margin-top: calc(var(--sticky-band) + 0.75rem);
 }
 
+/*
+ * Kuna's one focus ring on every control. It stays outside the layers on purpose, so it wins over the faint halo each Nuxt UI
+ * component draws with its own focus utilities. A focus utility in a control's class has no effect, so a control that needs
+ * another ring gets a rule in this file.
+ */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
