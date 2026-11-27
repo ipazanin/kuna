@@ -84,24 +84,41 @@ const moneyToneColours = {
 
 const selectOrPicker = /^(?:\w*Select(?:Menu)?|\w+Picker|u-select(?:-menu)?)$/
 const wideMinWidth = /^min-w-(?:(?:4\d|[5-9]\d|\d{3,})|xs|sm|md|lg|[2-7]?xl)$/
+const formField = /^(?:UFormField|u-form-field)$/
+const plainElement = /^[a-z][a-z\d]*$/
 
 /**
- * A select or picker with a min-w of 10rem or more on every width. A phone row is narrower than that beside a label, so the
- * floor sits behind sm: and the phone takes min-w-0, as ScenarioPicker's base select does.
+ * Whether an element's width is a select's or picker's: the select itself, a UFormField around one, or a plain element
+ * whose only element child, slot templates aside, is one. A plain element holding more is a row and keeps its own width.
+ */
+function setsPickerWidth(element) {
+  if (selectOrPicker.test(element.rawName)) return true
+  const children = element.children.filter((child) => child.type === 'VElement' && child.rawName !== 'template')
+  if (formField.test(element.rawName)) return children.some((child) => selectOrPicker.test(child.rawName))
+  return plainElement.test(element.rawName) && children.length === 1 && selectOrPicker.test(children[0].rawName)
+}
+
+/**
+ * A select or picker, or the field or element around one, with a min-w of 10rem or more on every width. A phone row is
+ * narrower than that beside a label, so the floor sits behind sm: and the phone takes min-w-0, as ScenarioPicker's base
+ * select does.
  */
 const pickerMinWidths = {
   meta: { type: 'problem', schema: [] },
   create(context) {
     const visitors = {
       VElement(element) {
-        if (!selectOrPicker.test(element.rawName)) return
+        if (!setsPickerWidth(element)) return
         for (const attribute of element.startTag.attributes) {
           const plain = !attribute.directive && attribute.key.name === 'class'
           const bound = attribute.directive && attribute.key.name.name === 'bind' && attribute.key.argument?.name === 'class'
           if (!plain && !bound) continue
           const classes = plain ? [attribute.value?.value ?? ''] : boundClassStrings(attribute.value?.expression ?? null)
           if (classes.some((names) => utilitiesOf(names).some(({ name, varied }) => !varied && wideMinWidth.test(name)))) {
-            context.report({ node: attribute, message: 'A select or picker keeps its min width from sm: up and takes min-w-0 on a phone, such as min-w-0 sm:min-w-48, so it fits a phone row.' })
+            context.report({
+              node: attribute,
+              message: 'A select or picker, and the field or element around one, keeps its min width from sm: up and takes min-w-0 on a phone, such as min-w-0 sm:min-w-48, so it fits a phone row.',
+            })
           }
         }
       },
@@ -111,7 +128,6 @@ const pickerMinWidths = {
 }
 
 const plainSelect = /^(?:USelect|USelectMenu|u-select|u-select-menu)$/
-const formField = /^(?:UFormField|u-form-field)$/
 const notSetKey = /^(?:notSet|none|no[A-Z]\w*)$/
 
 /** The attribute of an element by its name, written plain or bound. */
