@@ -391,8 +391,16 @@ function closeAsked(wanted: boolean): void {
           <template #whole>
             <AccountMoneyText :cents="totalInAccount" :currency="EURO" />
           </template>
-          <template #category="{ field }">
-            <USelectMenu v-model="field.category" :items="lineItems" value-key="value" :placeholder="words.pickCategory" class="w-full" data-testid="spending-receipt-line-category" />
+          <template #category="{ field, invalid }">
+            <USelectMenu
+              v-model="field.category"
+              :items="lineItems"
+              value-key="value"
+              :placeholder="words.pickCategory"
+              :highlight="invalid"
+              class="w-full"
+              data-testid="spending-receipt-line-category"
+            />
           </template>
           <template #rest="{ cents }">
             <AccountMoneyText :cents="cents" :currency="EURO" />

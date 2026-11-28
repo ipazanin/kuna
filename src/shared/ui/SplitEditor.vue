@@ -31,7 +31,8 @@ const props = defineProps<{
 
 defineSlots<{
   whole(): unknown
-  category(scope: { field: SplitField<Held>; place: number }): unknown
+  /** The part's category picker, which binds `invalid` to its `highlight` while the part's category error shows. */
+  category(scope: { field: SplitField<Held>; place: number; invalid: boolean }): unknown
   rest(scope: { cents: Cents }): unknown
   /** More of a part's fields under its category, such as who it counts under. */
   beside?(scope: { field: SplitField<Held>; place: number }): unknown
@@ -45,6 +46,10 @@ const restLabel = `${useId()}-rest`
 const twoPartsId = useId()
 const rest = computed(() => restOfFields(props.whole, parts.value, props.typed))
 const shownRefusal = computed(() => (rest.value <= 0 ? words.split.refusals.over : props.tried ? (props.refusal ?? null) : null))
+
+function shownCategoryError(field: SplitField<Held>): string | null {
+  return props.tried ? props.categoryError(field) : null
+}
 
 function amountError(field: SplitField<Held>): string | null {
   if (field.rest) return null
@@ -129,8 +134,8 @@ function takeRest(id: number): void {
             </UTooltip>
           </div>
         </UFormField>
-        <UFormField :label="words.split.category" :error="(tried && categoryError(field)) || false">
-          <slot name="category" :field="field" :place="index + 1" />
+        <UFormField :label="words.split.category" :error="shownCategoryError(field) ?? false">
+          <slot name="category" :field="field" :place="index + 1" :invalid="shownCategoryError(field) !== null" />
         </UFormField>
         <div v-if="$slots.beside" class="sm:col-start-2">
           <slot name="beside" :field="field" :place="index + 1" />

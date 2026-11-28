@@ -92,8 +92,8 @@ function categoryError(field: SplitField): string | null {
             <template #whole>
               <MoneyText :cents="negateMoney(WHOLE)" tone="flow" />
             </template>
-            <template #category="{ field }">
-              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" class="w-full" />
+            <template #category="{ field, invalid }">
+              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" :highlight="invalid" class="w-full" />
             </template>
             <template #rest="{ cents }">
               <MoneyText :cents="cents" />
@@ -107,8 +107,8 @@ function categoryError(field: SplitField): string | null {
             <template #whole>
               <MoneyText :cents="negateMoney(WHOLE)" tone="flow" />
             </template>
-            <template #category="{ field }">
-              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" class="w-full" />
+            <template #category="{ field, invalid }">
+              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" :highlight="invalid" class="w-full" />
             </template>
             <template #rest="{ cents }">
               <MoneyText :cents="cents" />
@@ -134,8 +134,8 @@ function categoryError(field: SplitField): string | null {
             <template #tools>
               <UButton label="Half and half" icon="i-lucide-divide" color="neutral" variant="outline" size="sm" @click="halve" />
             </template>
-            <template #category="{ field }">
-              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" class="w-full" />
+            <template #category="{ field, invalid }">
+              <USelect v-model="field.category" :items="CATEGORIES" placeholder="Choose a category" :highlight="invalid" class="w-full" />
             </template>
             <template #beside="{ field, place }">
               <USelect

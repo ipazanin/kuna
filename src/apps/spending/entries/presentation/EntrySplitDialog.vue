@@ -163,8 +163,16 @@ async function save(): Promise<void> {
         <template #whole>
           <AccountMoneyText :cents="entry.amount" :currency="currency" tone="flow" />
         </template>
-        <template #category="{ field }">
-          <USelectMenu v-model="field.category" :items="choicesOf(field)" value-key="value" :placeholder="words.dialog.pickCategory" class="w-full" data-testid="split-part-category" />
+        <template #category="{ field, invalid }">
+          <USelectMenu
+            v-model="field.category"
+            :items="choicesOf(field)"
+            value-key="value"
+            :placeholder="words.dialog.pickCategory"
+            :highlight="invalid"
+            class="w-full"
+            data-testid="split-part-category"
+          />
         </template>
         <template #rest="{ cents }">
           <AccountMoneyText :cents="cents" :currency="currency" />
