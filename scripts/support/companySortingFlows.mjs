@@ -1014,3 +1014,47 @@ export function companyRulesForFlowIn(language) {
     await dismissToasts(page)
   }
 }
+
+/**
+ * On Company's Sorting, from the keyboard: a rule's Edit opens its editor, and Escape gives focus back to Edit. Deleted from the
+ * editor, the rule's row leaves the page with the Edit that opened it, and focus lands on an enabled control of the Rules card,
+ * not on the page's body.
+ */
+export async function companyRuleDeleteFocusFlow(page, { press }) {
+  const id = 'merchant-airline'
+  const openEditor = async () => {
+    const edit = await (await ruleRowOf(page, id)).$('[data-testid="edit-rule"]')
+    await edit.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await edit.focus()
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('[role="dialog"] [data-testid="rule-editor"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    return edit
+  }
+
+  const edit = await openEditor()
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[role="dialog"] [data-testid="rule-editor"]')
+  if (!(await edit.evaluate((element) => document.activeElement === element))) throw new Error("Escape did not give focus back to the rule's Edit")
+
+  await openEditor()
+  await pressSelector(page, press, '[data-testid="delete-rule"]')
+  await page.waitForSelector('[role="dialog"] [data-testid="rule-delete"]', { visible: true, timeout: 10_000 })
+  await acceptBacktest(page, press)
+  await pressSelector(page, press, '[data-testid="confirm-delete-rule"]')
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+  await ruleGone(page, id)
+  await page
+    .waitForFunction(
+      () => {
+        const focused = document.activeElement
+        return focused instanceof HTMLElement && focused !== document.body && !focused.matches(':disabled') && focused.closest('[data-testid="company-rules"]') !== null
+      },
+      { timeout: 5_000 },
+    )
+    .catch(async () => {
+      const focused = await page.evaluate(() => `${document.activeElement?.tagName} ${document.activeElement?.getAttribute('data-testid') ?? ''}`)
+      throw new Error(`focus left the Rules card once the deleted rule's editor closed, and sits on ${focused}`)
+    })
+}

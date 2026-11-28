@@ -41,7 +41,7 @@
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a recipe written for it, each confirmed and undone, and the recipe deleted, the same Import in Croatian with a held statement and the Mail card's list, an invoice made and re-exported, and in
  * Croatian an invoice added, edited, deleted and undone, made and re-exported, a client's second IBAN and the rest of the year filled and undone, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on Sorting, Rules, a rule's note changed and the rule deleted from
+ * the rows still waiting, a rule edited and switched off on Sorting, Rules, a rule deleted from its editor with focus kept in the Rules card, a rule's note changed and the rule deleted from
  * its editor, each undone, in both modes, the same split, change of category, rule editor, dismissal and
  * categories editor with its filters in Croatian with the dialogs and sheets of Transactions, its To review tab and Categories, an asset, an employee, an owner
  * advance, a pay scenario's component, the starting scenarios, a category's plan and a planned purchase in Croatian, each undone, the Tax rules search on Settings, a
@@ -180,6 +180,7 @@ import {
   categoryFlowIn,
   companyLabelsFlowIn,
   companyOldAddressFlowIn,
+  companyRuleDeleteFocusFlow,
   companyRulesForFlowIn,
   companySelectLabelFlowIn,
   dismissFlow,
@@ -3429,6 +3430,7 @@ async function checkWidth(session, width) {
     ['company-labels-editor', 'drive', companyLabelsFlowIn('en'), '#/company/sorting#labels', 'Sorting'],
     ['company-old-rules-address', 'drive', companyOldAddressFlowIn('en', 'rules'), '#/company/settings?tab=category-rules', 'Sorting'],
     ['company-rules-for', 'drive', companyRulesForFlowIn('en'), '#/company/sorting', 'Sorting'],
+    ['company-rule-delete-focus', 'drive', companyRuleDeleteFocusFlow, '#/company/sorting#rules', 'Sorting'],
     ['company-select-label', 'drive', companySelectLabelFlowIn('en'), '#/company/transactions?p=all', 'Transactions'],
     ['spending-events', 'drive&spending=sample', spendingEventsFlowIn('en'), '#/spending/events', 'Events'],
     ['spending-entry-filters', 'drive&spending=sample', spendingEntryFiltersFlowIn('en'), '#/spending/transactions', 'Entries'],

@@ -5,6 +5,7 @@ import UModal from '@nuxt/ui/components/Modal.vue'
 
 import { usePhoneLayout } from '../layout/viewport'
 import { CHANGES_REFUSED } from './changesRefused'
+import { FOCUSABLE, focusNearest, focusPathOf } from './dialogFocus'
 import { TONE_ICONS } from './toneText'
 
 /**
@@ -38,10 +39,12 @@ const refusal = computed(() => (props.changes ? reason.value : null))
 // A long body must not squeeze the header and footer, which keep their padding while the body scrolls.
 const ui = computed(() => ({ content: props.width === undefined ? '@container' : `@container ${WIDTHS[props.width]}`, header: 'shrink-0', footer: 'shrink-0' }))
 
-const FOCUSABLE = ':is(input, button, select, textarea, [tabindex]):not([disabled], [tabindex="-1"])'
+/** What held focus as the dialog opened and the elements it sat in, nearest first. They are kept on open, since a row removed meanwhile no longer knows its parents. */
+let openerPath: readonly Element[] = []
 
-/** Focuses the field named by `focus`, or the first control inside it, in place of the dialog's first control. */
-function focusField(event: Event): void {
+/** Notes what opened the dialog, then focuses the field named by `focus`, or the first control inside it, in place of the dialog's first control. */
+function opened(event: Event): void {
+  openerPath = focusPathOf(document.activeElement)
   if (props.focus === undefined) return
   const field = document.getElementById(props.focus)
   const control = field === null ? null : field.matches(FOCUSABLE) ? field : field.querySelector<HTMLElement>(FOCUSABLE)
@@ -49,6 +52,16 @@ function focusField(event: Event): void {
   event.preventDefault()
   control.focus({ preventScroll: true })
   control.scrollIntoView({ block: 'center' })
+}
+
+/**
+ * Gives focus back to what opened the dialog. Once that went disabled or left the page, the nearest enabled control around it
+ * takes focus, such as the other arrow of a rule moved to the top. Reka would focus only the opener and so drop focus to the body.
+ */
+function returnFocus(event: Event): void {
+  const path = openerPath
+  openerPath = []
+  if (focusNearest(path)) event.preventDefault()
 }
 </script>
 
@@ -59,7 +72,7 @@ function focusField(event: Event): void {
     v-bind="description === undefined ? {} : { description }"
     :fullscreen="phone"
     :dismissible="dismissible"
-    :content="{ onOpenAutoFocus: focusField }"
+    :content="{ onOpenAutoFocus: opened, onCloseAutoFocus: returnFocus }"
     :ui="ui"
   >
     <template #body>
