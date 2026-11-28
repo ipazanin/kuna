@@ -685,8 +685,9 @@ export function spendingBankSyncRowsFlowIn(language) {
 }
 
 /**
- * On Kuna settings, a sync within six hours of the last bank fetch with an account at OTP that Kuna does not keep: the bank step ends
- * done with the account as a plain note, named by its bank, currency and the end of its number, never the whole IBAN, and the control counts no problem.
+ * On Kuna settings, a sync within six hours of the last bank fetch with an account at OTP and one at Revolut that Kuna does not keep: the
+ * bank step ends done with both in one plain note. The OTP one, beside the OTP euro account Kuna keeps, takes the end of its number, never
+ * the whole IBAN, and the Revolut one only its bank and currency. The control counts no problem.
  */
 export function spendingBankSyncHeldNoteFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -694,18 +695,22 @@ export function spendingBankSyncHeldNoteFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const literally = (text) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const note = literally(bank.unknownAccount(bank.linkedAccount('OTP banka', 'EUR', linkedAccountEnding({ iban: UNKNOWN_IBAN }))))
+    const accounts = new Intl.ListFormat(words.locale, { type: 'conjunction' }).format([
+      bank.linkedAccount('OTP banka', 'EUR', linkedAccountEnding({ iban: UNKNOWN_IBAN })),
+      bank.linkedAccount('Revolut', 'GBP', ''),
+    ])
+    const note = literally(bank.unknownAccounts(2, accounts).other)
     await openKunaSettings(page)
     // A sync asks the banks, if none did within six hours, and the next one is held back.
     await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
     await stepSays(page, SYNC_CARD, 'bank-sync', 'done', note)
     await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
     const said = await stepSays(page, SYNC_CARD, 'bank-sync', 'done', literally(bank.step.tooSoon))
-    if (!note.test(said)) throw new Error(`the held bank step does not note the account Kuna does not keep, it says: ${said}`)
+    if (!note.test(said)) throw new Error(`the held bank step does not note the accounts Kuna does not keep, it says: ${said}`)
     if (said.includes(UNKNOWN_IBAN)) throw new Error(`the held bank step spells the whole IBAN: ${said}`)
     await controlShows(page, 'ready')
     await shootAt(page, shoot, SYNC_CARD, 'spending-bank-sync-held-note')
-    await inspect?.('the held bank step with an account Kuna does not keep')
+    await inspect?.('the held bank step with accounts Kuna does not keep')
   }
 }
 

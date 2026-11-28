@@ -436,11 +436,21 @@ describe('what the step says', () => {
     })
   })
 
-  it('is done and notes a linked account Kuna does not keep by its bank, currency and the end of its number, with a way to Settings', () => {
+  it('is done and notes a linked account Kuna does not keep by its bank and currency, with a way to Settings', () => {
     const result = bankStepResult({ ...noWrite, linked: [other] }, bookNow(), null, 0)
     expect(result).toMatchObject({ kind: 'done', link: { to: '/spending/settings?tab=bank-sync' } })
-    expect('line' in result && result.line).toContain('Kuna does not keep the account OTP banka EUR ending 0077. Bank sync can add it or leave it out.')
+    expect('line' in result && result.line).toContain('Kuna does not keep the account OTP banka EUR (ending 0077). Bank sync can add it or leave it out.')
     expect('line' in result && result.line).not.toContain('HR0000000000000000077')
+  })
+
+  it('names the accounts Kuna does not keep in one sentence, with the end of the number only where another account has the same bank and currency', () => {
+    const pounds = { bank: 'Revolut', account: linked('gbp', 'LT000000000000000005', 'GBP') }
+    const morePounds = { bank: 'Revolut', account: linked('gbp-2', 'LT000000000000000006', 'GBP') }
+    const francs = { bank: 'Revolut', account: linked('chf', 'LT000000000000000007', 'CHF') }
+    const result = bankStepResult({ ...noWrite, linked: [other, pounds, morePounds, francs] }, bookNow(), null, 0)
+    expect('line' in result && result.line).toContain(
+      'Kuna does not keep the accounts OTP banka EUR (ending 0077), Revolut GBP (ending 0005), Revolut GBP (ending 0006) and Revolut CHF. Bank sync can add them or leave them out.',
+    )
   })
 
   it('keeps the link to review over the note of an account Kuna does not keep', () => {
@@ -456,7 +466,7 @@ describe('what the step says', () => {
     const all = linked('all', 'LT000000000000000009', 'XXX')
     const gbp = proposeAccount(all, 'Revolut', 'GBP' as never, [], [], 'account:gbp' as never, DAY, ACCOUNTS)
     const result = bankStepResult({ ...noWrite, linked: [{ bank: 'Revolut', account: all }], proposals: [gbp] }, bookNow(), null, 0)
-    expect('line' in result && result.line).toContain('Kuna does not keep the account Revolut GBP ending 0009.')
+    expect('line' in result && result.line).toContain('Kuna does not keep the account Revolut GBP.')
   })
 
   it('says an account that fits one without its IBAN needs updating, not that Kuna does not keep it', () => {
@@ -481,7 +491,7 @@ describe('what the step says', () => {
   it('holds back the next fetch done, with an account Kuna does not keep as a note', () => {
     expect(bankHeldResult([], [other], bookNow())).toEqual({
       kind: 'done',
-      line: 'Asked the banks less than six hours ago, so they are left alone for now. Kuna does not keep the account OTP banka EUR ending 0077. Bank sync can add it or leave it out.',
+      line: 'Asked the banks less than six hours ago, so they are left alone for now. Kuna does not keep the account OTP banka EUR (ending 0077). Bank sync can add it or leave it out.',
       writeId: null,
       link: { label: 'Bank sync in Settings', to: '/spending/settings?tab=bank-sync' },
     })

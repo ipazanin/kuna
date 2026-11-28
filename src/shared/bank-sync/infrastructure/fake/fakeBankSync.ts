@@ -14,6 +14,7 @@ const REVOLUT_USD_UID = 'fake-revolut-usd-account'
 const POCKET_UID = 'fake-revolut-pocket'
 const NEW_USD_UID = 'fake-revolut-new-usd'
 const NEW_SAVINGS_UID = 'fake-revolut-new-savings'
+const UNKNOWN_POUND_UID = 'fake-revolut-unknown-gbp'
 
 /** The IBAN of the Revolut pocket the `pocket` variant links as an account of its own, which the fake Spending file keeps as a savings account. */
 export const FAKE_POCKET_IBAN = 'LT000000000000000002'
@@ -21,7 +22,7 @@ export const FAKE_POCKET_IBAN = 'LT000000000000000002'
 /** The IBAN of the dollar account `new-accounts` adds, which the fake Spending file keeps no account for, and which `not-in-kuna` leaves out. */
 export const FAKE_NEW_USD_IBAN = 'LT000000000000000003'
 
-/** A linked account the fake Spending file keeps no account for. Each IBAN here is made up. */
+/** A linked account at OTP the fake Spending file keeps no account for, beside the OTP euro account it keeps. Each IBAN here is made up. */
 export const UNKNOWN_IBAN = 'HR0000000000000000077'
 
 function linkedAccount(uid: string, iban: string, currency: string, described: Partial<LinkedAccount> = {}): LinkedAccount {
@@ -75,7 +76,7 @@ function revolutDollarRows(day: CivilDate, variant: string | null): readonly Ban
  * that fills the typed one and a row a rule files, and on its dollar account a row in dollars. `multi-currency` gives both
  * currencies on one account. `exchange` adds an exchange's two legs, `pocket` a move to a pocket that comes as an
  * account of its own, and `withdrawal` cash taken out at an OTP cash machine. The two accounts `new-accounts` adds reach further back, and so does
- * the dollar account in `settled` and in `unknown-account`, so the account Kuna does not keep is all that variant leaves.
+ * the dollar account in `settled` and in `unknown-account`, so the accounts Kuna does not keep are all that variant leaves.
  */
 export function fakeBankTransactions(accountUid: string, day: CivilDate, variant: string | null = null): readonly BankTransaction[] {
   if (accountUid === OTP_UID) {
@@ -117,7 +118,7 @@ function fakeBalances(accountUid: string, variant: string | null): readonly Bank
 
 /**
  * The sessions the fake script holds, with Revolut as one account per currency under one IBAN, as the first real run gave
- * it. `multi-currency` has Revolut as one account in `XXX`, `unknown-account` has one more account at OTP, `new-accounts`
+ * it. `multi-currency` has Revolut as one account in `XXX`, `unknown-account` has one more euro account at OTP and a pound account at Revolut, `new-accounts`
  * `not-in-kuna` a dollar account and a savings account more at Revolut, `otp-failed` has OTP not answering, `ended` has
  * OTP's approval over early, `pocket` has a Revolut pocket as an account of its own, and `kind-differs` and `by-hand-savings` have Revolut call
  * the dollar account savings, and `settled` does too with older rows given, so keeping the file's kind leaves nothing to set up.
@@ -142,7 +143,12 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
     bank: 'Revolut',
     usage: 'personal',
     status: 'AUTHORIZED',
-    accounts: [...revolutAccounts, ...(variant === 'pocket' ? [linkedAccount(POCKET_UID, FAKE_POCKET_IBAN, 'EUR')] : []), ...added],
+    accounts: [
+      ...revolutAccounts,
+      ...(variant === 'pocket' ? [linkedAccount(POCKET_UID, FAKE_POCKET_IBAN, 'EUR')] : []),
+      ...(variant === 'unknown-account' ? [linkedAccount(UNKNOWN_POUND_UID, 'LT000000000000000005', 'GBP')] : []),
+      ...added,
+    ],
   }
   if (variant === 'otp-failed') return [{ bank: 'OTP banka', usage: 'personal', status: 'FAILED', reason: 'HTTP 503', accounts: [] }, revolut]
   if (variant === 'ended') return [{ bank: 'OTP banka', usage: 'personal', status: 'EXPIRED', accounts: [] }, revolut]

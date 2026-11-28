@@ -399,10 +399,13 @@ describe('readBanks', () => {
     )
   })
 
-  it('drafts a linked account Kuna does not keep, and reads the rest', async () => {
+  it('drafts each linked account Kuna does not keep, and reads the rest', async () => {
     const { proposals, statement } = await readBanks(fakeBankSync('unknown-account', DAY), spendingBook([]), DAY)
-    expect(proposals.map(({ bank, account }) => [bank, account.iban, account.currency, account.name])).toEqual([['OTP banka', 'HR0000000000000000077', 'EUR', 'OTP banka EUR']])
-    expect(statement.rows.some((statementRow) => statementRow.account === proposals[0]!.account.id)).toBe(false)
+    expect(proposals.map(({ bank, account }) => [bank, account.iban, account.currency, account.name])).toEqual([
+      ['OTP banka', 'HR0000000000000000077', 'EUR', 'OTP banka EUR'],
+      ['Revolut', 'LT000000000000000005', 'GBP', 'Revolut GBP'],
+    ])
+    expect(statement.rows.some((statementRow) => proposals.some((proposal) => proposal.account.id === statementRow.account))).toBe(false)
   })
 
   it('fetches a new account from years back, holds its rows and works out its opening from the balance', async () => {

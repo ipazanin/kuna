@@ -4,8 +4,8 @@ import type { Translation } from '../../../../shared/text/translation'
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
 
 export const en = {
-  /** A linked account Kuna does not keep, by its bank, its currency where it has one, and the end of its number, never the whole IBAN. */
-  linkedAccount: (bank: string, currency: string, ending: string) => [bank, currency, ending === '' ? '' : `ending ${ending}`].filter((part) => part !== '').join(' '),
+  /** A linked account Kuna does not keep, by its bank, its currency where it has one, and the end of its number in brackets where given, never the whole IBAN. */
+  linkedAccount: (bank: string, currency: string, ending: string) => [bank, currency, ending === '' ? '' : `(ending ${ending})`].filter((part) => part !== '').join(' '),
   sameAccountTwice: (bank: string, account: string) => `${bank} has more than one account that fits ${account}, so none of them was read.`,
   bankFailed: (bank: string, reason: string) => `${bank} did not answer, so its rows wait for a later sync: ${reason}`,
   sessionEnded: (bank: string) => `The link to ${bank} ended early. Link it again.`,
@@ -19,7 +19,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  linkedAccount: (bank, currency, ending) => [bank, currency, ending === '' ? '' : `koji završava na ${ending}`].filter((part) => part !== '').join(' '),
+  linkedAccount: (bank, currency, ending) => [bank, currency, ending === '' ? '' : `(završava na ${ending})`].filter((part) => part !== '').join(' '),
   sameAccountTwice: (bank, account) => `${bank} ima više računa koji odgovaraju računu ${account}, pa nijedan nije pročitan.`,
   bankFailed: (bank, reason) => `Banka ${bank} nije odgovorila, pa njezini retci čekaju sljedeću sinkronizaciju: ${reason}`,
   sessionEnded: (bank) => `Veza s bankom ${bank} prekinuta je prije roka. Povežite je ponovno.`,
