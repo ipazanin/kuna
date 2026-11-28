@@ -106,7 +106,7 @@
   --chart-grid: #e8ecf0;
   --chart-axis: #b9c3ce;
   --chart-ghost: rgba(71, 84, 103, 0.16);
-  /* What a chart sets back, such as the folded rest or last year's bars. It passes 3:1 on the card and stays lighter than --chart-ink-muted, which last year's bars wear beside it. */
+  /* What a chart sets back, such as the folded rest or last year's bars. It keeps a margin over 3:1 on the card and stays lighter than --chart-ink-muted, which last year's bars wear beside it. */
   --chart-deemphasis: #858f9d;
   --chart-hatch: rgba(255, 255, 255, 0.62);
   --chart-tooltip: #ffffff;
@@ -212,7 +212,8 @@
   --chart-grid: #1f2935;
   --chart-axis: #364254;
   --chart-ghost: rgba(163, 175, 189, 0.16);
-  --chart-deemphasis: #5b6676;
+  /* Light enough to keep a margin over 3:1 on the card, and dark enough to stay apart from --chart-ink-muted, which last year's bars wear beside it. */
+  --chart-deemphasis: #5f6a7a;
   --chart-hatch: rgba(19, 26, 35, 0.6);
   --chart-tooltip: #1a2330;
   --chart-tooltip-border: #2f3b4c;

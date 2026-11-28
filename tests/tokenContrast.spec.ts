@@ -6,6 +6,9 @@ import { DARK_TOKENS, LIGHT_TOKENS, SHARED_TOKENS } from './fixtures/tokens'
 /** WCAG 2's minimum for body text, and for large text, icons and other marks. */
 const TEXT = 4.5
 const MARK = 3
+const DEEMPHASIS = '--chart-deemphasis'
+/** The grey a chart sets back is often drawn thin or under a hatch, which reads fainter than its token, so it keeps a margin over 3:1. */
+const DEEMPHASIS_MARK = 3.15
 
 const SURFACES = ['--surface-page', '--surface-raised', '--surface-elevated']
 const INKS = ['--ink-strong', '--ink', '--ink-secondary', '--ink-muted']
@@ -110,7 +113,7 @@ function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
     ...SERIES.map((series) => pair('--chart-on-fill', series, MARK)),
     ...SERIES.flatMap((series) => SURFACES.map((surface) => pair(series, surface, MARK))),
     ...SURFACES.map((surface) => pair(CONTROL_EDGE, surface, MARK)),
-    ...chartMarksOf(tokens).flatMap((mark) => ['--surface-raised', '--chart-surface'].map((surface) => pair(mark, surface, MARK))),
+    ...chartMarksOf(tokens).flatMap((mark) => ['--surface-raised', '--chart-surface'].map((surface) => pair(mark, surface, mark === DEEMPHASIS ? DEEMPHASIS_MARK : MARK))),
     ...STEPS.flatMap((step) => ['--ink', '--ink-strong', '--chart-ink'].map((ink) => pair(ink, step))),
   ]
 }
@@ -213,7 +216,7 @@ const MIX_MONEY_FLOW_AND_ACCENT = [
   '--series-2',
   '--series-3',
   '--series-4',
-  '--chart-deemphasis',
+  DEEMPHASIS,
   '--tone-positive',
   '--tone-negative',
   '--tone-positive-soft',
@@ -261,8 +264,8 @@ describe('the de-emphasis grey', () => {
   ] as const) {
     it(`stays apart from every chart ink in the ${theme} theme`, () => {
       const failing = CHART_INKS.flatMap((ink) => {
-        const { normal } = distancesOf(colourOf(tokens, '--chart-deemphasis'), colourOf(tokens, ink))
-        return normal >= DEEMPHASIS_APART_FROM_INK ? [] : [`--chart-deemphasis and ${ink}: ${normal.toFixed(1)}`]
+        const { normal } = distancesOf(colourOf(tokens, DEEMPHASIS), colourOf(tokens, ink))
+        return normal >= DEEMPHASIS_APART_FROM_INK ? [] : [`${DEEMPHASIS} and ${ink}: ${normal.toFixed(1)}`]
       })
       expect(failing).toEqual([])
     })
@@ -318,7 +321,7 @@ describe("the app colours on Net worth's What you have ring", () => {
 })
 
 /** The debts on Net worth's What you owe ring, largest first, with the grey the rest folds into. */
-const DEBT_RING = ['--net-debt-1', '--net-debt-2', '--net-debt-3', '--chart-deemphasis']
+const DEBT_RING = ['--net-debt-1', '--net-debt-2', '--net-debt-3', DEEMPHASIS]
 /** The colours a debt must not be taken for: the two bars above the rings, and a gain or a loss. */
 const NOT_A_DEBT = ['--net-has', '--net-owes', '--tone-positive', '--tone-negative']
 /** The least OKLab distance, times 100, between a debt and a colour that means something else on Net worth. */
