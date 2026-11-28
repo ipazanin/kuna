@@ -11,7 +11,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A screen made of one table, one list or one form keeps the narrower measure (`max-w-measure`). A dashboard screen widens with `DashboardGrid`.
 - A screen whose books are still opening shows `ScreenSkeleton` below its header.
 - While the app's file was saved by a newer Kuna, the shell puts one warning notice with Reload above every screen of that app, above its `PageHeader`, and a screen draws none of its own. A dialog marked `changes` opens with the same wording as an alert at the top of its body, and every Save in it is disabled by `writes.refused`.
-- A card with nothing to show uses `EmptyState`, dashed. A card that failed uses `EmptyState` with `tone="error"`. Nothing hand-draws either.
+- A card with nothing to show uses `EmptyState`, with a dashed edge in `border-accented`. A card that failed uses `EmptyState` with `tone="error"`, whose edge is the full error colour, since a lighter one falls under 3:1. Nothing hand-draws either.
 - An empty list in a card, such as no loan changes or no invoices in the period, shows one quiet sentence through `EmptyState` with `line`, which sits at the card's body padding in the `type-aside` role. The same goes for a list in a card that its filter or search leaves empty. A hint that is not about an empty list, such as a search prompt over a table, stays its own line. Nothing hand-draws an empty line.
 - Cards that fold, such as a chart or a table, remember their state per device through `cardCollapse.ts`.
 - A card's All … link, such as All transactions or All holdings, sits at its foot as a neutral link button with a trailing arrow (`trailing-icon="i-lucide-arrow-right" color="neutral" variant="link"`), in every app.

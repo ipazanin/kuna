@@ -25,6 +25,7 @@
  * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
  * Nor may any text be cut short outside `CutText`, which shows the full text, other than what `CUT_TEXT_ALLOWED` there lists with its reason.
  * The gallery's cut text shows its full text only while cut, on hover and on keyboard focus, and the sidebar shows a long company name cut, with room above the first page and the full name on hover.
+ * The gallery's empty state draws a dashed border and its error state a border in the error colour, with no ring over either.
  * Transactions grouped by month, by category and by counterparty wraps each group's name below 640 px.
  * Spending's Entries opened over a span of days with a label shows the span and counts the label's total over it, and on a phone no filter chip that fits folds into +N more.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
@@ -886,6 +887,37 @@ function readPage(page) {
 }
 
 /**
+ * The gallery's empty state draws a dashed border and its error state a border in the error colour. Neither shows a ring,
+ * which would sit over the border and hide its colour and its dashes.
+ */
+function emptyStateEdgesOff(page) {
+  return page.evaluate(() => {
+    const probe = document.createElement('span')
+    probe.className = 'border border-error'
+    document.body.append(probe)
+    const errorColour = getComputedStyle(probe).borderTopColor
+    probe.remove()
+    const found = []
+    for (const [testId, style, colour] of [
+      ['empty-state-empty', 'dashed', null],
+      ['empty-state-error', 'solid', errorColour],
+    ]) {
+      const specimen = document.querySelector(`[data-testid="${testId}"]`)
+      if (specimen === null) {
+        found.push(`the ${testId} specimen is missing`)
+        continue
+      }
+      const edge = getComputedStyle(specimen)
+      const ringed = edge.boxShadow.split(/,(?![^(]*\))/).some((layer) => layer.trim() !== 'none' && !layer.includes('rgba(0, 0, 0, 0)'))
+      if (parseFloat(edge.borderTopWidth) < 1 || edge.borderTopStyle !== style) found.push(`${testId} draws a ${edge.borderTopWidth} ${edge.borderTopStyle} border, expected a ${style} one`)
+      if (colour !== null && edge.borderTopColor !== colour) found.push(`${testId} draws its border in ${edge.borderTopColor}, expected the error colour ${colour}`)
+      if (ringed) found.push(`${testId} shows a ring over its border: ${edge.boxShadow}`)
+    }
+    return found
+  })
+}
+
+/**
  * Runs in the page: the linked part sits just below the bars that stay at the top, or in view at
  * the foot of a page too short to scroll it higher, in a card that is open.
  */
@@ -1151,6 +1183,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => 
         if (visit.gallery && (report.donutHeights.length !== GALLERY_DONUTS || report.donutHeights.some((height) => height < 150))) {
           fail(scope, `drew donuts ${report.donutHeights.map(Math.round).join(', ')} px tall, expected ${GALLERY_DONUTS} of at least 150 px`)
         }
+        if (visit.gallery) for (const problem of await emptyStateEdgesOff(page)) fail(scope, problem)
         if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
         for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
         for (const donut of report.crowdedDonuts) fail(scope, donut)

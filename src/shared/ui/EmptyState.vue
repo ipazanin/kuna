@@ -44,8 +44,8 @@ defineProps<
     :title="title"
     v-bind="description === undefined ? {} : { description }"
     :actions="actions ? [...actions] : []"
-    variant="outline"
-    :class="tone === 'error' ? 'rounded-card border-error/40 bg-raised' : 'rounded-card border-dashed bg-raised/40'"
+    variant="naked"
+    :class="tone === 'error' ? 'rounded-card border border-error bg-raised' : 'rounded-card border border-dashed border-accented bg-raised/40'"
     :avatar="{ color: tone === 'error' ? 'error' : 'neutral' }"
   >
     <template v-if="$slots.description" #description>

@@ -20,12 +20,14 @@ import GallerySection from './GallerySection.vue'
         title="No transactions match these filters"
         description="Clear a filter or pick a longer period."
         :actions="[{ label: 'Clear filters', color: 'neutral', variant: 'outline' }]"
+        data-testid="empty-state-empty"
       />
       <EmptyState
         title="The file on Drive could not be read"
         description="Drive answered 404: File not found. Find the file again or open another."
         :actions="[{ label: 'Try again', color: 'neutral', variant: 'outline' }]"
         tone="error"
+        data-testid="empty-state-error"
       />
       <EmptyState icon="i-lucide-landmark" title="No loans yet" description="Your Loans file is ready. Add a bank loan from its contract, or an informal loan between people." />
       <EmptyState icon="i-lucide-calendar-clock" title="No plan rows yet">
