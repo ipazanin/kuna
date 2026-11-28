@@ -545,12 +545,15 @@ export async function openKunaSettings(page) {
   })
 }
 
-/** What the control under this selector shows while a save waits: where it stands, whether it is grayed and whether it spins. */
+/** What the control under this selector shows while a save waits: where it stands, whether it takes taps, whether it spins and whether it keeps its full colour. */
 export function savingControl(page, selector) {
   return page.evaluate(savingLook, selector)
 }
 
-/** A switch's track while it saves is the off colour whichever way it goes, so one saving towards On does not already read as on. Its thumb shows the value. */
+/**
+ * A switch's track while it saves is the off colour whichever way it goes, so one saving towards On does not already read as on. Its thumb shows the value.
+ * A saving control keeps its full colour, as a loading button does, since its spinner already says it is busy.
+ */
 function savingLook(chosen) {
   const control = document.querySelector(chosen)
   const probe = document.createElement('div')
@@ -558,23 +561,27 @@ function savingLook(chosen) {
   document.body.append(probe)
   const accented = getComputedStyle(probe).backgroundColor
   probe.remove()
+  let opacity = 1
+  for (let at = control; at != null; at = at.parentElement) opacity *= parseFloat(getComputedStyle(at).opacity)
   return {
     value: control?.getAttribute('aria-checked') ?? control?.textContent?.trim() ?? null,
     disabled: control?.matches(':disabled') ?? false,
     spinning: (control?.querySelector('.animate-spin') ?? control?.parentElement?.querySelector('.animate-spin')) != null,
     looksSaving: control?.getAttribute('role') !== 'switch' || getComputedStyle(control).backgroundColor === accented,
+    fullColour: control != null && opacity === 1,
   }
 }
 
 export async function controlSaving(page, selector, was) {
   const deadline = Date.now() + 1_500
+  const saving = (look) => look.value !== was && look.disabled && look.spinning && look.looksSaving && look.fullColour
   let look = await savingControl(page, selector)
-  while (Date.now() < deadline && !(look.value !== was && look.disabled && look.spinning && look.looksSaving)) {
+  while (Date.now() < deadline && !saving(look)) {
     await delay(50)
     look = await savingControl(page, selector)
   }
-  if (!(look.value !== was && look.disabled && look.spinning && look.looksSaving)) {
-    throw new Error(`the control did not move at once, grayed with a spinner: ${JSON.stringify(look)}, it stood at ${was}`)
+  if (!saving(look)) {
+    throw new Error(`the control did not move at once, at full colour with a spinner and taking no taps: ${JSON.stringify(look)}, it stood at ${was}`)
   }
 }
 
@@ -582,7 +589,7 @@ export async function controlLanded(page, selector) {
   await page
     .waitForFunction((chosen) => document.querySelector(chosen)?.matches(':disabled') === false, { timeout: 15_000 }, selector)
     .catch(() => {
-      throw new Error('the control stays grayed after its save')
+      throw new Error('the control still takes no taps after its save')
     })
 }
 

@@ -75,7 +75,7 @@ const restrictedClasses = [
   },
   {
     pattern: String.raw`^(?:\S*:)?(?:aria-|data-)?disabled:(?:\S*:)?opacity-.*$`,
-    message: '"$0": every disabled button fades the same way, through ui.button in vite.config.ts, so it takes no opacity of its own.',
+    message: '"$0": every disabled button, switch and select fades the same way, through its theme in vite.config.ts, so it takes no opacity of its own.',
   },
   {
     pattern: String.raw`^(?:\S*:)?focus-visible:(?:\S*:)?!?-?(?:outline|ring)(?:-.*)?$`,

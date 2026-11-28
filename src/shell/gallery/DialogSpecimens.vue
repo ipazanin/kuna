@@ -289,6 +289,9 @@ const ROWS = [
         <UFormField label="Disabled">
           <OptionalSelect v-model="keptRoom" :items="GALLERY_ROOMS" none="Not set" :search="false" disabled class="w-full" />
         </UFormField>
+        <UFormField label="Saving">
+          <OptionalSelect v-model="keptRoom" :items="GALLERY_ROOMS" none="Not set" :search="false" loading disabled class="w-full" />
+        </UFormField>
         <UFormField label="Not clearable" help="Such as a field that must keep its value while a link holds it.">
           <OptionalSelect v-model="fixedRoom" :items="GALLERY_ROOMS" none="Not set" :search="false" :clearable="false" class="w-full" />
         </UFormField>

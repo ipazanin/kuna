@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { tokenColour } from '../../shared/charts/chartTokens'
 import { formatPercent } from '../../shared/money/moneyFormat'
@@ -266,7 +267,7 @@ const BUTTON_LOOKS = [
   <GallerySection
     id="buttons"
     title="Buttons"
-    description="Every disabled button fades by half, whatever its look. A loading button takes no taps either, but keeps its full colour, since its spinner says it is busy."
+    description="Every disabled button fades by half, whatever its look, and so does a disabled switch or select. A loading one takes no taps either, but keeps its full colour, since its spinner says it is busy."
   >
     <AppCard as="div" class="gap-3 p-5">
       <div v-for="look in BUTTON_LOOKS" :key="look.name" class="flex flex-wrap items-center gap-3 border-b border-default pb-3 last:border-b-0 last:pb-0" data-testid="gallery-button-look">
@@ -276,6 +277,13 @@ const BUTTON_LOOKS = [
         <UButton label="Loading" :icon="look.icon" :color="look.color" :variant="look.variant" loading />
         <UButton :icon="look.icon" :color="look.color" :variant="look.variant" :aria-label="`${look.name}, icon only`" />
         <UButton :icon="look.icon" :color="look.color" :variant="look.variant" :aria-label="`${look.name}, icon only, disabled`" disabled />
+      </div>
+      <div class="flex flex-wrap items-center gap-6" data-testid="gallery-switch-states">
+        <span class="w-20 type-label">Switch</span>
+        <USwitch :model-value="true" label="Enabled" />
+        <USwitch :model-value="true" label="Disabled" disabled />
+        <USwitch :model-value="true" label="Saving" loading />
+        <USwitch :model-value="false" label="Off, disabled" disabled />
       </div>
     </AppCard>
   </GallerySection>

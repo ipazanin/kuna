@@ -35,8 +35,8 @@
  * on its own or inside another, such as the Settings tabs, Year's tab link, both imports, Salaries,
  * the home, its Set up and the race on the To review tab.
  *
- * With saves that take seconds (`?fake=slow-writes`) the loan bucket switch on Settings and the benchmark select on Investments, Settings move at once, grayed with a
- * spinner, in Croatian too, and what is typed in the Settings form survives the switch's save.
+ * With saves that take seconds (`?fake=slow-writes`) the loan bucket switch on Settings and the benchmark select on Investments, Settings move at once and keep their
+ * full colour with a spinner, in Croatian too, and what is typed in the Settings form survives the switch's save.
  * With a key kept, every app shows with the chat open (`?chat=1`), docked where it leaves the page 640 px and in the page's place below.
  * Every screen is also checked at 1,264, 1,390 and 1,920 px with the expanded sidebar and the chat docked. A flow asks in
  * English and Croatian, answers the dialog, follows the link the fake model shows, and a second one tags an element from the gallery.

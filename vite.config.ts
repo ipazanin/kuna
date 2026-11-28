@@ -14,6 +14,13 @@ const highlightedRow = 'data-highlighted:not-data-disabled:before:bg-accented'
 // A menu option's label and description are the whole choice a person reads, so a long one wraps instead of being cut.
 const wholeOption = 'text-clip whitespace-normal break-words'
 
+// Nuxt's 75% leaves a disabled control close to an enabled one, most of all in the dark theme. Half keeps an ink label at 3:1 on a card in both themes.
+// A loading control is disabled too, but its spinner already says it is busy, so it keeps its full colour.
+const pressableFade = {
+  slots: { base: 'disabled:opacity-50 aria-disabled:opacity-50' },
+  compoundVariants: [{ loading: true, class: { base: 'disabled:opacity-100 aria-disabled:opacity-100' } }],
+}
+
 // The folder the packages come from. A worktree under .claude/worktrees has none of its own and reads the main checkout's,
 // which the dev server refuses to serve, fonts included, unless it is allowed.
 const packagesFolder = dirname(dirname(dirname(createRequire(import.meta.url).resolve('@fontsource/inter/package.json'))))
@@ -56,20 +63,15 @@ export default defineConfig(({ command, isPreview }) => ({
         },
         // Two actions with Croatian labels are wider than a toast on a phone, so the second one moves to its own line.
         toast: { slots: { actions: 'flex-wrap' } },
-        select: { slots: { item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
-        selectMenu: { slots: { item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
+        select: { ...pressableFade, slots: { ...pressableFade.slots, item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
+        selectMenu: { ...pressableFade, slots: { ...pressableFade.slots, item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
         inputMenu: { slots: { item: highlightedRow, itemLabel: wholeOption, itemDescription: wholeOption } },
         commandPalette: { slots: { itemLabel: wholeOption, itemDescription: wholeOption }, variants: { active: { false: { item: highlightedRow } } } },
         dropdownMenu: {
           slots: { itemLabel: wholeOption, itemDescription: wholeOption },
           variants: { active: { false: { item: 'data-highlighted:before:bg-accented data-[state=open]:before:bg-accented' } } },
         },
-        button: {
-          // Nuxt's 75% leaves a disabled button close to an enabled one, most of all in the dark theme. Half keeps an ink label at 3:1 on a card in both themes.
-          slots: { base: 'disabled:opacity-50 aria-disabled:opacity-50' },
-          // A loading button is disabled too, but its spinner already says it is busy, so it keeps its full colour.
-          compoundVariants: [{ loading: true, class: { base: 'disabled:opacity-100 aria-disabled:opacity-100' } }],
-        },
+        button: pressableFade,
         // Nuxt fades a disabled day field with `disabled:`, which its root, a div, never matches. The root marks itself data-disabled instead.
         inputDate: { slots: { base: 'data-disabled:cursor-not-allowed data-disabled:opacity-75' } },
         // An unchecked box or radio draws its edge in a colour that passes 3:1, where Nuxt's border-strong does not.
@@ -77,9 +79,14 @@ export default defineConfig(({ command, isPreview }) => ({
         radioGroup: { slots: { base: 'ring-control-edge' } },
         switch: {
           // Nuxt's off track and thumb nearly vanish on a dark card, so an off switch draws its edge and thumb in a colour that passes 3:1.
-          slots: { base: 'data-[state=unchecked]:border-control-edge', thumb: 'data-[state=unchecked]:bg-control-edge' },
-          // Nuxt only dims an amber track, which still reads as on. The thumb keeps showing the value.
-          compoundVariants: [{ loading: true, class: { base: 'data-[state=checked]:bg-accented', icon: 'group-data-[state=checked]:text-muted' } }],
+          // The root fades the track with its label, so the track, a native button, keeps its colour inside it rather than fading twice.
+          slots: { base: 'data-[state=unchecked]:border-control-edge disabled:opacity-100', thumb: 'data-[state=unchecked]:bg-control-edge' },
+          // Nuxt marks a loading switch disabled as well. Half fades a disabled one as it fades a button.
+          variants: { disabled: { true: { root: 'opacity-50' } } },
+          compoundVariants: [
+            // Nuxt only dims an amber track, which still reads as on. The thumb keeps showing the value, and the spinner says it is busy, so it keeps its full colour.
+            { loading: true, class: { root: 'opacity-100', base: 'data-[state=checked]:bg-accented', icon: 'group-data-[state=checked]:text-muted' } },
+          ],
         },
         table: {
           slots: {

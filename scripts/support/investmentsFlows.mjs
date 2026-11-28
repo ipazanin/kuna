@@ -55,7 +55,7 @@ import {
   undoIn,
 } from './flowHelpers.mjs'
 
-/** Investments, Settings, with saves that take seconds: the benchmark select shows the choice at once, grayed with a spinner. */
+/** Investments, Settings, with saves that take seconds: the benchmark select shows the choice at once, with a spinner at full colour. */
 export async function savesWaitingBenchmarkFlow(page, { press, shoot }) {
   const selector = '[data-testid="benchmark-choice"]'
   const trigger = await page.waitForSelector(selector, { visible: true, timeout: 10_000 })
