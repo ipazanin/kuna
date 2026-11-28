@@ -29,6 +29,8 @@ export interface SyncStep {
   on(): boolean
   /** True for a step that is off because the file has nothing for it, such as rates with no foreign account, so the step list leaves it out. Without it an off step shows as Off in Settings. */
   readonly leftOutWhenOff?: boolean
+  /** True for a step that reads and writes nothing on Drive, such as a mail step, so it runs for books kept in this browser too. */
+  readonly needsNoDrive?: boolean
   /** Set on a step that reads Gmail. */
   readonly readsMail?: MailSource
   /** Runs the step and says what it did. `report` changes the line it shows while it runs, `startedAt` names the run, which every group's steps share, and `asking` is the run's. */
@@ -46,7 +48,7 @@ export interface SyncGroup {
 }
 
 export interface SyncPorts {
-  /** The groups a sync runs, in order, one for each app with its file on Drive. */
+  /** The groups a sync runs, in order. */
   groups(): readonly SyncGroup[]
   /** Whether the page holds a token for the scope. */
   granted(scope: GoogleScope): boolean

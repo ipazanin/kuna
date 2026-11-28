@@ -9,12 +9,12 @@ export interface AutoSyncMoment {
   readonly now: number
   /** The device switch for auto-sync. */
   readonly switchedOn: boolean
-  /** Some app's books on Drive are opening or being read. */
+  /** Some books a sync runs are opening or being read. */
   readonly busy: boolean
-  /** Some file on Drive is chosen and the page's token is still good. */
+  /** A sync now would open no popup and lack no access. */
   readonly silent: boolean
   readonly online: boolean
-  /** ISO timestamp of the oldest read on screen among the files on Drive, or null while one has none. */
+  /** ISO timestamp of the oldest read on screen among the files on Drive a sync runs, or null while one has none or none is on Drive. */
   readonly syncedAt: string | null
   /** Epoch milliseconds of the last automatic attempt, which may have failed. */
   readonly lastAttemptAt: number | null
@@ -32,8 +32,12 @@ export function autoSyncDue(moment: AutoSyncMoment): boolean {
 
 export interface AutoSyncPorts {
   /** Every app's books, wherever each one is kept. */
-  readonly stores: readonly Pick<WorkbookStore<BooksRead>, 'state' | 'open' | 'canSyncSilently'>[]
-  /** The page's sync of every file on Drive. */
+  readonly stores: readonly Pick<WorkbookStore<BooksRead>, 'state' | 'open'>[]
+  /** The books the page's sync runs now. */
+  synced(): readonly Pick<WorkbookStore<BooksRead>, 'state'>[]
+  /** Whether the page's sync would open no popup and lack no access now. */
+  canSyncSilently(): boolean
+  /** The page's sync. */
   sync(): Promise<void>
   /** The device switch for auto-sync. */
   switchedOn(): boolean
@@ -50,14 +54,15 @@ export function startAutoSync(ports: AutoSyncPorts): () => void {
 
   async function syncWhenDue(): Promise<void> {
     const now = ports.now()
-    const onDrive = ports.stores.filter((store) => store.state.choice?.source === 'drive')
+    const synced = ports.synced()
     const due = autoSyncDue({
       now,
       switchedOn: ports.switchedOn(),
-      busy: onDrive.some((store) => store.state.status === 'opening' || store.state.status === 'syncing'),
-      silent: onDrive.some((store) => store.canSyncSilently()),
+      busy: synced.some((store) => store.state.status === 'opening' || store.state.status === 'syncing'),
+      silent: ports.canSyncSilently(),
       online: ports.online(),
-      syncedAt: oldestRead(onDrive.map((store) => store.state.syncedAt)),
+      // Books kept in this browser are never read, so only the files on Drive say when the books were last read.
+      syncedAt: oldestRead(synced.filter((store) => store.state.choice?.source === 'drive').map((store) => store.state.syncedAt)),
       lastAttemptAt,
     })
     if (stopped || !due) {

@@ -22,10 +22,12 @@ const props = withDefaults(
     compact?: boolean
     /** On the icon sidebar: the icon alone, with its name as a tooltip. */
     rail?: boolean
+    /** With `compact`, in the top bar beside the sync: the icon alone, with its name as a tooltip, so the screen's name keeps its room. */
+    iconOnly?: boolean
     /** The app's name, which leads the row in a list of the files kept in this browser, in place of saying where it is kept. */
     name?: string | null
   }>(),
-  { compact: false, rail: false, name: null },
+  { compact: false, rail: false, iconOnly: false, name: null },
 )
 
 const emit = defineEmits<{ export: [] }>()
@@ -52,10 +54,10 @@ const reminder = computed(() => {
       <CutText as="p" class="type-caption">{{ name ?? words.localFile.kept }}</CutText>
       <CutText as="p" class="figure type-caption">{{ exportedText }}</CutText>
     </div>
-    <UTooltip :text="words.localFile.export" :disabled="!rail" :content="{ side: 'right' }">
+    <UTooltip :text="words.localFile.export" :disabled="!rail && !iconOnly" :content="{ side: rail ? 'right' : 'bottom' }">
       <UButton
         icon="i-lucide-download"
-        :label="rail ? '' : compact ? words.localFile.export : label"
+        :label="rail || iconOnly ? '' : compact ? words.localFile.export : label"
         :loading="exporting"
         :disabled="exporting || meta === null"
         :aria-label="compact ? [label, reminder].filter(Boolean).join('. ') : undefined"

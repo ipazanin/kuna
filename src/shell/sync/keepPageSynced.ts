@@ -15,6 +15,8 @@ export function keepPageSynced(sync: PageSync, googleReturn: RedirectReturn | nu
   }
   return startAutoSync({
     stores,
+    synced: () => sync.syncedGroups().map((group) => group.store),
+    canSyncSilently: sync.canSyncSilently,
     sync: sync.sync,
     switchedOn: () => autoSyncOn.value,
     now: () => Date.now(),

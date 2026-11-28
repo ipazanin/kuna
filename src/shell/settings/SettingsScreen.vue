@@ -11,9 +11,9 @@ import PrivacyCard from './PrivacyCard.vue'
 import SyncCard from './SyncCard.vue'
 import { words } from './words'
 
-/** Kuna settings at `#/settings`, for every app on this device: the page's one sync and every app's mail while some app's file is on Drive, where new files go, the assistant, deleting data, then privacy. */
+/** Kuna settings at `#/settings`, for every app on this device: the page's one sync and every app's mail while a sync runs some app, where new files go, the assistant, deleting data, then privacy. */
 const sync = usePageSync()
-const { someOnDrive, keysSync } = sync
+const { syncs, keysSync } = sync
 
 function fetchKeys(): Promise<string | null> {
   return fetchKeysFromGoogle(sync.settled)
@@ -24,8 +24,8 @@ function fetchKeys(): Promise<string | null> {
   <section class="flex max-w-measure flex-col gap-6">
     <PageHeader :title="words.menu" :description="words.description" />
     <DashboardGrid>
-      <SyncCard v-if="someOnDrive" />
-      <MailCard v-if="someOnDrive" />
+      <SyncCard v-if="syncs" />
+      <MailCard v-if="syncs" />
       <FilesHomeCard />
       <AiAssistCard :keys-sync="keysSync" :fetch-keys="fetchKeys" />
       <DeleteDataCard />

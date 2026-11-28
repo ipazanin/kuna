@@ -41,7 +41,7 @@ export const MAIL_SCOPE: GoogleScope = 'gmail.readonly'
 /** Where a step that found no account to read for links: the accounts on Settings, General, each with how its rows come in. */
 const ACCOUNTS_LINK = { label: words.step.seeAccounts, to: `${INVESTMENTS_GENERAL_ROUTE}#accounts` } as const
 
-/** The step's last good reading of the books' file, kept in this browser, and why the last run stopped, or null. */
+/** The step's last good reading of the books on screen, kept in this browser, and why the last run stopped, or null. */
 const state = shallowReactive<MailReportsState>({ fileId: null, plan: null, readAt: null, stopped: null })
 
 /** What this page already made of each file. A sync on a timer would otherwise fetch every file of the window again. */
@@ -52,10 +52,9 @@ const keeper = readingKeeper(openMailReadingCache, IBKR_FLEX_FINGERPRINT)
 /** The imports the syncs of this page made, so a reading Undo took back is not imported again. */
 const imports = syncImports()
 
-/** The Drive file the books are on, or null for books kept in this browser or none, which have no reading. */
-function driveFileId(): string | null {
-  const choice = useInvestmentsBooks().state.choice
-  return choice?.source === 'drive' ? choice.id : null
+/** The id of the books on screen, a Drive file's or that of books kept in this browser, or null while none are chosen, which have no reading. */
+function booksId(): string | null {
+  return useInvestmentsBooks().state.choice?.id ?? null
 }
 
 function forgetReading(fileId: string | null): void {
@@ -66,11 +65,11 @@ function forgetReading(fileId: string | null): void {
   known.clear()
 }
 
-/** Shows the reading this browser kept of the file the books are on, unless a sync of this page read it first. */
+/** Shows the reading this browser kept of the books on screen, unless a sync of this page read it first. */
 async function openKept(fileId: string | null): Promise<void> {
   if (state.fileId !== fileId) forgetReading(fileId)
   const kept = await keeper.open(fileId).catch(() => null)
-  if (kept === null || driveFileId() !== fileId || state.fileId !== fileId || state.plan !== null) return
+  if (kept === null || booksId() !== fileId || state.fileId !== fileId || state.plan !== null) return
   state.plan = kept.plan
   state.readAt = kept.readAt
   for (const [key, run] of runsOfPlan(kept.plan)) known.set(key, run)
@@ -83,12 +82,12 @@ async function dropReading(): Promise<void> {
 
 let watching = false
 
-/** Follows the books to their file and the reader's switch, once for the page: a reading belongs to one file, and stopping the mail drops it. */
+/** Follows the books on screen and the reader's switch, once for the page: a reading belongs to one set of books, and stopping the mail drops it. */
 function followBooks(): void {
   if (watching) return
   watching = true
   const books = useInvestmentsBooks()
-  watch(driveFileId, (fileId) => void openKept(fileId), { immediate: true })
+  watch(booksId, (fileId) => void openKept(fileId), { immediate: true })
   watch(
     () => ibkrMailReader(books.state.workbook?.book)?.on,
     (on) => {
@@ -119,7 +118,7 @@ function rowsOfPlan(plan: MailReportPlan, reader: MailReader, book: InvestmentBo
 }
 
 interface MailReportsState {
-  /** The Drive file the reading is of. */
+  /** The id of the books the reading is of, a Drive file's or that of books kept in this browser. */
   fileId: string | null
   plan: MailReportPlan | null
   /** ISO timestamp of the sync that read the plan, on this page or an earlier one. */
@@ -130,7 +129,7 @@ interface MailReportsState {
 export interface MailReports {
   readonly state: Readonly<MailReportsState>
   readonly reader: ComputedRef<MailReader | null>
-  /** Null before a sync read the mail of the books' file, and while the reader is off. */
+  /** Null before a sync read the mail of the books on screen, and while the reader is off. */
   readonly reading: ComputedRef<WorkbookRows | null>
   readonly news: ComputedRef<ReportNews | null>
   /** A real mail fitted the recipe, on this page or when an earlier record was made from one. */
@@ -144,7 +143,7 @@ export function useMailReports(): MailReports {
   const { sources } = usePortfolio()
   const book = computed(() => store.state.workbook?.book ?? null)
   const reader = computed(() => ibkrMailReader(book.value))
-  const reading = computed(() => (state.plan === null || reader.value?.on !== true || book.value === null || state.fileId !== driveFileId() ? null : rowsOfPlan(state.plan, reader.value, book.value)))
+  const reading = computed(() => (state.plan === null || reader.value?.on !== true || book.value === null || state.fileId !== booksId() ? null : rowsOfPlan(state.plan, reader.value, book.value)))
   return {
     state: shallowReadonly(state),
     reader,
@@ -183,6 +182,7 @@ export function mailReportStep(writes: RecordWrites): SyncStep {
     startLine: words.step.searching,
     on: () => ibkrMailReader(books.state.workbook?.book)?.on === true,
     leftOutWhenOff: true,
+    needsNoDrive: true,
     readsMail: {
       link: MAIL_LIST_LINK,
       async stop() {
@@ -200,7 +200,7 @@ async function readReports(): Promise<StepResult> {
   const books = useInvestmentsBooks()
   const { workbook, choice } = books.state
   const reader = ibkrMailReader(workbook?.book)
-  if (workbook === null || reader === null || choice?.source !== 'drive') {
+  if (workbook === null || reader === null || choice === null) {
     return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
   }
   await openKept(choice.id)

@@ -27,7 +27,7 @@ const DEVICE: KunaDevice = {
   answerStart: answerKunaStart,
   forgetStart: forgetKunaStart,
   apps: () => installedApps().map(({ id, name }) => ({ id, name })),
-  syncs: () => usePageSync().someOnDrive.value,
+  syncs: () => usePageSync().syncs.value,
   async syncNow(asking) {
     const page = usePageSync()
     await page.sync(asking)

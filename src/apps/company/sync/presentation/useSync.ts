@@ -66,9 +66,6 @@ export function useSync(): CompanySync {
   return {
     scopesNeededBy: (workbook) => scopesOf(needsOfBooks(workbook).map((need) => need.scope)),
     saveAllowing(after, save) {
-      if (store.state.choice?.source !== 'drive') {
-        return page.saveAllowing([], save)
-      }
       const before = new Set(needsOfBooks(store.state.workbook).map((need) => need.scope))
       const added = scopesOf(needsOfBooks(after).map((need) => need.scope)).filter((scope) => !before.has(scope) && currentToken(scope) === null)
       return page.saveAllowing(added, save)

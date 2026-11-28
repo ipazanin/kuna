@@ -556,6 +556,66 @@ export async function mailAccessFlow(page, { press, shoot, inspect }) {
 }
 
 /**
+ * Books kept in this browser whose bank still mails statements: the top bar shows their Export beside Sync, whose first tap finds
+ * no Gmail access, and Allow access asks Google for Gmail read alone. The sync then files the statement while the books step reads
+ * nothing and no Drive step runs, its Undo takes it out, Kuna settings shows the Sync and Mail cards, and Import lists what it filed.
+ */
+export async function browserMailFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="local-status"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('books kept in this browser show no Export')
+  })
+  await controlShows(page, 'ready')
+  const exportLabels = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="local-status"] button')]
+      .filter((button) => button.offsetParent !== null)
+      .map((button) => ({ topBar: button.closest('header') !== null, text: button.textContent?.trim() ?? '' })),
+  )
+  if (exportLabels.some((label) => label.topBar && label.text !== ''))
+    throw new Error(`the top bar's Export beside Sync reads "${exportLabels.find((label) => label.topBar)?.text}", not its icon alone`)
+  if (exportLabels.some((label) => !label.topBar && label.text === '')) throw new Error("the sidebar's Export shows its icon alone")
+  const needed = await page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-needed') ?? 'null'))
+  if (JSON.stringify(needed) !== JSON.stringify(['gmail.readonly'])) throw new Error(`the page needs ${JSON.stringify(needed)} of Google, not Gmail read alone`)
+  await inspect?.('Export beside Sync for books kept in this browser that read the mail')
+  await shoot('mail-browser-top-bar')
+
+  await syncAndSettle(page, press)
+  const control = await controlShows(page, 'allow-access')
+  if (!control.name.includes('Statement mail needs your Gmail read access')) throw new Error(`a screen reader hears "${control.name}"`)
+  await inspect?.('Allow access beside Export for books kept in this browser')
+  await shoot('mail-browser-allow-access')
+  await syncAndSettle(page, press)
+  const synced = await controlShows(page, 'ready')
+  if (/Not synced yet/.test(synced.name)) throw new Error(`after a sync the control still says "${synced.name}"`)
+  await noToast(page, 'a sync that filed mail into books kept in this browser showed a toast')
+
+  await openKunaSettings(page)
+  await stepSays(page, SYNC_CARD, 'books', 'done', /Kept in this browser/)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', FILED)
+  const steps = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((step) => step.dataset.step), `${SYNC_CARD} ${SYNC_STEPS} [data-step]`)
+  if (JSON.stringify(steps) !== JSON.stringify(['books', 'mail'])) throw new Error(`the sync of books kept in this browser lists ${JSON.stringify(steps)}, not their books and mail alone`)
+  await page.waitForSelector('[data-testid="mail-card"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('Kuna settings has no Mail card for books kept in this browser')
+  })
+  await scrollToTop(page, SYNC_CARD)
+  await inspect?.('the Sync card of books kept in this browser that read the mail')
+  await shoot('mail-browser-settings')
+
+  await pressSelector(page, press, `${SYNC_CARD} [data-step="mail"] [data-testid="sync-step-undo"]`)
+  await toast(page, 'Undone')
+  await dismissToasts(page)
+  await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', FILED)
+  await page.evaluate(() => {
+    window.location.hash = '#/company/transactions?tab=import'
+  })
+  await page.waitForSelector('[data-testid="mailed-statements-filed"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Import does not list the statement the sync filed into books kept in this browser')
+  })
+  await delay(300)
+  await shoot('mail-browser-filed')
+}
+
+/**
  * A token without Gmail read and the mail step off: saving a sender and subject on the Mail card
  * asks Google in that same tap, so the sync control never shows Allow access, and the sync that
  * follows the save reads the bank's mail.

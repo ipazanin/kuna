@@ -184,7 +184,8 @@ export function askSilentlyOnOpen(): boolean {
 }
 
 /**
- * Asks Google for one token carrying the books file, every scope the settings need and these. Call
+ * Asks Google for one token carrying every scope the page's sync needs and these, the books file among them only while some books
+ * are on Drive or the caller names it, so books kept in this browser that read the mail ask for Gmail alone. Call
  * it from a click handler: Firefox opens Google's popup only during a user gesture. `prompt: ''`
  * shows a screen only when Google needs one, and the remembered email as the login hint skips the
  * account chooser. On a phone the tab goes to Google instead, and `then` says what the page does
@@ -192,7 +193,7 @@ export function askSilentlyOnOpen(): boolean {
  * again. Resolves once the page holds the token, which lacks any scope the person unticked.
  */
 export async function requestAccess(scopes: readonly GoogleScope[], then: RedirectResume | null): Promise<void> {
-  const asked = scopesOf(['drive.file', ...(needed ?? []), ...scopes])
+  const asked = scopesOf([...(needed ?? []), ...scopes])
   // Inline, not hoisted, so a production build folds the fake away. The fake build's Google opens its window where Google's library
   // would, so a browser that blocks a window asked for outside a tap refuses it here too. It grants everything asked, unless
   // `?fake=google-closed` closes its window or, with `?google=expired`, a phone asks with nothing to resume, which the real one

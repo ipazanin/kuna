@@ -2,12 +2,12 @@ import type { KeptReading, MailReadingCache, MailReportPlan } from './mailReport
 import type { RecipeRun } from '../../../../shared/recipes/domain/runRecipe'
 
 /**
- * The last good reading of an Investments file's report mail, kept in this browser so a reload, an expired sign-in or a
- * failed sync still shows what waits. It belongs to one file at a time: moving the books to another file drops the old
- * file's reading, and books kept in this browser have none.
+ * The last good reading of the report mail of Investments' books, a file on Drive or books kept in this browser, kept in this
+ * browser so a reload, an expired sign-in or a failed sync still shows what waits. It belongs to one set of books at a time:
+ * moving the books to another file, or between Drive and this browser, drops the old reading.
  */
 export interface ReadingKeeper {
-  /** Moves to the file the books are on, or to none, and gives that file's kept reading when it was read by this recipe. */
+  /** Moves to the books on screen, by their id, or to none, and gives their kept reading when it was read by this recipe. */
   open(fileId: string | null): Promise<KeptReading | null>
   /** Keeps a sync's reading of a file, while that file is the one open. */
   keep(fileId: string, plan: MailReportPlan, readAt: string): Promise<void>

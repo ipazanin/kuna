@@ -30,7 +30,7 @@ export interface KunaDevice {
   forgetStart(): void
   /** The installed apps, by id and name. */
   apps(): readonly { readonly id: string; readonly name: string }[]
-  /** Whether some app keeps its file on Drive, so a sync has something to read. */
+  /** Whether a sync runs some app: a file on Drive, or books kept in this browser that read their mail. */
   syncs(): boolean
   /** Runs the page's sync as Sync on the top bar does, and resolves to what the person should know of the run, or null when every step went through. */
   syncNow(asking: SyncAsking): Promise<DoneWarning | null>
@@ -339,7 +339,7 @@ function set(device: KunaDevice, change: DeviceChange, to: 'before' | 'after'): 
 /** A sync goes on a card of its own, and only while some app keeps its file on Drive. */
 function syncCheck(device: KunaDevice, title: string, steps: readonly ProposalStep[]): CheckedProposal | { readonly refused: readonly string[] } {
   if (steps.length > 1) return { refused: [words.refused.syncAlone] }
-  if (!device.syncs()) return { refused: [words.refused.nothingOnDrive] }
+  if (!device.syncs()) return { refused: [words.refused.nothingToSync] }
   let asking: SyncAsking
   try {
     asking = choiceOf(ASKING, steps[0]!.input['banks'])

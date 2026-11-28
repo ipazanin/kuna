@@ -20,6 +20,8 @@ export const en = {
   off: 'Off in Settings',
   reading: 'Reading the file',
   upToDate: 'Up to date',
+  /** The books step of books kept in this browser, which has no file to read. */
+  keptHere: 'Kept in this browser',
   notRead: 'The file on Drive could not be read.',
   settings: 'Settings',
 }
@@ -40,6 +42,7 @@ export const hr: Translation<typeof en> = {
   off: 'Isključeno u postavkama',
   reading: 'Čita datoteku',
   upToDate: 'Ažurno',
+  keptHere: 'Čuva se u ovom pregledniku',
   notRead: 'Datoteka na Driveu nije se mogla pročitati.',
   settings: 'Postavke',
 }

@@ -22,7 +22,7 @@ const text = words.mail
 
 const apps = computed(() =>
   mailSourcesOf(
-    page.driveGroups().map((group) => ({ app: group.app, name: group.name, steps: group.steps() })),
+    page.syncedGroups().map((group) => ({ app: group.app, name: group.name, steps: group.steps() })),
     page.run.value,
   ),
 )
@@ -52,7 +52,7 @@ const allRefused = computed(() =>
   on.value.every(
     (row) =>
       page
-        .driveGroups()
+        .syncedGroups()
         .find((group) => group.app === row.app)
         ?.store.savedByNewerApp() ?? false,
   ),

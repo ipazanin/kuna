@@ -11,8 +11,10 @@ export const en = {
   foldedCards: 'Folded cards',
   outside: {
     reloads: 'This card has no Undo. Kuna loads again in the new language, and the chat stays.',
-    syncs: 'Accept syncs every app whose file is on Drive, through Google and the banks. A bank asked in the last six hours is left alone. What each step writes keeps its Undo on the sync list.',
-    syncsBanksNow: 'Accept syncs every app whose file is on Drive, through Google and the banks, and asks every linked bank now. What each step writes keeps its Undo on the sync list.',
+    syncs:
+      'Accept syncs every app whose file is on Drive and reads the mail of apps kept in this browser, through Google and the banks. A bank asked in the last six hours is left alone. What each step writes keeps its Undo on the sync list.',
+    syncsBanksNow:
+      'Accept syncs every app whose file is on Drive and reads the mail of apps kept in this browser, through Google and the banks, and asks every linked bank now. What each step writes keeps its Undo on the sync list.',
   },
   home: {
     drive: 'Google Drive',
@@ -28,7 +30,7 @@ export const en = {
     changedSince: 'Nothing was changed. That setting was changed since the card was made.',
     noneFolded: 'No card is folded on this device.',
     syncAlone: 'A sync goes on a card of its own. Propose it alone.',
-    nothingOnDrive: 'No app keeps its file on Google Drive, so there is nothing to sync.',
+    nothingToSync: 'No app keeps its file on Google Drive or reads its mail, so there is nothing to sync.',
     chatWidthRange: (least: number, most: number) => `The chat is between ${least} and ${most} px wide.`,
   },
   reports: {
@@ -66,9 +68,9 @@ export const hr: Translation<typeof en> = {
   outside: {
     reloads: 'Ova kartica nema poništavanje. Kuna se ponovno učitava na novom jeziku, a razgovor ostaje.',
     syncs:
-      'Prihvati sinkronizira svaku aplikaciju čija je datoteka na Driveu, preko Googlea i banaka. Banka upitana u zadnjih šest sati ostaje na miru. Ono što svaki korak zapiše zadržava poništavanje na popisu sinkronizacije.',
+      'Prihvati sinkronizira svaku aplikaciju čija je datoteka na Driveu i čita poštu aplikacija u ovom pregledniku, preko Googlea i banaka. Banka upitana u zadnjih šest sati ostaje na miru. Ono što svaki korak zapiše zadržava poništavanje na popisu sinkronizacije.',
     syncsBanksNow:
-      'Prihvati sinkronizira svaku aplikaciju čija je datoteka na Driveu, preko Googlea i banaka, i odmah pita svaku povezanu banku. Ono što svaki korak zapiše zadržava poništavanje na popisu sinkronizacije.',
+      'Prihvati sinkronizira svaku aplikaciju čija je datoteka na Driveu i čita poštu aplikacija u ovom pregledniku, preko Googlea i banaka, i odmah pita svaku povezanu banku. Ono što svaki korak zapiše zadržava poništavanje na popisu sinkronizacije.',
   },
   home: {
     drive: 'Google Drive',
@@ -84,7 +86,7 @@ export const hr: Translation<typeof en> = {
     changedSince: 'Ništa nije promijenjeno. Ta je postavka promijenjena nakon što je kartica napravljena.',
     noneFolded: 'Na ovom uređaju nijedna kartica nije sklopljena.',
     syncAlone: 'Sinkronizacija ide na zasebnu karticu. Predložite je samu.',
-    nothingOnDrive: 'Nijedna aplikacija ne drži datoteku na Google Driveu, pa nema što sinkronizirati.',
+    nothingToSync: 'Nijedna aplikacija ne drži datoteku na Google Driveu niti čita poštu, pa nema što sinkronizirati.',
     chatWidthRange: (least, most) => `Razgovor je širok od ${least} do ${most} px.`,
   },
   reports: {

@@ -196,7 +196,7 @@ describe("Kuna's own operations", () => {
     const offDrive = propose(device, [{ op: 'sync-now', input: { banks: 'due' } }])
 
     expect((await beside.answer).text).toBe(words.refused.syncAlone)
-    expect((await offDrive.answer).text).toBe(words.refused.nothingOnDrive)
+    expect((await offDrive.answer).text).toBe(words.refused.nothingToSync)
   })
 
   it('opens every folded card, and Undo folds them again while none was folded since', async () => {

@@ -191,7 +191,7 @@ export type SyncControl =
 export interface BooksStanding {
   /** Some app's books are being read. */
   readonly reading: boolean
-  /** The oldest read among the files on Drive, or null while one has none. */
+  /** The oldest read among the files on Drive, or the end of the last run while none is on Drive, or null while there is none. */
   readonly syncedAt: string | null
 }
 

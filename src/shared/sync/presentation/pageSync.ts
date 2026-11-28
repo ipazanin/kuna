@@ -17,7 +17,7 @@ import { words as syncWords } from '../application/words'
 export interface AppSyncGroup {
   /** The app's books, which its group reads first. */
   readonly store: Pick<WorkbookStore<BooksRead>, 'state' | 'open' | 'sync' | 'canSyncSilently' | 'savedByNewerApp'>
-  /** The app's own steps after its books, in order. */
+  /** The app's own steps after its books, in order. For books kept in this browser, the page's sync runs only those that need no Drive. */
   steps(): readonly SyncStep[]
   /** The Google permissions the app's books on screen and this device's settings need while its file is on Drive, the books file's among them, by what needs each. */
   needs(): readonly AccessNeed[]
@@ -38,17 +38,19 @@ export interface PageSyncGroup extends AppSyncGroup {
 export interface PageSync {
   /** Each installed app's part, in install order. */
   readonly groups: readonly PageSyncGroup[]
-  /** The parts of the apps whose file is on Drive, which a sync runs, in install order. */
-  driveGroups(): readonly PageSyncGroup[]
+  /** The parts a sync runs, in install order: each app with its file on Drive, and each app with books kept in this browser that turn on a step needing no Drive. */
+  syncedGroups(): readonly PageSyncGroup[]
   /** The last run of this page, with a failed read of an app's books outside a run, such as a find, shown as its books step. */
   readonly run: ComputedRef<SyncRun | null>
   readonly control: ComputedRef<SyncControl>
-  /** Whether some app's file is on Drive. */
-  readonly someOnDrive: ComputedRef<boolean>
-  /** Whether an app with a file on Drive lists the Keys step, so a sync carries the keys. Loans and Assets keep no key and list none. */
+  /** Whether a sync runs some app's part. */
+  readonly syncs: ComputedRef<boolean>
+  /** Whether an app with a file on Drive lists the Keys step, so a sync carries the keys. Loans and Assets keep no key and list none, and books kept in this browser run no Keys step. */
   readonly keysSync: ComputedRef<boolean>
-  /** Every group of the apps with a file on Drive, as `Sync.sync` says. Call it from a click handler. */
+  /** Every group a sync runs, as `Sync.sync` says. Call it from a click handler. */
   sync(asking?: SyncAsking): Promise<void>
+  /** Whether a sync now would open no popup and lack no access: some group on Drive holds a live token, or some group kept in this browser has every scope its steps need. */
+  canSyncSilently(): boolean
   /** Whether a sync is under way, as `Sync.running` says. */
   running(): boolean
   /** Resolves once no sync is under way, as `Sync.settled` says. */
@@ -78,9 +80,35 @@ function onDrive(group: PageSyncGroup): boolean {
   return group.store.state.choice?.source === 'drive'
 }
 
+/** The steps a sync runs after the group's books: every one for a file on Drive, and only those that need no Drive for books kept in this browser. */
+function stepsOf(group: PageSyncGroup): readonly SyncStep[] {
+  const steps = group.steps()
+  return onDrive(group) ? steps : steps.filter((step) => step.needsNoDrive === true)
+}
+
+/** Whether a sync runs the group: a file on Drive, or books kept in this browser, once on screen, that turn on a step needing no Drive. */
+function synced(group: PageSyncGroup): boolean {
+  const { choice, workbook } = group.store.state
+  return choice?.source === 'drive' || (choice?.source === 'browser' && workbook !== null && stepsOf(group).some((step) => step.on()))
+}
+
+/** What the group needs of Google: the app's own needs for a file on Drive, and only the scopes of the steps it runs for books kept in this browser, so no Drive scope. */
+function needsOf(group: PageSyncGroup): AccessNeed[] {
+  return onDrive(group) ? [...group.needs()] : stepsOf(group).flatMap((step) => step.scopes().map((scope) => ({ scope, label: step.label })))
+}
+
 /** The way on from a read that found the app's file in the bin or gone. */
 function missingLink(group: PageSyncGroup): StepLink | null {
   return group.store.state.missing ? { label: syncWords.settings, to: group.fileCard } : null
+}
+
+/** The first step of a group whose books are kept in this browser, which has no file to read. */
+const KEPT_BOOKS_STEP: SyncStep = {
+  ...BOOKS_STEP,
+  scopes: () => [],
+  startLine: syncWords.reading,
+  on: () => true,
+  run: async () => ({ kind: 'done', line: syncWords.keptHere, writeId: null, link: null }),
 }
 
 /** Reads the app's file on Drive again, the first step of its group. */
@@ -104,20 +132,19 @@ let pageSync: PageSync | null = null
 
 /**
  * Makes the page's one sync over every installed app, which the shell starts as it mounts: a group
- * per app with its file on Drive, one after another, and the control that shows them with what the
- * page's token lacks.
+ * per app it runs, one after another, and the control that shows them with what the page's token lacks.
  */
 export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name' | 'syncGroup'>[]): PageSync {
   const groups: readonly PageSyncGroup[] = apps.map((app) => ({ app: app.id, name: app.name, ...app.syncGroup() }))
-  const driveGroups = (): readonly PageSyncGroup[] => groups.filter(onDrive)
-  const needs = (): AccessNeed[] => driveGroups().flatMap((group) => group.needs())
+  const syncedGroups = (): readonly PageSyncGroup[] => groups.filter(synced)
+  const needs = (): AccessNeed[] => syncedGroups().flatMap(needsOf)
 
-  // Every ask for a token carries what every app with a file on Drive needs, and the silent trip on the next open asks for it too.
+  // Every ask for a token carries what every group a sync runs needs, and the silent trip on the next open asks for it too.
   // A file still opening would leave its settings out, so the join waits until each one is on screen.
   watch(
     needs,
     (joined) => {
-      if (groups.some((group) => group.store.state.workbook !== null) && driveGroups().every((group) => group.store.state.workbook !== null)) {
+      if (groups.some((group) => group.store.state.workbook !== null) && syncedGroups().every((group) => group.store.state.workbook !== null)) {
         needScopes(joined.map((need) => need.scope))
       }
     },
@@ -125,7 +152,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
   )
 
   const sync = createSync({
-    groups: (): SyncGroup[] => driveGroups().map((group) => ({ app: group.app, name: group.name, books: booksStep(group), steps: () => group.steps() })),
+    groups: (): SyncGroup[] => syncedGroups().map((group) => ({ app: group.app, name: group.name, books: onDrive(group) ? booksStep(group) : KEPT_BOOKS_STEP, steps: () => stepsOf(group) })),
     granted,
     askForAccess,
     asksByLeaving: signsInByRedirect,
@@ -145,12 +172,13 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
 
   const control = computed(() => {
     const { scopes, refusal } = googleAccess()
-    const drive = driveGroups()
+    const drive = groups.filter(onDrive)
     return syncControlOf(
       run.value,
       {
         reading: groups.some((group) => group.store.state.status === 'syncing'),
-        syncedAt: oldestRead(drive.map((group) => group.store.state.syncedAt)),
+        // Books kept in this browser are never read, so with no file on Drive the last finished run says when the mail was.
+        syncedAt: drive.length > 0 ? oldestRead(drive.map((group) => group.store.state.syncedAt)) : (run.value?.finishedAt ?? null),
       },
       pageAccessOf(needs(), scopes, refusal),
       sync.state.askFailure,
@@ -162,12 +190,13 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
 
   pageSync = {
     groups,
-    driveGroups,
+    syncedGroups,
     run,
     control,
-    someOnDrive: computed(() => driveGroups().length > 0),
-    keysSync: computed(() => driveGroups().some((group) => group.steps().some((step) => step.id === SECRETS_STEP))),
-    sync: (asking) => (driveGroups().length > 0 ? sync.sync(asking) : Promise.resolve()),
+    syncs: computed(() => syncedGroups().length > 0),
+    keysSync: computed(() => syncedGroups().some((group) => stepsOf(group).some((step) => step.id === SECRETS_STEP))),
+    sync: (asking) => (syncedGroups().length > 0 ? sync.sync(asking) : Promise.resolve()),
+    canSyncSilently: () => syncedGroups().some((group) => (onDrive(group) ? group.store.canSyncSilently() : needsOf(group).every((need) => currentToken(need.scope) !== null))),
     running: sync.running,
     settled: sync.settled,
     allowAccess: sync.allowAccess,

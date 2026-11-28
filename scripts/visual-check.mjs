@@ -186,6 +186,8 @@
  * window closed says so beside the button. Gmail asking to slow down fails the step with one plain
  * sentence, which the Mail card says too, and the search starts a week before the newest statement on the books.
  * With no account taking the bank's statements, the Mail card says so and links to the Accounts tab.
+ * Books kept in this browser that read the bank's mail show Sync beside Export, ask Google for Gmail read alone, and file the mail
+ * with a books step that reads nothing, while Kuna settings shows the Sync and Mail cards.
  * The first run keeps an empty workbook on the fake Drive and one in this browser, goes back to the
  * step that made them, which shows them made and starts over, and offers to open the books the fake
  * Drive already holds when new books, a move from this browser or the Loans file would make a

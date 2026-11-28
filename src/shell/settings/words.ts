@@ -24,6 +24,8 @@ export const en = {
   sync: {
     title: 'Sync',
     subtitle: 'Each sync reads the books on Drive, then runs every step their settings turn on, in order.',
+    /** Beside the subtitle, or in its place, while books kept in this browser read their mail. */
+    subtitleBrowser: 'Books kept in this browser only have their mail read.',
     auto: 'Sync as the app opens',
     autoNote: 'On this device only. The app syncs as it opens and when you come back to it after ten minutes, while the Google sign-in is good. Off waits for your tap on Sync.',
     signOut: 'Sign out of Google',
@@ -108,6 +110,7 @@ export const hr: Translation<typeof en> = {
   sync: {
     title: 'Sinkronizacija',
     subtitle: 'Svaka sinkronizacija čita datoteke na Driveu, a zatim redom pokreće svaki korak koji njihove postavke uključuju.',
+    subtitleBrowser: 'Za datoteke u ovom pregledniku čita se samo pošta.',
     auto: 'Sinkroniziraj pri otvaranju',
     autoNote: 'Samo na ovom uređaju. Aplikacija se sinkronizira kad se otvori i kad joj se vratite nakon deset minuta, dok Google prijava vrijedi. Isključeno čeka da dodirnete „Sinkroniziraj”.',
     signOut: 'Odjava s Googlea',

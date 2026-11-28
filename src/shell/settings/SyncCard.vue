@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
@@ -11,9 +11,15 @@ import { signOutOfGoogle } from '../../shared/google/googleAuth'
 import AppCard from '../../shared/ui/AppCard.vue'
 import { words } from './words'
 
-/** Kuna settings: the steps of the last sync of this page, whether this device syncs by itself, and the one Google sign-in every file on Drive goes through. */
+/** Kuna settings: the steps of the last sync of this page, whether this device syncs by itself, and the one Google sign-in every sync goes through. */
 const sync = usePageSync()
 const toast = useToast()
+
+/** What a sync reads, said only for the kinds of books it runs: files on Drive, books kept in this browser, or both. */
+const subtitle = computed(() => {
+  const sources = sync.syncedGroups().map((group) => group.store.state.choice?.source)
+  return [sources.includes('drive') ? words.sync.subtitle : null, sources.includes('browser') ? words.sync.subtitleBrowser : null].filter(Boolean).join(' ')
+})
 const signingOut = ref(false)
 
 async function signOut(): Promise<void> {
@@ -25,7 +31,7 @@ async function signOut(): Promise<void> {
 </script>
 
 <template>
-  <AppCard :title="words.sync.title" :subtitle="words.sync.subtitle" data-testid="sync-card">
+  <AppCard :title="words.sync.title" :subtitle="subtitle" data-testid="sync-card">
     <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <SyncStepList :run="sync.run.value" @sync="sync.sync" />
       <USwitch :model-value="autoSyncOn" :label="words.sync.auto" :description="words.sync.autoNote" data-testid="auto-sync" @update:model-value="switchAutoSync($event)" />

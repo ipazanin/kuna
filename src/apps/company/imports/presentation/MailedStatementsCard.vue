@@ -65,7 +65,7 @@ const filed = computed(() => {
   })
 })
 
-const shows = computed(() => store.state.choice?.source === 'drive' && (outcome.value?.problem || held.value.length > 0 || filed.value.length > 0))
+const shows = computed(() => outcome.value?.problem || held.value.length > 0 || filed.value.length > 0)
 
 const summary = computed(() => {
   const count = held.value.length

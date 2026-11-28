@@ -34,6 +34,7 @@
  * a statement filed on Sync from the fake bank's mail with Undo in its step on Kuna settings and no toast, one held with 1 waiting in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
+ * books kept in this browser whose sync shows beside Export and files the bank's mail with Gmail read alone,
  * a save on the Mail card that asks for Gmail read in its own tap and syncs, Allow access whose Google window closed with why in what a screen reader hears,
  * the mail list specimen in the Company gallery, Gmail asking to slow down, and the window after mail already there,
  * Salaries with five made-up employees, its gross to net chart's tap-then-drill, the one problem's build-up and rows, the People tab and the Over time table,
@@ -107,6 +108,7 @@ import {
   heldStatementFlow,
   heldStatementFlowIn,
   mailAccessFlow,
+  browserMailFlow,
   mailFailedFlow,
   mailFiledFlow,
   mailListFlowIn,
@@ -1806,6 +1808,7 @@ async function checkWidth(session, width) {
     ['mail-nothing-new', '&fake=mail-nothing-new', mailNothingNewFlow],
     ['mail-failed', '&fake=mail-failed', mailFailedFlow],
     ['mail-access', '&fake=mail', mailAccessFlow],
+    ['mail-browser-books', '&fake=browser-mail', browserMailFlow],
     ['mail-save-asks', '&fake=mail-off', mailSaveAsksFlow],
     ['mail-plan-specimen', '', mailPlanSpecimenFlow, '#/gallery', 'Gallery', '[data-testid="gallery-mail-plan"], [data-testid="gallery-mail-stopped"]'],
     ['mail-rate-limited', '&fake=mail-rate-limited', mailRateLimitedFlow],

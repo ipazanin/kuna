@@ -152,7 +152,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A control that cannot be pressed fades by half: a `UButton`, a `USwitch` with its label and a select through their themes in `vite.config.ts`, and a native button, such as a `ListRow` that cannot be picked or a plan row the scenario sets, through `app.css`. A loading control keeps its full colour, and the saving flows fail a saving switch or select that fades. The visual check fails a disabled control at full colour.
 - A phone shows no tooltip, so a control disabled for a reason the screen does not already show says why in a `type-caption` line under it, tied to it by `aria-describedby`, as a recipe's only kind says it cannot be removed.
 - A sheet that rises from the bottom is `.phone-sheet`. The navigation drawer is `.phone-drawer`. Both clear the safe areas.
-- The top bar's one action, Sync or Export, uses `.top-bar-action`.
+- The top bar's action, Sync or Export, uses `.top-bar-action`. While books kept in this browser read their mail, Export sits beside Sync as its icon alone, with its name as a tooltip and its reminder dot, so the screen's name keeps its room.
 - Check Croatian copy at 360 px. Croatian labels run a third longer.
 
 ## First run

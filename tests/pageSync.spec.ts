@@ -37,6 +37,26 @@ function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly 
   return { app, state }
 }
 
+/** A step of the books on screen, on unless `on` says otherwise, that needs these scopes. */
+function stepOf(id: string, scopes: readonly GoogleScope[], needsNoDrive: boolean, on = true, ran: string[] = []): SyncStep {
+  return {
+    id,
+    label: id,
+    scopes: () => scopes,
+    startLine: '',
+    on: () => on,
+    needsNoDrive,
+    run: async () => {
+      ran.push(id)
+      return { kind: 'done', line: '', writeId: null, link: null }
+    },
+  }
+}
+
+const ratesStep = stepOf('rates', ['drive.file'], false)
+const keysStep = stepOf('secrets', ['drive.appdata'], false)
+const mailStep = stepOf('mail', ['gmail.readonly'], true)
+
 beforeEach(() => {
   localStorage.clear()
 })
@@ -54,16 +74,26 @@ describe('the scopes the page token carries', () => {
     expect(loadNeededScopes()).toEqual(['drive.file', 'drive.appdata', 'gmail.readonly', 'gmail.compose'])
   })
 
-  it('leaves out an app whose file is kept in this browser', async () => {
-    const company = appOf('company', 'drive', ['drive.appdata'])
-    const loans = appOf('loans', 'browser', ['gmail.compose'])
-    company.state.workbook = {}
+  it('takes from books kept in this browser only the scopes of the steps that need no Drive, so neither their file nor their keys or rates', async () => {
+    const loans = appOf('loans', 'drive', ['drive.appdata'])
+    const company = appOf('company', 'browser', ['drive.appdata', 'gmail.compose'], null, [ratesStep, keysStep, mailStep])
     loans.state.workbook = {}
+    company.state.workbook = {}
 
-    startPageSync([company.app, loans.app])
+    startPageSync([loans.app, company.app])
     await nextTick()
 
-    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.appdata'])
+    expect(loadNeededScopes()).toEqual(['drive.file', 'drive.appdata', 'gmail.readonly'])
+  })
+
+  it('asks for Gmail read alone while the only books are kept in this browser and read the mail', async () => {
+    const company = appOf('company', 'browser', [], null, [ratesStep, keysStep, mailStep])
+    company.state.workbook = {}
+
+    startPageSync([company.app])
+    await nextTick()
+
+    expect(loadNeededScopes()).toEqual(['gmail.readonly'])
   })
 
   it('waits until every app on Drive has its books on screen, so a file still opening leaves no scope out', async () => {
@@ -114,26 +144,73 @@ describe('a file in the bin or gone', () => {
 })
 
 describe('whether a sync carries the keys', () => {
-  const keysStep = { id: 'secrets' } as unknown as SyncStep
-
   it('holds only while an app with a file on Drive lists the Keys step, as Loans and Assets do not', () => {
     const loans = appOf('loans', 'drive', [])
     const company = appOf('company', 'browser', [], undefined, [keysStep])
+    company.state.workbook = {}
     const page = startPageSync([loans.app, company.app])
-    expect(page.someOnDrive.value).toBe(true)
     expect(page.keysSync.value).toBe(false)
     company.state.choice = { source: 'drive', id: 'company-file', name: 'kuna-company.json' }
     expect(page.keysSync.value).toBe(true)
   })
 })
 
-describe('whether some file is on Drive', () => {
-  it('holds while any app has its file there, so a browser-kept file does not hide where the keys go', () => {
-    const company = appOf('company', 'drive', [])
-    const investments = appOf('investments', 'browser', [])
-    const page = startPageSync([company.app, investments.app])
-    expect(page.someOnDrive.value).toBe(true)
-    company.state.choice = { source: 'browser', id: 'company-file', name: 'kuna-company.json' }
-    expect(page.someOnDrive.value).toBe(false)
+describe('which books a sync runs', () => {
+  it('runs a file on Drive, and books kept in this browser only once on screen with a step on that needs no Drive', () => {
+    const loans = appOf('loans', 'drive', [])
+    const company = appOf('company', 'browser', [], null, [ratesStep, stepOf('mail', ['gmail.readonly'], true, false)])
+    const investments = appOf('investments', 'browser', [], null, [mailStep])
+    const page = startPageSync([loans.app, company.app, investments.app])
+
+    expect(page.syncedGroups().map((group) => group.app)).toEqual(['loans'])
+    investments.state.workbook = {}
+    company.state.workbook = {}
+    expect(page.syncedGroups().map((group) => group.app)).toEqual(['loans', 'investments'])
+    loans.state.choice = { source: 'browser', id: 'loans-file', name: 'kuna-loans.json' }
+    expect(page.syncedGroups().map((group) => group.app)).toEqual(['investments'])
+    expect(page.syncs.value).toBe(true)
+    investments.state.choice = null
+    expect(page.syncs.value).toBe(false)
+  })
+
+  it('syncs books kept in this browser without a tap only while the page holds every scope their steps need, and books on Drive while their store holds a live token', () => {
+    const company = appOf('company', 'browser', [], null, [mailStep])
+    company.state.workbook = {}
+    expect(startPageSync([company.app]).canSyncSilently()).toBe(false)
+
+    const searching = appOf('company', 'browser', [], null, [stepOf('mail', [], true)])
+    searching.state.workbook = {}
+    expect(startPageSync([searching.app]).canSyncSilently()).toBe(true)
+
+    const loans = appOf('loans', 'drive', [])
+    expect(startPageSync([loans.app]).canSyncSilently()).toBe(false)
+    loans.app.syncGroup().store.canSyncSilently = () => true
+    expect(startPageSync([loans.app]).canSyncSilently()).toBe(true)
+  })
+
+  it('runs for books kept in this browser a books step that reads nothing, then only their steps that need no Drive', async () => {
+    const ran: string[] = []
+    const company = appOf('company', 'browser', [], null, [
+      stepOf('rates', ['drive.file'], false, true, ran),
+      stepOf('secrets', ['drive.appdata'], false, true, ran),
+      stepOf('mail', [], true, true, ran),
+    ])
+    let read = 0
+    company.app.syncGroup().store.sync = async () => {
+      read += 1
+    }
+    company.state.workbook = {}
+    const page = startPageSync([company.app])
+
+    await page.sync()
+
+    expect(read).toBe(0)
+    expect(ran).toEqual(['mail'])
+    // With no file on Drive to say when the books were read, the control says when the last sync ended.
+    expect(page.control.value).toEqual({ kind: 'ready', syncedAt: page.run.value?.finishedAt })
+    expect(page.run.value?.groups[0]?.steps.map((step) => [step.id, step.state])).toEqual([
+      ['books', { kind: 'done', line: 'Kept in this browser', writeId: null, link: null }],
+      ['mail', { kind: 'done', line: '', writeId: null, link: null }],
+    ])
   })
 })

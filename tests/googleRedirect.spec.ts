@@ -426,6 +426,17 @@ describe('asking in a tap', () => {
     expect(currentToken('drive.appdata')).toBe('ya29.one')
   })
 
+  it('asks for Gmail read alone while the only books the sync runs are kept in this browser, and no Drive scope', async () => {
+    configureGoogle()
+    onPhone(true)
+    needScopes(['gmail.readonly'])
+
+    void requestAccess(['gmail.readonly'], { resume: 'sync' })
+    await Promise.resolve()
+
+    expect(askLeftWith()).toMatchObject({ scopes: ['gmail.readonly'], resume: 'sync', ask: 'tap' })
+  })
+
   it('on a phone, refuses an action that could not run again instead of leaving the page', async () => {
     configureGoogle()
     onPhone(true)

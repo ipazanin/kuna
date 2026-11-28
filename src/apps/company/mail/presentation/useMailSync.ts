@@ -112,10 +112,11 @@ export function statementMailStep(writes: RecordWrites): SyncStep {
     scopes: () => mailScopes(store.state.workbook),
     startLine: words.step.searching,
     on: () => store.state.workbook === null || statementSearch(store.state.workbook.settings) !== null,
+    needsNoDrive: true,
     readsMail: { link: MAIL_LIST_LINK, stop },
     async run(report) {
-      const { workbook, choice } = store.state
-      if (workbook === null || choice?.source !== 'drive') {
+      const { workbook } = store.state
+      if (workbook === null) {
         return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
       }
       const search = statementSearch(workbook.settings)

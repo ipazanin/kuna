@@ -39,24 +39,26 @@ describe('startAutoSync', () => {
   type Store = AutoSyncPorts['stores'][number]
 
   /** A store with its file on Drive, or in this browser, read at `syncedAt`. */
-  function storeOf(silent: boolean, syncedAt: string | null = null, source: 'drive' | 'browser' = 'drive') {
+  function storeOf(syncedAt: string | null = null, source: 'drive' | 'browser' = 'drive') {
     const state: { status: WorkbookStatus; syncedAt: string | null; choice: { source: 'drive' | 'browser'; id: string; name: string } } = {
       status: 'ready',
       syncedAt,
       choice: { source, id: 'file', name: 'kuna.json' },
     }
-    return { state, store: { state: state as unknown as Store['state'], open: async () => {}, canSyncSilently: () => silent && source === 'drive' } }
+    return { state, store: { state: state as unknown as Store['state'], open: async () => {} } }
   }
 
   function harness(silent: boolean, switchedOn = true) {
     let now = NOW
     let showPage: () => void = () => {}
-    const { state, store } = storeOf(silent)
+    const { state, store } = storeOf()
     const sync = vi.fn(async () => {
       state.syncedAt = new Date(now).toISOString()
     })
     const ports: AutoSyncPorts = {
       stores: [store],
+      synced: () => [store],
+      canSyncSilently: () => silent,
       sync,
       switchedOn: () => switchedOn,
       now: () => now,
@@ -128,17 +130,18 @@ describe('startAutoSync', () => {
     expect(sync).toHaveBeenCalledTimes(1)
   })
 
-  it('syncs once the oldest read among the files on Drive is due, and leaves a file kept in this browser out', async () => {
+  it('syncs once the oldest read among the files on Drive is due, which the last change of books kept in this browser leaves alone', async () => {
     const at = (minutesAgo: number) => new Date(NOW - minutesAgo * MINUTE).toISOString()
     const syncsOf = async (stores: readonly Store[]) => {
       const sync = vi.fn(async () => {})
-      const stop = startAutoSync({ stores, sync, switchedOn: () => true, now: () => NOW, online: () => true, onVisible: () => () => {} })
+      const stop = startAutoSync({ stores, synced: () => stores, canSyncSilently: () => true, sync, switchedOn: () => true, now: () => NOW, online: () => true, onVisible: () => () => {} })
       await new Promise((resolve) => setTimeout(resolve, 0))
       stop()
       return sync.mock.calls.length
     }
 
-    expect(await syncsOf([storeOf(true, at(2)).store, storeOf(true, at(30)).store])).toBe(1)
-    expect(await syncsOf([storeOf(true, at(2)).store, storeOf(true, at(30), 'browser').store])).toBe(0)
+    expect(await syncsOf([storeOf(at(2)).store, storeOf(at(30)).store])).toBe(1)
+    expect(await syncsOf([storeOf(at(2)).store, storeOf(at(30), 'browser').store])).toBe(0)
+    expect(await syncsOf([storeOf(at(2), 'browser').store])).toBe(1)
   })
 })

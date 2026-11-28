@@ -19,7 +19,7 @@ const BANK = 'statements@bank.example.com'
 
 const SUBJECT = 'Izvadak'
 
-/** The rows the fake books on Drive hold for the bank's mail, as the person would type them on Settings, General. `?fake=mail-off` leaves them out. */
+/** The rows the fake books on Drive, and the workbook `?fake=browser-mail` keeps in this browser, hold for the bank's mail, as the person would type them on Settings, General. `?fake=mail-off` leaves them out. */
 export const FAKE_MAIL_SETTINGS: readonly { readonly key: string; readonly value: string }[] = [
   { key: 'statements_mail_from', value: BANK },
   { key: 'statements_mail_subject', value: SUBJECT },
@@ -27,7 +27,7 @@ export const FAKE_MAIL_SETTINGS: readonly { readonly key: string; readonly value
 
 /** Whether the bank still mails statements the books lack in a variant, so the main account takes the mail on every day from its first. */
 export function bankStillMails(variant: string | null): boolean {
-  return variant?.startsWith('mail') === true || variant === 'held-statement'
+  return variant?.startsWith('mail') === true || variant === 'held-statement' || variant === 'browser-mail'
 }
 
 /** An IBAN no account of the fake workbook holds, so its statement waits for the person to add the account. */
