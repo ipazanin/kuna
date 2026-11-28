@@ -318,7 +318,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
     </AppCard>
 
     <AppCard v-if="taxes.ring.parts.length === 0" :title="words.byType.title" :subtitle="taxes.period">
-      <p class="px-5 py-8 type-aside">{{ words.byType.noneIn(year) }}</p>
+      <EmptyState line :title="words.byType.noneIn(year)" />
     </AppCard>
     <DonutCard
       v-else
@@ -348,11 +348,11 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
     </DonutCard>
 
     <DrillChartCard
+      v-if="!taxes.empty"
       :chart="taxes.chart"
       :title="words.byType.byMonth"
       :subtitle="words.byType.byMonthSubtitle(taxes.period)"
       :definition="words.byType.byMonthDefinition"
-      :empty="taxes.empty"
       :height="320"
       :phone-height="260"
       collapse-id="year.tax-months"

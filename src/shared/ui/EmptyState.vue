@@ -35,11 +35,12 @@ defineProps<
 </script>
 
 <template>
-  <p v-if="line" class="px-4 pt-3 pb-4 type-aside sm:px-5">
+  <p v-if="line" class="px-4 pt-3 pb-4 type-aside sm:px-5" data-empty-state>
     <slot>{{ title }}</slot>
   </p>
   <UEmpty
     v-else
+    data-empty-state
     :icon="tone === 'error' ? TONE_ICONS.error : icon"
     :title="title"
     v-bind="description === undefined ? {} : { description }"

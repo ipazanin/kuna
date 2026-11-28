@@ -77,7 +77,7 @@ function changeText(change: CostChange | null): string {
 <template>
   <AppCard :title="words.costs.title" :subtitle="subtitle" :definition="definition" collapse-id="analysis.categories" :summary="summary" data-testid="cost-by-category">
     <template #header>
-      <ChartLegend v-if="legend.length > 0" :entries="legend" />
+      <ChartLegend v-if="legend.length > 0 && sections.length > 0" :entries="legend" />
     </template>
 
     <EmptyState v-if="sections.length === 0" line :title="words.costs.nothingSpentSentence" />

@@ -31,7 +31,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 type-caption">
+  <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 type-caption" data-chart-legend>
     <li v-for="entry in entries" :key="entry.label" class="inline-flex items-center">
       <button v-if="toggleable" type="button" class="legend-toggle inline-flex items-center gap-1.5" :aria-pressed="!hidden.includes(entry.label)" @click="emit('toggle', entry.label)">
         <span class="swatch" :class="`swatch-${entry.mark ?? 'bar'}`" :style="{ '--swatch': entry.colour }" aria-hidden="true" />

@@ -238,7 +238,7 @@ function valueOf(point: unknown): number | null {
     </template>
 
     <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px`, maxHeight: `${Math.max(plotHeight, TALLEST_STRETCH)}px` }">
-      <UEmpty v-if="empty && !loading" icon="i-lucide-chart-no-axes-column" :title="emptyTitle" :description="emptyDescription" variant="naked" size="sm" class="h-full" />
+      <UEmpty v-if="empty && !loading" data-empty-state icon="i-lucide-chart-no-axes-column" :title="emptyTitle" :description="emptyDescription" variant="naked" size="sm" class="h-full" />
       <FigureTable v-else-if="showTable" class="h-full overflow-auto" data-testid="chart-table">
         <slot name="table">
           <caption class="sr-only">

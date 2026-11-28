@@ -30,7 +30,7 @@ import { words } from './words'
 import { ZERO } from '../../../../shared/money/money'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
-/** Where the money goes in the period: cost by category and who the company paid most. */
+/** Where the money goes in the period: cost by category and who the company paid most. A period with no costs shows only the empty cost card. */
 const ledger = useFilteredLedger()
 const settings = useSettings()
 const { drillLocation } = useFilters()
@@ -104,7 +104,15 @@ const spending = computed(() => {
       :compared="spending.priorLabel !== null"
     />
 
-    <AppCard :title="words.breakdown.payees" :subtitle="words.breakdown.payeesSubtitle" collapse-id="analysis.payees" :summary="spending.payeesSummary" start-collapsed data-testid="top-payees">
+    <AppCard
+      v-if="spending.sections.length > 0"
+      :title="words.breakdown.payees"
+      :subtitle="words.breakdown.payeesSubtitle"
+      collapse-id="analysis.payees"
+      :summary="spending.payeesSummary"
+      start-collapsed
+      data-testid="top-payees"
+    >
       <EmptyState v-if="spending.payees.length === 0" line :title="words.breakdown.nothingLeftSentence" />
       <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
         <thead>

@@ -17,7 +17,7 @@
  * inside the ring's hole with 2 px to spare. In a titled card a table's first cell that shows starts its text where the
  * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
  * a DrillLink wears the colour of the text class it is given, a row that opens a page has its arrow on its title's first line, and
- * a list where only some rows open a page ends every amount at one edge.
+ * a list where only some rows open a page ends every amount at one edge. No card shows a legend beside its empty state.
  * A table row that opens its record shows the pointer, and a press on any of its cells without a control of its own reaches the row.
  * On Company's, Spending's and Investments' Overview, Spending's Accounts, an account's page, Entries, its To review tab and a payee's page up to 1440 px, every list row's figure starts within 40rem of its name,
  * and a row of a table under a column heading passes. At 1024, 1440 and 1920 px no row of a dashboard grid leaves more than 16 px empty.
@@ -453,6 +453,7 @@ function readPage(page) {
       offsetTables: offsetTables(),
       phoneHeaderActions: phoneHeaderActions(),
       wideLoneCards: wideLoneCards(),
+      legendsOverEmpty: legendsOverEmpty(),
       drillLinksOffColour: drillLinksOffColour(),
       misplacedRowArrows: misplacedRowArrows(),
       recordRowsMissed: recordRowsMissed(),
@@ -461,7 +462,9 @@ function readPage(page) {
       farRowFigures: farRowFigures(),
     }
 
-    const titleOf = (card) => (card.querySelector(':scope > header :is(h1, h2, h3)')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48)
+    function titleOf(card) {
+      return (card.querySelector(':scope > header :is(h1, h2, h3)')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48)
+    }
 
     /**
      * Tables straight in a titled card's body whose first cell that shows, in the head and in the body's first row, does
@@ -514,6 +517,17 @@ function readPage(page) {
         if (shown.length !== 1 || !card.matches('[data-app-card]') || card.querySelector('table, canvas') !== null) continue
         const width = card.getBoundingClientRect().width
         if (width > measure + 1) found.push(`"${titleOf(card)}", the one card of its tab, is ${Math.round(width)} px wide, past the 42rem measure`)
+      }
+      return found
+    }
+
+    /** A card that only says it is empty has nothing for a legend to explain, so a legend beside its empty state fails. */
+    function legendsOverEmpty() {
+      const shown = (element) => element.getClientRects().length > 0
+      const found = []
+      for (const card of document.querySelectorAll('[data-app-card]')) {
+        const own = (selector) => [...card.querySelectorAll(selector)].filter((element) => element.closest('[data-app-card]') === card && shown(element))
+        if (own('[data-chart-legend]').length > 0 && own('[data-empty-state]').length > 0) found.push(`"${titleOf(card)}" shows a legend over its empty state`)
       }
       return found
     }
@@ -1187,7 +1201,15 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => 
         if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
         for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
         for (const donut of report.crowdedDonuts) fail(scope, donut)
-        for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
+        for (const problem of [
+          ...report.offsetTables,
+          ...report.phoneHeaderActions,
+          ...report.wideLoneCards,
+          ...report.legendsOverEmpty,
+          ...report.drillLinksOffColour,
+          ...report.misplacedRowArrows,
+          ...report.raggedRowAmounts,
+        ])
           fail(scope, problem)
         for (const problem of report.recordRowsMissed) fail(scope, problem)
         for (const problem of report.raggedRowDetails) fail(scope, problem)
@@ -1300,6 +1322,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => 
               ...report.offsetTables,
               ...report.phoneHeaderActions,
               ...report.wideLoneCards,
+              ...report.legendsOverEmpty,
               ...report.drillLinksOffColour,
               ...report.misplacedRowArrows,
               ...report.raggedRowAmounts,
