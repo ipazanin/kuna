@@ -2442,7 +2442,7 @@ async function checkWidth(session, width) {
     await inspect(page, `${width}px full grant return`)
     await shoot('google-return-full-grant')
 
-    // The same with Drive read and Gmail read unticked: the books sync, and the control asks for Gmail read for the statement mail step.
+    // The same with the app's hidden folder and Gmail read unticked: the books sync, both are noted as not granted, and the control asks for Gmail read for the statement mail step.
     await comeBack('drive', tapAsk, tokenOf(scopeOf('drive.file', 'gmail.compose')))
     await waitForTitle(page, 'Transactions')
     await syncStarted('a partial grant')
@@ -2451,8 +2451,8 @@ async function checkWidth(session, width) {
     if (!partial.name.includes('Statement mail needs your Gmail read access')) throw new Error(`after a partial grant a screen reader hears "${partial.name}"`)
     await expect(
       granted(),
-      (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.appdata', 'gmail.compose', 'script.external_request']),
-      'the partial grant was not noted without Drive read',
+      (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'gmail.compose', 'script.external_request']),
+      'the partial grant was not noted without the unticked scopes',
     )
     await expect(noMessage(), (none) => none, 'the partial grant showed a message')
     await inspect(page, `${width}px partial grant return`)
