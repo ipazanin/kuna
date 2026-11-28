@@ -28,7 +28,7 @@ import { TRANSFER_CODEC } from '../../workbook/domain/transferReading'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, addDecimal, decimalOfText, decimalText, magnitude, negateDecimal, scaledDecimal, subtractDecimal, sumDecimal, timesDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ONE, DECIMAL_ZERO, addDecimal, decimalOfText, decimalText, magnitude, negateDecimal, scaledDecimal, subtractDecimal, sumDecimal, timesDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -39,7 +39,6 @@ import { fold } from '../../../../shared/text/fold'
 const CENT_PLACES = 2
 /** A net cash may itself be rounded to the cent. */
 const HALF_CENT = decimalOfText('0.005')!
-const ONE = decimalOfText('1')!
 const CASH_KINDS: Partial<Record<WorkbookRow['type'], CashMovementKind>> = { DEPOSIT: 'deposit', WITHDRAWAL: 'withdrawal', FEE: 'fee', 'FEE REFUND': 'fee-refund' }
 const PAID_IN: ReadonlySet<CashMovementKind> = new Set(['deposit', 'fee-refund'])
 
@@ -272,7 +271,7 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
 /** Half a unit of the price's last decimal place, taking a price as rounded to the cent at the coarsest. */
 function halfStepOf(price: Decimal): Decimal {
   const places = Math.max(decimalText(price).split('.')[1]?.length ?? 0, CENT_PLACES)
-  return scaledDecimal(ONE, 1n, 2n * 10n ** BigInt(places))
+  return scaledDecimal(DECIMAL_ONE, 1n, 2n * 10n ** BigInt(places))
 }
 
 /**

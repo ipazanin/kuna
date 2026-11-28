@@ -15,6 +15,7 @@ const STEPS_PER_UNIT = 10n ** BigInt(PLACES)
 const STEPS_PER_CENT = STEPS_PER_UNIT / 100n
 
 export const DECIMAL_ZERO = 0n as Decimal
+export const DECIMAL_ONE = STEPS_PER_UNIT as Decimal
 
 const STORED_TEXT = /^(-?)(\d+)(?:\.(\d{1,12}))?$/
 const TYPED_TEXT = /^(\d+)(?:[.,](\d{1,12}))?$/

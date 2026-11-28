@@ -2,7 +2,7 @@ import { civilDateFromSerial, parseCivilDate } from '../../../../shared/calendar
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, decimalOfNumber, decimalOfText, decimalText, dividedDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ONE, DECIMAL_ZERO, decimalOfNumber, decimalOfText, decimalText, dividedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 import { cellText } from '../../../../shared/text/cellText'
@@ -302,7 +302,6 @@ function rowOf(fileRow: number, cellAt: (column: WorkbookColumn | OptionalColumn
 }
 
 const HUNDRED = decimalOfText('100')!
-const ONE = decimalOfText('1')!
 
 /**
  * A cost share as a fraction. A number from 1 up, and any number with a percent sign, is a percent. A number above 0
@@ -316,11 +315,11 @@ function costShareOf(cell: WorkbookCell | undefined): { readonly costShare: Deci
   if (value === null) {
     return { costShare: null, costShareUnclear: null }
   }
-  if (!percentSign && value > DECIMAL_ZERO && value < ONE) {
+  if (!percentSign && value > DECIMAL_ZERO && value < DECIMAL_ONE) {
     return { costShare: null, costShareUnclear: value }
   }
   const share = dividedDecimal(value, HUNDRED)
-  return { costShare: share > DECIMAL_ZERO && share < ONE ? share : null, costShareUnclear: null }
+  return { costShare: share > DECIMAL_ZERO && share < DECIMAL_ONE ? share : null, costShareUnclear: null }
 }
 
 function dateOf(cell: WorkbookCell | undefined): CivilDate {

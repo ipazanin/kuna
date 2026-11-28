@@ -2,7 +2,7 @@ import { decimalField, importKeysOf, importKeysText, namedInstrument, positiveDe
 import { INSTRUMENT_RECORDS, SPIN_OFF_RECORDS } from './investmentKinds'
 import type { SpinOff } from './spinOff'
 import { words } from './words'
-import { DECIMAL_ZERO, decimalOfText } from '../../../../shared/money/decimal'
+import { DECIMAL_ONE, DECIMAL_ZERO } from '../../../../shared/money/decimal'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
@@ -11,14 +11,12 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, refuse, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 
-const WHOLE_COST = decimalOfText('1')!
-
 export function spinOffOf(fields: StoredFields, id: RecordId | null): SpinOff {
   const instrument = namedInstrument(fields, 'instrument')
   const received = namedInstrument(fields, 'received')
   if (instrument === received) refuse(words.sameInstruments)
   const costShare = requiredDecimal(fields, 'cost_share')
-  if (costShare < DECIMAL_ZERO || costShare > WHOLE_COST) refuse(words.costShareOutside(textOf(fields.cost_share)))
+  if (costShare < DECIMAL_ZERO || costShare > DECIMAL_ONE) refuse(words.costShareOutside(textOf(fields.cost_share)))
   return {
     id: ownId(id),
     instrument,

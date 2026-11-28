@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  DECIMAL_ONE,
+  DECIMAL_ZERO,
   decimalOfMoney,
   decimalOfNumber,
   decimalOfText,
@@ -27,6 +29,12 @@ function decimal(text: string): Decimal {
 }
 
 describe('decimal text', () => {
+  it('holds zero and one as the stored text 0 and 1', () => {
+    expect(DECIMAL_ZERO).toBe(decimal('0'))
+    expect(DECIMAL_ONE).toBe(decimal('1'))
+    expect(decimalText(DECIMAL_ONE)).toBe('1')
+  })
+
   it('reads stored text and writes it back in its shortest form', () => {
     for (const text of ['0', '100', '0.00841', '-3.5', '190.5', '1234567.123456789012', '-0.000000000001']) {
       expect(decimalText(decimal(text))).toBe(text)

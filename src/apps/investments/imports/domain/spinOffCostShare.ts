@@ -5,11 +5,9 @@ import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { CloseRow } from '../../prices/domain/pricesFile'
 import { addDays, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { DECIMAL_ZERO, addDecimal, decimalOfText, dividedDecimal, sumDecimal, timesDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ONE, DECIMAL_ZERO, addDecimal, decimalOfText, dividedDecimal, sumDecimal, timesDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-
-const ONE = decimalOfText('1')!
 
 /**
  * The fraction of a parent's cost that a spin-off's units carry: their worth at the row's price over the cost of the
@@ -23,7 +21,7 @@ export function proposedCostShare(planned: InvestmentBook, parent: RecordId, que
     return null
   }
   const share = dividedDecimal(question.worth, cost)
-  return share > DECIMAL_ZERO && share < ONE ? share : null
+  return share > DECIMAL_ZERO && share < DECIMAL_ONE ? share : null
 }
 
 /** A spin-off's cost share by market value, and the day of the two closes it comes from. */
@@ -61,5 +59,5 @@ export function costShareFromCloses(
   const receivedWorth = timesDecimal(question.quantity, decimalOfText(received[1])!)
   const total = addDecimal(receivedWorth, timesDecimal(parentUnits, decimalOfText(parentCloseOn.get(received[0])!)!))
   const share = total <= DECIMAL_ZERO ? DECIMAL_ZERO : dividedDecimal(receivedWorth, total)
-  return share > DECIMAL_ZERO && share < ONE ? { share, day: parseCivilDate(received[0])! } : null
+  return share > DECIMAL_ZERO && share < DECIMAL_ONE ? { share, day: parseCivilDate(received[0])! } : null
 }
