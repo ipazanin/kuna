@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** One row of a list: what it is, its amount in a column of its own beside the title, and the lines under it running on under the amount. A row that asks something of a person offers its actions underneath, and a row that opens a page ends with an arrow on the title's line. In a `row-list` with such a row, a row that opens nothing leaves the arrow's column empty. While rows are being picked, the row is a checkbox as a whole and hides its actions and its trailing control. */
+/** One row of a list: what it is, its amount in a column of its own beside the title, and the lines under it running on under the amount. A row that asks something of a person offers its actions underneath, a control that acts on the row's words, such as Copy, sits beside them, and a row that opens a page ends with an arrow on the title's line. In a `row-list` with such a row, a row that opens nothing leaves the arrow's column empty. While rows are being picked, the row is a checkbox as a whole and hides its actions and its trailing control. */
 import { computed } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -47,13 +47,13 @@ type RowProps = {
 
 const props = withDefaults(defineProps<RowProps>(), { caption: '', quiet: false, flush: false, nested: false, opens: false, picked: null, unpickable: false })
 const emit = defineEmits<{ pick: []; open: [] }>()
-defineSlots<{
+const slots = defineSlots<{
   caption?: () => unknown
   details?: () => unknown
   amount?: () => unknown
   /** A dot-sized mark before the title on its first line, such as a category's dot. */
   lead?: () => unknown
-  /** A control at the end of a row that `opens`, beside the part a tap opens, such as an entry's receipt camera. */
+  /** A control at the end of the row, beside its words: on the title's line in a row that `opens`, such as an entry's receipt camera, and centred against the words in a plain row, such as a Copy button beside a value. A row that opens a page or is a button takes none. */
   trailing?: () => unknown
   default?: () => unknown
 }>()
@@ -69,6 +69,11 @@ const gutter = computed(() => {
 })
 const height = computed(() => (props.nested ? 'py-1.5' : 'py-3'))
 const titleLook = computed(() => (props.nested ? 'type-caption' : props.quiet ? 'type-aside' : 'type-row-title'))
+
+/** Whether the row draws a trailing control, which a link or a button row cannot hold and picking hides. A function, since a slot's presence is not reactive. */
+function trails(): boolean {
+  return slots.trailing !== undefined && props.to === undefined && props.as !== 'button' && !picking.value
+}
 
 function press(): void {
   if (picking.value) {
@@ -89,7 +94,7 @@ function press(): void {
       { 'transition-colors not-data-chat-tagged:hover:bg-elevated': opens && !picking },
     ]"
   >
-    <span :class="pressable ? 'list-row-frame flex min-w-0 flex-1 items-start' : 'contents'">
+    <span :class="pressable ? 'list-row-frame flex min-w-0 flex-1 items-start' : trails() ? 'list-row-frame flex min-w-0 items-center gap-3' : 'contents'">
       <component
         :is="pressable ? 'button' : 'span'"
         v-bind="
@@ -103,7 +108,7 @@ function press(): void {
         "
         class="flex items-start gap-3"
         :class="[
-          pressable ? ['focus-inset min-w-0 flex-1 text-start', height, gutter] : to === undefined ? '' : 'min-w-0 flex-1',
+          pressable ? ['focus-inset min-w-0 flex-1 text-start', height, gutter] : to !== undefined || trails() ? 'min-w-0 flex-1' : '',
           { 'transition-colors not-disabled:hover:bg-elevated disabled:cursor-not-allowed max-sm:min-h-11': picking },
         ]"
         @click="pressable && press()"
@@ -125,7 +130,7 @@ function press(): void {
           </span>
         </span>
       </component>
-      <span v-if="$slots.trailing && opens && !picking" class="me-2 flex shrink-0 items-center empty:hidden sm:me-3" :class="{ 'mt-3 h-5': !nested }">
+      <span v-if="trails()" class="flex shrink-0 items-center empty:hidden" :class="pressable ? ['me-2 sm:me-3', { 'mt-3 h-5': !nested }] : ''">
         <slot name="trailing" />
       </span>
     </span>

@@ -25,6 +25,11 @@ const openedInPlace = ref(0)
 function openInPlace(): void {
   openedInPlace.value += 1
 }
+const copyValues = [
+  { label: 'Name', value: 'Kuna' },
+  { label: 'Redirect address', value: 'https://books.example.org/kuna/bank-sync/return/after-login' },
+  { label: 'Privacy address', value: 'https://books.example.org/kuna/privacy.html', copied: true },
+]
 /** Where each specimen row opens, which is this specimen again. */
 const recordLink = { path: '/gallery', hash: '#record-rows' }
 
@@ -40,7 +45,7 @@ function pick(key: string): void {
   <GallerySection
     id="list-row"
     title="ListRow"
-    description="A row of a list: its title beside its amount and the lines under it running on under the amount. A row that asks something of a person has its actions underneath, and as a button it expands as a whole. With a link it opens a page and ends with an arrow on the title's line, and a caption-sized figure beside the title shares its baseline. A row that opens nothing among rows that do keeps their arrow's column empty, so the amounts end at one edge. It spans a card with the card's gutter, or sits flush inside padding of its own."
+    description="A row of a list: its title beside its amount and the lines under it running on under the amount. A row that asks something of a person has its actions underneath, a control that acts on its words, such as Copy, sits beside them on the row's line, and as a button it expands as a whole. With a link it opens a page and ends with an arrow on the title's line, and a caption-sized figure beside the title shares its baseline. A row that opens nothing among rows that do keeps their arrow's column empty, so the amounts end at one edge. It spans a card with the card's gutter, or sits flush inside padding of its own."
   >
     <DashboardGrid>
       <AppCard title="Spanning a card">
@@ -133,6 +138,28 @@ function pick(key: string): void {
           </li>
         </ul>
         <p class="px-4 pb-4 type-aside sm:px-5">A tap on the words opens the row, the camera stays its own control, and every amount ends at one edge.</p>
+      </AppCard>
+      <AppCard title="Values with Copy beside them">
+        <ul class="divide-y divide-default">
+          <ListRow v-for="{ label, value, copied } in copyValues" :key="label" :title="label">
+            <template #caption>
+              <span class="font-mono wrap-anywhere">{{ value }}</span>
+            </template>
+            <template #trailing>
+              <UButton
+                class="justify-center max-sm:min-w-11 sm:min-w-24"
+                :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
+                :aria-label="copied ? `${label} copied` : `Copy ${label}`"
+                color="neutral"
+                variant="outline"
+                size="sm"
+              >
+                <span class="max-sm:sr-only">{{ copied ? 'Copied' : 'Copy' }}</span>
+              </UButton>
+            </template>
+          </ListRow>
+        </ul>
+        <p class="px-4 pb-4 type-aside sm:px-5">A long value wraps beside its button, a copied one shows a check, and on a phone the button keeps only its icon in a 44 px square.</p>
       </AppCard>
       <AppCard title="Rows being picked">
         <ul class="divide-y divide-default">

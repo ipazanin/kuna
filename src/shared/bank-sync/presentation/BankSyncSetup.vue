@@ -89,17 +89,20 @@ async function copy(id: string, value: string): Promise<void> {
           <template #caption>
             <span class="font-mono wrap-anywhere">{{ value }}</span>
           </template>
-          <UButton
-            class="self-start"
-            :label="copied === id ? words.walk.copied : words.walk.copyShort"
-            :icon="copied === id ? 'i-lucide-check' : 'i-lucide-copy'"
-            :aria-label="copied === id ? words.walk.copied : words.walk.copy(label)"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :data-testid="`spending-bank-setup-copy-${id}`"
-            @click="copy(id, value)"
-          />
+          <template #trailing>
+            <UButton
+              class="justify-center max-sm:min-w-11 sm:min-w-24"
+              :icon="copied === id ? 'i-lucide-check' : 'i-lucide-copy'"
+              :aria-label="copied === id ? words.walk.copiedField(label) : words.walk.copy(label)"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :data-testid="`spending-bank-setup-copy-${id}`"
+              @click="copy(id, value)"
+            >
+              <span class="max-sm:sr-only">{{ copied === id ? words.walk.copied : words.walk.copyShort }}</span>
+            </UButton>
+          </template>
         </ListRow>
       </ul>
       <NoteLine v-if="copyFailed" tone="error" size="body" data-testid="spending-bank-setup-copy-failed">{{ words.copyFailed }}</NoteLine>

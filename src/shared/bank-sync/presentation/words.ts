@@ -66,6 +66,7 @@ export const en = {
     copyShort: 'Copy',
     copy: (field: string) => `Copy ${field}`,
     copied: 'Copied',
+    copiedField: (field: string) => `${field} copied`,
     start: {
       title: 'Before you start',
       subtitle: 'Kuna reads your banks through an Enable Banking application of your own. Setting it up takes about half an hour.',
@@ -159,6 +160,7 @@ export const hr: Translation<typeof en> = {
     copyShort: 'Kopiraj',
     copy: (field) => `Kopiraj: ${field}`,
     copied: 'Kopirano',
+    copiedField: (field) => `Kopirano: ${field}`,
     start: {
       title: 'Prije nego što počnete',
       subtitle: 'Kuna čita vaše banke preko vaše vlastite aplikacije Enable Banking. Postavljanje traje oko pola sata.',

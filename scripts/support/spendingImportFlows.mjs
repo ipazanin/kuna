@@ -513,6 +513,32 @@ async function bankSyncSettled(page, press, selector) {
 }
 
 /**
+ * Fails unless the set-up lists five values, each with its Copy button beside it at the row's end rather than under it, and
+ * unless each row is at most 64 px tall from 640 px, or 84 px on a phone where a long address wraps to two lines.
+ */
+async function setUpValuesBesideCopy(page) {
+  const found = await page.$$eval('[data-testid="spending-bank-setup-values"] > li', (rows) => {
+    const wide = window.innerWidth >= 640
+    return rows.flatMap((row) => {
+      const box = row.getBoundingClientRect()
+      const caption = row.querySelector('.list-row-caption')?.getBoundingClientRect()
+      const button = row.querySelector('[data-testid^="spending-bank-setup-copy-"]')?.getBoundingClientRect()
+      const name = row.querySelector('.list-row-title')?.textContent ?? '?'
+      if (caption === undefined || button === undefined) return [`the set-up row "${name}" has no value or no Copy button`]
+      const problems = []
+      if (button.top >= caption.bottom) problems.push(`the Copy button of "${name}" sits under its value, not beside it`)
+      if (button.right > box.right || button.left < caption.right - 1) problems.push(`the Copy button of "${name}" is not at the row's end beside its value`)
+      const most = wide ? 64 : 84
+      if (row.clientHeight > most) problems.push(`the set-up row "${name}" is ${row.clientHeight} px tall, over ${most} px`)
+      return problems
+    })
+  })
+  const rows = await page.$$eval('[data-testid="spending-bank-setup-values"] > li', (items) => items.length)
+  if (rows !== 5) found.push(`the set-up lists ${rows} values, not 5`)
+  if (found.length > 0) throw new Error(found.join('\n'))
+}
+
+/**
  * On Settings, Bank sync with nothing set up: the set-up's four steps and no link. Walk through them, bring a made-up key
  * and Check it, which the fake twin answers with an active application and whose toast offers Undo, open Link a bank, which
  * lists the banks that take a personal login with OTP banka in beta and leaves out the one with business logins only, link
@@ -531,6 +557,7 @@ export function spendingBankSyncFlowIn(language) {
     await pressSelector(page, press, '[data-testid="spending-bank-setup-next"]')
     await page.waitForSelector('[data-testid="spending-bank-setup-values"]', { visible: true, timeout: 5_000 })
     await delay(300)
+    await setUpValuesBesideCopy(page)
     await inspect?.('the values the Enable Banking form asks for')
     await shoot('spending-bank-sync-setup-make')
     await pressSelector(page, press, '[data-testid="spending-bank-setup-next"]')
