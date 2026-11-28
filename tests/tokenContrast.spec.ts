@@ -34,7 +34,7 @@ const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
 /** The gain and loss steps, which tint a tile or a cell under a figure in ink. */
 const STEPS = ['--gain-1', '--gain-2', '--gain-3', '--loss-1', '--loss-2', '--loss-3']
 /** The families of tokens a chart paints its bars, slices, lines and dots with. */
-const CHART_MARK_FAMILY = /^--(chart|series|bucket|pay|loan|scenario|invest|net)-/
+const CHART_MARK_FAMILY = /^--(chart|series|bucket|pay|loan|scenario|invest|net|ageing)-/
 /** The chart tokens that are no mark: the surfaces, the recessive grid, axis, ghost, hatch and tooltip edge, and the inks, which carry text. */
 const NOT_CHART_MARKS = ['--chart-surface', '--chart-tooltip', '--chart-tooltip-border', '--chart-grid', '--chart-axis', '--chart-ghost', '--chart-hatch', '--chart-on-fill', ...CHART_INKS]
 

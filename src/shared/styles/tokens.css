@@ -1,7 +1,7 @@
 /*
  * Design tokens. Every colour the app paints comes from here, Nuxt UI and the ECharts theme included.
- * The chart theme reads the --chart-*, --series-*, --bucket-*, --loan-*, --gain-* and --loss-* values with getComputedStyle,
- * so those stay plain hex or rgba: a canvas cannot resolve var() or color-mix().
+ * The chart theme reads every chart family's values with getComputedStyle, so they stay plain hex or rgba:
+ * a canvas cannot resolve var() or color-mix().
  *
  * The categorical order is validated with the dataviz palette validator against --surface-raised in
  * both themes. Reordering or restepping a slot needs a new validator run.
@@ -147,12 +147,12 @@
    */
   --chart-dot: #004c6e;
 
-  /* How late money owed is, one blue from not due yet to over 90 days. Validated as an ordinal ramp against the card surface. */
-  --ageing-1: #88b1e8;
-  --ageing-2: #5b91db;
-  --ageing-3: #3a72c4;
-  --ageing-4: #2556a2;
-  --ageing-5: #163a6e;
+  /* How late money owed is, one blue from not due yet to over 90 days. Validated as an ordinal ramp against the card surface, and each step passes 3:1 on it. */
+  --ageing-1: #4e8ce6;
+  --ageing-2: #3571c9;
+  --ageing-3: #1a57ad;
+  --ageing-4: #003f8d;
+  --ageing-5: #012a63;
 
   /*
    * A gain or a loss from small to large, as the tint under a figure in ink, such as a tile or a cell.
@@ -238,11 +238,11 @@
   --chart-dot: #8ad3ff;
 
   /* On the dark card the ramp runs the other way, so the latest money is the brightest. */
-  --ageing-1: #2c5288;
-  --ageing-2: #3d6bad;
-  --ageing-3: #5389d4;
-  --ageing-4: #7ca9eb;
-  --ageing-5: #b0cdf3;
+  --ageing-1: #3673cb;
+  --ageing-2: #508de7;
+  --ageing-3: #6ea8ff;
+  --ageing-4: #9ec5fe;
+  --ageing-5: #cbe0fe;
 
   /* On the dark card the smallest step is the darkest. The largest is as light as light ink allows at 4.5:1, so the smallest sits 1.8:1 from the card and the signed figure carries the meaning. */
   --gain-1: #004c53;
