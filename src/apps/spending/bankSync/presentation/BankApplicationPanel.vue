@@ -55,7 +55,7 @@ async function getKey(): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 rounded-control border border-default px-3 py-3" data-testid="spending-bank-application">
+  <div class="flex flex-col gap-3 rounded-control border border-default px-4 py-3 sm:px-5" data-testid="spending-bank-application">
     <div class="flex flex-col gap-1">
       <p class="type-row-title" data-testid="spending-bank-application-name">{{ title }}</p>
       <p v-if="answered !== null && answered.problems.length === 0" class="type-caption">{{ bankWords.application.active }}</p>

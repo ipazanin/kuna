@@ -7,6 +7,7 @@ import type { BankSyncHost } from './bankSyncHost'
 import { useBankKey } from './useBankKey'
 import { words } from './words'
 import { bankRedirectUrl } from '../application/pageBankSync'
+import ListRow from '../../ui/ListRow.vue'
 import NoteLine from '../../ui/NoteLine.vue'
 import StepCard, { STEP_FLOW } from '../../ui/StepCard.vue'
 
@@ -84,20 +85,22 @@ async function copy(id: string, value: string): Promise<void> {
         <li v-for="line in words.walk.make.lines" :key="line">{{ line }}</li>
       </ol>
       <ul class="divide-y divide-default rounded-control border border-default" data-testid="spending-bank-setup-values">
-        <li v-for="{ id, label, value } in values" :key="id" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-          <span class="type-label w-full sm:w-40 sm:shrink-0">{{ label }}<span class="sr-only">:</span></span>
-          <span class="min-w-0 flex-1 font-mono wrap-anywhere type-caption">{{ value }}</span>
+        <ListRow v-for="{ id, label, value } in values" :key="id" :title="label">
+          <template #caption>
+            <span class="font-mono wrap-anywhere">{{ value }}</span>
+          </template>
           <UButton
+            class="self-start"
+            :label="copied === id ? words.walk.copied : words.walk.copyShort"
             :icon="copied === id ? 'i-lucide-check' : 'i-lucide-copy'"
-            :aria-label="words.walk.copy(label)"
-            :title="copied === id ? words.walk.copied : words.walk.copy(label)"
+            :aria-label="copied === id ? words.walk.copied : words.walk.copy(label)"
             color="neutral"
-            variant="ghost"
+            variant="outline"
             size="sm"
             :data-testid="`spending-bank-setup-copy-${id}`"
             @click="copy(id, value)"
           />
-        </li>
+        </ListRow>
       </ul>
       <NoteLine v-if="copyFailed" tone="error" size="body" data-testid="spending-bank-setup-copy-failed">{{ words.copyFailed }}</NoteLine>
       <template #actions>

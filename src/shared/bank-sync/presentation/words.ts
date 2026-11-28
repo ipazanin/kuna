@@ -63,6 +63,7 @@ export const en = {
   walk: {
     next: 'Next',
     done: 'Done',
+    copyShort: 'Copy',
     copy: (field: string) => `Copy ${field}`,
     copied: 'Copied',
     start: {
@@ -155,6 +156,7 @@ export const hr: Translation<typeof en> = {
   walk: {
     next: 'Dalje',
     done: 'Gotovo',
+    copyShort: 'Kopiraj',
     copy: (field) => `Kopiraj: ${field}`,
     copied: 'Kopirano',
     start: {
