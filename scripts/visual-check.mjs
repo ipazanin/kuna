@@ -20,6 +20,7 @@
  * a list where only some rows open a page ends every amount at one edge. No card shows a legend beside its empty state.
  * A table row that opens its record shows the pointer, and a press on any of its cells without a control of its own reaches the row.
  * A disabled control that is not loading fades, so none shows at full colour.
+ * Every step of a sync's step list shows its icon and its line, and no link under a step looks like a step's name.
  * On Company's, Spending's and Investments' Overview, Spending's Accounts, an account's page, Entries, its To review tab and a payee's page up to 1440 px, every list row's figure starts within 40rem of its name,
  * and a row of a table under a column heading passes. At 1024, 1440 and 1920 px no row of a dashboard grid leaves more than 16 px empty.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
@@ -457,6 +458,7 @@ function readPage(page) {
       legendsOverEmpty: legendsOverEmpty(),
       drillLinksOffColour: drillLinksOffColour(),
       misplacedRowArrows: misplacedRowArrows(),
+      stepsWithoutLine: stepsWithoutLine(),
       recordRowsMissed: recordRowsMissed(),
       fullColourDisabled: fullColourDisabled(),
       raggedRowAmounts: raggedRowAmounts(),
@@ -629,6 +631,28 @@ function readPage(page) {
         const placed = arrow.getBoundingClientRect()
         const apart = placed.top + placed.height / 2 - (firstLine.top + firstLine.height / 2)
         if (Math.abs(apart) > 2) found.push(`the arrow of the row "${title.textContent.trim().slice(0, 32)}" sits ${Math.round(apart)} px off its title's first line`)
+      }
+      return found
+    }
+
+    /**
+     * Every step of a sync's step list shows its icon and its line, and no link or button under a step wears the weight and ink of
+     * the step's name, which would read as another step with neither.
+     */
+    function stepsWithoutLine() {
+      const found = []
+      for (const row of document.querySelectorAll('[data-testid="sync-steps"] [data-step]')) {
+        if (row.getClientRects().length === 0) continue
+        const label = row.querySelector(':scope p > span')
+        const name = label?.textContent.trim() ?? ''
+        const icon = row.querySelector(':scope > svg')
+        const line = (row.querySelector(':scope p')?.textContent ?? '').replace(name, '').replace(':', '').trim()
+        if (label === null || icon === null || icon.getClientRects().length === 0 || line === '') found.push(`the step "${name}" shows without its icon or its line`)
+        if (label === null) continue
+        const look = (element) => `${getComputedStyle(element).fontWeight} ${getComputedStyle(element).color}`
+        for (const control of row.querySelectorAll('a, button')) {
+          if (look(control) === look(label)) found.push(`"${control.textContent.trim().slice(0, 32)}" under the step "${name}" reads as a step, with no icon and no line`)
+        }
       }
       return found
     }
@@ -1229,6 +1253,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => 
           ...report.legendsOverEmpty,
           ...report.drillLinksOffColour,
           ...report.misplacedRowArrows,
+          ...report.stepsWithoutLine,
           ...report.raggedRowAmounts,
         ])
           fail(scope, problem)
@@ -1347,6 +1372,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => 
               ...report.legendsOverEmpty,
               ...report.drillLinksOffColour,
               ...report.misplacedRowArrows,
+              ...report.stepsWithoutLine,
               ...report.raggedRowAmounts,
               ...report.recordRowsMissed,
               ...report.fullColourDisabled,

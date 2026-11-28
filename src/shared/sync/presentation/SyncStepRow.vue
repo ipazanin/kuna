@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import DrillLink from '../../ui/DrillLink.vue'
 import { TONE_ICONS } from '../../ui/toneText'
 import type { RunStep, StepLink, StepState } from '../application/syncRun'
 import { words as syncWords } from '../application/words'
@@ -87,7 +86,7 @@ const shownLink = computed(() => {
           data-testid="sync-step-undo"
           @click="page.undo(app, undoable)"
         />
-        <DrillLink v-if="shownLink" :to="shownLink.to" class="type-card-title">{{ shownLink.label }}</DrillLink>
+        <UButton v-if="shownLink" :to="shownLink.to" :label="shownLink.label" trailing-icon="i-lucide-arrow-right" color="neutral" variant="link" size="sm" class="px-0" />
       </div>
     </div>
   </li>

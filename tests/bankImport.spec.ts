@@ -483,7 +483,7 @@ describe('what the step says', () => {
       kind: 'done',
       line: 'Asked the banks less than six hours ago, so they are left alone for now. Kuna does not keep the account OTP banka EUR ending 0077. Bank sync can add it or leave it out.',
       writeId: null,
-      link: { label: 'Bank sync', to: '/spending/settings?tab=bank-sync' },
+      link: { label: 'Bank sync in Settings', to: '/spending/settings?tab=bank-sync' },
     })
   })
 

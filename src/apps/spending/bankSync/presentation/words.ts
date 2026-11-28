@@ -101,7 +101,7 @@ export const en = {
     start: 'Asking the banks',
     tooSoon: 'Asked the banks less than six hours ago, so they are left alone for now.',
     review: (count: number): EnglishForms => ({ one: '1 row to review', other: `${count} rows to review` }),
-    settings: 'Bank sync',
+    settings: 'Bank sync in Settings',
   },
 }
 
@@ -206,7 +206,7 @@ export const hr: Translation<typeof en> = {
     start: 'Pita banke',
     tooSoon: 'Banke su pitane prije manje od šest sati, pa ih zasad ne pita ponovno.',
     review: (count): CroatianForms => ({ one: `Za pregled: ${count}`, few: `Za pregled: ${count}`, other: `Za pregled: ${count}` }),
-    settings: 'Sinkronizacija s bankom',
+    settings: 'Sinkronizacija s bankom u postavkama',
   },
 }
 

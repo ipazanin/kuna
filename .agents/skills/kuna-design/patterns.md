@@ -143,6 +143,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Sync steps
 
 - A step that a setting turned off, such as Mail or Statements, shows in the step list as "Off in Settings". A step that is off because the file has nothing for it, such as ECB rates with no foreign account, Keys with no key in use or Bank sync with no good link, sets `leftOutWhenOff` and is not listed. Neither kind is counted in the sync control's place among the steps.
+- A step's link under its line, such as 12 rows to review or Bank sync in Settings, is a neutral link with a trailing arrow, as a card's All link is. It names where it goes, never only a step's name, and never takes the step name's weight and ink, or it reads as a step with no line. The visual check fails a link in the step name's look.
 - Do not explain why a step is not needed. Leave it out.
 
 ## Phone
