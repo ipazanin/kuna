@@ -192,7 +192,7 @@
     "src/apps/company/workbook/domain/ledgerReading.ts",
     "src/apps/company/workbook/domain/slug.ts",
     "src/apps/company/workbook/domain/splitsReading.ts",
-    "src/apps/investments/imports/domain/importDryRun.ts",
+    "src/apps/investments/imports/domain/importedRecordOf.ts",
     "src/apps/investments/mail/domain/reportRows.ts",
     "src/apps/investments/tax/domain/citySurtax.ts",
     "src/apps/investments/tax/domain/foreignIncome.ts",
@@ -240,5 +240,5 @@
     "src/shared/storage/domain/recordsRead.ts",
     "src/shared/storage/domain/storedFields.ts"
   ],
-  "longFiles": ["src/apps/company/packs/hr-doo/domain/forecast/forecastYear.ts", "src/apps/company/settings/domain/settings.ts", "src/apps/investments/imports/domain/importDryRun.ts"]
+  "longFiles": ["src/apps/company/packs/hr-doo/domain/forecast/forecastYear.ts", "src/apps/company/settings/domain/settings.ts"]
 }
