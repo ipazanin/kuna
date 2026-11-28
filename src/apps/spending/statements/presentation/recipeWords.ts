@@ -1,11 +1,5 @@
-import { STATEMENT_KINDS } from '../domain/recipeStatement'
 import type { StatementKind } from '../domain/recipeStatement'
-import { STATEMENT_RECIPE_FIELDS } from '../domain/statementRecipeDraft'
 import type { StatementRecipeField, StatementRecipeProblem } from '../domain/statementRecipeDraft'
-import type { SavedRecipe } from '../../../../shared/recipes/domain/savedRecipe'
-import { draftOfRecipe } from '../../../../shared/recipes/domain/tableRecipeDraft'
-import { dayExample } from '../../../../shared/recipes/presentation/dayExample'
-import type { DraftKind, TableRecipeDraft } from '../../../../shared/recipes/domain/tableRecipeDraft'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 
@@ -21,14 +15,6 @@ export const en = {
     'other-product': 'Rows of another product, counted',
     'not-completed': 'Declined or reverted rows, counted',
   } satisfies Record<StatementKind, string>,
-  marks: { comma: 'decimal comma', point: 'decimal point' },
-  readsFrom: (field: string, column: string) => `${field} from ${column}`,
-  dayFrom: (column: string, format: string) => `Day from ${column}, as ${format}`,
-  everyRow: (kind: string) => `${kind}: every row`,
-  whenFilled: (kind: string, column: string) => `${kind}: where ${column} is filled`,
-  whenIs: (kind: string, column: string, values: string) => `${kind}: where ${column} is ${values}`,
-  or: ' or ',
-  notEditable: 'Read as Kuna keeps it',
   dialog: {
     addTitle: 'New statement recipe',
     changeTitle: 'Statement recipe',
@@ -76,14 +62,6 @@ export const hr: Translation<typeof en> = {
     'other-product': 'Retci drugog proizvoda, prebrojeni',
     'not-completed': 'Odbijeni ili stornirani retci, prebrojeni',
   },
-  marks: { comma: 'decimalni zarez', point: 'decimalna točka' },
-  readsFrom: (field, column) => `${field} iz stupca ${column}`,
-  dayFrom: (column, format) => `Dan iz stupca ${column}, kao ${format}`,
-  everyRow: (kind) => `${kind}: svaki redak`,
-  whenFilled: (kind, column) => `${kind}: gdje je ${column} popunjen`,
-  whenIs: (kind, column, values) => `${kind}: gdje je ${column} ${values}`,
-  or: ' ili ',
-  notEditable: 'Čita se kako ga Kuna čuva',
   dialog: {
     addTitle: 'Novi recept za izvode',
     changeTitle: 'Recept za izvode',
@@ -122,29 +100,3 @@ export const hr: Translation<typeof en> = {
 }
 
 export const words = language === 'hr' ? hr : en
-
-function kindLine({ kind, test }: DraftKind): string {
-  const known = STATEMENT_KINDS.find((statementKind) => statementKind === kind)
-  const name = known === undefined ? kind : words.kinds[known]
-  if (test === null) return words.everyRow(name)
-  return 'filled' in test ? words.whenFilled(name, test.column) : words.whenIs(name, test.column, test.is.join(words.or))
-}
-
-/** A draft in plain words, a line per field it reads and per kind of row, in the order they are tried. */
-export function draftLines(draft: TableRecipeDraft): readonly string[] {
-  const amount =
-    'column' in draft.amount
-      ? [words.readsFrom(words.fields.amount, draft.amount.column)]
-      : [words.readsFrom(words.fields.debit, draft.amount.debit), words.readsFrom(words.fields.credit, draft.amount.credit)]
-  const optional = STATEMENT_RECIPE_FIELDS.optional.flatMap(({ field }) => {
-    const column = draft.columns[field]
-    return column === undefined ? [] : [words.readsFrom(words.fields[field], column)]
-  })
-  return [words.dayFrom(draft.date.column, dayExample(draft.date.format)), ...amount.map((line) => `${line}, ${words.marks[draft.mark]}`), ...optional, ...draft.kinds.map(kindLine)]
-}
-
-/** A saved recipe in plain words, as a card shows it, or the note that it reads as Kuna keeps it where no draft holds it. */
-export function recipeInWords(saved: SavedRecipe): string {
-  const draft = draftOfRecipe(saved.recipe, STATEMENT_RECIPE_FIELDS)
-  return draft === null ? words.notEditable : draftLines(draft).join(' · ')
-}

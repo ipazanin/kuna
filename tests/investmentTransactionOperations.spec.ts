@@ -19,6 +19,7 @@ import { USD, rateBookOf } from './fixtures/investments'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { storedDataOn } from './fixtures/cardValues'
 import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
@@ -63,6 +64,7 @@ describe('every Investments operation', () => {
       expect(answer.text).toContain('The card shows')
       const [card] = desk.cards
       expectCountsOfChanges(card!)
+      expect(storedDataOn(card!)).toEqual([])
       expect(card!.groups.length).toBeGreaterThan(0)
       expect(card!.groups.flatMap((group) => group.lines).every((line) => line.label !== '')).toBe(true)
       const result = await desk.accept()

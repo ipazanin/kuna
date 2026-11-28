@@ -75,6 +75,7 @@ export const en = {
       add: 'Add a later source',
       remove: 'Remove this source',
       source: (place: number) => (place === 1 ? 'Rows come in' : `Source ${place}`),
+      fromDay: (day: string) => `from ${day}`,
     },
     handover: {
       title: (count: number): EnglishForms => ({ one: `Saving takes out ${count} row`, other: `Saving takes out ${count} rows` }),
@@ -200,6 +201,7 @@ export const hr: Translation<typeof en> = {
       add: 'Dodaj kasniji izvor',
       remove: 'Ukloni ovaj izvor',
       source: (place) => (place === 1 ? 'Stavke dolaze' : `Izvor ${place}`),
+      fromDay: (day) => `od ${day}`,
     },
     handover: {
       title: (count) => ({ one: `Spremanje uklanja ${count} stavku`, few: `Spremanje uklanja ${count} stavke`, other: `Spremanje uklanja ${count} stavki` }),

@@ -41,6 +41,7 @@ import type { CompanyDesk } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { storedDataOn } from './fixtures/cardValues'
 import { exampleInput } from './fixtures/exampleInput'
 import { NO_RATES } from '../src/shared/money/rateBook'
 
@@ -129,6 +130,7 @@ describe('every Company operation', () => {
       expect(answer.isError).toBe(false)
       const [card] = desk.cards
       expectCountsOfChanges(card!)
+      expect(storedDataOn(card!)).toEqual([])
       const { changes } = (card!.held as { readonly changes?: readonly RuledChange[] }).changes === undefined ? { changes: [] } : (card!.held as { readonly changes: readonly RuledChange[] })
       const linesTaken = new Map<string, number>()
       for (const { change } of changes) {

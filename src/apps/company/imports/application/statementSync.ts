@@ -11,6 +11,7 @@ import type { MailedStatement } from './heldStatementWrites'
 import { isHeldStatement } from '../../workbook/domain/heldStatements'
 import type { HeldStatement } from '../../workbook/domain/heldStatements'
 import { companyBooksOf } from '../../workbook/domain/readWorkbook'
+import { camtStatementOf } from '../../workbook/domain/rowOrigin'
 import { words } from './words'
 import { setSettings } from '../../settings/application/settingWrites'
 import { STATEMENTS_MAIL_READ_TO_KEY } from '../../settings/domain/settings'
@@ -145,7 +146,7 @@ function recordOfNewlyHeld(reading: StatementReading, mailed: readonly MailedSta
 
 /** "Filed statement 028, 4 rows", "Filed statements 028 and 029, 5 rows", or "Filed 3 statements, 9 rows". */
 export function filedTitle(statements: readonly Pick<DryRunStatement, 'label'>[], rows: number): string {
-  const numbers = statements.map((statement) => /-statement-(\d+)$/.exec(statement.label)?.[1] ?? statement.label)
+  const numbers = statements.map((statement) => camtStatementOf(statement.label)?.sequence ?? statement.label)
   return words.sync.filed(numbers, rows)
 }
 

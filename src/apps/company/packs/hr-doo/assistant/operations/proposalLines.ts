@@ -7,9 +7,8 @@ import { words as cardWords } from '../../../../../../shared/app/words'
 import { ownerShareText } from '../../../../owner-share/domain/ownerShare'
 import { displayNamesOf } from '../../../../workbook/domain/displayName'
 import type { Workbook } from '../../../../workbook/domain/workbook'
-import { splitLedger } from '../../../../workbook/domain/splits'
 import { moneyFormatOf } from '../../../../settings/domain/settings'
-import { assetItemOf, paymentRowsOf } from '../../domain/assets/assetRegister'
+import { assetItemOf } from '../../domain/assets/assetRegister'
 import { NEW_ASSET_DEFAULTS } from '../../domain/assets/assets'
 import type { Grant, GrantClawback, GrantParts } from '../../domain/grants/grants'
 import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../../domain/hrDooKinds'
@@ -27,6 +26,7 @@ import { words as forecastWords } from '../../presentation/forecast/words'
 import { words as packWords } from '../../presentation/words'
 import { words } from '../words'
 import { TRIP_KINDS, tripFieldsInLabel, tripLabel, tripShownValue } from './tripProposalLines'
+import { paymentsOfItems } from './paymentLines'
 import { fieldNameIn } from '../../../../../../shared/app/proposalGroups'
 import type { CardField, ProposedRecord } from '../../../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
@@ -39,8 +39,6 @@ import type { MoneyFormat } from '../../../../../../shared/money/moneyFormat'
 import { writtenPercent } from '../../../../../../shared/money/percent'
 import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 import type { RecordKind } from '../../../../../../shared/storage/domain/recordKind'
-import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
-import { listInWords } from '../../../../../../shared/text/listInWords'
 
 /** The fields Kuna keeps by itself on the pack's records, which no operation sets. A plan row's kind and a scenario row's key show through other fields, so the card reads them as nothing. */
 const KEPT_FIELDS = ['id', 'ownerPart'] as const
@@ -163,20 +161,6 @@ export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
   return kind.name === ASSET_RECORDS.name ? NEW_ASSET_DEFAULTS : {}
 }
 
-/** The bank row an asset is linked to, by its day, its other side and its amount, or nothing for an asset linked to none. */
-function paymentText(workbook: Workbook, item: RecordId | null, format: MoneyFormat): string | null {
-  const row = item === null ? undefined : paymentRowsOf(item, workbook.transactions)[0]
-  if (row === undefined) return item
-  return [dayLabel(row.date), row.counterparty || row.description, formatMoney(row.amount, 'negative', format)].filter((part) => part !== '').join(', ')
-}
-
-/** The payments that paid an advance back, each by its day, its other side and its amount, and one the card's write splits off as a new part. */
-function repaidByText(workbook: Workbook, items: readonly RecordId[], format: MoneyFormat): string | null {
-  if (items.length === 0) return null
-  const listed = { ...workbook, transactions: splitLedger(workbook.transactions, workbook.splits) }
-  return listInWords(items.map((item) => (paymentRowsOf(item, listed.transactions).length === 0 ? words.proposals.newPaymentPart : (paymentText(listed, item, format) ?? item))))
-}
-
 /** A plan row's label names its item and year, so an add or a removal leaves both off its line. */
 const PLAN_IN_LABEL: ReadonlySet<string> = new Set(['year', 'item'])
 
@@ -208,8 +192,13 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
     shown: (kind, field, record) => {
-      if (isKind(kind, ASSET_RECORDS, record) && (field === 'rowId' || field === 'payment')) return paymentText(workbook, assetItemOf(record), format)
-      if (isKind(kind, OWNER_ADVANCE_RECORDS, record) && field === 'repaidBy') return repaidByText(workbook, record.repaidBy ?? [], format)
+      if (isKind(kind, ASSET_RECORDS, record) && (field === 'rowId' || field === 'payment'))
+        return paymentsOfItems(
+          workbook,
+          [assetItemOf(record)].flatMap((item) => (item === null ? [] : [item])),
+          format,
+        )
+      if (isKind(kind, OWNER_ADVANCE_RECORDS, record) && field === 'repaidBy') return paymentsOfItems(workbook, record.repaidBy ?? [], format, words.proposals.newPaymentPart)
       if (isKind(kind, OWNER_ADVANCE_RECORDS, record) && field === 'labels')
         return (record.labels ?? []).length === 0 ? null : (record.labels ?? []).map((id) => workbook.labels.find((label) => label.id === id)?.name ?? id).join(', ')
       const trip = tripShownValue(kind, field, record, format, workbook)

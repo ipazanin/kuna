@@ -52,6 +52,7 @@ import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { storedDataOn } from './fixtures/cardValues'
 import { exampleInput } from './fixtures/exampleInput'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { words as packWords } from '../src/apps/company/packs/hr-doo/assistant/words'
@@ -248,6 +249,7 @@ describe('every operation of the d.o.o. pack', () => {
       expect(answer.text).toContain('The card shows')
       const [card] = desk.cards
       expectCountsOfChanges(card!)
+      expect(storedDataOn(card!)).toEqual([])
       expect(card!.undoable).toBe(true)
       for (const { shown, set } of fieldsOnCard(card!)) expect(shown).toEqual(expect.arrayContaining([...set]))
       const accepted = await desk.accept()

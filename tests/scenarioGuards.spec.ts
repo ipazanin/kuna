@@ -33,14 +33,14 @@ describe('scenarioGuards', () => {
 
   it('refuses two rows of one component on the same day', () => {
     expect(reasons([FLOOR, { component: 'salary_gross', gross: euros(2000), from: '2027-07-01' }])).toEqual([
-      'The floor salary and the salary of 2000.00 from 2027-07-01 both set the salary on 2027-07-01.',
+      'The floor salary and the salary of €2,000.00 from 1 Jul 2027 both set the salary on 1 Jul 2027.',
     ])
     expect(
       reasons([
         { component: 'rent_monthly', amount: euros(250), to: '2027-03-31' },
         { component: 'rent_monthly', amount: euros(300), from: '2027-03-31' },
       ]),
-    ).toEqual(['The rent of 250.00 to 2027-03-31 and the rent of 300.00 from 2027-03-31 both set the rent on 2027-03-31.'])
+    ).toEqual(['The rent of €250.00 to 31 Mar 2027 and the rent of €300.00 from 31 Mar 2027 both set the rent on 31 Mar 2027.'])
   })
 
   it('refuses two salaries in one month', () => {
@@ -49,7 +49,7 @@ describe('scenarioGuards', () => {
         { ...FLOOR, to: '2027-06-15' },
         { component: 'salary_gross', gross: euros(2000), from: '2027-06-16' },
       ]),
-    ).toEqual(['The floor salary to 2027-06-15 and the salary of 2000.00 from 2027-06-16 both pay a salary in 2027-06. A salary can change only from the first of a month.'])
+    ).toEqual(['The floor salary to 15 Jun 2027 and the salary of €2,000.00 from 16 Jun 2027 both pay a salary in Jun 2027. A salary can change only from the first of a month.'])
   })
 
   it('refuses a second dividend', () => {
@@ -60,14 +60,14 @@ describe('scenarioGuards', () => {
 
   it('refuses an insurance basis the salary contradicts', () => {
     expect(reasons([FLOOR, { component: 'director_basis', basis: 'board-only', from: '2027-11-01' }])).toEqual([
-      'The board-only director basis from 2027-11-01 holds on 2027-11-01, a day the floor salary pays. A director paid a salary is insured as an employee.',
+      'The board-only director basis from 1 Nov 2027 holds on 1 Nov 2027, a day the floor salary pays. A director paid a salary is insured as an employee.',
     ])
     expect(
       reasons([
         { ...FLOOR, to: '2027-06-30' },
         { component: 'director_basis', basis: 'employee' },
       ]),
-    ).toEqual(['The employee director basis makes the director an employee on 2027-07-01, a day no salary row covers. Add the salary, or end the row earlier.'])
+    ).toEqual(['The employee director basis makes the director an employee on 1 Jul 2027, a day no salary row covers. Add the salary, or end the row earlier.'])
   })
 
   it('refuses a tax-free item the ruleset does not cap by the year', () => {
@@ -87,6 +87,6 @@ describe('scenarioGuards', () => {
         { ...FLOOR, to: '2027-06-30' },
         { component: 'nontaxable', item: 'occasional-gift', amount: euros(700), from: '2027-12-01' },
       ]),
-    ).toEqual(['The item occasional-gift is paid in 2027-12, a month with no salary. A tax-free payment goes only to an employee.'])
+    ).toEqual(['The item occasional-gift is paid in Dec 2027, a month with no salary. A tax-free payment goes only to an employee.'])
   })
 })

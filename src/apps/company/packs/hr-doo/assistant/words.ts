@@ -23,6 +23,7 @@ export const en = {
     period: (from: string, to: string) => `${from} to ${to}`,
     whole: 'the whole grant',
     newPaymentPart: 'a new part of a payment to the owner',
+    paymentGone: 'a payment the ledger no longer holds',
     fields: {
       date: 'Date',
       amount: 'Amount',
@@ -144,6 +145,7 @@ export const hr: Translation<typeof en> = {
     period: (from, to) => `${from} do ${to}`,
     whole: 'cijela potpora',
     newPaymentPart: 'novi dio isplate vlasniku',
+    paymentGone: 'isplata koja više nije u evidenciji',
     fields: {
       date: 'Datum',
       amount: 'Iznos',

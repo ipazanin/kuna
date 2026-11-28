@@ -119,6 +119,7 @@ export const en = {
       unreadable: 'Kuna cannot keep the recipe as written. Check its columns and kinds.',
     } satisfies Record<TableRecipeProblem['kind'], string>,
   },
+  statementOn: (sequence: string, day: string) => `Statement ${sequence} of ${day}`,
   mailed: {
     title: "From the bank's mail",
     subtitle: "Each sync reads the bank's statement mail and files the statements the ledger lacks.",
@@ -272,6 +273,7 @@ export const hr: Translation<typeof en> = {
       unreadable: 'Kuna ne može spremiti recept ovako napisan. Provjerite njegove stupce i vrste.',
     },
   },
+  statementOn: (sequence, day) => `Izvod ${sequence} od ${day}`,
   mailed: {
     title: 'Iz pošte banke',
     subtitle: 'Svaka sinkronizacija čita poštu banke s izvodima i upisuje izvode kojih još nema u evidenciji.',
@@ -289,7 +291,7 @@ export const hr: Translation<typeof en> = {
     confirm: 'Potvrdi i upiši',
     passOver: 'Preskoči',
     passOverNamed: (label) => `Preskoči ${label}`,
-    passedOver: (label) => `Preskočen je izvod ${label}`,
+    passedOver: (label) => `Preskočeno: ${label}`,
     notPassedOver: 'Nije preskočeno',
   },
   step: {

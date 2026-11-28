@@ -16,29 +16,31 @@ import { monthCase } from '../../../../../../shared/calendar/monthCase'
 // A director basis and a tax-free item keep their names as the scenarios tab stores them, such as board-only and occasional-gift.
 
 export const en = {
-  /** A scenario row as a guard names it, such as "the salary of 3000.00 from 2027-07-01". */
+  /** A scenario row as a guard, a dialog and a chat card name it, such as "the salary of €3,000.00 from 1 Jul 2027". */
   component: {
-    days: (from: CivilDate | null, to: CivilDate | null) => `${from === null ? '' : ` from ${from}`}${to === null ? '' : ` to ${to}`}`,
+    days: (from: CivilDate | null, to: CivilDate | null) => `${from === null ? '' : ` from ${dayLabel(from)}`}${to === null ? '' : ` to ${dayLabel(to)}`}`,
     floorSalary: (days: string) => `the floor salary${days}`,
-    salary: (amount: Money, days: string) => `the salary of ${plainAmount(amount)}${days}`,
+    salary: (amount: Money, days: string) => `the salary of ${formatMoney(amount)}${days}`,
     basis: (basis: string, days: string) => `the ${basis} director basis${days}`,
-    rent: (amount: Money, days: string) => `the rent of ${plainAmount(amount)}${days}`,
+    rent: (amount: Money, days: string) => `the rent of ${formatMoney(amount)}${days}`,
     largestDividend: 'the largest dividend',
-    dividend: (amount: Money) => `the dividend of ${plainAmount(amount)}`,
+    dividend: (amount: Money) => `the dividend of ${formatMoney(amount)}`,
     item: (item: string, days: string) => `${item}${days}`,
   },
   /** What stops a scenario from being worked out. */
   guards: {
     sameDay: (first: string, second: string, kind: 'salary_gross' | 'director_basis' | 'rent_monthly', day: CivilDate) =>
-      `${capitalised(first)} and ${second} both ${kind === 'salary_gross' ? 'set the salary' : kind === 'director_basis' ? 'set the director basis' : 'set the rent'} on ${day}.`,
-    twoSalaries: (first: string, second: string, month: MonthKey) => `${capitalised(first)} and ${second} both pay a salary in ${month}. A salary can change only from the first of a month.`,
+      `${capitalised(first)} and ${second} both ${kind === 'salary_gross' ? 'set the salary' : kind === 'director_basis' ? 'set the director basis' : 'set the rent'} on ${dayLabel(day)}.`,
+    twoSalaries: (first: string, second: string, month: MonthKey) =>
+      `${capitalised(first)} and ${second} both pay a salary in ${monthLabel(month)}. A salary can change only from the first of a month.`,
     dividends: (count: number) => `The scenario sets ${count} dividends. A scenario pays one, out of the year's profit.`,
-    employeeWithoutSalary: (basis: string, day: CivilDate) => `${capitalised(basis)} makes the director an employee on ${day}, a day no salary row covers. Add the salary, or end the row earlier.`,
-    basisWithSalary: (basis: string, day: CivilDate, salary: string) => `${capitalised(basis)} holds on ${day}, a day ${salary} pays. A director paid a salary is insured as an employee.`,
+    employeeWithoutSalary: (basis: string, day: CivilDate) =>
+      `${capitalised(basis)} makes the director an employee on ${dayLabel(day)}, a day no salary row covers. Add the salary, or end the row earlier.`,
+    basisWithSalary: (basis: string, day: CivilDate, salary: string) => `${capitalised(basis)} holds on ${dayLabel(day)}, a day ${salary} pays. A director paid a salary is insured as an employee.`,
     notListed: (year: number) => `is not a tax-free payment the ruleset lists for ${year}`,
     noYearlyCap: "has no yearly cap to check a year's amount against",
     item: (item: string, why: string, yearly: readonly string[]) => `The item ${item} ${why}. Use one with a yearly cap: ${yearly.join(', ')}.`,
-    noSalaryMonth: (item: string, month: MonthKey) => `The item ${item} is paid in ${month}, a month with no salary. A tax-free payment goes only to an employee.`,
+    noSalaryMonth: (item: string, month: MonthKey) => `The item ${item} is paid in ${monthLabel(month)}, a month with no salary. A tax-free payment goes only to an employee.`,
   },
   /** The labels of a scenario's figures, which the build-ups name. */
   outcome: {

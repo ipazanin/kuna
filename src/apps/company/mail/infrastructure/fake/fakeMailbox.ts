@@ -4,6 +4,7 @@ import { fakeMailboxOf } from '../../../../../shared/mail/infrastructure/fake/fa
 import type { FakeMail } from '../../../../../shared/mail/infrastructure/fake/fakeMail'
 import { sampleCamtLabel, sampleCamtXml } from '../../../imports/infrastructure/fake/sampleImportFiles'
 import { fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
+import { camtStatementOf } from '../../../workbook/domain/rowOrigin'
 
 /**
  * The fake build's Gmail for the bank's statement mail. The bank mails from an example.com address, and every subject and file
@@ -37,8 +38,8 @@ const SLOW_SEARCH_MS = 3_000
 /** The main account's newest statement on the fake ledger, whose PDF the bank mailed before. */
 function newestMainStatement(): { readonly day: string; readonly number: string } {
   const label = String((fakeWorkbookRecords('drive')['ledger-row'] ?? []).find((row) => row.account === 'main')?.statement ?? '')
-  const match = /^(\d{4}-\d{2}-\d{2})-statement-(\d+)$/.exec(label)
-  return { day: match?.[1] ?? '2026-10-01', number: match?.[2] ?? '001' }
+  const camt = camtStatementOf(label)
+  return { day: camt?.created ?? '2026-10-01', number: camt?.sequence ?? '001' }
 }
 
 /** A bank's statement file name for a day, such as IZV_2026_10_07 06_00_00_000_001.pdf. */

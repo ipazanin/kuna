@@ -94,7 +94,7 @@ describe('ownerPayPlan', () => {
     [
       'two salaries in the switch month',
       [planOwnerPay(2027, 'floor', null, 2), planOwnerPay(2027, 'raised', '2027-06-15', 3)],
-      'The owner pay of 2027: The floor salary to 2027-06-14 and the salary of 2500.00 from 2027-06-15 both pay a salary in 2027-06. A salary can change only from the first of a month.',
+      'The owner pay of 2027: The floor salary to 14 Jun 2027 and the salary of €2,500.00 from 15 Jun 2027 both pay a salary in Jun 2027. A salary can change only from the first of a month.',
     ],
   ])('refuses %s', (_case, lines, reason) => {
     const plan = ownerPayPlan(lines, scenarios)

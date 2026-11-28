@@ -127,7 +127,7 @@ describe.each([
     // June, so the year would pay two salaries in June.
     const salary = scenarioRowOfComponent('board', '', 2027, { component: 'salary_gross', gross: euros(2000), from: null, to: civil('2027-06-30') })
     await expect(store.write('Component added', (unit) => unit.of(SCENARIO_WRITES).add(salary))).rejects.toThrow(
-      'The plan tab: The owner pay of 2027: The floor salary to 2027-06-14 and the salary of 2000.00 from 2027-06-15 to 2027-06-30 both pay a salary in 2027-06. A salary can change only from the first of a month.',
+      'The plan tab: The owner pay of 2027: The floor salary to 14 Jun 2027 and the salary of €2,000.00 from 15 Jun 2027 to 30 Jun 2027 both pay a salary in Jun 2027. A salary can change only from the first of a month.',
     )
   })
 })

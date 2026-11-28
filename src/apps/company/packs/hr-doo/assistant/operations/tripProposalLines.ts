@@ -6,6 +6,7 @@ import { clockText } from '../../domain/trips/tripMoment'
 import type { TripMoment } from '../../domain/trips/tripMoment'
 import { words as tripWords } from '../../presentation/trips/words'
 import { words } from '../words'
+import { paymentsOfItems, paymentsOfRows } from './paymentLines'
 import type { ProposedRecord } from '../../../../../../shared/app/proposalGroups'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
@@ -14,17 +15,18 @@ import { ZERO } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { MoneyFormat } from '../../../../../../shared/money/moneyFormat'
 import { countryName } from '../../../../../../shared/text/countryName'
+import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../../shared/storage/domain/recordKind'
 
 export const TRIP_KINDS: readonly RecordKind<unknown>[] = [TRIP_RECORDS, TRIP_LEG_RECORDS, TRIP_COST_RECORDS]
 
-const DAY_FIELDS: ReadonlySet<string> = new Set(['issued', 'departs', 'settleBy', 'settledOn', 'date'])
+const DAY_FIELDS: ReadonlySet<string> = new Set(['issued', 'departs', 'settleBy', 'settledOn', 'reportedOn', 'date'])
 
 function momentText(moment: TripMoment): string {
   return `${dayLabel(moment.day)} ${clockText(moment.minute)}`
 }
 
-/** How a card shows the trip kinds' values, in the words of the Trips screen, or undefined for a kind that is not a trip's. */
+/** How a card shows the trip kinds' values, in the words of the Trips screen with a linked payment by its day, other side and amount, or undefined for a kind that is not a trip's. */
 export function tripShownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, format: MoneyFormat, workbook: Workbook): string | null | undefined {
   if (!TRIP_KINDS.some((tripKind) => tripKind.name === kind.name)) return undefined
   const value = record[field]
@@ -64,6 +66,15 @@ export function tripShownValue(kind: RecordKind<unknown>, field: string, record:
       const odometer = value as Odometer
       return words.proposals.odometer(odometer.start, odometer.end)
     }
+    case 'advanceItems':
+    case 'payoutItems':
+    case 'dismissedItems':
+      return paymentsOfItems(workbook, value as readonly RecordId[], format)
+    case 'advanceRow':
+    case 'payoutRow':
+      return paymentsOfRows(workbook, [String(value)], format)
+    case 'dismissedRows':
+      return paymentsOfRows(workbook, value as readonly string[], format)
     case 'foreign': {
       const foreign = value as ForeignAmount
       return `${decimalText(foreign.amount)} ${foreign.currency}`

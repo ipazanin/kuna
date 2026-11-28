@@ -18,6 +18,7 @@ import { words } from '../src/shell/assistant/words'
 import type { RoomEffect, SidebarChoice } from '../src/shell/ui/sidebarLayout'
 import { words as shellWords } from '../src/shell/ui/words'
 import { words as settingsWords } from '../src/shell/settings/words'
+import { storedDataOn } from './fixtures/cardValues'
 
 /** A device as Kuna settings and the home keep it, in memory, with a file on Drive and two cards folded. A sync ends in `warning`. */
 function fakeDevice(start: KunaStart | null = { home: 'drive', apps: ['company'] }, warning: DoneWarning | null = null) {
@@ -91,6 +92,7 @@ describe("Kuna's own operations", () => {
       const { answer, cards } = propose(device, [{ op: operation.name, input: operation.example }])
 
       expect((await answer).isError, (await answer).text).toBe(false)
+      expect(storedDataOn(cards[0]!)).toEqual([])
       const done = await kunaAcceptance(device).accept(cards[0]!)
 
       expect(done.kind).toBe('done')

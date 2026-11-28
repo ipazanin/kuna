@@ -20,6 +20,7 @@ import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { storedDataOn } from './fixtures/cardValues'
 import { exampleInput } from './fixtures/exampleInput'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { civil, euros } from './fixtures/ledger'
@@ -79,6 +80,7 @@ describe('every invoicing operation', () => {
       expect(answer.isError, answer.text).toBe(false)
       const card = company.cards[0]!
       expectCountsOfChanges(card!)
+      expect(storedDataOn(card!)).toEqual([])
       expect(card.undoable).toBe(true)
       expect(card.outside).toEqual([])
       expect(card.groups.flatMap((group) => group.lines).length).toBeGreaterThan(0)

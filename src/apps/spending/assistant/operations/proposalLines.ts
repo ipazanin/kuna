@@ -28,17 +28,22 @@ import {
   ACCOUNT_RECORDS,
   BUDGET_RECORDS,
   CATEGORY_RECORDS,
+  DROPPED_ROW_RECORDS,
   EVENT_RECORDS,
+  HELD_ROW_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
   PAYEE_RECORDS,
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SHARED_COST_RECORDS,
+  SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
 } from '../../workbook/domain/spendingKinds'
 import { RECIPE_RECORDS } from '../../workbook/domain/spendingKinds'
-import { recipeInWords } from '../../statements/presentation/recipeWords'
+import { words as recipeWords } from '../../statements/presentation/recipeWords'
+import { STATEMENT_RECIPE_FIELDS } from '../../statements/domain/statementRecipeDraft'
+import { recipeInWords } from '../../../../shared/recipes/presentation/recipeInWords'
 import { words } from '../words'
 import { words as payeeWords } from '../../payees/presentation/words'
 import { groupedIban } from '../../../../shared/text/iban'
@@ -139,7 +144,7 @@ function currencyOf(record: ProposedRecord, book: SpendingBook): Account['curren
 
 /**
  * A value as a person reads it on screen: an account's amount in its own currency, a limit in euros, a day and a month in
- * words, a name for a record it points at, a part on its days with the event they give it, a category's swatch, an account's type, bank and where its rows come from, and a rule's words and where
+ * words, a name for a record it points at, such as a row by its payee and day, a part on its days with the event they give it, a category's swatch, an account's type, bank and where its rows come from, and a rule's words and where
  * its cash goes. A place among siblings reads as its number. Where a rule stands in the order rules are tried means nothing to
  * a person, so it stays off. A link reads as the record in Loans it names, as Entries shows it.
  */
@@ -175,7 +180,7 @@ function shownValue(
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return swatchOf(record.colour)?.name ?? null
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
-  if (isKind(kind, RECIPE_RECORDS, record) && field === 'recipe') return recipeInWords(record)
+  if (isKind(kind, RECIPE_RECORDS, record) && field === 'recipe') return recipeInWords(record, STATEMENT_RECIPE_FIELDS, recipeWords)
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'sources') return sourcesInWords(record.sources)
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'cards') return record.cards.length === 0 ? null : cardsText(record.cards)
@@ -195,9 +200,26 @@ function shownValue(
   if (isKind(kind, RECEIPT_RECORDS, record) && field === 'issuedOn') return dayLabel(record.issuedOn)
   if (isKind(kind, BUDGET_RECORDS, record) && field === 'amount') return formatMoney(record.amount, 'negative', { ...DEFAULT_MONEY_FORMAT, currency: EURO })
   if (isKind(kind, BUDGET_RECORDS, record) && field === 'from') return monthLabel(record.from)
+  if (isKind(kind, BUDGET_RECORDS, record) && field === 'due') return record.due === undefined ? null : monthLabel(record.due)
+  if (isKind(kind, SHARED_COST_RECORDS, record) && field === 'day') return dayLabel(record.day)
+  if ((isKind(kind, HELD_ROW_RECORDS, record) || isKind(kind, DROPPED_ROW_RECORDS, record)) && field === 'date') return dayLabel(record.date)
+  if ((isKind(kind, HELD_ROW_RECORDS, record) || isKind(kind, DROPPED_ROW_RECORDS, record)) && field === 'amount') {
+    const currency = currencyOf(record, book)
+    return currency === null ? null : formatAccountMoney(record.amount, currency)
+  }
   if (isKind(kind, TRANSACTION_RECORDS, record) && field === 'date') return dayLabel(record.date)
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'openedOn') return dayLabel(record.openedOn)
   return namesOf.get(value) ?? String(value)
+}
+
+/** A shared cost by its payee and day, such as `Ana · 20 Nov 2026`. */
+function sharedCostName(sharedCost: Pick<SharedCost, 'payee' | 'day'>): string {
+  return [sharedCost.payee, dayLabel(sharedCost.day)].filter((words) => words !== '').join(' · ')
+}
+
+/** A bank row by its payee, or else its words, and its day, as a card names the row a held or a dropped row looks like or was. */
+function rowName(row: Pick<Transaction, 'payee' | 'date'> & { readonly description?: string }): string {
+  return [row.payee || (row.description ?? ''), dayLabel(row.date)].filter((words) => words !== '').join(' · ')
 }
 
 /**
@@ -225,7 +247,8 @@ function labelOf(
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record) || isKind(kind, LABEL_RECORDS, record)) return record.name
   if (isKind(kind, EVENT_RECORDS, record)) return `${record.name} · ${dayRangeLabel(record.days)}`
   if (isKind(kind, PAYEE_RECORDS, record)) return record.names[0] ?? fallback
-  if (isKind(kind, SHARED_COST_RECORDS, record)) return [record.payee, dayLabel(record.day)].filter((words) => words !== '').join(' · ')
+  if (isKind(kind, SHARED_COST_RECORDS, record)) return sharedCostName(record)
+  if (isKind(kind, HELD_ROW_RECORDS, record) || isKind(kind, DROPPED_ROW_RECORDS, record)) return rowName(record)
   return fallback
 }
 
@@ -317,7 +340,7 @@ function handoverNote(handover: SourceHandover, book: SpendingBook): ProposalNot
 function membersNote(sharedCost: SharedCost, book: SpendingBook): ProposalNote | null {
   const members = book.items.filter((item) => item.sharedCost === sharedCost.id).length
   if (members === 0) return null
-  return { label: [sharedCost.payee, dayLabel(sharedCost.day)].filter((words) => words !== '').join(' · '), text: plural(words.proposals.membersBackToReview(members), members), tone: 'warning' }
+  return { label: sharedCostName(sharedCost), text: plural(words.proposals.membersBackToReview(members), members), tone: 'warning' }
 }
 
 /**
@@ -373,15 +396,23 @@ export function proposalGroupsOf(
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
   const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
   const book = { ...before, accounts: [...before.accounts, ...added] }
-  const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts, ...book.labels, ...book.events].map((record) => [record.id, record.name]))
+  const writtenRows = checked.changes.flatMap(({ change }) => ((change.verb === 'add' || change.verb === 'change') && change.kind.name === TRANSACTION_RECORDS.name ? [change.after as StoredRow] : []))
+  const namesOf = new Map<unknown, string>([
+    ...[...book.categories, ...book.accounts, ...book.labels, ...book.events].map((record): [unknown, string] => [record.id, record.name]),
+    ...[...book.transactions, ...writtenRows].map((row): [unknown, string] => [row.id, rowName(row)]),
+    ...book.sharedCosts.map((sharedCost): [unknown, string] => [sharedCost.id, sharedCostName(sharedCost)]),
+    ...book.shortcuts.map((shortcut): [unknown, string] => [shortcut.id, shortcut.name || shortcut.payee]),
+  ])
   checked.changes.forEach(({ change }) => {
-    if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
+    if (change.verb !== 'add') return
+    if (change.kind.name === SHARED_COST_RECORDS.name) namesOf.set((change.after as SharedCost).id, sharedCostName(change.after as SharedCost))
+    else if (change.kind.name === SHORTCUT_RECORDS.name) namesOf.set((change.after as Shortcut).id, (change.after as Shortcut).name || (change.after as Shortcut).payee)
+    else if ('name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
   })
   // A row of a file moved to items keeps its category on its items, which the write gives with it or the file holds.
   const written = checked.changes.flatMap(({ change }) => ((change.verb === 'add' || change.verb === 'change') && change.kind.name === ITEM_RECORDS.name ? [change.after as TransactionItem] : []))
   const itemsOf = rowItemsOf({ items: [...written, ...book.items] })
   const categoryOf = (row: RecordId): RecordId | null => itemsOf({ id: row })[0]?.category ?? null
-  const writtenRows = checked.changes.flatMap(({ change }) => ((change.verb === 'add' || change.verb === 'change') && change.kind.name === TRANSACTION_RECORDS.name ? [change.after as StoredRow] : []))
   const payees = new Map([...book.transactions, ...writtenRows].map((row) => [row.id, row.payee.trim()]))
   const payeeOf = (row: RecordId | null): string => (row === null ? '' : (payees.get(row) ?? ''))
   const daysOf = new Map([...book.transactions, ...writtenRows].map((row) => [row.id, row.date]))

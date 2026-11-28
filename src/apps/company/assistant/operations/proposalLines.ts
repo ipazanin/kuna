@@ -9,6 +9,11 @@ import type { PackOperations } from '../companyAssistant'
 import { ownerShareText } from '../../owner-share/domain/ownerShare'
 import { classSharesDay, installedPack } from '../../packs/packContribution'
 import { vatTreatmentLabel } from '../../categories/presentation/words'
+import { sourcesInWords } from '../../settings/presentation/sourcesInWords'
+import { TABLE_RECIPE_FIELDS } from '../../imports/domain/tableRecipes'
+import { words as importWords } from '../../imports/presentation/words'
+import { statementInWords } from '../../imports/presentation/statementInWords'
+import { recipeInWords } from '../../../../shared/recipes/presentation/recipeInWords'
 import { placementWords } from '../../rules/presentation/placementWords'
 import { words as ruleFormWords } from '../../rules/presentation/words'
 import { readRules, ruleLabelIdsIn } from '../../rules/domain/readRules'
@@ -22,6 +27,7 @@ import {
   ITEM_RECORDS,
   LABEL_RECORDS,
   LEDGER_RECORDS,
+  RECIPE_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
   SPLIT_PART_RECORDS,
@@ -100,7 +106,10 @@ function ruleInWords(row: RuleTabRow, workbook: Workbook, ruleLabels: RuleLabelI
   ].join(', ')
 }
 
-/** A value as a person reads it on screen: money in the books' format, days in words, categories and accounts by their names, and a category's bucket, VAT and tax class as the categories editor names them. */
+/**
+ * A value as a person reads it on screen: money in the books' format, days in words, categories and accounts by their names, a category's bucket, VAT and tax class as the
+ * categories editor names them, where an account's rows come in from as the accounts editor says it, and a recipe in plain words.
+ */
 function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, workbook: Workbook, ruleLabels: RuleLabelIds, names: DisplayNames): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
@@ -130,6 +139,8 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'vat') return vatTreatmentLabel(record.vat)
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'taxClass') return installedPack().categoryClassHelp(String(value), classSharesDay(workbook))?.name ?? String(value)
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'roles') return record.roles.length === 0 ? null : record.roles.join(', ')
+  if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'sources') return record.sources === null ? null : sourcesInWords(record.sources)
+  if (isKind(kind, RECIPE_RECORDS, record) && field === 'recipe') return recipeInWords(record, TABLE_RECIPE_FIELDS, importWords.recipe)
   if (Array.isArray(value)) return value.length === 0 ? null : value.join(', ')
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   return String(value)
@@ -141,7 +152,7 @@ function bucketName(bucket: string, workbook: Workbook): string {
 }
 
 /**
- * What the record is called on screen: a row by its counterparty or else its category, a part of books from before items by its
+ * What the record is called on screen: a row by its counterparty or else its category, a held statement by its number and day, a part of books from before items by its
  * category, an item by its row's counterparty and day and its category, a setting by its form's name, a rule by its id, and others by their name.
  */
 function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, workbook: Workbook, names: DisplayNames, packSettingNames: Readonly<Record<string, string>>): string {
@@ -156,7 +167,7 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   if (isKind(kind, ACCOUNT_RECORDS, record)) return displayName(record.slug, record.label)
   if (isKind(kind, SETTING_RECORDS, record)) return settingName(record.key, packSettingNames)
   if (isKind(kind, DISMISSAL_RECORDS, record)) return words.suggestion[record.kind]
-  if (isKind(kind, HELD_STATEMENT_RECORDS, record)) return record.label
+  if (isKind(kind, HELD_STATEMENT_RECORDS, record)) return statementInWords(record.label)
   if (isKind(kind, RULE_RECORDS, record)) return String(record.fields['rule'] ?? fallback)
   return fallback
 }

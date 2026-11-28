@@ -318,7 +318,7 @@ describe('scenarioOutcome on a year the ruleset only estimates', () => {
 
 describe('scenarioOutcome refuses what a guard stops', () => {
   it('names the rows', () => {
-    expect(() => outcome([FLOOR, { ...FLOOR, from: '2026-06-01' }])).toThrow('The floor salary and the floor salary from 2026-06-01 both set the salary on 2026-06-01.')
+    expect(() => outcome([FLOOR, { ...FLOOR, from: '2026-06-01' }])).toThrow('The floor salary and the floor salary from 1 Jun 2026 both set the salary on 1 Jun 2026.')
   })
 })
 

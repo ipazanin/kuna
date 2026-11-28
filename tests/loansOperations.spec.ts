@@ -20,6 +20,7 @@ import type { LoansDesk } from './fixtures/loansDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { storedDataOn } from './fixtures/cardValues'
 import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
@@ -86,6 +87,7 @@ describe('every Loans operation', () => {
       expect(answer.isError).toBe(false)
       const [card] = desk.cards
       expectCountsOfChanges(card!)
+      expect(storedDataOn(card!)).toEqual([])
       const { changes } = card!.held as { readonly changes: readonly RuledChange[] }
       const linesTaken = new Map<string, number>()
       for (const { change } of changes) {

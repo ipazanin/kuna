@@ -13,6 +13,7 @@ import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { NEW_ACCOUNT_DRAFT, accountDraftErrors, accountDraftsOf, accountsOfDrafts, sourcesOfDraft } from '../domain/accountDrafts'
 import type { AccountDraft } from '../domain/accountDrafts'
+import { COMPANY_SOURCES } from '../../workbook/domain/workbook'
 import type { Account, CompanyPeriod, CompanySource } from '../../workbook/domain/workbook'
 import type { PeriodDraft } from '../../../../shared/app/periodDrafts'
 import type { HandoverWords } from '../../../../shared/ui/sourceHandover'
@@ -22,6 +23,7 @@ import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import SourceHandoverAlert from '../../../../shared/ui/SourceHandoverAlert.vue'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { words } from './words'
+import { SOURCE_NAMES } from './sourcesInWords'
 
 const props = defineProps<{
   /** The accounts as stored, refused ones included, so they can be fixed here. */
@@ -53,11 +55,7 @@ watch(savedDrafts, (saved) => {
   drafts.value = saved
 })
 
-const SOURCE_ITEMS: { value: CompanySource; label: string }[] = [
-  { value: 'mail', label: words.accounts.rowsFrom.mail },
-  { value: 'provider-file', label: words.accounts.rowsFrom.providerFile },
-  { value: 'by-hand', label: words.accounts.rowsFrom.byHand },
-]
+const SOURCE_ITEMS: { value: CompanySource; label: string }[] = COMPANY_SOURCES.map((source) => ({ value: source, label: SOURCE_NAMES[source] }))
 
 const usedNames = computed(() => new Set(props.uses.keys()))
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(savedDrafts.value))

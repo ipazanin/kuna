@@ -31,6 +31,7 @@ import {
   PRICE_RECORDS,
   SETTING_RECORDS,
   SPIN_OFF_RECORDS,
+  SPLIT_RECORDS,
   TARGET_RECORDS,
   TRADE_RECORDS,
   TRANSFER_RECORDS,
@@ -45,6 +46,7 @@ import type { Target } from '../../workbook/domain/target'
 import type { Trade } from '../../workbook/domain/trade'
 import type { Transfer } from '../../workbook/domain/transfer'
 import { words as recordWords } from '../../workbook/domain/words'
+import { words as transactionWords } from '../../transactions/presentation/words'
 import { words } from '../words'
 import type { CardNote, ProposalGroup } from '../../../../shared/app/assistantOperations'
 import { fieldNameIn, proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
@@ -199,10 +201,7 @@ function transactionValue(kind: RecordKind<unknown>, field: string, record: Prop
     }
     return shown[field as keyof Exchange]
   }
-  if (isKind(kind, TRANSFER_RECORDS, record) && field === 'moved') {
-    const moved: Transfer['moved'] = record.moved
-    return moved.kind === 'cash' ? amountText(moved.amount, moved.currency) : words.proposals.units(formatQuantity(moved.quantity, QUANTITY_PLACES), namesOf.get(moved.instrument) ?? '')
-  }
+  if (isKind(kind, TRANSFER_RECORDS, record) && field === 'moved') return movedText(record.moved, namesOf)
   if (isKind(kind, SPIN_OFF_RECORDS, record)) {
     const shown: Partial<Record<keyof SpinOff, string | null>> = { quantity: quantityText(record.quantity), costShare: percentText(timesDecimal(record.costShare, HUNDRED)) }
     return shown[field as keyof SpinOff]
@@ -213,6 +212,11 @@ function transactionValue(kind: RecordKind<unknown>, field: string, record: Prop
     return currency === null ? null : formatUnitPrice(handPrice.price, currency)
   }
   return undefined
+}
+
+/** What a transfer moves: an amount of cash, or units of an instrument by its name. */
+function movedText(moved: Transfer['moved'], namesOf: ReadonlyMap<unknown, string>): string | null {
+  return moved.kind === 'cash' ? amountText(moved.amount, moved.currency) : words.proposals.units(formatQuantity(moved.quantity, QUANTITY_PLACES), namesOf.get(moved.instrument) ?? '')
 }
 
 function quotingText(quoted: Instrument['quoted']): string {
@@ -283,6 +287,7 @@ function settingValue(kind: RecordKind<unknown>, field: string, record: Proposed
     const reader: MailReader = record
     const shown: Partial<Record<keyof MailReader, string | null>> = {
       senders: reader.senders.join(', '),
+      since: reader.since === null ? null : dayLabel(reader.since),
       leftOut: reader.leftOut.length === 0 ? null : plural(words.proposals.rowsLeftOut(reader.leftOut.length), reader.leftOut.length),
     }
     return shown[field as keyof MailReader]
@@ -309,12 +314,19 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return namesOf.get(value) ?? String(value)
 }
 
-/** What the record is called on screen: an account or an instrument by its name, a trade by its side and holding, a cash movement or income by its day, kind and amount as the card writes them, a line of a fund's mix by its fund, the 2023 city by its card, and the rest by the write's own words. */
+/** What the record is called on screen: an account or an instrument by its name, a trade by its side and holding, a cash movement or income by its day, kind and amount as the card writes them, an exchange, a transfer, a split, a spin-off or a price by its day and what it moves or names, a line of a fund's mix by its fund, the 2023 city by its card, and the rest by the write's own words. */
 function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>): string {
   if (isKind(kind, INVESTMENT_ACCOUNT_RECORDS, record) || isKind(kind, INSTRUMENT_RECORDS, record)) return record.name
   if (isKind(kind, TRADE_RECORDS, record)) return `${recordWords.sides[record.side]} ${namesOf.get(record.instrument) ?? ''}`.trim()
   if (isKind(kind, CASH_MOVEMENT_RECORDS, record)) return [dayLabel(record.date), recordWords.movementKinds[record.kind].toLowerCase(), formatCurrencyAmount(record.amount, record.currency)].join(', ')
   if (isKind(kind, INCOME_RECORDS, record)) return [dayLabel(record.date), recordWords.incomeKinds[record.kind].toLowerCase(), formatCurrencyAmount(record.gross, record.currency)].join(', ')
+  if (isKind(kind, EXCHANGE_RECORDS, record))
+    return [dayLabel(record.date), transactionWords.lines.exchanged(formatCurrencyAmount(record.sold, record.soldCurrency), formatCurrencyAmount(record.bought, record.boughtCurrency))].join(', ')
+  if (isKind(kind, TRANSFER_RECORDS, record)) return [dayLabel(record.date), movedText(record.moved, namesOf) ?? ''].filter((part) => part !== '').join(', ')
+  if (isKind(kind, SPLIT_RECORDS, record))
+    return [dayLabel(record.date), namesOf.get(record.instrument) ?? '', transactionWords.lines.ratio(record.newUnits, record.oldUnits)].filter((part) => part !== '').join(', ')
+  if (isKind(kind, SPIN_OFF_RECORDS, record)) return [dayLabel(record.date), transactionWords.lines.spunOff(namesOf.get(record.received) ?? '', namesOf.get(record.instrument) ?? '')].join(', ')
+  if (isKind(kind, PRICE_RECORDS, record)) return [dayLabel(record.date), namesOf.get(record.instrument) ?? ''].filter((part) => part !== '').join(', ')
   if (isKind(kind, FUND_MIX_RECORDS, record)) return namesOf.get(record.instrument) ?? fallback
   if (isKind(kind, TARGET_RECORDS, record)) return sliceText(record.slice, namesOf)
   if (isKind(kind, CHECK_RECORDS, record)) return checkWords.labels[record.check]

@@ -24,6 +24,7 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { useDryRun } from './useDryRun'
 import { useStatementSync } from './useStatementSync'
 import { words } from './words'
+import { statementInWords } from './statementInWords'
 
 const store = useWorkbook()
 const statements = useStatementSync()
@@ -48,7 +49,7 @@ function recordOf(statement: DryRunStatement): HeldStatement | null {
 async function passOver(statement: DryRunStatement): Promise<void> {
   const record = recordOf(statement)
   if (record === null) return
-  await writes.write(words.mailed.passedOver(statement.label), (unit) => passOverHeldStatement(unit, record, today()), {
+  await writes.write(words.mailed.passedOver(statementInWords(statement.label)), (unit) => passOverHeldStatement(unit, record, today()), {
     failedTitle: words.mailed.notPassedOver,
     key: `pass-over-${record.id}`,
   })
@@ -92,7 +93,7 @@ async function confirm(): Promise<void> {
             <li v-for="statement in filed" :key="`${statement.account}-${statement.label}`" class="flex items-start gap-2">
               <UIcon name="i-lucide-check" class="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
               <span class="min-w-0 flex-1 break-words">
-                {{ words.mailed.filed(statement.label, names.account(statement.account), statement.rows, statement.waiting) }}
+                {{ words.mailed.filed(statementInWords(statement.label), names.account(statement.account), statement.rows, statement.waiting) }}
               </span>
             </li>
           </ul>
@@ -124,7 +125,7 @@ async function confirm(): Promise<void> {
           size="sm"
           :loading="writes.saving(`pass-over-${recordOf(statement)!.id}`)"
           :disabled="writes.refused.value"
-          :aria-label="words.mailed.passOverNamed(statement.label)"
+          :aria-label="words.mailed.passOverNamed(statementInWords(statement.label))"
           data-testid="mailed-statement-pass-over"
           @click="passOver(statement)"
         />

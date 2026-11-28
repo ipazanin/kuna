@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 import { today } from '../src/shared/calendar/civilDate'
 
-import { KEPT_BY_KUNA, defaultsOnAdd, fieldName } from '../src/apps/spending/assistant/operations/proposalLines'
+import { KEPT_BY_KUNA, NO_WARNINGS, defaultsOnAdd, fieldName, proposalGroupsOf } from '../src/apps/spending/assistant/operations/proposalLines'
 import type { RecordKind, RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { words } from '../src/apps/spending/assistant/words'
@@ -28,13 +28,20 @@ import { BANK_SYNC_APPLICATION_KEY, PERSON_PAYEES_KEY } from '../src/apps/spendi
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { changeAccount } from '../src/apps/spending/accounts/application/accountWrites'
 import { sourceHandover } from '../src/apps/spending/accounts/domain/sourceHandover'
-import { CATEGORY_RECORDS, ITEM_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { CATEGORY_RECORDS, HELD_ROW_RECORDS, ITEM_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { HeldBankRow } from '../src/apps/spending/workbook/domain/heldBankRow'
+import { dayLabel } from '../src/shared/calendar/dayLabel'
+import { monthLabel } from '../src/shared/calendar/monthLabel'
+import { parseMonthKey } from '../src/shared/calendar/monthKey'
+import { formatAccountMoney } from '../src/shared/money/moneyFormat'
+import { EURO } from '../src/shared/money/currencyCode'
 import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
+import { storedDataOn } from './fixtures/cardValues'
 import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
@@ -94,6 +101,7 @@ describe('every Spending operation', () => {
       expect(answer.isError).toBe(false)
       const [card] = desk.cards
       expectCountsOfChanges(card!)
+      expect(storedDataOn(card!)).toEqual([])
       const { changes = [] } = card!.held as { readonly changes?: readonly RuledChange[] }
       const linesTaken = new Map<string, number>()
       const checked = changes.flatMap(({ change }) => {
@@ -1590,5 +1598,50 @@ describe('events through the chat', () => {
     const older = await spendingDesk(used, deskPorts(), 'before-items')
     const olderRow = older.ref('transaction', EXAMPLE_RECORDS['transaction']!)
     expect((await older.propose([stepOf(SPENDING_OPERATIONS, 'take-out-of-events', { entries: [{ entry: olderRow, part: null }] })])).text).toContain('move-to-items')
+  })
+})
+
+describe('the values a card reads in words', () => {
+  const fieldsOn = (desk: SpendingDesk) => desk.cards.at(-1)!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields))
+
+  it("names a yearly cost's due month as Limits does", async () => {
+    const desk = await spendingDesk(used)
+
+    const answer = await desk.propose([stepOf(SPENDING_OPERATIONS, 'set-limit', { category: desk.ref('category', EXAMPLE_RECORDS['category']!), from: '2026-11', amount: 1200, due: '2027-03' })])
+
+    expect(answer.isError, answer.text).toBe(false)
+    expect(fieldsOn(desk).find((field) => field.name === fieldName('due'))?.after).toBe(monthLabel(parseMonthKey('2027-03')!))
+    expect(storedDataOn(desk.cards[0]!)).toEqual([])
+  })
+
+  it('names the row a held bank row looks like by its payee and day, and its own day and amount as Entries does', async () => {
+    const desk = await spendingDesk(used)
+    const like = rowOf(desk, EXAMPLE_RECORDS['transaction']!)!
+    const held: HeldBankRow = {
+      id: recordIdOf(HELD_ROW_RECORDS, 'held-1'),
+      account: like.account,
+      date: like.date,
+      amount: like.amount,
+      payee: like.payee,
+      description: '',
+      counterpartyIban: '',
+      importKey: 'bank-key-1',
+      like: like.id,
+    }
+    const change = { kind: HELD_ROW_RECORDS, verb: 'add', after: held } as const
+    const checked = { title: 'A title', changes: [{ rules: {} as RuledChange['rules'], change }], kinds: [HELD_ROW_RECORDS], written: [], found: [] }
+
+    const [group] = proposalGroupsOf(
+      checked,
+      bookOf(desk),
+      () => DESK_LOAN_TARGETS,
+      () => 'loans',
+      NO_WARNINGS,
+    )
+
+    const shown = new Map(group!.lines[0]!.fields.map((field) => [field.name, field.after]))
+    expect(shown.get(fieldName('like'))).toBe(`Corner market · ${dayLabel(like.date)}`)
+    expect(shown.get(fieldName('date'))).toBe(dayLabel(like.date))
+    expect(shown.get(fieldName('amount'))).toBe(formatAccountMoney(like.amount, EURO))
   })
 })

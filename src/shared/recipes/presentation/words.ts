@@ -38,6 +38,17 @@ export const en = {
   moveKindDown: (place: number) => `Move kind ${place} down`,
   oneKind: 'A recipe keeps at least one kind.',
   kindAt: (place: number) => `Kind ${place}`,
+  /** How a chat card says a saved recipe, a line per field it reads and per kind of row. */
+  inWords: {
+    marks: { comma: 'decimal comma', point: 'decimal point' },
+    readsFrom: (field: string, column: string) => `${field} from ${column}`,
+    dayFrom: (column: string, format: string) => `Day from ${column}, as ${format}`,
+    everyRow: (kind: string) => `${kind}: every row`,
+    whenFilled: (kind: string, column: string) => `${kind}: where ${column} is filled`,
+    whenIs: (kind: string, column: string, values: string) => `${kind}: where ${column} is ${values}`,
+    or: ' or ',
+    notEditable: 'Read as Kuna keeps it',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -74,6 +85,16 @@ export const hr: Translation<typeof en> = {
   moveKindDown: (place) => `Pomakni ${place}. vrstu dolje`,
   oneKind: 'Recept ima barem jednu vrstu.',
   kindAt: (place) => `${place}. vrsta`,
+  inWords: {
+    marks: { comma: 'decimalni zarez', point: 'decimalna točka' },
+    readsFrom: (field, column) => `${field} iz stupca ${column}`,
+    dayFrom: (column, format) => `Dan iz stupca ${column}, kao ${format}`,
+    everyRow: (kind) => `${kind}: svaki redak`,
+    whenFilled: (kind, column) => `${kind}: gdje je ${column} popunjen`,
+    whenIs: (kind, column, values) => `${kind}: gdje je ${column} ${values}`,
+    or: ' ili ',
+    notEditable: 'Čita se kako ga Kuna čuva',
+  },
 }
 
 export const words = language === 'hr' ? hr : en

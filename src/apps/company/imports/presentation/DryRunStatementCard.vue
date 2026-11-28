@@ -26,6 +26,7 @@ import { likeCaption } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { TwinChoice } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { words } from './words'
+import { statementInWords } from './statementInWords'
 
 const props = defineProps<{
   statement: DryRunStatement
@@ -127,7 +128,7 @@ const noteLines = computed(() => [...props.statement.notes.map(noteText), ...pro
 </script>
 
 <template>
-  <AppCard :title="statement.label" :subtitle="subtitle" :collapse-id="collapseId" :summary="summary" data-testid="dry-run-statement">
+  <AppCard :title="statementInWords(statement.label)" :subtitle="subtitle" :collapse-id="collapseId" :summary="summary" data-testid="dry-run-statement">
     <template v-if="$slots.actions" #actions>
       <slot name="actions" />
     </template>
