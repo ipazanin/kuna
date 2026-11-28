@@ -1013,6 +1013,25 @@ export async function focusIsIn(page, selector, problem) {
     })
 }
 
+/**
+ * Takes the keyboard's focus to the element by Shift+Tab and Tab and fails unless its focus ring is drawn inside its edge,
+ * as a row of a list or a menu needs, since the card or list around it crops what sticks out and its neighbours cover it.
+ */
+export async function ringSitsInside(page, element, name) {
+  await element.evaluate((target) => target.scrollIntoView({ block: 'center' }))
+  await element.evaluate((target) => target.focus())
+  await page.keyboard.down('Shift')
+  await page.keyboard.press('Tab')
+  await page.keyboard.up('Shift')
+  await page.keyboard.press('Tab')
+  const ring = await element.evaluate((target) => {
+    const style = getComputedStyle(target)
+    return { focused: document.activeElement === target && target.matches(':focus-visible'), offset: parseFloat(style.outlineOffset), width: parseFloat(style.outlineWidth) }
+  })
+  if (!ring.focused) throw new Error(`${name} did not take the keyboard's focus back by Tab`)
+  if (ring.offset + ring.width > 0) throw new Error(`${name} draws its focus ring ${ring.offset + ring.width}px outside its edge, not inside it`)
+}
+
 /** A phone shows a dialog's end only once scrolled to, and a shot takes what is on the screen. */
 export async function scrollIntoDialogView(page, selector) {
   await page.$eval(selector, (element) => element.scrollIntoView({ block: 'end' }))

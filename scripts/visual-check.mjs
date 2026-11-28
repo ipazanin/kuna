@@ -28,7 +28,8 @@
  * Nor may any text be cut short outside `CutText`, which shows the full text, other than what `CUT_TEXT_ALLOWED` there lists with its reason.
  * The gallery's cut text shows its full text only while cut, on hover and on keyboard focus, and the sidebar shows a long company name cut, with room above the first page and the full name on hover.
  * The gallery's empty state draws a dashed border and its error state a border in the error colour, with no ring over either.
- * Transactions grouped by month, by category and by counterparty wraps each group's name below 640 px.
+ * Transactions grouped by month, by category and by counterparty wraps each group's name below 640 px and draws a group heading's focus ring inside it.
+ * The gallery's menu link, its ListRows that are a button, open by their words, open a page or are being picked, and a loan plan's year row each draw their focus ring inside their edge.
  * Spending's Entries opened over a span of days with a label shows the span and counts the label's total over it, and on a phone no filter chip that fits folds into +N more.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
  * On every screen and at every step of a flow in Croatian it fails on English left on the page,

@@ -22,6 +22,7 @@ import {
   lookAtDialog,
   pageSays,
   pressButton,
+  ringSitsInside,
   screenTitled,
   settingsShowFile,
   shootAt,
@@ -759,7 +760,8 @@ export const loansDialogsFlow = loansDialogsFlowIn('en')
 
 /**
  * The home loan's plan with the sample Spending books, whose early repayment is linked to the extra payment in 2025: opening
- * that year shows the extra payment as seen in your statement, which a phone shows once its row is tapped.
+ * that year shows the extra payment as seen in your statement, which a phone shows once its row is tapped. The year's row
+ * draws its focus ring inside its edge, since the card crops its sides.
  */
 export function loansExtraPaymentSeenFlowIn(language) {
   const { planStatus } = SCREEN_WORDS[language]
@@ -767,6 +769,7 @@ export function loansExtraPaymentSeenFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const YEAR = '[data-testid="loan-plan"] li[data-year="2025"]'
     await pressSelector(page, press, `${YEAR} [data-testid="plan-year"]`)
+    await ringSitsInside(page, await page.$(`${YEAR} [data-testid="plan-year"]`), "a loan plan's year row")
     const row = await page.waitForSelector(`${YEAR} [data-testid="plan-row"][data-kind="extra-payment"]`, { visible: true, timeout: 10_000 })
     const toggle = await row.$('[data-testid="plan-row-toggle"]')
     if (toggle !== null && (await toggle.boundingBox()) !== null) await press(toggle)

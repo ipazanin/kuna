@@ -1,6 +1,6 @@
 /**
  * Flows that run in more than one app or on the gallery's shared components: an app's first run and the colour picker,
- * invalid field and optional select specimens. `press` clicks or taps an element handle, and `shoot` takes a screenshot
+ * invalid field, row focus and optional select specimens. `press` clicks or taps an element handle, and `shoot` takes a screenshot
  * under a name. A failure throws with what was missing.
  */
 
@@ -16,7 +16,9 @@ import {
   exactly,
   fill,
   firstRunAt,
+  openMenu,
   pageSays,
+  ringSitsInside,
   settingsShowFile,
   shootAt,
   toastMatching,
@@ -160,6 +162,33 @@ async function focusFieldByTab(page, testId) {
     throw new Error(`${testId} did not take the keyboard's focus back by Tab`)
   }
   return { field, control }
+}
+
+/**
+ * On the gallery: a menu link, a ListRow that is a button, one whose words open it, one that opens a page and one being
+ * picked each draw their focus ring inside their edge, where the card or the menu around them cannot crop it. A phone opens the drawer for
+ * the menu link.
+ */
+export async function rowFocusFlow(page, { press, shoot }) {
+  await openMenu(page, press)
+  const menuLink = await page.waitForSelector('[role="dialog"] [data-testid="nav-home"], aside [data-testid="nav-home"]', { visible: true, timeout: 10_000 })
+  await ringSitsInside(page, menuLink, 'the menu link Home')
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('[role="dialog"] [data-testid="nav-home"]'), { timeout: 5_000 })
+  for (const [title, kind] of [
+    ['SNACK KIOSK', 'a ListRow that is a button'],
+    ['Harbour bistro', 'a ListRow whose words open it'],
+    ['Current account', 'a ListRow that opens a page'],
+    ['City pharmacy', 'a ListRow being picked'],
+  ]) {
+    const row = await page.waitForFunction(
+      (wanted) => [...document.querySelectorAll('#list-row :is(a, button)')].find((control) => control.querySelector('.list-row-title')?.textContent?.trim() === wanted) ?? null,
+      { timeout: 10_000 },
+      title,
+    )
+    await ringSitsInside(page, row.asElement(), `${kind}, ${title}`)
+  }
+  await shoot('row-focus')
 }
 
 /**

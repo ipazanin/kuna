@@ -126,7 +126,7 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
     <div class="border-t border-default py-2" :class="rail ? 'mx-1.5' : 'mx-3'">
       <NavigationLink v-bind="navigation.kunaSettings" :rail="rail" data-testid="nav-kuna-settings" />
       <UTooltip v-if="chat" :text="chatWords.chat.open" :disabled="!rail" :content="{ side: 'right' }">
-        <button type="button" class="nav-link mt-0.5 w-full" :class="{ 'in-rail': rail }" :aria-pressed="chatOpen" data-testid="chat-open" @click="chatOpen ? closeChat() : openChat()">
+        <button type="button" class="nav-link focus-inset mt-0.5 w-full" :class="{ 'in-rail': rail }" :aria-pressed="chatOpen" data-testid="chat-open" @click="chatOpen ? closeChat() : openChat()">
           <span class="grid size-6 shrink-0 place-items-center">
             <UIcon name="i-lucide-sparkles" class="size-4" aria-hidden="true" />
           </span>

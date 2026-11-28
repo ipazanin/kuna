@@ -8,7 +8,7 @@
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { PHONE_BELOW } from '../../src/shared/layout/viewport.ts'
 import { OPEN_DELAY } from '../../src/shared/ui/cutText.ts'
-import { shootAt } from './flowHelpers.mjs'
+import { ringSitsInside, shootAt, shotInLanguage } from './flowHelpers.mjs'
 import { delay } from './pressing.mjs'
 
 /** A long name of the kind the owner's books hold, which the sidebar cuts at every width. */
@@ -130,7 +130,8 @@ export function cutSidebarFlowIn(language) {
 
 /**
  * Company's Transactions grouped by month, by category and by counterparty. Below 640 px a group's name wraps in full,
- * since its heading is a toggle a phone cannot long press, and a counterparty's IBAN stays 12 px.
+ * since its heading is a toggle a phone cannot long press, and a counterparty's IBAN stays 12 px. A heading draws its focus
+ * ring inside its edge, since the card crops its sides.
  */
 export function transactionGroupsFlowIn(language) {
   const words = language === 'en' ? transactionsEnglish : transactionsCroatian
@@ -165,7 +166,8 @@ export function transactionGroupsFlowIn(language) {
       if (phone && cut.length > 0) throw new Error(`below 640 px grouping ${grouping} cuts the names ${JSON.stringify(cut.map((heading) => heading.name))}`)
       const wrongIban = headings.filter((heading) => heading.ibanSize !== null && heading.ibanSize !== '12px')
       if (wrongIban.length > 0) throw new Error(`a counterparty's IBAN is ${wrongIban[0].ibanSize}, not 12px`)
-      await shootAt(page, shoot, '[data-testid="group-toggle"]', `transactions-group-${grouping}`)
+      await ringSitsInside(page, await page.$('[data-testid="group-toggle"]'), `a ${grouping} group's heading`)
+      await shootAt(page, shoot, '[data-testid="group-toggle"]', await shotInLanguage(page, `transactions-group-${grouping}`))
     }
   }
 }

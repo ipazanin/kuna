@@ -127,6 +127,11 @@ body {
   }
 }
 
+/* A row of a list or a menu draws its focus ring inside its edge, since the card or list around it crops what sticks out and the rows beside it cover it. */
+.focus-inset:focus-visible {
+  outline-offset: -2px;
+}
+
 /* A screen's heading takes focus on arrival so a screen reader announces the screen. It is not a control, so it shows no ring. */
 .screen-title:focus {
   outline: none;
@@ -590,7 +595,7 @@ section + section > .group-row:not(tr) {
   grid-area: second;
 }
 
-/* A row of the sidebar and the drawer. Its focus ring stays inside it, since the list that holds it crops what sticks out. */
+/* A row of the sidebar and the drawer. */
 .nav-link {
   position: relative;
   display: flex;
@@ -603,10 +608,6 @@ section + section > .group-row:not(tr) {
   transition:
     background-color 120ms ease,
     color 120ms ease;
-}
-
-.nav-link:focus-visible {
-  outline-offset: -2px;
 }
 
 .nav-count {

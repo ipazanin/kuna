@@ -71,7 +71,7 @@ const groupName = computed(() => {
   <!-- Below 640 px the group's name wraps, since a phone cannot long press a toggle to read a cut name. -->
   <button
     type="button"
-    class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 py-2.5 ps-3 pe-4 text-start text-[0.8125rem] text-highlighted transition-colors hover:bg-accented @max-[44rem]:grid-cols-[auto_minmax(0,1fr)] @max-[44rem]:gap-y-1.5 @max-[44rem]:py-2"
+    class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 py-2.5 ps-3 pe-4 text-start text-[0.8125rem] text-highlighted transition-colors hover:bg-accented focus-inset @max-[44rem]:grid-cols-[auto_minmax(0,1fr)] @max-[44rem]:gap-y-1.5 @max-[44rem]:py-2"
     :aria-expanded="expanded"
     data-testid="group-toggle"
     @click="emit('toggle')"

@@ -5,7 +5,7 @@
 import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
 import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
 import { mailPlanSpecimenFlow } from './companyBooksFlows.mjs'
-import { colourPickerSpecimenFlow, invalidFieldFocusFlow, optionalSelectFlow } from './sharedFlows.mjs'
+import { colourPickerSpecimenFlow, invalidFieldFocusFlow, optionalSelectFlow, rowFocusFlow } from './sharedFlows.mjs'
 import {
   assistKeyRefusedFlowIn,
   assistProviderSwitchFlowIn,
@@ -180,6 +180,7 @@ export function shellVisualFlows({ CHAT_ATTACHMENT_SAMPLES }) {
     { name: 'mail-plan-specimen', hash: '#/gallery', title: 'Gallery', run: mailPlanSpecimenFlow, modes: ['drive'] },
     { name: 'colour-picker-specimen', hash: '#/gallery', title: 'Gallery', run: colourPickerSpecimenFlow, modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
     { name: 'invalid-field-focus', hash: '#/gallery', title: 'Gallery', run: invalidFieldFocusFlow, modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+    { name: 'row-focus', hash: '#/gallery', title: 'Gallery', run: rowFocusFlow, modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
     { name: 'set-up-in-other-tab', hash: '#/', title: homeEnglish.title, run: setUpInOtherTabFlow, modes: ['drive'] },
     ...['en', 'hr'].map((language) => ({
       name: language === 'en' ? 'kuna-mail' : 'kuna-mail-croatian',

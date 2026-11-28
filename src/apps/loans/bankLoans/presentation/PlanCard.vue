@@ -58,7 +58,7 @@ function dateOf(line: PlanLineOnScreen): string {
       <li v-for="year in years" :key="year.year" class="border-t border-default first:border-t-0" :data-year="year.year">
         <button
           type="button"
-          class="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-start hover:bg-elevated/40 sm:px-5"
+          class="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-start hover:bg-elevated/40 focus-inset sm:px-5"
           :aria-expanded="opened.has(year.year)"
           data-testid="plan-year"
           @click="opened = toggle(opened, year.year)"

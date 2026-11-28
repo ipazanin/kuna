@@ -36,7 +36,7 @@ withDefaults(
     <RouterLink
       v-bind="$attrs"
       :to="to"
-      class="nav-link"
+      class="nav-link focus-inset"
       :class="{ 'in-rail': rail, 'is-active': lit }"
       :active-class="marksCurrent ? 'is-active' : 'router-link-active'"
       :aria-current-value="marksCurrent ? 'page' : 'false'"
