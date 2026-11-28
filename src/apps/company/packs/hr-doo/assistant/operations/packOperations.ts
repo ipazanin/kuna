@@ -42,7 +42,7 @@ import type { YearEndLine } from '../../domain/yearEnd/yearEnd'
 import { yearEndLineOfFields } from '../../domain/yearEnd/yearEndReading'
 import { EMPLOYEE_COLUMNS, GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from '../../presentation/editorColumns'
 import { words as scenarioWords } from '../../presentation/payScenarios/words'
-import { packDescriber } from './proposalLines'
+import { packDescriber, withRemovedPackRecords } from './proposalLines'
 import { TRIP_OPERATIONS, plannedTripStep } from './tripOperations'
 import type { AssistantOperation, ProposalStep } from '../../../../../../shared/app/assistantOperations'
 import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf } from '../../../../../../shared/app/operationInput'
@@ -774,5 +774,6 @@ export function hrDooOperations(ports: HrDooOperationPorts): PackOperations {
     operations: PACK_OPERATIONS,
     plan: (unit, books, step, idOf) => planned(unit, books, step, idOf, ports.anonymising(), ports.rates()),
     describer: packDescriber,
+    withRemovedRecords: withRemovedPackRecords,
   }
 }

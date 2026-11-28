@@ -95,10 +95,11 @@ function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonl
     if (set === undefined) throw new StepRefused('There is no such operation.')
     set.planStep(cardOn(at === 0 ? books.workbook : readWorkbook(books.workbook, records.records(), pack)), step)
   })
-  const card = cardOn(readWorkbook(books.workbook, records.records(), pack))
+  const after = readWorkbook(books.workbook, records.records(), pack)
+  const card = cardOn(after)
   sets.forEach((set) => set.finish?.(card))
   records.writeInto(unit)
-  return { notes, heldBack, movedRules }
+  return { notes, heldBack, movedRules, after }
 }
 
 /** What a planned card shows beside its write, and what the model hears it holds back. */
@@ -107,6 +108,8 @@ interface CardTold {
   readonly heldBack: readonly string[]
   /** The rules a step moves, by their names before the card in lower case. */
   readonly movedRules: ReadonlySet<string>
+  /** The books as the card's steps leave them, which the card names records from. */
+  readonly after: Workbook
 }
 
 /** How the chat's steps become one write of the company's books. The card's notes come from its own plan, so each check gets its own. */
@@ -115,7 +118,7 @@ function companyWork(appName: string, sets: readonly CompanyOperationSet[], pack
     appName,
     plan: (unit, books, steps) => planned(unit, books, sets, steps),
     card: (checked, books, told) => ({
-      groups: proposalGroupsOf(checked, books, told.notes, pack, told.movedRules),
+      groups: proposalGroupsOf(checked, books, told.after, told.notes, pack, told.movedRules),
       outside: [],
       heldBack: told.heldBack.length === 0 ? null : told.heldBack.join(' '),
     }),

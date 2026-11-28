@@ -54,6 +54,7 @@ import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
 import { exampleInput } from './fixtures/exampleInput'
 import { NO_RATES } from '../src/shared/money/rateBook'
+import { words as packWords } from '../src/apps/company/packs/hr-doo/assistant/words'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -256,6 +257,30 @@ describe('every operation of the d.o.o. pack', () => {
       expect(JSON.stringify(desk.store.state.records)).toBe(before)
     },
   )
+})
+
+describe('a label on a cost the owner paid', () => {
+  it('names a label the same card adds on the cost it labels', async () => {
+    const desk = await packDesk()
+    const answer = await desk.propose([
+      { op: 'add-label', input: { name: 'Workshop' }, as: '$workshop' },
+      { op: 'add-owner-advance', input: { date: '2026-10-10', amount: 117.3, description: 'Desk lamp', category: desk.ref('category', 'ai-services'), paidBackBy: [], labels: ['$workshop'] } },
+    ])
+    expect(answer.isError, answer.text).toBe(false)
+    const advances = desk.cards[0]!.groups.find((group) => group.noun === OWNER_ADVANCE_RECORDS.noun)!
+    expect(advances.lines[0]!.fields.find((field) => field.name === fieldName('labels'))?.after).toBe('Workshop')
+  })
+})
+
+describe('a travel order deleted on a card', () => {
+  it('names the order on each leg and cost it deletes with it', async () => {
+    const desk = await packDesk()
+    const trip = recordsOfKind(desk, TRIP_RECORDS)[0]!
+    const answer = await desk.propose([{ op: 'delete-trip', input: { trip: desk.ref(TRIP_RECORDS.name, trip.id) } }])
+    expect(answer.isError, answer.text).toBe(false)
+    const legs = desk.cards[0]!.groups.find((group) => group.verb === 'remove' && group.noun === TRIP_LEG_RECORDS.noun)!
+    expect(legs.lines.map((line) => line.label)).toEqual([packWords.proposals.onTrip('Zagreb – Split', trip.number)])
+  })
 })
 
 describe('employees and pay', () => {

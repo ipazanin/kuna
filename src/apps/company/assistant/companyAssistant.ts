@@ -99,6 +99,8 @@ export interface PackOperations {
    */
   plan(unit: UnitOfWork, books: CompanyBooks, step: ProposalStep, idOf: (value: unknown) => string): void
   describer(workbook: Workbook): PackDescriber
+  /** `after` with the pack's records that `before` holds and `after` no longer does, so a card names what it removes. */
+  withRemovedRecords(before: Workbook, after: Workbook): Workbook
 }
 
 /**

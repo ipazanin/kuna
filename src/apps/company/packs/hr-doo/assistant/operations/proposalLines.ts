@@ -1,4 +1,8 @@
 import type { PackDescriber } from '../../../../assistant/companyAssistant'
+import { withRemoved } from '../../../../assistant/operations/namingBooks'
+import { packPart } from '../../../../workbook/domain/packPart'
+import { HR_DOO } from '../../domain/hrDooPart'
+import type { HrDooPart } from '../../domain/hrDooPart'
 import { words as cardWords } from '../../../../../../shared/app/words'
 import { ownerShareText } from '../../../../owner-share/domain/ownerShare'
 import { displayNamesOf } from '../../../../workbook/domain/displayName'
@@ -179,6 +183,19 @@ const PLAN_IN_LABEL: ReadonlySet<string> = new Set(['year', 'item'])
 /** The fields a record's label names on the card, which an add or a removal leaves off its line. */
 export function packFieldsInLabel(kind: RecordKind<unknown>): ReadonlySet<string> {
   return tripFieldsInLabel(kind) ?? (kind.name === PLAN_RECORDS.name ? PLAN_IN_LABEL : new Set())
+}
+
+/** `after` with the employees and travel orders that `before` holds and `after` no longer does, so a card names what it removes. */
+export function withRemovedPackRecords(before: Workbook, after: Workbook): Workbook {
+  const was = packPart(before, HR_DOO)
+  const now = packPart(after, HR_DOO)
+  if (was === null || now === null) return after
+  const part: HrDooPart = {
+    ...now,
+    employees: withRemoved(now.employees, was.employees, (employee) => employee.slug),
+    trips: withRemoved(now.trips, was.trips, (file) => file.trip.id),
+  }
+  return { ...after, packParts: { ...after.packParts, [HR_DOO.name]: part } }
 }
 
 /** How a card reads the pack's records, in the words of its screens. An employee's accounts say where pay goes, so the card warns on them. */

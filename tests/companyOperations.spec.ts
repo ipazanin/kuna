@@ -940,7 +940,7 @@ describe('a flag on a card', () => {
     const change = { kind: CATEGORY_RECORDS, verb: 'change', before: category, after: { ...category, flagged: true } } as const
     const checked = { title: 'A title', changes: [{ rules: {} as RuledChange['rules'], change }], kinds: [CATEGORY_RECORDS], written: [], found: [] }
 
-    const [group] = proposalGroupsOf(checked, { workbook, records: desk.store.state.records! }, [], null, new Set())
+    const [group] = proposalGroupsOf(checked, { workbook, records: desk.store.state.records! }, workbook, [], null, new Set())
     expect(group!.lines[0]!.fields.find((field) => field.name === 'flagged')).toMatchObject({ before: sharedWords.no, after: sharedWords.yes })
   })
 })
@@ -964,6 +964,34 @@ describe('labels', () => {
         .filter((item) => item.labels.includes(workshop.id))
         .map((item) => item.category),
     ).toEqual(['office'])
+  })
+
+  it('names a label the same card adds on the rule that puts it on and on the item it labels', async () => {
+    const desk = await labelledDesk()
+    const answer = await desk.propose([
+      { op: 'add-label', input: { name: 'Workshop' }, as: '$workshop' },
+      {
+        op: 'add-rule',
+        input: {
+          row: null,
+          category: desk.ref(CATEGORY_RECORDS.name, 'office'),
+          name: null,
+          on: null,
+          before: null,
+          labels: ['$workshop'],
+          ...Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [field.name, null])),
+          payeeWords: 'MARKET',
+          confidence: null,
+          note: null,
+        },
+      },
+    ])
+    expect(answer.isError).toBe(false)
+    const groups = desk.cards[0]!.groups
+    const rule = groups.find((group) => group.noun === RULE_RECORDS.noun)!.lines[0]!
+    expect(rule.fields.map((field) => field.after).join(' ')).toContain(words.ruleLabels(['Workshop']))
+    const items = groups.find((group) => group.noun === ITEM_RECORDS.noun)!
+    expect(items.lines.flatMap((line) => line.fields.filter((field) => field.name === words.fields.labels).map((field) => field.after))).toEqual(['Workshop'])
   })
 
   it('refuses to label rows of books from before items', async () => {

@@ -4,6 +4,7 @@ import { words as cardWords } from '../../../../shared/app/words'
 import { WARNED_SETTING_KEYS } from './settingsOperations'
 import { INVOICING_KINDS, invoicingDescriber } from './invoicingLines'
 import { words } from './words'
+import { namingBooks } from './namingBooks'
 import type { PackOperations } from '../companyAssistant'
 import { ownerShareText } from '../../owner-share/domain/ownerShare'
 import { classSharesDay, installedPack } from '../../packs/packContribution'
@@ -237,18 +238,29 @@ export function fieldsInLabel(kind: RecordKind<unknown>): ReadonlySet<string> {
   return kind.name === CATEGORY_RECORDS.name ? NAMED_IN_LABEL : new Set()
 }
 
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words, with the card's notes on the group of their kind. Each kind reads through its own screens' describer. */
-export function proposalGroupsOf(checked: CheckedWrite, books: CompanyBooks, notes: readonly CardNote[], pack: PackOperations | null, moved: ReadonlySet<string>): readonly ProposalGroup[] {
+/**
+ * What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words, with the card's notes on the group of their kind.
+ * Each kind reads through its own screens' describer. `after` is the books as the card's steps leave them, which names what the card adds.
+ */
+export function proposalGroupsOf(
+  checked: CheckedWrite,
+  books: CompanyBooks,
+  after: Workbook,
+  notes: readonly CardNote[],
+  pack: PackOperations | null,
+  moved: ReadonlySet<string>,
+): readonly ProposalGroup[] {
   const { workbook } = books
-  const names = displayNamesOf(workbook)
-  const ruleLabels = ruleLabelIdsIn(workbook.labels, storesItems(books.records))
-  const packs = pack?.describer(workbook) ?? null
+  const named = namingBooks(workbook, after, pack?.withRemovedRecords ?? null)
+  const names = displayNamesOf(named)
+  const ruleLabels = ruleLabelIdsIn(named.labels, storesItems(books.records))
+  const packs = pack?.describer(named) ?? null
   const placements = movedRules(checked, workbook.rules, moved)
   const core: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
-    shown: (kind, field, record) => shownValue(kind, field, record, workbook, ruleLabels, names),
-    label: (kind, record, fallback) => labelOf(kind, record, fallback, workbook, names, packs?.settingNames ?? {}),
+    shown: (kind, field, record) => shownValue(kind, field, record, named, ruleLabels, names),
+    label: (kind, record, fallback) => labelOf(kind, record, fallback, named, names, packs?.settingNames ?? {}),
     reading: categoryReading,
     inLabel: fieldsInLabel,
     warns,
@@ -260,7 +272,7 @@ export function proposalGroupsOf(checked: CheckedWrite, books: CompanyBooks, not
       return { ...line, fields: moved === undefined ? said : [...said, moved] }
     },
   }
-  const invoicing = invoicingDescriber(workbook)
+  const invoicing = invoicingDescriber(named)
   // A rule renumbered to make room for a move keeps its place among the rules, so it shows nothing and stays off the card.
   const groups = proposalGroups(checked, (kind) => (packs?.kinds.has(kind.name) === true ? packs : INVOICING_KINDS.has(kind.name) ? invoicing : core)).map((group) =>
     group.noun === RULE_RECORDS.noun ? { ...group, lines: group.lines.filter((line) => line.fields.length > 0 || line.warning !== null).map((line) => ({ ...line, identifier: true })) } : group,

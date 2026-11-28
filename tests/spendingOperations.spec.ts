@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { today } from '../src/shared/calendar/civilDate'
 
 import { KEPT_BY_KUNA, defaultsOnAdd, fieldName } from '../src/apps/spending/assistant/operations/proposalLines'
-import type { RecordKind } from '../src/shared/storage/domain/recordKind'
+import type { RecordKind, RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { words } from '../src/apps/spending/assistant/words'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
@@ -28,7 +28,7 @@ import { BANK_SYNC_APPLICATION_KEY, PERSON_PAYEES_KEY } from '../src/apps/spendi
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { changeAccount } from '../src/apps/spending/accounts/application/accountWrites'
 import { sourceHandover } from '../src/apps/spending/accounts/domain/sourceHandover'
-import { CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { CATEGORY_RECORDS, ITEM_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -539,6 +539,32 @@ describe("a rule's labels", () => {
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-rule', { rule: desk.ref('rule', rule.id), labels: [] })])
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).rules.find((each) => each.id === rule.id)!.labels).toEqual([])
+  })
+
+  it('names a label the same card adds on the rule that puts it on and on the part it labels', async () => {
+    const desk = await spendingDesk(used)
+    const answer = await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-label', { name: 'Workshop' }, '$workshop'),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', {
+        conditions: [{ test: 'payee_contains', values: ['Nobody at all'], not: false }],
+        category: desk.ref('category', categoryNamed(desk, 'Rent').id),
+        labels: ['$workshop'],
+      }),
+      stepOf(SPENDING_OPERATIONS, 'split-entry', {
+        entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!),
+        parts: [
+          { part: null, amount: 10, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '', choices: { labels: ['$workshop'], event: null, eventRule: null } },
+          { part: null, amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '', choices: { labels: null, event: null, eventRule: null } },
+        ],
+      }),
+    ])
+    expect(answer.isError, answer.text).toBe(false)
+    const labelsShown = (noun: RecordNoun) =>
+      desk.cards[0]!.groups.filter((group) => group.noun === noun).flatMap((group) =>
+        group.lines.flatMap((line) => line.fields.filter((field) => field.name === fieldName('labels')).map((field) => field.after)),
+      )
+    expect(labelsShown(RULE_RECORDS.noun)).toEqual(['Workshop'])
+    expect(labelsShown(ITEM_RECORDS.noun)).toEqual(['Workshop'])
   })
 })
 
