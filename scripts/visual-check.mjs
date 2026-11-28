@@ -19,6 +19,7 @@
  * a DrillLink wears the colour of the text class it is given, a row that opens a page has its arrow on its title's first line, and
  * a list where only some rows open a page ends every amount at one edge. No card shows a legend beside its empty state.
  * A table row that opens its record shows the pointer, and a press on any of its cells without a control of its own reaches the row.
+ * A disabled control that is not loading fades, so none shows at full colour.
  * On Company's, Spending's and Investments' Overview, Spending's Accounts, an account's page, Entries, its To review tab and a payee's page up to 1440 px, every list row's figure starts within 40rem of its name,
  * and a row of a table under a column heading passes. At 1024, 1440 and 1920 px no row of a dashboard grid leaves more than 16 px empty.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
@@ -457,6 +458,7 @@ function readPage(page) {
       drillLinksOffColour: drillLinksOffColour(),
       misplacedRowArrows: misplacedRowArrows(),
       recordRowsMissed: recordRowsMissed(),
+      fullColourDisabled: fullColourDisabled(),
       raggedRowAmounts: raggedRowAmounts(),
       raggedRowDetails: raggedRowDetails(),
       farRowFigures: farRowFigures(),
@@ -544,6 +546,25 @@ function readPage(page) {
         const wanted = getComputedStyle(probe).color
         probe.remove()
         if (getComputedStyle(link).color !== wanted) found.push(`the link "${link.textContent.trim().slice(0, 32)}" ignores its ${colourClass}`)
+      }
+      return found
+    }
+
+    /**
+     * A control that cannot be pressed fades by half, the native button through `app.css` and UButton through its theme, so a
+     * disabled one drawn at full colour looks pressable. A loading button keeps its colour, since its spinner says it is busy.
+     */
+    function fullColourDisabled() {
+      const shownOpacity = (element) => {
+        let opacity = 1
+        for (let at = element; at !== null; at = at.parentElement) opacity *= parseFloat(getComputedStyle(at).opacity)
+        return opacity
+      }
+      const found = []
+      for (const control of document.querySelectorAll('button:disabled, [aria-disabled="true"]')) {
+        if (control.getClientRects().length === 0 || control.querySelector('.animate-spin') !== null || shownOpacity(control) < 1) continue
+        const name = (control.getAttribute('aria-label') ?? control.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 32)
+        found.push(`the disabled control "${name}" shows at full colour, so it looks pressable`)
       }
       return found
     }
@@ -1212,6 +1233,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => 
         ])
           fail(scope, problem)
         for (const problem of report.recordRowsMissed) fail(scope, problem)
+        for (const problem of report.fullColourDisabled) fail(scope, problem)
         for (const problem of report.raggedRowDetails) fail(scope, problem)
         if (NEAR_FIGURE_SCREENS.includes(visit.name) && viewport.width <= NEAR_FIGURE_WIDEST) for (const far of report.farRowFigures) fail(scope, far)
         if (GRID_ROW_WIDTHS.includes(viewport.width)) for (const row of report.emptyGridRows) fail(scope, row)
@@ -1327,6 +1349,7 @@ await withBrowser(chromeLaunch(selection.classicScrollbars), async (session) => 
               ...report.misplacedRowArrows,
               ...report.raggedRowAmounts,
               ...report.recordRowsMissed,
+              ...report.fullColourDisabled,
               ...report.raggedRowDetails,
             ]
             for (const problem of lingering.filter((text) => !toldOnce.has(text))) {

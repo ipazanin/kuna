@@ -70,6 +70,8 @@ export default defineConfig(({ command, isPreview }) => ({
           // A loading button is disabled too, but its spinner already says it is busy, so it keeps its full colour.
           compoundVariants: [{ loading: true, class: { base: 'disabled:opacity-100 aria-disabled:opacity-100' } }],
         },
+        // Nuxt fades a disabled day field with `disabled:`, which its root, a div, never matches. The root marks itself data-disabled instead.
+        inputDate: { slots: { base: 'data-disabled:cursor-not-allowed data-disabled:opacity-75' } },
         // An unchecked box or radio draws its edge in a colour that passes 3:1, where Nuxt's border-strong does not.
         checkbox: { slots: { base: 'ring-control-edge' } },
         radioGroup: { slots: { base: 'ring-control-edge' } },
