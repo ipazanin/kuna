@@ -55,7 +55,7 @@ export const en = {
     year: (year: number) => String(year),
     onward: (from: string) => `${from} onward`,
     twoYears: (first: number, second: number) => `${first} and ${second}`,
-    span: (from: string, to: string) => `${from} to ${to}`,
+    years: (first: number, last: number) => `${first} to ${last}`,
   },
   articles: {
     ofAmendingAct: (article: string, issues: string) => `Art. ${article} of the amending act in NN ${issues}`,
@@ -143,7 +143,7 @@ export const hr: Translation<typeof en> = {
     year: (year) => `${year}.`,
     onward: (from) => `od ${from}`,
     twoYears: (first, second) => `${first}. i ${second}.`,
-    span: (from, to) => `${from} – ${to}`,
+    years: (first, last) => `${first}. – ${last}.`,
   },
   articles: {
     ofAmendingAct: (article, issues) => `čl. ${article} zakona o izmjenama u NN ${issues}`,

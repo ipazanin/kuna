@@ -3,7 +3,7 @@ import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
-import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthAxisLabel, monthLabel, monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
 import { DOT_SIZE, RING_SIZE, dotLinesAt, dotOffset, namedFirst } from '../../../../shared/charts/chartDots'
@@ -222,7 +222,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
     description:
       first === undefined || last === undefined || now === undefined
         ? words.noMonths
-        : words.description(monthLabel(first.month), monthLabel(last.month), monthLabel(now.month), formatMoney(now.owed)) +
+        : words.description(monthRangeLabel(first.month, last.month), monthLabel(now.month), formatMoney(now.owed)) +
           (hasPlan ? words.planDescription(formatMoney(last.owed), monthLabel(last.month)) : '') +
           (shared ? words.yourPartDescription(formatMoney(now.yours ?? now.owed), monthLabel(now.month)) : '') +
           expectedWords(planned, expected ?? [], current) +

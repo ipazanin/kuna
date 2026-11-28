@@ -38,7 +38,6 @@ export const en = {
     open: 'Ready to settle',
     gaps: { times: 'Waits for times', borders: 'Waits for border times', odometer: 'Waits for odometer', rate: 'Waits for ECB rate' } satisfies Readonly<Record<SettlementGap, string>>,
   },
-  dates: (from: string, to: string) => (from === to ? from : `${from} – ${to}`),
   trip: {
     title: (number: string) => `Travel order ${number}`,
     description: (traveller: string, destination: string, period: string) => `${traveller}, ${destination}, ${period}`,
@@ -92,7 +91,7 @@ export const en = {
     takeOff: 'Take-off',
     landing: 'Landing',
     odometer: 'Odometer',
-    odometerRange: (start: string, end: string) => `${start} – ${end} km`,
+    odometerRange: (startReading: string, endReading: string) => `${startReading} – ${endReading} km`,
     report: 'Report',
     settledOn: 'Settled on',
     notYet: 'Not yet',
@@ -361,7 +360,6 @@ export const hr: Translation<typeof en> = {
     open: 'Spreman za obračun',
     gaps: { times: 'Čeka vremena', borders: 'Čeka granicu', odometer: 'Čeka brojilo', rate: 'Čeka tečaj ESB‑a' },
   },
-  dates: (from, to) => (from === to ? from : `${from} – ${to}`),
   trip: {
     title: (number) => `Putni nalog ${number}`,
     description: (traveller, destination, period) => `${traveller}, ${destination}, ${period}`,
@@ -415,7 +413,7 @@ export const hr: Translation<typeof en> = {
     takeOff: 'Polijetanje',
     landing: 'Slijetanje',
     odometer: 'Brojilo',
-    odometerRange: (start, end) => `${start} – ${end} km`,
+    odometerRange: (startReading, endReading) => `${startReading} – ${endReading} km`,
     report: 'Izvješće',
     settledOn: 'Obračunato',
     notYet: 'Još nije',

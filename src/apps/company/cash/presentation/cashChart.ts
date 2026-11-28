@@ -1,4 +1,4 @@
-import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthAxisLabel, monthLabel, monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import { incompleteBand, moneyAxisLabel } from '../../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
@@ -67,7 +67,7 @@ export function balanceChart(
     description:
       last === undefined
         ? words.noMonths
-        : words.description(accounts.map(accountName).join(', '), monthLabel(months[0]!.month), monthLabel(last.month)) +
+        : words.description(accounts.map(accountName).join(', '), monthRangeLabel(months[0]!.month, last.month)) +
           (last.complete ? words.atTheEnd : words.soFar)(monthLabel(last.month), formatMoney(last.total.amount)),
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]

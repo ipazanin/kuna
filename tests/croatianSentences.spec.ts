@@ -141,7 +141,7 @@ describe('full stops in Croatian', () => {
     const months = await import('../src/shared/calendar/monthLabel')
     const writes = await import('../src/shared/storage/application/words')
     const sentences = [
-      balances.words.description(months.monthLabel(monthKey(2023, 3)), months.monthLabel(monthKey(2048, 3)), months.monthLabel(monthKey(2026, 10)), '154.274,21 €') +
+      balances.words.description(months.monthRangeLabel(monthKey(2023, 3), monthKey(2048, 3)), months.monthLabel(monthKey(2026, 10)), '154.274,21 €') +
         balances.words.planDescription('0,00 €', months.monthLabel(monthKey(2048, 3))),
       writes.words.refusals.problem(EXTRA_PAYMENT_RECORDS.noun, '1. 3. 2027., 5.000,00 €', 'datum 1. 3. 2027. je prije isplate kredita „Auto” 1. 5. 2027.'),
       writes.words.refusals.leftOut(EXTRA_PAYMENT_RECORDS.noun, '1. 3. 2027., 5.000,00 €', 'polje amount je prazno'),

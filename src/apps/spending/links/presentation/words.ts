@@ -236,7 +236,7 @@ export const en = {
   /** The card of rows filed already that look like a loan's instalments. */
   past: {
     title: (loan: string) => `Past instalments of ${loan}`,
-    rows: (count: number, from: string, to: string): EnglishForms => ({ one: `1 row from ${from} looks like an instalment.`, other: `${count} rows from ${from} to ${to} look like its instalments.` }),
+    rows: (count: number, months: string): EnglishForms => ({ one: `1 row from ${months} looks like an instalment.`, other: `${count} rows, ${months}, look like its instalments.` }),
     note: "Linking splits each into the plan's interest and principal, which counts as no spending.",
     linkAll: (count: number): EnglishForms => ({ one: 'Link it', other: `Link all ${count}` }),
     linked: (count: number): EnglishForms => ({ one: 'Entry linked', other: `${count} entries linked` }),
@@ -457,10 +457,10 @@ export const hr: Translation<typeof en> = {
   },
   past: {
     title: (loan) => `Prošle rate kredita ${loan}`,
-    rows: (count, from, to) => ({
-      one: count === 1 ? `1 redak, ${from}, izgleda kao rata.` : `${count} redak, ${from} – ${to}, izgleda kao njegove rate.`,
-      few: `${count} retka, ${from} – ${to}, izgledaju kao njegove rate.`,
-      other: `${count} redaka, ${from} – ${to}, izgleda kao njegove rate.`,
+    rows: (count, months) => ({
+      one: count === 1 ? `1 redak, ${months}, izgleda kao rata.` : `${count} redak, ${months}, izgleda kao njegove rate.`,
+      few: `${count} retka, ${months}, izgledaju kao njegove rate.`,
+      other: `${count} redaka, ${months}, izgleda kao njegove rate.`,
     }),
     note: 'Povezivanje svaki dijeli na kamate i glavnicu iz plana, koja se ne računa u potrošnju.',
     linkAll: (count) => ({ one: count === 1 ? 'Poveži ga' : `Poveži svih ${count}`, few: `Poveži sva ${count}`, other: `Poveži svih ${count}` }),

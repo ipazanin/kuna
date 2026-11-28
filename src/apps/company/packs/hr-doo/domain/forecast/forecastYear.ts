@@ -13,7 +13,7 @@ import { yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthKey, monthNumber, monthOf, monthsFrom, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthLabel, monthRangeLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, divideMoney, negateMoney, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { moneyAt, percentText } from '../../../../../../shared/money/percent'
@@ -623,7 +623,7 @@ function runwayOf(cash: TracedFigure, costLines: readonly ForecastPlLine[], nonC
   const lastThree = monthsFrom(monthKey(year, 10), monthKey(year, 12))
   const inMonths = (line: ForecastLine) => lastThree.map((month) => monthOfLine(line, month).figure)
   const costs = summed(
-    words.figures.lastQuarterCosts(monthLabel(monthKey(year, 10)), monthLabel(monthKey(year, 12))),
+    words.figures.lastQuarterCosts(monthRangeLabel(monthKey(year, 10), monthKey(year, 12))),
     [
       ...costLines.flatMap((entry) => inMonths(entry.forecast)),
       ...nonCash.flatMap((line) => inMonths(line).map(deducted)),

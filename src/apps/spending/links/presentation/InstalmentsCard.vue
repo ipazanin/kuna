@@ -14,7 +14,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { monthOf } from '../../../../shared/calendar/monthKey'
-import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { language } from '../../../../shared/text/language'
@@ -32,9 +32,9 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
 const count = computed(() => props.card.offers.length)
-const span = computed(() => {
-  const months = props.card.offers.map(({ row }) => monthOf(row.date)).sort()
-  return { from: monthLabel(months[0]!), to: monthLabel(months[months.length - 1]!) }
+const months = computed(() => {
+  const filed = props.card.offers.map(({ row }) => monthOf(row.date)).sort()
+  return monthRangeLabel(filed[0]!, filed[filed.length - 1]!)
 })
 const allShown = ref(false)
 const shown = computed(() => (allShown.value ? props.card.offers : props.card.offers.slice(0, FIRST_SHOWN)))
@@ -59,7 +59,7 @@ async function notNow(): Promise<void> {
 </script>
 
 <template>
-  <AppCard :title="words.past.title(card.loanName)" :subtitle="plural(words.past.rows(count, span.from, span.to), count)" data-testid="spending-review-instalments">
+  <AppCard :title="words.past.title(card.loanName)" :subtitle="plural(words.past.rows(count, months), count)" data-testid="spending-review-instalments">
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <ul class="divide-y divide-default">
         <li v-for="{ row, target } in shown" :key="row.id">

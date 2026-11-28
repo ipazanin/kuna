@@ -12,7 +12,7 @@ import { payerOf } from './taxText'
 import { words } from './words'
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { subtractMoney, ZERO } from '../../../../shared/money/money'
 import { percentText } from '../../../../shared/money/percent'
@@ -72,7 +72,7 @@ const joppdFacts = computed((): Fact[] => {
   const { gains } = props
   const field = (label: string, value: string, caption: string): Fact => ({ label, value, caption, lang: 'hr' })
   const fields = text.joppd.fields
-  const period = text.joppd.period(dayLabel(civilDate(gains.year, 1, 1)), dayLabel(civilDate(gains.year, 12, 31)))
+  const period = dayRangeLabel({ from: civilDate(gains.year, 1, 1), to: civilDate(gains.year, 12, 31) })
   const head = [field(fields.reportMark, gains.reportMark, marks.reading), field(fields.typeAndSubmitter, `${JOPPD_CODES.gainsReportType}, ${JOPPD_CODES.submitter}`, marks.reading)]
   const gainsLine = gains.gainsLine
     ? [

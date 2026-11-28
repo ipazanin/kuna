@@ -273,7 +273,6 @@ export const en = {
       lastSold: 'Last sold',
     },
     days: (count: number): EnglishForms => ({ one: `${count} day`, other: `${count} days` }),
-    span: (from: string, to: string) => `${from} to ${to}`,
   },
   onDay: {
     label: 'On',
@@ -752,7 +751,6 @@ export const hr: Translation<typeof en> = {
       lastSold: 'Zadnja prodaja',
     },
     days: (count) => ({ one: `${count} dan`, few: `${count} dana`, other: `${count} dana` }),
-    span: (from, to) => `${from} – ${to}`,
   },
   onDay: {
     label: 'Na dan',

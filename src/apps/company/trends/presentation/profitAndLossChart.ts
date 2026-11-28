@@ -1,4 +1,4 @@
-import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthAxisLabel, monthLabel, monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import { BAR_END_DOWN, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } from '../../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
@@ -152,7 +152,7 @@ function describe(months: readonly MonthOfProfitAndLoss[], netLine: NetLine): st
   const best = months.reduce((top, month) => (month.lines.net.amount > top.lines.net.amount ? month : top), first)
   const worst = months.reduce((low, month) => (month.lines.net.amount < low.lines.net.amount ? month : low), first)
   const parts = [
-    words.profitAndLoss.span(monthLabel(first.month), monthLabel(last.month), netLine.name.toLowerCase()),
+    words.profitAndLoss.span(monthRangeLabel(first.month, last.month), netLine.name.toLowerCase()),
     words.profitAndLoss.best(monthLabel(best.month), formatMoney(best.lines.net.amount)),
     words.profitAndLoss.weakest(monthLabel(worst.month), formatMoney(worst.lines.net.amount)),
   ]

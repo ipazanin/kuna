@@ -10,7 +10,7 @@ export const en = {
   total: 'All accounts',
   noMonths: 'No months to show.',
   /** The balance chart for a screen reader: which accounts, over which months, and the newest total. */
-  description: (accounts: string, from: string, to: string) => `Month-end balance of ${accounts} from ${from} to ${to}, stacked, with the total as a line. `,
+  description: (accounts: string, months: string) => `Month-end balance of ${accounts}, ${months}, stacked, with the total as a line. `,
   atTheEnd: (month: string, total: string) => `At the end of ${month} the total was ${total}.`,
   soFar: (month: string, total: string) => `So far in ${month} the total was ${total}.`,
 }
@@ -18,7 +18,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   total: 'Svi računi u banci',
   noMonths: 'Nema mjeseci za prikaz.',
-  description: (accounts, from, to) => `Stanje na kraju mjeseca za ${accounts}, ${from} – ${to}, naslagano, s ukupnim stanjem kao crtom. `,
+  description: (accounts, months) => `Stanje na kraju mjeseca za ${accounts}, ${months}, naslagano, s ukupnim stanjem kao crtom. `,
   atTheEnd: (month, total) => `Na kraju ${monthCase(month, 'genitive')} ukupno stanje bilo je ${total}.`,
   soFar: (month, total) => `Dosad u ${monthCase(month, 'locative')} ukupno stanje je ${total}.`,
 }

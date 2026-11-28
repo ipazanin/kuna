@@ -1,7 +1,7 @@
 import { shareOfPercent } from '../../../../../../shared/money/percent'
 import { amountOf } from '../../../../../../shared/money/money'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../../../shared/calendar/dayLabel'
 import { fold } from '../../../../../../shared/text/fold'
 import { listInWords } from '../../../../../../shared/text/listInWords'
 import { ACTS } from '../acts'
@@ -83,16 +83,16 @@ export function appliesByWording(appliesBy: AppliesBy): string {
 export function periodLabel(validFrom: CivilDate, validTo: CivilDate | null): string {
   const fromYear = Number(validFrom.slice(0, 4))
   const startsYear = validFrom.endsWith('-01-01')
-  const { year, onward, twoYears, span } = words.periods
+  const { year, onward, twoYears, years } = words.periods
   if (validTo === null) {
     return onward(startsYear ? year(fromYear) : dayLabel(validFrom))
   }
   const toYear = Number(validTo.slice(0, 4))
   if (startsYear && validTo.endsWith('-12-31')) {
     if (fromYear === toYear) return year(fromYear)
-    return toYear === fromYear + 1 ? twoYears(fromYear, toYear) : span(year(fromYear), year(toYear))
+    return toYear === fromYear + 1 ? twoYears(fromYear, toYear) : years(fromYear, toYear)
   }
-  return span(dayLabel(validFrom), dayLabel(validTo))
+  return dayRangeLabel({ from: validFrom, to: validTo })
 }
 
 const ACRONYMS: Readonly<Record<string, string>> = {

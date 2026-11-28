@@ -260,7 +260,7 @@ describe('the charts over the loans', () => {
     expect([house?.stack, car?.stack]).toEqual(['owed', 'owed'])
     expect(ahead?.data.slice(0, 3)).toEqual([null, null, euros(2621.15)])
     expect(chart.description).toBe(
-      'What House loan and Car loan owe at each month end from Jan 2026 to Jan 2028, stacked by loan. At the end of Mar 2026 it is €2,621.15 in all. By the plans you are free of all debt in Jan 2028.',
+      'What House loan and Car loan owe at each month end, Jan 2026 – Jan 2028, stacked by loan. At the end of Mar 2026 it is €2,621.15 in all. By the plans you are free of all debt in Jan 2028.',
     )
   })
 
@@ -271,7 +271,7 @@ describe('the charts over the loans', () => {
     expect(house?.step).toBe('end')
     expect(ahead?.data.slice(0, 2)).toEqual([null, 0])
     expect(chart.description).toBe(
-      'What you pay of the instalments of House loan and Car loan in each month from Feb 2026 to Jan 2028, stacked by loan. In Mar 2026 it is €162.98. Car loan ends in Jul 2026, and the month after €62.98 goes out.',
+      'What you pay of the instalments of House loan and Car loan in each month, Feb 2026 – Jan 2028, stacked by loan. In Mar 2026 it is €162.98. Car loan ends in Jul 2026, and the month after €62.98 goes out.',
     )
   })
 

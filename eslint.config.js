@@ -322,6 +322,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/support-length', files: ['scripts/support/*.mjs'], rules: { 'max-lines': ['error', { max: 3000, skipBlankLines: false, skipComments: false }] } },
     { name: 'kuna/book-casts', files: ['tests/**/*.ts'], rules: { 'kuna/book-casts': 'error' } },
     { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },
+    { name: 'kuna/date-spans', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/calendar/**'], rules: { 'kuna/date-spans': 'error' } },
     {
       name: 'kuna/typed-words',
       files: ['src/**/words.ts', 'src/**/*Words.ts', 'src/**/assistant/operations/**'],

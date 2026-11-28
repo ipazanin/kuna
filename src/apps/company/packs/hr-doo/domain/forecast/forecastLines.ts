@@ -2,7 +2,7 @@ import type { Category } from '../../../../workbook/domain/workbook'
 import { addMonths, monthCountBetween } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import type { MonthSpan } from '../../../../../../shared/calendar/ledgerWindow'
-import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthLabel, monthRangeLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, divideMoney } from '../../../../../../shared/money/money'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import type { CostLine, IncomeLine } from '../accrual/categoryLines'
@@ -219,9 +219,9 @@ function averageOf(sources: LineSources, span: MonthSpan | null): TracedFigure {
     return tracedFigure(words.lines.noMonthToAverage, ZERO, sources.basis, [])
   }
   const months = Array.from({ length: span.monthCount }, (_, offset) => sources.actual(addMonths(span.from, offset)))
-  const total = summed(words.lines.span(sources.label, monthLabel(span.from), monthLabel(span.to)), months, sources.basis)
+  const total = summed(words.lines.span(sources.label, monthRangeLabel(span.from, span.to)), months, sources.basis)
   if (span.monthCount === 1) {
     return { ...total, label: words.lines.asIn(monthLabel(span.from)) }
   }
-  return tracedFigure(words.lines.averageOf(span.monthCount, monthLabel(span.from), monthLabel(span.to)), divideMoney(total.amount, span.monthCount), sources.basis, total.rules, [total])
+  return tracedFigure(words.lines.averageOf(span.monthCount, monthRangeLabel(span.from, span.to)), divideMoney(total.amount, span.monthCount), sources.basis, total.rules, [total])
 }

@@ -167,7 +167,7 @@ export const en = {
       currencies: 'Currency is',
     },
     not: (test: string) => `Not: ${test}`,
-    dayRange: (from: number, to: number) => `${from}–${to}`,
+    dayRange: (firstNumber: number, lastNumber: number) => `${firstNumber}–${lastNumber}`,
     dialog: {
       addTitle: 'Add a rule',
       editTitle: 'Change the rule',
@@ -415,7 +415,7 @@ export const hr: Translation<typeof en> = {
       currencies: 'Valuta je',
     },
     not: (test) => `Nije: ${test}`,
-    dayRange: (from, to) => `${from}–${to}`,
+    dayRange: (firstNumber, lastNumber) => `${firstNumber}–${lastNumber}`,
     dialog: {
       addTitle: 'Dodaj pravilo',
       editTitle: 'Promijeni pravilo',

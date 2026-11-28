@@ -578,6 +578,39 @@ const typeRoles = {
   },
 }
 
+const DATE_LABELS = new Set(['monthLabel', 'shortMonthLabel', 'dayLabel', 'dayInTextLabel', 'recentDayLabel'])
+const SPAN_DASH = new Set(['–', ' – '])
+const spanMessage = 'Two dates joined by a dash name the year twice. Word a run of months with monthRangeLabel and a run of days with dayRangeLabel or dayRunInText.'
+const isDateLabel = (node) => node.type === 'CallExpression' && node.callee.type === 'Identifier' && DATE_LABELS.has(node.callee.name)
+// A words builder names the ends of a span first and last as often as from and to.
+const isWordedDate = (node) => node.type === 'Identifier' && (DATE_PARAMETER.test(node.name) || /^(?:first|last)$/.test(node.name))
+
+/**
+ * A span of two dates built by hand: two date labels, or two parameters named as worded dates, on either side of an en dash,
+ * in a template or an array joined by one.
+ */
+const dateSpans = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const script = {
+      TemplateLiteral(node) {
+        node.quasis.slice(1, -1).forEach((quasi, index) => {
+          const [before, after] = [node.expressions[index], node.expressions[index + 1]]
+          if (!SPAN_DASH.has(quasi.value.cooked) || before === undefined || after === undefined) return
+          if ((isDateLabel(before) && isDateLabel(after)) || (isWordedDate(before) && isWordedDate(after))) context.report({ node: quasi, message: spanMessage })
+        })
+      },
+      "CallExpression[callee.property.name='join'][callee.object.type='ArrayExpression']"(node) {
+        const [separator] = node.arguments
+        if (separator?.type === 'Literal' && SPAN_DASH.has(separator.value) && node.callee.object.elements.filter((element) => element !== null && isDateLabel(element)).length >= 2) {
+          context.report({ node, message: spanMessage })
+        }
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.({}, script) ?? script
+  },
+}
+
 const reduceCall = 'CallExpression[callee.property.name=/^reduce(?:Right)?$/]'
 const firstElement = 'MemberExpression.expression[computed=true][property.value=0]'
 
@@ -590,6 +623,7 @@ export const kunaPlugin = {
       "Close a context through the session's closeContext from withBrowser in scripts/support/browsers.mjs, so a run whose Chrome dropped its connection records it and goes on with a new browser.",
     ),
     'date-parameters': dateParameters,
+    'date-spans': dateSpans,
     'money-tone-colours': moneyToneColours,
     'picker-min-widths': pickerMinWidths,
     'money-casts': refusedSyntax(

@@ -5,7 +5,7 @@ import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
+import { monthAxisLabel, monthLabel, monthRangeLabel } from '../../../../shared/calendar/monthLabel'
 import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
@@ -127,7 +127,7 @@ export function owedTogetherChart(
     description:
       first === undefined || last === undefined
         ? words.together.noMonths
-        : words.together.owedDescription(names, monthLabel(first.month), monthLabel(last.month)) +
+        : words.together.owedDescription(names, monthRangeLabel(first.month, last.month)) +
           (now === undefined ? '' : words.together.owedNow(monthLabel(now.month), formatMoney(now.total))) +
           (freeOfDebtOn === null ? '' : words.together.debtFreeIn(monthLabel(monthOf(freeOfDebtOn)))),
     hasAhead,
@@ -168,8 +168,7 @@ export function outgoingChart(loans: readonly PlannedLoan[], months: readonly Lo
         ? words.together.noMonths
         : words.together.outgoingDescription(
             loans.map((loan) => loan.loan.name),
-            monthLabel(first.month),
-            monthLabel(last.month),
+            monthRangeLabel(first.month, last.month),
           ) +
           (now === undefined ? '' : words.together.outgoingNow(monthLabel(now.month), formatMoney(now.total))) +
           endings.join(''),

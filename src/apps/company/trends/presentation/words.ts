@@ -14,7 +14,7 @@ export const en = {
   net: 'Net',
   rollingNet3: 'Net, 3-month average',
   profitAndLoss: {
-    span: (from: string, to: string, netLine: string) => `Income and costs by month from ${from} to ${to}, with ${netLine} as a line.`,
+    span: (months: string, netLine: string) => `Income and costs by month, ${months}, with ${netLine} as a line.`,
     best: (month: string, net: string) => `Best month ${month} with a net of ${net}.`,
     weakest: (month: string, net: string) => `Weakest month ${month} with a net of ${net}.`,
     running: (month: string) => `${month} is still running and is not counted in any average.`,
@@ -45,7 +45,7 @@ export const hr: Translation<typeof en> = {
   net: 'Neto',
   rollingNet3: 'Neto, prosjek 3 mjeseca',
   profitAndLoss: {
-    span: (from, to, netLine) => `Prihodi i troškovi po mjesecima, ${from} – ${to}, a crta je ${netLine}.`,
+    span: (months, netLine) => `Prihodi i troškovi po mjesecima, ${months}, a crta je ${netLine}.`,
     best: (month, net) => `Najbolji mjesec je ${month}, s neto iznosom ${net}.`,
     weakest: (month, net) => `Najslabiji mjesec je ${month}, s neto iznosom ${net}.`,
     running: (month) => `${capitalised(month)} još traje i ne ulazi ni u jedan prosjek.`,

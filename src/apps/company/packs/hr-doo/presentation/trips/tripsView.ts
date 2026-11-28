@@ -2,7 +2,7 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import { addDays, parseCivilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import { absMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
@@ -71,7 +71,7 @@ export function tripLabel(trip: Trip): string {
 export function tripDates(trip: Trip): string {
   const from = trip.left?.day ?? trip.departs
   const to: CivilDate = trip.returned?.day ?? addDays(trip.departs, trip.days - 1)
-  return words.dates(dayLabel(from), dayLabel(to))
+  return dayRangeLabel({ from, to })
 }
 
 export function tripStatus(trip: Trip, settlement: TripSettlement): TripStatus {

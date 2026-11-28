@@ -6,7 +6,7 @@ import type { ClosedColumn, ClosedPosition, ClosedSort } from '../domain/closedP
 import { holdingLink } from './holdingLinks'
 import { QUANTITY_PLACES, listingLine } from './holdingText'
 import { words } from './words'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { sumMoney } from '../../../../shared/money/money'
 import { formatMoney, formatPercent, formatQuantity, percentAsShown } from '../../../../shared/money/moneyFormat'
@@ -48,7 +48,7 @@ function days(position: ClosedPosition): string {
 }
 
 function span(position: ClosedPosition): string {
-  return words.closed.span(dayLabel(position.firstBought), dayLabel(position.lastSold))
+  return dayRangeLabel({ from: position.firstBought, to: position.lastSold })
 }
 </script>
 
